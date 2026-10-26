@@ -1,4 +1,18 @@
 {
+  "accept_commit": "aeb258b041428c1f40f8efde0ab965f424bf05ad",
+  "acceptance_history": [
+    {
+      "accept_commit": "aeb258b041428c1f40f8efde0ab965f424bf05ad",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-26T22:32:46.969552+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "a4d7efd986d9e4752ff19bd524da73263082f596"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-26T22:32:46.969552+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "a4d7efd986d9e4752ff19bd524da73263082f596",
   "created_at": "2026-10-26T20:54:02.948515+00:00",
   "flattened": false,
   "friendly_name": "charter list shows org-required ids in force (#6417)",
@@ -11,6 +25,7 @@
   "purpose_context": "A team that requires a rule through its org pack sees it named by charter list, the surface that answers what governs the work, so the listing agrees with doctor charter-packs and the governance in force.",
   "purpose_tldr": "charter list names the org-required governance that is in force, as doctor already does",
   "slug": "charter-list-org-required-in-force-01M5WZVP",
+  "status_phase": "1",
   "target_branch": "issue-6417-charter-list-org-required",
   "topology": "single_branch"
 }

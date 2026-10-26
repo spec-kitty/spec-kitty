@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-26'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -483,15 +483,44 @@ With `--force` the same run reports `"cleared_exclusions": {"deactivated_directi
 
 ### `charter list --json`
 
-Two additions to the existing payload:
+The payload carries `"schema_version": "2"` (#6417). Version 1 had no `schema_version` key.
 
-- every row of `kinds` carries `deactivated`: the kind's exclusions, sorted (`[]` when none),
-  and `null` for `mission-type`, which has no exclusions;
+```json
+{
+  "result": "success",
+  "schema_version": "2",
+  "kinds": [
+    {"kind": "directive", "activated": ["team-rule"], "allow_list_present": false, "available": null, "deactivated": []},
+    {"kind": "tactic", "activated": null, "allow_list_present": false, "available": null, "deactivated": []},
+    {"kind": "mission-type", "activated": ["software-dev"], "allow_list_present": true, "available": null, "deactivated": null}
+  ],
+  "templates": null
+}
+```
+
+- every row of `kinds` carries `allow_list_present`: `true` when the project has its own allow
+  list for the kind (an empty list counts), `false` otherwise;
+- with `allow_list_present: true`, `activated` is that list, sorted;
+- with `allow_list_present: false`, `activated` is the sorted org-required ids in force on the
+  kind, or `null` when there are none. In force means the effective set admits the id over what
+  the built-in, project and org layers provide (`charter.activation.api.required_in_force`): an
+  exclusion does not remove a required id, and a required id no layer provides is not listed
+  (doctor still reports the floor). For a kind whose absent key means "all", every available,
+  non-excluded artifact is in force too; `activated` names only the required ones;
+- every row carries `deactivated`: the kind's exclusions, sorted (`[]` when none), and `null`
+  for `mission-type`, which has no exclusions;
 - a top-level `required_not_in_force` appears when an explicit allow list leaves out an
   org-required id: `{"<plural>": [{"id": "<id>", "packs": ["<pack>"]}]}`. Core keeps such an
-  id out of force; doctor reports it as `REQUIRED_OMITTED_BY_ALLOW_LIST`.
+  id out of force; doctor reports it as `REQUIRED_OMITTED_BY_ALLOW_LIST`. It only concerns rows
+  with `allow_list_present: true`.
 
-The human table gains a *Deactivated* column only when something is deactivated.
+Version 1 consumers that tested `activated is null` for "no allow list" test
+`allow_list_present` instead (OP-CONTRACT-003 change).
+
+In the human table, a kind with no allow list of its own shows
+`(All built-ins — no explicit activation)` followed by one line per in-force org-required id,
+`<id> (required by '<pack>')`. The table gains a *Deactivated* column only when something is
+deactivated.
 
 ### Activation ledger findings in `spec-kitty doctor charter-packs`
 
@@ -548,7 +577,7 @@ with code `NO_PROJECT_ROOT` or `ACTIVATION_LEDGER_MIGRATION_FAILED`, exit 1.
 `DenyListWriteRefused`, `ActiveCharterConfigError`, `deny_delta`, `plan_ledger_migration`,
 `apply_ledger_migration`, `LedgerMigrationPlan`, `LedgerMove`, `LedgerMigrationRefusal`,
 `LedgerMigrationRefused`, `ledger_findings`, `LedgerFinding`, `LedgerFindings`,
-`required_not_in_force` and `RequiredOmission`.
+`required_not_in_force`, `RequiredOmission`, `required_in_force` and `RequiredInForce`.
 
 ---
 

@@ -205,13 +205,17 @@ class TestListJson:
         assert result.exit_code == 0, result.output
         payload = json.loads(result.output)
         assert payload["result"] == "success", payload
+        # #6417: the payload names its contract version (version 1 had no key).
+        assert payload["schema_version"] == "2", payload
         kinds = {row["kind"]: row for row in payload["kinds"]}
         assert set(kinds) == set(CHARTER_KIND_TOKENS)
         for kind in CHARTER_KIND_TOKENS:
             if kind == "mission-type":
                 assert kinds[kind]["activated"] == ["software-dev"], kinds[kind]
+                assert kinds[kind]["allow_list_present"] is True, kinds[kind]
                 continue
             assert kinds[kind]["activated"] is None, kinds[kind]
+            assert kinds[kind]["allow_list_present"] is False, kinds[kind]
 
     def test_json_no_table_markup_leaks(self, empty_project_root: Path) -> None:
         """``--json`` output must be pure JSON -- no Rich table markup."""
@@ -228,6 +232,7 @@ class TestListJson:
         payload = json.loads(result.output)
         kinds = {row["kind"]: row for row in payload["kinds"]}
         assert kinds["directive"]["activated"] == ["python-style-guide"]
+        assert kinds["directive"]["allow_list_present"] is True
 
     def test_json_empty_activation_list_is_empty_list_not_null(
         self, tmp_path: Path
@@ -245,6 +250,8 @@ class TestListJson:
         payload = json.loads(result.output)
         kinds = {row["kind"]: row for row in payload["kinds"]}
         assert kinds["directive"]["activated"] == []
+        # An empty list is still the project's own allow list (#6417).
+        assert kinds["directive"]["allow_list_present"] is True
 
     def test_json_show_available_adds_available_field(
         self, empty_project_root: Path
@@ -283,6 +290,8 @@ class TestListJson:
         for row in payload["kinds"]:
             assert "available" in row, row
             assert row["available"] is None, row
+            # #6417 (OP-CONTRACT-003): allow_list_present is on every row, a bool.
+            assert isinstance(row["allow_list_present"], bool), row
 
     def test_json_all_layers_includes_templates(self, empty_project_root: Path) -> None:
         """``--all --json`` appends the mission-scoped ``templates`` list,

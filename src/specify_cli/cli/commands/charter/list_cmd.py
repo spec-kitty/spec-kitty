@@ -11,7 +11,14 @@ from specify_cli.cli.console import CliConsole
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.activation.api import IdentityIndex, RequiredOmission, load_activation_ledger, required_not_in_force
+from charter.activation.api import (
+    IdentityIndex,
+    RequiredInForce,
+    RequiredOmission,
+    load_activation_ledger,
+    required_in_force,
+    required_not_in_force,
+)
 from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
@@ -53,6 +60,17 @@ _TEMPLATE_KIND = "template"
 
 #: An empty table cell.
 _EMPTY_CELL = "[dim]—[/dim]"
+
+#: The Activated cell of a kind with no allow list of its own.
+_ALL_BUILT_INS_CELL = "[dim](All built-ins — no explicit activation)[/dim]"
+
+#: The Activated cell of a kind whose allow list is present but empty.
+_NOTHING_ACTIVATED_CELL = "[yellow](Nothing activated — explicit restriction)[/yellow]"
+
+#: Version of the ``--json`` payload contract (OP-CONTRACT-003). Version 1 carried no
+#: ``schema_version`` key; version "2" adds it and ``allow_list_present`` on every row,
+#: and an absent-key row's ``activated`` names its in-force org-required ids (#6417).
+_JSON_SCHEMA_VERSION = "2"
 
 
 def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[TierRoot]:
@@ -192,6 +210,26 @@ def _with_required_not_in_force(activated_str: str, omissions: list[RequiredOmis
     return "\n".join([activated_str, *marks]) if marks else activated_str
 
 
+def _required_in_force_by_kind(repo_root: Path) -> dict[str, list[RequiredInForce]]:
+    """Per operator kind token, the org-required ids in force on a kind with no allow list (#6417).
+
+    The ids come from :func:`charter.activation.api.required_in_force` (the
+    effective-set authority over what the layers provide), read leniently like
+    FR-023: a listing never fails because an org pack's required floor is unreadable.
+    """
+    by_kind: dict[str, list[RequiredInForce]] = {}
+    for item in required_in_force(repo_root, strict=False):
+        by_kind.setdefault(item.kind.operator_token, []).append(item)
+    return by_kind
+
+
+def _activated_json(value: frozenset[str] | None, in_force: list[RequiredInForce]) -> list[str] | None:
+    """A row's ``activated``: the allow list, else the in-force required ids, else ``None`` (#6417)."""
+    if value is not None:
+        return sorted(value)
+    return sorted(item.artifact_id for item in in_force) or None
+
+
 class _KindIdentity:
     """Stem <-> declared-id view of one kind, so ``stem (declared_id)`` and activation agree (FR-007).
 
@@ -235,6 +273,23 @@ class _KindIdentity:
         return f"{stem} ({declared})" if declared is not None and declared != stem else stem
 
 
+def _activated_cell(
+    value: frozenset[str] | None,
+    in_force: list[RequiredInForce],
+    omissions: list[RequiredOmission],
+    identity: _KindIdentity,
+) -> str:
+    """The Activated cell of one row: the allow state, the in-force required ids (#6417) and the FR-023 marks."""
+    if value is None:
+        lines = [_ALL_BUILT_INS_CELL, *(f"{identity.label(item.artifact_id)} (required by {item.describe_packs()})" for item in in_force)]
+        cell = "\n".join(lines)
+    elif len(value) == 0:
+        cell = _NOTHING_ACTIVATED_CELL
+    else:
+        cell = ", ".join(identity.label(token) for token in sorted(value))
+    return _with_required_not_in_force(cell, omissions, identity)
+
+
 def _deactivated_cells(identity: _KindIdentity, tokens: list[str] | None, *, show: bool) -> list[str]:
     """The Deactivated column cell of one row (none when the column is hidden)."""
     if not show:
@@ -257,6 +312,52 @@ def _render_available(entries: list[AvailableArtifact], activated: frozenset[str
     if not not_activated:
         return _EMPTY_CELL
     return ", ".join(f"{identity.label(aid, layer)} [dim]({layer})[/dim]" for aid, layer in not_activated)
+
+
+def _available_view(
+    manager: ActiveCharterManager,
+    ctx: ProjectContext,
+    kind: str,
+    activated_set: frozenset[str],
+    identity: _KindIdentity,
+    *,
+    layer_roots: dict[str, Path] | None,
+    org_chain: list[Path],
+    json_output: bool,
+) -> tuple[str, list[Any]]:
+    """The Available cell and the ``available`` JSON value of one row.
+
+    With *layer_roots* (``--all``) the view is layer-aware across the full org
+    chain; without, it is the plain ``--show-available`` list.
+    """
+    if layer_roots is None:
+        available = manager.list_available(ctx, kind)
+        not_activated = sorted(s for s in available if not identity.is_activated(s, activated_set)) if available else []
+        return (", ".join(identity.label(s) for s in not_activated) if not_activated else _EMPTY_CELL), not_activated
+    # CL-006/NFR-002 (post-fix verification sweep, mission
+    # up-mission-type-seam-01KZY1JB): for the ``mission-type``
+    # kind, ``list_available_detailed`` reaches
+    # ``scan_mission_types_dir`` directly (PR-CONTRACT-002) and
+    # loud-fails BY DESIGN on a malformed/unreadable YAML file
+    # anywhere in the built-in/org/project ``mission_types/``
+    # layers -- same underlying primitive as the other CLI
+    # surfaces this mission's grep found, a different direct
+    # caller. A bare ``except ValueError`` also catches
+    # ``pydantic.ValidationError`` (this scan's other documented
+    # ``Raises`` type, see its docstring) since it subclasses
+    # ``ValueError`` in the pinned pydantic version.
+    try:
+        entries = _available_over_chain(manager, ctx, kind, layer_roots, org_chain)
+    except ValueError as exc:
+        _emit_error(console, json_output=json_output, message=str(exc))
+        raise typer.Exit(1) from exc
+    not_activated_entries = sorted(
+        ((e.artifact_id, e.layer) for e in entries if not identity.is_activated(e.artifact_id, activated_set, e.layer)),
+        key=lambda pair: (pair[0], pair[1]),
+    )
+    # FR-007 / #6406: ``declared_id`` rides beside the stem-keyed ``artifact_id``.
+    rows = [{"artifact_id": aid, "layer": layer, "declared_id": identity.declared_id(aid, layer) or aid} for aid, layer in not_activated_entries]
+    return _render_available(entries, activated_set, identity), rows
 
 
 def _render_templates(refs: list[TemplateRef]) -> str:
@@ -288,12 +389,15 @@ def list_cmd(
         False,
         "--json",
         help=(
-            "Output JSON. Every kind row always carries an 'available' key "
-            "and the payload always carries a top-level 'templates' key — "
-            "both are null unless requested (available: null without "
-            "--show-available/--all; templates: null without --all) rather "
-            "than absent, so callers can rely on key presence and branch on "
-            "the value instead of on which flags were passed."
+            "Output JSON (schema_version \"2\"). Every kind row always carries "
+            "'activated', 'allow_list_present' and 'available' keys, and the "
+            "payload always carries a top-level 'templates' key. 'available' "
+            "and 'templates' are null unless requested (available: null "
+            "without --show-available/--all; templates: null without --all) "
+            "rather than absent, so callers can rely on key presence and "
+            "branch on the value instead of on which flags were passed. A row "
+            "with allow_list_present false lists its in-force org-required ids "
+            "in 'activated', or null when there are none."
         ),
     ),
     repo_root: Path = typer.Option(Path("."), hidden=True),
@@ -312,12 +416,19 @@ def list_cmd(
     (``{"result": "error", "success": false, "error": message}``).
 
     Key presence is unconditional (OP-CONTRACT-003): each row in
-    ``payload["kinds"]`` always carries an ``available`` key, and
-    ``payload`` always carries a top-level ``templates`` key. Both are
-    ``null`` — never absent — when the corresponding flag wasn't passed
-    (``available`` needs ``--show-available``/``--all``; ``templates`` needs
-    ``--all``), mirroring the existing ``activated: null`` "not applicable"
-    convention used for the all-built-ins state.
+    ``payload["kinds"]`` always carries ``activated``, ``allow_list_present``
+    and ``available`` keys, and ``payload`` always carries a top-level
+    ``templates`` key and ``schema_version: "2"``. ``available`` and
+    ``templates`` are ``null`` — never absent — when the corresponding flag
+    wasn't passed (``available`` needs ``--show-available``/``--all``;
+    ``templates`` needs ``--all``).
+
+    A kind with no allow list of its own (``allow_list_present: false``) is
+    shown as all built-ins plus the org-required ids in force on it (#6417),
+    read from :func:`charter.activation.api.required_in_force`; its
+    ``activated`` is those ids, sorted, or ``null`` when there are none. An id
+    no layer provides is not claimed in force. A present allow list keeps its
+    own ids and the FR-023 ``required_not_in_force`` marks.
     """
     # --all implies and supersedes --show-available (it is a richer, layer-aware
     # availability view).
@@ -331,6 +442,7 @@ def list_cmd(
         identity_index = IdentityIndex.build(repo_root)
         deactivated_map = _deactivated_by_kind(repo_root)
         required_omitted = _required_not_in_force_by_kind(repo_root)
+        required_in_force_map = _required_in_force_by_kind(repo_root)
         # The column appears only when something is deactivated, so a project
         # without a deny-list keeps its byte-identical table.
         show_deactivated = any(deactivated_map.values())
@@ -355,17 +467,15 @@ def list_cmd(
         for kind in _KIND_ORDER:
             value = activated_map.get(kind)
             identity = _KindIdentity(identity_index, kind)
-            if value is None:
-                activated_str = "[dim](All built-ins — no explicit activation)[/dim]"
-            elif len(value) == 0:
-                activated_str = "[yellow](Nothing activated — explicit restriction)[/yellow]"
-            else:
-                activated_str = ", ".join(identity.label(token) for token in sorted(value))
-            activated_str = _with_required_not_in_force(activated_str, required_omitted.get(kind, []), identity)
+            in_force = required_in_force_map.get(kind, [])
+            activated_str = _activated_cell(value, in_force, required_omitted.get(kind, []), identity)
 
             json_row: dict[str, Any] = {
                 "kind": kind,
-                "activated": sorted(value) if value is not None else None,
+                # #6417: the allow list, else the in-force org-required ids, else null.
+                "activated": _activated_json(value, in_force),
+                # Always present: whether the project has its own allow list for the kind.
+                "allow_list_present": value is not None,
                 # OP-CONTRACT-003: always present, not conditionally absent --
                 # null (not merely unset) when --show-available/--all wasn't
                 # passed, so callers can rely on key presence.
@@ -376,52 +486,9 @@ def list_cmd(
             deactivated_cells = _deactivated_cells(identity, deactivated_map.get(kind), show=show_deactivated)
 
             if show_available:
-                activated_set = value or frozenset()
-                if all_layers:
-                    # CL-006/NFR-002 (post-fix verification sweep, mission
-                    # up-mission-type-seam-01KZY1JB): for the ``mission-type``
-                    # kind, ``list_available_detailed`` reaches
-                    # ``scan_mission_types_dir`` directly (PR-CONTRACT-002) and
-                    # loud-fails BY DESIGN on a malformed/unreadable YAML file
-                    # anywhere in the built-in/org/project ``mission_types/``
-                    # layers -- same underlying primitive as the other CLI
-                    # surfaces this mission's grep found, a different direct
-                    # caller. A bare ``except ValueError`` also catches
-                    # ``pydantic.ValidationError`` (this scan's other documented
-                    # ``Raises`` type, see its docstring) since it subclasses
-                    # ``ValueError`` in the pinned pydantic version.
-                    try:
-                        entries = _available_over_chain(
-                            manager, ctx, kind, layer_roots or {}, org_chain
-                        )
-                    except ValueError as exc:
-                        _emit_error(console, json_output=json_output, message=str(exc))
-                        raise typer.Exit(1) from exc
-                    available_str = _render_available(entries, activated_set, identity)
-                    not_activated_entries = sorted(
-                        (
-                            (e.artifact_id, e.layer)
-                            for e in entries
-                            if not identity.is_activated(e.artifact_id, activated_set, e.layer)
-                        ),
-                        key=lambda pair: (pair[0], pair[1]),
-                    )
-                    # FR-007 / #6406: ``declared_id`` rides beside the stem-keyed ``artifact_id``.
-                    json_row["available"] = [
-                        {
-                            "artifact_id": aid,
-                            "layer": layer,
-                            "declared_id": identity.declared_id(aid, layer) or aid,
-                        }
-                        for aid, layer in not_activated_entries
-                    ]
-                else:
-                    available = manager.list_available(ctx, kind)
-                    not_activated = sorted(s for s in available if not identity.is_activated(s, activated_set)) if available else []
-                    available_str = (
-                        ", ".join(identity.label(s) for s in not_activated) if not_activated else _EMPTY_CELL
-                    )
-                    json_row["available"] = not_activated
+                available_str, json_row["available"] = _available_view(
+                    manager, ctx, kind, value or frozenset(), identity, layer_roots=layer_roots, org_chain=org_chain, json_output=json_output
+                )
                 table.add_row(kind, activated_str, available_str, *deactivated_cells)
             else:
                 table.add_row(kind, activated_str, *deactivated_cells)
@@ -433,6 +500,7 @@ def list_cmd(
         # on key presence.
         payload: dict[str, Any] = {
             "result": "success",
+            "schema_version": _JSON_SCHEMA_VERSION,
             "kinds": json_rows,
             "templates": None,
         }

@@ -37,10 +37,7 @@ _TEAM_RULE = "team-rule"
 _TEAM_PACK_DIR = ".kittify/team-pack"
 _RULE_FILE = "directives/team-rule.directive.yaml"
 _DRIFTED_RULE_FILE = "directive/team-rule.directive.yaml"
-_TEAM_RULE_BODY = (
-    'schema_version: "1.0"\nid: TEAM_RULE\ntitle: Team rule\nscope: docs\n'
-    "intent: >\n  the team-wide default\nenforcement: required\n"
-)
+_TEAM_RULE_BODY = 'schema_version: "1.0"\nid: TEAM_RULE\ntitle: Team rule\nscope: docs\nintent: >\n  the team-wide default\nenforcement: required\n'
 
 
 def _acme_project(root: Path, **ledger: list[str]) -> Path:
@@ -49,9 +46,7 @@ def _acme_project(root: Path, **ledger: list[str]) -> Path:
     pack.mkdir(parents=True)
     (pack / "org-charter.yaml").write_text("schema_version: 1\nrequired_directives: [DIRECTIVE_001]\n", encoding="utf-8")
     (root / ".kittify").mkdir()
-    (root / ".kittify" / "config.yaml").write_text(
-        "charter_packs:\n  org:\n    packs:\n      - name: acme\n        local_path: org-packs/acme\n", encoding="utf-8"
-    )
+    (root / ".kittify" / "config.yaml").write_text("charter_packs:\n  org:\n    packs:\n      - name: acme\n        local_path: org-packs/acme\n", encoding="utf-8")
     seed_activation_ledger(root, mission_type_activations=["software-dev"], **ledger)
     return root
 
@@ -61,8 +56,7 @@ def _team_pack_project(root: Path, rule_file: str) -> Path:
     pack = root / _TEAM_PACK_DIR
     (pack / "drg").mkdir(parents=True)
     (pack / "pack.yaml").write_text(
-        "pack_id: 01M4P01D5TWB5FKZGNNQG3900A\nparent_pack: null\nname: team-pack\npack_level: org\n"
-        "active_charter: org-charter.yaml\npack_drg: drg/fragment.yaml\n",
+        "pack_id: 01M4P01D5TWB5FKZGNNQG3900A\nparent_pack: null\nname: team-pack\npack_level: org\nactive_charter: org-charter.yaml\npack_drg: drg/fragment.yaml\n",
         encoding="utf-8",
     )
     (pack / "org-charter.yaml").write_text("org_name: team\nskill_namespace: team\nrequired_directives:\n  - team-rule\n", encoding="utf-8")
@@ -169,4 +163,27 @@ def test_a_required_rule_no_layer_provides_is_not_claimed_in_force(tmp_path: Pat
     assert _TEAM_RULE not in directive
     row = _row(_payload(root), "directive")
     assert row["activated"] is None
+    assert row["allow_list_present"] is False
+
+
+_TEAM_SKILL_BODY = (
+    'schema_version: "1.0"\nid: team-report\ntitle: Team report\nnamespace: acme\n'
+    "command:\n  summary: Produce the team report\nbody: >\n  Produce the team report.\n"
+)
+
+
+def test_a_required_skill_the_pack_provides_is_named_once_on_the_skill_row(tmp_path: Path) -> None:
+    """FR-007: ``skill`` materialises its floor as the allow state; the row still names it once."""
+    root = _acme_project(tmp_path)
+    pack = root / "org-packs" / "acme"
+    (pack / "org-charter.yaml").write_text("schema_version: 1\nskill_namespace: acme\nrequired_skills: [team-report]\n", encoding="utf-8")
+    (pack / "skills").mkdir()
+    (pack / "skills" / "team-report.skill.yaml").write_text(_TEAM_SKILL_BODY, encoding="utf-8")
+
+    flat = _flat(_list(root))
+    skill_line = flat[flat.index("│ skill ") :]
+    assert skill_line.count("team-report") == 1, skill_line
+    assert "required by 'acme'" in skill_line
+    row = _row(_payload(root), "skill")
+    assert row["activated"] == ["team-report"]
     assert row["allow_list_present"] is False
