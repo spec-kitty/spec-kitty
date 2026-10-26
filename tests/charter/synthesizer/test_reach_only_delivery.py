@@ -11,6 +11,8 @@ Every absence assertion is paired with a positive control on the same fixture
 
 from __future__ import annotations
 
+import logging
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -364,3 +366,143 @@ def test_kept_deactivated_warning_names_the_kind_of_every_skipped_key() -> None:
     warnings = _kept_deactivated({"activated_tactics": ["t1"], "activated_styleguides": ["s1", "s2"]})
 
     assert warnings == ["kept deactivated: tactic t1", "kept deactivated: styleguide s1", "kept deactivated: styleguide s2"]
+
+
+# --- #6454: an unreadable manifest never re-roots a synthesized tactic (record fallback, then fail closed) ---
+
+_REACH_ONLY_LOGGER = "charter.activation.synthesizer.reach_only"
+
+
+def _corrupt_manifest(repo_root: Path) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+
+    (repo_root / MANIFEST_PATH).write_text("artifacts: [\n  {broken\n", encoding="utf-8")
+
+
+def _write_record(repo_root: Path, body: str, *, legacy: bool = False) -> None:
+    from charter.activation.synthesizer.reach_only import _LEGACY_CREATED_TACTICS_PATH, CREATED_ARTIFACTS_PATH
+
+    path = repo_root / (_LEGACY_CREATED_TACTICS_PATH if legacy else CREATED_ARTIFACTS_PATH)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+
+
+def _bundle_tactics(repo_root: Path, *, directives: frozenset[str]) -> frozenset[str]:
+    """Deliver through the real bundle against the overlay already on disk."""
+    with patch("charter.activation._drg_helpers.load_validated_graph", return_value=_merged_graph(with_edge=True)):
+        bundle = _load_action_governance_bundle(
+            repo_root=repo_root,
+            action=_ACTION,
+            effective_depth=2,
+            mission_type=_MISSION_TYPE,
+            pack_context=_pack_context(repo_root, directives=directives, tactics=_EXPLICIT_TACTICS),
+        )
+    return frozenset(bundle.tactic_ids)
+
+
+def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [record.getMessage() for record in caplog.records if record.name == _REACH_ONLY_LOGGER and record.levelno == logging.WARNING]
+
+
+def test_unreadable_manifest_falls_back_to_the_created_record(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    _corrupt_manifest(tmp_path)
+    _write_record(tmp_path, f"created_tactics: [{_REACH_ONLY}, {_EDGELESS_SYNTH}]\ncreated_styleguides: []\n")
+
+    with caplog.at_level(logging.WARNING, logger=_REACH_ONLY_LOGGER):
+        ids = reach_only_ids(tmp_path, "tactic")
+
+    assert ids == frozenset({_REACH_ONLY})
+    warnings = _warnings(caplog)
+    assert len(warnings) == 1
+    assert "synthesis-manifest.yaml" in warnings[0]
+    assert "synthesized-artifacts.yaml" in warnings[0]
+
+
+def test_unreadable_manifest_with_record_does_not_deliver_the_tactic_of_an_inactive_directive(tmp_path: Path) -> None:
+    _write_overlay(tmp_path, with_edge=True)
+    _corrupt_manifest(tmp_path)
+    _write_record(tmp_path, f"created_tactics: [{_REACH_ONLY}]\n")
+
+    off = _bundle_tactics(tmp_path, directives=frozenset())
+    on = _bundle_tactics(tmp_path, directives=_DIRECTIVE_ON)
+
+    assert _REACH_ONLY not in off
+    assert {_CONTROL, _HAND_AUTHORED, _EDGELESS_SYNTH} <= off  # roots stay roots
+    assert _REACH_ONLY in on  # still delivered through its active directive
+
+
+def test_unreadable_manifest_falls_back_to_the_legacy_tactic_record(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    _corrupt_manifest(tmp_path)
+    _write_record(tmp_path, f"created_tactics: [{_REACH_ONLY}]\n", legacy=True)
+
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
+
+
+@pytest.mark.parametrize("record", [None, "created_tactics: not-a-list\n", "created_tactics: [\n  {broken\n"], ids=["absent", "malformed", "unparseable"])
+def test_neither_source_readable_fails_closed_with_a_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture, record: str | None) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True, extra_edges=(_edge_dict(_HAND_AUTHORED, derived=False, directive="DIRECTIVE_010"),))
+    _corrupt_manifest(tmp_path)
+    if record is not None:
+        _write_record(tmp_path, record)
+
+    with caplog.at_level(logging.WARNING, logger=_REACH_ONLY_LOGGER):
+        ids = reach_only_ids(tmp_path, "tactic")
+
+    assert ids == frozenset({_REACH_ONLY})  # every synthesis-edge target; a hand-authored edge never counts
+    warnings = _warnings(caplog)
+    assert len(warnings) == 1
+    assert "synthesis-manifest.yaml" in warnings[0]
+    assert "synthesized-artifacts.yaml" in warnings[0]
+
+
+def test_fail_closed_does_not_deliver_the_tactic_of_an_inactive_directive(tmp_path: Path) -> None:
+    _write_overlay(tmp_path, with_edge=True)
+    _corrupt_manifest(tmp_path)
+
+    off = _bundle_tactics(tmp_path, directives=frozenset())
+    on = _bundle_tactics(tmp_path, directives=_DIRECTIVE_ON)
+
+    assert _REACH_ONLY not in off
+    assert {_CONTROL, _HAND_AUTHORED, _EDGELESS_SYNTH} <= off
+    assert _REACH_ONLY in on
+
+
+def test_fail_closed_keeps_an_org_required_tactic_a_root(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    _corrupt_manifest(tmp_path)
+    with patch("charter.activation.synthesizer.reach_only.read_org_required_ids", return_value=[_REACH_ONLY]):
+        assert reach_only_ids(tmp_path, "tactic") == frozenset()
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})  # control: not org-required
+
+
+def test_absent_manifest_is_unchanged_and_silent(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    (tmp_path / MANIFEST_PATH).unlink()
+
+    with caplog.at_level(logging.WARNING, logger=_REACH_ONLY_LOGGER):
+        assert reach_only_ids(tmp_path, "tactic") == frozenset()
+    assert _warnings(caplog) == []
+
+
+def test_unreadable_manifest_without_a_synthesis_edge_reads_nothing_and_stays_silent(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=False)
+    _corrupt_manifest(tmp_path)
+
+    with caplog.at_level(logging.WARNING, logger=_REACH_ONLY_LOGGER):
+        assert reach_only_ids(tmp_path, "tactic") == frozenset()
+    assert _warnings(caplog) == []

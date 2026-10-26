@@ -530,3 +530,44 @@ def test_created_slugs_by_kind_names_every_reach_only_kind() -> None:
 
     assert created_slugs_by_kind(delta) == {"tactic": ["t1"], "styleguide": ["s1"]}
     assert set(created_slugs_by_kind(None)) == set(REACH_ONLY_KINDS)
+
+
+# --------------------------------------------------------------------------
+# #6454: an unreadable manifest never re-roots a sourced styleguide
+# --------------------------------------------------------------------------
+
+
+def _corrupt_manifest(repo_root: Path) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+
+    (repo_root / MANIFEST_PATH).write_text("artifacts: [\n  {broken\n", encoding="utf-8")
+
+
+@pytest.mark.parametrize("record", ["created_styleguides: [testing-style-guide, python-style-guide]\n", None], ids=["record-fallback", "fail-closed"])
+def test_unreadable_manifest_keeps_the_sourced_styleguide_out_of_the_compiled_roots(tmp_path: Path, record: str | None) -> None:
+    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
+
+    _install_overlay(tmp_path, _overlay())
+    _corrupt_manifest(tmp_path)
+    if record is not None:
+        (tmp_path / CREATED_ARTIFACTS_PATH).write_text(record, encoding="utf-8")
+    roots = _roots(styleguides=[_TESTING_STYLEGUIDE, _LANGUAGE_STYLEGUIDE, _CONTROL], directives=[])
+
+    urns = _direct_root_urns(roots, tmp_path)
+
+    assert f"styleguide:{_TESTING_STYLEGUIDE}" not in urns
+    assert f"styleguide:{_LANGUAGE_STYLEGUIDE}" in urns  # unsourced synthesized styleguide is still rooted
+    assert f"styleguide:{_CONTROL}" in urns  # hand-authored styleguide is still rooted
+
+
+@pytest.mark.parametrize("record", ["created_styleguides: [testing-style-guide]\n", None], ids=["record-fallback", "fail-closed"])
+def test_unreadable_manifest_names_only_the_sourced_styleguide_reach_only(tmp_path: Path, record: str | None) -> None:
+    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH, reach_only_ids
+
+    _install_overlay(tmp_path, _overlay())
+    _corrupt_manifest(tmp_path)
+    if record is not None:
+        (tmp_path / CREATED_ARTIFACTS_PATH).write_text(record, encoding="utf-8")
+
+    assert _TESTING_STYLEGUIDE in reach_only_ids(tmp_path, "styleguide")
+    assert _LANGUAGE_STYLEGUIDE not in reach_only_ids(tmp_path, "styleguide")
