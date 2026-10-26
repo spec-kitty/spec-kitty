@@ -356,3 +356,101 @@ def test_cli_refuses_an_empty_message(tmp_path: Path, monkeypatch: pytest.Monkey
 def test_join_message_paragraphs_drops_empty_values_and_strips() -> None:
     """The one helper case the CLI tests do not reach: blank values vanish, the rest are stripped."""
     assert join_message_paragraphs(["a", "", "  ", "b\n"]) == "a\n\nb"
+
+
+# ---------------------------------------------------------------------------
+# #6649 -- an explicitly named ignored file gets the same outcome alone as in a
+# mixed call; #5393 -- directory expansion keeps a non-ASCII name intact
+# ---------------------------------------------------------------------------
+
+
+def _ignored_dir_repo(repo: Path, branch: str) -> Path:
+    _init_lane_repo(repo, branch=branch)
+    (repo / ".gitignore").write_text("docs-local/\n", encoding="utf-8")
+    _git(repo, "add", ".gitignore")
+    _git(repo, "commit", "-q", "-m", "ignore docs-local")
+    (repo / "docs-local").mkdir()
+    ignored = repo / "docs-local" / "a.md"
+    ignored.write_text("new-a\n", encoding="utf-8")
+    return ignored
+
+
+def _safe_commit_json(branch: str, *paths: str) -> dict[str, object]:
+    result = runner.invoke(
+        cli_app,
+        ["safe-commit", "--to-branch", branch, "--message", "add a", "--json", *paths],
+        catch_exceptions=False,
+    )
+    assert result.exit_code == 0, (result.stdout or "") + (result.stderr or "")
+    payload: dict[str, object] = json.loads(result.stdout)
+    return payload
+
+
+def test_cli_commits_a_lone_explicitly_named_ignored_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6649: the ignored file named on its own was reported success with committed:false."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _ignored_dir_repo(tmp_path, branch)
+    monkeypatch.chdir(tmp_path)
+
+    payload = _safe_commit_json(branch, "docs-local/a.md")
+
+    assert payload["committed"] is True
+    assert _git(tmp_path, "show", "--name-status", "--format=", "HEAD").stdout.split() == ["A", "docs-local/a.md"]
+
+
+def test_cli_commits_a_named_ignored_file_in_a_mixed_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6649 control: the same file named beside a changed tracked file is committed."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _ignored_dir_repo(tmp_path, branch)
+    (tmp_path / "README.md").write_text("# Test Repo\nchanged\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    payload = _safe_commit_json(branch, "docs-local/a.md", "README.md")
+
+    assert payload["committed"] is True
+    assert sorted(_git(tmp_path, "show", "--name-only", "--format=", "HEAD").stdout.split()) == ["README.md", "docs-local/a.md"]
+
+
+def test_cli_still_reports_nothing_committed_for_an_unchanged_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6649 ratchet: counting ignored files does not turn an unchanged tracked file into a candidate."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _init_lane_repo(tmp_path, branch=branch)
+    head_before = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+    monkeypatch.chdir(tmp_path)
+
+    payload = _safe_commit_json(branch, "README.md")
+
+    assert payload["committed"] is False
+    assert _git(tmp_path, "rev-parse", "HEAD").stdout.strip() == head_before
+
+
+def test_cli_ignored_directory_argument_still_expands_to_no_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6649 scope: a directory argument expands to changed, non-ignored files only (documented rule)."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _ignored_dir_repo(tmp_path, branch)
+    monkeypatch.chdir(tmp_path)
+
+    payload = _safe_commit_json(branch, "docs-local")
+
+    assert payload["committed"] is False
+    assert payload["files"] == []
+
+
+def test_cli_directory_expansion_commits_a_non_ascii_file_under_its_real_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5393: ``safe-commit src/`` committed nothing for ``src/café.py`` (Git-quoted path read literally)."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _init_lane_repo(tmp_path, branch=branch)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "café.py").write_text("VALUE = 1\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    payload = _safe_commit_json(branch, "src")
+
+    assert payload["committed"] is True
+    assert payload["files"] == ["src/café.py"]
+    assert _git(tmp_path, "-c", "core.quotepath=false", "ls-tree", "-r", "--name-only", "HEAD", "--", "src").stdout.split() == ["src/café.py"]
