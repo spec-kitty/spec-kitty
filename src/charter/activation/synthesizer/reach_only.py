@@ -11,9 +11,9 @@ created for the first time to an explicit ``activated_<kind>s`` list (an absent 
 stays absent, and synthesis never creates one).
 
 Membership never fails open (#6454): when the manifest exists but cannot be read,
-the created-artifacts record names the synthesized artifacts instead; when neither
-can be read, every overlay artifact of the kind that a synthesis-shaped edge targets
-counts as reach-only. Both cases log a warning. An absent manifest still means
+the created-artifacts record names the synthesized artifacts instead; when the record
+cannot be read either, or lists no artifact of the kind, every overlay artifact of the
+kind that a synthesis-shaped edge targets counts as reach-only. Both cases log a warning. An absent manifest still means
 nothing is synthesized.
 
 An operator's removal sticks (operator ruling, 2026-10-19): every artifact id
@@ -62,7 +62,7 @@ _MANIFEST_FALLBACK_WARNING = (
     "{manifest} is unreadable; synthesized {kind}s linked from a directive were read from {record} instead. Restore the manifest from version control."
 )
 _FAIL_CLOSED_WARNING = (
-    "{manifest} and {record} are both unreadable or absent; every {kind} linked from a directive by synthesis is "
+    "{manifest} is unreadable and {record} is unreadable, absent or lists no {kind}; every {kind} linked from a directive by synthesis is "
     "treated as reach-only and delivered only while its directive is in force. Restore the manifest from version control."
 )
 _UNREADABLE_RECORD_WARNING = (
@@ -128,9 +128,10 @@ def _write_record(repo_root: Path, recorded: Mapping[str, set[str]], foreign: Ma
 def _registered_slugs(repo_root: Path, kind: str) -> frozenset[str]:
     """Bare slugs of *kind* the synthesis manifest registers; empty when absent, raises when unreadable."""
     path = repo_root / MANIFEST_PATH
-    if not path.exists():
-        return frozenset()
     try:
+        # A dangling symlink is unreadable, not absent; exists() itself can raise (EACCES).
+        if not (path.exists() or path.is_symlink()):
+            return frozenset()
         manifest = load_yaml(path)
     except (OSError, ValueError, YAMLError) as exc:
         raise _UnreadableManifestError(path.as_posix()) from exc
@@ -146,18 +147,24 @@ def _manifest_slugs(repo_root: Path, kind: str) -> frozenset[str]:
         return frozenset()
 
 
-def _recorded_slugs(repo_root: Path, kind: str) -> frozenset[str] | None:
-    """Ids of *kind* the created-artifacts record lists; ``None`` when no record for the kind exists or it is unreadable."""
-    paths = [repo_root / CREATED_ARTIFACTS_PATH]
+def _record_paths(kind: str) -> tuple[Path, ...]:
+    """The created-artifact record files that can list *kind*: the record, plus the legacy record for tactics."""
     if kind == ArtifactKind.TACTIC.value:
-        paths.append(repo_root / _LEGACY_CREATED_TACTICS_PATH)
-    if not any(path.exists() for path in paths):
-        return None
+        return (CREATED_ARTIFACTS_PATH, _LEGACY_CREATED_TACTICS_PATH)
+    return (CREATED_ARTIFACTS_PATH,)
+
+
+def _recorded_slugs(repo_root: Path, kind: str) -> frozenset[str] | None:
+    """Ids of *kind* the created-artifact records list; ``None`` when they are unreadable or list none of *kind*.
+
+    An absent record, a record without the kind's key and an empty list all say
+    nothing about what synthesis created, so none of them may narrow membership.
+    """
     try:
         recorded, _ = _read_record(repo_root)
-    except _UnreadableRecordError:
+    except (_UnreadableRecordError, OSError):
         return None
-    return frozenset(recorded[kind])
+    return frozenset(recorded[kind]) or None
 
 
 def _membership(repo_root: Path, kind: str) -> frozenset[str] | None:
@@ -167,7 +174,7 @@ def _membership(repo_root: Path, kind: str) -> frozenset[str] | None:
     except _UnreadableManifestError:
         pass
     recorded = _recorded_slugs(repo_root, kind)
-    names = {"manifest": MANIFEST_PATH.as_posix(), "record": CREATED_ARTIFACTS_PATH.as_posix(), "kind": kind}
+    names = {"manifest": MANIFEST_PATH.as_posix(), "record": " or ".join(path.as_posix() for path in _record_paths(kind)), "kind": kind}
     _LOGGER.warning("%s", (_FAIL_CLOSED_WARNING if recorded is None else _MANIFEST_FALLBACK_WARNING).format(**names))
     return recorded
 
@@ -180,9 +187,9 @@ def reach_only_ids(repo_root: Path, kind: str) -> frozenset[str]:
     Hand-authored edges and org-required artifacts (which stay roots) never count.
 
     Synthesized means registered in the synthesis manifest. When the manifest exists
-    but cannot be read, the created-artifacts record decides; when neither can be
-    read, every edge target counts (fail closed, #6454). Both log a warning. An
-    absent manifest registers nothing.
+    but cannot be read, the created-artifacts record decides; when the record cannot
+    be read either, or lists no artifact of the kind, every edge target counts (fail
+    closed, #6454). Both log a warning. An absent manifest registers nothing.
 
     Reads the project overlay only (not the activation-filtered graph), so the set
     does not change when the owning directive is deactivated. An absent or

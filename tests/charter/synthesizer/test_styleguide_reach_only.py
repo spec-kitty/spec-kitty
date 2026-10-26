@@ -560,8 +560,12 @@ def test_unreadable_manifest_keeps_the_sourced_styleguide_out_of_the_compiled_ro
     assert f"styleguide:{_CONTROL}" in urns  # hand-authored styleguide is still rooted
 
 
-@pytest.mark.parametrize("record", ["created_styleguides: [testing-style-guide]\n", None], ids=["record-fallback", "fail-closed"])
-def test_unreadable_manifest_names_only_the_sourced_styleguide_reach_only(tmp_path: Path, record: str | None) -> None:
+@pytest.mark.parametrize(
+    ("record", "unrecorded_is_reach_only"),
+    [("created_styleguides: [testing-style-guide]\n", False), (None, True)],
+    ids=["record-fallback", "fail-closed"],
+)
+def test_unreadable_manifest_names_only_the_sourced_styleguide_reach_only(tmp_path: Path, record: str | None, unrecorded_is_reach_only: bool) -> None:
     from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH, reach_only_ids
 
     _install_overlay(tmp_path, _overlay())
@@ -569,5 +573,9 @@ def test_unreadable_manifest_names_only_the_sourced_styleguide_reach_only(tmp_pa
     if record is not None:
         (tmp_path / CREATED_ARTIFACTS_PATH).write_text(record, encoding="utf-8")
 
-    assert _TESTING_STYLEGUIDE in reach_only_ids(tmp_path, "styleguide")
-    assert _LANGUAGE_STYLEGUIDE not in reach_only_ids(tmp_path, "styleguide")
+    ids = reach_only_ids(tmp_path, "styleguide")
+
+    assert _TESTING_STYLEGUIDE in ids
+    assert _LANGUAGE_STYLEGUIDE not in ids
+    # Sourced but absent from the record: only failing closed makes it reach-only, so the record is really read.
+    assert ("quality-gates-style-guide" in ids) is unrecorded_is_reach_only

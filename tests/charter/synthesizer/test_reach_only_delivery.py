@@ -12,7 +12,6 @@ Every absence assertion is paired with a positive control on the same fixture
 from __future__ import annotations
 
 import logging
-
 from pathlib import Path
 from unittest.mock import patch
 
@@ -404,21 +403,24 @@ def _warnings(caplog: pytest.LogCaptureFixture) -> list[str]:
     return [record.getMessage() for record in caplog.records if record.name == _REACH_ONLY_LOGGER and record.levelno == logging.WARNING]
 
 
+_UNRECORDED_EDGE = _edge_dict(_HAND_AUTHORED, derived=True)  # synthesis-shaped edge to a tactic no record lists
+
+
 def test_unreadable_manifest_falls_back_to_the_created_record(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     from charter.activation.synthesizer.reach_only import reach_only_ids
 
-    _write_overlay(tmp_path, with_edge=True)
+    _write_overlay(tmp_path, with_edge=True, extra_edges=(_UNRECORDED_EDGE,))
     _corrupt_manifest(tmp_path)
     _write_record(tmp_path, f"created_tactics: [{_REACH_ONLY}, {_EDGELESS_SYNTH}]\ncreated_styleguides: []\n")
 
     with caplog.at_level(logging.WARNING, logger=_REACH_ONLY_LOGGER):
         ids = reach_only_ids(tmp_path, "tactic")
 
-    assert ids == frozenset({_REACH_ONLY})
+    assert ids == frozenset({_REACH_ONLY})  # the unrecorded edge target is excluded: the record, not fail-closed, decided
     warnings = _warnings(caplog)
     assert len(warnings) == 1
     assert "synthesis-manifest.yaml" in warnings[0]
-    assert "synthesized-artifacts.yaml" in warnings[0]
+    assert "were read from .kittify/charter/synthesized-artifacts.yaml or .kittify/charter/synthesized-tactics.yaml" in warnings[0]
 
 
 def test_unreadable_manifest_with_record_does_not_deliver_the_tactic_of_an_inactive_directive(tmp_path: Path) -> None:
@@ -437,14 +439,18 @@ def test_unreadable_manifest_with_record_does_not_deliver_the_tactic_of_an_inact
 def test_unreadable_manifest_falls_back_to_the_legacy_tactic_record(tmp_path: Path) -> None:
     from charter.activation.synthesizer.reach_only import reach_only_ids
 
-    _write_overlay(tmp_path, with_edge=True)
+    _write_overlay(tmp_path, with_edge=True, extra_edges=(_UNRECORDED_EDGE,))
     _corrupt_manifest(tmp_path)
     _write_record(tmp_path, f"created_tactics: [{_REACH_ONLY}]\n", legacy=True)
 
-    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})  # the unrecorded edge target is excluded
 
 
-@pytest.mark.parametrize("record", [None, "created_tactics: not-a-list\n", "created_tactics: [\n  {broken\n"], ids=["absent", "malformed", "unparseable"])
+@pytest.mark.parametrize(
+    "record",
+    [None, "created_tactics: not-a-list\n", "created_tactics: [\n  {broken\n", "{}\n", "created_tactics: []\n", "created_styleguides: [s1]\n"],
+    ids=["absent", "malformed", "unparseable", "empty-mapping", "empty-list", "no-tactic-key"],
+)
 def test_neither_source_readable_fails_closed_with_a_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture, record: str | None) -> None:
     from charter.activation.synthesizer.reach_only import reach_only_ids
 
@@ -459,8 +465,41 @@ def test_neither_source_readable_fails_closed_with_a_warning(tmp_path: Path, cap
     assert ids == frozenset({_REACH_ONLY})  # every synthesis-edge target; a hand-authored edge never counts
     warnings = _warnings(caplog)
     assert len(warnings) == 1
-    assert "synthesis-manifest.yaml" in warnings[0]
+    assert "synthesis-manifest.yaml is unreadable and" in warnings[0]
     assert "synthesized-artifacts.yaml" in warnings[0]
+    assert "treated as reach-only" in warnings[0]
+    assert "were read from" not in warnings[0]
+
+
+def test_dangling_manifest_symlink_is_unreadable_not_absent(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    manifest = tmp_path / MANIFEST_PATH
+    manifest.unlink()
+    manifest.symlink_to(tmp_path / "missing-target.yaml")
+
+    with caplog.at_level(logging.WARNING, logger=_REACH_ONLY_LOGGER):
+        assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
+    assert len(_warnings(caplog)) == 1
+
+
+def test_manifest_stat_error_fails_closed_instead_of_raising(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    manifest = tmp_path / MANIFEST_PATH
+    real_exists = Path.exists
+
+    def _exists(self: Path, *args: object, **kwargs: object) -> bool:
+        if self == manifest:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_exists(self)
+
+    with patch.object(Path, "exists", _exists):
+        assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
 
 
 def test_fail_closed_does_not_deliver_the_tactic_of_an_inactive_directive(tmp_path: Path) -> None:
@@ -506,3 +545,24 @@ def test_unreadable_manifest_without_a_synthesis_edge_reads_nothing_and_stays_si
     with caplog.at_level(logging.WARNING, logger=_REACH_ONLY_LOGGER):
         assert reach_only_ids(tmp_path, "tactic") == frozenset()
     assert _warnings(caplog) == []
+
+
+def test_record_stat_error_fails_closed_instead_of_raising(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH, reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True, extra_edges=(_UNRECORDED_EDGE,))
+    _corrupt_manifest(tmp_path)
+    _write_record(tmp_path, f"created_tactics: [{_REACH_ONLY}]\n")
+    record = tmp_path / CREATED_ARTIFACTS_PATH
+    real_exists = Path.exists
+
+    def _exists(self: Path, *args: object, **kwargs: object) -> bool:
+        if self == record:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_exists(self)
+
+    with patch.object(Path, "exists", _exists), caplog.at_level(logging.WARNING, logger=_REACH_ONLY_LOGGER):
+        ids = reach_only_ids(tmp_path, "tactic")
+
+    assert ids == frozenset({_REACH_ONLY, _HAND_AUTHORED})  # the record could not narrow membership: fail closed
+    assert "treated as reach-only" in _warnings(caplog)[0]
