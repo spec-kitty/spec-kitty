@@ -37,7 +37,7 @@
       "wp": null
     },
     "#6478": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited only in C-002 as a sibling slice's surface to stay off; owed no work by this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,7 +45,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6649": {
