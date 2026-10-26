@@ -1270,13 +1270,16 @@ def _resolve_review_body(
     feedback_source: Path | None,
     body: str | None,
     sub_artifact_dir: Path,
+    body_preamble: str | None = None,
 ) -> str:
     """Return the review-cycle body from exactly one of ``feedback_source`` / ``body``.
 
     A ``feedback_source`` file is validated (exists, is a file, non-empty) and
     then routed through :func:`_guard_feedback_source_provenance`; a
     caller-generated ``body`` bypasses that guard (see
-    :func:`create_rejected_review_cycle`).
+    :func:`create_rejected_review_cycle`). ``body_preamble`` (#6652) is a
+    caller-generated header placed, followed by a blank line, before the
+    validated file content; it is never accepted without a ``feedback_source``.
     """
     if feedback_source is None:
         assert body is not None
@@ -1294,6 +1297,8 @@ def _resolve_review_body(
         feedback_source=feedback_source,
         sub_artifact_dir=sub_artifact_dir,
     )
+    if body_preamble is not None:
+        return f"{body_preamble.rstrip()}\n\n{resolved_body}"
     return resolved_body
 
 
@@ -1340,6 +1345,7 @@ def create_rejected_review_cycle(
     wp_slug: str,
     feedback_source: Path | None = None,
     body: str | None = None,
+    body_preamble: str | None = None,
     reviewer_agent: str = "unknown",
     affected_files: list[dict[str, str]] | None = None,
     verdict: Literal["approved", "rejected"] = "rejected",
@@ -1382,12 +1388,18 @@ def create_rejected_review_cycle(
       on-disk file to path-check either, so the path-identity arm is moot
       for this leg.
 
+    ``body_preamble`` (#6652) goes with ``feedback_source`` only: a
+    caller-generated header (the approval line) written, then a blank line,
+    then the reviewer's file. The file still passes the provenance guard.
+
     ``owned`` is the validated owned checkout, when the command runs against
     one. Every directory, placement ref and evidence path is then derived from
     the fact (``owned.owned_root``), never from ``main_repo_root``.
     """
     if (feedback_source is None) == (body is None):
         raise ReviewCycleError("create_rejected_review_cycle requires exactly one of feedback_source or body")
+    if body_preamble is not None and feedback_source is None:
+        raise ReviewCycleError("create_rejected_review_cycle accepts body_preamble only with feedback_source")
 
     safe_mission_slug = _validate_segment("mission_slug", mission_slug)
     safe_wp_slug = _validate_segment("wp_slug", wp_slug)
@@ -1412,6 +1424,7 @@ def create_rejected_review_cycle(
         feedback_source=feedback_source,
         body=body,
         sub_artifact_dir=sub_artifact_dir,
+        body_preamble=body_preamble,
     )
 
     parsed_affected: list[AffectedFile] = [AffectedFile(path=affected["path"], line_range=affected.get("line_range")) for affected in affected_files or []]

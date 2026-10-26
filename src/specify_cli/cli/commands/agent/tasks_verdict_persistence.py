@@ -69,6 +69,7 @@ call sites above).
 from __future__ import annotations
 
 import re
+import shlex
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -84,6 +85,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
 )
 from specify_cli.review.cycle import (
     CreatedRejectedReviewCycle,
+    ReviewCycleError,
     VerdictPersistenceOutcome,
     _review_cycle_wp_dir,
     create_rejected_review_cycle,
@@ -95,6 +97,7 @@ from specify_cli.review.verdict_commit_queue import (
 )
 from specify_cli.status import (
     FeatureStatusLockTimeoutError,
+    ReviewResultLookup,
     event_sourced_review_result,
     to_artifact_verdict,
 )
@@ -791,23 +794,10 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     """
     if st.request is not None and st.request.is_arbiter_override:
         return None
+    feedback_source = st.resolved_feedback_source
+    if not _approval_cycle_due(event_sourced_review_result(st.feature_dir, st.task_id), feedback_source):
+        return None
     wp_slug = st.wp.path.stem if st.owned is not None and st.wp is not None else _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
-    lookup = event_sourced_review_result(st.feature_dir, st.task_id)
-    # FR-007 (T2 / IC-04): a malformed/damaged event-sourced slot
-    # (``slot_present=True, result=None``) stays a no-op, UNCHANGED — the
-    # reader (``event_sourced_review_result``) already fails closed rather
-    # than fabricate a verdict, and this writer must not paper over that
-    # ambiguity with a synthesized approval write.
-    # A slot cleared by a verdict-less review exit (``cleared_without_verdict``,
-    # #5446) is NOT damage: it falls through like an absent slot and gets its
-    # first-pass approval artifact.
-    if lookup.slot_present and lookup.result is None and not lookup.cleared_without_verdict:
-        return None
-    # :852 idempotency (unchanged, PRESERVED): the current event-sourced
-    # verdict is already something other than a stale rejection (i.e.
-    # already ``approved``) -- never a redundant/duplicate write.
-    if lookup.result is not None and lookup.result.verdict != "changes_requested":
-        return None
     # FR-007 (T2, brownfield gap closed): a genuine first-pass approval —
     # NO prior event-sourced verdict slot at all (``lookup.slot_present``
     # False) — used to be an unconditional no-op here, so a first-pass
@@ -832,7 +822,12 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     # (the same identity this write already attributes the approval to)
     # so a replay of this exact command reproduces the SAME attribution
     # instead of silently falling back to whoever re-runs it.
-    reproduction_command = f"spec-kitty agent tasks move-task {st.task_id} --to approved --mission {st.mission_slug} --agent {reviewer_agent}"
+    # #6654: every interpolated value is shell-quoted, so a reviewer such as
+    # ``Jane Doe (model-x)`` replays as ONE ``--agent`` argument.
+    reproduction_command = shlex.join(
+        ["spec-kitty", "agent", "tasks", "move-task", st.task_id, "--to", "approved", "--mission", st.mission_slug, "--agent", reviewer_agent]
+    )
+    approval_line = f"Approved by {reviewer_agent}: {approval_reference}\n"
 
     # M1 (adversarial squad, PR #3156): the approval body is synthesized
     # by THIS caller, not supplied by a reviewer — pass it via ``body=``
@@ -844,13 +839,21 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     # passed"`` approval synthesizes the SAME deterministic body every
     # time, which used to be indistinguishable from a reviewer replaying
     # a prior cycle's content.
+    #
+    # #6652: a reviewer-supplied ``--review-feedback-file`` IS external
+    # feedback, so it goes through ``feedback_source=`` (and the provenance
+    # guard), with the approval line written first as its preamble. It was
+    # previously validated and then dropped while the result still reported
+    # the verdict durably persisted.
     def _create(commit_router: CoordCommitRouter | None) -> CreatedRejectedReviewCycle:
         return create_rejected_review_cycle(
             main_repo_root=st.main_repo_root,
             mission_slug=st.mission_slug,
             wp_id=st.task_id,
             wp_slug=wp_slug,
-            body=f"Approved by {reviewer_agent}: {approval_reference}\n",
+            feedback_source=feedback_source,
+            body=approval_line if feedback_source is None else None,
+            body_preamble=None if feedback_source is None else approval_line,
             reviewer_agent=reviewer_agent,
             verdict="approved",
             commit_router=commit_router,
@@ -861,6 +864,36 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     durability_signal = _persist_review_cycle_with_queue(st, ports, _create)
     _announce_verdict_durability_gap(st, durability_signal)
     return durability_signal
+
+
+def _approval_cycle_due(lookup: ReviewResultLookup, feedback_source: Path | None) -> bool:
+    """Whether an approval writes a review-cycle record, given the current verdict slot.
+
+    FR-007 (T2 / IC-04): a malformed/damaged event-sourced slot
+    (``slot_present=True, result=None``) writes nothing -- the reader already
+    fails closed rather than fabricate a verdict, and this writer must not
+    paper over that ambiguity. #6652: a reviewer-supplied feedback file is then
+    refused rather than dropped, since nothing would record it. A slot cleared
+    by a verdict-less review exit (``cleared_without_verdict``, #5446) is NOT
+    damage: it is treated like an absent slot and gets its first-pass approval
+    artifact.
+
+    :852 idempotency: a verdict that is already something other than a stale
+    rejection (i.e. already ``approved``) never gets a redundant synthesized
+    stub -- unless the reviewer supplied a feedback file (#6652), which is new
+    content and is recorded in a new cycle.
+    """
+    if lookup.slot_present and lookup.result is None and not lookup.cleared_without_verdict:
+        if feedback_source is not None:
+            raise ReviewCycleError(
+                f"Cannot record review feedback file {feedback_source}: this work package's "
+                "event-sourced review verdict is unreadable, so no approval review-cycle is written. "
+                "Repair the status event log (spec-kitty doctor mission-state) and retry."
+            )
+        return False
+    if lookup.result is not None and lookup.result.verdict != "changes_requested":
+        return feedback_source is not None
+    return True
 
 
 def persist_rejected_review_cycle_for_rollback(st: _MoveTaskState, ports: TasksPorts) -> VerdictDurabilitySignal:
