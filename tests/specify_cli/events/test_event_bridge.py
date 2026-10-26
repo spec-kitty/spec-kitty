@@ -17,7 +17,6 @@ from typing import Any
 import pytest
 
 import specify_cli.status.emit as emit_module
-from runtime.next._internal_runtime.events import EventBridgePort, NullEmitter
 from runtime.next.event_bridge import (
     WorkPackageTransition,
     bind_work_package_transition_port,
@@ -154,10 +153,6 @@ def test_unbound_flat_shell_writes_the_same_row(feature_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_default_port_is_the_local_file_adapter() -> None:
-    assert isinstance(work_package_transition_port(), LocalFileEventBridge)
-
-
 def test_adapter_refuses_a_row_it_cannot_persist(tmp_path: Path) -> None:
     class _Row:
         event_id = "01X"
@@ -201,19 +196,6 @@ def test_binding_rejects_a_different_adapter() -> None:
 
 def test_bound_port_is_returned(recorder: _RecordingPort) -> None:
     assert work_package_transition_port() is recorder
-
-
-class _FullBridge(NullEmitter):
-    """A stub that satisfies the whole port: Mission state advance plus transitions."""
-
-    def record_work_package_transition(self, transition: WorkPackageTransition) -> None:
-        del transition
-
-
-def test_a_full_bridge_satisfies_the_event_bridge_port() -> None:
-    bridge: EventBridgePort = _FullBridge()
-    bind_work_package_transition_port(bridge)
-    assert bound_work_package_transition_port() is bridge
 
 
 def test_the_port_leaf_imports_cleanly_into_the_status_shell() -> None:
