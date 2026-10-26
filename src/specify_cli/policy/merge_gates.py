@@ -499,6 +499,20 @@ def _evaluate_issue_matrix_completeness_gate(
         )
 
 
+def _no_matrix_terminality_pass(reason: str) -> GateResult:
+    """PASS for a Mission with no gating reference and no issue matrix to read (#6653).
+
+    Says what was checked: nothing, because there is no matrix. The
+    all-rows PASS text is kept for a matrix that was actually evaluated.
+    """
+    return GateResult(
+        gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
+        verdict=GateVerdict.PASS,
+        details=f"No gating issue references and no issue matrix{reason} — nothing to enforce",
+        blocking=False,
+    )
+
+
 def _evaluate_issue_matrix_verdict_terminality_gate(
     repo_root: Path, mission_slug: str, is_blocking: bool,
 ) -> GateResult:
@@ -541,6 +555,7 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
     """
     try:
         from mission_runtime import (
+            IssueMatrixRefReadError,
             MissionArtifactKind,
             resolve_artifact_surface,
             resolve_issue_matrix_partition,
@@ -549,28 +564,29 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
         from specify_cli.tasks.issue_matrix_approval import (
             _issue_matrix_approval_blocker,
         )
+        from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
         from specify_cli.status import Lane
         from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
 
-        # #5222 leg 1 (FR-001): same cheap-first discovery order as the
-        # completeness gate's sibling fix above -- never probe the
-        # coordination partition for a mission that references zero gating
-        # issues (see that gate's comment for the failure this closes).
         primary_discovery_dir = resolve_artifact_surface(
             repo_root, mission_slug, MissionArtifactKind.PRIMARY_METADATA
         ).path
+        has_gating_refs = bool(gating_issue_numbers(primary_discovery_dir))
 
-        if not gating_issue_numbers(primary_discovery_dir):
-            return GateResult(
-                gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
-                verdict=GateVerdict.PASS,
-                details="No gating issue references discovered — nothing to enforce",
-                blocking=False,
+        # #6653: with zero gating references an EXISTING matrix is still
+        # evaluated -- its verdicts are the operator's record, and an
+        # ``in-mission`` row must not land. #5222 leg 1 (FR-001) still holds:
+        # a coordination Mission that never authored a matrix at its ref is
+        # "no matrix", not a probe failure. With gating references the read
+        # stays fail-closed (re-raised into this gate's FAIL arm).
+        try:
+            primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
+                repo_root, mission_slug
             )
-
-        primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
-            repo_root, mission_slug
-        )
+        except IssueMatrixRefReadError as exc:
+            if has_gating_refs:
+                raise
+            return _no_matrix_terminality_pass(f" ({exc.code})")
 
         if isinstance(coord_matrix_source, str):
             # Post-consolidation: no on-disk coord dir. ``feature_dir`` is
@@ -597,6 +613,8 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
                 details=blocker_message,
                 blocking=is_blocking,
             )
+        if not has_gating_refs and not issue_matrix_artifact_present(feature_dir_for_blocker, content=matrix_content):
+            return _no_matrix_terminality_pass("")
         return GateResult(
             gate_name=_GATE_NAME_ISSUE_MATRIX_VERDICT_TERMINALITY,
             verdict=GateVerdict.PASS,

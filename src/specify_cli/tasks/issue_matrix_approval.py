@@ -120,11 +120,7 @@ def _issue_matrix_evaluation(
     # work, so they never contribute to "missing" or "unresolved in-mission".
     referenced_issues = {f"#{ref.number}" for ref in refs if is_gating(ref)}
     matrix_issues = _issue_matrix_row_issues(result)
-    unresolved_in_mission = _issue_matrix_in_mission_rows(
-        result,
-        referenced_issues,
-        IssueMatrixVerdict.IN_MISSION,
-    )
+    unresolved_in_mission = _issue_matrix_in_mission_rows(result, IssueMatrixVerdict.IN_MISSION)
     missing_issues = sorted(referenced_issues - matrix_issues)
     return result, referenced_issues, missing_issues, unresolved_in_mission
 
@@ -140,10 +136,17 @@ def _issue_matrix_row_issues(result: IssueMatrixValidationResult) -> set[str]:
 
 def _issue_matrix_in_mission_rows(
     result: IssueMatrixValidationResult,
-    referenced_issues: set[str],
     in_mission_verdict: IssueMatrixVerdict,
 ) -> list[str]:
-    return sorted(row.issue for row in result.rows if row.verdict is in_mission_verdict and row.issue in referenced_issues)
+    """Every row still at ``in-mission``, cited as a gating reference or not (#6653).
+
+    Classification decides whether a row is REQUIRED; once a row exists its
+    verdict decides whether it is RESOLVED. Filtering this set to the
+    discovered gating references let an ``in-mission`` row for an uncited
+    issue (or a one-digit reference the detector skips) survive ``done``
+    while the gate reported no unresolved rows.
+    """
+    return sorted(row.issue for row in result.rows if row.verdict is in_mission_verdict)
 
 
 def _issue_matrix_diagnostic_lines(result: IssueMatrixValidationResult) -> list[str]:
@@ -198,8 +201,12 @@ def _issue_matrix_approval_blocker(
     (:mod:`specify_cli.tasks.issue_reference_discovery`) calls
     ``implementation_target`` ever requires a row at all — a mission that
     references only ``context_only``/``pr_or_commit_ref`` issues needs no
-    issue-matrix artifact, let alone a row, and is never blocked here. Once a
-    row exists, ``not-applicable`` is the mirror image of ``in-mission``: it
+    issue-matrix artifact, let alone a row, and is never blocked for a missing
+    one. Once a row exists, its verdict decides at ``done`` whether or not its
+    issue is a gating reference (#6653): every ``in-mission`` row, and every
+    row the validator rejects, blocks the done transition, including in a
+    mission with no gating reference at all.
+    ``not-applicable`` is the mirror image of ``in-mission``: it
     is non-gating at ``approved`` (nothing special needed — it simply is not
     added to ``unresolved_in_mission``) AND terminal at ``done`` (unlike
     ``in-mission``, it never re-blocks at merge).
@@ -247,7 +254,7 @@ def _issue_matrix_approval_blocker(
     # issue-matrix row or artifact. A mission that references ONLY
     # ``context_only``/``pr_or_commit_ref`` issues needs no matrix at all.
     gating_refs = [ref for ref in refs if is_gating(ref)]
-    if not gating_refs:
+    if not gating_refs and target_lane != Lane.DONE:
         return None
 
     # T043 (C-008 / B-1 fix): presence is a dir-based check
@@ -259,7 +266,13 @@ def _issue_matrix_approval_blocker(
     # ever ran.
     from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
 
-    if not issue_matrix_artifact_present(feature_dir, content=matrix_content):
+    matrix_present = issue_matrix_artifact_present(feature_dir, content=matrix_content)
+    if not gating_refs and not matrix_present:
+        # #6653: at done with no gating reference, an EXISTING matrix is still
+        # evaluated below (its verdicts are the operator's record); with no
+        # matrix there is nothing to enforce.
+        return None
+    if not matrix_present:
         issue_list = ", ".join(f"#{ref.number}" for ref in gating_refs)
         return (
             f"{_issue_matrix_error_prefix(feature_dir)} is required before approval.\n"
