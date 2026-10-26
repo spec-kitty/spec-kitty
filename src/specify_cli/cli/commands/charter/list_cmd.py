@@ -23,6 +23,7 @@ from kernel.errors import KittyInternalConsistencyError
 
 from specify_cli.cli.commands.charter._common import _emit_error
 from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
+from charter.activation.org_pack_discovery import RequiringPack, read_org_required_provenance
 
 __all__ = ["charter_list_app"]
 
@@ -192,6 +193,59 @@ def _with_required_not_in_force(activated_str: str, omissions: list[RequiredOmis
     return "\n".join([activated_str, *marks]) if marks else activated_str
 
 
+#: How the table marks an org-required id an absent allow list leaves in force (#6417).
+_REQUIRED_IN_FORCE = "in force: required by"
+
+#: One kind's org-required floor in force: ``[(stem, requiring packs)]``.
+_InForce = list[tuple[str, tuple[RequiringPack, ...]]]
+
+
+def _required_in_force_by_kind(repo_root: Path, activated_map: dict[str, Any]) -> dict[str, _InForce]:
+    """Per operator kind token, the org-required ids in force because the kind's allow list is absent (#6417).
+
+    An absent ``activated_<kind>`` key leaves the org packs' required floor in force,
+    and no deny-list can remove a required id, so every id of the floor is listed.
+    A present list is :func:`_required_not_in_force_by_kind`'s concern. Read
+    leniently, like that function: ``doctor charter-packs`` reports an unreadable floor.
+    """
+    by_kind: dict[str, _InForce] = {}
+    for kind in _KIND_ORDER:
+        if activated_map.get(kind) is not None:
+            continue
+        try:
+            artifact_kind = ArtifactKind.from_operator_token(kind)
+        except ValueError:  # ``mission-type``
+            continue
+        if not artifact_kind.org_requirable:
+            continue
+        floor = read_org_required_provenance(repo_root, artifact_kind, strict=False)
+        if floor:
+            by_kind[kind] = list(floor.items())
+    return by_kind
+
+
+def _pack_names(packs: tuple[RequiringPack, ...]) -> list[str]:
+    return list(dict.fromkeys(pack.pack for pack in packs))
+
+
+def _required_in_force_json(by_kind: dict[str, _InForce]) -> dict[str, Any]:
+    """The additive ``--json`` key ``required_in_force: {<plural>: [{id, packs}]}``; ``{}`` when nothing is in force."""
+    if not by_kind:
+        return {}
+    return {
+        "required_in_force": {
+            ArtifactKind.from_operator_token(kind).plural: [{"id": stem, "packs": _pack_names(packs)} for stem, packs in items]
+            for kind, items in by_kind.items()
+        }
+    }
+
+
+def _with_required_in_force(activated_str: str, in_force: _InForce, identity: _KindIdentity) -> str:
+    """Append one line per org-required id an absent allow list leaves in force to a kind's Activated cell."""
+    marks = [f"[green]{identity.label(stem)} — {_REQUIRED_IN_FORCE} {', '.join(pack.describe() for pack in packs)}[/green]" for stem, packs in in_force]
+    return "\n".join([activated_str, *marks]) if marks else activated_str
+
+
 class _KindIdentity:
     """Stem <-> declared-id view of one kind, so ``stem (declared_id)`` and activation agree (FR-007).
 
@@ -331,6 +385,7 @@ def list_cmd(
         identity_index = IdentityIndex.build(repo_root)
         deactivated_map = _deactivated_by_kind(repo_root)
         required_omitted = _required_not_in_force_by_kind(repo_root)
+        required_in_force = _required_in_force_by_kind(repo_root, activated_map)
         # The column appears only when something is deactivated, so a project
         # without a deny-list keeps its byte-identical table.
         show_deactivated = any(deactivated_map.values())
@@ -362,6 +417,7 @@ def list_cmd(
             else:
                 activated_str = ", ".join(identity.label(token) for token in sorted(value))
             activated_str = _with_required_not_in_force(activated_str, required_omitted.get(kind, []), identity)
+            activated_str = _with_required_in_force(activated_str, required_in_force.get(kind, []), identity)
 
             json_row: dict[str, Any] = {
                 "kind": kind,
@@ -438,6 +494,8 @@ def list_cmd(
         }
         # FR-023: additive, present only when an explicit allow list omits a required id.
         payload.update(_required_not_in_force_json(required_omitted))
+        # #6417: additive, present only when an absent allow list leaves a required id in force.
+        payload.update(_required_in_force_json(required_in_force))
 
         # FR-025: the template kind is mission-scoped and has no activation list, so
         # it only appears in the layer-aware (--all) availability view.
