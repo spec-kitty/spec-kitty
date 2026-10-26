@@ -246,11 +246,19 @@ def _refuse_unknown_paths(repo_root: Path, arguments: list[Path]) -> None:
 
 
 def _has_candidate_changes(repo_root: Path, files_to_commit: list[Path]) -> bool:
+    """Whether any requested path has something for ``safe_commit`` to stage.
+
+    Ignored entries count (#6649): the helper force-stages every requested path, so a
+    named untracked file under an ignored directory is committed. Without ``--ignored``
+    git reports nothing for it, and a call naming only that file reported success with
+    nothing committed. Directory arguments are already expanded to changed,
+    non-ignored files, so this widens only explicit file arguments.
+    """
     if not files_to_commit:
         return False
     rel_paths = [str(path.relative_to(repo_root)) if path.is_absolute() else str(path) for path in files_to_commit]
     try:
-        return bool(status_entries(repo_root, untracked="all", pathspecs=rel_paths))
+        return bool(status_entries(repo_root, untracked="all", ignored=True, pathspecs=rel_paths))
     except GitCommandError as exc:
         # Guard: "no candidate changes" gates the commit, so a failed probe aborts.
         raise RuntimeError("Unable to inspect requested files before commit.") from exc
