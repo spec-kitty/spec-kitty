@@ -190,7 +190,8 @@ class StepContractExecutor:
         )
         # ``record_root`` pins where the Op records go; an owned checkout passes
         # its own root so a command run from the repository root checkout never
-        # writes there (#6682). Otherwise the invoking checkout holds them.
+        # writes there (#6682). An explicit ``record_root`` wins over the invoking
+        # working directory; otherwise the invoking checkout holds them.
         self._invocation_executor = invocation_executor or ProfileInvocationExecutor(
             repo_root,
             record_root=record_root

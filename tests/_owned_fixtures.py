@@ -152,7 +152,9 @@ class RSnapshotter:
         ``kernel.event_log_append.event_log_lock_path``) are tolerated: every
         locked event-log append (#6606) takes one in the same shared common
         directory, keyed on the log path, so an owned write leaves one behind
-        per log it appended to (#6682).
+        per log it appended to (#6682). That tolerance does not check which
+        log a lock is keyed on; the ``files`` snapshot is what catches a write
+        to an R-side log.
         Every OTHER shape in ``lock_files`` still fails: a second status key,
         a removed key, a changed key, a non-empty lock, or a holder sidecar.
         The last named tolerance is ``home_files`` under
