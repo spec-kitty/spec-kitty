@@ -8,8 +8,9 @@ command. It owns:
   :func:`owned_checkout_option`);
 * the single validation entry point (:func:`resolve_owned_or_adopt`, plus its
   refusal-rendering Typer-edge wrapper :func:`resolve_owned_or_refuse`) and
-  :func:`refuse_owned_action`, which validate ownership exactly once per
-  command invocation (NFR-002);
+  :func:`refuse_owned_action` and :func:`resolve_owned_op_record_root` (the
+  Op commands, which are not bound to a Mission), which validate ownership
+  exactly once per command invocation (NFR-002);
 * typed refusal rendering (:func:`emit_owned_refusal`) and the four envelope
   builders each consuming command needs;
 * the stale-repository-root-copy channel (R-12, R-16): :func:`stale_repository_root_copy`,
@@ -169,6 +170,44 @@ def resolve_owned_or_refuse(
         )
     except ActionContextError as exc:
         emit_owned_refusal(exc, json_output=json_output, envelope=envelope)
+
+
+#: ``--owned-checkout`` help for the Op commands, which are not bound to a Mission.
+OP_RECORD_OWNED_CHECKOUT_HELP: Final[str] = (
+    "Keep this Op's record in an owned checkout: a linked checkout of this repository. Refuses the repository root checkout."
+)
+
+
+def resolve_owned_op_record_root(
+    repository_root: Path,
+    owned_claim: Path | None,
+    *,
+    cwd: Path,
+    json_output: bool,
+) -> Path | None:
+    """Validate ``--owned-checkout`` for an Op command; return the checkout that keeps the record.
+
+    ``dispatch`` and ``profile-invocation complete`` are not bound to a
+    Mission, so only the checkout claim is validated, once, through
+    :func:`resolve_owned_create_root` (the claim check every owned command
+    runs, plus the repository-root refusal); no Mission or topology is read.
+    A refusal prints :func:`flat_error_envelope` through
+    :func:`emit_owned_refusal` and exits 1 before anything is written.
+    Returns ``None`` without the flag, so the caller keeps the #6564
+    invoking-checkout rule (#6682 follow-up).
+    """
+    if owned_claim is None:
+        return None
+    from specify_cli.core.owned_mission import resolve_owned_create_root
+    from specify_cli.core.paths import get_main_repo_root
+
+    root = get_main_repo_root(repository_root).resolve()
+    checkout = owned_claim if owned_claim.is_absolute() else cwd / owned_claim
+    try:
+        validated: Path = resolve_owned_create_root(root, checkout).checkout
+    except ActionContextError as exc:
+        emit_owned_refusal(exc, json_output=json_output, envelope=flat_error_envelope)
+    return validated
 
 
 def refuse_owned_action(
@@ -346,6 +385,7 @@ def echo_stale_copy_warning(owned: OwnedCheckout) -> None:
 
 
 __all__ = [
+    "OP_RECORD_OWNED_CHECKOUT_HELP",
     "OwnedCheckoutOption",
     "echo_stale_copy_warning",
     "emit_owned_refusal",
@@ -353,6 +393,7 @@ __all__ = [
     "json_error_envelope",
     "owned_checkout_option",
     "refuse_owned_action",
+    "resolve_owned_op_record_root",
     "resolve_owned_or_adopt",
     "resolve_owned_or_refuse",
     "result_error_envelope",

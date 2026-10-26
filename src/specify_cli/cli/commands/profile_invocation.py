@@ -8,12 +8,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 import typer
 from rich.markup import escape
 from specify_cli.cli.console import console
 
+from specify_cli.cli.commands._owned_checkout import (
+    OP_RECORD_OWNED_CHECKOUT_HELP,
+    owned_checkout_option,
+    resolve_owned_op_record_root,
+)
 from specify_cli.cli.commands.dispatch import _build_executor
 from specify_cli.cli.op_write_refusal import exit_op_write_refused
 from specify_cli.invocation.errors import (
@@ -136,6 +141,7 @@ def complete_invocation(
         help="Git commit SHA most directly produced by this invocation. Singular.",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
+    owned_checkout: Annotated[Path | None, owned_checkout_option(help=OP_RECORD_OWNED_CHECKOUT_HELP)] = None,
 ) -> None:
     """Close an open invocation record. --invocation-id and --outcome are required.
 
@@ -160,9 +166,11 @@ def complete_invocation(
 
     repo_root = _get_repo_root()
     # #6564: close the Op in the checkout that holds its record (the invoking
-    # one first), and judge admission there. An Op no checkout holds keeps
-    # the executor's own not-found error, so nothing is judged for it.
-    invoking_root = resolve_op_record_root(repo_root)
+    # one first, or the owned checkout under --owned-checkout), and judge
+    # admission there. An Op no checkout holds keeps the executor's own
+    # not-found error, so nothing is judged for it.
+    owned_record_root = resolve_owned_op_record_root(repo_root, owned_checkout, cwd=Path.cwd(), json_output=json_output)
+    invoking_root = owned_record_root if owned_record_root is not None else resolve_op_record_root(repo_root)
     located_root = locate_op_record_root(repo_root, invocation_id, preferred=invoking_root)
     record_root = located_root if located_root is not None else invoking_root
     executor = _build_executor(repo_root, record_root=record_root)

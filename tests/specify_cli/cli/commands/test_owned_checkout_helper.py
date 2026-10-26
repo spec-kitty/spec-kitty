@@ -466,6 +466,44 @@ class TestRefuseOwnedAction:
         assert excinfo.value.code == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
 
 
+class TestResolveOwnedOpRecordRoot:
+    """The Op commands' claim-only validation (#6682 follow-up)."""
+
+    pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+    def test_no_flag_returns_none_without_validating(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
+
+        assert resolve_owned_op_record_root(tmp_path, None, cwd=tmp_path, json_output=True) is None
+
+    def test_relative_claim_resolves_against_cwd(self, owned_checkouts: OwnedCheckouts) -> None:
+        from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
+
+        owned = owned_checkouts.owned_root
+        result = resolve_owned_op_record_root(
+            owned_checkouts.repository_root,
+            Path(owned.name),
+            cwd=owned.parent,
+            json_output=True,
+        )
+        assert result == owned.resolve()
+
+    def test_repository_root_is_refused_on_stderr_in_human_mode(self, owned_checkouts: OwnedCheckouts, capsys: pytest.CaptureFixture[str]) -> None:
+        from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
+
+        with pytest.raises(typer.Exit) as excinfo:
+            resolve_owned_op_record_root(
+                owned_checkouts.repository_root,
+                owned_checkouts.repository_root,
+                cwd=owned_checkouts.repository_root,
+                json_output=False,
+            )
+        assert excinfo.value.exit_code == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT in captured.err
+
+
 class TestEmitOwnedRefusal:
     pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

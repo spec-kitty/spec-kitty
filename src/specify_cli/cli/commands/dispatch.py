@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, Annotated, NoReturn
 
 import typer
 from specify_cli.cli.console import console
@@ -25,6 +25,11 @@ if TYPE_CHECKING:
 # ``build_charter_context`` -> ``ensure_charter_bundle_fresh``).
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 
+from specify_cli.cli.commands._owned_checkout import (
+    OP_RECORD_OWNED_CHECKOUT_HELP,
+    owned_checkout_option,
+    resolve_owned_op_record_root,
+)
 from specify_cli.cli.helpers import exit_git_resolution_failure
 from specify_cli.cli.op_write_refusal import exit_op_write_refused
 from specify_cli.invocation.errors import (
@@ -389,6 +394,7 @@ def dispatch(
         "--dry-run",
         help="Route the request and return the routing signal without opening an Op or writing anything.",
     ),
+    owned_checkout: Annotated[Path | None, owned_checkout_option(help=OP_RECORD_OWNED_CHECKOUT_HELP)] = None,
 ) -> None:
     """Dispatch a request to a governed Op.
 
@@ -399,7 +405,9 @@ def dispatch(
     nothing is submitted to the SaaS propagator.
     """
     repo_root = _get_repo_root()
-    record_root = resolve_op_record_root(repo_root)
+    # An owned checkout keeps the record wherever the command runs from (#6682 follow-up).
+    owned_record_root = resolve_owned_op_record_root(repo_root, owned_checkout, cwd=Path.cwd(), json_output=json_output)
+    record_root = owned_record_root if owned_record_root is not None else resolve_op_record_root(repo_root)
     executor = _build_executor(repo_root, record_root=record_root)
     _dispatch_impl(
         request,
