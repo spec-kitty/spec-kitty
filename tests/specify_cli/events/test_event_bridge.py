@@ -21,7 +21,7 @@ from runtime.next.event_bridge import (
     WorkPackageTransition,
     bind_work_package_transition_port,
     bound_work_package_transition_port,
-    reset_work_package_transition_port,
+    _reset_work_package_transition_port,
 )
 from specify_cli.coordination.status_service import EventLogWriteContract
 from specify_cli.events.event_bridge import LocalFileEventBridge, work_package_transition_port
@@ -59,9 +59,9 @@ class _RecordingPort:
 
 @pytest.fixture(autouse=True)
 def _unbound() -> Iterator[None]:
-    reset_work_package_transition_port()
+    _reset_work_package_transition_port()
     yield
-    reset_work_package_transition_port()
+    _reset_work_package_transition_port()
 
 
 @pytest.fixture(autouse=True)

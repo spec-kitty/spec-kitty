@@ -62,7 +62,6 @@ __all__ = [
     "NextStepAutoCompletedPayload",
     "NextStepIssuedPayload",
     "RuntimeEventEmitter",
-    "EventBridgePort",
     "NullEmitter",
     "seed_runtime_emitter",
     "runtime_emitter_for_mission",
@@ -98,8 +97,11 @@ class RuntimeEventEmitter(Protocol):
     def emit_decision_timeout_expired(self, payload: TimeoutExpiredPayload) -> None: ...
 
 
-class EventBridgePort(RuntimeEventEmitter, WorkPackageTransitionPort, Protocol):
+class _EventBridgePort(RuntimeEventEmitter, WorkPackageTransitionPort, Protocol):
     """The EventBridge port (ADR 2026-10-14-1 D-2), grown from :class:`RuntimeEventEmitter`.
+
+    Private until its first implementer and user (#6675) makes it public:
+    only names another src/ module uses are public here.
 
     It combines the emitter's Mission state advance entry points with the work
     package transition entry point (``runtime.next.event_bridge``). The client

@@ -3,8 +3,8 @@
 ADR 2026-10-14-1 D-2, as amended by ADR 2026-10-22-1: the run loop and the
 lane state machine depend on a port, not on the writer. The port grows
 :class:`~runtime.next._internal_runtime.events.RuntimeEventEmitter` rather
-than duplicating it. ``EventBridgePort``, defined beside that emitter, is the
-emitter's Mission state advance entry points plus the work package transition
+than duplicating it. ``_EventBridgePort``, defined beside that emitter (private
+until #6675 implements it), is the emitter's Mission state advance entry points plus the work package transition
 entry point that this module defines (:class:`WorkPackageTransitionPort`).
 
 This module imports only the standard library, and must keep doing so. The
@@ -43,7 +43,6 @@ __all__ = [
     "WorkPackageTransitionPort",
     "bind_work_package_transition_port",
     "bound_work_package_transition_port",
-    "reset_work_package_transition_port",
 ]
 
 logger = logging.getLogger(__name__)
@@ -119,7 +118,7 @@ def bound_work_package_transition_port() -> WorkPackageTransitionPort | None:
     return _bound_port
 
 
-def reset_work_package_transition_port() -> None:
-    """Unbind the adapter (test-only, mirrors ``reset_runtime_emitter_factory``)."""
+def _reset_work_package_transition_port() -> None:
+    """Unbind the adapter (test-only, mirrors ``reset_runtime_emitter_factory``; private: no src/ caller)."""
     global _bound_port
     _bound_port = None

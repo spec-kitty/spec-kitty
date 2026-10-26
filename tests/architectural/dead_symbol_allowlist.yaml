@@ -117,11 +117,11 @@ categories:
       so future ``_*_doctor.py`` siblings never need a hand entry -- tracked in #3508.'
     requires_issue: false
   category_c_eventbridge_port_seam_6675:
-    rationale: 'C. EventBridge port seam (#6603). ``EventBridgePort`` (the emitter plus the work package transition
-      entry point) and ``bind_work_package_transition_port`` / ``reset_work_package_transition_port`` are the
-      composition-root binding surface the Java write service client plugs into (#6675). Open-core binds no
-      adapter by design (``test_open_core_binds_no_work_package_transition_port``), so they have no src/ caller
-      until #6675 lands; their sibling ``register_runtime_emitter_factory`` is allowlisted for the same reason.
+    rationale: 'C. EventBridge port seam (#6603). ``bind_work_package_transition_port`` is the
+      composition-root binding the Java write service client plugs into (#6675). Open-core binds no
+      adapter by design (``test_open_core_binds_no_work_package_transition_port``), so it has no src/ caller
+      until #6675 lands; its sibling ``register_runtime_emitter_factory`` is allowlisted for the same reason.
+      ``_EventBridgePort`` and ``_reset_work_package_transition_port`` are private until #6675 uses them.
       Burns down when #6675 binds the adapter at the composition root.'
     requires_issue: false
   category_c_branch_naming_failover_seam:
@@ -985,14 +985,8 @@ entries:
 - module: specify_cli.lanes.branch_naming
   name: reset_legacy_failover_warning
   category: category_c_branch_naming_failover_seam
-- module: runtime.next._internal_runtime.events
-  name: EventBridgePort
-  category: category_c_eventbridge_port_seam_6675
 - module: runtime.next.event_bridge
   name: bind_work_package_transition_port
-  category: category_c_eventbridge_port_seam_6675
-- module: runtime.next.event_bridge
-  name: reset_work_package_transition_port
   category: category_c_eventbridge_port_seam_6675
 - module: specify_cli.cli.commands.consolidate
   name: BaselineMergeCommitError
