@@ -24,6 +24,18 @@
       "verdict": "verified-already-fixed",
       "wp": "WP03"
     },
+    "#5678": {
+      "evidence_ref": "Example issue number in the WP02 test-fixture description; not a real reference",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6417": {
       "evidence_ref": "Cited only in C-002 as a sibling slice's surface to stay off; owed no work by this Mission",
       "fr": null,
