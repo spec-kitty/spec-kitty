@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from kernel.clock import now_utc_iso
-from kernel.event_log_append import EventLogSymlinkError, EventLogTornTailError, append_event_log_lines
+from kernel.event_log_append import EventLogSymlinkError, EventLogTornTailError, append_event_log_lines, event_log_lock
 from kernel.resolution import resolve_rejecting_loops
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.invocation.errors import AlreadyClosedError, InvocationError, InvocationWriteError, LegacyRecordError
@@ -122,8 +122,9 @@ class InvocationWriter:
     """Append-only JSONL writer for per-invocation audit trail files.
 
     Append-only invariant:
-    - ``write_started`` uses exclusive-create mode (``"x"``) — raises on ULID collision.
-    - ``write_completed`` uses append mode (``"a"``).
+    - ``write_started`` uses exclusive-create mode (``"x"``) under the
+      ``kitty-ops`` family lock — raises on ULID collision.
+    - ``write_completed`` appends under the same lock (``kernel.event_log_append``).
     - No existing line is ever mutated.
     - The already-closed check prevents double-completion without mutating records.
     """
@@ -242,8 +243,10 @@ class InvocationWriter:
         try:
             # Use "x" mode (exclusive create) to detect ULID collision (extremely rare).
             # Optional fields (router_confidence, mission_id, wp_id, model_id)
-            # are omitted when None.
-            with path.open("x", encoding="utf-8") as f:
+            # are omitted when None. The create runs under the trail family's
+            # interim lock, so a concurrent append never sees the empty file.
+            # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
+            with event_log_lock(self._dir), path.open("x", encoding="utf-8") as f:
                 f.write(record.to_jsonl_line() + "\n")
         except FileExistsError:
             raise InvocationWriteError(

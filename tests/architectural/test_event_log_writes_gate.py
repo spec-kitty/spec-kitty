@@ -145,6 +145,7 @@ EXPECTED_DOOR_CALLERS: Mapping[tuple[str, str, str], int] = MappingProxyType(
         ("specify_cli.invocation.propagator", "_log_propagation_error", _LOCKED): 1,  # kitty-ops/propagation-errors.jsonl
         ("specify_cli.invocation.writer", "InvocationWriter._append_line_no_follow", _LOCKED): 1,  # Op index and closure spine
         ("specify_cli.invocation.writer", "InvocationWriter._append_validated", _LOCKED): 1,  # per-Op trails (family lock)
+        ("specify_cli.invocation.writer", "InvocationWriter.write_started", "event_log_lock"): 1,  # per-Op trail create (family lock)
         ("specify_cli.mission_v1.events", "_write_event", _LOCKED): 1,  # mission-events.jsonl
         ("specify_cli.missions._archive", "append_archive_record", _LOCKED): 1,  # archived-missions.jsonl
         ("specify_cli.policy.audit", "append_audit_event", _LOCKED): 1,  # policy-audit.jsonl
@@ -164,8 +165,8 @@ EXPECTED_RAW_LOG_WRITERS: Mapping[tuple[str, str, str], str] = MappingProxyType(
         ),
         ("specify_cli.invocation.writer", "InvocationWriter.write_started", "other .jsonl"): (
             "exclusive create (mode 'x') of a new per-Op trail `kitty-ops/<op>.jsonl`; refuses an existing file, so it "
-            "never appends to one. It writes outside the lock: a concurrent append can see the file before the started "
-            "row lands and refuse it (no started event, or a torn tail), a window that predates #6606"
+            "never appends to one. It writes under the `kitty-ops` family lock (`event_log_lock`, the trail appends' "
+            "anchor), so a concurrent append never sees the file before the started row lands"
         ),
     }
 )
