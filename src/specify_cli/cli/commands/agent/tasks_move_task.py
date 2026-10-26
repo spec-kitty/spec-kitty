@@ -119,6 +119,7 @@ from specify_cli.core.owned_mission import require_unstaged_index
 from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files_checked
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review.cycle import (
+    ReviewCycleError,
     synthetic_auto_approval_ref,
 )
 from specify_cli.status import (
@@ -664,7 +665,10 @@ def _mt_resolve_feedback(st: _MoveTaskState) -> tuple[str | None, bool, bool, st
     if exists and is_file:
         st.resolved_feedback_source = candidate
         if is_review_rejection_edge(str(st.old_lane), str(st.target_lane)):
-            content = candidate.read_text(encoding="utf-8").strip()
+            try:
+                content = candidate.read_text(encoding="utf-8").strip()
+            except UnicodeDecodeError as exc:
+                raise ReviewCycleError(f"Review feedback file is not readable UTF-8 text: {candidate} ({exc})") from exc
     return source_str, exists, is_file, content
 
 

@@ -475,3 +475,30 @@ def test_first_pass_approval_records_feedback_file_and_approval_ref(
     assert "Approved by" in text
     assert ": PR-42" in text
     assert "DISTINCTIVE-FIRST-PASS-FEEDBACK" in text
+
+
+def test_approval_with_non_utf8_feedback_file_is_refused_not_crashed(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A latin-1 ``--review-feedback-file`` on approval is a clean refusal.
+
+    It exits 1 with a message naming the encoding problem, not a raw codec
+    traceback, and writes no review-cycle record.
+    """
+    feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, _WP_ID)
+    _init_repo(tmp_path)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed non-utf8 fixture"], cwd=tmp_path, check=True, capture_output=True)
+    ports = _fake_ports(feature_dir)
+    _seed_lanes_json(feature_dir, _MISSION, _WP_ID)
+    feedback = tmp_path / "latin1.md"
+    feedback.write_bytes(b"caf\xe9\n")
+
+    _seed_wp_event(feature_dir, _WP_ID, "in_review")
+    with pytest.raises(typer.Exit) as exc_info:
+        _run_move(tmp_path, to="approved", ports=ports, note="Review passed", review_feedback_file=feedback)
+
+    assert exc_info.value.exit_code == 1
+    assert "not readable UTF-8 text" in capsys.readouterr().out
+    assert not list((feature_dir / "tasks" / wp_file.stem).glob("review-cycle-*.md"))

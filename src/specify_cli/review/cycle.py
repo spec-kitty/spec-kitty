@@ -1289,7 +1289,10 @@ def _resolve_review_body(
         raise ReviewCycleError(f"Review feedback file not found: {feedback_source}")
     if not feedback_source.is_file():
         raise ReviewCycleError(f"Review feedback path is not a file: {feedback_source}")
-    resolved_body = feedback_source.read_text(encoding="utf-8")
+    try:
+        resolved_body = feedback_source.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ReviewCycleError(f"Review feedback file is not readable UTF-8 text: {feedback_source} ({exc})") from exc
     if not resolved_body.strip():
         raise ReviewCycleError(f"Review feedback file is empty: {feedback_source}")
     _guard_feedback_source_provenance(

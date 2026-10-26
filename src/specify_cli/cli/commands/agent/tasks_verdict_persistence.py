@@ -785,8 +785,8 @@ def _approval_feedback_source(st: _MoveTaskState) -> Path | None:
         return None
     try:
         has_content = bool(source.read_text(encoding="utf-8").strip())
-    except OSError:
-        # Unreadable: let the guarded writer raise its own typed error.
+    except (OSError, UnicodeDecodeError):
+        # Unreadable or not UTF-8: let the guarded writer raise its own typed error.
         return source
     if has_content:
         return source
