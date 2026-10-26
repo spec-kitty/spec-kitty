@@ -12,5 +12,7 @@
   "purpose_tldr": "Approvals, the issue-matrix terminality gate and safe-commit stop reporting outcomes that did not happen.",
   "slug": "truthful-verdicts-and-gates-01M5WZCP",
   "target_branch": "issue-6652-verdict-gate-truthfulness",
-  "topology": "lanes"
+  "topology": "lanes",
+  "contracts": "none",
+  "contracts_rationale": "Defect fixes to existing CLI behaviour; no new interface, payload or endpoint is introduced."
 }
