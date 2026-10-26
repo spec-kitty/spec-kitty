@@ -43,6 +43,9 @@
       "last_event_id": "01M5X22X86REHDW8VZDGZHYM7Q",
       "last_transition_at": "2026-10-26T21:32:55.430786+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first CLI tests + ignored=True pre-check; 60 safe-commit tests pass"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 2987,

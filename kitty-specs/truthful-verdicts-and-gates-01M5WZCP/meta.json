@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "Defect fixes to existing CLI behaviour; no new interface, payload or endpoint is introduced.",
   "created_at": "2026-10-26T20:45:52.587645+00:00",
   "flattened": false,
   "friendly_name": "Truthful verdicts and gates",
@@ -13,6 +15,6 @@
   "slug": "truthful-verdicts-and-gates-01M5WZCP",
   "target_branch": "issue-6652-verdict-gate-truthfulness",
   "topology": "lanes",
-  "contracts": "none",
-  "contracts_rationale": "Defect fixes to existing CLI behaviour; no new interface, payload or endpoint is introduced."
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-26T21:20:22.573963+00:00"
 }
