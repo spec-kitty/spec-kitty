@@ -13,5 +13,7 @@
   "purpose_tldr": "At done, every in-mission issue-matrix row blocks, and a PASS only describes rows it judged (#6653)",
   "slug": "issue-matrix-terminality-all-rows-01M5X1ZJ",
   "target_branch": "issue-6653-terminality-all-rows",
-  "topology": "coord"
+  "topology": "coord",
+  "contracts": "none",
+  "contracts_rationale": "Internal gate behaviour change; no CLI flag, schema, or wire contract is added or changed."
 }
