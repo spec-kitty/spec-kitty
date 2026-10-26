@@ -255,6 +255,8 @@ def _run_move(
     ports: TasksPorts,
     note: str | None = None,
     review_feedback_file: Path | None = None,
+    approval_ref: str | None = None,
+    done_override_reason: str | None = None,
 ) -> None:
     with setup_mocked_env(
         tmp_path,
@@ -275,12 +277,12 @@ def _run_move(
                 shell_pid=None,
                 note=note,
                 review_feedback_file=review_feedback_file,
-                approval_ref=None,
+                approval_ref=approval_ref,
                 reviewer=None,
                 self_review_fallback=False,
                 intended_reviewer=None,
                 reviewer_failure_reason=None,
-                done_override_reason=None,
+                done_override_reason=done_override_reason,
                 force=False,
                 tracker_ref=None,
                 skip_review_artifact_check=False,
@@ -380,8 +382,9 @@ def test_approval_with_real_feedback_file_records_its_content(
     tmp_path: Path,
 ) -> None:
     """#6652: ``--review-feedback-file`` on an approval lands in the committed
-    approval cycle, and a byte-identical file on a later approval (the M1 shape,
-    with a reviewer-supplied file instead of a synthesized body) still succeeds.
+    approval cycle. A second approval with the same file yields a byte-identical
+    record, so it adopts cycle 2 (the M1 idempotence contract) instead of
+    allocating cycle 4.
     """
     feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, _WP_ID)
     _init_repo(tmp_path)
@@ -417,6 +420,10 @@ def test_approval_with_real_feedback_file_records_its_content(
             review_feedback_file=approval_feedback,
         )
 
+    # The second approval's record is byte-identical to cycle 2, so it adopts
+    # that committed record (the retained-record idempotence contract the M1
+    # test above pins) rather than allocating cycle 4.
+    assert not (wp_dir / "review-cycle-4.md").exists()
     approval_cycle = wp_dir / "review-cycle-2.md"
     text = approval_cycle.read_text(encoding="utf-8")
     assert "Approved by" in text
@@ -429,3 +436,42 @@ def test_approval_with_real_feedback_file_records_its_content(
         text=True,
     ).stdout
     assert "DISTINCTIVE-APPROVAL-FEEDBACK-LINE" in committed
+
+
+@pytest.mark.parametrize("target", ["approved", "done"])
+def test_first_pass_approval_records_feedback_file_and_approval_ref(
+    tmp_path: Path,
+    target: str,
+) -> None:
+    """#6652 through the real ``_do_move_task``: ``in_review -> approved`` and
+    ``in_review -> done`` both write a new approval record that holds the
+    ``--approval-ref`` line and the file's content."""
+    feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, _WP_ID)
+    _init_repo(tmp_path)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "seed first-pass approval fixture"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
+    ports = _fake_ports(feature_dir)
+    _seed_lanes_json(feature_dir, _MISSION, _WP_ID)
+    feedback = tmp_path / "approval-feedback.md"
+    feedback.write_text("DISTINCTIVE-FIRST-PASS-FEEDBACK\n", encoding="utf-8")
+
+    _seed_wp_event(feature_dir, _WP_ID, "in_review")
+    _run_move(
+        tmp_path,
+        to=target,
+        ports=ports,
+        note="Review passed",
+        review_feedback_file=feedback,
+        approval_ref="PR-42",
+        done_override_reason="no lane branch in this fixture" if target == "done" else None,
+    )
+
+    text = (feature_dir / "tasks" / wp_file.stem / "review-cycle-1.md").read_text(encoding="utf-8")
+    assert "Approved by" in text
+    assert ": PR-42" in text
+    assert "DISTINCTIVE-FIRST-PASS-FEEDBACK" in text

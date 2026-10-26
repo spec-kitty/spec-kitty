@@ -612,11 +612,13 @@ def test_persist_approved_review_cycle_writes_first_pass_when_no_prior_cycle(
     assert "--to approved" in call_kwargs["reproduction_command"]
 
 
+@pytest.mark.parametrize("reviewer", ["Jane Doe (model-x)", "O'Brien $(whoami) \"q\""])
 def test_persist_approved_review_cycle_quotes_reviewer_in_reproduction_command(
     tmp_path: Path,
+    reviewer: str,
 ) -> None:
     """#6654: a multi-word reviewer with shell metacharacters must replay as ONE ``--agent`` argument."""
-    st = _make_state(to="approved", reviewer="Jane Doe (model-x)")
+    st = _make_state(to="approved", reviewer=reviewer)
     st.main_repo_root = tmp_path
     st.mission_slug = "034-feature"
     st.task_id = "WP01"
@@ -640,7 +642,7 @@ def test_persist_approved_review_cycle_quotes_reviewer_in_reproduction_command(
         "--mission",
         "034-feature",
         "--agent",
-        "Jane Doe (model-x)",
+        reviewer,
     ]
 
 
@@ -1290,3 +1292,59 @@ def test_persist_approved_review_cycle_noop_without_feedback_file_is_silent(
     ):
         tasks_verdict_persistence._persist_approved_review_cycle(st, MagicMock())
     assert capsys.readouterr().err == ""
+
+
+@pytest.mark.parametrize(
+    ("lookup", "arbiter", "reason"),
+    [
+        (ReviewResultLookup(slot_present=False, result=None), True, "arbiter override"),
+        (ReviewResultLookup(slot_present=True, result=None), False, "could not be read"),
+    ],
+)
+def test_persist_approved_review_cycle_warns_on_other_skip_paths(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    lookup: ReviewResultLookup,
+    arbiter: bool,
+    reason: str,
+) -> None:
+    feedback = tmp_path / "approval-feedback.md"
+    feedback.write_text("feedback\n", encoding="utf-8")
+    st = _make_state(to="approved")
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.task_id = "WP01"
+    st.resolved_feedback_source = feedback
+    st.request = cast(Any, SimpleNamespace(is_arbiter_override=arbiter))
+    with (
+        patch(f"{_VERDICT_SEAM}.event_sourced_review_result", return_value=lookup),
+        patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
+    ):
+        assert tasks_verdict_persistence._persist_approved_review_cycle(st, MagicMock()) is None
+    create_mock.assert_not_called()
+    assert reason in capsys.readouterr().err
+
+
+def test_persist_approved_review_cycle_empty_feedback_file_keeps_synthesized_body(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An empty file is warned about and the approval still records its synthesized body."""
+    feedback = tmp_path / "empty.md"
+    feedback.write_text(" \n", encoding="utf-8")
+    st = _make_state(to="approved", reviewer="reviewer")
+    st.main_repo_root = tmp_path
+    st.mission_slug = "034-feature"
+    st.task_id = "WP01"
+    st.resolved_feedback_source = feedback
+    with (
+        patch(
+            f"{_VERDICT_SEAM}.event_sourced_review_result",
+            return_value=ReviewResultLookup(slot_present=False, result=None),
+        ),
+        patch(f"{_VERDICT_SEAM}.create_rejected_review_cycle") as create_mock,
+    ):
+        tasks_verdict_persistence._persist_approved_review_cycle(st, MagicMock())
+    call_kwargs = create_mock.call_args.kwargs
+    assert call_kwargs["feedback_source"] is None
+    assert call_kwargs["body"] == "Approved by reviewer: approval:WP01\n"
+    assert "the file is empty" in capsys.readouterr().err

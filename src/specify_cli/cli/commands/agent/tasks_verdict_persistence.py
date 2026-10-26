@@ -769,9 +769,29 @@ def _warn_feedback_file_not_recorded(st: _MoveTaskState, reason: str) -> None:
     import typer
 
     typer.echo(
-        f"Warning: --review-feedback-file {st.resolved_feedback_source} was not recorded for {st.task_id}: {reason}. No new review-cycle record was written.",
+        f"Warning: --review-feedback-file {st.resolved_feedback_source} was not recorded for {st.task_id}: {reason}.",
         err=True,
     )
+
+
+def _approval_feedback_source(st: _MoveTaskState) -> Path | None:
+    """The supplied feedback file to record on approval, or ``None`` when there is nothing to record.
+
+    An empty file is warned about and the synthesized approval body is kept,
+    as on the paths that write no record; it never fails the move mid-way.
+    """
+    source: Path | None = st.resolved_feedback_source
+    if source is None:
+        return None
+    try:
+        has_content = bool(source.read_text(encoding="utf-8").strip())
+    except OSError:
+        # Unreadable: let the guarded writer raise its own typed error.
+        return source
+    if has_content:
+        return source
+    _warn_feedback_file_not_recorded(st, "the file is empty")
+    return None
 
 
 def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> VerdictDurabilitySignal | None:
@@ -880,7 +900,7 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     # rejection path does) instead of being dropped; the synthesized line
     # rides along as ``body_header`` so the approval reference stays in the
     # record.
-    feedback_source = st.resolved_feedback_source
+    feedback_source = _approval_feedback_source(st)
 
     def _create(commit_router: CoordCommitRouter | None) -> CreatedRejectedReviewCycle:
         return create_rejected_review_cycle(
