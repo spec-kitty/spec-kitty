@@ -241,7 +241,7 @@
       "wp": "WP01"
     },
     "#6653": {
-      "evidence_ref": "WP02 (lane b)",
+      "evidence_ref": "WP02 lane b: ac698d99 (red test), 2d25e113 (fix), f27e571 (unread-matrix follow-up)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -249,7 +249,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#6654": {
