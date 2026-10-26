@@ -471,3 +471,13 @@ def test_absent_manifest_still_reads_as_nothing_synthesized(tmp_path: Path) -> N
     (tmp_path / MANIFEST_PATH).unlink()
 
     assert reach_only_ids(tmp_path, "tactic") == frozenset()
+
+
+def test_unreadable_manifest_is_not_consulted_without_a_synthesized_edge(tmp_path: Path) -> None:
+    """No overlay edge can make anything reach-only, so a corrupt manifest refuses nothing."""
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=False)
+    _corrupt_manifest(tmp_path)
+
+    assert reach_only_ids(tmp_path, "tactic") == frozenset()

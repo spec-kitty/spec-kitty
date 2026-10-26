@@ -9,6 +9,7 @@ import typer
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.packs import RetiredPackFieldError
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
+from kernel.errors import KittyInternalConsistencyError
 
 from specify_cli.cli.helpers import git_resolution_failure_message
 from specify_cli.task_utils import TaskCliError
@@ -237,6 +238,11 @@ def context(
             json_output=json_output,
             message=git_resolution_failure_message(e, e.path),
         )
+        raise typer.Exit(code=1) from e
+    except KittyInternalConsistencyError as e:
+        # #6454: a coded invariant violation (e.g. SYNTHESIS_MEMBERSHIP_UNREADABLE)
+        # refuses with its body and remedy; ``str(e)`` is only the code.
+        _emit_error(console, json_output=json_output, message=e.body, code=e.code)
         raise typer.Exit(code=1) from e
     except Exception as e:
         _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
