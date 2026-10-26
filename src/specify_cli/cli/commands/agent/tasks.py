@@ -781,7 +781,7 @@ def move_task(
                 "Recorded as the transition's on-wire review_ref rationale; omitting "
                 "it makes the status event contract-invalid. On --to approved/done its "
                 "content is recorded when the move writes a new approval review-cycle "
-                "record; otherwise a warning says it was not recorded."
+                "record; otherwise a warning on stderr says it was not recorded (JSON stdout is unchanged)."
             ),
         ),
     ] = None,

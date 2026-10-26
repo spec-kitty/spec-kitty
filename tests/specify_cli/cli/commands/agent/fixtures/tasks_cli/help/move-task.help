@@ -34,7 +34,7 @@ Options
 --assignee <str> Assignee name, recorded on this transition regardless of the target lane (not limited to --to doing).
 --shell-pid <str> Shell PID
 --note,--reason <str> History note (alias: --reason, matching issue-verdict's vocabulary). If both --note and --reason are given, the one supplied LAST on the command line wins.
---review-feedback-file <path> Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress). Recorded as the transition's on-wire review_ref rationale; omitting it makes the status event contract-invalid. On --to approved/done its content is recorded when the move writes a new approval review-cycle record; otherwise a warning says it was not recorded.
+--review-feedback-file <path> Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress). Recorded as the transition's on-wire review_ref rationale; omitting it makes the status event contract-invalid. On --to approved/done its content is recorded when the move writes a new approval review-cycle record; otherwise a warning on stderr says it was not recorded (JSON stdout is unchanged).
 --approval-ref <str> Approval reference for approval/done transitions (e.g., PR#42)
 --reviewer <str> Reviewer name (auto-detected from git if omitted)
 --self-review-fallback Record that approval is a self-review fallback after the intended reviewer failed.
