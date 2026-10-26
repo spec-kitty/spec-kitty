@@ -24,7 +24,6 @@ directly only as a parity oracle on a twin fixture.
 
 from __future__ import annotations
 
-import ast
 import json
 import subprocess
 from collections.abc import Callable
@@ -332,26 +331,6 @@ def test_091_dry_run_warns_skip_no_frontmatter_exactly_like_the_shipped_class(tm
 
     assert f"Skip (no frontmatter): {rel}" in result.warnings
     assert result.warnings == oracle.warnings
-
-
-def test_the_lane_successors_override_every_method_of_the_shipped_class_that_walks_kitty_specs() -> None:
-    """A walker that the successor neither overrides nor reaches through an overridden predicate would still rewrite residue."""
-    for shipped_module, class_name, new in ((shipped_090, "FrontmatterOnlyLanesMigration", NEW_090), (shipped_091, "CompleteLaneMigration", NEW_091)):
-        tree = ast.parse(Path(str(shipped_module.__file__)).read_text(encoding="utf-8"))
-        shipped_class = next(node for node in ast.walk(tree) if isinstance(node, ast.ClassDef) and node.name == class_name)
-        methods = {node.name: node for node in shipped_class.body if isinstance(node, ast.FunctionDef)}
-        walkers = [name for name, node in methods.items() if _mentions_kitty_specs(node)]
-        assert len(walkers) >= 2, f"{class_name}: the AST scan found no walker"
-        overridden = {name for name in methods if name in vars(type(_get(new)))}
-        for name in walkers:
-            reached = {call.func.attr for call in ast.walk(methods[name]) if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)}
-            assert name in overridden or reached & overridden, (
-                f"{class_name}.{name} walks kitty-specs but is neither overridden nor reached through an overridden method"
-            )
-
-
-def _mentions_kitty_specs(node: ast.AST) -> bool:
-    return any(isinstance(item, ast.Constant) and item.value == "kitty-specs" for item in ast.walk(node))
 
 
 def _full_meta(slug: str) -> str:

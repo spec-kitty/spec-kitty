@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from packaging.version import Version
 
 from kernel.git import GitCommandError
 from specify_cli.context.mission_resolver import residue_notice, residue_notice_path
@@ -23,8 +24,8 @@ from specify_cli.upgrade.registry import MigrationRegistry, settled_in_selection
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-#: A real, registered, tracked migration whose target (3.1.1) sits between the pre-ledger versions below.
-_MIGRATION_ID = "3.1.1_charter_rename"
+#: The four superseded predecessors (#6669): the ids whose settlement makes a residue-safe successor inert.
+_PREDECESSOR_IDS = ("0.9.0_frontmatter_only_lanes", "0.9.1_complete_migration", "2.0.6_consistency_sweep", "3.1.1_normalize_status_json")
 _TARGET = "99.0.0"
 
 _PRE_LEDGER_METADATA = """spec_kitty:
@@ -68,30 +69,35 @@ def _selected_ids(project: Path) -> set[str]:
     return {m.migration_id for m in MigrationRegistry.get_applicable("0.0.0", _TARGET, project_path=project)}
 
 
-def _record(project: Path, result: str) -> None:
-    migration = MigrationRegistry.get_by_id(_MIGRATION_ID)
+def _record(project: Path, migration_id: str, result: str) -> None:
+    migration = MigrationRegistry.get_by_id(migration_id)
     assert migration is not None
     MigrationLedger(project).append(build_record(migration, result))
 
 
+@pytest.mark.parametrize("migration_id", _PREDECESSOR_IDS)
 @pytest.mark.parametrize("state", [None, "success", "skipped", "failed"])
-def test_settled_view_equals_selection_for_each_ledger_state(tmp_path: Path, state: str | None) -> None:
+def test_settled_view_equals_selection_for_each_ledger_state(tmp_path: Path, state: str | None, migration_id: str) -> None:
     (tmp_path / ".kittify").mkdir()
     if state is not None:
-        _record(tmp_path, state)
-    expected = _MIGRATION_ID not in _selected_ids(tmp_path)
-    assert settled_in_selection_view(tmp_path, _MIGRATION_ID) is expected
+        _record(tmp_path, migration_id, state)
+    expected = migration_id not in _selected_ids(tmp_path)
+    assert settled_in_selection_view(tmp_path, migration_id) is expected
     assert expected is (state == "success")
 
 
-@pytest.mark.parametrize(("version", "settled"), [("2.0.6", False), ("3.2.0", True)])
-def test_settled_view_equals_selection_for_pre_ledger_adoption(tmp_path: Path, version: str, settled: bool) -> None:
+@pytest.mark.parametrize("migration_id", _PREDECESSOR_IDS)
+@pytest.mark.parametrize("version", ["2.0.6", "3.2.0"])
+def test_settled_view_equals_selection_for_pre_ledger_adoption(tmp_path: Path, version: str, migration_id: str) -> None:
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
     (kittify / "metadata.yaml").write_text(_PRE_LEDGER_METADATA.format(version=version), encoding="utf-8")
-    expected = _MIGRATION_ID not in _selected_ids(tmp_path)
-    assert settled_in_selection_view(tmp_path, _MIGRATION_ID) is expected
-    assert expected is settled
+    migration = MigrationRegistry.get_by_id(migration_id)
+    assert migration is not None
+    expected = migration_id not in _selected_ids(tmp_path)
+    assert settled_in_selection_view(tmp_path, migration_id) is expected
+    # Adoption settles exactly the migrations declared below the recorded version.
+    assert expected is (Version(migration.target_version) < Version(version))
 
 
 def test_unknown_migration_id_is_not_settled(tmp_path: Path) -> None:

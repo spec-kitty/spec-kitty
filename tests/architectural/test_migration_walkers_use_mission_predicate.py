@@ -371,11 +371,38 @@ def test_override_dropping_its_predicate_call_fails_the_gate() -> None:
     assert not _reaches_predicate(*_parse_fn(mixin.format("_M, _s.X", "not self.detect(p)"), "_is_legacy_format"))
 
 
+#: The guarded seam each hand-listed walker's directories reach through its writing caller (``apply``).
+_UNDETECTED_WALKER_SEAMS: dict[tuple[str, str], tuple[str, str]] = {
+    ("src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py", "_iter_mission_dirs"): (
+        "src/specify_cli/migration/runtime_state_cutover.py",
+        "cutover_mission",
+    ),
+}
+
+
+def _calls_reaching(tree: ast.AST, fn: ast.AST, target: str, seen: frozenset[int] = frozenset()) -> bool:
+    """True when *fn* calls *target*, directly or through same-module functions."""
+    if id(fn) in seen:
+        return False
+    seen = seen | {id(fn)}
+    local = {f.name: f for f in _functions(tree)}
+    for node in ast.walk(fn):
+        if isinstance(node, ast.Call):
+            name = _called_name(node)
+            if name == target or (name in local and _calls_reaching(tree, local[name], target, seen)):
+                return True
+    return False
+
+
 @pytest.mark.parametrize(("module", "function"), sorted(_UNDETECTED_WALKERS))
 def test_undetected_walker_still_exists_and_is_guarded(module: str, function: str) -> None:
     tree = ast.parse((_REPO_ROOT / module).read_text(encoding="utf-8"))
     assert any(fn.name == function for fn in _functions(tree)), f"{module}::{function} is gone; remove it from _UNDETECTED_WALKERS"
-    assert ("src/specify_cli/migration/runtime_state_cutover.py", "cutover_mission") in _GUARDED_SEAMS
+    seam = _UNDETECTED_WALKER_SEAMS[(module, function)]
+    assert seam in _GUARDED_SEAMS
+    writers = [fn for fn in _functions(tree) if fn.name == "apply" and _calls_reaching(tree, fn, function)]
+    assert writers, f"{module}: no apply() walks through {function}; re-check the classification"
+    assert all(_calls_reaching(tree, fn, seam[1]) for fn in writers), f"{module}: apply() must hand {function}'s directories to {seam[1]}"
 
 
 def test_detector_blind_spots_stay_blind_to_hand_listed_walkers() -> None:
