@@ -462,6 +462,13 @@ def test_only_the_transition_doors_reach_the_port(tree_scan: TreeScan) -> None:
     )
 
 
+def test_every_ledger_is_priced() -> None:
+    """Every transient ledger names its exit issue, owner and exit condition (charter standing order 5)."""
+    ledgers = {name.removeprefix("EXPECTED_").lower() for name in globals() if name.startswith("EXPECTED_")}
+    assert ledgers == LEDGER_DEBT.keys()
+    assert all(debt.exit_issue and debt.owner and debt.exit_when for debt in LEDGER_DEBT.values())
+
+
 def test_a_new_port_caller_is_found() -> None:
     source = (
         "from specify_cli.events.event_bridge import LocalFileEventBridge, work_package_transition_port\n"
