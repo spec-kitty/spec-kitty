@@ -1856,12 +1856,17 @@ _Dispatch a request to a governed Op (canonical surface)._
 │                          [required]                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --profile          <str>  Optional profile ID. Bypasses the router — use     │
-│                           when the request is ambiguous.                     │
-│ --json                    Output JSON payload                                │
-│ --dry-run                 Route the request and return the routing signal    │
-│                           without opening an Op or writing anything.         │
-│ --help     -h             Show this message and exit.                        │
+│ --profile                 <str>   Optional profile ID. Bypasses the router — │
+│                                   use when the request is ambiguous.         │
+│ --json                            Output JSON payload                        │
+│ --dry-run                         Route the request and return the routing   │
+│                                   signal without opening an Op or writing    │
+│                                   anything.                                  │
+│ --owned-checkout          <path>  Keep this Op's record in an owned          │
+│                                   checkout: a linked checkout of this        │
+│                                   repository. Refuses the repository root    │
+│                                   checkout.                                  │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5302,18 +5307,22 @@ _Manage invocation records._
  Note: --evidence is rejected for records that are not execution records.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --invocation-id  -i      <str>  Invocation ULID to close [required]       │
-│ *  --outcome                <str>  done | failed | abandoned [required]      │
-│    --evidence               <str>  Path to a UTF-8 text evidence file (Tier  │
-│                                    2 promotion); checked before the Op       │
-│                                    closes                                    │
-│    --artifact               <str>  Path (repo-relative or absolute) or URL   │
-│                                    of an artifact produced by this           │
-│                                    invocation. Repeatable.                   │
-│    --commit                 <str>  Git commit SHA most directly produced by  │
-│                                    this invocation. Singular.                │
-│    --json                          Output JSON payload                       │
-│    --help           -h             Show this message and exit.               │
+│ *  --invocation-id   -i      <str>   Invocation ULID to close [required]     │
+│ *  --outcome                 <str>   done | failed | abandoned [required]    │
+│    --evidence                <str>   Path to a UTF-8 text evidence file      │
+│                                      (Tier 2 promotion); checked before the  │
+│                                      Op closes                               │
+│    --artifact                <str>   Path (repo-relative or absolute) or URL │
+│                                      of an artifact produced by this         │
+│                                      invocation. Repeatable.                 │
+│    --commit                  <str>   Git commit SHA most directly produced   │
+│                                      by this invocation. Singular.           │
+│    --json                            Output JSON payload                     │
+│    --owned-checkout          <path>  Keep this Op's record in an owned       │
+│                                      checkout: a linked checkout of this     │
+│                                      repository. Refuses the repository root │
+│                                      checkout.                               │
+│    --help            -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

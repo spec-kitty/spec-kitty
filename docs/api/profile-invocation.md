@@ -2,7 +2,7 @@
 title: Profile Invocation Reference
 description: Reference for dispatch, profile-invocation complete, invocation trail fields, and lifecycle states.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-10-26'
 related:
 - docs/context/charter-overview.md
 ---
@@ -32,6 +32,8 @@ has a specific profile in mind or needs to bypass routing.
 | `REQUEST` | Natural-language request [required] |
 | `--profile TEXT` | Optional profile ID; bypasses routing |
 | `--json` | Output JSON payload |
+| `--dry-run` | Route the request only; no Op is opened and nothing is written |
+| `--owned-checkout PATH` | Keep the Op record in this owned checkout (a linked checkout of the repository) instead of the checkout the command runs in. The repository root checkout is refused. |
 
 **Example**:
 ```bash
@@ -57,6 +59,7 @@ event to the trail file.
 | `--artifact TEXT` | Path to an artifact produced by this invocation (repeatable) |
 | `--commit TEXT` | Git commit SHA most directly produced by this invocation (singular) |
 | `--json` | Output JSON payload |
+| `--owned-checkout PATH` | Look for the Op record in this owned checkout first (a linked checkout of the repository) instead of the checkout the command runs in. The repository root checkout is refused. |
 
 **Example**:
 ```bash
