@@ -12,9 +12,12 @@ here (a policy -> domain edge, not policy -> CLI), and
 ``tasks_parsing_validation.py`` re-exports every name verbatim so its own
 callers (``tasks.py``, ``tasks_move_task.py``) are unaffected byte-for-byte.
 
-Behaviour-preserving move only -- no logic changed. See
+The move itself was behaviour-preserving. See
 ``tasks_parsing_validation.py``'s (much shorter) module docstring for the
-seam this module was extracted from.
+seam this module was extracted from. #6653 later changed the ``done`` rule:
+every ``in-mission`` row blocks, cited or not, and a present matrix is judged
+whole even with zero gating references (ADR
+``docs/adr/4.x/2026-10-26-1-done-judges-every-issue-matrix-row.md``).
 """
 
 from __future__ import annotations
@@ -143,7 +146,19 @@ def _issue_matrix_in_mission_rows(
     referenced_issues: set[str],
     in_mission_verdict: IssueMatrixVerdict,
 ) -> list[str]:
-    return sorted(row.issue for row in result.rows if row.verdict is in_mission_verdict and row.issue in referenced_issues)
+    """Every row whose verdict is ``in-mission``, cited or not (#6653, FR-001).
+
+    Classification decides whether a row is REQUIRED; the verdict decides
+    whether an existing row is RESOLVED. An ``in-mission`` row says the
+    Mission still owes a fix, so it is unresolved whether or not its issue is
+    a discovered gating reference. ``referenced_issues`` no longer filters:
+    it only orders the output (cited rows first, then uncited, each sorted),
+    and the parameter stays for the compat signature (C-003). Only the
+    ``done`` leg consumes this list; the blocker zeroes it for every other
+    target lane (C-001).
+    """
+    in_mission = [row.issue for row in result.rows if row.verdict is in_mission_verdict]
+    return sorted(in_mission, key=lambda issue: (issue not in referenced_issues, issue))
 
 
 def _issue_matrix_diagnostic_lines(result: IssueMatrixValidationResult) -> list[str]:
@@ -175,6 +190,50 @@ def _issue_matrix_diagnostic_lines(result: IssueMatrixValidationResult) -> list[
     return messages
 
 
+def _issue_matrix_present(feature_dir: Path, matrix_content: str | None) -> bool:
+    """Whether an issue-matrix artifact exists on the read surface.
+
+    T043 (C-008 / B-1 fix): presence is a dir-based check
+    (:func:`~specify_cli.tasks.issue_matrix_migration.issue_matrix_artifact_present`),
+    not a ``.md``-only ``.exists()`` — the prior precheck made a JSON-only
+    mission (B3) hard-fail approval before :func:`_issue_matrix_evaluation`
+    (which already resolves JSON-first via WP05's canonical dir-based reader)
+    ever ran. ``matrix_content`` is the coordination-ref content source.
+    """
+    from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
+
+    return issue_matrix_artifact_present(feature_dir, content=matrix_content)
+
+
+def _missing_issue_matrix_message(feature_dir: Path, issue_list: list[str]) -> str:
+    """The "matrix required" blocker for gating references with no matrix."""
+    return (
+        f"{_issue_matrix_error_prefix(feature_dir)} is required before approval.\n"
+        f"Referenced issues: {', '.join(issue_list)}\n"
+        f"Fill verdicts {_FILL_VERDICTS_HINT}.\n"
+        f"This file is normally scaffolded automatically. If it is missing, "
+        f"regenerate it: spec-kitty agent mission finalize-tasks --mission {feature_dir.name}\n"
+        f"{_ISSUE_VERDICT_REMEDY}\n"
+        f"Schema and worked example: src/specify_cli/cli/commands/review/ERROR_CODES.md"
+    )
+
+
+def issue_matrix_judged_row_count(feature_dir: Path, *, matrix_content: str | None = None) -> int | None:
+    """How many issue-matrix rows a PASS judged, or ``None`` when no matrix exists.
+
+    #6653 (FR-005, SC-003): the terminality gate's PASS detail names what it
+    judged instead of claiming rows it never looked at. Reads through the same
+    validator the blocker uses (``validate_issue_matrix``), so the count is the
+    number of rows the blocker evaluated. ``matrix_content`` is the
+    coordination-ref content source, as for the blocker.
+    """
+    if not _issue_matrix_present(feature_dir, matrix_content):
+        return None
+    from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
+
+    return len(validate_issue_matrix(feature_dir / "issue-matrix.md", content=matrix_content).rows)
+
+
 def _issue_matrix_approval_blocker(
     feature_dir: Path,
     *,
@@ -203,6 +262,13 @@ def _issue_matrix_approval_blocker(
     is non-gating at ``approved`` (nothing special needed — it simply is not
     added to ``unresolved_in_mission``) AND terminal at ``done`` (unlike
     ``in-mission``, it never re-blocks at merge).
+
+    #6653 (FR-001/FR-002): at ``done`` the VERDICT decides resolution for
+    every existing row, cited or not -- an uncited (or ``context_only``)
+    ``in-mission`` row blocks. With zero gating references a PRESENT matrix
+    is still judged whole at ``done`` (row diagnostics and ``in-mission``
+    rows); a MISSING matrix is nothing to enforce. ``approved`` is unchanged
+    (C-001), and only gating references ever make a row "missing" (C-002).
 
     Placement (coord-commit-integrity SURFACE A #1c): ``issue-matrix.md`` is a
     COORD-partition kind, so the matrix is read from ``feature_dir`` — the
@@ -248,28 +314,15 @@ def _issue_matrix_approval_blocker(
     # ``context_only``/``pr_or_commit_ref`` issues needs no matrix at all.
     gating_refs = [ref for ref in refs if is_gating(ref)]
     if not gating_refs:
-        return None
-
-    # T043 (C-008 / B-1 fix): presence is a dir-based check
-    # (:func:`issue_matrix_artifact_present`), not a ``.md``-only
-    # ``.exists()`` — the prior precheck made a JSON-only mission (B3) hard-
-    # fail approval before ``_issue_matrix_evaluation`` (which already
-    # resolves JSON-first via WP05's canonical dir-based reader,
-    # :func:`~specify_cli.tasks.issue_matrix_migration.load_issue_matrix`)
-    # ever ran.
-    from specify_cli.tasks.issue_matrix_migration import issue_matrix_artifact_present
-
-    if not issue_matrix_artifact_present(feature_dir, content=matrix_content):
-        issue_list = ", ".join(f"#{ref.number}" for ref in gating_refs)
-        return (
-            f"{_issue_matrix_error_prefix(feature_dir)} is required before approval.\n"
-            f"Referenced issues: {issue_list}\n"
-            f"Fill verdicts {_FILL_VERDICTS_HINT}.\n"
-            f"This file is normally scaffolded automatically. If it is missing, "
-            f"regenerate it: spec-kitty agent mission finalize-tasks --mission {feature_dir.name}\n"
-            f"{_ISSUE_VERDICT_REMEDY}\n"
-            f"Schema and worked example: src/specify_cli/cli/commands/review/ERROR_CODES.md"
-        )
+        # #6653 (FR-002/FR-003, C-001): with zero gating references nothing
+        # REQUIRES a matrix. At ``approved`` (or an unspecified lane) that is
+        # the end of it, byte-identical to before. At ``done`` a PRESENT
+        # matrix is still judged whole (diagnostics and ``in-mission`` rows);
+        # a missing one is nothing to enforce.
+        if target_lane != Lane.DONE or not _issue_matrix_present(feature_dir, matrix_content):
+            return None
+    elif not _issue_matrix_present(feature_dir, matrix_content):
+        return _missing_issue_matrix_message(feature_dir, [f"#{ref.number}" for ref in gating_refs])
 
     result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
         feature_dir,
@@ -306,6 +359,7 @@ def _issue_matrix_approval_blocker(
 
 __all__ = [
     "SPEC_MD_FILENAME",
+    "issue_matrix_judged_row_count",
     "_issue_matrix_approval_blocker",
     "_issue_matrix_diagnostic_lines",
     "_issue_matrix_error_prefix",

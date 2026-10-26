@@ -163,6 +163,7 @@ def _build_coord_mission(
     mid8: str,
     primary_matrix: dict[str, str] | None,
     coord_matrix: dict[str, str] | None,
+    spec_text: str | None = None,
 ) -> tuple[str, Path]:
     """A CONSOLIDATED coord mission: primary residue vs authored coord ref
     may diverge -- the caller controls each partition's matrix independently
@@ -185,7 +186,7 @@ def _build_coord_mission(
         coordination_branch=coordination_branch,
     )
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "spec.md").write_text(_GATING_SPEC_TEXT, encoding="utf-8")
+    (feature_dir / "spec.md").write_text(_GATING_SPEC_TEXT if spec_text is None else spec_text, encoding="utf-8")
     if primary_matrix is not None:
         (feature_dir / "issue-matrix.json").write_text(_matrix_json(primary_matrix), encoding="utf-8")
     _git(repo, "add", ".")
@@ -221,7 +222,7 @@ def _build_coord_mission(
     return mission_slug, feature_dir
 
 
-def _build_lanes_mission(repo: Path, *, mid8: str, primary_matrix: dict[str, str] | None) -> str:
+def _build_lanes_mission(repo: Path, *, mid8: str, primary_matrix: dict[str, str] | None, spec_text: str | None = None) -> str:
     """Coord-less (``lanes``) mission -- the parity arm for FR-003."""
     mission_id = f"{mid8}0000000000000000"
     mission_slug = f"lanes-catalog-{mid8}"
@@ -238,7 +239,7 @@ def _build_lanes_mission(repo: Path, *, mid8: str, primary_matrix: dict[str, str
         topology="lanes",
     )
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "spec.md").write_text(_GATING_SPEC_TEXT, encoding="utf-8")
+    (feature_dir / "spec.md").write_text(_GATING_SPEC_TEXT if spec_text is None else spec_text, encoding="utf-8")
     if primary_matrix is not None:
         (feature_dir / "issue-matrix.json").write_text(_matrix_json(primary_matrix), encoding="utf-8")
     _git(repo, "add", ".")
@@ -554,3 +555,207 @@ class TestPolicyModeSpellingFailsClosed:
         assert terminality.verdict == GateVerdict.FAIL
         assert terminality.blocking is False
         assert result.overall_pass is True
+
+
+# ---------------------------------------------------------------------------
+# #6653 -- at ``done`` the terminality gate judges every issue-matrix row,
+# cited or not, and a present matrix is judged whole even with zero gating
+# references. A Mission with no matrix still needs none (#5222 F1), a failed
+# probe still fails closed (NFR-002), and a PASS says what it judged.
+# RED on the base: every FAIL assertion below PASSes there (probe_6653.py).
+# ---------------------------------------------------------------------------
+
+_UNCITED_KEY = "#5678"
+_NO_REFS_SPEC_TEXT = "# Spec\n\nNo issue references here.\n"
+_OLD_OVERCLAIMING_PASS = "No unresolved (in-mission/unknown) issue-matrix rows"
+_NOT_AUTHORED_PASS = "No issue-matrix authored and no gating issue references — nothing to enforce"
+
+
+class TestDoneJudgesEveryRow:
+    def test_uncited_in_mission_row_blocks(self, repo: Path) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A0", primary_matrix={_ISSUE_KEY: "fixed", _UNCITED_KEY: "in-mission"})
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL
+        assert gate.blocking is True
+        assert _UNCITED_KEY in gate.details
+        assert "spec-kitty agent issue-verdict" in gate.details
+        assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS  # C-002
+        assert overall_pass is False
+
+    def test_uncited_in_mission_row_warns_in_warn_mode(self, repo: Path) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A1", primary_matrix={_ISSUE_KEY: "fixed", _UNCITED_KEY: "in-mission"})
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="warn")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL
+        assert gate.blocking is False
+        assert overall_pass is True
+        assert any(_TERMINALITY_GATE in warning and _UNCITED_KEY in warning for warning in _fmt_warnings(gates))
+
+    def test_uncited_row_terminal_positive_control_passes_and_counts_rows(self, repo: Path) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A2", primary_matrix={_ISSUE_KEY: "fixed", _UNCITED_KEY: "fixed"})
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.PASS, gate.details
+        assert gate.details == "No unresolved (in-mission/unknown) rows among 2 issue-matrix row(s)"
+        assert overall_pass is True
+
+    def test_zero_gating_refs_in_mission_row_blocks(self, repo: Path) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A3", primary_matrix={_UNCITED_KEY: "in-mission"}, spec_text=_NO_REFS_SPEC_TEXT)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert gate.blocking is True
+        assert _UNCITED_KEY in gate.details
+        assert overall_pass is False
+
+    def test_zero_gating_refs_unknown_verdict_surfaces_diagnostic(self, repo: Path) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A4", primary_matrix={_UNCITED_KEY: "unknown"}, spec_text=_NO_REFS_SPEC_TEXT)
+
+        _overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert f"Row for issue '{_UNCITED_KEY}'" in gate.details
+
+    def test_one_digit_cited_in_mission_row_blocks(self, repo: Path) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A5", primary_matrix={"#8": "in-mission"}, spec_text="Fixes #8 in this mission.\n")
+
+        _overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert gate.blocking is True
+        assert "#8" in gate.details
+
+    def test_context_only_citation_in_mission_row_blocks(self, repo: Path) -> None:
+        """Analysis C1: ``see #12`` is ``context_only`` -- it never REQUIRES a
+        row -- but an existing ``in-mission`` row is still unresolved."""
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A6", primary_matrix={"#12": "in-mission"}, spec_text="see #12 for the background.\n")
+
+        _overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert gate.blocking is True
+        assert "#12" in gate.details
+        assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS  # C-002
+
+    def test_zero_gating_refs_all_terminal_passes_and_counts_rows(self, repo: Path) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A7", primary_matrix={_UNCITED_KEY: "fixed"}, spec_text=_NO_REFS_SPEC_TEXT)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.PASS, gate.details
+        assert gate.details == "No unresolved (in-mission/unknown) rows among 1 issue-matrix row(s)"
+        assert overall_pass is True
+
+    def test_zero_gating_refs_no_matrix_lanes_passes_not_authored(self, repo: Path) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A8", primary_matrix=None, spec_text=_NO_REFS_SPEC_TEXT)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.PASS, gate.details
+        assert gate.details == _NOT_AUTHORED_PASS
+        assert overall_pass is True
+
+
+class TestDoneJudgesEveryRowCoordination:
+    def test_materialized_coord_dir_zero_refs_in_mission_row_blocks(self, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A materialized coordination worktree resolves the matrix to a dir;
+        the gate hands it to the blocker, which judges it with zero refs."""
+        import mission_runtime
+
+        mission_slug, feature_dir = _build_coord_mission(repo, mid8="01KZR3B0", primary_matrix=None, coord_matrix=None, spec_text=_NO_REFS_SPEC_TEXT)
+        coord_dir = tmp_path / "coord-worktree" / "kitty-specs" / mission_slug
+        coord_dir.mkdir(parents=True)
+        (coord_dir / "issue-matrix.json").write_text(_matrix_json({_UNCITED_KEY: "in-mission"}), encoding="utf-8")
+        monkeypatch.setattr(mission_runtime, "resolve_issue_matrix_partition", lambda _root, _slug: (feature_dir, coord_dir))
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert _UNCITED_KEY in gate.details
+        assert overall_pass is False
+
+    def test_post_consolidation_ref_zero_refs_in_mission_row_blocks(self, repo: Path) -> None:
+        mission_slug, _feature_dir = _build_coord_mission(
+            repo, mid8="01KZR3B1", primary_matrix=None, coord_matrix={_UNCITED_KEY: "in-mission"}, spec_text=_NO_REFS_SPEC_TEXT
+        )
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert gate.blocking is True
+        assert _UNCITED_KEY in gate.details
+        assert overall_pass is False
+
+    def test_post_consolidation_ref_zero_refs_no_matrix_passes_not_authored(self, repo: Path) -> None:
+        """#5222 F1 preserved: a valid coordination ref with no matrix file
+        reads as ``ISSUE_MATRIX_NOT_AUTHORED`` and, with zero gating refs,
+        is nothing to enforce."""
+        mission_slug, _feature_dir = _build_coord_mission(repo, mid8="01KZR3B2", primary_matrix=None, coord_matrix=None, spec_text=_NO_REFS_SPEC_TEXT)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.PASS, gate.details
+        assert gate.details == _NOT_AUTHORED_PASS
+        assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS
+        assert overall_pass is True
+
+    def test_gating_refs_and_no_matrix_at_ref_still_fails(self, repo: Path) -> None:
+        """NOT_AUTHORED is "nothing to enforce" ONLY with zero gating refs."""
+        mission_slug, _feature_dir = _build_coord_mission(repo, mid8="01KZR3B3", primary_matrix=None, coord_matrix=None)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert gate.blocking is True
+        assert overall_pass is False
+
+    @pytest.mark.parametrize("code", ["ISSUE_MATRIX_PROBE_ERROR", "ISSUE_MATRIX_REF_ABSENT", "ISSUE_MATRIX_EMPTY_CONTENT"])
+    def test_zero_refs_probe_failure_fails_closed(self, repo: Path, monkeypatch: pytest.MonkeyPatch, code: str) -> None:
+        """NFR-002: a probe failure is never read as "no matrix"."""
+        import mission_runtime
+        from mission_runtime import IssueMatrixRefReadError
+
+        mission_slug, _feature_dir = _build_coord_mission(repo, mid8="01KZR3C0", primary_matrix=None, coord_matrix=None, spec_text=_NO_REFS_SPEC_TEXT)
+
+        def _raise(_root: Path, _slug: str) -> None:
+            raise IssueMatrixRefReadError(code, "simulated probe failure")
+
+        monkeypatch.setattr(mission_runtime, "resolve_issue_matrix_partition", _raise)
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert gate.blocking is True
+        assert "simulated probe failure" in gate.details
+        assert overall_pass is False
+
+    def test_no_pass_detail_overclaims(self, repo: Path) -> None:
+        """SC-003: the old overclaiming PASS text is never produced."""
+        lanes_slug = _build_lanes_mission(repo, mid8="01KZR3D0", primary_matrix={_ISSUE_KEY: "fixed"})
+        coord_slug, _ = _build_coord_mission(repo, mid8="01KZR3D1", primary_matrix=None, coord_matrix={_ISSUE_KEY: "fixed"})
+
+        for slug in (lanes_slug, coord_slug):
+            _overall_pass, gates = _run_gates(repo, slug, mode="block")
+            gate = _gate(gates, _TERMINALITY_GATE)
+            assert gate.verdict == GateVerdict.PASS, gate.details
+            assert gate.details != _OLD_OVERCLAIMING_PASS
+            assert "among 1 issue-matrix row(s)" in gate.details

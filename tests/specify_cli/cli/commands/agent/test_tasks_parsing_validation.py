@@ -332,6 +332,108 @@ def test_issue_matrix_in_mission_passes_approved_blocks_done(tmp_path: Path) -> 
     assert _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE) is None
 
 
+# ---------------------------------------------------------------------------
+# #6653 (FR-001/FR-002, C-001): at ``done`` every ``in-mission`` row blocks,
+# cited or not, and a present matrix is judged whole even with zero gating
+# references. ``approved`` is unchanged.
+# ---------------------------------------------------------------------------
+
+
+def _write_issue_matrix_rows_json(feature_dir: Path, rows: dict[str, str]) -> None:
+    (feature_dir / "issue-matrix.json").write_text(
+        json.dumps({"rows": {issue: {"verdict": verdict, "evidence_ref": "PR #1"} for issue, verdict in rows.items()}}),
+        encoding="utf-8",
+    )
+
+
+def _mission_dir(tmp_path: Path, spec_text: str) -> Path:
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text(spec_text, encoding="utf-8")
+    return feature_dir
+
+
+_NO_REFS_SPEC = "# Spec\n\nNo issue references here.\n"
+
+
+def test_done_blocks_uncited_in_mission_row(tmp_path: Path) -> None:
+    feature_dir = _mission_dir(tmp_path, "Fixes #1234 in this mission.\n")
+    _write_issue_matrix_rows_json(feature_dir, {"#1234": "fixed", "#5678": "in-mission"})
+
+    blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE)
+
+    assert blocker is not None
+    assert "#5678" in blocker
+    assert "Still 'in-mission'" in blocker
+    assert "spec-kitty agent issue-verdict --mission" in blocker
+
+
+def test_done_zero_gating_refs_judges_present_matrix_in_mission_row(tmp_path: Path) -> None:
+    feature_dir = _mission_dir(tmp_path, _NO_REFS_SPEC)
+    _write_issue_matrix_rows_json(feature_dir, {"#5678": "in-mission"})
+
+    blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE)
+
+    assert blocker is not None
+    assert "#5678" in blocker
+    assert "Missing rows" not in blocker
+
+
+def test_done_zero_gating_refs_surfaces_row_diagnostic(tmp_path: Path) -> None:
+    feature_dir = _mission_dir(tmp_path, _NO_REFS_SPEC)
+    _write_issue_matrix_rows_json(feature_dir, {"#5678": "unknown"})
+
+    blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE)
+
+    assert blocker is not None
+    assert "Row for issue '#5678'" in blocker
+    assert "verdict 'unknown' is not in the allowed set" in blocker
+
+
+def test_done_context_only_citation_with_in_mission_row_blocks(tmp_path: Path) -> None:
+    """Analysis C1: a ``context_only`` citation never REQUIRES a row, but the
+    verdict decides whether an existing row is RESOLVED."""
+    feature_dir = _mission_dir(tmp_path, "see #12 for the background.\n")
+    _write_issue_matrix_rows_json(feature_dir, {"#12": "in-mission"})
+
+    blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE)
+
+    assert blocker is not None
+    assert "#12" in blocker
+
+
+@pytest.mark.parametrize(
+    ("spec_text", "rows"),
+    [
+        ("Fixes #1234 in this mission.\n", {"#1234": "fixed", "#5678": "in-mission"}),
+        (_NO_REFS_SPEC, {"#5678": "in-mission"}),
+        (_NO_REFS_SPEC, {"#5678": "unknown"}),
+    ],
+)
+def test_approved_unchanged_for_the_same_matrices(tmp_path: Path, spec_text: str, rows: dict[str, str]) -> None:
+    """C-001 control: ``approved`` (and an unspecified lane) never blocks on
+    these matrices, before and after #6653."""
+    feature_dir = _mission_dir(tmp_path, spec_text)
+    _write_issue_matrix_rows_json(feature_dir, rows)
+
+    assert _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.APPROVED) is None
+    assert _issue_matrix_approval_blocker(feature_dir) is None
+
+
+@pytest.mark.parametrize("lane", [Lane.APPROVED, Lane.DONE])
+def test_zero_gating_refs_and_no_matrix_is_nothing_to_enforce(tmp_path: Path, lane: Lane) -> None:
+    feature_dir = _mission_dir(tmp_path, _NO_REFS_SPEC)
+
+    assert _issue_matrix_approval_blocker(feature_dir, target_lane=lane) is None
+
+
+def test_done_zero_gating_refs_all_terminal_matrix_passes(tmp_path: Path) -> None:
+    feature_dir = _mission_dir(tmp_path, _NO_REFS_SPEC)
+    _write_issue_matrix_rows_json(feature_dir, {"#5678": "fixed", "#9012": "not-applicable"})
+
+    assert _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE) is None
+
+
 def test_issue_matrix_approval_blocker_no_spec_returns_none(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "demo"
     feature_dir.mkdir(parents=True)
