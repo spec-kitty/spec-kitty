@@ -84,7 +84,29 @@ Until the Java write service owns a log (#6193), an append to any event log othe
   `EVENT_LOG_LOCK_TIMEOUT`, `EVENT_LOG_LOCK_UNAVAILABLE` (git cannot be invoked, so the
   append refuses rather than lock where other writers do not), `EVENT_LOG_SYMLINK` and
   `EVENT_LOG_SHORT_WRITE`. A caller that already treats an I/O error as non-fatal keeps
-  doing so; decide deliberately if yours should surface it.
+  doing so; decide deliberately if yours should surface it. Each message ends with
+  `Error code: <CODE>.`, so an operator can quote it.
+- **A torn tail, per log.** A crash in the middle of an append can leave a last line with
+  no trailing newline. Only the glossary logs repair it: the contract writer moves the
+  fragment to a `.torn` sidecar (quarantine) and retries. Every other log refuses with
+  `EVENT_LOG_TORN_TAIL` until the bytes are cut by hand: the run journal
+  (`run.events.jsonl`, so `spec-kitty next` stops for that run), `decisions.events.jsonl`,
+  `mission-events.jsonl`, the `kitty-ops/` trails, index, closure spine, lifecycle and
+  propagation-error logs, the policy audit log, the mission archive log and the charter
+  encoding provenance log. Writers that already treat an I/O error as non-fatal (the Op
+  index, the propagation-error log, the encoding provenance log) log a warning and drop
+  the row instead. The repair: keep a copy of the file, then truncate it to its last
+  newline. A short write, or `ENOSPC` after a partial write, does not leave a torn tail:
+  the door cuts the log back to its size before the write, under the lock, then raises.
+- **When git cannot run, appends refuse.** The lock path needs the git common dir. When
+  git cannot be invoked, including when it rejects the checkout for "dubious ownership"
+  (`safe.directory`), every append refuses with `EVENT_LOG_LOCK_UNAVAILABLE`. Whether
+  to fall back instead is an operator decision still open on PR #6681; until it is made,
+  make git runnable in the checkout and retry.
+- **One lock per name, not per file.** The lock digest is taken over the anchor's
+  resolved, `normcase`-d path. Two hard-linked names of one file, or two spellings that
+  differ only in case on a case-insensitive macOS file system (`normcase` does not fold
+  case there), get two locks and do not exclude each other. Write a log through one name.
 - **A check that must see the current file** (an identity check, "already closed") goes in
   the `precondition` callback so it runs under the lock; `event_log_lock(path)` holds the
   lock for a read-modify-write such as the glossary contract write.
