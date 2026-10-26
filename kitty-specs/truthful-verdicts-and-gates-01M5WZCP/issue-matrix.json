@@ -156,6 +156,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#5815": {
+      "evidence_ref": "Context citation (related-issue triage, history or parent epic) in research/plan/WP prompts; owed no work by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6417": {
       "evidence_ref": "Cited only in C-002 as a sibling slice's surface to stay off; owed no work by this Mission",
       "fr": null,
