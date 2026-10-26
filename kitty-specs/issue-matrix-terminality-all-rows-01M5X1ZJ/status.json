@@ -1,0 +1,53 @@
+{
+  "event_count": 19,
+  "last_event_id": "01M5X9YC2FKPP757JD7WRFZ0FF",
+  "materialized_at": "2026-10-26T23:50:15.375843+00:00",
+  "mission_number": "",
+  "mission_slug": "issue-matrix-terminality-all-rows-01M5X1ZJ",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5X9Y8XYYFT4BRM2A76NAYY1",
+      "last_transition_at": "2026-10-26T23:50:12.158581+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261026",
+        "reviewer": "claude-reviewer",
+        "verdict": "approved"
+      },
+      "shell_pid": 18275,
+      "shell_pid_created_at": "1793054772.39"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5X9YC2FKPP757JD7WRFZ0FF",
+      "last_transition_at": "2026-10-26T23:50:15.375843+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261026",
+        "reviewer": "claude-reviewer",
+        "verdict": "approved"
+      },
+      "shell_pid": 27283,
+      "shell_pid_created_at": "1793055772.62"
+    }
+  }
+}

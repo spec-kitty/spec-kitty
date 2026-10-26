@@ -1,0 +1,37 @@
+{
+  "accept_commit": "959f89ebe6d753118ab14362d03df69852162fed",
+  "acceptance_history": [
+    {
+      "accept_commit": "959f89ebe6d753118ab14362d03df69852162fed",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-26T23:48:28.881632+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "1ad8b2877804119810ee413961b8517dcb054270"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-26T23:48:28.881632+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "1ad8b2877804119810ee413961b8517dcb054270",
+  "baseline_merge_commit": "0a10a233015b9d81652b0ab2453414f86e1374e4",
+  "contracts": "none",
+  "contracts_rationale": "Internal gate behaviour change; no CLI flag, schema, or wire contract is added or changed.",
+  "created_at": "2026-10-26T21:31:07.099677+00:00",
+  "flattened": true,
+  "friendly_name": "Terminality gate judges every issue-matrix row",
+  "merged_at": "2026-10-26T23:50:48.092117+00:00",
+  "merged_commit": "f9eb63cc4b6647aeba7dcd95eb6c9383e0ef4f73",
+  "mid8": "01M5X1ZJ",
+  "mission_id": "01M5X1ZJ7W3Q7HARX8AYMB8GQF",
+  "mission_number": 242,
+  "mission_slug": "issue-matrix-terminality-all-rows-01M5X1ZJ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The issue-matrix verdict terminality gate let a mission land with an in-mission row whenever that row's issue was not a discovered gating reference, then printed a PASS claiming no unresolved rows. This mission makes the done gate judge every row and report what it judged, while a mission with no matrix still needs none.",
+  "purpose_tldr": "At done, every in-mission issue-matrix row blocks, and a PASS only describes rows it judged (#6653)",
+  "slug": "issue-matrix-terminality-all-rows-01M5X1ZJ",
+  "status_phase": "1",
+  "target_branch": "issue-6653-terminality-all-rows",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-26T22:20:21.014613+00:00"
+}

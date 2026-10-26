@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-26T21:31:26.729573Z",
+      "decision_id": "01M5X206M989YE99MA0KHRFTNP",
+      "final_answer": "Judge the whole matrix (diagnostics + in-mission)",
+      "input_key": "zero_ref_matrix_diagnostics",
+      "mission_id": "01M5X1ZJ7W3Q7HARX8AYMB8GQF",
+      "mission_slug": "issue-matrix-terminality-all-rows-01M5X1ZJ",
+      "opened_by": "cli",
+      "options": [
+        "Judge the whole matrix (diagnostics + in-mission)",
+        "Only in-mission rows",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "At done, for a mission with zero gating references but an authored issue-matrix, should malformed rows / unknown verdicts also block (judge the whole matrix), or only in-mission rows?",
+      "rationale": null,
+      "resolved_at": "2026-10-26T22:09:39.427201Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.zero-ref-matrix-diagnostics",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-26T22:11:21.123973Z",
+      "decision_id": "01M5X498X3ATTAB12KQWMDPZRV",
+      "final_answer": "New typed code on the existing reader (ISSUE_MATRIX_NOT_AUTHORED)",
+      "input_key": "absent_matrix_probe",
+      "mission_id": "01M5X1ZJ7W3Q7HARX8AYMB8GQF",
+      "mission_slug": "issue-matrix-terminality-all-rows-01M5X1ZJ",
+      "opened_by": "cli",
+      "options": [
+        "New typed code on the existing reader",
+        "Separate presence function",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Where should 'matrix file absent at a valid ref' be told apart from a failed probe: a new typed code (ISSUE_MATRIX_NOT_AUTHORED) on the existing mission_runtime reader read_issue_matrix_ref_content, or a separate presence function?",
+      "rationale": null,
+      "resolved_at": "2026-10-26T22:14:26.754250Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.absent-matrix-probe",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5X1ZJ7W3Q7HARX8AYMB8GQF",
+  "version": 1
+}

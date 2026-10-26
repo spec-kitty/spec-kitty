@@ -1,0 +1,79 @@
+{
+  "mission_slug": "issue-matrix-terminality-all-rows-01M5X1ZJ",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_merge_gates_issue_matrix.py (uncited in-mission row FAILs block/warn; fixed control PASS); tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T23:47:51.380153+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_merge_gates_issue_matrix.py (zero refs + in-mission / unknown verdict FAIL; all-terminal PASS); probe_6653 ZERO/ONEDIGIT fail",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T23:47:56.587978+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_merge_gates_issue_matrix.py TestZeroGatingReferencesNeverProbesCoordination green + post-consolidation no-matrix NOT_AUTHORED PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T23:48:01.772352+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/mission_runtime/test_issue_matrix_ref_read.py (35 passed: missing blob, ls-tree exit 128, timeout/OSError keep PROBE_ERROR)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T23:48:06.876920+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/policy/test_merge_gates_issue_matrix.py::test_no_pass_detail_overclaims + judged-row-count PASS detail",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T23:48:11.871624+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_move_task_done_issue_matrix.py (done refused, approved allowed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T23:48:17.176947+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/4.x/2026-10-26-1-done-judges-every-issue-matrix-row.md; docs/development/reference/issue-matrix-verdicts.md 'What done enforces'; CHANGELOG [Unreleased]",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-26T23:48:22.609483+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

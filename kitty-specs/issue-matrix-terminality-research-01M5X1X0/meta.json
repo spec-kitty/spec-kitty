@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-26T21:29:43.954729+00:00",
+  "flattened": false,
+  "friendly_name": "Issue-matrix terminality gate judges every row (research)",
+  "mid8": "01M5X1X0",
+  "mission_id": "01M5X1X0XH3AD6R48YZGCZMC8Q",
+  "mission_number": null,
+  "mission_slug": "issue-matrix-terminality-research-01M5X1X0",
+  "mission_type": "research",
+  "purpose_context": "This mission advances Issue-matrix terminality gate judges every row (research) on issue-6653-terminality-all-rows so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Confirm root cause, blast radius and red-first tests for #6653",
+  "slug": "issue-matrix-terminality-research-01M5X1X0",
+  "target_branch": "issue-6653-terminality-all-rows",
+  "topology": "single_branch"
+}
