@@ -89,6 +89,16 @@ _DIGEST_LENGTH = 32
 
 #: Lock files this thread holds, keyed by the resolved anchor (#6706).
 _held = threading.local()
+
+
+def _drop_inherited_held_locks() -> None:
+    """Forget locks the parent held: a forked child does not own them."""
+    _held.__dict__.clear()
+
+
+if hasattr(os, "register_at_fork"):  # absent on Windows
+    os.register_at_fork(after_in_child=_drop_inherited_held_locks)
+
 _DIGEST_PREFIX = "sha256:"
 _LF = b"\n"
 _LINE_TERMINATORS = ("\n", "\r")
