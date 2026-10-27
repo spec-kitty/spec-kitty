@@ -440,6 +440,31 @@ def test_cli_ignored_directory_argument_still_expands_to_no_files(tmp_path: Path
     assert payload["files"] == []
 
 
+def test_cli_named_file_in_an_ignored_nested_repository_exits_1_empty_changeset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6649 changelog claim: an ignored nested git repository is not committed into the outer repo."""
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    branch = "kitty/mission-test-01ABCDEF"
+    _init_lane_repo(tmp_path, branch=branch)
+    (tmp_path / ".gitignore").write_text("inner/\n", encoding="utf-8")
+    _git(tmp_path, "add", ".gitignore")
+    _git(tmp_path, "commit", "-q", "-m", "ignore inner")
+    (tmp_path / "inner").mkdir()
+    _git(tmp_path / "inner", "init", "-q")
+    (tmp_path / "inner" / "f.md").write_text("x\n", encoding="utf-8")
+    head_before = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        cli_app,
+        ["safe-commit", "--to-branch", branch, "--message", "add f", "--json", "inner/f.md"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 1
+    assert "empty changeset" in json.loads(result.stdout)["error"]
+    assert _git(tmp_path, "rev-parse", "HEAD").stdout.strip() == head_before
+
+
 def test_cli_directory_expansion_commits_a_non_ascii_file_under_its_real_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#5393: ``safe-commit src/`` committed nothing for ``src/café.py`` (Git-quoted path read literally)."""
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
