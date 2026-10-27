@@ -13,5 +13,7 @@
   "purpose_tldr": "Stop lanes and coord missions from landing a work package as done when nothing was implemented or the implementer approved their own work.",
   "slug": "lane-evidence-independence-01M5YHXF",
   "target_branch": "issue-6715-lane-evidence-independence",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T12:11:30.242507+00:00"
 }

@@ -17,6 +17,9 @@ requirement_refs:
 planning_base_branch: issue-6715-lane-evidence-independence
 merge_target_branch: issue-6715-lane-evidence-independence
 branch_strategy: Planning artifacts for this mission were generated on issue-6715-lane-evidence-independence. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6715-lane-evidence-independence unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-lane-evidence-independence-01M5YHXF
+base_commit: 9aaa40ec0180846aac5bd368e36977e86335f35f
+created_at: '2026-10-27T12:11:44.518360+00:00'
 subtasks:
 - T001
 - T002
