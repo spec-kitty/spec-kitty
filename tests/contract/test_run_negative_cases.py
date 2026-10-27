@@ -347,7 +347,9 @@ def test_every_vacuum_rule_and_every_breaking_plant_is_in_the_manifest_tagged_fo
     lint = [case for case in cases if case["tool"] == "lint_check.py"]
     breaking = [case for case in cases if case["tool"] == "breaking_check.py"]
 
-    assert len(lint) == 11 and all(case["tags"] == ["vacuum"] for case in lint), "nine rules, plus the two enum plants of the narrowed exemption"
+    assert len(lint) == 12 and all(case["tags"] == ["vacuum"] for case in lint), (
+        "nine rules, plus the two enum plants of the narrowed exemption and the misspelled pack tier plant"
+    )
     assert len(breaking) == 19 and all(case["tags"] == ["oasdiff"] for case in breaking), (
         "seven original plants, the six response additions, and the default, range, write-only and patternProperties plants"
     )

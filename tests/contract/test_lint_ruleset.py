@@ -150,6 +150,39 @@ def test_a_described_and_cited_enum_property_passes_both_rules() -> None:
     assert all(_rule_accepts(rule, node) for rule in _REFINEMENT_EXEMPT_RULES)
 
 
+# enum-case allows snake_case and PascalCase, plus exactly one hyphenated value: the built-in pack tier, whose one
+# spelling is kernel.pack_tiers.BUILT_IN (#6402). The allowance is that value, not kebab-case.
+def _enum_case_accepts(values: list[Any]) -> bool:
+    from jsonschema import Draft202012Validator
+
+    return Draft202012Validator(_ruleset()["rules"]["enum-case"]["then"]["functionOptions"]["schema"]).is_valid(values)
+
+
+def test_enum_case_accepts_every_pack_tier_token() -> None:
+    from kernel.pack_tiers import PACK_TIERS
+
+    assert _enum_case_accepts(list(PACK_TIERS)), "a contract carrying the pack tier must pass with its canonical spelling"
+
+
+def test_every_value_enum_case_allows_by_name_is_a_pack_tier_token() -> None:
+    from kernel.pack_tiers import PACK_TIERS
+
+    branches = _ruleset()["rules"]["enum-case"]["then"]["functionOptions"]["schema"]["items"]["anyOf"]
+    allowed_by_name = [branch["const"] for branch in branches if "const" in branch]
+
+    assert allowed_by_name and set(allowed_by_name) <= set(PACK_TIERS), "a value allowed by name must be a kernel.pack_tiers token"
+
+
+@pytest.mark.parametrize("value", ["open", "in_review", "WPStatusChanged", 3, None])
+def test_enum_case_still_accepts_snake_case_pascal_case_integers_and_null(value: Any) -> None:
+    assert _enum_case_accepts([value])
+
+
+@pytest.mark.parametrize("value", ["Built_In", "Built-In", "built-In", "BUILT-IN", "built--in", "built-in-tier", "in-progress", "pre-built-in"])
+def test_enum_case_refuses_other_hyphenated_or_mixed_values(value: str) -> None:
+    assert not _enum_case_accepts([value])
+
+
 # -- the runner's refusals, with the process boundary faked --------------------------------------------
 
 
@@ -313,6 +346,38 @@ def test_a_forbidden_property_name_fails_and_is_assembled_at_run_time(linter: Mo
     code, output = _run_real(linter, plant)
 
     assert code == 1 and "forbidden-property-name" in output, output
+
+
+@needs_vacuum
+def test_the_pack_tier_tokens_pass_enum_case_through_the_real_binary(linter: ModuleType, tmp_path: Path) -> None:
+    from kernel.pack_tiers import PACK_TIERS
+
+    document = yaml.safe_load((FIXTURES / "clean.yaml").read_text(encoding="utf-8"))
+    schema = document["paths"]["/things"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    schema["properties"]["tier"] = {
+        "type": "string",
+        "description": "The pack tier.",
+        "enum": list(PACK_TIERS),
+        "x-source": {"path": "src/kernel/pack_tiers.py", "symbol": "PACK_TIERS"},
+    }
+    control = tmp_path / "pack-tier.yaml"
+    control.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+
+    code, output = _run_real(linter, control)
+
+    assert code == 0, output
+
+
+@needs_vacuum
+def test_a_misspelled_pack_tier_still_fails_enum_case(linter: ModuleType) -> None:
+    code, output = _run_real(linter, FIXTURES / "enum-case-pack-tier-misspelled.yaml")
+
+    assert code == 1, output
+    violations = [line for line in output.splitlines() if "LINT_VIOLATION" in line]
+    assert {line.split(": ")[3] for line in violations} == {"enum-case"}, output
+    # vacuum reports the first failing value only, and the plant lists built-in before Built-In: naming Built-In proves
+    # built-in passed.
+    assert len(violations) == 1 and "'Built-In'" in violations[0], output
 
 
 @needs_vacuum

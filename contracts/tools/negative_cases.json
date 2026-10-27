@@ -1673,6 +1673,26 @@
       }
     },
     {
+      "id": "lint-enum-case-pack-tier-misspelled",
+      "tool": "lint_check.py",
+      "tags": [
+        "vacuum"
+      ],
+      "plant": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/enum-case-pack-tier-misspelled.yaml"
+        ],
+        "code": ": enum-case: "
+      },
+      "control": {
+        "args": [
+          "--file",
+          "contracts/tools/fixtures/vacuum/clean.yaml"
+        ]
+      }
+    },
+    {
       "id": "lint-non-2xx-is-problem",
       "tool": "lint_check.py",
       "tags": [

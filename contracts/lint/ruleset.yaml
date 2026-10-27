@@ -120,8 +120,10 @@ rules:
         notMatch: "(?i)^(feedback[_-]?path|record[_-]?path|prompt[_-]?path|feature[_-]?dir|worktree([_-]?path)?|project[_-]?path)$"
 
   # enum values are snake_case words, or PascalCase names (the lifecycle event type names); integers and null are allowed.
+  # One hyphenated value is allowed by name, not by pattern: built-in, the built-in pack tier, whose single spelling is
+  # kernel.pack_tiers.BUILT_IN (ADR 2026-10-11-2, decision 2; #6402). Other kebab-case values still fail.
   enum-case:
-    description: Enum values are snake_case or PascalCase strings.
+    description: Enum values are snake_case or PascalCase strings; built-in (the pack tier, kernel.pack_tiers) is the one hyphenated value.
     severity: error
     given: $..enum
     then:
@@ -134,6 +136,7 @@ rules:
             anyOf:
               - type: string
                 pattern: "^([a-z][a-z0-9]*(_[a-z0-9]+)*|[A-Z][A-Za-z0-9]*)$"
+              - const: built-in
               - type: integer
               - type: "null"
 
