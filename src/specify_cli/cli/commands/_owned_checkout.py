@@ -179,6 +179,12 @@ OP_RECORD_OWNED_CHECKOUT_HELP: Final[str] = (
 )
 
 
+#: ``--owned-checkout`` help for ``invocations list``, which reads Op records and writes none.
+OP_RECORD_LIST_OWNED_CHECKOUT_HELP: Final[str] = (
+    "List the Op records kept in an owned checkout: a linked checkout of this repository. Refuses the repository root checkout."
+)
+
+
 def resolve_owned_op_record_root(
     repository_root: Path,
     owned_claim: Path | None,
@@ -188,8 +194,8 @@ def resolve_owned_op_record_root(
 ) -> Path | None:
     """Validate ``--owned-checkout`` for an Op command; return the checkout that keeps the record.
 
-    ``dispatch`` and ``profile-invocation complete`` are not bound to a
-    Mission, so only the checkout claim is validated, once, through
+    ``dispatch``, ``profile-invocation complete`` and ``invocations list`` are
+    not bound to a Mission, so only the checkout claim is validated, once, through
     :func:`resolve_owned_create_root` (the claim check every owned command
     runs, plus the repository-root refusal); no Mission or topology is read.
     Known residual: because no Mission is bound, a registered coordination
@@ -393,6 +399,7 @@ def echo_stale_copy_warning(owned: OwnedCheckout) -> None:
 
 
 __all__ = [
+    "OP_RECORD_LIST_OWNED_CHECKOUT_HELP",
     "OP_RECORD_OWNED_CHECKOUT_HELP",
     "OwnedCheckoutOption",
     "echo_stale_copy_warning",

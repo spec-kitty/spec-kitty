@@ -30,13 +30,18 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Iterator
+from typing import Annotated, Iterator
 
 import typer
 from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console as _console_err
 from rich.table import Table
 
+from specify_cli.cli.commands._owned_checkout import (
+    OP_RECORD_LIST_OWNED_CHECKOUT_HELP,
+    owned_checkout_option,
+    resolve_owned_op_record_root,
+)
 from specify_cli.invocation.errors import LegacyRecordError
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, parse_op_event
 from specify_cli.invocation.op_custody import resolve_op_record_root
@@ -353,6 +358,7 @@ def list_invocations(
     profile: str | None = typer.Option(None, "--profile", "-p", help="Filter by profile ID (reads file content, not filename)"),
     limit: int = typer.Option(20, "--limit", "-n", help="Maximum number of records to return (default: 20)"),
     json_output: bool = typer.Option(False, "--json", help="Emit a JSON array instead of a table"),
+    owned_checkout: Annotated[Path | None, owned_checkout_option(help=OP_RECORD_LIST_OWNED_CHECKOUT_HELP)] = None,
 ) -> None:
     """List recent invocation records from the local audit log.
 
@@ -368,8 +374,11 @@ def list_invocations(
     ``--json`` for machine-readable output.
     """
     # #6564: list the Op records of the checkout the command runs in, the
-    # same checkout ``dispatch`` and ``profile-invocation complete`` write to.
-    repo_root = resolve_op_record_root(_get_repo_root())
+    # same checkout ``dispatch`` and ``profile-invocation complete`` write to;
+    # under --owned-checkout, those of the owned checkout (#6682 follow-up).
+    project_root = _get_repo_root()
+    owned_record_root = resolve_owned_op_record_root(project_root, owned_checkout, cwd=Path.cwd(), json_output=json_output)
+    repo_root = owned_record_root if owned_record_root is not None else resolve_op_record_root(project_root)
     events_dir = repo_root / EVENTS_DIR
     legacy_ids: list[str] = []
     records = list(_iter_records(events_dir, profile, limit, repo_root=repo_root, legacy_ids=legacy_ids))
