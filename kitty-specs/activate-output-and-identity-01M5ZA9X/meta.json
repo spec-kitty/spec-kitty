@@ -13,5 +13,7 @@
   "purpose_tldr": "Make charter activate say what it actually wrote, warn when skill activation freezes org-required skills, and pin and document how activation tokens resolve.",
   "slug": "activate-output-and-identity-01M5ZA9X",
   "target_branch": "issue-6457-activate-output-identity",
-  "topology": "coord"
+  "topology": "coord",
+  "contracts": "none",
+  "contracts_rationale": "Output-text and docs changes only: no API, CLI flag, exit code or JSON envelope changes (activate has a JSON envelope only for --preset, untouched)."
 }
