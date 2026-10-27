@@ -1865,7 +1865,8 @@ _Dispatch a request to a governed Op (canonical surface)._
 │ --owned-checkout          <path>  Keep this Op's record in an owned          │
 │                                   checkout: a linked checkout of this        │
 │                                   repository. Refuses the repository root    │
-│                                   checkout.                                  │
+│                                   checkout. A record already in another      │
+│                                   checkout is closed where it lives.         │
 │ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -5321,7 +5322,8 @@ _Manage invocation records._
 │    --owned-checkout          <path>  Keep this Op's record in an owned       │
 │                                      checkout: a linked checkout of this     │
 │                                      repository. Refuses the repository root │
-│                                      checkout.                               │
+│                                      checkout. A record already in another   │
+│                                      checkout is closed where it lives.      │
 │    --help            -h              Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

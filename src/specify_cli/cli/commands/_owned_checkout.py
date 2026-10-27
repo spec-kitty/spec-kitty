@@ -174,7 +174,8 @@ def resolve_owned_or_refuse(
 
 #: ``--owned-checkout`` help for the Op commands, which are not bound to a Mission.
 OP_RECORD_OWNED_CHECKOUT_HELP: Final[str] = (
-    "Keep this Op's record in an owned checkout: a linked checkout of this repository. Refuses the repository root checkout."
+    "Keep this Op's record in an owned checkout: a linked checkout of this repository. Refuses the repository root checkout. "
+    "A record already in another checkout is closed where it lives."
 )
 
 
@@ -198,6 +199,10 @@ def resolve_owned_op_record_root(
     :func:`emit_owned_refusal` and exits 1 before anything is written.
     Returns ``None`` without the flag, so the caller keeps the #6564
     invoking-checkout rule (#6682 follow-up).
+
+    The result is a bare :class:`Path`, unwrapped from ``OwnedCreateRoot``:
+    the Op commands only need the record root, and this mirrors #6691's
+    ``record_root`` for ``next``, which hands the writer a plain path too.
     """
     if owned_claim is None:
         return None
