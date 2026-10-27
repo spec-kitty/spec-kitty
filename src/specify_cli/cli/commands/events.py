@@ -19,14 +19,17 @@ Surface section):
 
 1. FR-004's own-flag-combo usage check (``--from-invariant`` without ``--from-offset``).
 2. Resolve the mission slug via the existing ``resolve_mission_handle()`` (FR-009 --
-   zero new resolution code).
+   zero new resolution code), then the log's directory through the shared
+   ``resolve_surface_dir_or_typed_error()`` delegator over
+   ``resolve_status_surface()``, the resolver every status writer uses (#5466).
 3. If ``--from-offset`` is given, call ``validate_resume_cursor()`` and turn a
    ``ResumeRefused`` into the FR-013 stderr envelope + non-zero exit.
 4. Drive the core -- ``--once`` calls ``poll_once()`` directly, once; otherwise it
    iterates ``tail_events()``.
 
 Every error/usage/refusal signal (``usage_error``, ``mission_not_found``,
-``invalid_resume_offset``, ``resume_content_mismatch``) goes through ``_err_console``
+``status_surface_unavailable``, ``invalid_resume_offset``,
+``resume_content_mismatch``) goes through ``_err_console``
 (STDERR), never ``_console`` -- modeled on ``agent_retrospect.py:593``/``:600``'s
 pattern: ``_err_console.print_json(json.dumps({"error": ..., "detail": ...}))`` +
 ``raise typer.Exit(<n>)`` (one helper, ``_refuse``), NOT ``typer.BadParameter``. No Tail envelope is ever
@@ -42,12 +45,17 @@ from __future__ import annotations
 
 import itertools
 import json
+from pathlib import Path
 
 import typer
 
 from specify_cli.cli.console import err_console as _err_console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.context.mission_resolver import ResolvedMission
+from specify_cli.coordination.surface_resolver import StatusReadPathNotFound, WorktreeRegistryUnavailable
+from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
 from specify_cli.core.paths import locate_project_root
+from specify_cli.missions._read_path_resolver import resolve_surface_dir_or_typed_error
 from specify_cli.status import (
     EMPTY_DIGEST,
     ResumeRefused,
@@ -69,6 +77,35 @@ def _refuse(error: str, detail: str, exit_code: int) -> typer.Exit:
     """
     _err_console.print_json(json.dumps({"error": error, "detail": detail}))
     return typer.Exit(exit_code)
+
+
+def _resolve_event_log_dir(repo_root: Path, resolved: ResolvedMission) -> Path:
+    """Return the directory holding the Mission's resolved status surface (#5466).
+
+    On a coordination-routed Mission the work package transitions live in the
+    coordination worktree, not in ``resolved.feature_dir`` (the repository root
+    checkout), so the directory comes from the shared
+    :func:`resolve_surface_dir_or_typed_error` delegator over
+    :func:`resolve_status_surface`, the resolver every status writer uses. It
+    falls back to the handed mission dir when ``meta.json`` cannot be read.
+
+    When the surface cannot be resolved -- the resolver fails closed
+    (``StatusReadPathNotFound``, e.g. a deleted coordination branch), the
+    coordination worktree is on another branch, or git cannot list worktrees --
+    the command refuses rather than tail the root checkout's copy.
+
+    An UNMATERIALIZED coordination surface (branch present, no worktree) resolves
+    to the coordination path, which does not exist yet: ``--once`` prints nothing
+    and a stream starts once the first write materializes it.
+
+    Returns the directory rather than the file so a later log selector (#6611)
+    can join another log name onto the same resolution.
+    """
+    try:
+        surface_dir: Path = resolve_surface_dir_or_typed_error(repo_root, resolved.mission_slug, on_missing_meta=resolved.feature_dir)
+    except (StatusReadPathNotFound, CoordinationWorkspaceBranchMismatch, WorktreeRegistryUnavailable) as exc:
+        raise _refuse("status_surface_unavailable", str(exc), 1) from exc
+    return surface_dir
 
 
 @app.command("tail")
@@ -134,7 +171,8 @@ def tail_command(
     #    unresolvable slug resolve_mission_handle already emits the
     #    JSON-mode {"error": "mission_not_found", "handle": ...} shape on
     #    stderr and raises SystemExit(2); let that propagate as-is rather
-    #    than re-wrapping it.
+    #    than re-wrapping it. The log itself lives on the resolved status
+    #    surface, not necessarily in resolved.feature_dir (#5466).
     # ------------------------------------------------------------------
     repo_root = locate_project_root()
     if repo_root is None:
@@ -145,7 +183,7 @@ def tail_command(
         )
 
     resolved = resolve_mission_handle(mission, repo_root, json_mode=True)
-    log_path = mission_event_log_path(resolved.feature_dir)
+    log_path = mission_event_log_path(_resolve_event_log_dir(repo_root, resolved))
 
     # ------------------------------------------------------------------
     # 3. FR-013 resume validation -- only when --from-offset is supplied,

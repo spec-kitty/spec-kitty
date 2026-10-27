@@ -45,12 +45,14 @@ throwaway root Typer app, exactly like ``test_docs_query_cli.py`` does for `docs
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 import typer
-from typer.testing import CliRunner
+from typer.testing import CliRunner, Result
 
 from specify_cli.cli.commands import events as events_cli
 from specify_cli.context.mission_resolver import ResolvedMission
@@ -70,8 +72,21 @@ _root_app = typer.Typer()
 _root_app.add_typer(events_cli.app, name="events")
 
 
-def _invoke(*args: str) -> object:
+def _invoke(*args: str) -> Result:
     return runner.invoke(_root_app, ["events", *args])
+
+
+@pytest.fixture(autouse=True)
+def _surface_is_the_handed_dir() -> Iterator[None]:
+    """Keep the mocked-resolution tests hermetic: without this the real status-surface
+    resolver would run against whatever checkout the test process sits in. Tests that
+    pin the surface patch it again inside their own body."""
+    with patch.object(
+        events_cli,
+        "resolve_surface_dir_or_typed_error",
+        side_effect=lambda _repo_root, _slug, *, on_missing_meta: on_missing_meta,
+    ):
+        yield
 
 
 def _resolved(feature_dir: Path) -> ResolvedMission:
@@ -83,7 +98,7 @@ def _resolved(feature_dir: Path) -> ResolvedMission:
     )
 
 
-def _write_events(feature_dir: Path, events: list[dict]) -> Path:
+def _write_events(feature_dir: Path, events: list[dict[str, object]]) -> Path:
     feature_dir.mkdir(parents=True, exist_ok=True)
     log_path = feature_dir / "status.events.jsonl"
     with log_path.open("w", encoding="utf-8") as fh:
@@ -464,7 +479,7 @@ def test_events_tail_leaves_mission_tree_byte_identical_on_every_code_path(tmp_p
     before = _snapshot_tree(tmp_path)
     assert f"kitty-specs/{MISSION_SLUG}/status.events.jsonl" in before
 
-    def _run_and_assert_untouched(label: str, *args: str, resolution: dict[str, object]) -> object:
+    def _run_and_assert_untouched(label: str, *args: str, resolution: dict[str, Any]) -> Result:
         with patch.object(events_cli, "resolve_mission_handle", **resolution):
             result = _invoke(*args)
         assert _snapshot_tree(tmp_path) == before, f"events tail modified the tree on the {label} path"
@@ -518,6 +533,62 @@ def test_events_tail_leaves_mission_tree_byte_identical_on_every_code_path(tmp_p
         resolution={"return_value": resolved},
     )
     assert refused.exit_code != 0
+
+
+def test_log_comes_from_the_resolved_status_surface(tmp_path: Path) -> None:
+    """#5466: the tailed log is the one on the resolved status surface (the
+    coordination worktree's on a coord Mission), not ``resolved.feature_dir``'s."""
+    primary_dir = tmp_path / "primary" / MISSION_SLUG
+    _write_events(primary_dir, [{"event_id": "primary-only"}])
+    coord_dir = tmp_path / "coord" / MISSION_SLUG
+    _write_events(coord_dir, [{"event_id": "coord-1"}, {"event_id": "coord-2"}])
+
+    with (
+        patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(primary_dir)),
+        patch.object(events_cli, "resolve_surface_dir_or_typed_error", return_value=coord_dir) as resolver,
+    ):
+        result = _invoke("tail", "--mission", MISSION_SLUG, "--once")
+
+    assert result.exit_code == 0, result.output
+    assert [json.loads(line)["event_id"] for line in result.stdout.splitlines() if line.strip()] == ["coord-1", "coord-2"]
+    assert resolver.call_args.args[1] == MISSION_SLUG
+    # No readable meta.json: the delegator falls back to the handed mission dir.
+    assert resolver.call_args.kwargs["on_missing_meta"] == primary_dir
+
+
+def _surface_failures(tmp_path: Path) -> list[Exception]:
+    from specify_cli.coordination.surface_resolver import StatusReadPathNotFound, WorktreeRegistryUnavailable
+    from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
+
+    return [
+        StatusReadPathNotFound(
+            repo_root=tmp_path,
+            mission_slug=MISSION_SLUG,
+            mid8=MISSION_ID[:8],
+            coord_candidate=tmp_path / "coord" / MISSION_SLUG,
+            primary_candidate=tmp_path / MISSION_SLUG,
+        ),
+        CoordinationWorkspaceBranchMismatch(worktree_path=tmp_path / "coord", expected_ref="kitty/mission-x", actual_ref="main"),
+        WorktreeRegistryUnavailable(repo_root=tmp_path, detail="git worktree list failed"),
+    ]
+
+
+@pytest.mark.parametrize("failure_index", [0, 1, 2], ids=["fail-closed", "branch-mismatch", "registry-unavailable"])
+def test_unresolvable_status_surface_is_refused_on_stderr(tmp_path: Path, failure_index: int) -> None:
+    """A surface that cannot be resolved is reported, never papered over with the root checkout's copy."""
+    feature_dir = tmp_path / MISSION_SLUG
+    _write_events(feature_dir, [{"event_id": "primary-husk"}])
+    failure = _surface_failures(tmp_path)[failure_index]
+
+    with (
+        patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(feature_dir)),
+        patch.object(events_cli, "resolve_surface_dir_or_typed_error", side_effect=failure),
+    ):
+        result = _invoke("tail", "--mission", MISSION_SLUG, "--once")
+
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert json.loads(result.stderr) == {"error": "status_surface_unavailable", "detail": str(failure)}
 
 
 # NOTE: the real-fixture end-to-end test (real git repo, real meta.json, no
