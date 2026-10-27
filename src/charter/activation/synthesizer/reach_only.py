@@ -146,12 +146,13 @@ def _synthesized_slugs(repo_root: Path, kind: str) -> frozenset[str]:
     """Bare slugs of *kind* synthesis created, for :func:`reach_only_ids` (fails closed, #6454).
 
     The manifest is the authority; an absent manifest means nothing was synthesized.
-    A manifest that exists but cannot be read falls back to :func:`_recorded_slugs`.
+    A manifest that cannot be read (including a dangling symlink or a failing stat) falls back to :func:`_recorded_slugs`.
     """
     manifest_path = repo_root / MANIFEST_PATH
-    if not manifest_path.exists():
-        return frozenset()
     try:
+        # A dangling symlink is unreadable, not absent; exists() itself can raise (EACCES).
+        if not (manifest_path.exists() or manifest_path.is_symlink()):
+            return frozenset()
         return _registered_slugs(load_yaml(manifest_path), kind)
     except (OSError, ValueError, YAMLError) as exc:
         return _recorded_slugs(repo_root, kind, exc)

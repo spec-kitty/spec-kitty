@@ -11,6 +11,7 @@ Every absence assertion is paired with a positive control on the same fixture
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from unittest.mock import patch
 
@@ -398,12 +399,27 @@ def _delivered_with_corrupt_manifest(repo_root: Path, *, directives: frozenset[s
     return frozenset(bundle.tactic_ids)
 
 
-def test_unreadable_manifest_falls_back_to_the_created_record(tmp_path: Path) -> None:
+def _dangle_manifest(repo_root: Path) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH
+
+    manifest = repo_root / MANIFEST_PATH
+    manifest.unlink()
+    manifest.symlink_to(repo_root / "no-such-target.yaml")
+
+
+@pytest.mark.parametrize(
+    "damage",
+    [
+        pytest.param(_corrupt_manifest, id="manifest-unparseable"),
+        pytest.param(_dangle_manifest, id="manifest-dangling-symlink"),
+    ],
+)
+def test_unreadable_manifest_falls_back_to_the_created_record(tmp_path: Path, damage: Callable[[Path], None]) -> None:
     from charter.activation.synthesizer.reach_only import reach_only_ids
 
     _write_created_record(tmp_path, f"created_tactics:\n  - {_REACH_ONLY}\n")
     _write_overlay(tmp_path, with_edge=True)
-    _corrupt_manifest(tmp_path)
+    damage(tmp_path)
 
     assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
 
