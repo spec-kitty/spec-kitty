@@ -6,10 +6,10 @@ Drives ``tasks_move_task._mt_issue_matrix_facts`` -- the late fact
 replaced (it resolves the PRIMARY ``spec.md`` dir from a real repository);
 the issue-matrix blocker itself runs for real.
 
-* an uncited ``in-mission`` row refuses ``done`` and names the row and the
-  ``agent issue-verdict`` remedy;
-* the same matrix does not block ``approved`` (C-001);
-* zero gating refs and no matrix never block either lane (#5222 F1).
+One wiring smoke test: an uncited ``in-mission`` row refuses ``done`` and
+names the row and the ``agent issue-verdict`` remedy. The full blocker matrix
+(approved lane, zero gating refs, no matrix) lives in
+``test_tasks_parsing_validation.py``.
 """
 
 from __future__ import annotations
@@ -26,8 +26,6 @@ from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState, _mt_i
 from specify_cli.status import Lane
 
 pytestmark = pytest.mark.fast
-
-_NO_REFS_SPEC = "# Spec\n\nNo issue references here.\n"
 
 
 def _mission_dir(tmp_path: Path, spec_text: str, rows: dict[str, str] | None) -> Path:
@@ -82,25 +80,3 @@ def test_done_refuses_uncited_in_mission_row(tmp_path: Path, monkeypatch: pytest
     assert blocker is not None
     assert "#5678" in blocker
     assert "spec-kitty agent issue-verdict --mission" in blocker
-
-
-def test_approved_accepts_uncited_in_mission_row(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    feature_dir = _mission_dir(tmp_path, "Fixes #1234 in this mission.\n", {"#1234": "fixed", "#5678": "in-mission"})
-
-    assert _facts(monkeypatch, feature_dir, Lane.APPROVED) is None
-
-
-def test_done_refuses_in_mission_row_with_zero_gating_refs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    feature_dir = _mission_dir(tmp_path, _NO_REFS_SPEC, {"#5678": "in-mission"})
-
-    blocker = _facts(monkeypatch, feature_dir, Lane.DONE)
-
-    assert blocker is not None
-    assert "#5678" in blocker
-
-
-@pytest.mark.parametrize("lane", [Lane.APPROVED, Lane.DONE])
-def test_zero_gating_refs_and_no_matrix_never_blocks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, lane: Lane) -> None:
-    feature_dir = _mission_dir(tmp_path, _NO_REFS_SPEC, None)
-
-    assert _facts(monkeypatch, feature_dir, lane) is None

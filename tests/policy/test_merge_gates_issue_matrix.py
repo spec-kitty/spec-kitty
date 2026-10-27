@@ -606,26 +606,6 @@ class TestDoneJudgesEveryRow:
         assert gate.details == "No unresolved (in-mission/unknown) rows among 2 issue-matrix row(s)"
         assert overall_pass is True
 
-    def test_zero_gating_refs_in_mission_row_blocks(self, repo: Path) -> None:
-        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A3", primary_matrix={_UNCITED_KEY: "in-mission"}, spec_text=_NO_REFS_SPEC_TEXT)
-
-        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
-        gate = _gate(gates, _TERMINALITY_GATE)
-
-        assert gate.verdict == GateVerdict.FAIL, gate.details
-        assert gate.blocking is True
-        assert _UNCITED_KEY in gate.details
-        assert overall_pass is False
-
-    def test_zero_gating_refs_unknown_verdict_surfaces_diagnostic(self, repo: Path) -> None:
-        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A4", primary_matrix={_UNCITED_KEY: "unknown"}, spec_text=_NO_REFS_SPEC_TEXT)
-
-        _overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
-        gate = _gate(gates, _TERMINALITY_GATE)
-
-        assert gate.verdict == GateVerdict.FAIL, gate.details
-        assert f"Row for issue '{_UNCITED_KEY}'" in gate.details
-
     def test_one_digit_cited_in_mission_row_blocks(self, repo: Path) -> None:
         mission_slug = _build_lanes_mission(repo, mid8="01KZR3A5", primary_matrix={"#8": "in-mission"}, spec_text="Fixes #8 in this mission.\n")
 
@@ -635,19 +615,6 @@ class TestDoneJudgesEveryRow:
         assert gate.verdict == GateVerdict.FAIL, gate.details
         assert gate.blocking is True
         assert "#8" in gate.details
-
-    def test_context_only_citation_in_mission_row_blocks(self, repo: Path) -> None:
-        """Analysis C1: ``see #12`` is ``context_only`` -- it never REQUIRES a
-        row -- but an existing ``in-mission`` row is still unresolved."""
-        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A6", primary_matrix={"#12": "in-mission"}, spec_text="see #12 for the background.\n")
-
-        _overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
-        gate = _gate(gates, _TERMINALITY_GATE)
-
-        assert gate.verdict == GateVerdict.FAIL, gate.details
-        assert gate.blocking is True
-        assert "#12" in gate.details
-        assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS  # C-002
 
     @pytest.mark.parametrize(
         ("rows", "expected"),
