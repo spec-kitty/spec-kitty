@@ -75,30 +75,32 @@ def _flat(result: Result) -> str:
     return " ".join(result.output.split())
 
 
-def test_human_table_names_the_org_required_id_in_force(tmp_path: Path) -> None:
-    result = _list(_built_in_required(tmp_path))
+@pytest.mark.parametrize("required", ["DIRECTIVE_001", "DIRECTIVE_001, DIRECTIVE_999"], ids=["provided", "id-no-layer-provides-is-not-claimed"])
+def test_org_required_id_in_force_is_named_in_the_table_and_in_json(tmp_path: Path, required: str) -> None:
+    root = _built_in_required(tmp_path, required=required)
 
-    assert result.exit_code == 0, result.output
-    flat = _flat(result)
+    human = _list(root)
+    as_json = _list(root, "--json")
+
+    assert human.exit_code == 0 and as_json.exit_code == 0, (human.output, as_json.output)
+    flat = _flat(human)
     assert "(All built-ins — no explicit activation)" in flat
     # skill (effective_when_absent == "required"): an absent key is not "all built-ins"
     assert "(Org-required only — no explicit activation)" in flat
     assert f"{_BUILT_IN_STEM} (DIRECTIVE_001) — in force: required by 'acme'" in flat
-
-
-@pytest.mark.parametrize("required", ["DIRECTIVE_001", "DIRECTIVE_001, DIRECTIVE_999"], ids=["provided", "id-no-layer-provides-is-not-claimed"])
-def test_json_names_the_org_required_id_in_force_and_its_pack(tmp_path: Path, required: str) -> None:
-    result = _list(_built_in_required(tmp_path, required=required), "--json")
-
-    assert result.exit_code == 0, result.output
-    payload = json.loads(result.stdout)
+    assert "DIRECTIVE_999" not in flat
+    payload = json.loads(as_json.stdout)
     assert payload["required_in_force"] == {"directives": [{"id": _BUILT_IN_STEM, "packs": ["acme"]}]}
     directive_row = next(row for row in payload["kinds"] if row["kind"] == "directive")
     assert directive_row["activated"] is None  # the allow list itself stays absent
 
 
 def test_a_pack_own_required_directive_is_shown_in_force(tmp_path: Path) -> None:
-    """The PR-CHARTER-GOVERNANCE-002 shape: the pack requires a directive it defines itself."""
+    """The PR-CHARTER-GOVERNANCE-002 shape: the pack requires a directive it defines itself.
+
+    The BDD scenario runs only in the nightly ``acceptance-bdd`` lane (``ci-nightly.yml``),
+    so this is the per-PR guard for the same behaviour.
+    """
     result = _list(_team_rule_required(tmp_path))
 
     assert result.exit_code == 0, result.output
@@ -136,5 +138,6 @@ def test_no_org_pack_leaves_the_listing_unchanged(tmp_path: Path) -> None:
     result = _list(tmp_path, "--json")
 
     assert result.exit_code == 0, result.output
-    assert "required_in_force" not in json.loads(result.stdout)
-    assert "in force: required by" not in _list(tmp_path).output
+    payload = json.loads(result.stdout)
+    assert "required_in_force" not in payload
+    assert "required_floor_unreadable" not in payload
