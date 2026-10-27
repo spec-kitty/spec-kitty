@@ -19,6 +19,9 @@ requirement_refs:
 planning_base_branch: issue-6610-local-event-log-retention
 merge_target_branch: issue-6610-local-event-log-retention
 branch_strategy: Planning artifacts for this mission were generated on issue-6610-local-event-log-retention. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6610-local-event-log-retention unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-local-event-log-retention-01M5ZCJP
+base_commit: d1abfb0a7a5aaf4b1b8485f03a03b6176dee9541
+created_at: '2026-10-27T20:10:40.647586+00:00'
 subtasks:
 - T005
 - T006
