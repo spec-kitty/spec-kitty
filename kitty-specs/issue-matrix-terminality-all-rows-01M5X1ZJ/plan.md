@@ -1,7 +1,7 @@
 # Implementation Plan: Terminality gate judges every issue-matrix row
 
 **Branch**: `issue-6653-terminality-all-rows` | **Date**: 2026-10-26 | **Spec**: [spec.md](spec.md)
-**Input**: `kitty-specs/issue-matrix-terminality-all-rows-01M5X1ZJ/spec.md`; research in `kitty-specs/issue-matrix-terminality-research-01M5X1X0/research.md` and [research.md](research.md).
+**Input**: `kitty-specs/issue-matrix-terminality-all-rows-01M5X1ZJ/spec.md`; research in [research.md](research.md).
 
 ## Summary
 

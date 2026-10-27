@@ -16,7 +16,7 @@ date: '2026-10-26'
 **Technical Story:**
 - #6653 (an uncited `in-mission` row lands with exit 0).
 - #4943 and PR #5222 (the `issue_matrix_verdict_terminality` merge gate, and its zero-reference early return, #5222 F1).
-- Mission `issue-matrix-terminality-all-rows-01M5X1ZJ`; research in `kitty-specs/issue-matrix-terminality-research-01M5X1X0/research.md`.
+- Mission `issue-matrix-terminality-all-rows-01M5X1ZJ`; research in `kitty-specs/issue-matrix-terminality-all-rows-01M5X1ZJ/research.md`.
 - Decisions `01M5X206M989YE99MA0KHRFTNP` (judge the whole matrix) and `01M5X498X3ATTAB12KQWMDPZRV` (a typed `ISSUE_MATRIX_NOT_AUTHORED` code on the existing reader).
 - It refines [ADR 2026-09-20-1](../3.x/2026-09-20-1-issue-matrix-not-applicable-verdict.md): classification still decides which rows are required.
 

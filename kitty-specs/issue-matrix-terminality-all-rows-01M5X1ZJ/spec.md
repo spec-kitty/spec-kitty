@@ -3,7 +3,7 @@
 **Mission Branch**: `issue-6653-terminality-all-rows`
 **Created**: 2026-10-26
 **Status**: Draft
-**Input**: #6653, plus the operator rulings of 2026-10-26. Research: `kitty-specs/issue-matrix-terminality-research-01M5X1X0/research.md`.
+**Input**: #6653, plus the operator rulings of 2026-10-26. Research: [research.md](research.md).
 
 ## Intent Summary (confirmed 2026-10-26)
 

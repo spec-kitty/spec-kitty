@@ -84,7 +84,7 @@ Requirements:
 
 ## Context
 
-Root cause (research F-1..F-4, `kitty-specs/issue-matrix-terminality-research-01M5X1X0/research.md`):
+Root cause (research F-1..F-4, `kitty-specs/issue-matrix-terminality-all-rows-01M5X1ZJ/research.md`, "Pre-spec research"):
 
 - `src/specify_cli/tasks/issue_matrix_approval.py::_issue_matrix_in_mission_rows` filters rows
   with `row.issue in referenced_issues`.
@@ -144,8 +144,7 @@ Commit the tests first.
 
 In `tests/policy/test_merge_gates_issue_matrix.py`, reusing `_build_lanes_mission`,
 `_build_coord_mission`, `_run_gates`, `_gate` and the `_GATING_SPEC_TEXT` monkeypatch
-pattern. The probe in `kitty-specs/issue-matrix-terminality-research-01M5X1X0/research/probe_6653.py`
-shows the three #6653 variants passing today.
+pattern. The three #6653 variants passed before the fix (see "Pre-spec research" in the research file).
 
 1. Lanes Mission, `{#1234: fixed, #5678: in-mission}`, only `#1234` cited:
    - block mode → FAIL, blocking, details name `#5678`;
