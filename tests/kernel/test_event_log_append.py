@@ -381,6 +381,20 @@ def test_lock_is_taken_again_after_the_outer_block_ends(log: Path, monkeypatch: 
     append_event_log_lines(log, ["a"])
     assert len(acquired) == 2
 
+    errors: list[OSError] = []
+
+    def other_writer() -> None:
+        try:
+            with event_log_lock(log, timeout_s=0.5):
+                pass
+        except OSError as exc:
+            errors.append(exc)
+
+    thread = threading.Thread(target=other_writer)
+    thread.start()
+    thread.join()
+    assert errors == []
+
 
 def test_another_thread_still_waits_for_a_held_lock(log: Path) -> None:
     errors: list[OSError] = []
