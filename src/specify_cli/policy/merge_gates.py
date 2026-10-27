@@ -580,12 +580,7 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
             resolve_issue_matrix_partition,
         )
 
-        from specify_cli.tasks.issue_matrix_approval import (
-            _issue_matrix_approval_blocker,
-            issue_matrix_judged_row_count,
-        )
-        from specify_cli.status import Lane
-        from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
+        from specify_cli.tasks.issue_matrix_approval import issue_matrix_done_outcome
 
         # #6653 (FR-002): discovery no longer short-circuits the gate. A
         # Mission with zero gating references still has a PRESENT matrix
@@ -594,21 +589,25 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
         # failed probe: a coord-less Mission or a materialized coordination
         # worktree resolves to a dir (the blocker checks presence itself),
         # and the post-consolidation ref read raises the typed
-        # ``ISSUE_MATRIX_NOT_AUTHORED`` code, accepted here ONLY with zero
-        # gating references. Every other read error stays fail closed.
+        # ``ISSUE_MATRIX_NOT_AUTHORED`` code. #6711: that code is handed to
+        # the blocker as an absent matrix, so the blocker alone decides what
+        # it means (nothing to enforce with zero gating references, "matrix
+        # required" with some). Every other read error stays fail closed.
         primary_discovery_dir = resolve_artifact_surface(
             repo_root, mission_slug, MissionArtifactKind.PRIMARY_METADATA
         ).path
-        has_gating_refs = bool(gating_issue_numbers(primary_discovery_dir))
 
+        coord_matrix_source: Path | str
         try:
             primary_discovery_dir, coord_matrix_source = resolve_issue_matrix_partition(
                 repo_root, mission_slug
             )
         except IssueMatrixRefReadError as exc:
-            if exc.code == IssueMatrixRefReadError.NOT_AUTHORED and not has_gating_refs:
-                return _terminality_pass(_TERMINALITY_NOT_AUTHORED_DETAIL)
-            raise
+            if exc.code != IssueMatrixRefReadError.NOT_AUTHORED:
+                raise
+            # The coordination ref was read and holds no matrix: empty content,
+            # which the blocker reads as an absent artifact.
+            coord_matrix_source = ""
 
         if isinstance(coord_matrix_source, str):
             # Post-consolidation: no on-disk coord dir. ``feature_dir`` is
@@ -621,9 +620,8 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
             feature_dir_for_blocker = coord_matrix_source
             matrix_content = None
 
-        blocker_message = _issue_matrix_approval_blocker(
+        blocker_message, judged = issue_matrix_done_outcome(
             feature_dir_for_blocker,
-            target_lane=Lane.DONE,
             primary_feature_dir=primary_discovery_dir,
             matrix_content=matrix_content,
         )
@@ -635,7 +633,6 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
                 details=blocker_message,
                 blocking=is_blocking,
             )
-        judged = issue_matrix_judged_row_count(feature_dir_for_blocker, matrix_content=matrix_content)
         return _terminality_pass(_terminality_pass_detail(judged))
     except Exception as exc:
         return GateResult(

@@ -82,6 +82,7 @@ MATRIX_SINKS: dict[str, tuple[int | None, str | None]] = {
     "validate_issue_matrix": (0, "path"),
     "_load_issue_matrix_rows": (0, "coord_matrix_source"),
     "_issue_matrix_approval_blocker": (0, "feature_dir"),
+    "issue_matrix_done_outcome": (0, "feature_dir"),
     "_evaluate_issue_matrix": (None, "matrix_dir"),
 }
 
@@ -550,9 +551,11 @@ class TestSelfMutation:
     def test_allowlisted_taint_outside_its_guard_trips(self) -> None:
         # The pinned ``feature_dir_for_blocker = primary_discovery_dir`` is only
         # allowed inside the ref-content arm; the same line elsewhere is a swap.
+        anchor = "        blocker_message, judged = issue_matrix_done_outcome("
+        assert anchor in _read_guarded(MERGE_GATES), "stale anchor: the mutation below would be a no-op"
         source = _read_guarded(MERGE_GATES).replace(
-            "        blocker_message = _issue_matrix_approval_blocker(",
-            "        feature_dir_for_blocker = primary_discovery_dir\n        blocker_message = _issue_matrix_approval_blocker(",
+            "        blocker_message, judged = issue_matrix_done_outcome(",
+            "        feature_dir_for_blocker = primary_discovery_dir\n        blocker_message, judged = issue_matrix_done_outcome(",
         )
         assert any(v.rule == "partition-swap" for v in scan_python(MERGE_GATES, source))
 

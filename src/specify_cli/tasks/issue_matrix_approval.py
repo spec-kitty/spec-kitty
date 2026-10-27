@@ -221,20 +221,30 @@ def _missing_issue_matrix_message(feature_dir: Path, issue_list: list[str]) -> s
     )
 
 
-def issue_matrix_judged_row_count(feature_dir: Path, *, matrix_content: str | None = None) -> int | None:
-    """How many issue-matrix rows a PASS judged, or ``None`` when no matrix exists.
+def issue_matrix_done_outcome(
+    feature_dir: Path,
+    *,
+    primary_feature_dir: Path | None = None,
+    matrix_content: str | None = None,
+) -> tuple[str | None, int | None]:
+    """The ``done`` verdict of the issue-matrix: ``(blocker, judged_rows)`` (#6711).
 
-    #6653 (FR-005, SC-003): the terminality gate's PASS detail names what it
-    judged instead of claiming rows it never looked at. Reads through the same
-    validator the blocker uses (``validate_issue_matrix``), so the count is the
-    number of rows the blocker evaluated. ``matrix_content`` is the
-    coordination-ref content source, as for the blocker.
+    The one authority the terminality merge gate asks. ``blocker`` is the
+    refusal, exactly as :func:`_issue_matrix_approval_blocker` returns it at
+    ``Lane.DONE``. ``judged_rows`` is the number of rows that one evaluation
+    judged, or ``None`` when no matrix exists. ``matrix_content=""`` means the
+    coordination ref was read and holds no matrix
+    (``IssueMatrixRefReadError.NOT_AUTHORED``): zero gating references then
+    mean nothing to enforce, and gating references get the "matrix required"
+    refusal, both decided here rather than by the caller.
     """
-    if not _issue_matrix_present(feature_dir, matrix_content):
-        return None
-    from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
-
-    return len(validate_issue_matrix(feature_dir / "issue-matrix.md", content=matrix_content).rows)
+    return _issue_matrix_blocker_outcome(
+        feature_dir,
+        target_lane=Lane.DONE,
+        primary_feature_dir=primary_feature_dir,
+        # Empty content reads as an absent artifact (issue_matrix_artifact_present).
+        matrix_content=matrix_content,
+    )
 
 
 def _issue_matrix_approval_blocker(
@@ -295,6 +305,23 @@ def _issue_matrix_approval_blocker(
     caller (:func:`~specify_cli.cli.commands.agent.tasks_move_task`, which
     never passes this kwarg) is unaffected.
     """
+    blocker, _judged_rows = _issue_matrix_blocker_outcome(
+        feature_dir,
+        target_lane=target_lane,
+        primary_feature_dir=primary_feature_dir,
+        matrix_content=matrix_content,
+    )
+    return blocker
+
+
+def _issue_matrix_blocker_outcome(
+    feature_dir: Path,
+    *,
+    target_lane: Lane | None,
+    primary_feature_dir: Path | None,
+    matrix_content: str | None,
+) -> tuple[str | None, int | None]:
+    """``(blocker, judged_rows)`` from one evaluation; see :func:`_issue_matrix_approval_blocker`."""
     spec_feature_dir = primary_feature_dir if primary_feature_dir is not None and (primary_feature_dir / SPEC_MD_FILENAME).exists() else feature_dir
 
     try:
@@ -307,7 +334,8 @@ def _issue_matrix_approval_blocker(
     except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
         logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
         return (
-            f"{_issue_matrix_error_prefix(feature_dir)} could not be evaluated before approval.\nReason: {exc}\nFix the issue-matrix check {_FILL_VERDICTS_HINT}."
+            f"{_issue_matrix_error_prefix(feature_dir)} could not be evaluated before approval.\nReason: {exc}\nFix the issue-matrix check {_FILL_VERDICTS_HINT}.",
+            None,
         )
 
     # FR-013 lever SSOT (move-task-approval-ergonomics-01M302R0 WP02, #3469):
@@ -323,9 +351,9 @@ def _issue_matrix_approval_blocker(
         # matrix is still judged whole (diagnostics and ``in-mission`` rows);
         # a missing one is nothing to enforce.
         if target_lane != Lane.DONE or not _issue_matrix_present(feature_dir, matrix_content):
-            return None
+            return None, None
     elif not _issue_matrix_present(feature_dir, matrix_content):
-        return _missing_issue_matrix_message(feature_dir, [f"#{ref.number}" for ref in gating_refs])
+        return _missing_issue_matrix_message(feature_dir, [f"#{ref.number}" for ref in gating_refs]), None
 
     result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
         feature_dir,
@@ -335,8 +363,9 @@ def _issue_matrix_approval_blocker(
     if target_lane != Lane.DONE:
         unresolved_in_mission = []
 
+    judged_rows = len(result.rows)
     if result.passed and not missing_issues and not unresolved_in_mission:
-        return None
+        return None, judged_rows
 
     # #4330: every diagnostic line already carries the failing row + the
     # concrete rule it broke, so they are surfaced FIRST, directly under the
@@ -361,12 +390,12 @@ def _issue_matrix_approval_blocker(
             f"or not-applicable when this Mission owes the issue no work): {', '.join(unresolved_in_mission)}"
         )
     lines.append(_ISSUE_VERDICT_REMEDY)
-    return "\n".join(lines)
+    return "\n".join(lines), judged_rows
 
 
 __all__ = [
     "SPEC_MD_FILENAME",
-    "issue_matrix_judged_row_count",
+    "issue_matrix_done_outcome",
     "_issue_matrix_approval_blocker",
     "_issue_matrix_diagnostic_lines",
     "_issue_matrix_error_prefix",

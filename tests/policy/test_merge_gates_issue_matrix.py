@@ -45,10 +45,14 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionTopology
 from specify_cli.consolidation.baseline import record_baseline_merge_commit
+from specify_cli.missions._read_path_resolver import CoordState, probe_coord_state
 from specify_cli.mission_metadata import load_meta, write_meta
 from specify_cli.policy.config import MergeGateConfig, load_policy_config
 from specify_cli.policy.merge_gates import GateVerdict, evaluate_merge_gates
+from specify_cli.tasks.issue_reference_discovery import gating_issue_numbers
+from tests._factories.coord_mission import CoordMission, make_coord_mission
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -644,24 +648,53 @@ class TestDoneJudgesEveryRow:
         assert overall_pass is True
 
 
+def _materialized_zero_ref_coord_mission(tmp_path: Path) -> CoordMission:
+    """A fresh coord Mission with a REAL coordination worktree and zero gating refs (#6712)."""
+    coord = make_coord_mission(tmp_path / "coord", MissionTopology.COORD, materialized=True)
+    state = probe_coord_state(coord.repo_root, coord.mission_dir_name, coord.mid8, coordination_branch=coord.coordination_branch)
+    assert state is CoordState.MATERIALIZED
+    assert not gating_issue_numbers(coord.root_mission_dir)
+    return coord
+
+
 class TestDoneJudgesEveryRowCoordination:
-    def test_materialized_coord_dir_zero_refs_in_mission_row_blocks(self, repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """A materialized coordination worktree resolves the matrix to a dir;
-        the gate hands it to the blocker, which judges it with zero refs."""
-        import mission_runtime
+    def test_materialized_coord_worktree_zero_refs_in_mission_row_blocks(self, tmp_path: Path) -> None:
+        """#6712: a real on-disk coordination worktree holding an ``in-mission``
+        row FAILs a zero-ref Mission at done (no monkeypatched partition)."""
+        from specify_cli.git.protection_policy import ProtectionPolicy
+        from specify_cli.tasks.issue_matrix import IssueMatrixEntry, write_issue_matrix
 
-        mission_slug, feature_dir = _build_coord_mission(repo, mid8="01KZR3B0", primary_matrix=None, coord_matrix=None, spec_text=_NO_REFS_SPEC_TEXT)
-        coord_dir = tmp_path / "coord-worktree" / "kitty-specs" / mission_slug
-        coord_dir.mkdir(parents=True)
-        (coord_dir / "issue-matrix.json").write_text(_matrix_json({_UNCITED_KEY: "in-mission"}), encoding="utf-8")
-        monkeypatch.setattr(mission_runtime, "resolve_issue_matrix_partition", lambda _root, _slug: (feature_dir, coord_dir))
+        coord = _materialized_zero_ref_coord_mission(tmp_path)
+        written = write_issue_matrix(
+            repo_root=coord.repo_root,
+            mission_slug=coord.mission_dir_name,
+            rows={_UNCITED_KEY: IssueMatrixEntry(verdict="in-mission", evidence_ref="delivered later in this mission")},
+            policy=ProtectionPolicy.resolve(coord.repo_root),
+            actor="tester",
+            target_branch=coord.target_branch,
+        )
+        assert written.status in ("committed", "unchanged"), written.diagnostic
+        assert (coord.coord_mission_dir / "issue-matrix.json").exists()
 
-        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        overall_pass, gates = _run_gates(coord.repo_root, coord.mission_dir_name, mode="block", feature_dir=coord.root_mission_dir)
         gate = _gate(gates, _TERMINALITY_GATE)
 
         assert gate.verdict == GateVerdict.FAIL, gate.details
         assert _UNCITED_KEY in gate.details
         assert overall_pass is False
+
+    def test_materialized_coord_worktree_zero_refs_no_matrix_passes(self, tmp_path: Path) -> None:
+        """#6712 / #5222 F1: the same real worktree with no matrix PASSes."""
+        coord = _materialized_zero_ref_coord_mission(tmp_path)
+        assert not (coord.coord_mission_dir / "issue-matrix.json").exists()
+
+        overall_pass, gates = _run_gates(coord.repo_root, coord.mission_dir_name, mode="block", feature_dir=coord.root_mission_dir)
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.PASS, gate.details
+        assert gate.details == _NOT_AUTHORED_PASS
+        assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS
+        assert overall_pass is True
 
     def test_post_consolidation_ref_zero_refs_in_mission_row_blocks(self, repo: Path) -> None:
         mission_slug, _feature_dir = _build_coord_mission(
@@ -691,7 +724,12 @@ class TestDoneJudgesEveryRowCoordination:
         assert overall_pass is True
 
     def test_gating_refs_and_no_matrix_at_ref_still_fails(self, repo: Path) -> None:
-        """NOT_AUTHORED is "nothing to enforce" ONLY with zero gating refs."""
+        """NOT_AUTHORED is "nothing to enforce" ONLY with zero gating refs.
+
+        #6711: with gating refs it is the blocker's own "matrix required"
+        refusal, naming the references and the remedy, not the generic
+        "Could not evaluate" text of a probe failure.
+        """
         mission_slug, _feature_dir = _build_coord_mission(repo, mid8="01KZR3B3", primary_matrix=None, coord_matrix=None)
 
         overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
@@ -700,6 +738,9 @@ class TestDoneJudgesEveryRowCoordination:
         assert gate.verdict == GateVerdict.FAIL, gate.details
         assert gate.blocking is True
         assert overall_pass is False
+        assert "is required before approval" in gate.details
+        assert _ISSUE_KEY in gate.details
+        assert "Could not evaluate" not in gate.details
 
     @pytest.mark.parametrize("code", ["ISSUE_MATRIX_PROBE_ERROR", "ISSUE_MATRIX_REF_ABSENT", "ISSUE_MATRIX_EMPTY_CONTENT"])
     def test_zero_refs_probe_failure_fails_closed(self, repo: Path, monkeypatch: pytest.MonkeyPatch, code: str) -> None:
