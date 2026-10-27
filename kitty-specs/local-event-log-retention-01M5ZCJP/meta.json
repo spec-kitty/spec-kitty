@@ -13,5 +13,7 @@
   "purpose_tldr": "Give every local state surface a declared cleanup policy and add a dry-run-first command that prunes old, gitignored run journals, event logs and caches.",
   "slug": "local-event-log-retention-01M5ZCJP",
   "target_branch": "issue-6610-local-event-log-retention",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T19:28:51.213777+00:00"
 }
