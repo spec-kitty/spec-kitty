@@ -20,6 +20,16 @@
 | T011 | Fix `PACK_LEVEL_MISSING` clause in `docs/context/governance.md` (Pack Level) | WP03 | [P] |
 | T012 | Fix `PACK_LEVEL_MISSING` clause in `docs/context/charter.md` (Charter Pack) | WP03 | [P] |
 | T013 | `docs/changelog/CHANGELOG.md` `[Unreleased]` entries for #6457, #6458, #6459, #6403; `make docs-lint` | WP03 | |
+| T014 | Red-first all-writers stem test (org + project stem≠id fixtures, built-in directive) | WP04 | |
+| T015 | `IdentityIndex`: accept URNs; index built-in step contracts | WP04 | |
+| T016 | Effective set emits stems (#6435); re-pin `test_effective_set.py` carve-out | WP04 | |
+| T017 | Presets + org-required normalisation store stems; no-stem token kept with warning | WP04 | |
+| T018 | Remove compensating stem mappings (`_narrow_inputs`, interview `_stem_spelled_effective`); re-pin `_ORG_ID` carve-outs | WP04 | |
+| T019 | WP04 gates (changelog line for #6527/#6435 added at closeout; CHANGELOG is WP03-owned) | WP04 | |
+| T020 | Red-first tests: compile accepts URN/declared id/project layer, still fails on unknown; consistency-check false unknowns | WP05 | |
+| T021 | Compile resolves through `IdentityIndex` (#6433) | WP05 | |
+| T022 | Consistency check through one `IdentityIndex`; warn-and-keep; single report per unknown; reverse paradigm parity | WP05 | |
+| T023 | Retire `resolve_artifact_urn` fallbacks the index now covers; WP05 gates (changelog line at closeout) | WP05 | |
 
 ## WP01 — `charter activate` output: `--only` consistency and org-required freeze warning
 
@@ -62,6 +72,34 @@ T012 charter.md Charter Pack (WP03)
 T013 Changelog + docs-lint (WP03)
 
 - **Dependencies**: none (changelog text describes the agreed behaviour; reviewer checks it against WP01/WP02 at consolidation).
+
+## WP04 — One stored activation spelling: stems (#6527 local, #6435)
+
+- **Prompt**: [tasks/WP04-stem-spelling.md](./tasks/WP04-stem-spelling.md)
+- **Goal**: FR-011..FR-015.
+- **Subtasks**:
+
+T014 All-writers test (WP04)
+T015 IdentityIndex URN + step contracts (WP04)
+T016 Effective set stems (WP04)
+T017 Presets and org-required stems (WP04)
+T018 Remove compensations (WP04)
+T019 Gates + changelog (WP04)
+
+- **Dependencies**: WP01 (shared `pack_manager.py`).
+
+## WP05 — Compile and consistency check through the identity index (#6433)
+
+- **Prompt**: [tasks/WP05-compile-consistency-identity.md](./tasks/WP05-compile-consistency-identity.md)
+- **Goal**: FR-016, FR-017.
+- **Subtasks**:
+
+T020 Red-first tests (WP05)
+T021 Compile (WP05)
+T022 Consistency check (WP05)
+T023 Fallback retirement, gates, changelog (WP05)
+
+- **Dependencies**: WP04.
 
 ## MVP
 

@@ -60,12 +60,62 @@
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/activation/effective_set.py",
+        "src/charter/activation/identity_index.py",
+        "src/charter/activation/org_charter.py",
+        "src/charter/activation/preset_application.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
+        "tests/charter/activation/test_effective_set.py",
+        "tests/charter/activation/test_identity_index.py",
+        "tests/charter/activation/test_stored_spelling_6527.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_stem_writes_stem.py",
+        "tests/specify_cli/cli/commands/test_charter_interview_promotion.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/activation/compiler.py",
+        "src/charter/activation/consistency_check.py",
+        "src/charter/activation/drg_activation.py",
+        "tests/charter/activation/test_compile_check_identity_6433.py",
+        "tests/charter/test_compiler.py",
+        "tests/charter/test_consistency_check.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
     }
   ],
-  "computed_at": "2026-10-27T18:41:23.472073+00:00",
+  "computed_at": "2026-10-27T19:24:08.541699+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP03"
   ],
-  "planning_commit_sha": "1e78556db6a7ddab87320ebe5b1f9d23cea4aee4"
+  "planning_commit_sha": "de98950ea20836c5a2bfd60a339fa3361d078d1f"
 }
