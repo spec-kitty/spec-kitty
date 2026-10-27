@@ -9,6 +9,7 @@ requirement_refs:
 - C-003
 - C-005
 - SC-003
+- FR-016
 planning_base_branch: issue-6400-structured-status-actor
 merge_target_branch: issue-6400-structured-status-actor
 branch_strategy: Planning artifacts for this mission were generated on issue-6400-structured-status-actor. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6400-structured-status-actor unless the human explicitly redirects the landing branch.
@@ -109,6 +110,7 @@ spec-kitty agent action implement WP05 --agent claude --mission status-contract-
 
 - `docs/architecture/status-model.md`: add a short "Actor" section (shape table, profile order, role rule, legacy shapes readers accept, frontmatter identity rule) and update the event-format example and any `--actor` examples if they describe the stored value.
 - `docs/changelog/CHANGELOG.md` `[Unreleased]`: one Changed bullet, e.g. "Status events written by move-task, mark-status, add-history, action implement/review, status emit and the orchestrator API now record the actor as `{tool, role, profile, profile_source, model}`; the profile falls back to the work package's planned `agent_profile` (marked `wp_frontmatter`), and `mark-status` takes `--agent` (#6400). The CLI's lane list is derived from `spec_kitty_events` (#6448)." Match the section's sub-headings and run the changelog style test (`grep -rl "changelog" tests/architectural tests/docs 2>/dev/null` to find it).
+- #6271 item 2 (folded in): in `docs/changelog/CHANGELOG.md` (~line 235, the #4941 entry) cite the diary-reducer fix as spec-kitty-events PR #102 (fixing issue #101) instead of the bare `spec-kitty-events#101`. Do not rewrite other `#101` mentions blindly (triage: #101 is the issue, #102 the PR).
 - File the follow-up issue for system writers at mission closeout (orchestrator does this; not this WP).
 
 ## Test Strategy

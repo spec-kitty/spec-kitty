@@ -43,6 +43,24 @@
       "parallel_group": 0
     },
     {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/status/validate.py",
+        "tests/consolidation/test_wall_clock_claim_p0_repro.py",
+        "tests/status/test_validate_seed_predicate_6271.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
       "lane_id": "lane-c",
       "wp_ids": [
         "WP03"
@@ -107,8 +125,8 @@
       "parallel_group": 1
     }
   ],
-  "computed_at": "2026-10-27T18:46:27.544738+00:00",
+  "computed_at": "2026-10-27T18:59:18.655990+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "5cd706a2a6bac7d5ea6a9ccafe770460c0339aec"
+  "planning_commit_sha": "3d5d90adecb13b5fce4bae57425f7c0650a68aaf"
 }

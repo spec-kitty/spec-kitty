@@ -38,7 +38,10 @@
 | T020 | Red-first tests for `agent status emit` and orchestrator-api transitions | WP05 | |
 | T021 | `agent status emit` writes the structured actor | WP05 | |
 | T022 | orchestrator-api lifecycle transitions write the structured actor | WP05 | |
-| T023 | Docs: status-model actor section; changelog `[Unreleased]` entry | WP05 | [P] |
+| T023 | Docs: status-model actor section; changelog `[Unreleased]` entry; changelog #101/#102 citation (#6271) | WP05 | [P] |
+| T024 | Red-first test: a structured `migration:` actor is skipped by the timestamp-continuity check | WP06 | |
+| T025 | Route the seed check through `is_migration_actor` | WP06 | |
+| T026 | Correct the events #101/#102 citations in code and test docstrings | WP06 | [P] |
 
 ---
 
@@ -162,7 +165,26 @@ T023 [P] Docs and changelog (WP05)
 
 ---
 
+## Work Package WP06: #6271 landing follow-ups (Priority: P3)
+
+**Goal**: `status validate`'s timestamp-continuity check uses the shared seed predicate; code and test docstrings cite the diary-reducer fix as spec-kitty-events PR #102 (issue #101).
+**Independent Test**: `pytest tests/status/test_validate_seed_predicate_6271.py`.
+**Prompt**: `tasks/WP06-6271-landing-follow-ups.md`
+**Requirement Refs**: FR-015, FR-016
+
+### Included Subtasks
+
+T024 Red-first test for a structured `migration:` actor (WP06)
+T025 Route the seed check through `is_migration_actor` (WP06)
+T026 [P] Correct the events #101/#102 citations (WP06)
+
+### Dependencies
+
+- None.
+
+---
+
 ## Dependency & Execution Summary
 
-- WP01 and WP02 start in parallel. WP03, WP04, WP05 follow WP02 and can run in parallel (disjoint files).
+- WP01, WP02 and WP06 start in parallel. WP03, WP04, WP05 follow WP02 and can run in parallel (disjoint files).
 - MVP: WP02 + WP03 (the move-task path is where the issue was observed).
