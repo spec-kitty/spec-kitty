@@ -37,7 +37,9 @@ Phase 0 grounding for #6448 and #6400, taken on `origin/main` `581b5c46` (2026-1
   (`tasks_move_task_hops.py:139-162`, falls back to `"user"`).
 - `tasks_move_task_executor.py:542`: paired note annotation actor is the bare string
   `st.final_hop_actor or st.actor`.
-- `tasks_verdict_persistence.py:734`: verdict annotation `actor=st.agent or "operator"`.
+- `tasks_verdict_persistence.py:734` → `tasks_materialization.py:70-106` `_persist_review_artifact_override`: the review-override (verdict) annotation is written with `actor=st.agent or "operator"`.
+- `agent issue-verdict` (`issue_verdict.py`) writes issue-matrix rows only, never a status event, so it has no status actor to fix; the #6400 acceptance item "review verdict path" is the review-override annotation above.
+- `tasks.py:1217` (`agent tasks add-history`): note annotation with the bare `agent_name`.
 - `workflow_executor.py:680,921,1067,1212,1237,1970`: implement/review annotations pass the
   bare `agent` string; the transitions at `:903`/`:1925` use `build_self_asserting_actor`.
 - `status/emit.py:1366-1450`: `build_resolved_actor` / `build_self_asserting_actor` are the
@@ -56,6 +58,8 @@ Phase 0 grounding for #6448 and #6400, taken on `origin/main` `581b5c46` (2026-1
 - Red-first: a `move-task --to for_review` and a `mark-status` run on a fixture mission whose
   WP declares `agent_profile` write a bare-string actor with no profile today. The ATDD test of
   the first implementation WP pins that through the real CLI entry points.
+
+- Performance: every CLI invocation already imports `spec_kitty_events` (checked with `-X importtime`: `--version`, `--help`, `agent tasks status --help`, `next --help` all load it), so deriving lanes at import costs the CLI nothing.
 
 ## 2. Architectural alignment
 
