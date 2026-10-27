@@ -386,31 +386,28 @@ def _safe_commit_json(branch: str, *paths: str) -> dict[str, object]:
     return payload
 
 
-def test_cli_commits_a_lone_explicitly_named_ignored_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#6649: the ignored file named on its own was reported success with committed:false."""
+@pytest.mark.parametrize(
+    ("also_change_readme", "paths", "expected_files"),
+    [
+        pytest.param(False, ["docs-local/a.md"], ["docs-local/a.md"], id="lone"),
+        pytest.param(True, ["docs-local/a.md", "README.md"], ["README.md", "docs-local/a.md"], id="mixed-with-a-tracked-change"),
+    ],
+)
+def test_cli_commits_an_explicitly_named_ignored_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, also_change_readme: bool, paths: list[str], expected_files: list[str]
+) -> None:
+    """#6649: the ignored file named on its own was reported success with committed:false (the mixed call is the control)."""
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     branch = "kitty/mission-test-01ABCDEF"
     _ignored_dir_repo(tmp_path, branch)
+    if also_change_readme:
+        (tmp_path / "README.md").write_text("# Test Repo\nchanged\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
 
-    payload = _safe_commit_json(branch, "docs-local/a.md")
+    payload = _safe_commit_json(branch, *paths)
 
     assert payload["committed"] is True
-    assert _git(tmp_path, "show", "--name-status", "--format=", "HEAD").stdout.split() == ["A", "docs-local/a.md"]
-
-
-def test_cli_commits_a_named_ignored_file_in_a_mixed_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#6649 control: the same file named beside a changed tracked file is committed."""
-    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-    branch = "kitty/mission-test-01ABCDEF"
-    _ignored_dir_repo(tmp_path, branch)
-    (tmp_path / "README.md").write_text("# Test Repo\nchanged\n", encoding="utf-8")
-    monkeypatch.chdir(tmp_path)
-
-    payload = _safe_commit_json(branch, "docs-local/a.md", "README.md")
-
-    assert payload["committed"] is True
-    assert sorted(_git(tmp_path, "show", "--name-only", "--format=", "HEAD").stdout.split()) == ["README.md", "docs-local/a.md"]
+    assert sorted(_git(tmp_path, "show", "--name-only", "--format=", "HEAD").stdout.split()) == expected_files
 
 
 def test_cli_still_reports_nothing_committed_for_an_unchanged_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
