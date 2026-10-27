@@ -261,6 +261,21 @@ def _with_required_in_force(activated_str: str, in_force: _InForce, identity: _K
     return "\n".join([activated_str, *marks]) if marks else activated_str
 
 
+#: What an absent allow key leaves in force, by ``ArtifactKind.effective_when_absent``.
+_ABSENT_KEY_CELLS = {
+    "all": "[dim](All built-ins — no explicit activation)[/dim]",
+    "required": "[dim](Org-required only — no explicit activation)[/dim]",
+}
+
+
+def _absent_key_cell(kind: str) -> str:
+    """The Activated cell of a kind whose allow key is absent: all built-ins, or only the org-required ids."""
+    try:
+        return _ABSENT_KEY_CELLS[ArtifactKind.from_operator_token(kind).effective_when_absent]
+    except ValueError:  # ``mission-type`` is not an artifact kind
+        return _ABSENT_KEY_CELLS["all"]
+
+
 class _KindIdentity:
     """Stem <-> declared-id view of one kind, so ``stem (declared_id)`` and activation agree (FR-007).
 
@@ -426,7 +441,7 @@ def list_cmd(
             value = activated_map.get(kind)
             identity = _KindIdentity(identity_index, kind)
             if value is None:
-                activated_str = "[dim](All built-ins — no explicit activation)[/dim]"
+                activated_str = _absent_key_cell(kind)
             elif len(value) == 0:
                 activated_str = "[yellow](Nothing activated — explicit restriction)[/yellow]"
             else:

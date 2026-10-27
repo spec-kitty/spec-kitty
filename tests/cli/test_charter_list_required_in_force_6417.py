@@ -81,6 +81,8 @@ def test_human_table_names_the_org_required_id_in_force(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     flat = _flat(result)
     assert "(All built-ins — no explicit activation)" in flat
+    # skill (effective_when_absent == "required"): an absent key is not "all built-ins"
+    assert "(Org-required only — no explicit activation)" in flat
     assert f"{_BUILT_IN_STEM} (DIRECTIVE_001) — in force: required by 'acme'" in flat
 
 
