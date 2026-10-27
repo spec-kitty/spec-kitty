@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T19:15:28.715828Z",
+      "decision_id": "01M5ZCKYTBS0EMSMW4FP0G65XV",
+      "final_answer": "Confirm as written",
+      "input_key": "intent_confirmation",
+      "mission_id": "01M5ZCJPQQ36KZ6BYGND2300SG",
+      "mission_slug": "local-event-log-retention-01M5ZCJP",
+      "opened_by": "cli",
+      "options": [
+        "Confirm as written",
+        "Confirm with changes",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the Intent Summary and extracted FR/NFR/C set for local event-log retention",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:17:40.924315Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.confirm-requirements",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5ZCJPQQ36KZ6BYGND2300SG",
+  "version": 1
+}

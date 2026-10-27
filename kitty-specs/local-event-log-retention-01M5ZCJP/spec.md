@@ -144,7 +144,7 @@ The operator re-runs the command with `--apply`. Exactly the previewed candidate
 
 ## Assumptions
 
-- The age of a run is the newest of its journal's last event timestamp and its files' modification times; the age of a log or cache file is its modification time.
+- The age of a run is the newest modification time of the files in its directory; the age of a log or cache file is its modification time. (A copied project resets modification times to the copy time, which only keeps items longer.)
 - `keep_runs` counts per kind: the newest N run directories, and separately the newest N per-Mission logs.
 - "Mission has no unfinished step" (ADR D-3) is implied by "Mission is completed": the glossary checkpoint has no closing event, and a completed Mission has no step to resume.
 - Automatic (opt-in) cleanup, mentioned by ADR D-3, is out of scope.

@@ -75,3 +75,11 @@ Grounded on `origin/main` @ `f90c9f2a` (2026-10-27). Read-only pass, before any 
 - Contract tests: `tests/specify_cli/test_state_contract.py` (635 lines), `test_state_doctor.py:133`, `test_gitignore_contract.py`.
 - 90-day churn: `contract.py` 1 commit, `run_index.py` 1 commit. Low.
 - Gates implicated: `test_event_log_writes_gate.py`, `test_docs_cli_reference_parity.py`, `test_mutation_ownership_routing.py` (doctor siblings outside its module set).
+
+## 7. Plan-phase decisions
+
+- **Decision: age = newest file modification time.** Rationale: one `stat` per file keeps a 1,000-run preview well under 2 s (NFR-001) without parsing journals; a project copy resets mtimes forward, which only delays deletion (safe direction). Alternative considered: the last `timestamp` row of `run.events.jsonl` — rejected as extra parsing and absent for glossary logs and caches.
+- **Decision: lock order run → index for a run deletion.** Rationale: the run-index entry must disappear in the same critical section as the directory (ADR D-3), and no path holds the index lock while waiting on a run lock (`run_lock.py` C-002), so one-way nesting cannot deadlock. Alternative considered: delete the directory, release, then take the index lock — rejected because `next` would hit `RunStateMissing` in the window.
+- **Decision: probe locks with the kernel primitive, not the event-log door.** Rationale: `event_log_lock` / `append_event_log_lines` callers are frozen in `EXPECTED_DOOR_CALLERS` and the cleanup is not a writer (ADR 2026-10-22-1). `machine_file_lock(event_log_lock_path(anchor), blocking=False)` takes the same OS lock. Alternative considered: adding a door caller — rejected (grows a frozen debt ledger).
+- **Decision: completion check is lazy and memoized.** Only items already outside both limits pay for `is_mission_completed`, once per Mission.
+- **Decision: `.torn` and `<log>.lock` sidecars stay.** The lock never goes (G3); the torn-tail sidecar has no registry surface and is out of the confirmed scope (FR-011 lists only what is never deleted; nothing widens the set).
