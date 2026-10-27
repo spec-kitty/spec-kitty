@@ -13,5 +13,7 @@
   "purpose_tldr": "Status events name who acted in one shape, and lanes come from the shared events package.",
   "slug": "status-contract-readers-01M5ZAAC",
   "target_branch": "issue-6400-structured-status-actor",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T18:47:22.191431+00:00"
 }
