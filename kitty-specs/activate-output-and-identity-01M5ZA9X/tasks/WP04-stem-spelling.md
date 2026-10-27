@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: issue-6457-activate-output-identity
 merge_target_branch: issue-6457-activate-output-identity
 branch_strategy: Planning artifacts for this mission were generated on issue-6457-activate-output-identity. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6457-activate-output-identity unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-activate-output-and-identity-01M5ZA9X
+base_commit: 65ca28cf3b852224f51c7d1a342e0e03d428f10c
+created_at: '2026-10-27T20:14:37.802355+00:00'
 subtasks:
 - T014
 - T015
