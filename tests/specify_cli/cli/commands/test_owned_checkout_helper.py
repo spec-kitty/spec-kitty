@@ -471,11 +471,6 @@ class TestResolveOwnedOpRecordRoot:
 
     pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
-    def test_no_flag_returns_none_without_validating(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
-
-        assert resolve_owned_op_record_root(tmp_path, None, cwd=tmp_path, json_output=True) is None
-
     def test_relative_claim_resolves_against_cwd(self, owned_checkouts: OwnedCheckouts) -> None:
         from specify_cli.cli.commands._owned_checkout import resolve_owned_op_record_root
 

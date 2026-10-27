@@ -132,11 +132,12 @@ def test_complete_with_owned_checkout_closes_an_op_held_in_r_where_it_is(tmp_pat
     assert not (owned / EVENTS_DIR).exists()
 
 
-def test_dispatch_refuses_the_repository_root_as_owned_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("extra", [(), ("--dry-run",)], ids=["open", "dry-run"])
+def test_dispatch_refuses_the_repository_root_as_owned_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, extra: tuple[str, ...]) -> None:
     root = _repository_root(tmp_path)
     monkeypatch.chdir(root)
 
-    result = _dispatch("--owned-checkout", str(root))
+    result = _dispatch("--owned-checkout", str(root), *extra)
 
     assert result.exit_code == 1, result.output
     assert json.loads(result.stdout)["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
@@ -153,7 +154,7 @@ def test_dispatch_refuses_a_checkout_of_another_repository(tmp_path: Path, monke
     result = _dispatch("--owned-checkout", str(foreign))
 
     assert result.exit_code == 1, result.output
-    assert "error_code" in json.loads(result.stdout)
+    assert json.loads(result.stdout)["error_code"] == "OWNERSHIP_FOREIGN"
     assert _porcelain(root) == ""
     assert not (foreign / EVENTS_DIR).exists()
 
