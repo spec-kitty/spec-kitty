@@ -91,6 +91,8 @@ class ClarificationMiddleware:
         # Emit every request event before the first prompt, so any eventual
         # resolution references an existing clarification request. They share
         # one ledger lock, which is released before anyone is prompted (#6706).
+        # If the clarification is aborted mid-way, the requests recorded for
+        # the conflicts not yet prompted stay open in the ledger.
         from .events import held_event_log
 
         conflict_ids = [str(uuid.uuid4()) for _ in conflicts]
