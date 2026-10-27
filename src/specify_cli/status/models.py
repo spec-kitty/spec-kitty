@@ -151,8 +151,10 @@ class ProfileSource(StrEnum):
     """Where a structured actor's ``profile`` came from (#6400, FR-005).
 
     The single authority for the ``profile_source`` vocabulary: :func:`decode_actor`
-    validates against it and ``status.actor`` re-exports it. A ``wp_frontmatter``
-    profile is planned, not proven, so :func:`actor_full_identity` ignores it (FR-013).
+    validates against it. No writer emits ``profile_source`` yet: the shared events
+    decoder accepts only the 4-key actor, so writers wait for #6721. A
+    ``wp_frontmatter`` profile is planned, not proven, so
+    :func:`actor_full_identity` ignores it (FR-013).
     """
 
     INVOCATION = "invocation"
