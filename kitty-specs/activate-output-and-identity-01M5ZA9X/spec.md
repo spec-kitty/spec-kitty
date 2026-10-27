@@ -3,7 +3,7 @@
 **Mission Branch**: `issue-6457-activate-output-identity` (planning base and merge target)
 **Created**: 2026-10-27
 **Status**: Draft
-**Input**: Operator brief M3 "Activate output and identity": #6457 (widened), #6459, #6458 (warning part only), #6403 (docs only). Discovery answered by the brief plus Decision Moments `only_output`, `skill_freeze_warning` and `scope` (all resolved).
+**Input**: Operator brief M3 plus operator scope addition 2026-10-27 (#6527 local slice, #6433, #6435; Decision Moments `scope_6527`, `unknown_token_consistency`, `compile_unknown_token`, `ledger_migration`, `no_stem_id`, `step_contracts`). Original brief: M3 "Activate output and identity": #6457 (widened), #6459, #6458 (warning part only), #6403 (docs only). Discovery answered by the brief plus Decision Moments `only_output`, `skill_freeze_warning` and `scope` (all resolved).
 
 ## Intent Summary
 
@@ -89,6 +89,13 @@ The Pack Level and Charter Pack glossary entries claim loading refuses a pack wi
 | FR-008 | Pin stem-first gating | As a maintainer, I want a resolver test that fails if a built-in declared id wins over a higher-layer file name. | Medium | Open | [ratchet] | no — includes a positive control that the built-in artifact is otherwise admitted |
 | FR-009 | Document stem-first gating | As a maintainer, I want the layering doc to state that a file name beats a declared id regardless of layer, linked from the resolver docstring. | Medium | Open | [build] | yes — docs; verified by review |
 | FR-010 | Correct the `PACK_LEVEL_MISSING` glossary clause | As a reader, I want both glossary entries to describe `PACK_LEVEL_MISSING` as non-blocking during the ADR 2026-10-11-2 window and a refusal after it. | Medium | Open | [build] | yes — docs; verified by review |
+| FR-011 | Accept URNs on input | As an operator, I want every activation input (activate, deactivate, presets, compile) to accept a `<kind>:<id>` URN as well as a file stem or declared id, resolved through the one identity index. | Medium | Open | [build] | no — a URN is refused today (red-first) |
+| FR-012 | Effective set in stems (#6435) | As an operator, I want the effective set to list each artifact once, by its file stem, so that an absent-key materialisation never stores both spellings of an org or project artifact whose stem differs from its declared id. | High | Open | [build] | no — today the toolguide fixture yields 20 ids for 19 artifacts |
+| FR-013 | Presets store stems | As an operator, I want `charter activate --preset` to store stems for listed ids and unioned org-required ids. | Medium | Open | [build] | no — an org preset listing `DIRECTIVE_024` stores the declared id today |
+| FR-014 | Every writer stores stems | As a maintainer, I want one test over every activation writer (activate incl. absent-key and `--only`, cascade, deactivate, presets, interview both modes, org-required union) proving only stems are stored, for an org and a project stem≠id artifact and a built-in directive; a token with no single stem is kept as given with a warning (Decision `no_stem_id`). | High | Open | [build] | no — red today for W2/W6/W7/W8 |
+| FR-015 | Step contracts in the identity index | As a maintainer, I want built-in mission-step-contract files indexed by `IdentityIndex`, so the one identity authority covers every kind. | Medium | Open | [build] | no — index returns None for a built-in step-contract stem today |
+| FR-016 | Compile resolves through the identity index (#6433) | As an operator, I want `charter compile` to resolve activation tokens (stem, declared id, URN) through `IdentityIndex` with the project layer; a truly unknown token still fails compile (Decision `compile_unknown_token`). | Medium | Open | [build] | no — a URN fails compile today; positive control: an unknown token still fails |
+| FR-017 | Consistency check resolves through the identity index (#6433) | As an operator, I want `charter consistency-check` to resolve through one `IdentityIndex` covering the project layer, stop reporting stored declared ids and project-layer artifacts as unknown, report each unknown token once, and keep it (warn and keep). | Medium | Open | [build] | no — today a project-layer artifact is reported unknown in both spellings |
 
 ### Non-Functional Requirements
 
@@ -102,7 +109,8 @@ The Pack Level and Charter Pack glossary entries claim loading refuses a pack wi
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | Output only | The activation ledger content written by every `activate` path, exit codes and allow-list / org-required-floor semantics stay byte-identical (epic #6518, #6684, #6685 own semantics). | Technical | High | Open |
+| C-001 | Output only (WP01-WP03) | For the #6457/#6458/#6459/#6403 work, the activation ledger content written by every `activate` path, exit codes and allow-list / org-required-floor semantics stay byte-identical (epic #6518, #6684, #6685 own semantics). The #6527 local slice (FR-011..FR-017) changes only the *spelling* stored (stems), never which artifacts are in force. | Technical | High | Open |
+| C-005 | #6527 local slice only | ACL `to_contract` declared-id export and the `activation_invalid` refusal stay with #6520 / epic #6518. No normalising ledger migration (Decision `ledger_migration`). No change to allow-list vs org-required-floor semantics. | Technical | High | Open |
 | C-002 | No precedence change | Stem-first gating is pinned, not changed (#6459 is a Task). #6435 (spelling) stays in #6518. | Technical | High | Open |
 | C-003 | Docs fix only for #6403 | No change to the pack loader or validator switch; the "tier" wording (#6439) is out of scope. | Technical | Medium | Open |
 | C-004 | Canonical warning authority | Warning texts live once in `charter.activation.activation_engine`; the CLI renders them without special-casing. | Technical | Medium | Open |
@@ -121,6 +129,8 @@ The Pack Level and Charter Pack glossary entries claim loading refuses a pack wi
 - **SC-002**: The skill freeze warning prints on both activation paths for skills and on 0 paths for every other kind under test — [build] · no-op passable: no
 - **SC-003**: A test goes red when gating is changed to prefer a built-in declared id over a higher-layer file name — [ratchet] · no-op passable: no
 - **SC-004**: Both glossary entries agree with the shipped loader behaviour for `PACK_LEVEL_MISSING` — [build] · no-op passable: yes
+- **SC-005**: Every activation writer stores only stems for the stem≠id fixtures (0 declared ids or URNs stored) — [build] · no-op passable: no
+- **SC-006**: Compile and the consistency check accept the same tokens as the runtime gate; 0 false "unknown" reports for stored declared ids or project-layer artifacts — [build] · no-op passable: no
 
 ## Assumptions
 

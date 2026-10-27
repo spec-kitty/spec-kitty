@@ -47,3 +47,9 @@ Base: `origin/main` @ `581b5c46` (2026-10-27). All citations re-verified on that
 - `only_output`: narrow lines only; add a "Now listed for <kind> (N): ..." line; mission-type absent key gets no unresolved warning; other unresolved kinds get one warning with the reason.
 - `skill_freeze_warning`: one shared constant in the engine keyed on `effective_when_absent == "required"`; plain path only on an absent key (replacing the `--only` advice); `--only` every run.
 - `scope`: #6457 widened; #6459 test + doc; #6458 warning only; #6403 docs only.
+
+## Addendum (2026-10-27): #6527 local slice
+
+Operator added the local slice of #6527 (with #6433, #6435) to this mission. Full grounding with file:line citations and experiments: [research-6527-grounding.md](./research-6527-grounding.md).
+
+Decisions (Decision Moments, resolved): add as WP04/WP05; consistency check warns and keeps unknown tokens; compile resolves through `IdentityIndex` but stays strict on a truly unknown token; no normalising ledger migration; a token with no single stem is kept as given with a warning on every writer; built-in step contracts get indexed in `IdentityIndex`. Integration slice (ACL export, `activation_invalid`, #6520) stays with epic #6518, so the PR says "Refs #6527".

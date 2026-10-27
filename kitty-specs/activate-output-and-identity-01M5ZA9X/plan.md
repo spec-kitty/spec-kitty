@@ -119,3 +119,21 @@ tests/charter/activation/test_stem_first_gating_6459.py  # new
 - Targeted: the new/changed test modules; `tests/specify_cli/cli/commands/charter/test_activate_*.py`; `tests/charter/test_skill_activation.py`; `tests/charter/activation/test_identity_index.py`.
 - Blast radius: `tests/charter/`, `tests/charter_offering/`, `tests/specify_cli/cli/commands/charter/`; `make test-fast`.
 - Gates: `ruff check`, `ruff format --check --force-exclude <files>`, `mypy` on touched files, `pytest tests/architectural/test_no_legacy_terminology.py`, `make docs-lint`.
+
+## Addendum (2026-10-27): #6527 local slice
+
+### IC-06 — One stored spelling: stems (#6527 local, #6435)
+
+- **Purpose**: `IdentityIndex` accepts URNs and indexes built-in step contracts; the effective set emits stems; presets and every writer store stems; compensating stem mappings removed; one all-writers test.
+- **Relevant requirements**: FR-011, FR-012, FR-013, FR-014, FR-015
+- **Affected surfaces**: `src/charter/activation/identity_index.py`, `kind_vocabulary.py` (step-contract scan only if that is where the index scans), `effective_set.py`, `preset_application.py`, `org_charter.py` (`_normalize_required_ids` skip→keep), `pack_manager._narrow_inputs` (compensation removal), `specify_cli/cli/commands/charter/interview.py` (`_stem_spelled_effective` removal), tests listed in `research-6527-grounding.md` §4.
+- **Sequencing/depends-on**: after IC-02 (shared `pack_manager.py`)
+- **Risks**: `test_activation_preserves_effective_4253.py:249-268` must stay green unchanged; no migration (existing lists normalise on next write).
+
+### IC-07 — Compile and consistency check through `IdentityIndex` (#6433)
+
+- **Purpose**: compile resolves stems/declared ids/URNs through the index (project layer included) and stays strict on truly unknown tokens; the consistency check uses one index, warns-and-keeps unknown tokens, reports each once, fixes reverse paradigm parity.
+- **Relevant requirements**: FR-016, FR-017
+- **Affected surfaces**: `src/charter/activation/compiler.py` (`_resolve_config_activated_ids`), `src/charter/activation/consistency_check.py`, `drg_activation.py`/`preset_application.py` `resolve_artifact_urn` fallbacks (remove only if the index now covers them)
+- **Sequencing/depends-on**: IC-06 (URN + step-contract index)
+- **Risks**: complexity (`compiler.py`, `consistency_check.py` are large; keep touched functions <= 15).
