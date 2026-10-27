@@ -33,11 +33,11 @@ def _register(root: Path, name: str, local_path: str) -> None:
     )
 
 
-def _built_in_required(root: Path, **ledger: list[str]) -> Path:
-    """An org pack ``acme`` requiring the built-in DIRECTIVE_001."""
+def _built_in_required(root: Path, *, required: str = "DIRECTIVE_001", **ledger: list[str]) -> Path:
+    """An org pack ``acme`` requiring the built-in DIRECTIVE_001 (plus any other *required* ids)."""
     pack = root / "org-packs" / "acme"
     pack.mkdir(parents=True)
-    (pack / "org-charter.yaml").write_text("schema_version: 1\nrequired_directives: [DIRECTIVE_001]\n", encoding="utf-8")
+    (pack / "org-charter.yaml").write_text(f"schema_version: 1\nrequired_directives: [{required}]\n", encoding="utf-8")
     _register(root, "acme", "org-packs/acme")
     seed_activation_ledger(root, mission_type_activations=["software-dev"], **ledger)
     return root
@@ -47,7 +47,7 @@ def _team_rule_required(root: Path) -> Path:
     """The governance-in-force scenario's team pack: it requires its own directive ``team-rule``."""
     pack = root / ".kittify" / "team-pack"
     (pack / "drg").mkdir(parents=True)
-    (pack / "directive").mkdir()
+    (pack / "directives").mkdir()
     (pack / "pack.yaml").write_text(
         "pack_id: 01M4P01D5TWB5FKZGNNQG3900A\nparent_pack: null\nname: team-pack\npack_level: org\nactive_charter: org-charter.yaml\npack_drg: drg/fragment.yaml\n",
         encoding="utf-8",
@@ -55,11 +55,12 @@ def _team_rule_required(root: Path) -> Path:
     (pack / "org-charter.yaml").write_text("org_name: team\nskill_namespace: team\nrequired_directives:\n  - team-rule\n", encoding="utf-8")
     (pack / "drg" / "fragment.yaml").write_text(
         "pack_name: team-pack\nsource_kind: local_path\nsource_ref: .kittify/team-pack\nlayer_index: 1\nprovenance_marker: org\n"
-        "nodes:\n  - id: team-rule\n    kind: directives\n    title: Team rule\n    body_path: directive/team-rule.directive.yaml\n",
+        "nodes:\n  - id: team-rule\n    kind: directives\n    title: Team rule\n    body_path: directives/team-rule.directive.yaml\n",
         encoding="utf-8",
     )
-    (pack / "directive" / "team-rule.directive.yaml").write_text(
-        'schema_version: "1.0"\nid: team-rule\ntitle: Team rule\nscope: docs\nbody: >\n  the team-wide default\n', encoding="utf-8"
+    (pack / "directives" / "team-rule.directive.yaml").write_text(
+        'schema_version: "1.0"\nid: TEAM_RULE\ntitle: Team rule\nscope: docs\nintent: >\n  the team-wide default\nenforcement: required\n',
+        encoding="utf-8",
     )
     _register(root, "team-pack", ".kittify/team-pack")
     seed_activation_ledger(root, mission_type_activations=["software-dev"])
@@ -83,8 +84,9 @@ def test_human_table_names_the_org_required_id_in_force(tmp_path: Path) -> None:
     assert f"{_BUILT_IN_STEM} (DIRECTIVE_001) — in force: required by 'acme'" in flat
 
 
-def test_json_names_the_org_required_id_in_force_and_its_pack(tmp_path: Path) -> None:
-    result = _list(_built_in_required(tmp_path), "--json")
+@pytest.mark.parametrize("required", ["DIRECTIVE_001", "DIRECTIVE_001, DIRECTIVE_999"], ids=["provided", "id-no-layer-provides-is-not-claimed"])
+def test_json_names_the_org_required_id_in_force_and_its_pack(tmp_path: Path, required: str) -> None:
+    result = _list(_built_in_required(tmp_path, required=required), "--json")
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
@@ -98,7 +100,7 @@ def test_a_pack_own_required_directive_is_shown_in_force(tmp_path: Path) -> None
     result = _list(_team_rule_required(tmp_path))
 
     assert result.exit_code == 0, result.output
-    assert f"{_TEAM_RULE} — in force: required by 'team-pack'" in _flat(result)
+    assert f"{_TEAM_RULE} (TEAM_RULE) — in force: required by 'team-pack'" in _flat(result)
 
 
 def test_an_explicit_allow_list_reports_only_its_omission(tmp_path: Path) -> None:

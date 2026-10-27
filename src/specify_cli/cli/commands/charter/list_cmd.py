@@ -206,13 +206,20 @@ _REQUIRED_IN_FORCE = "in force: required by"
 _InForce = list[tuple[str, tuple[RequiringPack, ...]]]
 
 
-def _required_in_force_by_kind(repo_root: Path, activated_map: dict[str, Any]) -> dict[str, _InForce]:
+def _provided_stems(manager: ActiveCharterManager, ctx: ProjectContext, kind: str) -> frozenset[str]:
+    """The stems of *kind* the built-in, project and every org layer provide (the ``--all`` scan)."""
+    entries = _available_over_chain(manager, ctx, kind, resolve_layer_roots(ctx.repo_root), resolve_pack_chain(ctx.repo_root, strict=False))
+    return frozenset(entry.artifact_id for entry in entries)
+
+
+def _required_in_force_by_kind(manager: ActiveCharterManager, ctx: ProjectContext, activated_map: dict[str, Any]) -> dict[str, _InForce]:
     """Per operator kind token, the org-required ids in force because the kind's allow list is absent (#6417).
 
     An absent ``activated_<kind>`` key leaves the org packs' required floor in force,
-    and no deny-list can remove a required id, so every id of the floor is listed.
-    A present list is :func:`_required_not_in_force_by_kind`'s concern. Read
-    leniently, like that function: ``doctor charter-packs`` reports an unreadable floor.
+    and no deny-list can remove a required id. Only a floor id some layer provides is
+    listed: an id no layer provides is not claimed in force (``doctor charter-packs``
+    reports it). A present list is :func:`_required_not_in_force_by_kind`'s concern.
+    Read leniently, like that function: ``doctor charter-packs`` reports an unreadable floor.
     """
     by_kind: dict[str, _InForce] = {}
     for kind in _KIND_ORDER:
@@ -224,9 +231,11 @@ def _required_in_force_by_kind(repo_root: Path, activated_map: dict[str, Any]) -
             continue
         if not artifact_kind.org_requirable:
             continue
-        floor = read_org_required_provenance(repo_root, artifact_kind, strict=False)
-        if floor:
-            by_kind[kind] = list(floor.items())
+        floor = read_org_required_provenance(ctx.repo_root, artifact_kind, strict=False)
+        provided = _provided_stems(manager, ctx, kind) if floor else frozenset()
+        in_force = [(stem, packs) for stem, packs in floor.items() if stem in provided]
+        if in_force:
+            by_kind[kind] = in_force
     return by_kind
 
 
@@ -391,7 +400,7 @@ def list_cmd(
         identity_index = IdentityIndex.build(repo_root)
         deactivated_map = _deactivated_by_kind(repo_root)
         required_omitted = _required_not_in_force_by_kind(repo_root)
-        required_in_force = _required_in_force_by_kind(repo_root, activated_map)
+        required_in_force = _required_in_force_by_kind(manager, ctx, activated_map)
         # The column appears only when something is deactivated, so a project
         # without a deny-list keeps its byte-identical table.
         show_deactivated = any(deactivated_map.values())
