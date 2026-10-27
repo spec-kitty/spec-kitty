@@ -2095,7 +2095,11 @@ class IssueMatrixRefReadError(RuntimeError):
       A caller may treat this as "no matrix" ONLY where an absent matrix is
       legitimately nothing to enforce (e.g. a Mission with zero gating
       references); everywhere else it is a refusal like the other three.
+      Compare against :attr:`NOT_AUTHORED`, never a copied literal.
     """
+
+    #: The one public spelling of the ``ISSUE_MATRIX_NOT_AUTHORED`` code (#6653).
+    NOT_AUTHORED = _ISSUE_MATRIX_NOT_AUTHORED_CODE
 
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
@@ -2246,6 +2250,10 @@ def _path_absent_from_tree(repo_root: Path, ref: str, object_path: str) -> bool:
     is listed, the probe exits non-zero (including 128 for a ref that stopped
     resolving after :func:`_ensure_issue_matrix_ref_exists` checked it), it
     times out, or it cannot run (``OSError``).
+
+    Scope: ``object_path`` is the canonical Mission directory path from
+    :func:`_issue_matrix_object_path`. A matrix committed under some other
+    directory name on the ref is not looked for, and reads as absent here.
     """
     try:
         result = subprocess.run(

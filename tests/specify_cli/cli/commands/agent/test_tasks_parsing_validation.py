@@ -365,6 +365,8 @@ def test_done_blocks_uncited_in_mission_row(tmp_path: Path) -> None:
     assert blocker is not None
     assert "#5678" in blocker
     assert "Still 'in-mission'" in blocker
+    assert "not-applicable when this Mission owes the issue no work" in blocker
+    assert "Fill in verdicts before done." in blocker
     assert "spec-kitty agent issue-verdict --mission" in blocker
 
 

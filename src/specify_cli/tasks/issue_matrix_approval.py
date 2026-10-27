@@ -45,6 +45,9 @@ SPEC_MD_FILENAME = "spec.md"
 # recur across the approval-blocker error strings below -- hoisted so a 4th
 # message does not reintroduce the duplication.
 _FILL_VERDICTS_HINT = "before approving"
+# #6653: at ``done`` the work package is already approved, so the unresolved-entries
+# header names the lane the blocker is guarding.
+_FILL_VERDICTS_BEFORE_DONE_HINT = "before done"
 
 # #3951 (F-36): the remedy command for an unfilled verdict row. The
 # approve-gate blocker previously said only "Fill in verdicts" without naming
@@ -341,7 +344,8 @@ def _issue_matrix_approval_blocker(
     # the operator and the per-row cause.
     diagnostic_lines = _issue_matrix_diagnostic_lines(result)
 
-    lines = [f"{_issue_matrix_error_prefix(feature_dir)} has unresolved entries. Fill in verdicts {_FILL_VERDICTS_HINT}."]
+    hint = _FILL_VERDICTS_BEFORE_DONE_HINT if target_lane == Lane.DONE else _FILL_VERDICTS_HINT
+    lines = [f"{_issue_matrix_error_prefix(feature_dir)} has unresolved entries. Fill in verdicts {hint}."]
     for message in diagnostic_lines:
         lines.append(f"- {message}")
     # FR-007 (#2555.5): only claim rows are "missing" when rows were actually
@@ -352,7 +356,10 @@ def _issue_matrix_approval_blocker(
     if missing_issues and result.rows:
         lines.append(f"Missing rows: {', '.join(missing_issues)}")
     if unresolved_in_mission:
-        lines.append(f"Still 'in-mission' (resolve to fixed / verified-already-fixed / deferred-with-followup before done): {', '.join(unresolved_in_mission)}")
+        lines.append(
+            "Still 'in-mission' (resolve to fixed / verified-already-fixed / deferred-with-followup before done, "
+            f"or not-applicable when this Mission owes the issue no work): {', '.join(unresolved_in_mission)}"
+        )
     lines.append(_ISSUE_VERDICT_REMEDY)
     return "\n".join(lines)
 

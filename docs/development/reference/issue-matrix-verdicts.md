@@ -74,9 +74,10 @@ decides resolution for **every** existing row, whatever its classification:
 - A Mission **with** gating references still needs a matrix and a row for
   each of them (the completeness gate is unchanged); a missing matrix fails.
 
-A PASS says what it judged: `No unresolved (in-mission/unknown) rows among N
-issue-matrix row(s)`, or `No issue-matrix authored and no gating issue
-references — nothing to enforce`.
+A PASS says what it judged:
+
+- `No unresolved (in-mission/unknown) rows among N issue-matrix row(s)`
+- `No issue-matrix authored and no gating issue references — nothing to enforce`
 
 `approved` is unchanged: an `in-mission` row is accepted there, and a Mission
 with zero gating references never needs a matrix to be approved.

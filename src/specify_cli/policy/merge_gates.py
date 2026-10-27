@@ -499,10 +499,7 @@ def _evaluate_issue_matrix_completeness_gate(
         )
 
 
-# #6653 (FR-005, SC-003): a terminality PASS names what it judged. The code
-# mirrors ``mission_runtime.resolution``'s private ``ISSUE_MATRIX_NOT_AUTHORED``
-# (compared by value; there is no public export to import).
-_ISSUE_MATRIX_NOT_AUTHORED_CODE = "ISSUE_MATRIX_NOT_AUTHORED"
+# #6653 (FR-005, SC-003): a terminality PASS names what it judged.
 _TERMINALITY_NOT_AUTHORED_DETAIL = "No issue-matrix authored and no gating issue references — nothing to enforce"
 
 
@@ -607,7 +604,7 @@ def _evaluate_issue_matrix_verdict_terminality_gate(
                 repo_root, mission_slug
             )
         except IssueMatrixRefReadError as exc:
-            if exc.code == _ISSUE_MATRIX_NOT_AUTHORED_CODE and not has_gating_refs:
+            if exc.code == IssueMatrixRefReadError.NOT_AUTHORED and not has_gating_refs:
                 return _terminality_pass(_TERMINALITY_NOT_AUTHORED_DETAIL)
             raise
 

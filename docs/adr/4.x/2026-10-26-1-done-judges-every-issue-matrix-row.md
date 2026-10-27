@@ -52,6 +52,8 @@ A Mission with zero gating references and no matrix passes, so #5222 F1 holds. "
 
 The terminality gate accepts `ISSUE_MATRIX_NOT_AUTHORED` as a PASS only when the Mission has zero gating references. With gating references it stays a FAIL, as before. Every other read error (`ISSUE_MATRIX_REF_ABSENT`, `ISSUE_MATRIX_PROBE_ERROR`, `ISSUE_MATRIX_EMPTY_CONTENT`) fails closed on every path.
 
+This now includes a Mission with zero gating references. One case reaches it in practice: running `consolidate` again after a finished run tore the coordination branch down. The read ref is then the deleted coordination branch, so the gate reports `ISSUE_MATRIX_REF_ABSENT` and FAILs, where the old early return passed. That is an accepted FAIL. The gate runs before any mutation, so an ordinary run never reaches it, and a Mission with gating references already failed the same way.
+
 ### 5. A PASS says what it judged
 
 The PASS detail names the number of rows judged ("No unresolved (in-mission/unknown) rows among N issue-matrix row(s)"), or says "No issue-matrix authored and no gating issue references — nothing to enforce".
@@ -71,7 +73,7 @@ An `in-mission` row is still accepted at `approved`, and a Mission with zero gat
 ### Negative
 
 - **Accepted behaviour change (C-005).** A Mission that passes today can be refused in `block` mode, or warned in `warn` mode, at consolidation and at `move-task --to done`. The remedy is to record a terminal verdict for the row with `spec-kitty agent issue-verdict`.
-- A zero-reference coordination Mission now reads its coordination ref at the terminality gate. A deleted ref, an unreadable object or an empty matrix there now FAILs where the old early return passed. That is the fail-closed rule of NFR-002.
+- A zero-reference coordination Mission now reads its coordination ref at the terminality gate. A deleted ref, an unreadable object, an empty matrix or any other resolution error there now FAILs where the old early return passed. That is the fail-closed rule of NFR-002.
 
 ### Neutral
 
