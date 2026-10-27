@@ -28,7 +28,10 @@ says it takes the same OS lock files with ``flock(2)`` semantics.
      (:class:`EventLogLockUnavailableError`) rather than lock where other
      writers do not.
 2. **Lock.** An exclusive :func:`kernel.locks.machine_file_lock`, with a
-   bounded wait (:data:`EVENT_LOG_LOCK_TIMEOUT_S`).
+   bounded wait (:data:`EVENT_LOG_LOCK_TIMEOUT_S`). It is re-entrant within
+   one thread: a nested :func:`event_log_lock` on the same anchor reuses the
+   held lock, so a writer may hold it across a loop of appends (#6706). It
+   is never held across a wait on a person.
 3. **Torn tail.** Under the lock, a log whose last byte is not LF is refused
    (:class:`EventLogTornTailError`), and nothing is written.
 4. **Write.** The whole unit in one ``os.write`` on an ``O_APPEND``
@@ -52,6 +55,7 @@ every caller.
 from __future__ import annotations
 
 import os
+import threading
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
@@ -82,6 +86,9 @@ NON_GIT_LOCK_SUFFIX = ".event-log.lock"
 EVENT_LOG_LOCK_TIMEOUT_S = 10.0
 
 _DIGEST_LENGTH = 32
+
+#: Lock files this thread holds, keyed by the resolved anchor (#6706).
+_held = threading.local()
 _DIGEST_PREFIX = "sha256:"
 _LF = b"\n"
 _LINE_TERMINATORS = ("\n", "\r")
@@ -159,11 +166,24 @@ def event_log_lock(anchor: Path, *, timeout_s: float = EVENT_LOG_LOCK_TIMEOUT_S)
     For a writer that appends through another sanctioned primitive (the
     glossary's ``spec_kitty_events.persistence.append_event``) but must still
     exclude the other writers of the same log.
+
+    Re-entrant within one thread, like an ``RLock``: a nested call on the same
+    anchor yields the lock already held, with no second acquire and no git
+    probe, so a writer can hold the lock across a loop of appends (#6706).
     """
+    key = anchor.resolve()
+    held: dict[Path, Path] = _held.__dict__.setdefault("locks", {})
+    if key in held:
+        yield held[key]
+        return
     lock_path = event_log_lock_path(anchor)
     try:
         with machine_file_lock(lock_path, blocking=True, timeout_s=timeout_s):
-            yield lock_path
+            held[key] = lock_path
+            try:
+                yield lock_path
+            finally:
+                del held[key]
     except LockAcquireTimeout as exc:
         raise EventLogLockTimeoutError(
             f"{anchor}: event-log lock {lock_path} was not acquired within {timeout_s}s because another writer holds it. Retry, or stop the other writer."

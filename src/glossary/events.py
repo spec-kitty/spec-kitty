@@ -25,6 +25,7 @@ import logging
 import os
 import re
 import uuid
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Any
 from collections.abc import Iterator
@@ -127,6 +128,26 @@ def append_event(event_dict: dict[str, Any], event_log_path: Path) -> None:
         except LedgerTornTailError:
             _repair_torn_tail(event_log_path)
             _ledger_append(event_dict, event_log_path)
+
+
+@contextmanager
+def held_event_log(repo_root: Path | None, context: Any) -> Iterator[None]:
+    """Hold the event-log lock of *context*'s Mission ledger across a loop of emits (#6706).
+
+    Each :func:`append_event` inside the block reuses the held lock (it is
+    re-entrant per thread) instead of taking it once per event. Never wrap a
+    block that waits on a person: other writers of the ledger wait for it.
+    When the lock cannot be taken, the block runs without it and each append
+    takes its own, so a failure stays per event, as before.
+    """
+    with ExitStack() as stack:
+        if repo_root is not None:
+            event_log_path = get_event_log_path(repo_root, getattr(context, "mission_id", "unknown"))
+            try:
+                stack.enter_context(event_log_lock(event_log_path))
+            except OSError as exc:
+                logger.warning("Glossary event-log lock not held across the batch: %s", exc)
+        yield
 
 
 def _complete_length(handle: Any, size: int) -> int:

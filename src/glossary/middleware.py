@@ -139,9 +139,12 @@ class GlossaryCandidateExtractionMiddleware:
         # 4. Add to context
         context.extracted_terms.extend(extracted)
 
-        # 5. Emit events for each extracted term
-        for term in extracted:
-            self._emit_term_candidate_observed(term, context)
+        # 5. Emit events for each extracted term, under one ledger lock (#6706)
+        from .events import held_event_log
+
+        with held_event_log(self.repo_root, context):
+            for term in extracted:
+                self._emit_term_candidate_observed(term, context)
 
         return context
 

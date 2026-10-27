@@ -88,12 +88,17 @@ class ClarificationMiddleware:
 
         resolved_conflicts: list[Any] = []
 
-        for conflict in conflicts:
-            conflict_id = str(uuid.uuid4())
-            # Always emit the request event first so any eventual resolution
-            # references an existing clarification request.
-            self._emit_requested(conflict, conflict_id, context)
+        # Emit every request event before the first prompt, so any eventual
+        # resolution references an existing clarification request. They share
+        # one ledger lock, which is released before anyone is prompted (#6706).
+        from .events import held_event_log
 
+        conflict_ids = [str(uuid.uuid4()) for _ in conflicts]
+        with held_event_log(self.repo_root, context):
+            for conflict, conflict_id in zip(conflicts, conflict_ids, strict=True):
+                self._emit_requested(conflict, conflict_id, context)
+
+        for conflict, conflict_id in zip(conflicts, conflict_ids, strict=True):
             if self.prompt_fn is not None:
                 # Interactive mode: prompt user
                 try:

@@ -61,6 +61,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import errno
+import functools
 import json
 import os
 import socket
@@ -195,6 +196,17 @@ def _get_package_version() -> str:
         return "unknown"
 
 
+@functools.lru_cache(maxsize=1)
+def _process_package_version() -> str:
+    """:func:`_get_package_version`, read once per process.
+
+    Reading the distribution metadata parses it from disk on every call; a
+    lock record is built on every acquire, so a loop of event-log appends paid
+    that parse once per append (#6706).
+    """
+    return _get_package_version()
+
+
 def _is_contention_error(exc: OSError) -> bool:
     """Return ``True`` when ``exc`` is a normal non-blocking lock contention.
 
@@ -313,7 +325,7 @@ def _build_record() -> LockRecord:
         pid=os.getpid(),
         started_at=now_utc(),
         host=socket.gethostname(),
-        version=_get_package_version(),
+        version=_process_package_version(),
     )
 
 
