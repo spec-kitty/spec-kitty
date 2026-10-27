@@ -649,14 +649,21 @@ class TestDoneJudgesEveryRow:
         assert "#12" in gate.details
         assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS  # C-002
 
-    def test_zero_gating_refs_all_terminal_passes_and_counts_rows(self, repo: Path) -> None:
-        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A7", primary_matrix={_UNCITED_KEY: "fixed"}, spec_text=_NO_REFS_SPEC_TEXT)
+    @pytest.mark.parametrize(
+        ("rows", "expected"),
+        [
+            ({_UNCITED_KEY: "fixed"}, "No unresolved (in-mission/unknown) rows among 1 issue-matrix row(s)"),
+            ({}, "issue-matrix present but has no rows; nothing to judge"),
+        ],
+    )
+    def test_zero_gating_refs_terminal_or_empty_matrix_passes_and_says_what_it_judged(self, repo: Path, rows: dict[str, str], expected: str) -> None:
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A7", primary_matrix=rows, spec_text=_NO_REFS_SPEC_TEXT)
 
         overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
         gate = _gate(gates, _TERMINALITY_GATE)
 
         assert gate.verdict == GateVerdict.PASS, gate.details
-        assert gate.details == "No unresolved (in-mission/unknown) rows among 1 issue-matrix row(s)"
+        assert gate.details == expected
         assert overall_pass is True
 
     def test_zero_gating_refs_no_matrix_lanes_passes_not_authored(self, repo: Path) -> None:

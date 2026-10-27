@@ -511,6 +511,8 @@ def _terminality_pass_detail(judged_rows: int | None) -> str:
     """
     if judged_rows is None:
         return _TERMINALITY_NOT_AUTHORED_DETAIL
+    if judged_rows == 0:
+        return "issue-matrix present but has no rows; nothing to judge"
     return f"No unresolved (in-mission/unknown) rows among {judged_rows} issue-matrix row(s)"
 
 
