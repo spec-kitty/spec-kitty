@@ -437,6 +437,8 @@ def test_unreadable_manifest_does_not_deliver_the_tactic_of_an_inactive_directiv
         pytest.param(None, id="record-absent"),
         pytest.param("created_tactics: [\n  broken\n", id="record-unparseable"),
         pytest.param("created_tactics: not-a-list\n", id="record-wrong-shape"),
+        pytest.param("created_tactics: []\n", id="record-lists-no-tactic"),
+        pytest.param("created_styleguides:\n  - other-style\n", id="record-lists-only-another-kind"),
     ],
 )
 def test_unreadable_manifest_without_a_usable_record_fails_closed(tmp_path: Path, record: str | None) -> None:

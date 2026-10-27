@@ -161,7 +161,7 @@ def _recorded_slugs(repo_root: Path, kind: str, manifest_error: Exception) -> fr
     """The created-artifact record's ids of *kind*, standing in for an unreadable manifest.
 
     The record lists every id synthesis has ever created, so it never under-counts.
-    When it is absent or unreadable too, :class:`SynthesisMembershipUnreadableError`
+    When it is absent, unreadable or lists no id of *kind*, :class:`SynthesisMembershipUnreadableError`
     is raised: an empty set would re-root every synthesized artifact.
     """
     try:
@@ -169,10 +169,11 @@ def _recorded_slugs(repo_root: Path, kind: str, manifest_error: Exception) -> fr
     except _UnreadableRecordError:
         record_state = "unreadable"
     else:
-        if (repo_root / CREATED_ARTIFACTS_PATH).exists() or (repo_root / _LEGACY_CREATED_TACTICS_PATH).exists():
+        if recorded[kind]:
             _LOGGER.warning("%s is unreadable (%s); using %s for the synthesized %ss.", MANIFEST_PATH, manifest_error, CREATED_ARTIFACTS_PATH, kind)
             return frozenset(recorded[kind])
-        record_state = "absent"
+        # An absent record, or one listing no id of this kind, says nothing about what was synthesized.
+        record_state = "absent or lists no " + kind
     raise SynthesisMembershipUnreadableError(
         _UNREADABLE_MEMBERSHIP.format(manifest=MANIFEST_PATH.as_posix(), record=CREATED_ARTIFACTS_PATH.as_posix(), record_state=record_state, kind=kind)
     ) from manifest_error
