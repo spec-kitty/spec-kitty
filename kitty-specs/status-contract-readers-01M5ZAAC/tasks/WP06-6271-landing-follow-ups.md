@@ -8,6 +8,9 @@ requirement_refs:
 planning_base_branch: issue-6400-structured-status-actor
 merge_target_branch: issue-6400-structured-status-actor
 branch_strategy: Planning artifacts for this mission were generated on issue-6400-structured-status-actor. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6400-structured-status-actor unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-status-contract-readers-01M5ZAAC
+base_commit: fc96086d13f16790f25c2e9dd6525dece8472aa4
+created_at: '2026-10-27T19:00:06.755008+00:00'
 subtasks:
 - T024
 - T025
