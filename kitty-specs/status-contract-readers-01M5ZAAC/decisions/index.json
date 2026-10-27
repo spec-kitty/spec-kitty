@@ -116,6 +116,29 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T21:26:40.118587Z",
+      "decision_id": "01M5ZM45QPJCR7SDYWM45PCCM9",
+      "final_answer": "Keep: same tool and same asserted profile is the same actor; call it out in the PR and on #6715",
+      "input_key": "independence_asserted_profile",
+      "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+      "mission_slug": "status-contract-readers-01M5ZAAC",
+      "opened_by": "cli",
+      "options": [
+        "Keep it",
+        "Preserve old verdicts"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "move-task hops now record the asserted profile on the implementer hop; same tool + same asserted profile compares as the same identity for new events. Keep?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T21:26:42.881439Z",
+      "resolved_by": null,
+      "slot_key": "plan.actor.independence-asserted-profile",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
