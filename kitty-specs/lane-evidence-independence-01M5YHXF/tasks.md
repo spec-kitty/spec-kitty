@@ -108,7 +108,7 @@ T014 Re-pin move-task / accept fixtures the gates now refuse (WP03)
 
 ### Dependencies
 
-- Depends on WP01 and WP02.
+- Depends on WP01, WP02.
 
 ---
 
