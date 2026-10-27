@@ -453,3 +453,19 @@ def test_machine_file_lock_injection_seam_is_patchable(lock_path: Path) -> None:
             assert isinstance(record, _FakeLockRecord)
     finally:
         locks.SyncMachineFileLock = original  # type: ignore[misc]
+
+
+def test_lock_record_reads_the_package_version_once_per_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    def _version(name: str) -> str:
+        calls.append(name)
+        return "9.9.9"
+
+    locks._process_package_version.cache_clear()
+    monkeypatch.setattr(locks.importlib_metadata, "version", _version)
+    try:
+        assert [locks._build_record().version for _ in range(3)] == ["9.9.9"] * 3
+        assert calls == ["spec-kitty-cli"]
+    finally:
+        locks._process_package_version.cache_clear()

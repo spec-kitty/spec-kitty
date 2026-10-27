@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -149,8 +150,23 @@ def test_a_held_family_lock_refuses_the_append(writer: InvocationWriter, tmp_pat
         real_append(log, lines, **kwargs)
 
     monkeypatch.setattr(writer_module, "append_event_log_lines", short_wait)
-    with event_log_lock(tmp_path / EVENTS_DIR), pytest.raises(InvocationWriteError) as excinfo:
-        writer.write_completed(_completed())
+    # Another thread holds the family lock: the lock is re-entrant within one thread (#6706).
+    held, release = threading.Event(), threading.Event()
+
+    def holder() -> None:
+        with event_log_lock(tmp_path / EVENTS_DIR):
+            held.set()
+            release.wait(10)
+
+    thread = threading.Thread(target=holder)
+    thread.start()
+    held.wait(10)
+    try:
+        with pytest.raises(InvocationWriteError) as excinfo:
+            writer.write_completed(_completed())
+    finally:
+        release.set()
+        thread.join()
     assert isinstance(excinfo.value.__cause__, EventLogLockTimeoutError)
     assert path.read_bytes() == before
 

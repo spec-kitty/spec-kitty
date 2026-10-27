@@ -10,6 +10,7 @@ import json
 import multiprocessing
 import os
 import subprocess
+import threading
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -303,8 +304,23 @@ def test_family_anchor_gives_one_lock_for_many_files(repo: Path) -> None:
 
 
 def test_lock_timeout_refuses_and_writes_nothing(log: Path) -> None:
-    with event_log_lock(log), pytest.raises(EventLogLockTimeoutError) as excinfo:
-        append_event_log_lines(log, ["x"], timeout_s=0.2)
+    # Another thread holds the lock: the lock is re-entrant within one thread (#6706).
+    held, release = threading.Event(), threading.Event()
+
+    def holder() -> None:
+        with event_log_lock(log):
+            held.set()
+            release.wait(10)
+
+    thread = threading.Thread(target=holder)
+    thread.start()
+    held.wait(10)
+    try:
+        with pytest.raises(EventLogLockTimeoutError) as excinfo:
+            append_event_log_lines(log, ["x"], timeout_s=0.2)
+    finally:
+        release.set()
+        thread.join()
     assert excinfo.value.code == "EVENT_LOG_LOCK_TIMEOUT"
     assert str(excinfo.value).endswith("Error code: EVENT_LOG_LOCK_TIMEOUT.")
     assert not log.exists()
@@ -326,3 +342,58 @@ def test_concurrent_writers_never_interleave(log: Path) -> None:
     rows = [json.loads(line) for line in log.read_text(encoding="utf-8").splitlines()]
     assert len(rows) == _WRITERS * _ROWS_PER_WRITER
     assert {(r["writer"], r["row"]) for r in rows} == {(w, r) for w in range(_WRITERS) for r in range(_ROWS_PER_WRITER)}
+
+
+# ---------------------------------------------------------------------------
+# Re-entrancy within one thread (#6706)
+# ---------------------------------------------------------------------------
+
+
+def test_nested_lock_on_the_same_anchor_reuses_the_held_lock(log: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    acquired: list[Path] = []
+    real = event_log_append.machine_file_lock
+
+    def counting(path: Path, **kwargs: Any) -> Any:
+        acquired.append(path)
+        return real(path, **kwargs)
+
+    monkeypatch.setattr(event_log_append, "machine_file_lock", counting)
+    with event_log_lock(log) as outer:
+        with event_log_lock(log) as inner:
+            assert inner == outer
+        append_event_log_lines(log, ["a"])
+        append_event_log_lines(log, ["b"])
+    assert acquired == [outer]
+    assert log.read_bytes() == b"a\nb\n"
+
+
+def test_lock_is_taken_again_after_the_outer_block_ends(log: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    acquired: list[Path] = []
+    real = event_log_append.machine_file_lock
+
+    def counting(path: Path, **kwargs: Any) -> Any:
+        acquired.append(path)
+        return real(path, **kwargs)
+
+    monkeypatch.setattr(event_log_append, "machine_file_lock", counting)
+    with event_log_lock(log):
+        pass
+    append_event_log_lines(log, ["a"])
+    assert len(acquired) == 2
+
+
+def test_another_thread_still_waits_for_a_held_lock(log: Path) -> None:
+    errors: list[OSError] = []
+
+    def other_writer() -> None:
+        try:
+            append_event_log_lines(log, ["other"], timeout_s=0.2)
+        except OSError as exc:
+            errors.append(exc)
+
+    with event_log_lock(log):
+        thread = threading.Thread(target=other_writer)
+        thread.start()
+        thread.join()
+    assert len(errors) == 1 and isinstance(errors[0], EventLogLockTimeoutError)
+    assert not log.exists()
