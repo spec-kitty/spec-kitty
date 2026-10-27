@@ -170,6 +170,10 @@ def event_log_lock(anchor: Path, *, timeout_s: float = EVENT_LOG_LOCK_TIMEOUT_S)
     Re-entrant within one thread, like an ``RLock``: a nested call on the same
     anchor yields the lock already held, with no second acquire and no git
     probe, so a writer can hold the lock across a loop of appends (#6706).
+
+    Re-entrancy is per thread and per resolved anchor. Never nest this lock on
+    a different anchor: two anchors have no lock order, so two threads nesting
+    them in opposite orders can deadlock until the timeout.
     """
     key = anchor.resolve()
     held: dict[Path, Path] = _held.__dict__.setdefault("locks", {})
