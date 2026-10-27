@@ -2,10 +2,9 @@
   "event_count": 63,
   "last_event_id": "01M5ZQ83P79EH5A4N5YCWBANMZ",
   "materialized_at": "2026-10-27T22:21:14.823391+00:00",
-  "mission_number": "243",
+  "mission_number": "",
   "mission_slug": "status-contract-readers-01M5ZAAC",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,210 +19,99 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude-reviewer",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent": "claude",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M5ZQ7HE32THQPGXY7M6AW4KF",
       "last_transition_at": "2026-10-27T22:20:56.131643+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T18:56:48Z – claude – shell_pid=7380 – T001 red-first (25d5b9d3): 5 failed/2 passed on base (AttributeError PACKAGE_LANES/NON_AUTHORABLE_LANES; AST guard flagged hand-typed tuple at status_lanes.py:8). T002/T004 (27a3e92d): PACKAGE_LANES/NON_AUTHORABLE_LANES/CANONICAL_LANES derived from spec_kitty_events.status.Lane, module docstring. T003: consumer pins green; added event_log_merge forward-rank genesis-exclusion assertion in the owned test. Tests: strategy set 284 passed; transitions/validate/stale_fold/residue_6669 357 passed, 2 xfailed. ruff/format/mypy clean. event_log_merge.py comment still accurate, not edited.",
-        "Ready for review: lane constants derived from spec_kitty_events, CANONICAL_LANES byte-identical, red-first test committed first",
-        "- 2026-10-27T19:35:35Z – claude – Cycle 2: (1) blocking mypy fix: _is_hand_typed_lane_list now returns TypeGuard[ast.Tuple | ast.List | ast.Set]; mypy on test + status_lanes + event_log_merge: 0 issues. (2) Out-of-map comment-only edit in src/specify_cli/status/event_log_merge.py: forward order now documented as coming from spec_kitty_events.status.Lane declaration order via CANONICAL_LANES, with the literal ratchet and forward-rank tests as the upstream-reorder guard. Rationale: reviewer flagged the old comment as stale after WP01 (DIRECTIVE_037; T004 permits it). Tests: targeted + 3 gate files 284 passed; ruff check/format clean.",
-        "Cycle 2: mypy narrowing + event_log_merge comment",
-        "Review passed (cycle 2): dc14e2ae fixes the mypy attr-defined error via TypeGuard (mypy clean on test + status_lanes + event_log_merge, also --strict); event_log_merge comment now names spec_kitty_events.status.Lane as order source (comment-only). CANONICAL_LANES byte-identical, red-on-base verified in cycle 1 (5 failed), 284 passed across new tests, consumer tests and the 3 architectural gate files; ruff clean."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP01:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 9564,
-      "shell_pid_created_at": "1793129860.31",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done"
-      }
+      "shell_pid": 13260,
+      "shell_pid_created_at": "1793129428.84"
     },
     "WP02": {
       "actor": "merge",
-      "agent": "claude-reviewer",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent": "claude",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M5ZQ7N814XWSB3G3137964YY",
       "last_transition_at": "2026-10-27T22:21:00.033517+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T19:06:36Z – claude – shell_pid=7380 – Blocked on T010: spec_kitty_events 11.0.0 diary.decode_actor (the shared reducer every status read uses) accepts exactly the 4-key actor and refuses the 5-key {tool,role,profile,profile_source,model} with DiaryError, so delegating build_resolved_actor/build_self_asserting_actor to the 5-key builder breaks materialize on 14 existing tests (verdict_6630, resolved_binding_fanout, transition_request_owned, concurrent_mission_writers); all green on base. Plan assumed readers accept (research.md cites events #92, unreleased). Landed: 33adf1c2 red-first tests (ImportError on base), e3000809 T006-T009 + exports. Delegation patch parked uncommitted. Tests: status suites 2495 passed, 1 failed (the pinned delegation test), 6 skipped; arch cold-import + layer rules 77 passed; ruff/format/mypy clean. Out-of-map: tests/specify_cli/status/test_resolved_binding_linkage.py (added profile_source assertions). Needs operator decision: release events #92 first, or project the actor to 4 keys on write until then.",
-        "- 2026-10-27T19:33:29Z – claude – shell_pid=7380 – Reworked per operator decision DM 01M5ZD4PNEEMAFHA7SN4VJZR2N (phase split, C-006): writers emit the 4-key actor; T010 delegation landed and is behaviour-preserving (dba0fd2e). Removed planned_profile_for_wp, the frontmatter branch, ResolvedBinding.profile_source and its stamping, the linkage-test profile_source assertions, and exports without callers (status/__init__.py, workflow.py, resolved_binding.py and the linkage test end the WP identical to base). Kept reader side: ProfileSource, 4/5-key decode_actor, actor_full_identity frontmatter drop, ActorRole, role_for_hop. Tests: status+specify_cli/status+unit/status+contract payloads+compact identity 4665: 2480 passed, 6 skipped, 0 failed; arch cold-import+layer rules+test_status_actor 127 passed. ruff/format/C901 clean; mypy 0 new (2 pre-existing in emit.py). Parked 5-key delegation patch kept in scratchpad for the follow-up.",
-        "Ready for review: 4-key structured actor builder (status/actor.py) with emit builders as delegates; decode_actor accepts 4/5-key; actor_full_identity drops wp_frontmatter profile; role_for_hop. Provenance deferred per C-006.",
-        "Review passed: 4-key actor emitted via one builder (status/actor.py), emit.py builders are behaviour-preserving delegates; decode_actor accepts exactly 4/5-key sets with profile_source validation; actor_full_identity drops wp_frontmatter profile, legacy identities unchanged; role_for_hop matches data-model table; parked parts removed. Red-first 33adf1c2 fails on base (ImportError). 2300 passed/6 skipped status dirs, 307 passed contract+4665+gates; ruff/format/C901 clean; mypy only the 2 pre-existing emit.py errors. Nits: models.py:154 docstring claims status.actor re-exports ProfileSource (it does not); role_for_hop/ActorRole uncalled until WP03-05."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 20164,
-      "shell_pid_created_at": "1793130088.85",
-      "subtasks": {
-        "T005": "done",
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T010": "done"
-      }
+      "shell_pid": 7380,
+      "shell_pid_created_at": "1793126837.45"
     },
     "WP03": {
       "actor": "merge",
-      "agent": "claude-reviewer",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent": "claude",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M5ZQ7WKABPW22PP49ASE40RM",
       "last_transition_at": "2026-10-27T22:21:07.562256+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T20:39:12Z – claude – shell_pid=32627 – T011-T015 done. Red-first 39143b90: 8/8 new CLI tests failed on base (bare-string hop/annotation actors). Fix c197e98d: every move-task hop builds the 4-key actor via role_for_hop + build_status_actor (_mt_structured_actor/_mt_hop_structured_actor in tasks_move_task_hops); paired note uses final hop actor (_mt_annotation_actor); override annotation event gets reviewer actor, ReviewOverride.actor stays string. No WP file read (C1 test). Out-of-map: emit.py + coordination/status_transition.py (actor: str -> ActorField on annotation emitters), status/work_package_lifecycle.py (for_review withdraw refusal names a structured implementer by tool:model:profile, else regressed to bare tool). Expected-value updates: test_tasks.py, test_owned_checkout_move_task.py, test_fixmode_ownership_4673.py, test_tasks_move_task_seam.py. Tests: new file 8 passed; agent dir + review/override/gate sweep 3467 passed, 14 failed -> all fixed (13 expected-shape/re-export, 1 timing test passes serially and on base); targeted rerun 267 passed; serial gate set 143 passed; test-fast 2526 passed; tests/status+coordination 2411 passed. ruff/format/C901 clean; mypy 0 new.",
-        "Ready for review: every move-task hop, paired note and review-override annotation write the 4-key structured actor (role_for_hop + build_status_actor); red-first 39143b90, fix c197e98d",
-        "- 2026-10-27T21:44:06Z – claude – Cycle 2 (b4723934): fixed the [MAJOR] boundary violation. ActorRole, build_status_actor, compose_status_actor and role_for_hop are now re-exported from specify_cli.status (__init__ import block + __all__), and tasks_move_task_hops / tasks_verdict_persistence import them from the package. No allow-list entry. Out-of-map: src/specify_cli/status/__init__.py (accepted; no version bump). The tasks_materialization TYPE_CHECKING ActorField import is allowed by the gate. Tests: test_status_module_boundary 11 passed; boundary/facade/vocab files + new 6400 file + review-roles/identity/role-aware/status_actor + tests/review: 803 passed, 8 skipped; agent dir -k move_task/verdict/review/claim/lane_exit: 822 passed, 4 skipped. ruff/format/C901 clean; mypy no new. MINOR (PR note): for a dict-actor implementer, the for_review withdraw refusal names tool:model:profile.",
-        "Cycle 2: imports via specify_cli.status facade",
-        "Review passed: cycle-1 MAJOR fixed in b4723934 (status.actor names re-exported via specify_cli.status facade; boundary gate green, no allow-list entry). Every move-task hop, paired note and review-override note writes the 4-key structured actor; role follows the hop; profile only from binding/compact segment; legacy-string refusal text byte-identical; red->green 8/8; agent/status/review suites green."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP03:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 10530,
-      "shell_pid_created_at": "1793137548.7",
-      "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done"
-      }
+      "shell_pid": 29645,
+      "shell_pid_created_at": "1793137177.84"
     },
     "WP04": {
       "actor": "merge",
-      "agent": "claude-reviewer",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent": "claude",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M5ZQ805W5DVNF5DVKDANNHZY",
       "last_transition_at": "2026-10-27T22:21:11.228892+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T20:31:45Z – claude – shell_pid=32627 – Implemented T016-T019: red-first CLI test (fc36936e) then feat (a6979b7b). mark-status --agent + structured actor {tool:user|agent, role:implementer}; add-history role reviewer while in_review; action implement resume refresh and action review re-claim annotations carry the transition's structured actor. Out-of-map: actor param widened to ActorField in status/emit.py emit_inner_state_changed and coordination/status_transition.py (transactional + emit_runtime_annotation); mark-status help golden fixture and docs/api/agent-subcommands.md updated for --agent. Facade-only (status boundary gate): build_self_asserting_actor, no build_status_actor/ActorRole import.",
-        "Ready for review: mark-status --agent + structured actor; add-history role by lane; action implement resume refresh and review re-claim annotations structured (#6400). Red-first fc36936e, impl a6979b7b.",
-        "Review passed: mark-status --agent + structured {tool,role,profile,model} actor (user/implementer default); add-history role by in_review lane; implement resume-refresh and review re-claim annotations reuse their transitions' actor builders. Red 8/8 at fc36936e -> green 8/8; agent -k subset 648 passed/2 skipped; characterization+contract+boundary+json-enum 207 passed; docs parity 87 passed; ruff/format clean; mypy no new errors. Malformed --agent verified to refuse before any write (mark-status and add-history). Non-blocking: refusal branch and no-event-log role fallback lack a pinned test; add-history with no --agent and no recorded agent writes tool 'unknown'."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP04:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 21767,
-      "shell_pid_created_at": "1793133578.85",
-      "subtasks": {
-        "T016": "done",
-        "T017": "done",
-        "T018": "done",
-        "T019": "done"
-      }
+      "shell_pid": 32627,
+      "shell_pid_created_at": "1793130542.49"
     },
     "WP05": {
       "actor": "merge",
-      "agent": "claude-reviewer",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent": "claude",
       "force_count": 2,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M5ZQ83P79EH5A4N5YCWBANMZ",
       "last_transition_at": "2026-10-27T22:21:14.823391+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T20:27:28Z – claude – shell_pid=32627 – Out-of-map edits: src/specify_cli/status/emit.py (emit_inner_state_changed actor widened str->ActorField, one line, needed for append-history; WP03 makes the same widening); expected-value updates only (bare string -> structured actor) in tests/status/test_agent_status_emit_aggregate_wiring.py, tests/agent/test_orchestrator_commands_integration.py, tests/agent/test_orchestrator_append_history_coord.py, tests/integration/test_sc008_topology_resolution.py. Orchestrator --actor with an empty tool segment (e.g. ':x') now fails USAGE_ERROR. Red-first 0933360a (8 failing on base).",
-        "Ready for review: status emit + orchestrator-api (start-implementation, start-review, transition, append-history) write the 4-key actor with role from the hop; envelopes unchanged; status-model Actor section; changelog entry (#6400/#6448/#6271) and PR #102 citation fix",
-        "- 2026-10-27T21:01:38Z – claude – Cycle 2: empty-tool --actor (':x') accepted again on status emit and orchestrator-api, stored as {tool: ':x', role: <hop>, profile: null, model: null} via work_package_lifecycle.actor_from_option (red-first 1e4a701d, fix 5e3f4d1d). Out-of-map: status/__init__.py exports ActorRole, role_for_hop, actor_from_option so callers use the facade (status module-boundary gate, which the cycle-1 direct status.actor imports had tripped). Note for PR: _emit_via_legacy_direct_path in test_agent_status_emit_aggregate_wiring.py changes its input actor to keep the parity comparison like-for-like; mixed-version edge (base compact-string current_actor vs projected requester in review_claim_predicate) shared with WP03.",
-        "Cycle 2: empty-tool --actor accepted as before",
-        "Review passed (cycle 2): empty-tool --actor (':x') accepted again on agent status emit and orchestrator-api start-implementation; stored as {tool: ':x', role: <hop role>, profile/model: null}; JSON output/envelope identical to base apart from random correlation_id. New tests red at 1e4a701d (2 failed/8 passed), green at HEAD; targeted suites 430 passed; boundary gate + actor tests 64 passed; ruff/C901/format clean; actor.py unchanged; only status/merge commits besides 1e4a701d and 5e3f4d1d since cycle 1.",
-        "- 2026-10-27T22:09:13Z – claude – Cycle 3: status/__init__.py now equals WP03's facade exports plus actor_from_option (duplicate .actor import and __all__ entries removed; red-first f032e463, fix f59d9956). actor_from_option, _status_actor and _transition_role return through typed locals (no new mypy no-any-return). Targeted suites: 2593 passed, 7 skipped.",
-        "Cycle 3: single facade export block; __all__ dedupe test",
-        "Review passed (cycle 3, whole lane): status/__init__.py on lane-e differs from lane-c only by actor_from_option (import + __all__); test_status_facade_exports_each_name_once red at f032e463 (['ActorRole','role_for_hop']), green at HEAD; boundary gate + emit_6400 + status_actor + tests/orchestrator_api 130 passed; ruff/format/C901 clean; mypy = 4 pre-existing base errors, none new. Whole-lane diff vs mission: every non-WP05 blob matches an upstream lane tip (a/b/c/d) except WP05-authored files."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP05:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 7605,
-      "shell_pid_created_at": "1793139069.65",
-      "subtasks": {
-        "T020": "done",
-        "T021": "done",
-        "T022": "done",
-        "T023": "done"
-      }
+      "shell_pid": 2443,
+      "shell_pid_created_at": "1793138438.92"
     },
     "WP06": {
       "actor": "merge",
-      "agent": "claude-reviewer",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent": "claude",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M5ZQ7RXJ5Q1V1CJB8BS7856A",
       "last_transition_at": "2026-10-27T22:21:03.795027+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T19:08:52Z – claude – shell_pid=28339 – T024-T026 done. Red-first 0cafcfac: test_structured_migration_actor_is_skipped_as_seed FAILED on base (1 failed, 5 passed). Fix 946d9341: validate_timestamp_continuity uses shared is_migration_actor via _is_reconstruction_seed; _RECONSTRUCTION_SEED_ACTOR_PREFIX removed; diary-reducer citations now 'spec-kitty-events PR #102, fixing issue #101' (validate.py, reconciliation.py x2, wall-clock p0 repro test). Tests: seed+doctor+p0 repro 62 passed; tests/status -k 'validate or continuity' 87 passed. ruff/format/mypy clean.",
-        "Ready for review: continuity seed check routed through is_migration_actor; #101/#102 citations corrected (#6271)",
-        "Review passed: red-first test 0cafcfac fails only the structured-seed case at its own commit; fix 946d9341 routes the continuity seed skip through shared is_migration_actor (non-str/non-dict never a seed, string behaviour unchanged); local constant removed; reconciliation.py docstring-only; 4 citations read 'spec-kitty-events PR #102, fixing issue #101', remaining #101 hits unrelated; 62+87 targeted tests pass; ruff/format/mypy clean."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP06:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 6951,
-      "shell_pid_created_at": "1793129083.94",
-      "subtasks": {
-        "T024": "done",
-        "T025": "done",
-        "T026": "done"
-      }
+      "shell_pid": 28339,
+      "shell_pid_created_at": "1793127589.42"
     }
   }
 }
