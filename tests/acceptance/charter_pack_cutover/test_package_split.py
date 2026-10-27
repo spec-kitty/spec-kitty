@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import fnmatch
 import importlib
+import pkgutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,7 +38,11 @@ def test_fr010_charter_packs_facade_exports() -> None:
     facade = importlib.import_module("charter.packs")
     exported = [name for name in getattr(facade, "__all__", ()) if not name.startswith("_")]
     assert exported, "the facade exports nothing"
-    sources = [importlib.import_module(f"charter.offering.packs.{m}") for m in PACK_TOOLING_MODULES]
+    # Every module of the package, not the PACK_TOOLING_MODULES subset: a re-exported constant
+    # (a ``str`` error code, say) has no ``__module__``, so only an identity match proves its home (#6697).
+    package = importlib.import_module("charter.offering.packs")
+    sources = [importlib.import_module(f"{package.__name__}.{info.name}") for info in pkgutil.iter_modules(package.__path__)]
+    assert {f"charter.offering.packs.{m}" for m in PACK_TOOLING_MODULES} <= {module.__name__ for module in sources}  # control
     for name in exported:
         value = getattr(facade, name)
         origins = [module for module in sources if getattr(module, name, None) is value]
