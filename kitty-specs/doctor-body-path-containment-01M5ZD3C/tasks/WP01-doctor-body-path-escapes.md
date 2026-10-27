@@ -20,6 +20,9 @@ requirement_refs:
 planning_base_branch: issue-6418-doctor-body-path-containment
 merge_target_branch: issue-6418-doctor-body-path-containment
 branch_strategy: Planning artifacts for this mission were generated on issue-6418-doctor-body-path-containment. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6418-doctor-body-path-containment unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-doctor-body-path-containment-01M5ZD3C
+base_commit: 5514470ce339154cf80408df752568fa16da0fae
+created_at: '2026-10-27T19:33:03.581391+00:00'
 subtasks:
 - T001
 - T002
