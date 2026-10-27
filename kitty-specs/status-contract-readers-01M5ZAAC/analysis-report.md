@@ -4,15 +4,15 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: status-contract-readers-01M5ZAAC
 mission_id: 01M5ZAACMGXEMDESD011SH8VTW
-generated_at: '2026-10-27T18:59:36.159542+00:00'
+generated_at: '2026-10-27T19:26:39.465521+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: kitty-specs/status-contract-readers-01M5ZAAC/spec.md
-    sha256: 0295fa15cfd38e2b2ec387e099fdbf12d784ddbea8966487c486b500d6ddd2c1
+    sha256: 01b682c97a5fe2f233ea9600c4a46f26a4231cff08ce0c8c0295c8ba514c08fc
   plan.md:
     path: kitty-specs/status-contract-readers-01M5ZAAC/plan.md
-    sha256: 48cad8b57ef21c9171968e2a71b8c385a6e4b59743f20bb91a44a5d92d1dd3b2
+    sha256: 52345a95799dfeb339cdd270bd496a12ff0774dfc7827f7b075a715e7ae7bbc2
   tasks.md:
     path: kitty-specs/status-contract-readers-01M5ZAAC/tasks.md
     sha256: 5e44416505c0f1a855fd915300a7927d9c34a0dee71b9108cc45b056f255dc19
@@ -21,10 +21,10 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  critical: 0
-  high: 0
   medium: 1
-  low: 5
+  high: 0
+  critical: 0
+  low: 6
   info: 0
 findings:
 - id: C1
@@ -47,6 +47,10 @@ findings:
   severity: low
   category: scope
   summary: '#6271 folded in by the operator (2026-10-27) as WP06 (FR-015/FR-016) plus a changelog citation fix in WP05 T023; independent lane, no new dependencies.'
+- id: S2
+  severity: low
+  category: scope
+  summary: 'Phase split (operator 2026-10-27): spec-kitty-events 11.0.0 diary.decode_actor accepts only 4 keys, so writers emit the 4-key actor now; frontmatter fill and profile_source deferred (C-006) to a readers-first events release and a pin-floor bump.'
 - id: I1
   severity: low
   category: inconsistency
@@ -62,6 +66,7 @@ findings:
 | U1 | Underspecification | LOW | tasks WP04 T018 | add-history not named in an FR. | Accept under FR-004; name it in the PR's write-path list. |
 | U2 | Underspecification | LOW | spec.md US1-2; WP03 T011 | Auto-walk on `--to approved` assumed. | Implementer asserts on whatever hops are emitted; role per hop is the invariant. |
 | S1 | Scope | LOW | spec.md FR-015/FR-016; tasks WP06, WP05 T023 | #6271 folded in. | None; WP06 is independent. |
+| S2 | Scope | LOW | spec.md C-006, FR-005, FR-013; WP02-05 phase-split notes | Writers emit 4 keys; provenance deferred. | Follow-up issue in core + events decoder change. |
 | I1 | Inconsistency | LOW | data-model.md role table | Operator-driven blocked/cancel from implementer lanes records `implementer`. | Keep (role is from the action lane); mention in docs (WP05 T023). |
 
 **Coverage Summary Table:**
