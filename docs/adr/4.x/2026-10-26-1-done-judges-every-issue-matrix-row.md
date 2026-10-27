@@ -88,6 +88,6 @@ An `in-mission` row is still accepted at `approved`, and a Mission with zero gat
 ## References
 
 - [Issue-Matrix Verdict Reference: What `done` enforces](../../development/reference/issue-matrix-verdicts.md#what-done-enforces)
-- `src/specify_cli/tasks/issue_matrix_approval.py` (`_issue_matrix_approval_blocker`, `issue_matrix_judged_row_count`)
+- `src/specify_cli/tasks/issue_matrix_approval.py` (`_issue_matrix_approval_blocker`, `issue_matrix_done_outcome`)
 - `src/specify_cli/policy/merge_gates.py` (`_evaluate_issue_matrix_verdict_terminality_gate`)
 - `src/mission_runtime/resolution.py` (`read_issue_matrix_ref_content`, `ISSUE_MATRIX_NOT_AUTHORED`)

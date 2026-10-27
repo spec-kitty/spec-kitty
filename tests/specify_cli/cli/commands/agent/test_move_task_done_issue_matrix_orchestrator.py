@@ -71,3 +71,9 @@ def test_move_task_approved_accepts_the_same_in_mission_row(tmp_path: Path) -> N
     _seed_wp_event(feature_dir, _WP_ID, "in_review")
 
     _run_move(tmp_path, to="approved", ports=_fake_ports(feature_dir), note="Review passed")
+
+    # The approval ran to its verdict writer: its review-cycle record is committed.
+    record = next((feature_dir / "tasks").glob(f"{_WP_ID}-*/review-cycle-1.md"))
+    assert "Approved by" in record.read_text(encoding="utf-8")
+    committed = subprocess.run(["git", "log", "--format=%H", "--", str(record)], cwd=tmp_path, check=True, capture_output=True, text=True).stdout
+    assert committed.strip()
