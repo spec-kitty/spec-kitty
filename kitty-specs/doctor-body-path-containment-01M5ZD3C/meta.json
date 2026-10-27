@@ -13,5 +13,7 @@
   "purpose_tldr": "doctor charter-packs stops reporting a team pack healthy when a node in its graph fragment points outside the pack folder.",
   "slug": "doctor-body-path-containment-01M5ZD3C",
   "target_branch": "issue-6418-doctor-body-path-containment",
-  "topology": "coord"
+  "topology": "coord",
+  "contracts": "none",
+  "contracts_rationale": "No new interface: the only contract change is the additive org_drg.body_path_escapes JSON key, documented in data-model.md."
 }

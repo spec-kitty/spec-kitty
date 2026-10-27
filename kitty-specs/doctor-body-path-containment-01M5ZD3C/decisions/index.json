@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T19:24:18.269080Z",
+      "decision_id": "01M5ZD43YX0NNB29893SAQ3B7B",
+      "final_answer": "Add body_path_escapes",
+      "input_key": "json_shape",
+      "mission_id": "01M5ZD3CFFQ845SSCAJ7SV05S0",
+      "mission_slug": "doctor-body-path-containment-01M5ZD3C",
+      "opened_by": "cli",
+      "options": [
+        "Add body_path_escapes",
+        "errors only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should doctor charter-packs --json carry a structured key for body_path escapes in addition to org_drg.errors messages?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:24:21.057355Z",
+      "resolved_by": null,
+      "slot_key": "specify.output.json-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:24:23.822990Z",
+      "decision_id": "01M5ZD49CEPKFYYKMBSKWNNSJK",
+      "final_answer": "Authored fragment nodes",
+      "input_key": "node_scope",
+      "mission_id": "01M5ZD3CFFQ845SSCAJ7SV05S0",
+      "mission_slug": "doctor-body-path-containment-01M5ZD3C",
+      "opened_by": "cli",
+      "options": [
+        "Authored fragment nodes",
+        "All nodes incl. discovered",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which org-pack nodes should the containment check cover?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:24:26.567549Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.node-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:24:58.756371Z",
+      "decision_id": "01M5ZD5BG4PF6GJS0EK4KYBYCY",
+      "final_answer": "Confirm",
+      "input_key": "intent_confirmed",
+      "mission_id": "01M5ZD3CFFQ845SSCAJ7SV05S0",
+      "mission_slug": "doctor-body-path-containment-01M5ZD3C",
+      "opened_by": "cli",
+      "options": [
+        "Confirm",
+        "Also charter status",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the Intent Summary (doctor-only scope; charter status, org validate, loader refusal and spec-kitty-charter are follow-ups)",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:25:01.159968Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.confirm",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5ZD3CFFQ845SSCAJ7SV05S0",
+  "version": 1
+}
