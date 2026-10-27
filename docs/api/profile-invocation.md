@@ -132,7 +132,9 @@ An invocation passes through two durable states:
    event with the final outcome is appended to the trail file.
 
 An invocation that was opened but never completed is stale. Use
-`spec-kitty invocations list` to find open records.
+`spec-kitty invocations list` to find open records. It lists the records of the
+checkout it runs in; pass `--owned-checkout PATH` to list those kept in an owned
+checkout instead.
 
 ---
 

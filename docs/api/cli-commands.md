@@ -3010,12 +3010,17 @@ _Query local invocation records._
  ``--json`` for machine-readable output.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --profile  -p      <str>  Filter by profile ID (reads file content, not      │
-│                           filename)                                          │
-│ --limit    -n      <int>  Maximum number of records to return (default: 20)  │
-│                           [default: 20]                                      │
-│ --json                    Emit a JSON array instead of a table               │
-│ --help     -h             Show this message and exit.                        │
+│ --profile         -p      <str>   Filter by profile ID (reads file content,  │
+│                                   not filename)                              │
+│ --limit           -n      <int>   Maximum number of records to return        │
+│                                   (default: 20)                              │
+│                                   [default: 20]                              │
+│ --json                            Emit a JSON array instead of a table       │
+│ --owned-checkout          <path>  List the Op records kept in an owned       │
+│                                   checkout: a linked checkout of this        │
+│                                   repository. Refuses the repository root    │
+│                                   checkout.                                  │
+│ --help            -h              Show this message and exit.                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
