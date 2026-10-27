@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "mission_slug": "local-event-log-retention-01M5ZCJP",
+  "mission_id": "01M5ZCJPQQ36KZ6BYGND2300SG",
+  "mission_branch": "kitty/mission-local-event-log-retention-01M5ZCJP",
+  "target_branch": "issue-6610-local-event-log-retention",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/state/contract.py",
+        "tests/core/test_state_cleanup_policy.py",
+        "tests/specify_cli/test_state_contract.py",
+        "tests/specify_cli/test_state_doctor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/kernel/event_log_append.py",
+        "src/runtime/next/run_lock.py",
+        "src/specify_cli/core/ledger_retention.py",
+        "src/specify_cli/state/retention.py",
+        "tests/core/test_event_log_retention.py",
+        "tests/core/test_ledger_retention.py",
+        "tests/runtime/test_run_lock_try.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/clean-up-local-event-logs.md",
+        "src/specify_cli/cli/commands/_event_logs_doctor.py",
+        "tests/cli/commands/test_doctor_event_logs.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-27T19:27:23.973734+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "55e3fb8dfeb96b4c1f45dd550152011df9059c02"
+}
