@@ -56,6 +56,10 @@ Check `spec-kitty agent tasks status` for a `review_ref`. Address every feedback
 
 ---
 
+## ⚠️ Phase split (operator decision 2026-10-27) — overrides the sections below
+
+`spec-kitty-events` 11.0.0's `diary.decode_actor` (every status read) accepts only `{tool, role, profile, model}`. In this mission, writers emit that **4-key** structured actor; `profile` comes only from the dispatch invocation, `--profile`, or the compact `--agent` profile segment, else `null`. **No WP-frontmatter fill and no `profile_source` on the wire** (deferred to a follow-up, spec C-006). Wherever the text below mentions `planned_profile_for_wp`, `planned_profile=`, `profile_source` or `wp_frontmatter` on a *written* actor, drop it; expected actors in tests are 4-key dicts. Every other instruction stands.
+
 ## Objectives & Success Criteria
 
 Part of issue #6400.

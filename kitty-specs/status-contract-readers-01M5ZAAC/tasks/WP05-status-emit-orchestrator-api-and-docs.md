@@ -62,6 +62,10 @@ Check `spec-kitty agent tasks status` for a `review_ref`. Address every feedback
 
 ---
 
+## ⚠️ Phase split (operator decision 2026-10-27) — overrides the sections below
+
+`spec-kitty-events` 11.0.0's `diary.decode_actor` (every status read) accepts only `{tool, role, profile, model}`. In this mission, writers emit that **4-key** structured actor; `profile` comes only from the dispatch invocation, `--profile`, or the compact `--agent` profile segment, else `null`. **No WP-frontmatter fill and no `profile_source` on the wire** (deferred to a follow-up, spec C-006). Wherever the text below mentions `planned_profile_for_wp`, `planned_profile=`, `profile_source` or `wp_frontmatter` on a *written* actor, drop it; expected actors in tests are 4-key dicts. Every other instruction stands.
+
 ## Objectives & Success Criteria
 
 Part of issue #6400 (FR-011) plus the mission's docs.
@@ -109,7 +113,7 @@ spec-kitty agent action implement WP05 --agent claude --mission status-contract-
 ### Subtask T023 – Docs and changelog [P]
 
 - `docs/architecture/status-model.md`: add a short "Actor" section (shape table, profile order, role rule, legacy shapes readers accept, frontmatter identity rule) and update the event-format example and any `--actor` examples if they describe the stored value.
-- `docs/changelog/CHANGELOG.md` `[Unreleased]`: one Changed bullet, e.g. "Status events written by move-task, mark-status, add-history, action implement/review, status emit and the orchestrator API now record the actor as `{tool, role, profile, profile_source, model}`; the profile falls back to the work package's planned `agent_profile` (marked `wp_frontmatter`), and `mark-status` takes `--agent` (#6400). The CLI's lane list is derived from `spec_kitty_events` (#6448)." Match the section's sub-headings and run the changelog style test (`grep -rl "changelog" tests/architectural tests/docs 2>/dev/null` to find it).
+- `docs/changelog/CHANGELOG.md` `[Unreleased]`: one Changed bullet, e.g. "Status events written by move-task, mark-status, add-history, action implement/review, status emit and the orchestrator API now record the actor as `{tool, role, profile, model}` instead of a bare string, with `role` taken from the action, and `mark-status` takes `--agent` (#6400). The CLI's lane list is derived from `spec_kitty_events` (#6448)." Match the section's sub-headings and run the changelog style test (`grep -rl "changelog" tests/architectural tests/docs 2>/dev/null` to find it).
 - #6271 item 2 (folded in): in `docs/changelog/CHANGELOG.md` (~line 235, the #4941 entry) cite the diary-reducer fix as spec-kitty-events PR #102 (fixing issue #101) instead of the bare `spec-kitty-events#101`. Do not rewrite other `#101` mentions blindly (triage: #101 is the issue, #102 the PR).
 - File the follow-up issue for system writers at mission closeout (orchestrator does this; not this WP).
 

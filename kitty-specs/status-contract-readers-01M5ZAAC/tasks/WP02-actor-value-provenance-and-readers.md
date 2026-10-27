@@ -13,6 +13,7 @@ requirement_refs:
 - NFR-002
 - NFR-003
 - C-002
+- C-006
 planning_base_branch: issue-6400-structured-status-actor
 merge_target_branch: issue-6400-structured-status-actor
 branch_strategy: Planning artifacts for this mission were generated on issue-6400-structured-status-actor. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6400-structured-status-actor unless the human explicitly redirects the landing branch.
@@ -69,6 +70,16 @@ Use the `/spk-charter-profile-load` skill to load the agent profile specified in
 Check `spec-kitty agent tasks status` for a `review_ref`. Address every feedback item and record each change with `spec-kitty agent tasks add-history WP02 --note "..."`.
 
 ---
+
+## ⚠️ Phase split (operator decision 2026-10-27) — overrides the sections below
+
+`spec-kitty-events` 11.0.0's `diary.decode_actor` (every status read) accepts only `{tool, role, profile, model}`. In this mission, writers emit that **4-key** structured actor; `profile` comes only from the dispatch invocation, `--profile`, or the compact `--agent` profile segment, else `null`. **No WP-frontmatter fill and no `profile_source` on the wire** (deferred to a follow-up, spec C-006). Wherever the text below mentions `planned_profile_for_wp`, `planned_profile=`, `profile_source` or `wp_frontmatter` on a *written* actor, drop it; expected actors in tests are 4-key dicts. Every other instruction stands.
+
+**WP02 rework (cycle on the existing lane commits):**
+- Keep: `ProfileSource` (in `models.py`), `decode_actor` accepting exactly the 4-key or the 5-key set, `actor_full_identity` dropping a `wp_frontmatter` profile (reader side, unit-tested), `ActorRole`, `role_for_hop`.
+- Change: `build_status_actor` returns the 4-key dict; profile = binding profile, else agent-string profile, else null.
+- Remove from this PR (no production caller once the fill is deferred; the follow-up restores them from the parked patch `/tmp/claude-0/-home-user-spec-kitty/d3b825e4-52d0-5999-8fef-1f1dd41bdb8f/scratchpad/t010-emit-delegation.patch` and git history): `planned_profile_for_wp`, the frontmatter branch of `resolve_profile` (drop `resolve_profile` if only `build_status_actor` needs it), `ResolvedBinding.profile_source`, its stamping in `_resolve_dispatch_binding`, and the matching assertions added to `tests/specify_cli/status/test_resolved_binding_linkage.py`.
+- Land T010: `build_resolved_actor` / `build_self_asserting_actor` delegate to `build_status_actor` (now behaviour-preserving: same 4 keys, same values). The existing suites that went red with the 5-key delegation must be green.
 
 ## Objectives & Success Criteria
 
