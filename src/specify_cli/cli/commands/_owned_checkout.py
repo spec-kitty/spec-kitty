@@ -191,6 +191,9 @@ def resolve_owned_op_record_root(
     Mission, so only the checkout claim is validated, once, through
     :func:`resolve_owned_create_root` (the claim check every owned command
     runs, plus the repository-root refusal); no Mission or topology is read.
+    Known residual: because no Mission is bound, a registered coordination
+    worktree or lane worktree is NOT refused here (the lane check needs a
+    Mission's ``lanes.json``); do not point ``--owned-checkout`` at one.
     A refusal prints :func:`flat_error_envelope` through
     :func:`emit_owned_refusal` and exits 1 before anything is written.
     Returns ``None`` without the flag, so the caller keeps the #6564
