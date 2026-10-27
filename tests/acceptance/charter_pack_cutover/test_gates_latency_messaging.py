@@ -261,10 +261,12 @@ def test_nfr003_preset_and_pack_list_latency(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------------------
 
 
-def _deleted_living_files_since_base() -> int:
+def _base_commit_present() -> bool:
     present = subprocess.run(["git", "-C", str(REPO_ROOT), "cat-file", "-e", f"{FR018_FLOOR_BASE_SHA}^{{commit}}"], capture_output=True, check=False)
-    if present.returncode != 0:
-        return 0
+    return present.returncode == 0
+
+
+def _deleted_living_files_since_base() -> int:
     out = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "diff", "--name-only", "--no-renames", "--diff-filter=D", f"{FR018_FLOOR_BASE_SHA}..HEAD"],
         capture_output=True,
@@ -286,10 +288,26 @@ def _finding_token(finding: object) -> str:
 def test_fr018_vocabulary_gate_zero_findings_over_floor() -> None:
     gate = load_gate(VOCABULARY_GATE)
     paths = list(gate.living_paths(REPO_ROOT))
-    floor = FR018_FLOOR - _deleted_living_files_since_base()
-    assert len(paths) >= floor, f"scanned {len(paths)} < floor {floor} (base literal {FR018_FLOOR})"
+    assert paths, "control: the gate scans living files"
     findings = list(gate.scan(REPO_ROOT, paths))
     assert findings == [], "\n".join(map(str, findings[:50]))
+
+
+@covers("FR-018", "SC-003", "US4-2")
+@pytest.mark.corpus
+def test_fr018_vocabulary_gate_scans_at_least_the_floor() -> None:
+    """The gate scans every living file the base tree had, less the ones deleted since.
+
+    The deletions are measured against the base commit, so a clone without it (a shallow
+    checkout) cannot compute the floor: comparing with the raw base literal would count
+    every deleted file as missed (#6697). CI checks out full history, so this runs there.
+    """
+    if not _base_commit_present():
+        pytest.skip(f"base commit {FR018_FLOOR_BASE_SHA[:12]} is not in this clone (shallow?); fetch full history to check the floor")
+    gate = load_gate(VOCABULARY_GATE)
+    paths = list(gate.living_paths(REPO_ROOT))
+    floor = FR018_FLOOR - _deleted_living_files_since_base()
+    assert len(paths) >= floor, f"scanned {len(paths)} < floor {floor} (base literal {FR018_FLOOR})"
 
 
 @covers("FR-018", "SC-003")
@@ -309,8 +327,7 @@ def test_fr018_planted_token_detected(token: str, tmp_path: Path) -> None:
 def test_fr018_floor_literal_recorded_at_base() -> None:
     """The floor literal is what the base tree measures (when the base commit is available)."""
     assert FR018_FLOOR > 1000 and re.fullmatch(r"[0-9a-f]{40}", FR018_FLOOR_BASE_SHA)
-    present = subprocess.run(["git", "-C", str(REPO_ROOT), "cat-file", "-e", f"{FR018_FLOOR_BASE_SHA}^{{commit}}"], capture_output=True, check=False)
-    if present.returncode == 0:
+    if _base_commit_present():
         assert count_living_text_files(REPO_ROOT, FR018_FLOOR_BASE_SHA) == FR018_FLOOR
 
 
