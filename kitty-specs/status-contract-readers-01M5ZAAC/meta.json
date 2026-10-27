@@ -1,5 +1,4 @@
 {
-  "accept_commit": "3075ed424c8bd060760ee5afd20e8de9bdd52f7a",
   "acceptance_history": [
     {
       "accept_commit": "3075ed424c8bd060760ee5afd20e8de9bdd52f7a",
@@ -7,12 +6,18 @@
       "accepted_at": "2026-10-27T21:55:00.469370+00:00",
       "accepted_by": "claude",
       "accepted_from_commit": "95ff55ff329888a206e0ef219d9875999e019580"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-27T22:18:13.049083+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "7849804f0b1d960390fbd27c226ed288348e09c4"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-10-27T21:55:00.469370+00:00",
+  "accepted_at": "2026-10-27T22:18:13.049083+00:00",
   "accepted_by": "claude",
-  "accepted_from_commit": "95ff55ff329888a206e0ef219d9875999e019580",
+  "accepted_from_commit": "7849804f0b1d960390fbd27c226ed288348e09c4",
   "coordination_branch": "kitty/mission-status-contract-readers-01M5ZAAC",
   "created_at": "2026-10-27T18:35:19.381432+00:00",
   "flattened": false,
