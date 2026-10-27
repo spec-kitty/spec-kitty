@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "mission_slug": "activate-output-and-identity-01M5ZA9X",
+  "mission_id": "01M5ZA9X7C300SZBK507H3N051",
+  "mission_branch": "kitty/mission-activate-output-and-identity-01M5ZA9X",
+  "target_branch": "issue-6457-activate-output-identity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/activation_engine.py",
+        "src/charter/activation/pack_manager.py",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "tests/charter/activation/test_activation_engine_freeze_warning.py",
+        "tests/charter/test_skill_freeze_warning_6458.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_only_6408.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_output_6457.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/org-doctrine-layer.md",
+        "src/charter/activation/resolver.py",
+        "tests/charter/activation/test_stem_first_gating_6459.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/charter.md",
+        "docs/context/governance.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-27T18:41:23.472073+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "1e78556db6a7ddab87320ebe5b1f9d23cea4aee4"
+}
