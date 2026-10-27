@@ -65,9 +65,10 @@
         "api"
       ],
       "depends_on_lanes": [
-        "lane-a"
+        "lane-a",
+        "lane-b"
       ],
-      "parallel_group": 1
+      "parallel_group": 2
     },
     {
       "lane_id": "lane-d",
@@ -87,11 +88,11 @@
       "depends_on_lanes": [
         "lane-c"
       ],
-      "parallel_group": 2
+      "parallel_group": 3
     }
   ],
-  "computed_at": "2026-10-27T12:07:53.706586+00:00",
+  "computed_at": "2026-10-27T12:08:26.634002+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "124cf9245069ba0976880203f041fce2e6e11c60"
+  "planning_commit_sha": "e155b8a1a2d718b0ef2a9b85e5c4e5a30758f1b3"
 }

@@ -3,6 +3,7 @@ work_package_id: WP03
 title: Move-task and accept gates
 dependencies:
 - WP01
+- WP02
 requirement_refs:
 - FR-001
 - FR-002
