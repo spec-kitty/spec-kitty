@@ -4,27 +4,27 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: status-contract-readers-01M5ZAAC
 mission_id: 01M5ZAACMGXEMDESD011SH8VTW
-generated_at: '2026-10-27T18:47:02.657573+00:00'
+generated_at: '2026-10-27T18:59:36.159542+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: kitty-specs/status-contract-readers-01M5ZAAC/spec.md
-    sha256: 4c4d219f29d5764e1f35d0f7818ebbc8798e6b27cbc591ccfc4d0f7f95915222
+    sha256: 0295fa15cfd38e2b2ec387e099fdbf12d784ddbea8966487c486b500d6ddd2c1
   plan.md:
     path: kitty-specs/status-contract-readers-01M5ZAAC/plan.md
     sha256: 48cad8b57ef21c9171968e2a71b8c385a6e4b59743f20bb91a44a5d92d1dd3b2
   tasks.md:
     path: kitty-specs/status-contract-readers-01M5ZAAC/tasks.md
-    sha256: 33a9e33f9ca1cbe93c3801773a3950d7b5ca6b43d47a04e36958b510736c555d
+    sha256: 5e44416505c0f1a855fd915300a7927d9c34a0dee71b9108cc45b056f255dc19
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
   critical: 0
-  low: 4
   high: 0
   medium: 1
+  low: 5
   info: 0
 findings:
 - id: C1
@@ -43,6 +43,10 @@ findings:
   severity: low
   category: underspecification
   summary: Spec US1 scenario 2 assumes move-task --to approved auto-walks for_review->in_review->approved; WP03 T011 hedges ('if it walks').
+- id: S1
+  severity: low
+  category: scope
+  summary: '#6271 folded in by the operator (2026-10-27) as WP06 (FR-015/FR-016) plus a changelog citation fix in WP05 T023; independent lane, no new dependencies.'
 - id: I1
   severity: low
   category: inconsistency
@@ -57,6 +61,7 @@ findings:
 | C2 | Coverage | LOW | spec.md C-002 | Ordering ratchet has no dedicated task. | Run `tests/status/test_reducer.py` in WP02/WP03 validation (already in the blast radius). |
 | U1 | Underspecification | LOW | tasks WP04 T018 | add-history not named in an FR. | Accept under FR-004; name it in the PR's write-path list. |
 | U2 | Underspecification | LOW | spec.md US1-2; WP03 T011 | Auto-walk on `--to approved` assumed. | Implementer asserts on whatever hops are emitted; role per hop is the invariant. |
+| S1 | Scope | LOW | spec.md FR-015/FR-016; tasks WP06, WP05 T023 | #6271 folded in. | None; WP06 is independent. |
 | I1 | Inconsistency | LOW | data-model.md role table | Operator-driven blocked/cancel from implementer lanes records `implementer`. | Keep (role is from the action lane); mention in docs (WP05 T023). |
 
 **Coverage Summary Table:**
@@ -77,6 +82,8 @@ findings:
 | FR-012 readers | yes | T005,T007 | |
 | FR-013 identity | yes | T005,T008 | |
 | FR-014 display identity | yes | T005,T015 | |
+| FR-015 seed predicate | yes | T024,T025 | #6271 |
+| FR-016 citations | yes | T023,T026 | #6271 |
 | NFR-001 | partial | T006 (design) | see C1 |
 | NFR-002/003 | yes | all WP test strategies | |
 
@@ -86,8 +93,8 @@ findings:
 
 **Metrics:**
 
-- Total Requirements: 14 FR, 3 NFR, 5 C, 4 SC
-- Total Tasks: 23
+- Total Requirements: 16 FR, 3 NFR, 5 C, 4 SC
+- Total Tasks: 26
 - Coverage: 100% FR (NFR-001 partial)
 - Ambiguity Count: 1
 - Duplication Count: 0
