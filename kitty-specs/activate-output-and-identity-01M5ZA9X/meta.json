@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "Output-text and docs changes only: no API, CLI flag, exit code or JSON envelope changes (activate has a JSON envelope only for --preset, untouched).",
   "coordination_branch": "kitty/mission-activate-output-and-identity-01M5ZA9X",
   "created_at": "2026-10-27T18:35:03.544241+00:00",
   "flattened": false,
@@ -14,6 +16,6 @@
   "slug": "activate-output-and-identity-01M5ZA9X",
   "target_branch": "issue-6457-activate-output-identity",
   "topology": "coord",
-  "contracts": "none",
-  "contracts_rationale": "Output-text and docs changes only: no API, CLI flag, exit code or JSON envelope changes (activate has a JSON envelope only for --preset, untouched)."
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T18:42:53.767396+00:00"
 }
