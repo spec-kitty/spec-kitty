@@ -184,3 +184,34 @@ def test_complete_refuses_an_invalid_owned_checkout_before_closing(tmp_path: Pat
     assert result.exit_code == 1, result.output
     assert json.loads(result.stdout)["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
     assert record.read_text(encoding="utf-8") == before
+
+
+def _listed_ids(result: Result) -> set[str]:
+    assert result.exit_code == 0, result.output
+    return {record["invocation_id"] for record in json.loads(result.stdout)}
+
+
+def test_list_from_r_with_owned_checkout_shows_the_ops_kept_in_p(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repository_root(tmp_path)
+    owned = _owned(root, tmp_path)
+    monkeypatch.chdir(root)
+    opened = _dispatch("--owned-checkout", str(owned))
+    assert opened.exit_code == 0, opened.output
+    invocation_id = json.loads(opened.stdout)["invocation_id"]
+    before = _porcelain(root)
+
+    listed = _listed_ids(_cli("invocations", "list", "--json", "--owned-checkout", str(owned)))
+
+    assert invocation_id in listed
+    assert invocation_id not in _listed_ids(_cli("invocations", "list", "--json"))
+    assert _porcelain(root) == before
+
+
+def test_list_refuses_the_repository_root_as_owned_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = _repository_root(tmp_path)
+    monkeypatch.chdir(root)
+
+    result = _cli("invocations", "list", "--json", "--owned-checkout", str(root))
+
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.stdout)["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
