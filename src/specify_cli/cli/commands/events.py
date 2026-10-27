@@ -29,7 +29,7 @@ Every error/usage/refusal signal (``usage_error``, ``mission_not_found``,
 ``invalid_resume_offset``, ``resume_content_mismatch``) goes through ``_err_console``
 (STDERR), never ``_console`` -- modeled on ``agent_retrospect.py:593``/``:600``'s
 pattern: ``_err_console.print_json(json.dumps({"error": ..., "detail": ...}))`` +
-``raise typer.Exit(<n>)``, NOT ``typer.BadParameter``. No Tail envelope is ever
+``raise typer.Exit(<n>)`` (one helper, ``_refuse``), NOT ``typer.BadParameter``. No Tail envelope is ever
 printed to stderr.
 
 ``--mission``, never ``--feature*`` (C-003, charter Terminology Canon).
@@ -59,6 +59,16 @@ from specify_cli.status import (
 )
 
 app = typer.Typer(help="Event log tailing commands")
+
+
+def _refuse(error: str, detail: str, exit_code: int) -> typer.Exit:
+    """Print the ``{"error", "detail"}`` envelope on STDERR; return the exit to raise.
+
+    Returned rather than raised so each call site reads ``raise _refuse(...)``
+    and the type checker sees the branch end.
+    """
+    _err_console.print_json(json.dumps({"error": error, "detail": detail}))
+    return typer.Exit(exit_code)
 
 
 @app.command("tail")
@@ -117,15 +127,7 @@ def tail_command(
     # 1. FR-004 usage check -- before ANY file/mission access.
     # ------------------------------------------------------------------
     if from_invariant is not None and from_offset is None:
-        _err_console.print_json(
-            json.dumps(
-                {
-                    "error": "usage_error",
-                    "detail": "--from-invariant requires --from-offset to anchor it",
-                }
-            )
-        )
-        raise typer.Exit(2)
+        raise _refuse("usage_error", "--from-invariant requires --from-offset to anchor it", 2)
 
     # ------------------------------------------------------------------
     # 2. FR-009 mission resolve -- zero new resolution code. On an
@@ -136,15 +138,11 @@ def tail_command(
     # ------------------------------------------------------------------
     repo_root = locate_project_root()
     if repo_root is None:
-        _err_console.print_json(
-            json.dumps(
-                {
-                    "error": "repo_root_not_found",
-                    "detail": ("Could not locate project root. Ensure you are inside a spec-kitty project (has .kittify/ or kitty-specs/)."),
-                }
-            )
+        raise _refuse(
+            "repo_root_not_found",
+            "Could not locate project root. Ensure you are inside a spec-kitty project (has .kittify/ or kitty-specs/).",
+            1,
         )
-        raise typer.Exit(1)
 
     resolved = resolve_mission_handle(mission, repo_root, json_mode=True)
     log_path = mission_event_log_path(resolved.feature_dir)
@@ -159,8 +157,7 @@ def tail_command(
             cursor = validate_resume_cursor(log_path, from_offset, from_invariant)
         except ResumeRefused as exc:
             code = "resume_content_mismatch" if exc.reason == "content_mismatch" else "invalid_resume_offset"
-            _err_console.print_json(json.dumps({"error": code, "detail": str(exc)}))
-            raise typer.Exit(2) from exc
+            raise _refuse(code, str(exc), 2) from exc
     else:
         cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
 
