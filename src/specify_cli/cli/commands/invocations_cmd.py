@@ -376,6 +376,8 @@ def list_invocations(
     # #6564: list the Op records of the checkout the command runs in, the
     # same checkout ``dispatch`` and ``profile-invocation complete`` write to;
     # under --owned-checkout, those of the owned checkout (#6682 follow-up).
+    # The command only reads, so a lane or coordination worktree accepted as the
+    # owned checkout (known residual, inherited from #6694) is never written to.
     project_root = _get_repo_root()
     owned_record_root = resolve_owned_op_record_root(project_root, owned_checkout, cwd=Path.cwd(), json_output=json_output)
     repo_root = owned_record_root if owned_record_root is not None else resolve_op_record_root(project_root)
