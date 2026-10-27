@@ -586,12 +586,17 @@ _PROBE_ERROR = "ISSUE_MATRIX_PROBE_ERROR"
 
 
 def _is_issue_matrix_probe(cmd: list[str], verb: str) -> bool:
-    """True for a ``git <verb> <ref>:<...>/issue-matrix.*`` call (show / cat-file).
+    """True for a ``git [<option>...] <verb> ... issue-matrix.*`` call (show / ls-tree / cat-file).
 
     Narrow on purpose: phase derivation runs other git probes (for
     ``meta.json``), and those calls must keep using the real subprocess.
+    ``kernel.git`` listings put options such as ``--literal-pathspecs``
+    before the verb, so the verb is the first non-option argument.
     """
-    return len(cmd) >= 2 and cmd[0] == "git" and cmd[1] == verb and "issue-matrix." in cmd[-1]
+    if len(cmd) < 2 or cmd[0] != "git" or "issue-matrix." not in cmd[-1]:
+        return False
+    first_verb = next((arg for arg in cmd[1:] if not arg.startswith("-")), None)
+    return first_verb == verb
 
 
 def _install_fake_run(

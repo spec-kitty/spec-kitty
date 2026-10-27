@@ -25,6 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast, get_args
 
+from kernel.git import GitCommandError, tree_entry
+
 if TYPE_CHECKING:
     # Import-cycle note (owned-checkout-lifecycle-authority WP04): this module
     # is imported BY ``mission_runtime.owned_checkout`` at module scope (for
@@ -2238,9 +2240,10 @@ def _ensure_issue_matrix_content_authored(content: str, *, ref: str, object_path
 
 
 def _path_absent_from_tree(repo_root: Path, ref: str, object_path: str) -> bool:
-    """``True`` only when ``git ls-tree`` RAN cleanly and lists nothing at ``object_path``.
+    """``True`` only when a tree listing RAN cleanly and has nothing at ``object_path``.
 
-    A tree-only probe (#6653 review cycle 1): ``ls-tree`` reads the ref's
+    A tree-only probe (#6653 review cycle 1) through
+    :func:`kernel.git.tree_entry`, the one owner of path listings: it reads the ref's
     trees and never the blob, so a path that IS committed but whose object is
     missing or unreadable is still listed and reads as present. ``git
     cat-file -e`` (``lifecycle_phase._path_present_at_rev``) cannot make that
@@ -2256,16 +2259,11 @@ def _path_absent_from_tree(repo_root: Path, ref: str, object_path: str) -> bool:
     directory name on the ref is not looked for, and reads as absent here.
     """
     try:
-        result = subprocess.run(
-            ["git", "ls-tree", "--full-tree", "--name-only", ref, "--", object_path],
-            cwd=repo_root,
-            capture_output=True,
-            timeout=_GIT_PROBE_TIMEOUT,
-            check=False,
-        )
-    except (subprocess.TimeoutExpired, OSError):
+        entry = tree_entry(repo_root, ref, object_path, timeout=_GIT_PROBE_TIMEOUT)
+    except GitCommandError:
+        # Non-zero exit, timeout, or a git that did not start: not a positive absence.
         return False
-    return result.returncode == 0 and not result.stdout.strip()
+    return entry is None
 
 
 def _raise_not_authored_if_absent(
