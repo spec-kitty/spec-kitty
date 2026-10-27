@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-status-contract-readers-01M5ZAAC",
+  "created_at": "2026-10-27T18:35:19.381432+00:00",
+  "flattened": false,
+  "friendly_name": "Status contract readers",
+  "mid8": "01M5ZAAC",
+  "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+  "mission_number": null,
+  "mission_slug": "status-contract-readers-01M5ZAAC",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Status events record the actor two ways and never carry the agent profile, and the CLI keeps its own hand-copied lane list. Consumers such as the Mission Status Read API and the Java write core need one actor shape with the profile and where it came from, and one lane authority, before the write cut-over.",
+  "purpose_tldr": "Status events name who acted in one shape, and lanes come from the shared events package.",
+  "slug": "status-contract-readers-01M5ZAAC",
+  "target_branch": "issue-6400-structured-status-actor",
+  "topology": "coord"
+}
