@@ -483,7 +483,7 @@ With `--force` the same run reports `"cleared_exclusions": {"deactivated_directi
 
 ### `charter list --json`
 
-Three additions to the existing payload:
+Four additions to the existing payload:
 
 - every row of `kinds` carries `deactivated`: the kind's exclusions, sorted (`[]` when none),
   and `null` for `mission-type`, which has no exclusions;
@@ -494,6 +494,10 @@ Three additions to the existing payload:
   ids of that kind: `{"<plural>": [{"id": "<id>", "packs": ["<pack>"]}]}`. Those ids are in force,
   the same set `doctor charter-packs` reports with `source: org-required`. The human table names
   each one in the *Activated* cell as `<id> — in force: required by '<pack>'`.
+
+- a top-level `required_floor_unreadable` (`["<plural>"]`) appears when an org pack's required
+  floor cannot be read for a kind with no allow list. The listing still succeeds; the table adds
+  the hint "org required floor unreadable — run `spec-kitty doctor charter-packs`" under that kind.
 
 The human table gains a *Deactivated* column only when something is deactivated.
 

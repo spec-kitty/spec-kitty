@@ -105,6 +105,21 @@ def test_a_pack_own_required_directive_is_shown_in_force(tmp_path: Path) -> None
     assert f"{_TEAM_RULE} (TEAM_RULE) — in force: required by 'team-pack'" in _flat(result)
 
 
+def test_an_unreadable_required_floor_is_flagged_not_shown_as_nothing_required(tmp_path: Path) -> None:
+    """A lenient read must not turn an unreadable org pack into a silent "nothing required"."""
+    _built_in_required(tmp_path)
+    (tmp_path / "org-packs" / "acme" / "org-charter.yaml").write_text("required_directives: [unclosed\n", encoding="utf-8")
+
+    as_json = _list(tmp_path, "--json")
+    human = _list(tmp_path)
+
+    assert as_json.exit_code == 0 and human.exit_code == 0, (as_json.output, human.output)
+    payload = json.loads(as_json.stdout)
+    assert "directives" in payload["required_floor_unreadable"]
+    assert "required_in_force" not in payload
+    assert "org required floor unreadable — run `spec-kitty doctor charter-packs`" in _flat(human)
+
+
 def test_an_explicit_allow_list_reports_only_its_omission(tmp_path: Path) -> None:
     """A present list keeps the FR-023 marker; nothing is claimed in force (ruling required_always_active_divergence)."""
     result = _list(_built_in_required(tmp_path, activated_directives=[_OTHER]), "--json")
