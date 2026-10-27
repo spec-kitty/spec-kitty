@@ -150,6 +150,9 @@ from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _mt_hop_policy_metadata as _mt_hop_policy_metadata,
     _mt_approval_policy_metadata as _mt_approval_policy_metadata,
     _mt_hop_actor as _mt_hop_actor,
+    _mt_hop_structured_actor as _mt_hop_structured_actor,
+    _mt_structured_actor as _mt_structured_actor,
+    _mt_annotation_actor as _mt_annotation_actor,
     _mt_hop_review_result as _mt_hop_review_result,
     _mt_plan_review_result as _mt_plan_review_result,
     _mt_reassignment_binding_fields as _mt_reassignment_binding_fields,
@@ -335,6 +338,8 @@ class _MoveTaskState:
     # --- phase E/F: emit + persist ---
     event: StatusEvent | None = None
     final_hop_actor: str | None = None
+    # #6400: the structured actor of the final hop, for the paired note annotation.
+    final_hop_structured_actor: dict[str, str | None] | None = None
     # True once the claim triple (``shell_pid``/``shell_pid_created_at``/``agent``)
     # rode a real ``planned -> claimed`` transition's ``policy_metadata`` sidecar
     # (FR-004), so :func:`_mt_emit_runtime_state` does NOT re-emit it as an

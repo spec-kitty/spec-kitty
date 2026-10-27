@@ -981,6 +981,7 @@ def mark_status(
     status: Annotated[str, typer.Option("--status", help="Status: done/pending/skipped/not_applicable")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
     wp: Annotated[str | None, typer.Option("--wp", help="Work package containing the subtasks (e.g., WP02)")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (compact tool:model:profile accepted)")] = None,
 
     owned_checkout: Annotated[
         Path | None,
@@ -1012,6 +1013,9 @@ def mark_status(
 
         # When IDs repeat across work packages:
         spec-kitty agent tasks mark-status T001 --wp WP02 --status skipped
+
+        # Naming the agent that did the work (default tool: user):
+        spec-kitty agent tasks mark-status T001 --status done --agent claude
     """
     # WP08 (#2116): thin orchestrator. The Typer command declares the CLI surface
     # (WP01 golden byte-identity) and delegates to the CORELESS ``_do_mark_status``,
@@ -1023,6 +1027,7 @@ def mark_status(
         status=status,
         mission=mission,
         wp=wp,
+        agent=agent,
         auto_commit=auto_commit,
         json_output=json_output,
         owned=owned,
@@ -1127,6 +1132,24 @@ def list_tasks(
         raise typer.Exit(1) from None
 
 
+def _add_history_actor(status_dir: Path, wp_id: str, agent_name: str) -> dict[str, str | None]:
+    """The structured actor of an ``add-history`` note (#6400).
+
+    ``role`` is ``reviewer`` while the WP is ``in_review``, else ``implementer``
+    (also when the Mission has no event log yet); ``tool`` is parsed from
+    *agent_name* (the compact ``--agent`` form is accepted).
+    """
+    from specify_cli.status import CanonicalStatusNotFoundError, build_self_asserting_actor, get_wp_lane
+
+    try:
+        under_review = get_wp_lane(status_dir, wp_id) == Lane.IN_REVIEW
+    except CanonicalStatusNotFoundError:
+        under_review = False
+    role = "reviewer" if under_review else "implementer"
+    actor: dict[str, str | None] = build_self_asserting_actor(role=role, agent=agent_name, fallback_tool="user", binding=None)
+    return actor
+
+
 @app.command(name="add-history")
 def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
@@ -1214,7 +1237,7 @@ def add_history(
             status_feature_dir,
             task_id,
             WPInnerStateDelta(note=history_entry),
-            actor=agent_name,
+            actor=_add_history_actor(status_feature_dir, task_id, agent_name),
             mission_slug=mission_slug,
             repo_root=_ah_main_repo_root,
         )

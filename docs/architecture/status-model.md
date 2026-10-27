@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-10-12'
+updated: '2026-10-27'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -121,7 +121,7 @@ spec-kitty agent status emit WP01 --to claimed --actor claude --json
 |--------|----------|-------------|
 | `WP_ID` (argument) | Yes | work package ID (e.g., `WP01`) |
 | `--to` | Yes | Target lane (canonical or alias) |
-| `--actor` | Yes | Who is making this transition |
+| `--actor` | Yes | Who is making this transition: a tool name (`claude`) or the compact `tool:model:profile` form. The event stores the structured actor (see [The actor](#the-actor)); the command output echoes the value as given |
 | `--mission` | No | Mission slug |
 | `--force` | No | Bypass guard conditions |
 | `--reason` | When `--force` | Reason for forced transition |
@@ -382,10 +382,60 @@ To migrate existing features to the canonical event log:
 Events are stored in `kitty-specs/<feature>/status.events.jsonl` as one JSON object per line:
 
 ```json
-{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","mission_slug":"034-feature-name","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
+{"actor":{"model":null,"profile":null,"role":"implementer","tool":"claude"},"at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","mission_slug":"034-feature-name","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
 ```
 
 Keys are always sorted (`sort_keys=True`) for deterministic, merge-friendly output.
+
+### The actor
+
+The `actor` field records who wrote an event. Transitions and annotations
+written by agent and operator commands store a structured actor with exactly
+four keys (#6400):
+
+| Key | Value |
+|-----|-------|
+| `tool` | The agent handle, for example `claude` or `codex`. Only the bare tool: a compact `--agent`/`--actor` value such as `claude:opus:python-pedro` contributes `claude` here. `user` when an operator names no agent (`mark-status` without `--agent`). |
+| `role` | `implementer` or `reviewer`, set by the action (see below), never by the profile. |
+| `profile` | The agent profile, or `null`. |
+| `model` | The model, or `null`. |
+
+These commands write it: `agent tasks move-task` (every hop and its paired
+note), `agent tasks mark-status` (which takes an optional `--agent`),
+`agent tasks add-history`, `agent action implement` and `agent action review`
+(their transitions and annotations), the review verdict note,
+`agent status emit` and the `orchestrator-api` lifecycle commands
+(`start-implementation`, `start-review`, `transition`, `append-history`).
+The `orchestrator-api` JSON envelopes do not change; only the stored event does.
+
+**Profile.** `profile` (and `model`) come from, in this order: the dispatch
+invocation (`--invocation-id`), then `--profile`, then the profile (and model)
+segment of a compact `--agent`/`--actor` value. When none of these gives one,
+the value is `null`. Nothing is guessed, and the planned `agent_profile` in the
+WP frontmatter is not copied in.
+
+**Role.** `reviewer` for a hop into `in_review`, `approved` or `done`, for any
+hop that leaves `in_review` (a rejection, a block or a cancel during review)
+and for a review verdict note. `implementer` for every other hop, for
+implementer notes and for subtask marks.
+
+**Display and identity.** The board, the snapshot `actor` slot and the claim
+check still use the bare tool (`actor_identity_str`), so a structured actor and
+a bare-string actor naming the same tool are the same agent.
+
+**What readers accept.** A bare string (every event written before this
+change, and the system writers below), the 4-key dict above, and a 5-key dict
+that adds `profile_source`. Any other dict is refused when the log is read.
+
+**Still strings.** System writers keep writing a string actor: migrations
+(`migration:...`), consolidation bookkeeping, bootstrap, recovery and the
+consolidation attestations.
+
+> **Planned (follow-up #6721).** A later release adds `profile_source` (where the
+> profile came from) to the written actor and fills `profile` from the WP
+> frontmatter when nothing else gives one. Readers already accept that 5-key
+> shape; a profile taken from the frontmatter will not count as the agent's
+> identity in the reviewer-versus-implementer check.
 
 ## Commit attribution stamp (`policy_metadata.lane_head`)
 

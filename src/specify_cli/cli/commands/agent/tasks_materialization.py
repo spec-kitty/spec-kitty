@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME
 
 if TYPE_CHECKING:
+    from specify_cli.status.models import ActorField
+
     # Type-only: ``kernel._safe_re``'s ``re`` has no statically-typed
     # ``Pattern`` attribute mypy can resolve as an annotation target (only
     # plain stdlib ``re`` supports ``re.Pattern[str]``). RE2-compiled patterns
@@ -53,6 +55,7 @@ def _persist_review_artifact_override(
     wp_id: str,
     actor: str,
     reason: str,
+    event_actor: ActorField | None = None,
 ) -> None:
     """Record durable evidence that a rejected latest review was superseded.
 
@@ -66,6 +69,10 @@ def _persist_review_artifact_override(
     the primary and coord worktrees resolve, so the primary/coord frontmatter
     mirror collapses to this one emit. Only the *storage* changes; the approval
     handler still fires the override at exactly the same moment.
+
+    ``actor`` is the string identity the :class:`ReviewOverride` record keeps (the
+    done bookkeeping reads it as the reviewer); ``event_actor`` is the structured
+    actor of the annotation event itself (#6400, FR-010), defaulting to ``actor``.
     """
     from specify_cli.status import emit_inner_state_changed
     from specify_cli.status import ReviewOverride, WPInnerStateDelta
@@ -99,7 +106,7 @@ def _persist_review_artifact_override(
         feature_dir,
         wp_id,
         WPInnerStateDelta(review=override),
-        actor=actor,
+        actor=event_actor if event_actor is not None else actor,
         mission_slug=mission_slug,
         at=timestamp,
         repo_root=repo_root,

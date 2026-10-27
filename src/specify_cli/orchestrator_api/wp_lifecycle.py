@@ -26,6 +26,7 @@ from specify_cli.status import wp_state_for
 from specify_cli.status import CHECKOUT_CLAIM_LOCK_TIMEOUT_SECONDS, FeatureStatusLockTimeoutError
 from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
+from specify_cli.status import ActorRole
 from specify_cli.status import parse_review_result_json
 
 from .envelope import (
@@ -65,6 +66,32 @@ def _transition_requires_policy(lane: str) -> bool:
     """
     state = wp_state_for(lane)
     return state.progress_bucket() not in ("not_started", "terminal") and not state.is_blocked
+
+
+def _status_actor(actor: str, role: str) -> dict[str, str | None]:
+    """The structured 4-key actor an orchestrator lifecycle command records (#6400, FR-011).
+
+    The one construction site for this module (see
+    :func:`~specify_cli.status.work_package_lifecycle.actor_from_option`); ``role``
+    comes from the hop. Only the stored event changes; envelopes keep echoing
+    ``--actor`` as given.
+    """
+    from specify_cli.status import actor_from_option
+
+    structured: dict[str, str | None] = actor_from_option(actor, role)
+    return structured
+
+
+def _transition_role(mission_dir: Path, wp: str, to_lane: str) -> str:
+    """The role of a ``transition`` hop, read off the WP's current lane (``role_for_hop``)."""
+    from specify_cli.status import CanonicalStatusNotFoundError, get_wp_lane, role_for_hop
+
+    try:
+        from_lane: str | None = str(get_wp_lane(mission_dir, wp))
+    except CanonicalStatusNotFoundError:
+        from_lane = None
+    role: str = role_for_hop(from_lane, to_lane)
+    return role
 
 
 def _fail_wp_not_found(cmd: str, wp: str, mission: str) -> NoReturn:
@@ -588,7 +615,7 @@ def _start_implementation(mission: str, wp: str, actor: str, policy: str | None,
             feature_dir=mission_dir,
             mission_slug=mission,
             wp_id=wp,
-            actor=actor,
+            actor=_status_actor(actor, ActorRole.IMPLEMENTER),
             workspace_context=workspace_path,
             execution_mode=status_execution_mode,
             repo_root=main_repo_root,
@@ -602,7 +629,7 @@ def _start_implementation(mission: str, wp: str, actor: str, policy: str | None,
             {
                 **_common._mission_identity_payload(mission_dir),
                 "claimed_by": exc.claimed_by,
-                "requesting_actor": exc.requesting_actor,
+                "requesting_actor": actor,
             },
         )
         return
@@ -682,7 +709,7 @@ def start_review(
             feature_dir=mission_dir,
             mission_slug=mission,
             wp_id=wp,
-            actor=actor,
+            actor=_status_actor(actor, ActorRole.REVIEWER),
             review_ref=review_ref,
             workspace_context=f"orchestrator-api:{main_repo_root}",
             execution_mode=_status_execution_mode_for_start_workspace(review_ws),
@@ -697,7 +724,7 @@ def start_review(
             {
                 **_common._mission_identity_payload(mission_dir),
                 "claimed_by": exc.claimed_by,
-                "requesting_actor": exc.requesting_actor,
+                "requesting_actor": actor,
             },
         )
         return
@@ -854,7 +881,7 @@ def transition(
                 mission_slug=mission,
                 wp_id=wp,
                 to_lane=to_lane,
-                actor=actor,
+                actor=_status_actor(actor, _transition_role(mission_dir, wp, to_lane)),
                 reason=note,
                 force=force,
                 evidence=evidence,
@@ -957,7 +984,7 @@ def append_history(
             mission_dir,
             wp,
             WPInnerStateDelta(note=entry_text),
-            actor=actor,
+            actor=_status_actor(actor, ActorRole.IMPLEMENTER),
             mission_slug=mission,
             repo_root=main_repo_root,
         )

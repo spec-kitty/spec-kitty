@@ -85,6 +85,7 @@ from specify_cli.status.mission_write import (
     rollback_status_artifacts,
 )
 from specify_cli.status.models import (
+    ActorField,
     CurrentWpState,
     EventStream,
     InnerStateChanged,
@@ -1740,7 +1741,7 @@ def emit_inner_state_changed_transactional(
     wp_id: str,
     delta: WPInnerStateDelta,
     *,
-    actor: str,
+    actor: ActorField,
     mission_slug: str,
     at: str | None = None,
     repo_root: Path | None = None,
@@ -2039,7 +2040,7 @@ def emit_runtime_annotation(
     feature_dir: Path,
     wp_id: str,
     delta: WPInnerStateDelta,
-    actor: str,
+    actor: ActorField,
     mission_slug: str,
     repo_root: Path | None = None,
 ) -> InnerStateChanged:

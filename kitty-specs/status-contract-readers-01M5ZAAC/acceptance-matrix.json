@@ -1,0 +1,149 @@
+{
+  "mission_slug": "status-contract-readers-01M5ZAAC",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-a tests/status/test_status_lanes_derivation.py (126 passed incl. consumers)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:53:28.480236+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-a test_event_log_merge.py + test_wp_metadata.py genesis pins (126 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:53:34.113414+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-a test_cli_lane_enum_matches_package_plus_read_sentinel",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:53:39.647448+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b tests/status/test_status_actor.py 4-key builders + package diary.decode_actor round trip (73 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:53:45.357680+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b test_status_actor.py resolution order invocation>flag>agent string>null (frontmatter fill deferred to #6721 per C-006)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:53:50.665302+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b role_for_hop table tests; lane-c hop roles in test_move_task_structured_actor_6400.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:53:56.621958+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c tests/specify_cli/cli/commands/agent/test_move_task_structured_actor_6400.py (19 passed with boundary gate)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:54:02.130992+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d test_structured_actor_annotations_6400.py mark-status cases (8 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:54:07.653304+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-d test_structured_actor_annotations_6400.py action implement/review cases",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:54:13.468905+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c review-override annotation case in test_move_task_structured_actor_6400.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:54:19.067637+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-e test_status_emit_structured_actor_6400.py + orchestrator_api/test_wp_lifecycle_structured_actor_6400.py (10 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:54:25.067385+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b decode_actor accept/refuse cases in test_status_actor.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:54:30.722293+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b actor_full_identity wp_frontmatter + #5340 ratchet cases (with test_actor_identity_reconciliation_4665.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:54:36.303325+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-b actor_identity_str/_actor_key unchanged; test_actor_identity_reconciliation_4665.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:54:41.948994+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

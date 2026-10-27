@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from mission_runtime import MissionArtifactKind, placement_seam
@@ -24,8 +24,11 @@ from specify_cli.missions._read_path_resolver import (
     resolve_bare_modern_mission_dir_name,
 )
 from specify_cli.status import feature_status_lock, mission_lock_key
-from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
+from specify_cli.status import EVENTS_FILENAME, CanonicalStatusNotFoundError, EventPersistenceError, StoreError
 from specify_cli.status import normalize_wp_id, parse_review_result_json
+
+if TYPE_CHECKING:
+    from specify_cli.status import MissionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -303,6 +306,24 @@ def _resolve_wp_arg(wp_id: str | None, wp: str | None) -> str:
     return normalize_wp_id(chosen)
 
 
+def _emit_actor(ms: MissionStatus, wp_id: str, to_lane: str, actor: str) -> dict[str, str | None]:
+    """The structured 4-key actor ``agent status emit`` records (#6400, FR-011).
+
+    ``--actor`` is the agent value: its bare tool fills ``tool`` and a compact
+    ``tool:model:profile`` segment fills ``model``/``profile``; ``role`` comes from the
+    hop (:func:`~specify_cli.status.actor.role_for_hop`) out of the WP's current lane.
+    A WP with no event log yet has no current lane (it cannot be in review). A value
+    the compact parser rejects is stored whole as ``tool``, as before (``actor_from_option``).
+    """
+    from specify_cli.status import actor_from_option, role_for_hop
+
+    try:
+        from_lane: str | None = str(ms.claim(wp_id).current_lane)
+    except CanonicalStatusNotFoundError:
+        from_lane = None
+    return actor_from_option(actor, role_for_hop(from_lane, to_lane))
+
+
 @app.command()
 def emit(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01)")] = None,
@@ -431,7 +452,7 @@ def emit(
             mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane=to,
-            actor=actor,
+            actor=_emit_actor(ms, wp_id, to, actor),
             force=force,
             reason=reason,
             evidence=evidence,
@@ -485,7 +506,8 @@ def emit(
             "from_lane": str(event.from_lane),
             "to_lane": str(event.to_lane),
             "status_events_path": str(output_feature_dir / EVENTS_FILENAME),
-            "actor": event.actor,
+            # The output keeps echoing ``--actor`` as given; the event stores the structured actor.
+            "actor": actor,
         }
 
         _output_result(

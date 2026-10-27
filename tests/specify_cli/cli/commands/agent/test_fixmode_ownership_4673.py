@@ -193,6 +193,11 @@ def _snapshot_wp_state(feature_dir: Path) -> dict[str, object]:
     return snapshot.work_packages.get("WP01") or {}
 
 
+def _structured(tool: str, role: str) -> dict[str, str | None]:
+    """The structured hop actor move-task records (#6400): bare ``--agent`` tool, role of the hop."""
+    return {"tool": tool, "role": role, "profile": None, "model": None}
+
+
 def _last_transition_actor(feature_dir: Path) -> object:
     stream = read_event_stream(feature_dir)
     return stream.transitions[-1].actor
@@ -242,7 +247,7 @@ def test_fixmode_resubmission_needs_no_force_after_rejection(tmp_path: Path, mon
     after_rejection = _snapshot_wp_state(feature_dir)
     # Named-slot assertion (C-006): the transition ``actor`` slot legitimately
     # records who performed the rejection (the reviewer) ...
-    assert _last_transition_actor(feature_dir) == _REVIEWER, "transition actor slot: reviewer performed the rejection"
+    assert _last_transition_actor(feature_dir) == _structured(_REVIEWER, "reviewer"), "transition actor slot: reviewer performed the rejection"
     # ... but the runtime ``agent`` slot must be genuinely RELEASED — no live
     # claim survives an ordinary rejection (the #4673 precise live root: this
     # slot used to still read 'reviewer' here).
@@ -295,7 +300,7 @@ def test_fixmode_resubmission_needs_no_force_after_rejection(tmp_path: Path, mon
 
     after_resubmit = _snapshot_wp_state(feature_dir)
     assert after_resubmit.get("agent") == _IMPLEMENTER
-    assert _last_transition_actor(feature_dir) == _IMPLEMENTER
+    assert _last_transition_actor(feature_dir) == _structured(_IMPLEMENTER, "implementer")
 
 
 def test_genuinely_different_agent_is_still_refused_without_force(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

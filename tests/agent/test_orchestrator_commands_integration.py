@@ -1411,7 +1411,8 @@ class TestAppendHistory:
         notes = [ann for ann in stream.annotations if ann.wp_id == "WP01" and ann.delta.note is not None]
         assert len(notes) == 1
         assert "Started implementation" in notes[0].delta.note
-        assert notes[0].actor == "claude"
+        # #6400: the note annotation stores the structured actor.
+        assert notes[0].actor == {"tool": "claude", "role": "implementer", "profile": None, "model": None}
 
     def test_emit_failure_surfaces_structured_error_envelope(self, tmp_path):
         """A failed emit still returns ``_fail``'s structured envelope (WP08 DoD).

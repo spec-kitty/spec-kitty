@@ -555,6 +555,7 @@ def test_persist_review_override_before_guard_fires_write(tmp_path: Path) -> Non
         wp_id="WP01",
         actor="claude",
         reason="because reasons",
+        event_actor={"tool": "claude", "role": "reviewer", "profile": None, "model": None},
     )
 
 

@@ -254,7 +254,8 @@ def test_move_task_for_review_without_agent_uses_assigned_actor(tmp_path: Path) 
     assert result.exit_code == 0, result.output
     events = list((feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines())
     emitted = json.loads(events[-1])
-    assert emitted["actor"] == "testbot"
+    # #6400: the assigned implementer is the tool of the structured implementer actor.
+    assert emitted["actor"] == {"tool": "testbot", "role": "implementer", "profile": None, "model": None}
     assert emitted["to_lane"] == "for_review"
     assert emitted["force"] is False
 

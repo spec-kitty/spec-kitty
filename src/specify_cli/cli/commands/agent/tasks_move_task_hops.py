@@ -32,8 +32,11 @@ from specify_cli.status import (
     ReviewResult,
     StatusEvent,
     _actor_key,
+    build_status_actor,
+    compose_status_actor,
     emission_event_verdict,
     resolve_lane_alias,
+    role_for_hop,
 )
 
 
@@ -162,6 +165,39 @@ def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_l
         if resolved_reviewer:
             return resolved_reviewer
     return "user"
+
+
+def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> dict[str, str | None]:
+    """The structured 4-key ``{tool, role, profile, model}`` actor a move-task write records (#6400).
+
+    ``tool_identity`` is the identity the caller already chose (``--agent``, the
+    implementer handoff, the recorded reviewer, ``"user"`` or ``"operator"``); it is
+    parsed to its bare tool, so a recorded compact identity keeps the
+    ``tool:model:profile`` it already asserted. The dispatch binding
+    (``--invocation-id`` / ``--profile``) wins for ``profile``/``model``. No WP file is
+    read: the frontmatter profile is never filled in (phase split, spec C-006).
+    """
+    # Bound explicitly: mypy widens ``specify_cli.*`` returns to ``Any`` through ``follow_imports=skip``.
+    actor: dict[str, str | None]
+    try:
+        actor = build_status_actor(role=role, agent=st.agent or tool_identity, fallback_tool=tool_identity, binding=st.resolved_binding)
+    except ValueError:
+        # An identity with an empty tool segment cannot be parsed: keep it whole as the tool, as recorded.
+        actor = compose_status_actor(role=role, tool=tool_identity, binding=st.resolved_binding)
+    return actor
+
+
+def _mt_hop_structured_actor(st: _MoveTaskState, from_lane: str | Lane | None, target: str | Lane, hop_actor: str) -> dict[str, str | None]:
+    """The structured actor of one ``from_lane -> target`` hop; ``role`` follows the hop (FR-006/FR-007)."""
+    return _mt_structured_actor(st, role_for_hop(from_lane, target), hop_actor)
+
+
+def _mt_annotation_actor(st: _MoveTaskState) -> dict[str, str | None]:
+    """The paired-note actor: the final hop's structured actor, or one built for an annotation-only move (FR-007)."""
+    recorded: dict[str, str | None] | None = st.final_hop_structured_actor
+    if recorded is not None:
+        return recorded
+    return _mt_hop_structured_actor(st, st.old_lane, st.target_lane, st.final_hop_actor or st.actor)
 
 
 def _mt_shell_pid_baseline(pid: int) -> str | None:

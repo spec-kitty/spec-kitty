@@ -24,12 +24,14 @@ from typing import TYPE_CHECKING, Any
 from specify_cli.cli.commands.agent.tasks_move_task_hops import (
     _binding_role_for_lane,
     _build_claim_review_override,
+    _mt_annotation_actor,
     _mt_hop_actor,
     _mt_hop_policy_metadata,
     _mt_hop_reason_source,
     _mt_hop_records_binding,
     _mt_hop_review_ref,
     _mt_hop_review_result,
+    _mt_hop_structured_actor,
     _mt_plan_review_result,
     _mt_reassignment_binding_fields,
     _mt_shell_pid_baseline,
@@ -234,21 +236,11 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
         hop_review_result = _mt_hop_review_result(st, event, current_event_lane, target, hop_actor)
         hop_policy_metadata = _mt_hop_policy_metadata(st, target)
         binding_role = _binding_role_for_lane(target)
-        transition_actor: str | dict[str, str | None] = hop_actor
+        # #6400 (FR-006/FR-007): every hop records the structured actor; the role
+        # follows the hop, the tool is the identity ``_mt_hop_actor`` chose.
+        transition_actor = _mt_hop_structured_actor(st, st.authoritative_lane_at_emit, target, hop_actor)
         annotation_delta = None
         if binding_role is not None and st.resolved_binding is not None:
-            from specify_cli.status import build_self_asserting_actor
-
-            # FR-005: route the compact ``--agent`` value through the single
-            # self-asserting actor seam — only the parsed BARE tool reaches
-            # actor.tool, absent segments stay None, and the dispatch binding
-            # wins over the self-asserted parse.
-            transition_actor = build_self_asserting_actor(
-                role=binding_role,
-                agent=st.agent,
-                fallback_tool=hop_actor,
-                binding=st.resolved_binding,
-            )
             # #6630: a verdict hop without dispatch flags records no binding, so
             # the review claim's resolved profile is not cleared.
             if _mt_hop_records_binding(st, target):
@@ -305,6 +297,7 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
         ).event
         st.transition_applied = True
         final_hop_actor = hop_actor
+        st.final_hop_structured_actor = transition_actor
         # review_ref only applies to the (first) rollback hop, never forward hops.
         emit_review_ref = None
     st.event = event
@@ -539,7 +532,7 @@ def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:
         feature_dir=st.feature_dir,
         wp_id=st.task_id,
         delta=delta,
-        actor=st.final_hop_actor or st.actor,
+        actor=_mt_annotation_actor(st),
         mission_slug=st.mission_slug,
         repo_root=st.main_repo_root,
     )
