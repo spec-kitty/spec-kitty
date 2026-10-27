@@ -3,7 +3,7 @@
 **Mission Branch**: `issue-6400-structured-status-actor`
 **Created**: 2026-10-27
 **Status**: Draft
-**Input**: Remediation mission M5: #6448 (derive the lane set from the shared events package with an explicit authorable subset) and #6400 (one structured actor shape, carrying the profile and where it came from, on every agent and operator status write path).
+**Input**: Remediation mission M5: #6448, #6271 (folded in by the operator 2026-10-27), (derive the lane set from the shared events package with an explicit authorable subset) and #6400 (one structured actor shape, carrying the profile and where it came from, on every agent and operator status write path).
 
 ## Intent Summary (confirmed)
 
@@ -105,6 +105,8 @@ declared order, and a lane the package adds or drops is caught by a test rather 
 | FR-012 | Readers accept every shape | As a consumer, I want the decoder to accept bare strings, legacy 4-key dicts and the new 5-key dict, and to keep refusing malformed dicts. | High | Open | [build] | no — the base decoder refuses the 5-key dict |
 | FR-013 | Frontmatter fill never asserts identity | As an operator, I want `actor_full_identity` to drop a profile whose source is `wp_frontmatter`, so that reviewer≠implementer verdicts are identical to today's. | High | Open | [build] | no — a same-tool pair with different frontmatter-vs-asserted fills is asserted both ways |
 | FR-014 | Display identity unchanged | As an operator, I want the snapshot/board actor (`actor_identity_str`) and the claim-matching key to stay the bare tool. | High | Open | [ratchet] | yes — paired with FR-004 fixtures |
+| FR-015 | One seed predicate | As a maintainer, I want the timestamp-continuity check of `status validate` to recognise reconstruction seeds through the shared `is_migration_actor` predicate, so that a structured actor is judged the same way everywhere (#6271 item 1). | Low | Open | [build] | no — a structured `migration:` actor is skipped only after the change |
+| FR-016 | Correct events citations | As a reader, I want the code, test and changelog references to the diary-reducer fix to name spec-kitty-events PR #102 as the fix and issue #101 as the defect (#6271 item 2). | Low | Open | [build] | no — grep shows the bare `spec-kitty-events#101` fix citations today |
 
 ### Non-Functional Requirements
 
