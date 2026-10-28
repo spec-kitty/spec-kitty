@@ -133,6 +133,8 @@ def _render_human(payload: Mapping[str, Any]) -> None:
             console.print(f"\n[bold green]Deleted {len(deleted)} item(s)[/bold green]")
             for item in deleted:
                 _print_item(item)
+        else:
+            console.print("\n[yellow]Nothing was deleted.[/yellow]")
         _print_section("Failed", payload["failed"], error_key="error")
         _print_section_lines("Removed run-index entries", payload["removed_index_entries"])
     else:
