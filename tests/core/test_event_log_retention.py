@@ -108,28 +108,54 @@ def project(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _run(repo: Path, *, slug: str | None, mission_id: str | None, age_days: float) -> Path:
+def _new_run_dir(repo: Path, state: dict[str, object], age_days: float) -> Path:
     run_dir = run_index.runs_root(repo) / uuid.uuid4().hex
-    state: dict[str, object] = {"run_id": run_dir.name}
-    if slug is not None:
-        state["mission_slug"] = slug
-    if mission_id is not None:
-        state["mission_id"] = mission_id
-    _write(run_dir / "state.json", json.dumps(state))
+    _write(run_dir / "state.json", json.dumps({"run_id": run_dir.name, **state}))
     _write(run_dir / "run.events.jsonl", '{"event_type": "MissionRunStarted"}\n')
     _write(run_dir / "mission_template_frozen.yaml", "mission: software-dev\n")
     _set_age(run_dir, age_days)
     return run_dir
 
 
+def _link(repo: Path, key: str, run_dir: Path, *, slug: str | None, mission_id: object) -> None:
+    """Add the run-index entry ``next`` writes for a run (``get_or_start_run``'s shape)."""
+    index = _read_index(repo)
+    index[key] = {
+        "run_id": run_dir.name,
+        "run_dir": str(run_dir),
+        "mission_type": "software-dev",
+        "mission_key": "software-dev",
+        "mission_id": mission_id,
+        "mission_slug": slug,
+    }
+    run_index.save_index(repo, index)
+
+
+def _run(repo: Path, *, slug: str | None, mission_id: object, age_days: float, index_key: str | None = None, link: bool = True) -> Path:
+    """A run as ``next`` leaves it: no Mission in ``state.json``, linked through the run index.
+
+    ``slug=None`` and ``mission_id=None`` make an unindexed run that names no Mission.
+    """
+    run_dir = _new_run_dir(repo, {"mission_id": None, "mission_slug": None, "inputs": {"mission_slug": slug}}, age_days)
+    if link and (slug is not None or mission_id is not None):
+        _link(repo, index_key or run_dir.name, run_dir, slug=slug, mission_id=mission_id)
+    return run_dir
+
+
+def _legacy_run(repo: Path, *, slug: str | None, mission_id: object, age_days: float) -> Path:
+    """An unindexed run whose own snapshot records its Mission (older writers)."""
+    state: dict[str, object] = {}
+    if slug is not None:
+        state["mission_slug"] = slug
+    if mission_id is not None:
+        state["mission_id"] = mission_id
+    return _new_run_dir(repo, state, age_days)
+
+
 def _glossary_log(repo: Path, stem: str, age_days: float) -> Path:
     log = _write(repo / GLOSSARY_DIR / f"{stem}.events.jsonl", '{"event_type": "TermCaptured"}\n')
     _set_age(log, age_days)
     return log
-
-
-def _index(repo: Path, entries: dict[str, Path]) -> None:
-    run_index.save_index(repo, {key: {"run_dir": str(run_dir), "run_id": run_dir.name} for key, run_dir in entries.items()})
 
 
 def _read_index(repo: Path) -> dict[str, object]:
@@ -202,14 +228,7 @@ def test_a_run_started_by_the_real_writer_becomes_a_candidate(project: Path) -> 
 @pytest.mark.unit
 @pytest.mark.fast
 def test_a_run_linked_only_through_the_index_resolves_its_mission(project: Path) -> None:
-    run_dir = run_index.runs_root(project) / uuid.uuid4().hex
-    _write(run_dir / "state.json", json.dumps({"run_id": run_dir.name, "inputs": {"mission_slug": DONE_SLUG}}))
-    _write(run_dir / "run.events.jsonl", '{"event_type": "MissionRunStarted"}\n')
-    _set_age(run_dir, 60)
-    run_index.save_index(
-        project,
-        {DONE_ID: {"run_dir": str(run_dir), "run_id": run_dir.name, "mission_id": DONE_ID, "mission_slug": DONE_SLUG}},
-    )
+    run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60, index_key=DONE_ID)
     item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
     assert (item.verdict, item.reason, item.mission) == ("candidate", REASON_COMPLETED, DONE_SLUG)
 
@@ -240,11 +259,12 @@ def test_old_run_of_an_open_mission_is_kept(project: Path) -> None:
 def test_run_whose_mission_resolves_nowhere_is_kept(project: Path) -> None:
     unknown = _run(project, slug="999-elsewhere", mission_id=UNKNOWN_ID, age_days=90)
     anonymous = _run(project, slug=None, mission_id=None, age_days=90)
-    corrupt = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=90)
+    corrupt = _legacy_run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=90)
     (corrupt / "state.json").write_text("{not json", encoding="utf-8")
     _set_age(corrupt, 90)
+    unindexed = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=90, link=False)
     items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
-    for run_dir in (unknown, anonymous, corrupt):
+    for run_dir in (unknown, anonymous, corrupt, unindexed):
         item = items[_rel(run_dir, project)]
         assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None)
 
@@ -252,9 +272,29 @@ def test_run_whose_mission_resolves_nowhere_is_kept(project: Path) -> None:
 @pytest.mark.unit
 @pytest.mark.fast
 def test_run_resolves_its_mission_by_slug_when_the_id_is_absent(project: Path) -> None:
-    run_dir = _run(project, slug=DONE_SLUG, mission_id=None, age_days=90)
+    indexed = _run(project, slug=DONE_SLUG, mission_id=None, age_days=90, index_key=f"legacy-{DONE_SLUG}")
+    legacy = _legacy_run(project, slug=DONE_SLUG, mission_id=None, age_days=91)
+    items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
+    for run_dir in (indexed, legacy):
+        assert (items[_rel(run_dir, project)].reason, items[_rel(run_dir, project)].mission) == (REASON_COMPLETED, DONE_SLUG)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_the_index_entry_wins_over_the_snapshot(project: Path) -> None:
+    run_dir = _legacy_run(project, slug=OPEN_SLUG, mission_id=OPEN_ID, age_days=90)
+    _link(project, DONE_ID, run_dir, slug=DONE_SLUG, mission_id=DONE_ID)
     item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
     assert (item.reason, item.mission) == (REASON_COMPLETED, DONE_SLUG)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_index_entries_that_disagree_read_as_mission_not_found(project: Path) -> None:
+    run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=90, index_key="a")
+    _link(project, "b", run_dir, slug=OPEN_SLUG, mission_id=OPEN_ID)
+    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
+    assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None)
 
 
 @pytest.mark.unit
@@ -330,10 +370,9 @@ def test_scan_defaults_now_to_the_kernel_clock(project: Path) -> None:
 
 
 def _full_fixture(repo: Path) -> dict[str, Path]:
-    done_run = _run(repo, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60)
-    open_run = _run(repo, slug=OPEN_SLUG, mission_id=OPEN_ID, age_days=60)
-    young_run = _run(repo, slug=DONE_SLUG, mission_id=DONE_ID, age_days=2)
-    _index(repo, {f"{DONE_SLUG}:software-dev": done_run, f"{OPEN_SLUG}:software-dev": open_run, "young": young_run})
+    done_run = _run(repo, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60, index_key=DONE_ID)
+    open_run = _run(repo, slug=OPEN_SLUG, mission_id=OPEN_ID, age_days=60, index_key=OPEN_ID)
+    young_run = _run(repo, slug=DONE_SLUG, mission_id=DONE_ID, age_days=2, index_key="young")
     done_log = _glossary_log(repo, DONE_ID, 60)
     _write(done_log.with_name(done_log.name + ".lock"), "")
     _write(done_log.with_name(done_log.name + ".torn"), "partial")
@@ -409,8 +448,8 @@ def test_apply_deletes_only_candidates_and_keeps_the_index_consistent(project: P
         assert paths[key].exists(), key
 
     index = _read_index(project)
-    assert set(index) == {f"{OPEN_SLUG}:software-dev", "young"}
-    assert result.removed_index_entries == [f"{DONE_SLUG}:software-dev"]
+    assert set(index) == {OPEN_ID, "young"}
+    assert result.removed_index_entries == [DONE_ID]
 
     for name, content in tracked_before.items():
         assert (project / name).read_bytes() == content, name
@@ -426,7 +465,7 @@ def test_apply_deletes_only_candidates_and_keeps_the_index_consistent(project: P
     payload = result.to_dict(project)
     assert payload["applied"] is True
     assert {d["path"] for d in payload["deleted"]} == deleted
-    assert payload["removed_index_entries"] == [f"{DONE_SLUG}:software-dev"]
+    assert payload["removed_index_entries"] == [DONE_ID]
 
 
 @pytest.mark.unit
@@ -436,7 +475,7 @@ def test_index_entries_outside_the_repo_are_left_alone(project: Path) -> None:
     run_index.write_index_file(
         run_index.feature_runs_path(project),
         {
-            "mine": {"run_dir": _rel(run_dir, project)},
+            "mine": {"run_dir": _rel(run_dir, project), "mission_id": DONE_ID, "mission_slug": DONE_SLUG},
             "foreign": {"run_dir": "/somewhere/else/.kittify/runtime/runs/abc"},
             "malformed": "not-a-mapping",
             "no-dir": {"run_id": "x"},
@@ -450,8 +489,7 @@ def test_index_entries_outside_the_repo_are_left_alone(project: Path) -> None:
 @pytest.mark.unit
 @pytest.mark.fast
 def test_held_run_cursor_lock_keeps_the_run_at_apply_time(project: Path) -> None:
-    run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60)
-    _index(project, {"mine": run_dir})
+    run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60, index_key="mine")
     plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
     assert [i.reason for i in plan.items] == [REASON_COMPLETED]
 
@@ -636,8 +674,11 @@ def test_glossary_log_stem_matches_the_glossary_writer(mission_id: str) -> None:
 
 @pytest.mark.timing
 def test_preview_over_a_thousand_runs_is_under_two_seconds(project: Path) -> None:
+    entries: dict[str, object] = {}
     for i in range(1000):
-        _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=1 + (i % 90))
+        run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=1 + (i % 90), link=False)
+        entries[run_dir.name] = {"run_id": run_dir.name, "run_dir": _rel(run_dir, project), "mission_id": DONE_ID, "mission_slug": DONE_SLUG}
+    run_index.write_index_file(run_index.feature_runs_path(project), entries)
     started = time.perf_counter()
     plan = scan_retention(project, RetentionLimits(), now=NOW)
     elapsed = time.perf_counter() - started
@@ -666,7 +707,7 @@ def test_an_empty_run_dir_ages_by_its_own_mtime_and_names_no_mission(project: Pa
 @pytest.mark.unit
 @pytest.mark.fast
 def test_a_non_mapping_run_snapshot_names_no_mission(project: Path) -> None:
-    run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60)
+    run_dir = _legacy_run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60)
     (run_dir / "state.json").write_text("[1, 2]", encoding="utf-8")
     _set_age(run_dir, 60)
     item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
@@ -725,25 +766,28 @@ def test_a_path_outside_the_project_serializes_as_given(tmp_path: Path) -> None:
 @pytest.mark.fast
 def test_a_recorded_unknown_mission_id_never_falls_back_to_the_slug(project: Path) -> None:
     """FR-008: a run of a Mission on another branch whose slug collides with a local one is kept."""
-    run_dir = _run(project, slug=DONE_SLUG, mission_id=UNKNOWN_ID, age_days=90)
-    malformed = _run(project, slug=DONE_SLUG, mission_id=None, age_days=90)
-    _write(malformed / "state.json", json.dumps({"mission_slug": DONE_SLUG, "mission_id": 123}))
-    _set_age(malformed, 90)
+    runs = [
+        _run(project, slug=DONE_SLUG, mission_id=UNKNOWN_ID, age_days=90),
+        _run(project, slug=DONE_SLUG, mission_id=123, age_days=90),
+        _legacy_run(project, slug=DONE_SLUG, mission_id=UNKNOWN_ID, age_days=90),
+        _legacy_run(project, slug=DONE_SLUG, mission_id=123, age_days=90),
+    ]
     plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
-    for kept in (run_dir, malformed):
+    for kept in runs:
         item = _by_path(plan.items, project)[_rel(kept, project)]
         assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None)
     apply_retention(project, plan)
-    assert run_dir.is_dir()
-    assert malformed.is_dir()
+    assert all(run_dir.is_dir() for run_dir in runs)
 
 
 @pytest.mark.unit
 @pytest.mark.fast
 def test_a_recorded_mission_id_resolves_by_id_not_by_slug(project: Path) -> None:
-    run_dir = _run(project, slug=OPEN_SLUG, mission_id=DONE_ID, age_days=90)
-    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
-    assert (item.reason, item.mission) == (REASON_COMPLETED, DONE_SLUG)
+    indexed = _run(project, slug=OPEN_SLUG, mission_id=DONE_ID, age_days=90)
+    legacy = _legacy_run(project, slug=OPEN_SLUG, mission_id=DONE_ID, age_days=91)
+    items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
+    for run_dir in (indexed, legacy):
+        assert (items[_rel(run_dir, project)].reason, items[_rel(run_dir, project)].mission) == (REASON_COMPLETED, DONE_SLUG)
 
 
 @pytest.mark.unit
@@ -755,7 +799,8 @@ def test_a_non_mapping_run_index_does_not_abort_apply(project: Path) -> None:
     result = apply_retention(project, scan_retention(project, LIMITS_NO_KEEP, now=NOW))
     assert result.failed == []
     assert result.removed_index_entries == []
-    assert not paths["done_run"].exists()
+    # A non-mapping index links no run, so the run's Mission is not found and it stays.
+    assert paths["done_run"].is_dir()
     assert not paths["derived"].exists()
     assert not paths["ops_index"].exists()
     assert index_path.read_text(encoding="utf-8") == "[1, 2, 3]"
@@ -883,7 +928,7 @@ def test_a_failed_run_tree_removal_is_reported_with_its_path(project: Path, monk
     assert result.to_dict(project)["failed"][0]["path"] == _rel(paths["done_run"], project)
     assert paths["done_run"].is_dir()
     # ADR D-3 trade-off: the index entry is dropped first, so it never names a run that is gone.
-    assert f"{DONE_SLUG}:software-dev" not in _read_index(project)
+    assert DONE_ID not in _read_index(project)
     assert not paths["derived"].exists()
 
 

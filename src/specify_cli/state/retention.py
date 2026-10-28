@@ -370,30 +370,76 @@ def _run_lock(run_dir: Path) -> _LockFactory:
     return lambda: try_run_cursor_lock(run_dir)
 
 
-def _read_run_mission(run_dir: Path, missions: _Missions) -> Path | None:
-    """Resolve a run's Mission from its snapshot; unreadable reads as unknown.
+def _mission_of_record(record: dict[str, Any], missions: _Missions) -> Path | None:
+    """Resolve the Mission a run record names (an index entry or a legacy snapshot).
 
     ``mission_id`` is the only runtime identity: a recorded id resolves by id
     alone, and an id this checkout does not know is ``Mission not found``
     (FR-008, a Mission on another branch), never a slug match. The slug is
-    read only from a legacy snapshot that records no ``mission_id``.
+    read only from a record that carries no ``mission_id``.
     """
+    mission_id = record.get("mission_id")
+    if mission_id is None or mission_id == "":
+        return missions.by_slug(record.get("mission_slug"))
+    return missions.by_id(mission_id) if isinstance(mission_id, str) else None
+
+
+def _entry_run_dir(entry: object, repo_root: Path) -> Path | None:
+    """The resolved run directory an index entry names, or ``None`` (malformed or foreign)."""
+    if not isinstance(entry, dict):
+        return None
+    stored = entry.get("run_dir")
+    if not isinstance(stored, str) or not stored:
+        return None
+    try:
+        return run_index.resolve_run_dir(stored, repo_root).resolve()
+    except run_index.RunDirOutsideRepoError:
+        return None  # a foreign entry is the migration's to heal, never ours to read or drop
+
+
+def _index_entries_by_run_dir(repo_root: Path) -> dict[Path, list[dict[str, Any]]]:
+    """The run-index entries grouped by the run directory they resolve to (read once per scan)."""
+    index = run_index.read_index_file(run_index.feature_runs_path(repo_root))
+    if not isinstance(index, dict):
+        return {}
+    by_dir: dict[Path, list[dict[str, Any]]] = {}
+    for entry in index.values():
+        target = _entry_run_dir(entry, repo_root)
+        if target is not None:
+            by_dir.setdefault(target, []).append(entry)
+    return by_dir
+
+
+def _read_snapshot_mission(run_dir: Path, missions: _Missions) -> Path | None:
+    """Legacy fallback: the Mission a run's own snapshot records; unreadable reads as unknown."""
     try:
         state = json.loads((run_dir / _RUN_STATE_FILENAME).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
-    if not isinstance(state, dict):
-        return None
-    mission_id = state.get("mission_id")
-    if mission_id is None or mission_id == "":
-        return missions.by_slug(state.get("mission_slug"))
-    return missions.by_id(mission_id) if isinstance(mission_id, str) else None
+    return _mission_of_record(state, missions) if isinstance(state, dict) else None
+
+
+def _run_mission(run_dir: Path, entries: list[dict[str, Any]], missions: _Missions) -> Path | None:
+    """Resolve a run's Mission: its run-index entry first, its snapshot only when unindexed.
+
+    ``next`` records the Mission of a run in the run index
+    (``feature-runs.json``: ``mission_id`` / ``mission_slug``), not in
+    the run's ``state.json``. A run with no index entry falls back to the
+    snapshot's own ``mission_id`` / ``mission_slug`` (older writers); a run
+    that neither names is ``Mission not found``. Entries that disagree read as
+    unknown.
+    """
+    if not entries:
+        return _read_snapshot_mission(run_dir, missions)
+    resolved = {_mission_of_record(entry, missions) for entry in entries}
+    return resolved.pop() if len(resolved) == 1 else None
 
 
 def _collect_runs(ctx: _ScanContext) -> list[_Unit]:
     root = run_index.runs_root(ctx.repo_root)
     if not root.is_dir():
         return []
+    entries_by_dir = _index_entries_by_run_dir(ctx.repo_root)
     units: list[_Unit] = []
     for run_dir in _real_dirs(root):
         age = _age_or_none(ctx, run_dir)
@@ -405,7 +451,7 @@ def _collect_runs(ctx: _ScanContext) -> list[_Unit]:
                 kind=KIND_RUN,
                 path=run_dir,
                 age_days=age,
-                feature_dir=_read_run_mission(run_dir, ctx.missions),
+                feature_dir=_run_mission(run_dir, entries_by_dir.get(run_dir.resolve(), []), ctx.missions),
                 lock=_run_lock(run_dir),
             )
         )
@@ -624,16 +670,8 @@ def _remove_tree(path: Path) -> None:
 
 
 def _entry_points_at(entry: object, run_dir: Path, repo_root: Path) -> bool:
-    if not isinstance(entry, dict):
-        return False
-    stored = entry.get("run_dir")
-    if not isinstance(stored, str) or not stored:
-        return False
-    try:
-        resolved = run_index.resolve_run_dir(stored, repo_root)
-    except run_index.RunDirOutsideRepoError:
-        return False  # a foreign entry is the migration's to heal, never ours to drop
-    return resolved.resolve() == run_dir.resolve()
+    target = _entry_run_dir(entry, repo_root)
+    return target is not None and target == run_dir.resolve()
 
 
 def _drop_index_entries(repo_root: Path, run_dir: Path) -> list[str]:

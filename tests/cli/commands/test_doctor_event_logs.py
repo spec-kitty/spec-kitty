@@ -56,11 +56,16 @@ def _set_age(path: Path, age_days: float) -> None:
 
 
 def _run(repo: Path, name: str, age_days: float) -> Path:
+    """A run as ``next`` leaves it: no Mission in ``state.json`` (the run index links it)."""
     run_dir = run_index.runs_root(repo) / name
-    _write(run_dir / "state.json", json.dumps({"run_id": name, "mission_id": DONE_ID, "mission_slug": DONE_SLUG}))
+    _write(run_dir / "state.json", json.dumps({"run_id": name, "mission_id": None, "mission_slug": None, "inputs": {"mission_slug": DONE_SLUG}}))
     _write(run_dir / "run.events.jsonl", '{"event_type": "MissionRunStarted"}\n')
     _set_age(run_dir, age_days)
     return run_dir
+
+
+def _entry(run_dir: Path) -> dict[str, object]:
+    return {"run_id": run_dir.name, "run_dir": str(run_dir), "mission_type": "software-dev", "mission_id": DONE_ID, "mission_slug": DONE_SLUG}
 
 
 def _tree_digest(repo: Path) -> dict[str, bytes | None]:
@@ -89,7 +94,7 @@ def runs(project: Path) -> dict[str, Path]:
     """Two old runs of the completed Mission: the newer is kept, the older is a candidate."""
     kept = _run(project, "run-newer", 40)
     candidate = _run(project, "run-older", 50)
-    run_index.save_index(project, {"001-done-mission": {"run_dir": str(candidate), "run_id": candidate.name}})
+    run_index.save_index(project, {DONE_ID: _entry(candidate), kept.name: _entry(kept)})
     return {"kept": kept, "candidate": candidate}
 
 
@@ -145,7 +150,7 @@ def test_apply_json_deletes_the_candidates_and_their_index_entries(project: Path
     assert payload["applied"] is True
     assert [item["path"] for item in payload["deleted"]] == [_rel(runs["candidate"], project)]
     assert payload["failed"] == []
-    assert payload["removed_index_entries"] == ["001-done-mission"]
+    assert payload["removed_index_entries"] == [DONE_ID]
     assert not runs["candidate"].exists()
     assert runs["kept"].is_dir()
 
