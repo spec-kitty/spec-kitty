@@ -165,9 +165,7 @@ def test_apply_human_output_reports_the_deletions(project: Path, runs: dict[str,
     assert not runs["candidate"].exists()
 
 
-def test_apply_human_output_says_nothing_was_deleted_when_every_candidate_was_kept(
-    project: Path, runs: dict[str, Path], monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_apply_human_output_says_nothing_was_deleted_when_every_candidate_was_kept(project: Path, runs: dict[str, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     """A candidate locked between the scan and the apply is kept; the output still says what was deleted."""
     real_apply = _event_logs_doctor.apply_retention
 

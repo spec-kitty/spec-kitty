@@ -2287,12 +2287,14 @@ _Project health diagnostics_
 
  Reads ledger.retention (keep_runs, max_age_days) from .kittify/config.yaml;
  an item is removed only when it is outside the newest keep_runs of its kind
- AND older than max_age_days, and its Mission is completed. Rebuildable
- caches are always candidates. Committed ledgers, lock files, logs of an
- open or unknown Mission and locked items are never removed.
+ AND older than max_age_days, and its work is over: a run once its Mission
+ is merged or the run finished, a glossary log once its Mission is
+ completed. Rebuildable caches are candidates whatever their age, unless
+ locked. Committed ledgers, the Op index, lock files, items of an open or
+ unknown Mission and locked items are never removed.
 
  Without --apply nothing changes. Exit codes: 0 preview or clean apply,
- 1 a deletion failed, 2 config or usage error.
+ 1 a deletion failed, 2 config, usage or internal error.
 
  Examples:
      spec-kitty doctor event-logs

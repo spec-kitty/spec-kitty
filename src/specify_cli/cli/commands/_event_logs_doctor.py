@@ -15,8 +15,9 @@ nothing unless ``--apply`` is given (FR-006).
 Exit codes (FR-012; unlike the doctor family's "1 = findings", a preview with
 candidates exits 0): 0 for a preview or an apply where every deletion
 succeeded, 1 when at least one deletion failed, 2 when the command is not run
-inside a project, ``ledger.retention`` is invalid, or the state registry and
-the engine disagree (nothing is scanned or deleted then).
+inside a project, the configuration cannot be read or ``ledger.retention`` is
+invalid, or the state registry and the engine disagree (nothing is scanned or
+deleted then).
 """
 
 from __future__ import annotations
@@ -191,12 +192,14 @@ def register(app: typer.Typer) -> None:
 
         Reads ledger.retention (keep_runs, max_age_days) from .kittify/config.yaml;
         an item is removed only when it is outside the newest keep_runs of its kind
-        AND older than max_age_days, and its Mission is completed. Rebuildable
-        caches are always candidates. Committed ledgers, lock files, logs of an
-        open or unknown Mission and locked items are never removed.
+        AND older than max_age_days, and its work is over: a run once its Mission
+        is merged or the run finished, a glossary log once its Mission is
+        completed. Rebuildable caches are candidates whatever their age, unless
+        locked. Committed ledgers, the Op index, lock files, items of an open or
+        unknown Mission and locked items are never removed.
 
         Without --apply nothing changes. Exit codes: 0 preview or clean apply,
-        1 a deletion failed, 2 config or usage error.
+        1 a deletion failed, 2 config, usage or internal error.
 
         Examples:
             spec-kitty doctor event-logs
