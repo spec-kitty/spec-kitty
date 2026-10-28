@@ -715,6 +715,7 @@ def test_a_collector_under_the_wrong_rule_is_registry_drift(project: Path, monke
         ".kittify/runtime/runs",
         ".kittify/runtime/feature-runs.json",
         ".kittify/events",
+        ".kittify/events/other.events.jsonl",
         ".kittify/config.yaml",
         "kitty-ops/ops-index.jsonl",
         "../outside",
@@ -733,6 +734,25 @@ def test_the_path_guard_refuses_anything_outside_the_local_tier(project: Path, r
 )
 def test_the_path_guard_allows_the_local_tier(project: Path, relative: str) -> None:
     retention._assert_deletable(project, project / relative)
+
+
+def _pattern_dir(surface_name: str) -> str:
+    """The directory prefix of a registry ``path_pattern``: everything before its first placeholder."""
+    pattern = next(s.path_pattern for s in contract.STATE_SURFACES if s.name == surface_name)
+    return pattern.split("<", 1)[0].rstrip("/")
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_every_scanned_root_and_the_path_guard_match_the_registry_path_patterns() -> None:
+    """AR-M1: the engine's roots come from their owners and agree with the registry."""
+    for collector in retention._COLLECTORS:
+        for surface in collector.surfaces:
+            assert collector.root.as_posix() == _pattern_dir(surface), surface
+    assert retention._DELETABLE_ROOTS == tuple(collector.root for collector in retention._COLLECTORS)
+    assert retention._RUN_STATE_FILENAME == "state.json"
+    assert retention._RUN_EVENTS_FILENAME == "run.events.jsonl"
+    assert retention._GLOSSARY_LOG_SUFFIX == ".events.jsonl"
 
 
 @pytest.mark.unit

@@ -43,7 +43,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from glossary.events import sanitize_mission_id
+from glossary.events import EVENT_LOG_SUFFIX, GLOSSARY_EVENTS_DIR, sanitize_mission_id
 from kernel.clock import DEFAULT_CLOCK
 from kernel.event_log_append import event_log_lock_path
 from kernel.locks import LockAcquireTimeout, LockNotAcquired, SyncMachineFileLock, machine_file_lock
@@ -53,7 +53,10 @@ from runtime.next.run_lock import try_run_cursor_lock
 from specify_cli.core.ledger_retention import RetentionLimits
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.mission_metadata import load_meta_or_empty
-from specify_cli.state.contract import RetentionRule, get_surfaces_by_retention
+from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.mission_metadata import META_FILENAME
+from specify_cli.state.contract import STATE_SURFACES, RetentionRule, get_surfaces_by_retention
+from specify_cli.status.views import DERIVED_VIEWS_DIR
 from spec_kitty_events.mission_next import MISSION_RUN_COMPLETED
 from specify_cli.status.lifecycle import is_mission_completed, is_mission_merged
 
@@ -96,16 +99,23 @@ _SURFACE_DERIVED_VIEWS = "derived_mission_views"
 
 _PRUNING_RULES = (RetentionRule.LEDGER_RETENTION, RetentionRule.REBUILDABLE)
 
-_KITTIFY = ".kittify"
-_GLOSSARY_LOG_DIR = Path(_KITTIFY, "events", "glossary")
-_GLOSSARY_LOG_SUFFIX = ".events.jsonl"
+# Every root and file name below comes from its owner (AR-M1); a unit test
+# pins each against the registry ``path_pattern`` of the surface it scans.
+_RUNS_DIR = run_index.runs_root(Path())
+_GLOSSARY_LOG_DIR = GLOSSARY_EVENTS_DIR
+_GLOSSARY_LOG_SUFFIX = EVENT_LOG_SUFFIX
 #: Glossary logs that name no Mission (``_cli``, ``_renderer``) start with this.
 _NON_MISSION_LOG_PREFIX = "_"
-_DERIVED_DIR = Path(_KITTIFY, "derived")
-_MISSIONS_DIR = "kitty-specs"
-_META_FILENAME = "meta.json"
-_RUN_STATE_FILENAME = "state.json"
-_RUN_EVENTS_FILENAME = "run.events.jsonl"
+_DERIVED_DIR = DERIVED_VIEWS_DIR
+
+
+def _registry_file_name(surface_name: str) -> str:
+    """The file name a registry surface's ``path_pattern`` ends in (the run store has no owner constant)."""
+    return Path(next(s.path_pattern for s in STATE_SURFACES if s.name == surface_name)).name
+
+
+_RUN_STATE_FILENAME = _registry_file_name("runtime_run_snapshot")
+_RUN_EVENTS_FILENAME = _registry_file_name("runtime_run_event_log")
 _LOCK_SUFFIX = ".lock"
 _SECONDS_PER_DAY = 86400.0
 
@@ -264,7 +274,7 @@ class _Missions:
         self._by_id: dict[str, Path | None] = {}
         self._by_stem: dict[str, Path | None] = {}
         self._facts: dict[tuple[str, Path], bool] = {}
-        for meta_path in sorted((repo_root / _MISSIONS_DIR).glob(f"*/{_META_FILENAME}")):
+        for meta_path in sorted((repo_root / KITTY_SPECS_DIR).glob(f"*/{META_FILENAME}")):
             self._register(meta_path.parent)
 
     def _register(self, feature_dir: Path) -> None:
@@ -450,7 +460,7 @@ def _run_mission(run_dir: Path, entries: list[dict[str, Any]], missions: _Missio
 
 
 def _collect_runs(ctx: _ScanContext) -> list[_Unit]:
-    root = run_index.runs_root(ctx.repo_root)
+    root = ctx.repo_root / _RUNS_DIR
     if not root.is_dir():
         return []
     entries_by_dir = _index_entries_by_run_dir(ctx.repo_root)
@@ -554,6 +564,7 @@ class _Collector:
 
     surfaces: frozenset[str]
     rule: RetentionRule
+    root: Path
     collect: Callable[[_ScanContext], list[_Unit]]
     done: _DonePredicate = _mission_is_completed
 
@@ -564,11 +575,12 @@ _COLLECTORS: tuple[_Collector, ...] = (
     _Collector(
         frozenset({_SURFACE_RUN_SNAPSHOT, _SURFACE_RUN_EVENT_LOG, _SURFACE_RUN_FROZEN_TEMPLATE}),
         RetentionRule.LEDGER_RETENTION,
+        _RUNS_DIR,
         _collect_runs,
         done=_run_is_done,
     ),
-    _Collector(frozenset({_SURFACE_GLOSSARY_LOG}), RetentionRule.LEDGER_RETENTION, _collect_glossary_logs),
-    _Collector(frozenset({_SURFACE_DERIVED_VIEWS}), RetentionRule.REBUILDABLE, _collect_derived_views),
+    _Collector(frozenset({_SURFACE_GLOSSARY_LOG}), RetentionRule.LEDGER_RETENTION, _GLOSSARY_LOG_DIR, _collect_glossary_logs),
+    _Collector(frozenset({_SURFACE_DERIVED_VIEWS}), RetentionRule.REBUILDABLE, _DERIVED_DIR, _collect_derived_views),
 )
 
 
@@ -686,8 +698,8 @@ def scan_retention(repo_root: Path, limits: RetentionLimits, *, now: datetime | 
 # ---------------------------------------------------------------------------
 
 #: The only places a deletion may land (C-002 defence in depth): strictly inside
-#: these gitignored roots.
-_DELETABLE_ROOTS = (Path(_KITTIFY, "runtime", "runs"), Path(_KITTIFY, "events"), _DERIVED_DIR)
+#: the gitignored root a collector scans.
+_DELETABLE_ROOTS = tuple(collector.root for collector in _COLLECTORS)
 
 
 def _assert_deletable(repo_root: Path, path: Path) -> None:
