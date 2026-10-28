@@ -294,6 +294,24 @@ def test_a_run_whose_events_mention_completion_only_in_a_payload_is_not_finished
 
 @pytest.mark.unit
 @pytest.mark.fast
+def test_a_mission_id_shared_by_two_mission_dirs_is_ambiguous_and_not_found(project: Path) -> None:
+    """DS-L2: no first-match-wins; an id or log stem naming two Missions resolves to none."""
+    _mission(project, "003-copy-of-done", DONE_ID, merged=True)
+    run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60)
+    done_log = _glossary_log(project, DONE_ID, 60)
+    # Two distinct ids that sanitize to one glossary log stem.
+    _mission(project, "004-slash", "01STEM/000000000000000000E", merged=True)
+    _mission(project, "005-dash", "01STEM-000000000000000000E", merged=True)
+    stem_log = _glossary_log(project, "01STEM-000000000000000000E", 60)
+
+    items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
+    for path in (run_dir, done_log, stem_log):
+        item = items[_rel(path, project)]
+        assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None), path
+
+
+@pytest.mark.unit
+@pytest.mark.fast
 def test_runs_beyond_keep_runs_but_younger_than_max_age_are_kept(project: Path) -> None:
     for i in range(20):
         _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=1 + i * 0.1)
