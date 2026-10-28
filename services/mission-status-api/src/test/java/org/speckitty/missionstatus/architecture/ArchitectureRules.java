@@ -125,6 +125,9 @@ public final class ArchitectureRules {
     String http = p(root, "adapter.in.http..");
     String filesystem = p(root, "adapter.out.filesystem..");
     String codec = p(root, "adapter.out.filesystem.codec..");
+    // event-log's ledger file mechanics (the ledger lock and the torn-tail repair, a #6193 follow-up): write-side file code that the
+    // query service only sees because event-log is on its classpath. EventLogBoundaryTest holds it to the JDK alone.
+    String ledger = p(root, "adapter.out.ledger..");
     String config = p(root, "config..");
     String testsupport = p(root, "testsupport..");
 
@@ -176,8 +179,8 @@ public final class ArchitectureRules {
 
     // 7, 8, 9, 10: technology confinement
     ArchRule r7 =
-        noClasses().that(resideOutsideOfPackage(filesystem).or(resideInAPackage(codec))).should().dependOnClassesThat(FILE_API)
-            .as("rule 7: file APIs only in adapter.out.filesystem, its codec sub-package excluded");
+        noClasses().that(resideOutsideOfPackages(filesystem, ledger).or(resideInAPackage(codec))).should().dependOnClassesThat(FILE_API)
+            .as("rule 7: file APIs only in adapter.out.filesystem (its codec sub-package excluded) and in event-log's adapter.out.ledger");
     ArchRule r8 =
         noClasses().that().resideOutsideOfPackages(p(root, "adapter.."), config).should().dependOnClassesThat()
             .resideInAnyPackage(concat(SPRING, JSON))
@@ -228,7 +231,7 @@ public final class ArchitectureRules {
         new Rule(4, "adapter.out.filesystem reaches only the outbound port and domain", Scope.MAIN, rule(r4), resideInAPackage(filesystem)),
         new Rule(5, "no adapter-to-adapter dependency", Scope.MAIN, both(r5a, r5b), resideInAPackage(p(root, "adapter.."))),
         new Rule(6, "nothing depends on config", Scope.MAIN, rule(r6), resideOutsideOfPackage(config)),
-        new Rule(7, "file APIs only in the filesystem adapter, codec excluded", Scope.MAIN, rule(r7), resideOutsideOfPackage(filesystem).or(resideInAPackage(codec))),
+        new Rule(7, "file APIs only in the filesystem adapter and the event-log ledger, codec excluded", Scope.MAIN, rule(r7), resideOutsideOfPackages(filesystem, ledger).or(resideInAPackage(codec))),
         new Rule(8, "JSON libraries and Spring only in adapters and config", Scope.MAIN, rule(r8), resideOutsideOfPackages(p(root, "adapter.."), config)),
         new Rule(9, "contract DTO packages only in adapter.in.http", Scope.MAIN, rule(r9), resideOutsideOfPackage(http)),
         new Rule(10, "no process creation", Scope.MAIN, rule(r10), anyClass),

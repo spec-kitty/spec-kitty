@@ -23,6 +23,7 @@ import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.F
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.FsSource;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.SafeFiles;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.codec.C12aSafeFiles;
+import org.speckitty.missionstatus.architecture.fixture.adapter.out.ledger.LedgerFiles;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.codec.C12bFiles;
 import org.speckitty.missionstatus.architecture.fixture.adapter.out.filesystem.codec.Decoder;
 import org.speckitty.missionstatus.architecture.fixture.application.A2aUsesAdapter;
@@ -74,7 +75,7 @@ class ArchitectureControlsTest {
 
   /** The conforming skeleton: one class (or more) in every package the rules name. */
   private static final List<Class<?>> SKELETON =
-      List.of(Value.class, Query.class, Source.class, Service.class, Dto.class, Controller.class, Decoder.class, SafeFiles.class, FsSource.class, Wiring.class,
+      List.of(Value.class, Query.class, Source.class, Service.class, Dto.class, Controller.class, Decoder.class, SafeFiles.class, FsSource.class, LedgerFiles.class, Wiring.class,
           Support.class, PortCase.class);
 
   /** A planted violation: the class, the rule it targets and the full set of rules it turns red. */

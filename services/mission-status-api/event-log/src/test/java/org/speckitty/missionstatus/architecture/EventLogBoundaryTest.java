@@ -21,11 +21,13 @@ import org.speckitty.missionstatus.architecture.fixture.ConformingDecoder;
 import org.speckitty.missionstatus.architecture.fixture.DataBindingDecoder;
 import org.speckitty.missionstatus.architecture.fixture.FileReadingDecoder;
 import org.speckitty.missionstatus.architecture.fixture.OutsidePackageDecoder;
+import org.speckitty.missionstatus.architecture.fixture.ledger.ConformingLedgerFile;
+import org.speckitty.missionstatus.architecture.fixture.ledger.DecodingLedgerFile;
 import org.speckitty.missionstatus.architecture.fixture.reducer.ConformingFold;
 import org.speckitty.missionstatus.architecture.fixture.reducer.ParsingFold;
 
 /**
- * The event-log boundary (#6192). Among project code the module depends on domain-model only, and each of its two packages has its own
+ * The event-log boundary (#6192). Among project code the module depends on domain-model only, and each of its three packages has its own
  * allowlist:
  *
  * <ul>
@@ -33,11 +35,12 @@ import org.speckitty.missionstatus.architecture.fixture.reducer.ParsingFold;
  *       parser ({@code tools.jackson.core}: no data binding, no reflection), {@code java.nio} buffers and the JDK packages the query
  *       service's rule 1b allows the domain. It decodes bytes it is handed and opens no file;
  *   <li>the reducer ({@code domain.readmodel.reducer}, the event ordering and fold) may use domain-model and the rule 1b JDK packages, and
- *       nothing else: no parser, no codec.
+ *       nothing else: no parser, no codec;
+ *   <li>the ledger file mechanics ({@code adapter.out.ledger}: the ledger lock and the torn-tail repair, a #6193 follow-up)
+ *       may use the JDK only. They open and lock files and move bytes, but read no row, so no parser, no codec and no domain-model.
  * </ul>
  *
- * The module holds those two packages only, so a new one (the write side's append adapter of #6193, which will open the ledger) needs
- * its own rule here instead of slipping under a module-wide allowlist.
+ * The module holds those three packages only, so a new one needs its own rule here instead of slipping under a module-wide allowlist.
  *
  * <p>Non-vacuity: the rules import exactly this module's production classes (the {@code module.mainClasses} property the build sets)
  * and every type in {@link #EXTRACTED_TYPES} must be among them; planted violations prove each rule fires.
@@ -55,6 +58,7 @@ class EventLogBoundaryTest {
   static final String MODEL = ROOT + ".domain.model..";
   static final String CODEC = ROOT + ".adapter.out.filesystem.codec..";
   static final String REDUCER = ROOT + ".domain.readmodel.reducer..";
+  static final String LEDGER = ROOT + ".adapter.out.ledger..";
 
   /** The JDK packages of the query service's rule 1b: java.lang, java.util (not concurrent), java.time, java.math, java.security, java.nio.charset. */
   static final DescribedPredicate<JavaClass> RULE_1B_JDK =
@@ -75,9 +79,15 @@ class EventLogBoundaryTest {
         .as("the event-log reducer depends only on itself, domain-model and the rule 1b JDK packages (no parser, no codec, no IO)");
   }
 
-  static final ArchRule ONLY_THE_TWO_PACKAGES =
-      classes().should().resideInAnyPackage(CODEC, REDUCER)
-          .as("event-log holds the codec and the reducer only; a new package needs its own boundary rule here");
+  /** The ledger rule over the package {@code ledger}. */
+  static ArchRule ledgerRule(String ledger) {
+    return classes().that().resideInAPackage(ledger).should().onlyDependOnClassesThat(resideInAnyPackage(ledger, "java.."))
+        .as("the event-log ledger file mechanics depend only on themselves and the JDK (no parser, no codec, no domain-model)");
+  }
+
+  static final ArchRule ONLY_THE_THREE_PACKAGES =
+      classes().should().resideInAnyPackage(CODEC, REDUCER, LEDGER)
+          .as("event-log holds the codec, the reducer and the ledger file mechanics only; a new package needs its own boundary rule here");
 
   static JavaClasses moduleClasses() {
     String path = System.getProperty("module.mainClasses");
@@ -101,7 +111,9 @@ class EventLogBoundaryTest {
 
     assertHolds(codecRule(CODEC), classes);
     assertHolds(reducerRule(REDUCER), classes);
-    assertHolds(ONLY_THE_TWO_PACKAGES, classes);
+    assertHolds(ledgerRule(LEDGER), classes);
+    assertHolds(ONLY_THE_THREE_PACKAGES, classes);
+    assertThat(classes.contain(ROOT + ".adapter.out.ledger.TornTailRepair")).as("the ledger package is imported and checked").isTrue();
   }
 
   private static final String FIXTURE = ROOT + ".architecture.fixture";
@@ -142,7 +154,17 @@ class EventLogBoundaryTest {
   }
 
   @Test
-  void aClassOutsideTheTwoPackagesBreaksTheModuleRule() {
-    assertThat(ONLY_THE_TWO_PACKAGES.evaluate(new ClassFileImporter().importClasses(ConformingDecoder.class)).hasViolation()).isTrue();
+  void aParserDependencyBreaksTheLedgerRule() {
+    assertThat(ledgerRule(FIXTURE + ".ledger").evaluate(new ClassFileImporter().importClasses(DecodingLedgerFile.class)).hasViolation()).isTrue();
+  }
+
+  @Test
+  void conformingLedgerFileMechanicsHoldTheLedgerRule() {
+    assertHolds(ledgerRule(FIXTURE + ".ledger"), new ClassFileImporter().importClasses(ConformingLedgerFile.class));
+  }
+
+  @Test
+  void aClassOutsideTheThreePackagesBreaksTheModuleRule() {
+    assertThat(ONLY_THE_THREE_PACKAGES.evaluate(new ClassFileImporter().importClasses(ConformingDecoder.class)).hasViolation()).isTrue();
   }
 }
