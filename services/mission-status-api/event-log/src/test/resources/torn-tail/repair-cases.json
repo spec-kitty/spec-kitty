@@ -1,0 +1,241 @@
+{
+  "about": "Torn-tail repair goldens: glossary.events._repair_torn_tail (Python) and TornTailRepair (Java) must both turn each ledger into expected_ledger and the quarantine file <ledger>.torn into expected_torn (null: no quarantine file). Bytes are hex segments, each repeated `repeat` times. Generated from live Python; tests/glossary/test_torn_tail_repair_goldens.py re-checks Python against this file.",
+  "cases": [
+    {
+      "name": "whole-ledger",
+      "why": "every line ends in LF: nothing changes and no quarantine file is created",
+      "ledger": [
+        {
+          "hex": "7b2261223a20317d0a7b2262223a20327d0a",
+          "repeat": 1
+        }
+      ],
+      "torn_before": null,
+      "repaired": false,
+      "expected_ledger": [
+        {
+          "hex": "7b2261223a20317d0a7b2262223a20327d0a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": null
+    },
+    {
+      "name": "empty-ledger",
+      "why": "an empty ledger has no torn tail",
+      "ledger": [],
+      "torn_before": null,
+      "repaired": false,
+      "expected_ledger": [],
+      "expected_torn": null
+    },
+    {
+      "name": "torn-json-line",
+      "why": "the half-written last line moves to the quarantine file",
+      "ledger": [
+        {
+          "hex": "7b2261223a20317d0a7b2262223a2032",
+          "repeat": 1
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [
+        {
+          "hex": "7b2261223a20317d0a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": [
+        {
+          "hex": "7b2262223a20320a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "no-newline-at-all",
+      "why": "a ledger with no LF is all fragment: it is cut back to empty",
+      "ledger": [
+        {
+          "hex": "7b2261223a2031",
+          "repeat": 1
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [],
+      "expected_torn": [
+        {
+          "hex": "7b2261223a20310a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "lone-carriage-return",
+      "why": "a CR after the last LF is a fragment; only LF ends a line",
+      "ledger": [
+        {
+          "hex": "7b2261223a20317d0a0d",
+          "repeat": 1
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [
+        {
+          "hex": "7b2261223a20317d0a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": [
+        {
+          "hex": "0d0a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "crlf-line-then-fragment",
+      "why": "the CR of a CRLF line stays with its line",
+      "ledger": [
+        {
+          "hex": "7b2261223a20317d0d0a7b226222",
+          "repeat": 1
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [
+        {
+          "hex": "7b2261223a20317d0d0a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": [
+        {
+          "hex": "7b2262220a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "non-utf8-fragment",
+      "why": "the fragment is moved byte for byte, never decoded",
+      "ledger": [
+        {
+          "hex": "7b2261223a20317d0afffe00",
+          "repeat": 1
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [
+        {
+          "hex": "7b2261223a20317d0a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": [
+        {
+          "hex": "fffe000a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "fragment-longer-than-a-scan-block",
+      "why": "the backward scan crosses the 64 KiB block boundary",
+      "ledger": [
+        {
+          "hex": "7b2261223a20317d0a",
+          "repeat": 1
+        },
+        {
+          "hex": "78",
+          "repeat": 70000
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [
+        {
+          "hex": "7b2261223a20317d0a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": [
+        {
+          "hex": "78",
+          "repeat": 70000
+        },
+        {
+          "hex": "0a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "newline-just-before-the-last-block",
+      "why": "the last LF sits one byte outside the final 64 KiB block",
+      "ledger": [
+        {
+          "hex": "6161616161616161610a",
+          "repeat": 1
+        },
+        {
+          "hex": "79",
+          "repeat": 65536
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [
+        {
+          "hex": "6161616161616161610a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": [
+        {
+          "hex": "79",
+          "repeat": 65536
+        },
+        {
+          "hex": "0a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "quarantine-already-holds-fragments",
+      "why": "a second repair appends to the existing quarantine file",
+      "ledger": [
+        {
+          "hex": "7b2261223a20317d0a7b226322",
+          "repeat": 1
+        }
+      ],
+      "torn_before": [
+        {
+          "hex": "7b226f6c64220a",
+          "repeat": 1
+        }
+      ],
+      "repaired": true,
+      "expected_ledger": [
+        {
+          "hex": "7b2261223a20317d0a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": [
+        {
+          "hex": "7b226f6c64220a7b2263220a",
+          "repeat": 1
+        }
+      ]
+    }
+  ]
+}
