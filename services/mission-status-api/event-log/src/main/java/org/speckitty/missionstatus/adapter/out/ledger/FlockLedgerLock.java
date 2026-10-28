@@ -41,18 +41,28 @@ final class FlockLedgerLock implements LedgerLock {
   static final Constants LINUX_AARCH64 = new Constants(0x40, 0x8000, 0x80000, 11, 40);
   static final Constants MACOS = new Constants(0x200, 0x100, 0x1000000, 35, 62);
 
-  private static final Linker LINKER = Linker.nativeLinker();
-  private static final MemoryLayout CAPTURE = Linker.Option.captureStateLayout();
-  private static final VarHandle ERRNO = CAPTURE.varHandle(MemoryLayout.PathElement.groupElement("errno"));
-  private static final MethodHandle OPEN =
-      downcall(
-          "open",
-          FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
-          Linker.Option.firstVariadicArg(2),
-          Linker.Option.captureCallState("errno"));
-  private static final MethodHandle FLOCK =
-      downcall("flock", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT), Linker.Option.captureCallState("errno"));
-  private static final MethodHandle CLOSE = downcall("close", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+  /**
+   * The native handles, looked up on first use: {@link #constantsFor} and the class itself load on every OS, while {@code flock} exists on
+   * Linux and macOS only.
+   */
+  private static final class Native {
+    private static final Linker LINKER = Linker.nativeLinker();
+    private static final MemoryLayout CAPTURE = Linker.Option.captureStateLayout();
+    private static final VarHandle ERRNO = CAPTURE.varHandle(MemoryLayout.PathElement.groupElement("errno"));
+    private static final MethodHandle OPEN =
+        downcall(
+            "open",
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT),
+            Linker.Option.firstVariadicArg(2),
+            Linker.Option.captureCallState("errno"));
+    private static final MethodHandle FLOCK =
+        downcall("flock", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.JAVA_INT), Linker.Option.captureCallState("errno"));
+    private static final MethodHandle CLOSE = downcall("close", FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT));
+
+    private static MethodHandle downcall(String symbol, FunctionDescriptor descriptor, Linker.Option... options) {
+      return LINKER.downcallHandle(LINKER.defaultLookup().find(symbol).orElseThrow(), descriptor, options);
+    }
+  }
 
   private final Constants constants;
 
@@ -80,24 +90,20 @@ final class FlockLedgerLock implements LedgerLock {
     throw new UnsupportedOperationException("flock ledger lock: supported on Linux and macOS only, not " + osName);
   }
 
-  private static MethodHandle downcall(String symbol, FunctionDescriptor descriptor, Linker.Option... options) {
-    return LINKER.downcallHandle(LINKER.defaultLookup().find(symbol).orElseThrow(), descriptor, options);
-  }
-
   @Override
   public Held tryAcquire(Path lockFile) throws IOException {
     // Absolute, so the path open(2) sees does not depend on the process working directory matching user.dir.
     Path absolute = lockFile.toAbsolutePath();
     Files.createDirectories(absolute.getParent());
     try (Arena arena = Arena.ofConfined()) {
-      MemorySegment state = arena.allocate(CAPTURE);
+      MemorySegment state = arena.allocate(Native.CAPTURE);
       MemorySegment path = arena.allocateFrom(absolute.toString());
       int flags = O_RDWR | constants.oCreat() | constants.oNofollow() | constants.oCloexec();
       int fd;
       int errno;
       do {
-        fd = (int) OPEN.invokeExact(state, path, flags, MODE_0600);
-        errno = fd < 0 ? (int) ERRNO.get(state, 0L) : 0;
+        fd = (int) Native.OPEN.invokeExact(state, path, flags, MODE_0600);
+        errno = fd < 0 ? (int) Native.ERRNO.get(state, 0L) : 0;
       } while (fd < 0 && errno == EINTR);
       if (fd < 0) {
         if (errno == constants.eloop()) {
@@ -117,7 +123,7 @@ final class FlockLedgerLock implements LedgerLock {
   private Held lockOrClose(MemorySegment state, int fd, Path lockFile) throws Throwable {
     boolean handedOver = false;
     try {
-      int result = (int) FLOCK.invokeExact(state, fd, LOCK_EX | LOCK_NB);
+      int result = (int) Native.FLOCK.invokeExact(state, fd, LOCK_EX | LOCK_NB);
       if (result == 0) {
         handedOver = true;
         AtomicBoolean open = new AtomicBoolean(true);
@@ -127,7 +133,7 @@ final class FlockLedgerLock implements LedgerLock {
           }
         };
       }
-      int errno = (int) ERRNO.get(state, 0L);
+      int errno = (int) Native.ERRNO.get(state, 0L);
       // EINTR counts as contention: the bounded wait simply tries again.
       if (errno == constants.ewouldblock() || errno == EINTR) {
         return null;
@@ -142,7 +148,7 @@ final class FlockLedgerLock implements LedgerLock {
 
   private static void close(int fd) throws IOException {
     try {
-      int ignored = (int) CLOSE.invokeExact(fd);
+      int ignored = (int) Native.CLOSE.invokeExact(fd);
     } catch (Throwable e) {
       throw new IOException(e);
     }
