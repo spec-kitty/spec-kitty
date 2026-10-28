@@ -179,6 +179,43 @@ def test_newest_keep_runs_are_kept_and_the_rest_of_an_old_completed_mission_are_
 
 @pytest.mark.unit
 @pytest.mark.fast
+def test_a_run_started_by_the_real_writer_becomes_a_candidate(project: Path) -> None:
+    """DS-H1: ``next`` records no Mission in ``state.json``; the run index links it."""
+    from runtime.next import runtime_bridge_io
+
+    run_ref = runtime_bridge_io.get_or_start_run(DONE_SLUG, project, "software-dev")
+    run_dir = Path(run_ref.run_dir)
+    snapshot = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
+    assert (snapshot.get("mission_id"), snapshot.get("mission_slug")) == (None, None)
+    _set_age(run_dir, 60)
+
+    plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
+    item = _by_path(plan.items, project)[_rel(run_dir, project)]
+    assert (item.verdict, item.reason, item.mission) == ("candidate", REASON_COMPLETED, DONE_SLUG)
+
+    result = apply_retention(project, plan)
+    assert [i.path for i in result.deleted] == [run_dir]
+    assert result.removed_index_entries == [DONE_ID]
+    assert DONE_ID not in _read_index(project)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_a_run_linked_only_through_the_index_resolves_its_mission(project: Path) -> None:
+    run_dir = run_index.runs_root(project) / uuid.uuid4().hex
+    _write(run_dir / "state.json", json.dumps({"run_id": run_dir.name, "inputs": {"mission_slug": DONE_SLUG}}))
+    _write(run_dir / "run.events.jsonl", '{"event_type": "MissionRunStarted"}\n')
+    _set_age(run_dir, 60)
+    run_index.save_index(
+        project,
+        {DONE_ID: {"run_dir": str(run_dir), "run_id": run_dir.name, "mission_id": DONE_ID, "mission_slug": DONE_SLUG}},
+    )
+    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
+    assert (item.verdict, item.reason, item.mission) == ("candidate", REASON_COMPLETED, DONE_SLUG)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
 def test_runs_beyond_keep_runs_but_younger_than_max_age_are_kept(project: Path) -> None:
     for i in range(20):
         _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=1 + i * 0.1)
