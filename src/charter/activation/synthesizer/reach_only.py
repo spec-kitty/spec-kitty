@@ -33,7 +33,7 @@ from ruamel.yaml.error import YAMLError
 
 from charter.activation.org_pack_discovery import read_org_required_ids
 from charter.activation.synthesizer.manifest import MANIFEST_PATH, SynthesisManifest, load_yaml
-from charter.activation.synthesizer.reconcile import REACH_ONLY_KINDS, is_synthesized_source_edge, synthesized_node_urns
+from charter.activation.synthesizer.reconcile import REACH_ONLY_KINDS, ReconciliationDelta, is_synthesized_source_edge, synthesized_node_urns
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.loader import DRGLoadError, has_graph_files, load_graph_or_dir
 from charter.offering.drg.models import NodeKind
@@ -352,8 +352,6 @@ def created_slugs(reconciliation: object, kind: str) -> list[str]:
     Only entries new to the manifest count; :func:`append_synthesized_activations`
     further drops any artifact synthesis created before (an operator's removal sticks).
     """
-    from charter.activation.synthesizer.reconcile import ReconciliationDelta  # deferred import
-
     if not isinstance(reconciliation, ReconciliationDelta):
         return []
     return [ref.slug for ref in reconciliation.manifest_delta.added if ref.kind == kind]
