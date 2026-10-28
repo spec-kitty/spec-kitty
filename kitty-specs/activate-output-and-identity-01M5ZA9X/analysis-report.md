@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: activate-output-and-identity-01M5ZA9X
 mission_id: 01M5ZA9X7C300SZBK507H3N051
-generated_at: '2026-10-27T19:24:30.201199+00:00'
+generated_at: '2026-10-28T05:06:32.830700+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: kitty-specs/activate-output-and-identity-01M5ZA9X/spec.md
-    sha256: 3daa850a0c061fb357205e0a4c772742883d6eca59501447dad77446343e26f2
+    sha256: d6329f21699043920d959ab8a71003d43aa090740dcf87614bdc1c319b7f5875
   plan.md:
     path: kitty-specs/activate-output-and-identity-01M5ZA9X/plan.md
     sha256: bd40dcfd41c214c79405a867d5c74344b57033f0bafb56e26c0dd3e2269c2b72
@@ -21,10 +21,10 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  critical: 0
   medium: 0
+  low: 5
   high: 0
-  low: 4
+  critical: 0
   info: 0
 findings:
 - id: C1
@@ -43,6 +43,10 @@ findings:
   severity: low
   category: inconsistency
   summary: WP04 edits WP01-owned pack_manager.py/test_activate_only_6408.py out of map (compensation removal, carve-out re-pins); sequenced after WP01 via lane dependency, rationale recorded in the WP04 prompt.
+- id: D1
+  severity: low
+  category: charter
+  summary: C-001 amended with the operator-accepted no_stem_id in-force exception; WP05 now owns the compile case for a kept no-stem declared id (xfail hand-over from WP04).
 ---
 
 ## Specification Analysis Report
@@ -52,6 +56,7 @@ findings:
 | C1 | Coverage | LOW | spec.md NFR table; tasks.md | NFRs enforced by gate subtasks, not a WP | Keep; reviewers check the gate evidence |
 | U1 | Underspecification | LOW | spec.md FR-009, FR-010, SC-004 | Docs rows are no-op passable | Review against `org_pack_loader.py:528-555`, `pack_validator.py:706,759-767`, `identity_index.py:244-250` |
 | I1 | Inconsistency | LOW | WP03 T013 | Changelog drafted in parallel | Re-check at consolidation |
+| D1 | Charter | LOW | spec.md C-001; WP05 prompt | no_stem_id in-force exception recorded; compile case handed to WP05 | Verify xfail flipped in WP05 |
 | R1 | Inconsistency | LOW | WP04 out-of-map edits | WP04 touches WP01-owned files | Lane dependency lane-c→lane-a; rationale in prompt |
 
 **Coverage Summary Table:**
