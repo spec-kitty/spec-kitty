@@ -25,6 +25,7 @@ import pytest
 from typer.testing import CliRunner
 
 from runtime.next import run_index
+from runtime.next.run_lock import run_cursor_lock
 from specify_cli.cli.commands import _event_logs_doctor
 from specify_cli.cli.commands.doctor import app
 from specify_cli.state import retention
@@ -162,6 +163,26 @@ def test_apply_human_output_reports_the_deletions(project: Path, runs: dict[str,
     assert "Deleted 1 item(s)" in result.output
     assert _rel(runs["candidate"], project) in result.output
     assert not runs["candidate"].exists()
+
+
+def test_apply_human_output_says_nothing_was_deleted_when_every_candidate_was_kept(
+    project: Path, runs: dict[str, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A candidate locked between the scan and the apply is kept; the output still says what was deleted."""
+    real_apply = _event_logs_doctor.apply_retention
+
+    def _apply_while_locked(repo_root: Path, plan: retention.RetentionPlan) -> retention.RetentionResult:
+        with run_cursor_lock(runs["candidate"]):
+            return real_apply(repo_root, plan)
+
+    monkeypatch.setattr(_event_logs_doctor, "apply_retention", _apply_while_locked)
+
+    result = _invoke(APPLY_FLAG)
+
+    assert result.exit_code == 0, result.output
+    assert "Nothing was deleted" in result.output
+    assert retention.REASON_LOCK_HELD in result.output
+    assert runs["candidate"].is_dir()
 
 
 @pytest.mark.parametrize("json_output", [False, True])
