@@ -387,6 +387,7 @@ def _real_dirs(root: Path) -> list[Path]:
 
 def _writers_log_lock(path: Path) -> _LockFactory:
     """The writers' interim event-log lock on *path*, taken with the kernel primitive (C-001)."""
+    # interim-locked-delete: retires at the #6193 handover (kernel.event_log_append).
     return lambda: machine_file_lock(event_log_lock_path(path), blocking=False)
 
 
@@ -772,6 +773,7 @@ def _delete_run(repo_root: Path, item: RetentionItem) -> list[str]:
 
 def _delete_locked_log(_repo_root: Path, item: RetentionItem) -> list[str]:
     """Unlink a log under the writers' event-log lock; its lock and sidecars stay."""
+    # interim-locked-delete: retires at the #6193 handover (kernel.event_log_append).
     with machine_file_lock(event_log_lock_path(item.path), blocking=False):
         item.path.unlink()
     return []
