@@ -255,14 +255,26 @@ def _glossary_log_stem(mission_id: str) -> str:
     return _UNSAFE_LOG_STEM_CHARS.sub("-", mission_id)
 
 
+def _claim(table: dict[str, Path | None], key: str, feature_dir: Path) -> None:
+    """Map *key* to *feature_dir*; a key claimed by two Mission directories maps to ``None``.
+
+    An ambiguous id or log stem is never resolved first-match-wins: the item
+    reads as ``Mission not found`` and is kept (DS-L2).
+    """
+    if key in table and table[key] != feature_dir:
+        table[key] = None
+    else:
+        table.setdefault(key, feature_dir)
+
+
 class _Missions:
     """The Missions of this checkout, by directory name, recorded slug and log stem."""
 
     def __init__(self, repo_root: Path, now: datetime) -> None:
         self._now = now
         self._by_slug: dict[str, Path] = {}
-        self._by_id: dict[str, Path] = {}
-        self._by_stem: dict[str, Path] = {}
+        self._by_id: dict[str, Path | None] = {}
+        self._by_stem: dict[str, Path | None] = {}
         self._facts: dict[tuple[str, Path], bool] = {}
         for meta_path in sorted((repo_root / _MISSIONS_DIR).glob(f"*/{_META_FILENAME}")):
             self._register(meta_path.parent)
@@ -275,8 +287,8 @@ class _Missions:
             self._by_slug.setdefault(slug, feature_dir)
         mission_id = meta.get("mission_id")
         if isinstance(mission_id, str) and mission_id:
-            self._by_id.setdefault(mission_id, feature_dir)
-            self._by_stem.setdefault(_glossary_log_stem(mission_id), feature_dir)
+            _claim(self._by_id, mission_id, feature_dir)
+            _claim(self._by_stem, _glossary_log_stem(mission_id), feature_dir)
 
     def by_slug(self, slug: object) -> Path | None:
         return self._by_slug.get(slug) if isinstance(slug, str) else None
