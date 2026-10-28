@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-28T05:30:56.850512+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "7fc484ac69f16038c856f2466c4dbe403df5abca"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-28T05:30:56.850512+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "7fc484ac69f16038c856f2466c4dbe403df5abca",
   "baseline_merge_commit": "31aaf0d783d1d832c50012b7ebb23bf0d071eda7",
   "created_at": "2026-10-27T19:14:48.919560+00:00",
   "flattened": true,
