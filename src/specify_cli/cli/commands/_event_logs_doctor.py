@@ -2,7 +2,7 @@
 
 Self-registering ``doctor event-logs`` subcommand: previews, then on request
 prunes, the gitignored run journals, per-Mission glossary logs and rebuildable
-caches under ``.kittify/`` (and the Op index) that are past retention. The
+caches under ``.kittify/`` that are past retention. The
 verdicts come from the retention engine (:mod:`specify_cli.state.retention`);
 the limits come from ``ledger.retention`` in ``.kittify/config.yaml``
 (:mod:`specify_cli.core.ledger_retention`). This module only renders the

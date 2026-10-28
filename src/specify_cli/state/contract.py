@@ -532,8 +532,12 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="invocation/writer",
         creation_trigger="profile-invocation start (index append)",
-        notes=("Machine-local reverse-scan performance cache; never commit. Durable records live in kitty-ops/<op_id>.jsonl."),
-        cleanup_policy=CleanupPolicy(RetentionRule.REBUILDABLE, CLEANUP_EVENT_LOGS_COMMAND),
+        notes=(
+            "Machine-local reverse-scan performance cache; never commit. Durable records live in kitty-ops/<op_id>.jsonl. "
+            "Not pruned by doctor event-logs: invocations list trusts a partial index, so deleting it would hide "
+            "history; a real rebuild belongs to the invocations owner."
+        ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="worktrees_root",

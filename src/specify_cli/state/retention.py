@@ -17,8 +17,9 @@ reason, and, on apply, deletes the candidates under the right locks.
   itself recorded ``MissionRunCompleted``; a glossary log's when its Mission is
   completed (merged, or every WP terminal). A run's Mission comes from its
   run-index entry (``next`` records none in ``state.json``).
-- ``rebuildable`` items (derived Mission views, the Op index) are candidates
-  whatever their age, unless locked (FR-010).
+- ``rebuildable`` items (derived Mission views) are candidates whatever their
+  age, unless locked (FR-010). The Op index is not in scope (operator ruling
+  2026-10-28): ``invocations list`` trusts a partial index.
 - Lock files, the non-Mission glossary logs (``_cli``, ``_renderer``) and every
   tracked file are never candidates (FR-011, C-002).
 
@@ -92,7 +93,6 @@ _SURFACE_RUN_EVENT_LOG = "runtime_run_event_log"
 _SURFACE_RUN_FROZEN_TEMPLATE = "runtime_frozen_template"
 _SURFACE_GLOSSARY_LOG = "glossary_fallback_events"
 _SURFACE_DERIVED_VIEWS = "derived_mission_views"
-_SURFACE_OP_INDEX = "op_invocation_index"
 
 _PRUNING_RULES = (RetentionRule.LEDGER_RETENTION, RetentionRule.REBUILDABLE)
 
@@ -102,7 +102,6 @@ _GLOSSARY_LOG_SUFFIX = ".events.jsonl"
 #: Glossary logs that name no Mission (``_cli``, ``_renderer``) start with this.
 _NON_MISSION_LOG_PREFIX = "_"
 _DERIVED_DIR = Path(_KITTIFY, "derived")
-_OP_INDEX = Path("kitty-ops", "ops-index.jsonl")
 _MISSIONS_DIR = "kitty-specs"
 _META_FILENAME = "meta.json"
 _RUN_STATE_FILENAME = "state.json"
@@ -522,16 +521,6 @@ def _collect_derived_views(ctx: _ScanContext) -> list[_Unit]:
     return units
 
 
-def _collect_op_index(ctx: _ScanContext) -> list[_Unit]:
-    index = ctx.repo_root / _OP_INDEX
-    if index.is_symlink() or not index.is_file():
-        return []
-    age = _age_or_none(ctx, index)
-    if age is None:
-        return []
-    return [_Unit(_SURFACE_OP_INDEX, KIND_CACHE, index, age, feature_dir=None, lock=_writers_log_lock(index))]
-
-
 def _run_finished(run_dir: Path) -> bool:
     """True when the run's own journal records ``MissionRunCompleted`` (read-only; torn lines skipped)."""
     try:
@@ -591,7 +580,6 @@ _COLLECTORS: tuple[_Collector, ...] = (
     ),
     _Collector(frozenset({_SURFACE_GLOSSARY_LOG}), RetentionRule.LEDGER_RETENTION, _collect_glossary_logs),
     _Collector(frozenset({_SURFACE_DERIVED_VIEWS}), RetentionRule.REBUILDABLE, _collect_derived_views),
-    _Collector(frozenset({_SURFACE_OP_INDEX}), RetentionRule.REBUILDABLE, _collect_op_index),
 )
 
 
@@ -709,9 +697,8 @@ def scan_retention(repo_root: Path, limits: RetentionLimits, *, now: datetime | 
 # ---------------------------------------------------------------------------
 
 #: The only places a deletion may land (C-002 defence in depth): strictly inside
-#: these gitignored roots, or exactly the Op index file.
+#: these gitignored roots.
 _DELETABLE_ROOTS = (Path(_KITTIFY, "runtime", "runs"), Path(_KITTIFY, "events"), _DERIVED_DIR)
-_DELETABLE_FILES = (_OP_INDEX,)
 
 
 def _assert_deletable(repo_root: Path, path: Path) -> None:
@@ -720,14 +707,11 @@ def _assert_deletable(repo_root: Path, path: Path) -> None:
         relative = Path(os.path.normpath(path)).relative_to(os.path.normpath(repo_root))
     except ValueError:
         raise UnsafeRetentionPathError(f"{path}: outside the project; doctor event-logs deletes nothing there.") from None
-    if relative in _DELETABLE_FILES:
-        return
     for root in _DELETABLE_ROOTS:
         if len(relative.parts) > len(root.parts) and relative.parts[: len(root.parts)] == root.parts:
             return
     raise UnsafeRetentionPathError(
-        f"{path}: not in the local event-log tier ({', '.join(r.as_posix() for r in _DELETABLE_ROOTS)}, "
-        f"{_OP_INDEX.as_posix()}); doctor event-logs never deletes it."
+        f"{path}: not in the local event-log tier ({', '.join(r.as_posix() for r in _DELETABLE_ROOTS)}); doctor event-logs never deletes it."
     )
 
 
@@ -802,7 +786,6 @@ _Deleter = Callable[[Path, RetentionItem], list[str]]
 _DELETERS: dict[str, _Deleter] = {
     _SURFACE_RUN_EVENT_LOG: _delete_run,
     _SURFACE_GLOSSARY_LOG: _delete_locked_log,
-    _SURFACE_OP_INDEX: _delete_locked_log,
     _SURFACE_DERIVED_VIEWS: _delete_cache_dir,
 }
 

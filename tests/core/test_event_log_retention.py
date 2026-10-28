@@ -2,8 +2,8 @@
 
 A fixture project with a completed and an open Mission carries every surface the
 registry marks ``ledger_retention`` or ``rebuildable``: run directories, per-Mission
-glossary logs, derived Mission views and the Op index, plus committed files that
-must never move. ``now`` is injected; ages come from file modification times set
+glossary logs and derived Mission views, plus committed files and the Op index
+(out of cleanup scope) that must never move. ``now`` is injected; ages come from file modification times set
 with ``os.utime``. No sleeps.
 """
 
@@ -411,15 +411,12 @@ def test_glossary_logs_are_ranked_within_their_own_kind(project: Path) -> None:
 
 @pytest.mark.unit
 @pytest.mark.fast
-def test_derived_views_and_ops_index_are_rebuildable_regardless_of_age(project: Path) -> None:
+def test_derived_views_are_rebuildable_regardless_of_age(project: Path) -> None:
     derived = _write(project / ".kittify" / "derived" / DONE_SLUG / "lifecycle.json", "{}").parent
-    ops_index = _write(project / "kitty-ops" / "ops-index.jsonl", '{"invocation_id": "x"}\n')
     _set_age(derived, 0)
-    _set_age(ops_index, 0)
     items = _by_path(scan_retention(project, RetentionLimits(), now=NOW).items, project)
-    for path, surface in ((derived, "derived_mission_views"), (ops_index, "op_invocation_index")):
-        item = items[_rel(path, project)]
-        assert (item.verdict, item.reason, item.kind, item.surface) == ("candidate", REASON_REBUILDABLE, KIND_CACHE, surface)
+    item = items[_rel(derived, project)]
+    assert (item.verdict, item.reason, item.kind, item.surface) == ("candidate", REASON_REBUILDABLE, KIND_CACHE, "derived_mission_views")
     # The derived view names its Mission when the slug resolves.
     assert items[_rel(derived, project)].mission == DONE_SLUG
 
@@ -534,12 +531,12 @@ def test_apply_deletes_only_candidates_and_keeps_the_index_consistent(project: P
     result = apply_retention(project, plan)
 
     deleted = {_rel(item.path, project) for item in result.deleted}
-    assert deleted == {_rel(paths[k], project) for k in ("done_run", "done_log", "derived", "ops_index")}
+    assert deleted == {_rel(paths[k], project) for k in ("done_run", "done_log", "derived")}
     assert result.failed == []
     assert result.kept_at_apply == []
-    for key in ("done_run", "done_log", "derived", "ops_index"):
+    for key in ("done_run", "done_log", "derived"):
         assert not paths[key].exists(), key
-    for key in ("open_run", "young_run", "open_log", "cli_log"):
+    for key in ("open_run", "young_run", "open_log", "cli_log", "ops_index"):
         assert paths[key].exists(), key
 
     index = _read_index(project)
@@ -549,8 +546,8 @@ def test_apply_deletes_only_candidates_and_keeps_the_index_consistent(project: P
     for name, content in tracked_before.items():
         assert (project / name).read_bytes() == content, name
     status = subprocess.run(["git", "-C", str(project), "status", "--porcelain", "--", "kitty-specs", "kitty-ops"], capture_output=True, text=True, check=True)
-    # Only the ignored-tier ops-index (untracked) could ever show; it is gone now.
-    assert status.stdout == ""
+    # Only the untracked Op index shows; it is never touched.
+    assert status.stdout == "?? kitty-ops/ops-index.jsonl\n"
 
     # Lock files survive; only the deleted run's own state.json.lock went with its directory.
     assert paths["done_log"].with_name(paths["done_log"].name + ".lock").exists()
@@ -609,22 +606,18 @@ def test_held_run_cursor_lock_is_reported_in_preview(project: Path) -> None:
 
 @pytest.mark.unit
 @pytest.mark.fast
-def test_held_event_log_lock_keeps_the_ops_index_and_glossary_log(project: Path) -> None:
-    ops_index = _write(project / "kitty-ops" / "ops-index.jsonl", '{"invocation_id": "x"}\n')
+def test_held_event_log_lock_keeps_the_glossary_log(project: Path) -> None:
     done_log = _glossary_log(project, DONE_ID, 60)
-    with machine_file_lock(event_log_lock_path(ops_index)), machine_file_lock(event_log_lock_path(done_log)):
+    with machine_file_lock(event_log_lock_path(done_log)):
         plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
-        items = _by_path(plan.items, project)
-        assert items[_rel(ops_index, project)].reason == REASON_LOCK_HELD
-        assert items[_rel(done_log, project)].reason == REASON_LOCK_HELD
+        assert _by_path(plan.items, project)[_rel(done_log, project)].reason == REASON_LOCK_HELD
 
     plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
-    assert {i.reason for i in plan.items} == {REASON_REBUILDABLE, REASON_COMPLETED}
-    with machine_file_lock(event_log_lock_path(ops_index)), machine_file_lock(event_log_lock_path(done_log)):
+    assert {i.reason for i in plan.items} == {REASON_COMPLETED}
+    with machine_file_lock(event_log_lock_path(done_log)):
         result = apply_retention(project, plan)
     assert result.deleted == []
     assert {i.reason for i in result.kept_at_apply} == {REASON_LOCK_HELD}
-    assert ops_index.exists()
     assert done_log.exists()
 
 
@@ -645,7 +638,7 @@ def test_a_failed_deletion_is_recorded_and_the_rest_proceed(project: Path, monke
     assert [(f.item.path, f.error) for f in result.failed] == [(paths["derived"], "disk says no")]
     assert paths["derived"].is_dir()
     assert not paths["done_run"].exists()
-    assert not paths["ops_index"].exists()
+    assert paths["ops_index"].exists()
     failed = result.to_dict(project)["failed"]
     assert failed == [
         {
@@ -702,8 +695,8 @@ def test_a_partial_run_family_selection_is_registry_drift(project: Path, monkeyp
 @pytest.mark.unit
 @pytest.mark.fast
 def test_a_collector_under_the_wrong_rule_is_registry_drift(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    _with_rule(monkeypatch, "op_invocation_index", RetentionRule.LEDGER_RETENTION)
-    with pytest.raises(RetentionPolicyDriftError, match="op_invocation_index"):
+    _with_rule(monkeypatch, "derived_mission_views", RetentionRule.LEDGER_RETENTION)
+    with pytest.raises(RetentionPolicyDriftError, match="derived_mission_views"):
         scan_retention(project, RetentionLimits(), now=NOW)
 
 
@@ -723,6 +716,7 @@ def test_a_collector_under_the_wrong_rule_is_registry_drift(project: Path, monke
         ".kittify/runtime/feature-runs.json",
         ".kittify/events",
         ".kittify/config.yaml",
+        "kitty-ops/ops-index.jsonl",
         "../outside",
     ],
 )
@@ -735,7 +729,7 @@ def test_the_path_guard_refuses_anything_outside_the_local_tier(project: Path, r
 @pytest.mark.fast
 @pytest.mark.parametrize(
     "relative",
-    [".kittify/runtime/runs/abc", f".kittify/events/glossary/{DONE_ID}.events.jsonl", f".kittify/derived/{DONE_SLUG}", "kitty-ops/ops-index.jsonl"],
+    [".kittify/runtime/runs/abc", f".kittify/events/glossary/{DONE_ID}.events.jsonl", f".kittify/derived/{DONE_SLUG}"],
 )
 def test_the_path_guard_allows_the_local_tier(project: Path, relative: str) -> None:
     retention._assert_deletable(project, project / relative)
@@ -821,14 +815,14 @@ def test_a_corrupt_mission_meta_reads_as_open(project: Path) -> None:
 @pytest.mark.unit
 @pytest.mark.fast
 def test_an_uncomputable_event_log_lock_reads_as_held(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    ops_index = _write(project / "kitty-ops" / "ops-index.jsonl", "{}\n")
+    done_log = _glossary_log(project, DONE_ID, 90)
 
     def _no_git(_anchor: Path) -> Path:
         raise OSError("git could not be invoked")
 
     monkeypatch.setattr(retention, "event_log_lock_path", _no_git)
-    plan = scan_retention(project, RetentionLimits(), now=NOW)
-    assert [(i.path, i.reason) for i in plan.items] == [(ops_index, REASON_LOCK_HELD)]
+    plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
+    assert [(i.path, i.reason) for i in plan.items] == [(done_log, REASON_LOCK_HELD)]
 
 
 @pytest.mark.unit
@@ -897,7 +891,7 @@ def test_a_non_mapping_run_index_does_not_abort_apply(project: Path) -> None:
     # A non-mapping index links no run, so the run's Mission is not found and it stays.
     assert paths["done_run"].is_dir()
     assert not paths["derived"].exists()
-    assert not paths["ops_index"].exists()
+    assert paths["ops_index"].exists()
     assert index_path.read_text(encoding="utf-8") == "[1, 2, 3]"
 
 
@@ -988,20 +982,15 @@ class _BrokenProbe:
 @pytest.mark.unit
 @pytest.mark.fast
 def test_a_lock_probe_oserror_reads_as_held(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    ops_index = _write(project / "kitty-ops" / "ops-index.jsonl", "{}\n")
     done_log = _glossary_log(project, DONE_ID, 90)
-    for log in (ops_index, done_log):
-        _write(event_log_lock_path(log), "")
+    _write(event_log_lock_path(done_log), "")
 
     def _broken(lock_path: Path, **_kwargs: object) -> _BrokenProbe:
         return _BrokenProbe(lock_path)
 
     monkeypatch.setattr(retention, "machine_file_lock", _broken)
     items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
-    assert {path: item.reason for path, item in items.items()} == {
-        _rel(ops_index, project): REASON_LOCK_HELD,
-        _rel(done_log, project): REASON_LOCK_HELD,
-    }
+    assert {path: item.reason for path, item in items.items()} == {_rel(done_log, project): REASON_LOCK_HELD}
 
 
 def _lock_is_free(lock_path: Path) -> bool:
@@ -1105,12 +1094,11 @@ def test_a_symlinked_run_lock_reads_as_held_in_preview(project: Path, tmp_path_f
 @pytest.mark.parametrize("dangling", [False, True], ids=["existing-target", "dangling"])
 def test_a_symlinked_event_log_lock_reads_as_held_in_preview(project: Path, tmp_path_factory: pytest.TempPathFactory, dangling: bool) -> None:
     outside = tmp_path_factory.mktemp("outside")
-    ops_index = _write(project / "kitty-ops" / "ops-index.jsonl", '{"invocation_id": "x"}\n')
     done_log = _glossary_log(project, DONE_ID, 60)
-    targets = [_symlink_lock(event_log_lock_path(log), outside, dangling=dangling) for log in (ops_index, done_log)]
+    targets = [_symlink_lock(event_log_lock_path(done_log), outside, dangling=dangling)]
 
     items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
-    for log in (ops_index, done_log):
+    for log in (done_log,):
         assert (items[_rel(log, project)].verdict, items[_rel(log, project)].reason) == ("kept", REASON_LOCK_HELD)
     for target in targets:
         _assert_target_untouched(target, dangling=dangling)
@@ -1147,20 +1135,15 @@ def test_an_event_log_lock_symlinked_after_the_preview_is_kept_at_apply_and_the_
     outside = tmp_path_factory.mktemp("outside")
     done_log = _glossary_log(project, DONE_ID, 60)
     derived = _write(project / ".kittify" / "derived" / DONE_SLUG / "lifecycle.json", "{}").parent
-    ops_index = _write(project / "kitty-ops" / "ops-index.jsonl", '{"invocation_id": "x"}\n')
     plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
-    assert [i.path for i in plan.candidates] == [done_log, derived, ops_index]
-    targets = [_symlink_lock(event_log_lock_path(log), outside, dangling=dangling) for log in (done_log, ops_index)]
+    assert [i.path for i in plan.candidates] == [done_log, derived]
+    targets = [_symlink_lock(event_log_lock_path(done_log), outside, dangling=dangling)]
 
     result = apply_retention(project, plan)
 
-    assert [(i.path, i.reason) for i in result.kept_at_apply] == [
-        (done_log, REASON_LOCK_HELD),
-        (ops_index, REASON_LOCK_HELD),
-    ]
+    assert [(i.path, i.reason) for i in result.kept_at_apply] == [(done_log, REASON_LOCK_HELD)]
     assert [i.path for i in result.deleted] == [derived]
     assert result.failed == []
     assert done_log.exists()
-    assert ops_index.exists()
     for target in targets:
         _assert_target_untouched(target, dangling=dangling)

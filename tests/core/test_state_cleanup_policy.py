@@ -102,7 +102,9 @@ def test_local_tier_is_pinned() -> None:
         "glossary_fallback_events",
     }
     rebuildable = {s.name for s in get_surfaces_by_retention(RetentionRule.REBUILDABLE)}
-    assert rebuildable == {"derived_mission_views", "op_invocation_index"}
+    assert rebuildable == {"derived_mission_views"}
+    # Operator ruling 2026-10-28: the Op index is never pruned (invocations list trusts a partial index).
+    assert _surface_by_name("op_invocation_index").cleanup_policy == CleanupPolicy(RetentionRule.MANUAL)
 
 
 def test_retention_surfaces_name_the_cleanup_command() -> None:
