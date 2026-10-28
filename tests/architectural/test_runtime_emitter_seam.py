@@ -352,8 +352,12 @@ def test_bridge_guards_accept_equivalent_call_formatting(tmp_path: Path, monkeyp
 # the write-service client (#6675) is the planned binder, and adding it here
 # is the planned exit, not a reason to delete this tripwire.
 _BIND_NAME = "bind_work_package_transition_port"
+_COMPOSITE_BIND_NAME = "bind_event_bridge"
+_BIND_NAMES: tuple[str, ...] = (_BIND_NAME, _COMPOSITE_BIND_NAME)
 _BIND_DEFINITION = "src/runtime/next/event_bridge.py"
-_ALLOWED_BIND_SITES: tuple[str, ...] = (_BIND_DEFINITION,)
+# The composition-root binder (#6675) forwards to the transition binder; it defines a bind, it makes none.
+_COMPOSITE_BIND_DEFINITION = "src/runtime/next/_internal_runtime/events.py"
+_ALLOWED_BIND_SITES: tuple[str, ...] = (_COMPOSITE_BIND_DEFINITION, _BIND_DEFINITION)
 
 
 def _calls_name(source: str, name: str) -> bool:
@@ -364,7 +368,7 @@ def _calls_name(source: str, name: str) -> bool:
 
 
 def _bind_sites(root: Path) -> list[str]:
-    return [_relative(p) for p in _py_files(root) if _calls_name(p.read_text(encoding="utf-8"), _BIND_NAME)]
+    return sorted(_relative(p) for p in _py_files(root) if any(_calls_name(p.read_text(encoding="utf-8"), name) for name in _BIND_NAMES))
 
 
 def test_open_core_binds_no_work_package_transition_port() -> None:
@@ -378,6 +382,14 @@ def test_open_core_binds_no_work_package_transition_port() -> None:
 def test_bind_scan_flags_a_binding_site(tmp_path: Path) -> None:
     (tmp_path / "producer.py").write_text(f"from runtime.next.event_bridge import {_BIND_NAME} as _b\n_b(object())\n", encoding="utf-8")
     assert _bind_sites(tmp_path) == [(tmp_path / "producer.py").as_posix()]
+
+
+def test_bind_scan_flags_a_composite_binding_site(tmp_path: Path) -> None:
+    (tmp_path / "composer.py").write_text(
+        f"from runtime.next._internal_runtime.events import {_COMPOSITE_BIND_NAME}\n{_COMPOSITE_BIND_NAME}(emitter_factory=f, transition_port=p)\n",
+        encoding="utf-8",
+    )
+    assert _bind_sites(tmp_path) == [(tmp_path / "composer.py").as_posix()]
 
 
 def _non_stdlib_imports(source: str) -> list[str]:

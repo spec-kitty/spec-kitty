@@ -44,7 +44,11 @@ from runtime.next._internal_runtime.significance import (
 # and ``mission_metadata`` are already on the runtime outbound ledger
 # (``tests/architectural/test_layer_rules.py``), so these add no ledger entry.
 from specify_cli.mission_metadata import resolve_mission_identity
-from runtime.next.event_bridge import WorkPackageTransitionPort
+from runtime.next.event_bridge import (
+    WorkPackageTransitionPort,
+    bind_work_package_transition_port,
+    bound_work_package_transition_port,
+)
 
 # Explicit re-exports so `from runtime.next._internal_runtime.events import X`
 # resolves under `mypy --strict` (otherwise `attr-defined` flags the indirected names).
@@ -66,6 +70,7 @@ __all__ = [
     "seed_runtime_emitter",
     "runtime_emitter_for_mission",
     "register_runtime_emitter_factory",
+    "bind_event_bridge",
 ]
 
 
@@ -295,6 +300,34 @@ def reset_runtime_emitter_factory() -> None:
     """Restore the default (null) seam; test-only utility, mirrors ``reset_handlers()``."""
     global _registered_factory
     _registered_factory = None
+
+
+def _class_key(port: object) -> str:
+    """The class identity ``bind_work_package_transition_port`` judges a conflict by (module and qualified name)."""
+    kind = type(port)
+    return f"{kind.__module__}.{kind.__qualname__}"
+
+
+def bind_event_bridge(*, emitter_factory: RuntimeEmitterFactory, transition_port: WorkPackageTransitionPort) -> None:
+    """Bind both halves of the EventBridge port at the composition root, all or nothing (#6675).
+
+    ``emitter_factory`` is the Mission-state-advance half
+    (:func:`register_runtime_emitter_factory`), ``transition_port`` the work
+    package transition half (``bind_work_package_transition_port``). Both
+    halves keep their reject-on-conflict policy, and the conflicts are checked
+    before either is bound, so a refused call leaves both unchanged.
+    Open-core binds none; the write-service client binds both at the #6195
+    cut-over.
+    """
+    if not callable(emitter_factory):
+        raise TypeError(f"emitter_factory must be callable, got {type(emitter_factory)!r}")
+    if _registered_factory is not None and _callable_key(_registered_factory) != _callable_key(emitter_factory):
+        raise RuntimeError(f"A different runtime emitter factory is already registered: {_registered_factory!r}. Cannot bind {emitter_factory!r}.")
+    bound = bound_work_package_transition_port()
+    if bound is not None and _class_key(bound) != _class_key(transition_port):
+        raise RuntimeError(f"A different work package transition port is already bound: {bound!r}. Cannot bind {transition_port!r}.")
+    register_runtime_emitter_factory(emitter_factory)
+    bind_work_package_transition_port(transition_port)
 
 
 def runtime_emitter_for_mission(

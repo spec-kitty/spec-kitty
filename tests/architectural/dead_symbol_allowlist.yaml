@@ -116,14 +116,14 @@ categories:
       a structural auto-exempt for the doctor-register seam, mirroring ``_is_registered_migration_class``
       so future ``_*_doctor.py`` siblings never need a hand entry -- tracked in #3508.'
     requires_issue: false
-  category_c_eventbridge_port_seam_6675:
-    rationale: 'C. EventBridge port seam (#6603). ``bind_work_package_transition_port`` is the
-      composition-root binding the Java write service client plugs into (#6675). Open-core binds no
-      adapter by design (``test_open_core_binds_no_work_package_transition_port``), so it has no src/ caller
-      until #6675 lands; its sibling ``register_runtime_emitter_factory`` is allowlisted for the same reason.
-      ``_EventBridgePort`` and ``_reset_work_package_transition_port`` are private until #6675 uses them.
-      Burns down when #6675 binds the adapter at the composition root.'
-    requires_issue: false
+  category_c_write_service_client_6675:
+    rationale: 'C. Write-service client surface (#6675, ADR 2026-10-27-1). ``bind_event_bridge`` binds
+      both EventBridge port halves at the composition root, and ``specify_cli.status.write_service_protocol``
+      holds the typed shapes of contracts/mission-write that the write-service client adapter sends and
+      reads. Open-core binds no adapter and the shapes carry no transport, so none has a src/ caller until
+      the lane-transition cut-over (#6195) binds the client adapter. Burns down at #6195 (operator ruling
+      dead_gate_handling, 2026-10-27).'
+    requires_issue: true
   category_c_branch_naming_failover_seam:
     rationale: C. Branch-naming legacy-failover seam. Both symbols are LIVE -- the gate only counts cross-file
       src/ ``__all__`` importers, so a test-only hook and an intra-module env read are invisible to it
@@ -985,9 +985,50 @@ entries:
 - module: specify_cli.lanes.branch_naming
   name: reset_legacy_failover_warning
   category: category_c_branch_naming_failover_seam
-- module: runtime.next.event_bridge
-  name: bind_work_package_transition_port
-  category: category_c_eventbridge_port_seam_6675
+- module: runtime.next._internal_runtime.events
+  name: bind_event_bridge
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: PROTOCOL_ONLY_CODES
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: REASON_CODE
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: WRITE_PROTOCOL_HEADER
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: AnnotationRequest
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: TransitionBatch
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: endpoint_file_path
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: negotiate_protocol_version
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: read_endpoint_file
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: repository_id
+  category: category_c_write_service_client_6675
+  issue: '#6195'
+- module: specify_cli.status.write_service_protocol
+  name: transition_unit_from
+  category: category_c_write_service_client_6675
+  issue: '#6195'
 - module: specify_cli.cli.commands.consolidate
   name: BaselineMergeCommitError
   category: category_c_merge_decomp_shim_reexport_2057
