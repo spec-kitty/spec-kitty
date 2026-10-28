@@ -348,7 +348,6 @@ exclude = [
     "scripts/sync_all_contributors.py",
     "src/charter/activation/_activation_render.py",
     "src/charter/activation/_catalog_miss.py",
-    "src/charter/activation/_diagnostics.py",
     "src/charter/activation/_drg_helpers.py",
     "src/charter/activation/action_grain.py",
     "src/charter/bundle.py",
