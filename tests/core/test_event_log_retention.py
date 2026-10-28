@@ -749,7 +749,7 @@ def test_every_scanned_root_and_the_path_guard_match_the_registry_path_patterns(
     for collector in retention._COLLECTORS:
         for surface in collector.surfaces:
             assert collector.root.as_posix() == _pattern_dir(surface), surface
-    assert retention._DELETABLE_ROOTS == tuple(collector.root for collector in retention._COLLECTORS)
+    assert tuple(collector.root for collector in retention._COLLECTORS) == retention._DELETABLE_ROOTS
     assert retention._RUN_STATE_FILENAME == "state.json"
     assert retention._RUN_EVENTS_FILENAME == "run.events.jsonl"
     assert retention._GLOSSARY_LOG_SUFFIX == ".events.jsonl"
