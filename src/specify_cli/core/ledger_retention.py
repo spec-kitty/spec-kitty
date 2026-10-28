@@ -16,6 +16,12 @@ defaults. Unlike the fail-open ``ledger.projection`` reader
 :class:`RetentionConfigError`: the limits gate a destructive command, so a typo
 must never be guessed into a deletion (the ``consolidation/config.py``
 precedent).
+
+**Call-site style.** :mod:`~specify_cli.core.ledger_posture` asks callers to
+reach its reader through the module attribute so tests can monkeypatch it.
+That convention does not apply here: the one caller (``doctor event-logs``)
+is tested against a real ``.kittify/config.yaml`` in a temporary project, so
+a plain ``from ... import load_retention_limits`` is fine.
 """
 
 from __future__ import annotations

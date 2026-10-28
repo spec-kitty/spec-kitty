@@ -84,7 +84,9 @@ class RetentionRule(StrEnum):
     - ``NEVER``: never pruned by the CLI; git (or the owner) keeps it. All
       tracked ledgers.
     - ``LEDGER_RETENTION``: pruned by ``doctor event-logs`` under the
-      ``ledger.retention`` limits and Mission completion. Ignored surfaces only.
+      ``ledger.retention`` limits once the item's work is over (a run: its
+      Mission merged or the run finished; a per-Mission log: its Mission
+      completed). Ignored surfaces only.
     - ``REBUILDABLE``: a cache rebuilt (or bypassed) on read;
       ``doctor event-logs`` may delete it at any time unless locked. Ignored
       surfaces only.
@@ -314,7 +316,10 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="next/runtime_bridge",
         creation_trigger="spec-kitty next (runtime mode)",
-        notes="Legacy filename. Stores mission-slug to mission-run linkage until compatibility rename is completed.",
+        notes=(
+            "Legacy filename. Stores mission-slug to mission-run linkage until compatibility rename is completed. "
+            "Entries are pruned with their run by doctor event-logs --apply; the file itself is never deleted."
+        ),
         cleanup_policy=CleanupPolicy(RetentionRule.OWNER_LIFECYCLE, CLEANUP_EVENT_LOGS_COMMAND),
     ),
     StateSurface(
@@ -943,7 +948,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.OUTSIDE_REPO,
         owner_module="tracker/store",
         creation_trigger="tracker sync or cache init",
-        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="project_sync_store",
