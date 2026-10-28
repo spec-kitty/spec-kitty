@@ -80,3 +80,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-20 | [command skills use spec-conformant spec-kitty-<command> names, and Antigravity gets its commands as skills](2026-10-20-1-command-skills-use-spec-conformant-names.md) |
 | 2026-10-22 | [the Java write service is the canonical event writer, one resident service per repository](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md) |
 | 2026-10-26 | [at done, every issue-matrix row is judged, cited or not](2026-10-26-1-done-judges-every-issue-matrix-row.md) |
+| 2026-10-27 | [the write-service protocol is loopback HTTP with a bearer token from the git common dir](2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md) |

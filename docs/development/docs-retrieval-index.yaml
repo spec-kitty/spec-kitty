@@ -3938,6 +3938,7 @@ pages:
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "migration-order-each-step-gated-on-the-previous-derived-a-default-the-operator-may-resequence", text: "Migration order (each step gated on the previous) *(derived; a default the operator may resequence)*", level: 3}
     - {slug: "open-questions-each-with-a-default", text: "Open questions (each with a default)", level: 3}
+    - {slug: "amendment-2026-10-27-accepted-loopback-http-transport-rows-during-the-strangler-one-synced-o-append-write", text: "Amendment 2026-10-27 (Accepted): loopback HTTP transport, rows during the strangler, one synced O_APPEND write", level: 2}
     - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
     - {slug: "python-in-process-eventbridge", text: "Python in-process EventBridge", level: 3}
     - {slug: "a-native-binary-run-once-per-command", text: "A native binary run once per command", level: 3}
@@ -3963,6 +3964,32 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/4.x/2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md"
+    title: "ADR: the write-service protocol is loopback HTTP with a bearer token from the git common dir"
+    divio_type: "none"
+    abstract: "The CLI reaches its write service on 127.0.0.1 with a per-clone bearer token; the service is authoritative, refuses with the CLI's codes, and acks one synced append."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-transport", text: "D-1: transport", level: 3}
+    - {slug: "d-2-the-endpoint-file-and-the-token", text: "D-2: the endpoint file and the token", level: 3}
+    - {slug: "d-3-the-service-is-authoritative", text: "D-3: the service is authoritative", level: 3}
+    - {slug: "d-4-handshake-and-version-negotiation", text: "D-4: handshake and version negotiation", level: 3}
+    - {slug: "d-5-durability", text: "D-5: durability", level: 3}
+    - {slug: "d-6-refusals", text: "D-6: refusals", level: 3}
+    - {slug: "d-7-the-event-envelope-is-referenced-not-redefined", text: "D-7: the event envelope is referenced, not redefined", level: 3}
+    - {slug: "d-8-the-client-side", text: "D-8: the client side", level: 3}
+    - {slug: "d-9-the-contract-layout-admits-a-security-scheme", text: "D-9: the contract layout admits a security scheme", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "open-questions-each-with-a-provisional-default", text: "Open questions (each with a provisional default)", level: 2}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-local-socket-a-named-pipe-on-windows", text: "A local socket, a named pipe on Windows", level: 3}
+    - {slug: "loopback-http-with-a-bearer-token-chosen", text: "Loopback HTTP with a bearer token (chosen)", level: 3}
+    - {slug: "a-process-per-write", text: "A process per write", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"

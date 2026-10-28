@@ -7,7 +7,7 @@ date: '2026-10-22'
 
 # The Java write service is the canonical event writer, one resident service per repository
 
-**Status:** Accepted (2026-10-22). Operator rulings of 2026-10-22, recorded on #6117, #6185 and #6608.
+**Status:** Accepted (2026-10-22). Operator rulings of 2026-10-22, recorded on #6117, #6185 and #6608. Amended by [ADR 2026-10-27-1](2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md) (open question 3, D-3, D-7); see Amendment 2026-10-27.
 
 > **What was ruled and what is derived.**
 > - **Ruled by the operator:** the event writer is a Java service that reuses the read API's domain models; one service per repository; the CLI decides when and what, the service how and where; a JVM jar fallback for a missing native binary; #6185 folds into #6117's modules.
@@ -216,6 +216,16 @@ All lane worktrees of a repository then share one writer.
 5. **Several clones of one repository.**
    - **Default:** one service per git common dir, so separate clones get separate services.
    - Worktrees of one clone share one.
+
+## Amendment 2026-10-27 (Accepted): loopback HTTP transport, rows during the strangler, one synced O_APPEND write
+
+[ADR 2026-10-27-1](2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md) settles points this record left open, by operator ruling of 2026-10-25 (#6675) and as derived there:
+
+- **Open question 3 (transport and trust model).** The default of a local socket is replaced: the service listens on `127.0.0.1` only, on a random port, and the port and a random bearer token are written to a file in the git common dir, owner-only. The identity check before writes is the handshake of ADR 2026-10-27-1 D-4.
+- **D-3 (the CLI sends a command).** During the strangler the request carries the rows the CLI built, with their context; the command form, in which the service also stamps `policy_metadata.lane_head` itself, arrives with migration step 4.
+- **D-7 (append semantics).** The single `O_APPEND` write of full JSON lines, synced before the acknowledgement, is authoritative; a multi-event operation is one write and one `fsync`. Windows semantics follow the lock-interop spike (#6193).
+
+Nothing else in this record changes.
 
 ## Pros and Cons of the Options
 
