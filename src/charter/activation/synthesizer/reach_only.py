@@ -341,16 +341,18 @@ def _kept_deactivated(skipped_denied: Mapping[str, list[str]]) -> list[str]:
     return [f"{_KEPT_DEACTIVATED} {kind_by_key.get(key, key)} {slug}" for key, slugs in skipped_denied.items() for slug in slugs]
 
 
-def created_slugs_by_kind(reconciliation: object) -> dict[str, list[str]]:
+def created_slugs_by_kind(reconciliation: ReconciliationDelta | None) -> dict[str, list[str]]:
     """:func:`created_slugs` for every kind in ``REACH_ONLY_KINDS`` (the one place the kind list lives)."""
     return {kind: created_slugs(reconciliation, kind) for kind in REACH_ONLY_KINDS}
 
 
-def created_slugs(reconciliation: object, kind: str) -> list[str]:
-    """Slugs of *kind* this run added to the synthesis manifest (empty for a missing/foreign delta).
+def created_slugs(reconciliation: ReconciliationDelta | None, kind: str) -> list[str]:
+    """Slugs of *kind* this run added to the synthesis manifest (empty for a missing or foreign delta).
 
     Only entries new to the manifest count; :func:`append_synthesized_activations`
     further drops any artifact synthesis created before (an operator's removal sticks).
+    The ``isinstance`` guard stays: callers pass an untyped ``getattr`` result, so a
+    foreign object can still arrive at runtime.
     """
     if not isinstance(reconciliation, ReconciliationDelta):
         return []
