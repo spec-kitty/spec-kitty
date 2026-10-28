@@ -167,7 +167,8 @@
     {
       "group": "glossary",
       "roots": [
-        "src/glossary/**"
+        "src/glossary/**",
+        "services/mission-status-api/event-log/src/test/resources/torn-tail/**"
       ],
       "cov_targets": [
         "glossary"

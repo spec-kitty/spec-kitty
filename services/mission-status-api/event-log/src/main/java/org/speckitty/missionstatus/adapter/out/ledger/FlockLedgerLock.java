@@ -20,7 +20,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * refuses one) and {@code O_CLOEXEC} (a spawned process never inherits the lock), mode {@code 0600}. Closing the descriptor releases the
  * lock; the holder closes it once only, so a reused descriptor number is never closed by mistake.
  *
- * <p>A deployable that uses it enables native access ({@code --enable-native-access}); without it the JDK prints a warning.
+ * <p>A deployable that uses it enables native access ({@code --enable-native-access=ALL-UNNAMED}, or {@code Enable-Native-Access} in a jar
+ * manifest); without it the JDK prints a warning. A native image must register the downcalls; none is reachable from the query service's
+ * native binary today. The path is passed to {@code open(2)} encoded as UTF-8.
  */
 final class FlockLedgerLock implements LedgerLock {
 
@@ -31,6 +33,8 @@ final class FlockLedgerLock implements LedgerLock {
   private static final int LOCK_EX = 2;
   private static final int LOCK_NB = 4;
   private static final int MODE_0600 = 0600;
+  /** EINTR is 4 on Linux and macOS. */
+  private static final int EINTR = 4;
 
   /** Linux on x86-64 and on AArch64 (whose O_NOFOLLOW differs), and macOS (the same values on both architectures). */
   static final Constants LINUX_X64 = new Constants(0x40, 0x20000, 0x80000, 11, 40);
@@ -82,20 +86,40 @@ final class FlockLedgerLock implements LedgerLock {
 
   @Override
   public Held tryAcquire(Path lockFile) throws IOException {
-    Files.createDirectories(lockFile.toAbsolutePath().getParent());
+    // Absolute, so the path open(2) sees does not depend on the process working directory matching user.dir.
+    Path absolute = lockFile.toAbsolutePath();
+    Files.createDirectories(absolute.getParent());
     try (Arena arena = Arena.ofConfined()) {
       MemorySegment state = arena.allocate(CAPTURE);
+      MemorySegment path = arena.allocateFrom(absolute.toString());
       int flags = O_RDWR | constants.oCreat() | constants.oNofollow() | constants.oCloexec();
-      int fd = (int) OPEN.invokeExact(state, arena.allocateFrom(lockFile.toString()), flags, MODE_0600);
+      int fd;
+      int errno;
+      do {
+        fd = (int) OPEN.invokeExact(state, path, flags, MODE_0600);
+        errno = fd < 0 ? (int) ERRNO.get(state, 0L) : 0;
+      } while (fd < 0 && errno == EINTR);
       if (fd < 0) {
-        int errno = (int) ERRNO.get(state, 0L);
         if (errno == constants.eloop()) {
           throw new IOException(lockFile + " is a symbolic link; refusing to lock through it");
         }
         throw new IOException("open(" + lockFile + ") failed, errno " + errno);
       }
+      return lockOrClose(state, fd, lockFile);
+    } catch (IOException | RuntimeException | Error e) {
+      throw e;
+    } catch (Throwable e) {
+      throw new IOException(e);
+    }
+  }
+
+  /** Takes the lock on {@code fd}, or closes {@code fd} on every path that does not hand it to a holder. */
+  private Held lockOrClose(MemorySegment state, int fd, Path lockFile) throws Throwable {
+    boolean handedOver = false;
+    try {
       int result = (int) FLOCK.invokeExact(state, fd, LOCK_EX | LOCK_NB);
       if (result == 0) {
+        handedOver = true;
         AtomicBoolean open = new AtomicBoolean(true);
         return () -> {
           if (open.getAndSet(false)) {
@@ -104,15 +128,15 @@ final class FlockLedgerLock implements LedgerLock {
         };
       }
       int errno = (int) ERRNO.get(state, 0L);
-      close(fd);
-      if (errno == constants.ewouldblock()) {
+      // EINTR counts as contention: the bounded wait simply tries again.
+      if (errno == constants.ewouldblock() || errno == EINTR) {
         return null;
       }
       throw new IOException("flock(" + lockFile + ") failed, errno " + errno);
-    } catch (IOException | RuntimeException | Error e) {
-      throw e;
-    } catch (Throwable e) {
-      throw new IOException(e);
+    } finally {
+      if (!handedOver) {
+        close(fd);
+      }
     }
   }
 

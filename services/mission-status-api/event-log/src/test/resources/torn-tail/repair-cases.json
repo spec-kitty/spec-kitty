@@ -1,5 +1,5 @@
 {
-  "about": "Torn-tail repair goldens: glossary.events._repair_torn_tail (Python) and TornTailRepair (Java) must both turn each ledger into expected_ledger and the quarantine file <ledger>.torn into expected_torn (null: no quarantine file). Bytes are hex segments, each repeated `repeat` times. Generated from live Python; tests/glossary/test_torn_tail_repair_goldens.py re-checks Python against this file.",
+  "about": "Torn-tail repair goldens: glossary.events._repair_torn_tail (Python) and TornTailRepair (Java) must both turn each ledger into expected_ledger and the quarantine file <ledger>.torn into expected_torn (null: no quarantine file). Bytes are hex segments, each repeated `repeat` times. Written by `uv run --frozen python -m tests.glossary.test_torn_tail_repair_goldens` from live Python; tests/glossary/test_torn_tail_repair_goldens.py fails when this file differs from what Python produces.",
   "cases": [
     {
       "name": "whole-ledger",
@@ -201,6 +201,61 @@
         {
           "hex": "79",
           "repeat": 65536
+        },
+        {
+          "hex": "0a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "newline-first-byte-of-the-last-block",
+      "why": "the last LF is the first byte of the final 64 KiB block",
+      "ledger": [
+        {
+          "hex": "6162630a",
+          "repeat": 1
+        },
+        {
+          "hex": "7a",
+          "repeat": 65535
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [
+        {
+          "hex": "6162630a",
+          "repeat": 1
+        }
+      ],
+      "expected_torn": [
+        {
+          "hex": "7a",
+          "repeat": 65535
+        },
+        {
+          "hex": "0a",
+          "repeat": 1
+        }
+      ]
+    },
+    {
+      "name": "no-newline-across-several-blocks",
+      "why": "with no LF the scan runs back across several blocks to offset 0",
+      "ledger": [
+        {
+          "hex": "71",
+          "repeat": 135536
+        }
+      ],
+      "torn_before": null,
+      "repaired": true,
+      "expected_ledger": [],
+      "expected_torn": [
+        {
+          "hex": "71",
+          "repeat": 135536
         },
         {
           "hex": "0a",

@@ -61,6 +61,47 @@ class LedgerLockTest {
     }
   }
 
+  /**
+   * A refused second attempt in this JVM must not release the first holder's lock. On Linux and macOS the JDK lock is a process-owned
+   * {@code fcntl} lock, so opening and closing a second channel on the file would drop it; another process then gets the lock.
+   */
+  @Test
+  void aRefusedSecondAttemptKeepsTheFirstHoldersLockAgainstOtherProcesses() throws Exception {
+    Path lockFile = dir.resolve("x.lock");
+    ChannelLedgerLock lock = new ChannelLedgerLock();
+    try (LedgerLock.Held first = lock.tryAcquire(lockFile)) {
+      assertThat(first).isNotNull();
+      assertThat(lock.tryAcquire(lockFile)).as("a second holder in this JVM is refused").isNull();
+      assertThat(anotherProcessLocks(lockFile)).as("another process is still shut out").isEqualTo("CONTENDED");
+    }
+    assertThat(anotherProcessLocks(lockFile)).as("control: released, another process gets the lock").isEqualTo("ACQUIRED");
+  }
+
+  /** Runs a one-file Java program in a new JVM that tries the JDK lock on {@code lockFile} once. */
+  private String anotherProcessLocks(Path lockFile) throws Exception {
+    Path probe = dir.resolve("Probe.java");
+    Files.writeString(
+        probe,
+        """
+        import java.nio.channels.FileChannel;
+        import java.nio.file.Path;
+        import java.nio.file.StandardOpenOption;
+        public class Probe {
+          public static void main(String[] args) throws Exception {
+            try (FileChannel channel = FileChannel.open(Path.of(args[0]), StandardOpenOption.READ, StandardOpenOption.WRITE)) {
+              var lock = channel.tryLock();
+              System.out.println(lock == null ? "CONTENDED" : "ACQUIRED");
+            }
+          }
+        }
+        """);
+    String javaBin = ProcessHandle.current().info().command().orElseThrow();
+    Process process = new ProcessBuilder(javaBin, probe.toString(), lockFile.toString()).redirectErrorStream(false).start();
+    String out = new String(process.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).strip();
+    assertThat(process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+    return out;
+  }
+
   @ParameterizedTest
   @MethodSource("locks")
   void theBoundedWaitTimesOut(LedgerLock lock) throws IOException {

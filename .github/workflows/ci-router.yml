@@ -347,6 +347,8 @@ jobs:
               - 'src/kernel/**'
             glossary:
               - 'src/glossary/**'
+              # Not a src file: the torn-tail repair goldens the Java port shares with glossary.events (tests/glossary re-checks Python).
+              - 'services/mission-status-api/event-log/src/test/resources/torn-tail/**'
             execution_context:
               - 'src/mission_runtime/**'
               - 'src/specify_cli/status/**'

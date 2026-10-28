@@ -20,6 +20,9 @@ import java.util.Optional;
  * <p>Byte for byte it does what the Python repair does: {@code torn-tail/repair-cases.json} (test resources) holds the goldens both sides
  * are tested against. Only a newline byte ends a line; the fragment is moved as raw bytes and never decoded.
  *
+ * <p>An interrupt between the quarantine write and the cut leaves the fragment in both files; a later repair then quarantines it a second
+ * time. No byte is lost. As in the Python repair, the new quarantine file's directory entry is not fsynced.
+ *
  * <p>The caller decides when to repair. The glossary's Python writer repairs when its append is refused with a torn tail, while holding
  * the interim event-log lock of the log; a Java writer that takes a glossary ledger over must do the same.
  */
@@ -79,7 +82,7 @@ public final class TornTailRepair {
       }
       log.truncate(keep);
       log.force(true);
-      LOG.log(Level.WARNING, "Repaired torn tail of {0}: moved {1} byte(s) to {2}", ledger, size - keep, quarantine);
+      LOG.log(Level.WARNING, "Repaired torn tail of {0}: moved {1,number,#} byte(s) to {2}", ledger, size - keep, quarantine);
       return Optional.of(new Repair(quarantine, size - keep));
     }
   }

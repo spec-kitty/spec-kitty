@@ -264,6 +264,8 @@ modules:
 - module: glossary
   roots:
   - src/glossary/**
+  # the torn-tail repair goldens shared with the Java port; tests/glossary re-checks Python against them
+  - services/mission-status-api/event-log/src/test/resources/torn-tail/**
   cov_targets:
   - glossary
   tier: standard

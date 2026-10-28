@@ -12,16 +12,23 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The JDK's lock over the whole lock file ({@code LockFileEx} on Windows). On Windows it excludes {@code kernel.locks}' {@code msvcrt.locking}
- * byte-range lock at byte 0. It is not used on Linux, where this lock and {@code flock(2)} are independent. A second holder in the same JVM
- * counts as contention, as a second holder in another process does.
+ * byte-range lock at byte 0. It is not used on Linux, where this lock and {@code flock(2)} are independent.
+ *
+ * <p>A second holder in the same JVM counts as contention, as a second holder in another process does. It is refused before any channel is
+ * opened: on Linux and macOS the JDK lock is an {@code fcntl} record lock, owned by the process, and closing any descriptor of the file would
+ * release the first holder's lock.
  */
 final class ChannelLedgerLock implements LedgerLock {
 
   private static final FileAttribute<?>[] OWNER_ONLY = ownerOnly();
+
+  /** The lock files this JVM holds through this class (absolute, normalised). */
+  private static final Set<String> HELD = ConcurrentHashMap.newKeySet();
 
   private static FileAttribute<?>[] ownerOnly() {
     boolean posix = java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix");
@@ -30,7 +37,25 @@ final class ChannelLedgerLock implements LedgerLock {
 
   @Override
   public Held tryAcquire(Path lockFile) throws IOException {
-    Files.createDirectories(lockFile.toAbsolutePath().getParent());
+    Path absolute = lockFile.toAbsolutePath().normalize();
+    String key = absolute.toString();
+    if (!HELD.add(key)) {
+      return null;
+    }
+    try {
+      Held held = lockOnce(absolute, key);
+      if (held == null) {
+        HELD.remove(key);
+      }
+      return held;
+    } catch (IOException | RuntimeException | Error e) {
+      HELD.remove(key);
+      throw e;
+    }
+  }
+
+  private static Held lockOnce(Path lockFile, String key) throws IOException {
+    Files.createDirectories(lockFile.getParent());
     FileChannel channel = open(lockFile);
     FileLock lock;
     try {
@@ -52,7 +77,11 @@ final class ChannelLedgerLock implements LedgerLock {
         try {
           held.release();
         } finally {
-          channel.close();
+          try {
+            channel.close();
+          } finally {
+            HELD.remove(key);
+          }
         }
       }
     };

@@ -54,6 +54,17 @@ class TornTailRepairTest {
     assertThatThrownBy(() -> TornTailRepair.repair(ledger, LedgerLocks.forThisOs(), Duration.ofSeconds(1))).isInstanceOf(NoSuchFileException.class);
     assertThat(ledger).doesNotExist();
     assertThat(dir.resolve("absent.events.jsonl" + TornTailRepair.TORN_TAIL_SUFFIX)).doesNotExist();
+    // Like the Python repair, the lock is taken before the ledger is opened, so its lock file is left behind.
+    assertThat(dir.resolve("absent.events.jsonl" + TornTailRepair.REPAIR_LOCK_SUFFIX)).exists();
+  }
+
+  /** The quarantine is written before the ledger is cut, so a failed quarantine write loses nothing (the Python test pins the same). */
+  @Test
+  void aFailedQuarantineWriteLeavesTheLedgerUntouched() throws IOException {
+    Path ledger = write("m.events.jsonl", "{\"a\": 1}\n{\"b\"");
+    Files.createDirectory(dir.resolve("m.events.jsonl" + TornTailRepair.TORN_TAIL_SUFFIX));
+    assertThatThrownBy(() -> TornTailRepair.repair(ledger, LedgerLocks.forThisOs(), Duration.ofSeconds(1))).isInstanceOf(IOException.class);
+    assertThat(Files.readString(ledger)).isEqualTo("{\"a\": 1}\n{\"b\"");
   }
 
   @Test
