@@ -75,12 +75,14 @@ CONTEXT_SCHEMA_VERSION = "1.4.0"
 #:
 #: **``diagnostics`` (#6407, FR-010, bumped to 1.4.0; typed by #6460).** A
 #: top-level list of ``{"code": ..., "message": ...}`` objects, always present
-#: (``[]`` when clean): the governance resolution's
+#: (``[]`` when the resolution has nothing to report): the governance resolution's
 #: ``GovernanceResolution.diagnostics``. ``code`` is from the closed set
 #: ``UNKNOWN_SELECTION_DROPPED``, ``CATALOG_DEFAULT_APPLIED``,
 #: ``FALLBACK_APPLIED``, ``SELECTION_MERGED``, ``UNRESOLVED_REFERENCE``
 #: (``GovernanceDiagnosticCode``); consumers match on ``code``, and ``message``
-#: is human text that may be reworded. Still 1.4.0: the key was unshipped and
+#: is human text that may be reworded. The code set is closed per schema
+#: version: adding a code is a contract change that bumps the minor version
+#: here. Still 1.4.0: the key was unshipped and
 #: redefined before 4.0.0rc8. Additive; consumers that ignore unknown keys are
 #: unaffected.
 #:

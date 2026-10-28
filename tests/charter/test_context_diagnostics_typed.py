@@ -177,5 +177,5 @@ def test_diagnostic_code_is_coerced_and_closed() -> None:
 
     raw = cast(GovernanceDiagnosticCode, "UNKNOWN_SELECTION_DROPPED")
     assert GovernanceDiagnostic(raw, "text").code is GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="NOT_A_CODE"):
         GovernanceDiagnostic(cast(GovernanceDiagnosticCode, "NOT_A_CODE"), "text")

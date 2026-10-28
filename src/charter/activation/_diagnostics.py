@@ -58,6 +58,10 @@ class GovernanceDiagnostic:
     code: GovernanceDiagnosticCode
     message: str
 
+    def __post_init__(self) -> None:
+        # Coerce a raw code string to its member; a code outside the closed set raises ValueError.
+        object.__setattr__(self, "code", GovernanceDiagnosticCode(self.code))
+
     def to_json(self) -> dict[str, str]:
         """Return the JSON form ``{"code": "<CODE>", "message": "<text>"}``."""
         return {"code": self.code.value, "message": self.message}

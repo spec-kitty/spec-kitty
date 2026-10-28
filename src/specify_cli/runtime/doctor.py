@@ -157,10 +157,11 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
 
     unknown = [d.message for d in resolution.diagnostics if d.code is GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED]
     if unknown:
-        # #6407: a selected id that exists in no layer is dropped; a green line would hide the typo.
+        # #6407/#6460: a selected id that exists in no layer is dropped; a green line would hide the typo,
+        # so the check fails (warning severity) and `agent status doctor` reports the project unhealthy.
         return DoctorCheck(
             "governance_resolution",
-            True,
+            False,
             "Governance resolved, but selected artifact(s) were dropped: " + " | ".join(unknown),
             "warning",
         )

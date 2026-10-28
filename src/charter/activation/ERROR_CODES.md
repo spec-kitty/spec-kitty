@@ -121,8 +121,11 @@ Remediation: fix .kittify/config.yaml (or the charter.yaml it points to) or run
 > Every entry of `GovernanceResolution.diagnostics` has a `code` from this closed
 > set and a human `message`. `charter context --json` (schema 1.4.0) renders
 > each entry as `{"code": "<CODE>", "message": "<text>"}`. Consumers match on
-> `code`; `message` is display text and may be reworded without notice. These
-> are informational notes, not errors: resolution still succeeds.
+> `code`; `message` is display text and may be reworded without notice. The set
+> is closed per schema version: adding a code bumps the minor version of
+> `context_schema_version`. These are informational notes, not errors:
+> resolution still succeeds. `UNKNOWN_SELECTION_DROPPED` marks a dropped
+> selection, and `spec-kitty agent status doctor` warns on it.
 
 ## UNKNOWN_SELECTION_DROPPED
 

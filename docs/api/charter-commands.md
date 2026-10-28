@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-10-26'
+updated: '2026-10-27'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -348,22 +348,27 @@ uv run spec-kitty charter context --action specify --no-mark-loaded --json
 ```
 
 **`--json` `diagnostics` (schema 1.4.0).** `context_schema_version` is `1.4.0`.
-The payload carries a top-level `diagnostics` list, always present (`[]` when clean or
-when governance resolution fails). Each entry is an object with exactly two keys:
+The payload carries a top-level `diagnostics` list, always present (`[]` when the
+resolution has nothing to report or fails). Most projects get informational entries
+(`SELECTION_MERGED`, `FALLBACK_APPLIED`, `CATALOG_DEFAULT_APPLIED`); only
+`UNKNOWN_SELECTION_DROPPED` points at a likely mistake. A code may appear more than once.
+Each entry is an object with exactly two keys:
 
 ```json
 {"code": "UNKNOWN_SELECTION_DROPPED", "message": "Unknown selected directive 'NOPE_999' dropped: ..."}
 ```
 
 Match on `code`; `message` is human text and may be reworded without notice. `code` is one
-of this closed set:
+of this closed set. Adding a code is a contract change that bumps the minor version of
+`context_schema_version`; a defensive consumer still treats a code it does not recognise
+as informational.
 
 | `code` | When it fires |
 | --- | --- |
-| `UNKNOWN_SELECTION_DROPPED` | A selected directive or paradigm exists in no layer (built-in, org packs, `.kittify/charter-packs/`) and was dropped. `spec-kitty doctor` warns on it. |
+| `UNKNOWN_SELECTION_DROPPED` | A selected directive or paradigm exists in no layer (built-in, org packs, `.kittify/charter-packs/`) and was dropped. `spec-kitty agent status doctor` warns on it and reports the project unhealthy (exit 1). |
 | `CATALOG_DEFAULT_APPLIED` | No activation key is set for paradigms or directives, so the built-in catalog default is the base set. |
 | `FALLBACK_APPLIED` | The charter selects no `available_tools` (the runtime tool registry is used) or no `template_set` (the fallback template set is used). |
-| `SELECTION_MERGED` | A selection in `charter.yaml`, extra tools or project-local directives were unioned onto the base set (including the "already present; none added" case). |
+| `SELECTION_MERGED` | Tools, directives or paradigms selected in `charter.yaml`, or project-local directives, were unioned onto the base set (including the "already present; none added" case). |
 | `UNRESOLVED_REFERENCE` | A reference followed during profile-aware governance resolution resolves to nothing. Part of the closed set, but `charter context` does not produce it. |
 
 The key is additive; consumers that ignore unknown keys are unaffected. Per-code detail:
