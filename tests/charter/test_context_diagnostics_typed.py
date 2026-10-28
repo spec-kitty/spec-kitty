@@ -169,3 +169,13 @@ def test_diagnostic_value_object_json_shape() -> None:
     entry = GovernanceDiagnostic(GovernanceDiagnosticCode.FALLBACK_APPLIED, "text")
     assert entry.to_json() == {"code": "FALLBACK_APPLIED", "message": "text"}
     assert type(entry.to_json()["code"]) is str
+
+
+def test_diagnostic_code_is_coerced_and_closed() -> None:
+    """A raw code string becomes the enum member; a code outside the closed set is refused."""
+    from charter.activation.api import GovernanceDiagnostic, GovernanceDiagnosticCode
+
+    raw = cast(GovernanceDiagnosticCode, "UNKNOWN_SELECTION_DROPPED")
+    assert GovernanceDiagnostic(raw, "text").code is GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED
+    with pytest.raises(ValueError):
+        GovernanceDiagnostic(cast(GovernanceDiagnosticCode, "NOT_A_CODE"), "text")

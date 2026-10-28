@@ -411,6 +411,7 @@ def test_governance_check_warns_on_unknown_selection_diagnostics(
 
     check = doctor.check_governance_resolution(tmp_path)
 
+    assert check.passed is False  # never a green check mark next to a dropped selection
     assert check.severity == "warning"
     assert "NOPE_999" in check.message
     assert "ruff." not in check.message  # only unknown-selection entries are listed
@@ -418,6 +419,7 @@ def test_governance_check_warns_on_unknown_selection_diagnostics(
     clean = SimpleNamespace(**{**vars(resolution), "diagnostics": []})
     monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: clean)
     control = doctor.check_governance_resolution(tmp_path)
+    assert control.passed is True
     assert control.severity == "info"
     assert control.message.startswith("Resolved governance")
 
