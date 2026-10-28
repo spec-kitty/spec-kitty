@@ -742,15 +742,24 @@ def _drop_index_entries(repo_root: Path, run_dir: Path) -> list[str]:
 
 
 def _delete_run(repo_root: Path, item: RetentionItem) -> list[str]:
-    """Delete a run directory and its run-index entries in one critical section.
+    """Unlink a run from the index under its locks, then remove its directory unlocked.
 
     Lock order: run-cursor lock (non-blocking) -> run-index lock (bounded wait)
-    -> drop the index entries -> remove the directory. The nesting is one-way:
-    no path holds the index lock while waiting on a run-cursor lock
-    (``runtime.next.run_lock`` C-002), so it cannot deadlock. The index entry
-    and the directory go together (ADR 2026-10-13-2 D-3), so ``next`` never
-    resolves a run that is gone. The run's ``state.json.lock`` goes with its
-    directory, never on its own (G3).
+    -> drop the index entries -> release both locks -> remove the directory.
+    The nesting is one-way: no path holds the index lock while waiting on a
+    run-cursor lock (``runtime.next.run_lock`` C-002), so it cannot deadlock.
+    The directory is removed only after both locks are released because the
+    run-cursor lock file (``state.json.lock``) lives inside it, and Windows
+    cannot remove a directory that holds an open file. The run's
+    ``state.json.lock`` goes with its directory, never on its own (G3).
+
+    Once the entry is gone, ``next`` resolves no run for that Mission and starts
+    a fresh one in a new directory (ADR 2026-10-13-2 D-3: the index never names
+    a run that is gone). Residual: a ``next`` that already resolved this run
+    and is waiting on its run-cursor lock can take it in the gap between the
+    release and the removal and recreate an empty run directory holding only
+    ``state.json.lock``; the window is a few milliseconds and the leftover
+    names no Mission, so it is kept as ``Mission not found``.
 
     Trade-off: the entries are dropped BEFORE the tree is removed. If the
     removal then fails (an open handle, permissions), the run stays on disk
@@ -760,7 +769,7 @@ def _delete_run(repo_root: Path, item: RetentionItem) -> list[str]:
     """
     with try_run_cursor_lock(item.path), run_index.index_lock(repo_root):
         removed = _drop_index_entries(repo_root, item.path)
-        _remove_tree(item.path)
+    _remove_tree(item.path)
     return removed
 
 
