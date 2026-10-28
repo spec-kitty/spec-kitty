@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from kernel.event_log_append import event_log_lock_path
-from kernel.locks import machine_file_lock
+from kernel.locks import LockNotAcquired, machine_file_lock
 from runtime.next import run_index
 from runtime.next.run_lock import run_cursor_lock
 from specify_cli.core.ledger_retention import RetentionLimits
@@ -966,6 +966,36 @@ def test_a_lock_probe_oserror_reads_as_held(project: Path, monkeypatch: pytest.M
         _rel(ops_index, project): REASON_LOCK_HELD,
         _rel(done_log, project): REASON_LOCK_HELD,
     }
+
+
+def _lock_is_free(lock_path: Path) -> bool:
+    try:
+        with machine_file_lock(lock_path, blocking=False):
+            return True
+    except LockNotAcquired:
+        return False
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_a_run_tree_is_removed_after_both_locks_are_released(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """DS-M1: Windows cannot remove a directory holding an open lock file, so no lock is held during rmtree."""
+    run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=60, index_key=DONE_ID)
+    seen: dict[str, bool] = {}
+    real_remove_tree = retention._remove_tree
+
+    def _probing_remove_tree(path: Path) -> None:
+        seen["run_lock_free"] = _lock_is_free(run_dir / "state.json.lock")
+        seen["index_lock_free"] = _lock_is_free(run_index._lock_path(project))
+        seen["entry_dropped"] = DONE_ID not in _read_index(project)
+        real_remove_tree(path)
+
+    monkeypatch.setattr(retention, "_remove_tree", _probing_remove_tree)
+    result = apply_retention(project, scan_retention(project, LIMITS_NO_KEEP, now=NOW))
+
+    assert [i.path for i in result.deleted] == [run_dir]
+    assert seen == {"run_lock_free": True, "index_lock_free": True, "entry_dropped": True}
+    assert not run_dir.exists()
 
 
 @pytest.mark.unit
