@@ -530,3 +530,16 @@ def test_created_slugs_by_kind_names_every_reach_only_kind() -> None:
 
     assert created_slugs_by_kind(delta) == {"tactic": ["t1"], "styleguide": ["s1"]}
     assert set(created_slugs_by_kind(None)) == set(REACH_ONLY_KINDS)
+
+
+@pytest.mark.parametrize("helper_name", ["created_slugs_by_kind", "created_slugs"])
+def test_slug_helpers_type_reconciliation_as_an_optional_delta(helper_name: str) -> None:
+    """#6461: the public helpers take ``ReconciliationDelta | None``, not ``object``."""
+    import typing
+
+    from charter.activation.synthesizer import reach_only
+    from charter.activation.synthesizer.reconcile import ReconciliationDelta
+
+    hints = typing.get_type_hints(getattr(reach_only, helper_name))
+
+    assert hints["reconciliation"] == ReconciliationDelta | None
