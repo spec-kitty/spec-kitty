@@ -12,8 +12,11 @@ reason, and, on apply, deletes the candidates under the right locks.
 - ``ledger_retention`` items (run directories, per-Mission glossary logs) are
   candidates only when they are outside the newest ``keep_runs`` of their kind,
   older than ``max_age_days`` (newest file modification time), their Mission is
-  found in this checkout and completed, and no lock is held on them (FR-007,
-  FR-008).
+  found in this checkout, their work is over, and no lock is held on them
+  (FR-007, FR-008). A run's work is over when its Mission is merged or the run
+  itself recorded ``MissionRunCompleted``; a glossary log's when its Mission is
+  completed (merged, or every WP terminal). A run's Mission comes from its
+  run-index entry (``next`` records none in ``state.json``).
 - ``rebuildable`` items (derived Mission views, the Op index) are candidates
   whatever their age, unless locked (FR-010).
 - Lock files, the non-Mission glossary logs (``_cli``, ``_renderer``) and every
@@ -50,7 +53,8 @@ from specify_cli.core.ledger_retention import RetentionLimits
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.state.contract import RetentionRule, get_surfaces_by_retention
-from specify_cli.status.lifecycle import is_mission_completed
+from spec_kitty_events.mission_next import MISSION_RUN_COMPLETED
+from specify_cli.status.lifecycle import is_mission_completed, is_mission_merged
 
 # Only what ``doctor event-logs`` imports is exported. The vocabulary constants,
 # item/failure types and the path-guard error stay public module names (the
@@ -102,6 +106,7 @@ _OP_INDEX = Path("kitty-ops", "ops-index.jsonl")
 _MISSIONS_DIR = "kitty-specs"
 _META_FILENAME = "meta.json"
 _RUN_STATE_FILENAME = "state.json"
+_RUN_EVENTS_FILENAME = "run.events.jsonl"
 _LOCK_SUFFIX = ".lock"
 _SECONDS_PER_DAY = 86400.0
 _UNSAFE_LOG_STEM_CHARS = re.compile(r"[^a-zA-Z0-9_\-.]")
@@ -258,7 +263,7 @@ class _Missions:
         self._by_slug: dict[str, Path] = {}
         self._by_id: dict[str, Path] = {}
         self._by_stem: dict[str, Path] = {}
-        self._completed: dict[Path, bool] = {}
+        self._facts: dict[tuple[str, Path], bool] = {}
         for meta_path in sorted((repo_root / _MISSIONS_DIR).glob(f"*/{_META_FILENAME}")):
             self._register(meta_path.parent)
 
@@ -282,14 +287,23 @@ class _Missions:
     def by_log_stem(self, stem: str) -> Path | None:
         return self._by_stem.get(stem)
 
-    def is_completed(self, feature_dir: Path) -> bool:
-        """Lazy, memoized completion; a corrupt ``meta.json`` reads as open (fail safe)."""
-        if feature_dir not in self._completed:
+    def _fact(self, name: str, feature_dir: Path, probe: Callable[[], bool]) -> bool:
+        """Lazy, memoized lifecycle fact; a corrupt ``meta.json`` reads as open (fail safe)."""
+        key = (name, feature_dir)
+        if key not in self._facts:
             try:
-                self._completed[feature_dir] = is_mission_completed(feature_dir, now=self._now)
+                self._facts[key] = probe()
             except MissionMetaReadError:
-                self._completed[feature_dir] = False
-        return self._completed[feature_dir]
+                self._facts[key] = False
+        return self._facts[key]
+
+    def is_completed(self, feature_dir: Path) -> bool:
+        """Merged, or every WP terminal (:func:`~specify_cli.status.lifecycle.is_mission_completed`)."""
+        return self._fact("completed", feature_dir, lambda: is_mission_completed(feature_dir, now=self._now))
+
+    def is_merged(self, feature_dir: Path) -> bool:
+        """A live merge marker (:func:`~specify_cli.status.lifecycle.is_mission_merged`)."""
+        return self._fact("merged", feature_dir, lambda: is_mission_merged(feature_dir))
 
 
 # ---------------------------------------------------------------------------
@@ -506,13 +520,52 @@ def _collect_op_index(ctx: _ScanContext) -> list[_Unit]:
     return [_Unit(_SURFACE_OP_INDEX, KIND_CACHE, index, age, feature_dir=None, lock=_writers_log_lock(index))]
 
 
+def _run_finished(run_dir: Path) -> bool:
+    """True when the run's own journal records ``MissionRunCompleted`` (read-only; torn lines skipped)."""
+    try:
+        with (run_dir / _RUN_EVENTS_FILENAME).open(encoding="utf-8") as journal:
+            for line in journal:
+                if MISSION_RUN_COMPLETED in line and _is_completion_row(line):
+                    return True
+    except (OSError, UnicodeDecodeError):
+        return False
+    return False
+
+
+def _is_completion_row(line: str) -> bool:
+    try:
+        row = json.loads(line)
+    except json.JSONDecodeError:
+        return False
+    return isinstance(row, dict) and row.get("event_type") == MISSION_RUN_COMPLETED
+
+
+def _run_is_done(run_dir: Path, feature_dir: Path, missions: _Missions) -> bool:
+    """A run is eligible when its Mission is merged or the run itself finished (DS-M2)."""
+    return missions.is_merged(feature_dir) or _run_finished(run_dir)
+
+
+def _mission_is_completed(_path: Path, feature_dir: Path, missions: _Missions) -> bool:
+    """A per-Mission log is eligible when its Mission is completed (merged, or every WP terminal)."""
+    return missions.is_completed(feature_dir)
+
+
+_DonePredicate = Callable[[Path, Path, _Missions], bool]
+
+
 @dataclass(frozen=True)
 class _Collector:
-    """The scanner for one registry surface family and the rule it serves."""
+    """The scanner for one registry surface family and the rule it serves.
+
+    ``done`` decides, for a ``ledger_retention`` item past both limits whose
+    Mission was found, whether that item's work is over (``past retention;
+    Mission completed``) or not (``Mission is open``).
+    """
 
     surfaces: frozenset[str]
     rule: RetentionRule
     collect: Callable[[_ScanContext], list[_Unit]]
+    done: _DonePredicate = _mission_is_completed
 
 
 #: One collector per surface family. Which of them run is decided by the
@@ -522,6 +575,7 @@ _COLLECTORS: tuple[_Collector, ...] = (
         frozenset({_SURFACE_RUN_SNAPSHOT, _SURFACE_RUN_EVENT_LOG, _SURFACE_RUN_FROZEN_TEMPLATE}),
         RetentionRule.LEDGER_RETENTION,
         _collect_runs,
+        done=_run_is_done,
     ),
     _Collector(frozenset({_SURFACE_GLOSSARY_LOG}), RetentionRule.LEDGER_RETENTION, _collect_glossary_logs),
     _Collector(frozenset({_SURFACE_DERIVED_VIEWS}), RetentionRule.REBUILDABLE, _collect_derived_views),
@@ -587,7 +641,7 @@ def _lock_is_held(lock: _LockFactory | None) -> bool:
         return True
 
 
-def _ledger_verdict(unit: _Unit, rank: int, limits: RetentionLimits, missions: _Missions) -> RetentionItem:
+def _ledger_verdict(unit: _Unit, rank: int, limits: RetentionLimits, missions: _Missions, done: _DonePredicate) -> RetentionItem:
     """First match wins; the expensive checks run only for items past both limits."""
     if rank < limits.keep_runs:
         return unit.judged(VERDICT_KEPT, REASON_WITHIN_KEEP_RUNS)
@@ -595,7 +649,7 @@ def _ledger_verdict(unit: _Unit, rank: int, limits: RetentionLimits, missions: _
         return unit.judged(VERDICT_KEPT, REASON_YOUNGER_THAN_MAX_AGE)
     if unit.feature_dir is None:
         return unit.judged(VERDICT_KEPT, REASON_MISSION_NOT_FOUND)
-    if not missions.is_completed(unit.feature_dir):
+    if not done(unit.path, unit.feature_dir, missions):
         return unit.judged(VERDICT_KEPT, REASON_MISSION_OPEN)
     if _lock_is_held(unit.lock):
         return unit.judged(VERDICT_KEPT, REASON_LOCK_HELD)
@@ -613,7 +667,7 @@ def _judge(collector: _Collector, units: list[_Unit], limits: RetentionLimits, m
     ordered = sorted(units, key=lambda unit: (unit.age_days, unit.path.as_posix()))
     if collector.rule is RetentionRule.REBUILDABLE:
         return [_rebuildable_verdict(unit) for unit in ordered]
-    return [_ledger_verdict(unit, rank, limits, missions) for rank, unit in enumerate(ordered)]
+    return [_ledger_verdict(unit, rank, limits, missions, collector.done) for rank, unit in enumerate(ordered)]
 
 
 def scan_retention(repo_root: Path, limits: RetentionLimits, *, now: datetime | None = None) -> RetentionPlan:
