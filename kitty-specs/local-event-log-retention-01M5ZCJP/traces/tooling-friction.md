@@ -9,3 +9,5 @@
 2026-10-27 · claude · [implement] With agents.auto_commit=false, move-task --to approved leaves the review-cycle artifact and the note event uncommitted on the coordination worktree. Disposition: workaround (orchestrator safe-commits after each verdict).
 
 2026-10-27 · claude · [implement] A fresh lane worktree venv lacks the optional extras and packs are untracked: the first uv run fails tests/core collection (respx) until uv sync --frozen --all-extras and make sync-packs run in the lane. Disposition: workaround.
+
+2026-10-28 · claude · [consolidate] Review feedback was lost on consolidation: implement's auto-merge brings coord-branch review-feedback-N.md onto the lane branch, move-task then refuses until the lane deletes it, and the squash consolidation carries that deletion to the target. Restored both WP02 feedback files from the unreachable coord commit 4caef809. Disposition: candidate gap (file upstream).
