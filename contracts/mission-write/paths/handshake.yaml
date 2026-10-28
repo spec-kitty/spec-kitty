@@ -1,0 +1,21 @@
+get:
+  operationId: handshake
+  summary: Identify the service and negotiate the protocol major.
+  description: >-
+    Returns the protocol majors the service speaks, its version, the instance id it wrote to the
+    endpoint file and the identity of the clone it serves. It needs the bearer token but not the
+    Spec-Kitty-Write-Protocol header, so a client can call it before it knows a common major. It
+    writes nothing.
+  tags:
+    - Service
+  responses:
+    '200':
+      description: The identity of the service.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Handshake.yaml
+    '401':
+      $ref: ../responses/TokenInvalid.yaml
+    '403':
+      $ref: ../responses/RequestRefused.yaml

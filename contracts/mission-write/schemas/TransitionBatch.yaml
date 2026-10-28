@@ -1,0 +1,21 @@
+title: TransitionBatch
+description: >-
+  Several transition units persisted in one write and one fsync, all or nothing. A refusal of any
+  unit refuses the batch and writes nothing.
+type: object
+additionalProperties: false
+required:
+  - units
+properties:
+  units:
+    type: array
+    minItems: 1
+    maxItems: 64
+    items:
+      $ref: TransitionUnit.yaml
+    description: The units, in the order they are written.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: TransitionBatch.units
+examples:
+  - $ref: ../examples/TransitionBatch.two-units.yaml

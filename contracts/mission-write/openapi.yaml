@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Mission Write API
+  version: 1.0.0-SNAPSHOT
+  summary: The CLI to write-service protocol of one repository.
+  description: >-
+    The contract between the CLI's EventBridge client and the resident write service of one
+    repository (ADR 2026-10-22-1, ADR 2026-10-27-1). The service listens on 127.0.0.1 only, on a
+    random port that it writes, with a random bearer token, to an endpoint file in the git common
+    dir. The service is authoritative: it owns the lane state machine, the guards and dependency
+    gating, and every refusal carries a code from WriteRefusalCode. A unit is acknowledged only
+    after it is appended in one write and synced. The service checks a request in this order and
+    answers the first refusal: the Host and Origin guard (403), the bearer token (401), the protocol
+    header (400), the size cap (413), the body's shape (400), then the domain (404, 409, 422). This
+    file holds the document header, the security scheme and the map from each path to the file
+    that defines it.
+servers:
+  - url: /api/v1
+tags:
+  - name: Service
+    description: Identity, version negotiation, health and shutdown.
+  - name: WorkPackages
+    description: Work package transitions and annotations.
+components:
+  securitySchemes:
+    writeToken:
+      type: http
+      scheme: bearer
+      description: >-
+        The random token the service wrote to its endpoint file (mode 0600 in a 0700 directory of the
+        git common dir). It is never logged and never echoed in a body.
+security:
+  - writeToken: []
+paths:
+  /handshake:
+    $ref: paths/handshake.yaml
+  /health:
+    $ref: paths/health.yaml
+  /missions/{missionId}/work-package-transitions:
+    $ref: paths/missions_missionId_work-package-transitions.yaml
+  /missions/{missionId}/work-package-transitions/batch:
+    $ref: paths/missions_missionId_work-package-transitions_batch.yaml
+  /missions/{missionId}/inner-state-annotations:
+    $ref: paths/missions_missionId_inner-state-annotations.yaml
+  /shutdown:
+    $ref: paths/shutdown.yaml

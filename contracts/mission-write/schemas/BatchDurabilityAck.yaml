@@ -1,0 +1,33 @@
+title: BatchDurabilityAck
+description: >-
+  The answer to a persisted batch, one acknowledgement per unit behind one fsync, or none when
+  every unit was already persisted (replayed).
+type: object
+additionalProperties: false
+required:
+  - units
+  - fsyncs
+properties:
+  units:
+    type: array
+    minItems: 1
+    maxItems: 64
+    items:
+      $ref: DurabilityAck.yaml
+    description: One acknowledgement per unit, in the order of the request.
+    x-derived:
+      rule: One DurabilityAck per unit of the batch, in request order.
+      inputs:
+        - TransitionBatch.units
+  fsyncs:
+    type: integer
+    minimum: 0
+    maximum: 1
+    description: The number of fsync calls behind the batch; 1, or 0 when every unit was replayed.
+    x-derived:
+      rule: 0 when every unit's acknowledgement has replayed true, otherwise 1.
+      inputs:
+        - units
+        - DurabilityAck.replayed
+examples:
+  - $ref: ../examples/BatchDurabilityAck.two-units.yaml

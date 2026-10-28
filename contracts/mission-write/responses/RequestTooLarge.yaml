@@ -1,0 +1,6 @@
+description: >-
+  The body exceeds the size cap (413, REQUEST_TOO_LARGE). Provisional.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WriteRefusal.yaml

@@ -1,0 +1,15 @@
+wpId: WP01
+row:
+  event_id: 01M5Z7A1B2C3D4E5F6G7H8J9KP
+  kind: annotation
+  wp_id: WP01
+  actor: claude
+  at: '2026-10-27T18:05:00+00:00'
+  delta:
+    note: Ready for review
+context:
+  actor: claude
+  checkout: .
+  missionDirectory: kitty-specs/write-service-demo-01M5Z6N5
+  writeSurface: checkout_append
+  destinationRef: null

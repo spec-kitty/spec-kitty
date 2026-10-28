@@ -1,0 +1,6 @@
+description: >-
+  The lane state machine, a guard, the claim, the status lock or the event log refused the write (409). Nothing was written.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WriteRefusal.yaml

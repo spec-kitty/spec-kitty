@@ -1,0 +1,45 @@
+post:
+  operationId: recordWorkPackageTransition
+  summary: Persist one work package transition unit.
+  description: >-
+    The service validates the transition against the lane state machine, its guards and dependency
+    gating (it is authoritative; a CLI pre-check is advisory only), verifies the write location of
+    the request context, then appends the unit's rows in one O_APPEND write of full JSON lines and
+    syncs them before it answers 201. A refusal writes nothing. Writes to one repository are
+    serialized by the service.
+  tags:
+    - WorkPackages
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+    - $ref: ../parameters/WriteProtocolVersion.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../schemas/TransitionUnit.yaml
+  responses:
+    '201':
+      description: The unit is durable.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/DurabilityAck.yaml
+    '400':
+      $ref: ../responses/RequestMalformed.yaml
+    '401':
+      $ref: ../responses/TokenInvalid.yaml
+    '403':
+      $ref: ../responses/RequestRefused.yaml
+    '404':
+      $ref: ../responses/TargetNotFound.yaml
+    '409':
+      $ref: ../responses/WriteConflict.yaml
+    '413':
+      $ref: ../responses/RequestTooLarge.yaml
+    '422':
+      $ref: ../responses/PlacementRefused.yaml
+    '500':
+      $ref: ../responses/WriteFailed.yaml
+    '503':
+      $ref: ../responses/ServiceBusy.yaml

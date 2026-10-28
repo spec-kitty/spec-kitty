@@ -1,0 +1,36 @@
+title: TransitionUnit
+description: >-
+  One work package transition: the transition row first, then its annotations, in order. The unit
+  lands whole or not at all, in one write of full JSON lines that is synced before the answer.
+  Every row names wpId as its wp_id, and a row that names a Mission names the missionId of the
+  path; otherwise the request is REQUEST_MALFORMED. The service owns the row encoding and writes
+  the bytes the CLI's one encoder writes (store.serialize_event_line, ADR 2026-10-22-1 D-7):
+  sanitize_event_for_log first, which strips host and developer fields, then sorted keys. It never
+  writes the bytes as received, and judges a retry by comparing sanitized rows as JSON values.
+type: object
+additionalProperties: false
+required:
+  - wpId
+  - rows
+  - context
+properties:
+  wpId:
+    $ref: WpId.yaml
+    description: The work package the unit moves.
+  rows:
+    type: array
+    minItems: 1
+    items:
+      $ref: EventRow.yaml
+    description: The rows of the unit, the transition first.
+    x-source:
+      path: src/runtime/next/event_bridge.py
+      symbol: WorkPackageTransition.rows
+  context:
+    $ref: RequestContext.yaml
+    description: The request context of the unit.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: TransitionUnit.context
+examples:
+  - $ref: ../examples/TransitionUnit.claim.yaml

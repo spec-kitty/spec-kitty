@@ -1,0 +1,4 @@
+title: Protected branch refused
+status: 422
+code: PROTECTED_BRANCH_REFUSED
+detail: The status commit would land on the protected branch main.

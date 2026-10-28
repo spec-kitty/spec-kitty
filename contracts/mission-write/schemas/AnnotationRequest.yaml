@@ -1,0 +1,28 @@
+title: AnnotationRequest
+description: >-
+  A standalone inner-state annotation of one work package, persisted alone. An annotation that
+  belongs to a transition travels in that transition's unit instead.
+type: object
+additionalProperties: false
+required:
+  - wpId
+  - row
+  - context
+properties:
+  wpId:
+    $ref: WpId.yaml
+    description: The work package the annotation is about.
+  row:
+    $ref: EventRow.yaml
+    description: The annotation row.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: AnnotationRequest.row
+  context:
+    $ref: RequestContext.yaml
+    description: The request context of the annotation.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: AnnotationRequest.context
+examples:
+  - $ref: ../examples/AnnotationRequest.note.yaml

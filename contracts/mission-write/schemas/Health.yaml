@@ -1,0 +1,20 @@
+title: Health
+description: Liveness of the service for the launcher (#6676).
+type: object
+additionalProperties: false
+required:
+  - status
+  - instanceId
+properties:
+  status:
+    $ref: HealthStatus.yaml
+    description: Whether the service accepts writes.
+  instanceId:
+    type: string
+    pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+    description: The ULID the service minted at start, as in the handshake.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: Health.instance_id
+examples:
+  - $ref: ../examples/Health.ready.yaml

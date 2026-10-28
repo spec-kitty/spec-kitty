@@ -1,0 +1,22 @@
+wpId: WP01
+rows:
+  - event_id: 01M5Z7A1B2C3D4E5F6G7H8J9KM
+    mission_slug: write-service-demo-01M5Z6N5
+    mission_id: 01M5Z6N54A59R5FVKJRAGZNTVK
+    wp_id: WP01
+    from_lane: planned
+    to_lane: claimed
+    at: '2026-10-27T18:00:00+00:00'
+    actor: claude
+    force: false
+    execution_mode: direct_repo
+    reason: null
+    review_ref: null
+    evidence: null
+    policy_metadata: null
+context:
+  actor: claude
+  checkout: .
+  missionDirectory: kitty-specs/write-service-demo-01M5Z6N5
+  writeSurface: checkout_append
+  destinationRef: null

@@ -1,0 +1,10 @@
+files:
+  - PlacementRefused.yaml
+  - RequestMalformed.yaml
+  - RequestRefused.yaml
+  - RequestTooLarge.yaml
+  - ServiceBusy.yaml
+  - TargetNotFound.yaml
+  - TokenInvalid.yaml
+  - WriteConflict.yaml
+  - WriteFailed.yaml

@@ -1,0 +1,18 @@
+files:
+  - AnnotationRequest.yaml
+  - BatchDurabilityAck.yaml
+  - DurabilityAck.yaml
+  - EventRow.yaml
+  - Handshake.yaml
+  - Health.yaml
+  - HealthStatus.yaml
+  - MissionId.yaml
+  - ProtocolVersion.yaml
+  - RequestContext.yaml
+  - TransitionBatch.yaml
+  - TransitionUnit.yaml
+  - WpId.yaml
+  - WriteRefusal.yaml
+  - WriteRefusalCode.yaml
+  - WriteRefusalReason.yaml
+  - WriteSurface.yaml

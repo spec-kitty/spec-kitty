@@ -1,0 +1,14 @@
+description: >-
+  The service cannot take the write now (503). SERVICE_BUSY: it is serializing other writes beyond
+  its queue bound; retry the same service after Retry-After seconds. SERVICE_DRAINING: it is
+  about to exit; re-read the endpoint file. Provisional.
+headers:
+  Retry-After:
+    description: Seconds to wait before retrying; sent with SERVICE_BUSY, absent with SERVICE_DRAINING.
+    schema:
+      type: integer
+      minimum: 1
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WriteRefusal.yaml

@@ -1,0 +1,10 @@
+title: ProtocolVersion
+description: >-
+  A major version of the write-service protocol, a positive integer. The client sends the major it
+  negotiated in the Spec-Kitty-Write-Protocol header; the handshake lists the majors the service
+  speaks. This document describes major 1.
+type: integer
+minimum: 1
+x-source:
+  path: src/specify_cli/status/write_service_protocol.py
+  symbol: SUPPORTED_PROTOCOL_VERSIONS

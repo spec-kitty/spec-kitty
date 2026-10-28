@@ -1,0 +1,6 @@
+description: >-
+  The write failed after it was accepted (500): the append, its verification or the status commit failed, or the coordination surface is unreadable. Nothing is acknowledged.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WriteRefusal.yaml

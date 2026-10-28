@@ -1,0 +1,6 @@
+description: >-
+  The Mission or the work package does not exist (404, MISSION_NOT_FOUND or WP_NOT_FOUND).
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WriteRefusal.yaml

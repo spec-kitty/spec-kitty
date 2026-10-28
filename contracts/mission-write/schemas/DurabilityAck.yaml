@@ -1,0 +1,69 @@
+title: DurabilityAck
+description: >-
+  The answer to a persisted unit: its rows were appended in one O_APPEND write of full JSON lines
+  and synced (fsync) before this answer was sent. Where the topology commits status, the status
+  commit joins the unit at migration step 4 of ADR 2026-10-22-1; until then statusCommit is null.
+type: object
+additionalProperties: false
+required:
+  - eventIds
+  - appendedLines
+  - fsynced
+  - statusCommit
+  - replayed
+properties:
+  eventIds:
+    type: array
+    minItems: 1
+    items:
+      type: string
+      pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+    description: The event_id of every persisted row, in write order.
+    x-derived:
+      rule: The event_id of each row of the unit, in the order the rows were written.
+      inputs:
+        - TransitionUnit.rows
+  appendedLines:
+    type: integer
+    minimum: 0
+    description: The number of lines this request appended; 0 when the unit was already persisted (replayed).
+    x-derived:
+      rule: The number of rows written by this request; zero for a replay.
+      inputs:
+        - eventIds
+        - replayed
+  fsynced:
+    type: boolean
+    const: true
+    description: >-
+      Always true: the unit's rows are durable. An answer is sent only after the append is synced;
+      for a replay the rows were synced when they were first written.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: DurabilityAck.fsynced
+  statusCommit:
+    type:
+      - string
+      - 'null'
+    pattern: '^[0-9a-f]{40,64}$'
+    description: The commit that holds the unit, where the topology commits status and the service owns the commit; null otherwise.
+    x-source:
+      path: src/specify_cli/coordination/transaction.py
+      symbol: BookkeepingTransaction
+    x-provisional:
+      open_decision: >-
+        When the status commit joins the service's unit of work, and whether the acknowledgement
+        names it, is an open decision of ADR 2026-10-27-1 (migration step 4).
+  replayed:
+    type: boolean
+    description: True when every row of the unit was already persisted with identical content, so nothing was written.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: DurabilityAck.replayed
+    x-provisional:
+      open_decision: >-
+        Whether a retry with the same event ids and identical rows answers as already persisted is
+        an open decision of ADR 2026-10-27-1 (idempotent retry).
+examples:
+  - $ref: ../examples/DurabilityAck.appended.yaml
+  - $ref: ../examples/DurabilityAck.replayed.yaml

@@ -1,0 +1,69 @@
+title: WriteRefusalCode
+description: >-
+  The code of a write-service refusal. A code that names an existing CLI refusal is the string
+  the CLI raises today, verbatim, so moving a write into the service changes no code a user sees;
+  the protocol-only codes have no CLI counterpart. Written as one constant per code because the
+  values are UPPER_SNAKE. The status each code fixes is stated in WriteRefusal.
+type: string
+oneOf:
+  - const: TRANSITION_REJECTED
+    description: '409. The lane state machine or one of its guards refused the transition. The type names the reason. The CLI''s orchestrator-api code for a TransitionError.'
+  - const: WP_ALREADY_CLAIMED
+    description: '409. Another actor holds the claim on the work package. The CLI''s orchestrator-api code for a WorkPackageClaimConflict.'
+  - const: DEPENDENCIES_NOT_SATISFIED
+    description: '409. A dependency of the work package is neither approved nor done, and the transition is gated on it.'
+  - const: WP_NOT_FOUND
+    description: '404. The Mission has no work package with this wpId.'
+  - const: MISSION_NOT_FOUND
+    description: '404. No Mission of the repository has this missionId.'
+  - const: STATUS_LOCK_HELD
+    description: '409. The per-Mission status lock is held by another writer (a CLI writer during the strangler) beyond the wait budget.'
+  - const: BOOKKEEPING_DOUBLE_EVENT_ID
+    description: '409. The request repeats an event_id inside one unit or batch.'
+  - const: COORD_STATUS_SURFACE_DIVERGED
+    description: '409. The coordination worktree''s event log lost events its HEAD has committed; nothing is written.'
+  - const: PROTECTED_BRANCH_REFUSED
+    description: '422. The write would commit to a protected branch.'
+  - const: DESTINATION_REF_NOT_FOUND
+    description: '422. The destination branch does not exist locally.'
+  - const: DESTINATION_REF_INVALID_SHAPE
+    description: '422. The destination ref is empty, padded, fully qualified or starts with a dash or a slash.'
+  - const: DESTINATION_REF_NOT_LOCAL
+    description: '422. The destination branch exists only as a remote-tracking ref.'
+  - const: BOOKKEEPING_WORKTREE_MISSING
+    description: '422. Neither a coordination worktree nor a lane worktree resolves for the write.'
+  - const: FALLBACK_COORD_WORKTREE_UNRESOLVED
+    description: '422. The Mission commits status through its coordination branch, but the coordination worktree cannot be materialized.'
+  - const: COORDINATION_BRANCH_DELETED
+    description: '422. The Mission''s recorded coordination branch no longer exists.'
+  - const: COORDINATION_WORKTREE_UNMATERIALIZED
+    description: '422. The coordination worktree is not materialized.'
+  - const: OWNED_MISSION_PATH_REFUSED
+    description: '422. The caller''s owned checkout does not hold the Mission of the request.'
+  - const: COORD_STATUS_SURFACE_UNREADABLE
+    description: '500. The coordination worktree''s event log, committed or in the working tree, cannot be read or parsed, so divergence cannot be judged.'
+  - const: STATUS_EVENT_PERSISTENCE_VERIFICATION_FAILED
+    description: '500. The append, or its read-back verification, failed; the unit is not acknowledged.'
+  - const: BOOKKEEPING_COMMIT_FAILED
+    description: '500. The status commit of the unit failed and the append was cut.'
+  - const: WRITE_LOCATION_UNVERIFIED
+    description: '422. Protocol-only. The service could not verify the missionDirectory and writeSurface of the request context against its own resolution. Provisional: the verification rule is open until write-location resolution moves into the service (ADR 2026-10-22-1 open question 2).'
+  - const: REQUEST_MALFORMED
+    description: '400. Protocol-only. The body does not have the contract''s shape (an empty unit, more than 64 units, a missing field), or a row names another work package or Mission than the request.'
+  - const: PROTOCOL_VERSION_UNSUPPORTED
+    description: '400. Protocol-only. The Spec-Kitty-Write-Protocol header is missing, is not an integer, or names a major the service does not speak; the detail lists the supported majors.'
+  - const: WRITE_TOKEN_INVALID
+    description: '401. Protocol-only. The bearer token is missing or wrong. The body never echoes the token.'
+  - const: REQUEST_REFUSED
+    description: '403. Protocol-only. The Host, Origin or Sec-Fetch-Site guard refused the request, as the read service''s request_refused does.'
+  - const: EVENT_ID_CONFLICT
+    description: '409. Protocol-only. An event_id of the request is already persisted with different content, or only some of a unit''s event ids are persisted. Provisional (idempotent retry).'
+  - const: REQUEST_TOO_LARGE
+    description: '413. Protocol-only. The body exceeds the size cap (1 MiB, provisional).'
+  - const: SERVICE_BUSY
+    description: '503. Protocol-only. The service is serializing other writes beyond its queue bound; retry the same service after the Retry-After seconds. Provisional (backpressure).'
+  - const: SERVICE_DRAINING
+    description: '503. Protocol-only. The service is draining before it exits; re-read the endpoint file and retry against the service it names (the launcher starts one when none runs). Provisional (shutdown).'
+x-source:
+  path: src/specify_cli/status/write_service_protocol.py
+  symbol: WriteRefusalCode

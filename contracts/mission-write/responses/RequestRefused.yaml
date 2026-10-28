@@ -1,0 +1,6 @@
+description: >-
+  The Host, Origin or Sec-Fetch-Site guard refused the request (403, REQUEST_REFUSED).
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WriteRefusal.yaml

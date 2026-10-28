@@ -1,0 +1,42 @@
+post:
+  operationId: recordInnerStateAnnotation
+  summary: Persist one standalone inner-state annotation.
+  description: >-
+    Appends one annotation row of a work package that does not travel with a transition, under the
+    same durability rule: one write of a full JSON line, synced before the 201.
+  tags:
+    - WorkPackages
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+    - $ref: ../parameters/WriteProtocolVersion.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../schemas/AnnotationRequest.yaml
+  responses:
+    '201':
+      description: The annotation is durable.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/DurabilityAck.yaml
+    '400':
+      $ref: ../responses/RequestMalformed.yaml
+    '401':
+      $ref: ../responses/TokenInvalid.yaml
+    '403':
+      $ref: ../responses/RequestRefused.yaml
+    '404':
+      $ref: ../responses/TargetNotFound.yaml
+    '409':
+      $ref: ../responses/WriteConflict.yaml
+    '413':
+      $ref: ../responses/RequestTooLarge.yaml
+    '422':
+      $ref: ../responses/PlacementRefused.yaml
+    '500':
+      $ref: ../responses/WriteFailed.yaml
+    '503':
+      $ref: ../responses/ServiceBusy.yaml

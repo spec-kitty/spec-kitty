@@ -1,0 +1,23 @@
+post:
+  operationId: shutdown
+  summary: Ask the service to drain and exit.
+  description: >-
+    The service stops accepting writes (health reads draining), finishes the writes it holds,
+    removes its endpoint file and exits. It answers 202 before it exits.
+  tags:
+    - Service
+  parameters:
+    - $ref: ../parameters/WriteProtocolVersion.yaml
+  x-provisional:
+    open_decision: >-
+      Whether the launcher stops the service through this operation, a signal or only the idle
+      exit is an open decision of ADR 2026-10-27-1.
+  responses:
+    '202':
+      description: The service drains and exits.
+    '400':
+      $ref: ../responses/RequestMalformed.yaml
+    '401':
+      $ref: ../responses/TokenInvalid.yaml
+    '403':
+      $ref: ../responses/RequestRefused.yaml

@@ -1,0 +1,9 @@
+name: Spec-Kitty-Write-Protocol
+in: header
+required: true
+description: >-
+  The protocol major the client negotiated through GET /handshake. A missing header, a value that
+  is not an integer, or a major the service does not speak, is refused with
+  PROTOCOL_VERSION_UNSUPPORTED.
+schema:
+  $ref: ../schemas/ProtocolVersion.yaml

@@ -1,0 +1,44 @@
+post:
+  operationId: recordWorkPackageTransitionBatch
+  summary: Persist several transition units in one write.
+  description: >-
+    Each unit is validated as POST /missions/{missionId}/work-package-transitions validates one,
+    in order and against the state the earlier units leave. Every unit lands, in one write and one
+    fsync, or none does: the first refusal refuses the batch, names the unit in instance
+    (#/units/<index>), and nothing is written. More than 64 units is REQUEST_MALFORMED.
+  tags:
+    - WorkPackages
+  parameters:
+    - $ref: ../parameters/MissionId.yaml
+    - $ref: ../parameters/WriteProtocolVersion.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../schemas/TransitionBatch.yaml
+  responses:
+    '201':
+      description: Every unit is durable.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/BatchDurabilityAck.yaml
+    '400':
+      $ref: ../responses/RequestMalformed.yaml
+    '401':
+      $ref: ../responses/TokenInvalid.yaml
+    '403':
+      $ref: ../responses/RequestRefused.yaml
+    '404':
+      $ref: ../responses/TargetNotFound.yaml
+    '409':
+      $ref: ../responses/WriteConflict.yaml
+    '413':
+      $ref: ../responses/RequestTooLarge.yaml
+    '422':
+      $ref: ../responses/PlacementRefused.yaml
+    '500':
+      $ref: ../responses/WriteFailed.yaml
+    '503':
+      $ref: ../responses/ServiceBusy.yaml

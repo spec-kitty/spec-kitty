@@ -1,0 +1,54 @@
+# Refusal-code parity inventory of contracts/mission-write (#6675, ADR 2026-10-27-1).
+#
+# Every code of WriteRefusalCode appears exactly once. origin: cli means the CLI raises this exact
+# string today, in `source` (a tracked file whose text holds the literal); origin: protocol means the
+# contract mints it and the CLI has no counterpart. Every guard reason names the CLI file that raises
+# it as text today and a fragment of that text (`source_text`, verbatim in the file).
+# tests/contract/test_mission_write_contract.py checks this file against the contract, the client
+# shapes (specify_cli.status.write_service_protocol) and the cited sources.
+codes:
+  - {code: TRANSITION_REJECTED, status: 409, origin: cli, source: src/specify_cli/orchestrator_api/wp_lifecycle.py}
+  - {code: WP_ALREADY_CLAIMED, status: 409, origin: cli, source: src/specify_cli/orchestrator_api/wp_lifecycle.py}
+  - {code: DEPENDENCIES_NOT_SATISFIED, status: 409, origin: cli, source: src/specify_cli/orchestrator_api/wp_lifecycle.py}
+  - {code: WP_NOT_FOUND, status: 404, origin: cli, source: src/specify_cli/orchestrator_api/wp_lifecycle.py}
+  - {code: MISSION_NOT_FOUND, status: 404, origin: cli, source: src/specify_cli/cli/selector_resolution.py}
+  - {code: STATUS_LOCK_HELD, status: 409, origin: cli, source: src/specify_cli/status/locking.py}
+  - {code: BOOKKEEPING_DOUBLE_EVENT_ID, status: 409, origin: cli, source: src/specify_cli/coordination/transaction_errors.py}
+  - {code: COORD_STATUS_SURFACE_DIVERGED, status: 409, origin: cli, source: src/specify_cli/coordination/transaction_errors.py}
+  - {code: PROTECTED_BRANCH_REFUSED, status: 422, origin: cli, source: src/specify_cli/coordination/types.py}
+  - {code: DESTINATION_REF_NOT_FOUND, status: 422, origin: cli, source: src/specify_cli/coordination/types.py}
+  - {code: DESTINATION_REF_INVALID_SHAPE, status: 422, origin: cli, source: src/specify_cli/coordination/policy.py}
+  - {code: DESTINATION_REF_NOT_LOCAL, status: 422, origin: cli, source: src/specify_cli/coordination/policy.py}
+  - {code: BOOKKEEPING_WORKTREE_MISSING, status: 422, origin: cli, source: src/specify_cli/coordination/transaction_errors.py}
+  - {code: FALLBACK_COORD_WORKTREE_UNRESOLVED, status: 422, origin: cli, source: src/specify_cli/coordination/status_transition.py}
+  - {code: COORDINATION_BRANCH_DELETED, status: 422, origin: cli, source: src/specify_cli/coordination/surface_resolver.py}
+  - {code: COORDINATION_WORKTREE_UNMATERIALIZED, status: 422, origin: cli, source: src/specify_cli/coordination/surface_resolver.py}
+  - {code: OWNED_MISSION_PATH_REFUSED, status: 422, origin: cli, source: src/specify_cli/coordination/status_transition.py}
+  - {code: COORD_STATUS_SURFACE_UNREADABLE, status: 500, origin: cli, source: src/specify_cli/coordination/transaction_errors.py}
+  - {code: STATUS_EVENT_PERSISTENCE_VERIFICATION_FAILED, status: 500, origin: cli, source: src/specify_cli/status/store.py}
+  - {code: BOOKKEEPING_COMMIT_FAILED, status: 500, origin: cli, source: src/specify_cli/coordination/transaction_errors.py}
+  - {code: WRITE_LOCATION_UNVERIFIED, status: 422, origin: protocol}
+  - {code: REQUEST_MALFORMED, status: 400, origin: protocol}
+  - {code: PROTOCOL_VERSION_UNSUPPORTED, status: 400, origin: protocol}
+  - {code: WRITE_TOKEN_INVALID, status: 401, origin: protocol}
+  - {code: REQUEST_REFUSED, status: 403, origin: protocol}
+  - {code: EVENT_ID_CONFLICT, status: 409, origin: protocol}
+  - {code: REQUEST_TOO_LARGE, status: 413, origin: protocol}
+  - {code: SERVICE_BUSY, status: 503, origin: protocol}
+  - {code: SERVICE_DRAINING, status: 503, origin: protocol}
+reasons:
+  - {reason: unknown_lane, code: TRANSITION_REJECTED, source: src/specify_cli/status/transitions.py, source_text: "Unknown lane"}
+  - {reason: illegal_transition, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "Illegal transition"}
+  - {reason: force_requires_actor_and_reason, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "Force transitions require actor and reason"}
+  - {reason: actor_required, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "Transition requires actor identity"}
+  - {reason: dependencies_unsatisfied, code: DEPENDENCIES_NOT_SATISFIED, source: src/specify_cli/status/wp_state.py, source_text: "unsatisfied dependencies"}
+  - {reason: workspace_context_required, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "requires workspace context"}
+  - {reason: implementation_evidence_required, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "requires implementation evidence"}
+  - {reason: reason_required, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "in_progress -> planned requires reason"}
+  - {reason: review_ref_required, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "Transition requires review_ref"}
+  - {reason: reviewer_approval_required, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "reviewer identity and approval reference"}
+  - {reason: review_evidence_invalid, code: TRANSITION_REJECTED, source: src/specify_cli/status/wp_state.py, source_text: "review_ref must match review_result.reference"}
+  - {reason: force_note_required, code: TRANSITION_REJECTED, source: src/specify_cli/status/models.py, source_text: "--force requires a non-blank --note"}
+  - {reason: done_evidence_incomplete, code: TRANSITION_REJECTED, source: src/specify_cli/status/emit.py, source_text: "Moving to done requires evidence"}
+  - {reason: claim_held_by_other_actor, code: WP_ALREADY_CLAIMED, source: src/specify_cli/status/work_package_lifecycle.py, source_text: "class WorkPackageClaimConflict"}
+  - {reason: start_rejected, code: TRANSITION_REJECTED, source: src/specify_cli/status/work_package_lifecycle.py, source_text: "class WorkPackageStartRejected"}

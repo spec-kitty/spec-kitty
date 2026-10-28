@@ -1,0 +1,57 @@
+title: RequestContext
+description: >-
+  Who asks, and where the CLI resolved the write to land (ADR 2026-10-22-1 D-3): the checkout that
+  holds the Mission directory, and the Mission directory inside it (the write location). Paths are
+  relative, use forward slashes and never contain a .. segment, a backslash or a drive letter; no
+  host path travels. The service verifies the location against its own resolution and refuses
+  with WRITE_LOCATION_UNVERIFIED when they differ.
+type: object
+additionalProperties: false
+required:
+  - actor
+  - checkout
+  - missionDirectory
+  - writeSurface
+  - destinationRef
+properties:
+  actor:
+    type: string
+    minLength: 1
+    description: The actor of the write, as the rows carry it.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent.actor
+  checkout:
+    type: string
+    minLength: 1
+    pattern: '^(\.|(?!/)(?![A-Za-z]:)(?!.*\\)(?!(.*/)?\.\.(/|$)).+)$'
+    description: >-
+      The checkout that holds the Mission directory, relative to the repository root checkout: a
+      single dot for the repository root checkout, otherwise the worktree's relative path (the
+      coordination worktree for coordination_transaction_append).
+    x-derived:
+      rule: The checkout the CLI resolved the write in, relative to the repository root checkout; a single dot for the root.
+      inputs:
+        - path: src/specify_cli/status/write_service_protocol.py
+          symbol: transition_unit_from
+  missionDirectory:
+    type: string
+    minLength: 1
+    pattern: '^(\.|(?!/)(?![A-Za-z]:)(?!.*\\)(?!(.*/)?\.\.(/|$)).+)$'
+    description: The Mission directory (the write location the CLI resolved), relative to the checkout.
+    x-derived:
+      rule: The port's write location, made relative to the checkout.
+      inputs:
+        - path: src/runtime/next/event_bridge.py
+          symbol: WorkPackageTransition.write_location
+  writeSurface:
+    $ref: WriteSurface.yaml
+    description: The CLI write contract the location was resolved under.
+  destinationRef:
+    type:
+      - string
+      - 'null'
+    description: The branch the unit's status commit lands on, when the CLI resolved one; null otherwise.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: RequestContext.destination_ref

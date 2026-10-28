@@ -1,0 +1,6 @@
+name: missionId
+in: path
+required: true
+description: The identity of the Mission, a 26-character ULID; the only Mission selector accepted.
+schema:
+  $ref: ../schemas/MissionId.yaml

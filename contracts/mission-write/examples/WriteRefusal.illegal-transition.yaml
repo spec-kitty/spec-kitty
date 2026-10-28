@@ -1,0 +1,5 @@
+type: urn:spec-kitty:write-refusal:illegal_transition
+title: Transition rejected
+status: 409
+code: TRANSITION_REJECTED
+detail: 'Illegal transition: planned -> done'

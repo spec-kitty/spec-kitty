@@ -1,0 +1,6 @@
+description: >-
+  The request was refused before it was read (400): REQUEST_MALFORMED or PROTOCOL_VERSION_UNSUPPORTED.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WriteRefusal.yaml

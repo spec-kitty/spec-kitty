@@ -1,0 +1,48 @@
+title: Handshake
+description: >-
+  What the running service is. The client reads it after the endpoint file and before any write:
+  instanceId must equal the file's instance_id and repositoryId the client's own digest of its git
+  common dir, or the client refuses to write; it then sends the highest major both sides speak.
+type: object
+additionalProperties: false
+required:
+  - protocolVersions
+  - serviceVersion
+  - instanceId
+  - repositoryId
+properties:
+  protocolVersions:
+    type: array
+    minItems: 1
+    uniqueItems: true
+    items:
+      $ref: ProtocolVersion.yaml
+    description: The protocol majors the service speaks, ascending.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: Handshake.protocol_versions
+  serviceVersion:
+    type: string
+    minLength: 1
+    maxLength: 64
+    pattern: '^[0-9A-Za-z][0-9A-Za-z.+_-]{0,63}$'
+    description: The version of the service build.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: Handshake.service_version
+  instanceId:
+    type: string
+    pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+    description: The ULID the service minted at start and wrote to its endpoint file.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: WriteServiceEndpoint.instance_id
+  repositoryId:
+    type: string
+    pattern: '^[0-9a-f]{64}$'
+    description: The lowercase hex SHA-256 of the real path of the git common dir the service serves.
+    x-source:
+      path: src/specify_cli/status/write_service_protocol.py
+      symbol: repository_id
+examples:
+  - $ref: ../examples/Handshake.example.yaml

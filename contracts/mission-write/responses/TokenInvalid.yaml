@@ -1,0 +1,11 @@
+description: >-
+  The bearer token is missing or wrong (401, WRITE_TOKEN_INVALID). The body never echoes the token.
+headers:
+  WWW-Authenticate:
+    description: The bearer challenge (RFC 9110), Bearer with no parameters.
+    schema:
+      type: string
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/WriteRefusal.yaml

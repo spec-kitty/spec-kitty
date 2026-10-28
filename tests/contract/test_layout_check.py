@@ -232,6 +232,33 @@ def test_root_document_carrying_components_is_a_bundle(layout: Any, tmp_path: Pa
     assert [f.code for f in layout.check(root).findings] == ["TRACKED_BUNDLE"]
 
 
+SECURITY_SCHEME_ONLY = "components:\n  securitySchemes:\n    writeToken:\n      type: http\n      scheme: bearer\nsecurity:\n  - writeToken: []\n"
+
+
+def test_root_document_may_declare_security_schemes_only(layout: Any, tmp_path: Path) -> None:
+    root = _copy_modules(tmp_path, "clean", "_shared")
+    with (root / "clean" / "openapi.yaml").open("a", encoding="utf-8") as handle:
+        handle.write(SECURITY_SCHEME_ONLY)
+
+    assert layout.check(root).findings == []
+
+
+@pytest.mark.parametrize(
+    "components",
+    [
+        pytest.param(SECURITY_SCHEME_ONLY.replace("security:\n", "  schemas: {}\nsecurity:\n"), id="schemas-beside-security-schemes"),
+        pytest.param("components: {}\n", id="empty-mapping"),
+        pytest.param("components: []\n", id="not-a-mapping"),
+    ],
+)
+def test_root_components_beyond_security_schemes_is_a_bundle(layout: Any, tmp_path: Path, components: str) -> None:
+    root = _copy_modules(tmp_path, "clean", "_shared")
+    with (root / "clean" / "openapi.yaml").open("a", encoding="utf-8") as handle:
+        handle.write(components)
+
+    assert [f.code for f in layout.check(root).findings] == ["TRACKED_BUNDLE"]
+
+
 def test_a_build_output_directory_is_not_scanned_for_bundles(layout: Any, tmp_path: Path) -> None:
     root = _copy_modules(tmp_path, "clean", "_shared")
     build = root / "clean" / "build"

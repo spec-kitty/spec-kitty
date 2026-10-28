@@ -1,0 +1,18 @@
+get:
+  operationId: getHealth
+  summary: Report whether the service accepts writes.
+  description: >-
+    Liveness for the launcher (#6676): ready or draining, and the instance id. Like the handshake it needs the bearer token but not the Spec-Kitty-Write-Protocol header, so a launcher can probe a service before it negotiates. It writes nothing.
+  tags:
+    - Service
+  responses:
+    '200':
+      description: The health of the service.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/Health.yaml
+    '401':
+      $ref: ../responses/TokenInvalid.yaml
+    '403':
+      $ref: ../responses/RequestRefused.yaml

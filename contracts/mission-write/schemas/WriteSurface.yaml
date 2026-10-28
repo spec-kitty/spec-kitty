@@ -1,0 +1,15 @@
+title: WriteSurface
+description: >-
+  Which CLI write contract the request was resolved under. checkout_append is a direct append in
+  the checkout that holds the Mission directory (the repository root checkout or a lane worktree);
+  coordination_transaction_append is an append inside the coordination transaction, in the
+  coordination worktree. During the strangler the CLI resolves it and the service verifies it.
+  The values are this contract's names for the CLI's EventLogWriteTarget values
+  (checkout_append is the CLI's primary_checkout_append).
+type: string
+enum:
+  - checkout_append
+  - coordination_transaction_append
+x-source:
+  path: src/specify_cli/status/write_service_protocol.py
+  symbol: WriteSurface

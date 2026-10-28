@@ -1,0 +1,4 @@
+title: Service busy
+status: 503
+code: SERVICE_BUSY
+detail: Other writes are queued; retry later.

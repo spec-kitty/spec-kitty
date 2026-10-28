@@ -1,0 +1,19 @@
+title: EventRow
+description: >-
+  One event row as the CLI built it, written by the service as one full JSON line. Its shape is
+  owned by the spec-kitty-events envelope (spec-kitty/spec-kitty-events#92) and today matches the
+  CLI's status rows (StatusEvent, InnerStateChanged); this contract does not redefine it and
+  requires only the event_id the acknowledgement and idempotency rules refer to. The service
+  validates the row against the envelope and its lane rules, and refuses what it cannot accept.
+type: object
+required:
+  - event_id
+properties:
+  event_id:
+    type: string
+    pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+    description: The ULID of the event; unique in the Mission's event log.
+    x-source:
+      path: src/specify_cli/status/models.py
+      symbol: StatusEvent.event_id
+additionalProperties: true

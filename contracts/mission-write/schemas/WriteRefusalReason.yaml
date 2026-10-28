@@ -1,0 +1,45 @@
+title: WriteRefusalReason
+description: >-
+  Why a guard of the lane state machine refused a transition, as a URN carried in the refusal's
+  type. Only a refusal whose code is TRANSITION_REJECTED, WP_ALREADY_CLAIMED or
+  DEPENDENCIES_NOT_SATISFIED carries one. The CLI raises these reasons as text today; the
+  vocabulary is minted by this contract and is provisional.
+type: string
+oneOf:
+  - const: 'urn:spec-kitty:write-refusal:unknown_lane'
+    description: 'The from or to status lane is not one of the nine.'
+  - const: 'urn:spec-kitty:write-refusal:illegal_transition'
+    description: 'The edge is not in the lane state machine, or leaves a terminal lane without force.'
+  - const: 'urn:spec-kitty:write-refusal:force_requires_actor_and_reason'
+    description: 'A forced transition carries no actor or no reason.'
+  - const: 'urn:spec-kitty:write-refusal:actor_required'
+    description: 'The transition needs an actor identity (a claim, a review claim).'
+  - const: 'urn:spec-kitty:write-refusal:dependencies_unsatisfied'
+    description: 'A dependency of the work package is neither approved nor done.'
+  - const: 'urn:spec-kitty:write-refusal:workspace_context_required'
+    description: 'claimed to in_progress carries no workspace context.'
+  - const: 'urn:spec-kitty:write-refusal:implementation_evidence_required'
+    description: 'in_progress to for_review carries no completed subtasks or implementation evidence.'
+  - const: 'urn:spec-kitty:write-refusal:reason_required'
+    description: 'The transition needs a reason (in_progress back to planned).'
+  - const: 'urn:spec-kitty:write-refusal:review_ref_required'
+    description: 'The transition needs a review_ref.'
+  - const: 'urn:spec-kitty:write-refusal:reviewer_approval_required'
+    description: 'A move to approved or done carries no reviewer identity or approval reference.'
+  - const: 'urn:spec-kitty:write-refusal:review_evidence_invalid'
+    description: 'The review result is incomplete, does not match its review_ref, or conflicts with a live review claim.'
+  - const: 'urn:spec-kitty:write-refusal:force_note_required'
+    description: 'A forced exit from in_review or approved carries no note.'
+  - const: 'urn:spec-kitty:write-refusal:done_evidence_incomplete'
+    description: 'The done evidence lacks the reviewer, the verdict or the reference.'
+  - const: 'urn:spec-kitty:write-refusal:claim_held_by_other_actor'
+    description: 'Another actor holds the claim (travels under WP_ALREADY_CLAIMED).'
+  - const: 'urn:spec-kitty:write-refusal:start_rejected'
+    description: 'The work package cannot start: not finalized, in the wrong status lane, or force misused.'
+x-source:
+  path: src/specify_cli/status/write_service_protocol.py
+  symbol: WriteRefusalReason
+x-provisional:
+  open_decision: >-
+    Whether the guard reasons travel as URNs in type, and whether the CLI adopts the same
+    vocabulary, is an open decision of ADR 2026-10-27-1.

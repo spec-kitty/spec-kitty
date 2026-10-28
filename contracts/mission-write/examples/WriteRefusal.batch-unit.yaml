@@ -1,0 +1,6 @@
+type: urn:spec-kitty:write-refusal:dependencies_unsatisfied
+title: Dependencies not satisfied
+status: 409
+code: DEPENDENCIES_NOT_SATISFIED
+detail: 'Transition planned -> claimed blocked: unsatisfied dependencies'
+instance: '#/units/1'

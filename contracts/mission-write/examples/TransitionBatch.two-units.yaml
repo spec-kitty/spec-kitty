@@ -1,0 +1,27 @@
+units:
+  - wpId: WP01
+    rows:
+      - event_id: 01M5Z7A1B2C3D4E5F6G7H8J9KM
+        wp_id: WP01
+        from_lane: planned
+        to_lane: claimed
+        actor: claude
+    context:
+      actor: claude
+      checkout: .worktrees/write-service-demo-01M5Z6N5-coord
+      missionDirectory: kitty-specs/write-service-demo-01M5Z6N5
+      writeSurface: coordination_transaction_append
+      destinationRef: kitty/mission-write-service-demo-01M5Z6N5
+  - wpId: WP02
+    rows:
+      - event_id: 01M5Z7A1B2C3D4E5F6G7H8J9KN
+        wp_id: WP02
+        from_lane: planned
+        to_lane: claimed
+        actor: claude
+    context:
+      actor: claude
+      checkout: .worktrees/write-service-demo-01M5Z6N5-coord
+      missionDirectory: kitty-specs/write-service-demo-01M5Z6N5
+      writeSurface: coordination_transaction_append
+      destinationRef: kitty/mission-write-service-demo-01M5Z6N5
