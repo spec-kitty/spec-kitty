@@ -416,3 +416,51 @@ def test_governance_check_warns_on_unknown_selection_diagnostics(
     control = doctor.check_governance_resolution(tmp_path)
     assert control.severity == "info"
     assert control.message.startswith("Resolved governance")
+
+
+def test_governance_check_classifies_dropped_selection_by_code_not_wording(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#6460: the warning keys on ``UNKNOWN_SELECTION_DROPPED``, so a reworded message still warns."""
+    from types import SimpleNamespace
+
+    from charter.activation.api import GovernanceDiagnostic, GovernanceDiagnosticCode
+    from specify_cli.runtime import doctor
+
+    reworded = "Selection NOPE_999 was discarded"
+    resolution = SimpleNamespace(
+        template_set="software-dev-default",
+        metadata={},
+        diagnostics=[
+            GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, reworded),
+            GovernanceDiagnostic(GovernanceDiagnosticCode.SELECTION_MERGED, "Charter declared additional tool(s) beyond the runtime registry: ruff."),
+        ],
+    )
+    monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
+
+    check = doctor.check_governance_resolution(tmp_path)
+
+    assert check.severity == "warning"
+    assert check.message == "Governance resolved, but selected artifact(s) were dropped: " + reworded
+
+
+def test_governance_check_ignores_unknown_wording_under_other_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#6460 negative control: a message that merely starts with "Unknown selected " is not a dropped selection."""
+    from types import SimpleNamespace
+
+    from charter.activation.api import GovernanceDiagnostic, GovernanceDiagnosticCode
+    from specify_cli.runtime import doctor
+
+    resolution = SimpleNamespace(
+        template_set="software-dev-default",
+        metadata={},
+        diagnostics=[GovernanceDiagnostic(GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED, "Unknown selected nothing; catalog default used.")],
+    )
+    monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
+
+    check = doctor.check_governance_resolution(tmp_path)
+
+    assert check.severity == "info"
+    assert "dropped" not in check.message
