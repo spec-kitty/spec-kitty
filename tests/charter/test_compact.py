@@ -165,6 +165,9 @@ def test_compact_view_surfaces_unknown_selection_diagnostic(tmp_path: Path) -> N
     compact = render_compact_view(repo)
 
     assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in compact.text
+    # #6460 (SC-004): message text only; the typed entry's code / repr never leaks into the text.
+    assert "UNKNOWN_SELECTION_DROPPED" not in compact.text
+    assert "GovernanceDiagnostic" not in compact.text
     assert "QA_003" in compact.text
     assert "QA_003_NO_FAKE_GREEN" not in compact.text
     assert "governance unresolved" not in compact.text

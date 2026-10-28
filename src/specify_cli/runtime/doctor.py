@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from charter.activation.api import UNKNOWN_SELECTION_DIAGNOSTIC
+from charter.activation.api import GovernanceDiagnosticCode
 from charter.activation.resolver import (
     GovernanceResolutionError,
     resolve_project_governance,
@@ -136,9 +136,6 @@ def check_stale_legacy_assets(project_dir: Path) -> DoctorCheck:
     )
 
 
-_UNKNOWN_SELECTION_PREFIX = UNKNOWN_SELECTION_DIAGNOSTIC.split("{kind}", 1)[0]
-
-
 def check_governance_resolution(project_dir: Path) -> DoctorCheck:
     """Validate charter-centric governance resolution for this project."""
     try:
@@ -158,7 +155,7 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
             "warning",
         )
 
-    unknown = [d for d in resolution.diagnostics if d.startswith(_UNKNOWN_SELECTION_PREFIX)]
+    unknown = [d.message for d in resolution.diagnostics if d.code is GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED]
     if unknown:
         # #6407: a selected id that exists in no layer is dropped; a green line would hide the typo.
         return DoctorCheck(

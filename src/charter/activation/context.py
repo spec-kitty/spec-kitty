@@ -591,9 +591,10 @@ def build_charter_context_json(
         # or ``null`` when the resolver raised. Distinct from the per-entry
         # ``all_directives[].source`` artifact-origin field.
         "directives_source": directives_source,
-        # NEW (#6407, FR-010, schema 1.4.0): resolution diagnostics (for example
-        # a selected id that exists in no layer and was dropped). Always present;
-        # ``[]`` when the resolution has nothing to report.
+        # NEW (#6407, FR-010, schema 1.4.0): resolution diagnostics as
+        # ``{"code", "message"}`` objects (#6460; for example an
+        # ``UNKNOWN_SELECTION_DROPPED`` entry for a selected id that exists in
+        # no layer). Always present; ``[]`` when the resolution has nothing to report.
         "diagnostics": diagnostics,
         "references": [],
         "project_charter": _project_charter_json_block(repo_root),

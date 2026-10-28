@@ -137,8 +137,13 @@ from charter.activation.kind_vocabulary import (
     UnrepresentableDirectiveIdError as UnrepresentableDirectiveIdError,
     resolve_selected_id_to_stem as resolve_selected_id_to_stem,
 )
-from charter.activation.resolver import (
-    UNKNOWN_SELECTION_DIAGNOSTIC as UNKNOWN_SELECTION_DIAGNOSTIC,
+
+# Typed governance-resolution diagnostics (#6460): the closed code set and the
+# ``{code, message}`` value object ``GovernanceResolution.diagnostics`` holds, so
+# consumers (doctor) classify by code. Public per charter.activation._diagnostics.__all__.
+from charter.activation._diagnostics import (
+    GovernanceDiagnostic as GovernanceDiagnostic,
+    GovernanceDiagnosticCode as GovernanceDiagnosticCode,
 )
 
 # The activation reader's charter.yaml soundness rule, consumed by the ``charter synthesize``
@@ -211,13 +216,14 @@ __all__ = [
     "MANIFEST_PATH",
     "MAX_SKILL_DESCRIPTION_LENGTH",
     "MAX_SKILL_NAME_LENGTH",
-    "UNKNOWN_SELECTION_DIAGNOSTIC",
     "ActivationLedger",
     "ActivationResult",
     "ActiveCharterConfigError",
     "DenyListChoice",
     "DenyListWriteRefused",
     "EffectiveSet",
+    "GovernanceDiagnostic",
+    "GovernanceDiagnosticCode",
     "IdentityEntry",
     "IdentityIndex",
     "LanguageSettlement",

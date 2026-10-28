@@ -3474,10 +3474,22 @@
   "governance": {
     "assets": [],
     "diagnostics": [
-      "No activated paradigm set configured; using built-in catalog default (14 paradigms).",
-      "No available_tools selection provided; using runtime tool registry fallback.",
-      "No activated directive set configured; using built-in catalog default (38 directives).",
-      "Template set not selected in charter; fallback 'software-dev-default' applied."
+      {
+        "code": "CATALOG_DEFAULT_APPLIED",
+        "message": "No activated paradigm set configured; using built-in catalog default (14 paradigms)."
+      },
+      {
+        "code": "FALLBACK_APPLIED",
+        "message": "No available_tools selection provided; using runtime tool registry fallback."
+      },
+      {
+        "code": "CATALOG_DEFAULT_APPLIED",
+        "message": "No activated directive set configured; using built-in catalog default (38 directives)."
+      },
+      {
+        "code": "FALLBACK_APPLIED",
+        "message": "Template set not selected in charter; fallback 'software-dev-default' applied."
+      }
     ],
     "directives": [
       "ACTION_ITEM_ATTRIBUTION",

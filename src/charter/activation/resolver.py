@@ -42,6 +42,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from charter.activation._diagnostics import GovernanceDiagnostic, GovernanceDiagnosticCode
 from charter.activation.activation_ledger import DenySet
 from charter.activation.catalog import OfferingCatalog, load_offering_catalog
 from charter.activation.identity_index import IdentityIndex
@@ -70,7 +71,6 @@ __all__ = [
     "DEFAULT_TOOL_REGISTRY",
     "ActiveCharterService",
     "GovernanceResolution",
-    "UNKNOWN_SELECTION_DIAGNOSTIC",
     "GovernanceResolutionError",
     "collect_governance_diagnostics",
     "resolve_governance_for_profile",
@@ -101,8 +101,10 @@ _T = TypeVar("_T")
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
 
-#: Fixed Mission-wide wording for a selected id no layer knows (#6407). Selections are
-#: dropped with this diagnostic instead of erasing the whole governance resolution.
+#: Message template for a selected id no layer knows (#6407). Selections are dropped
+#: with a ``GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED`` entry carrying this
+#: text instead of erasing the whole governance resolution; classify by the code,
+#: never by this wording (#6460).
 UNKNOWN_SELECTION_DIAGNOSTIC = (
     "Unknown selected {kind} '{token}' dropped: not found in built-in, org packs (charter_packs.org.packs)"
     + " or .kittify/charter-packs/; see 'spec-kitty charter list'."
@@ -639,19 +641,20 @@ class GovernanceResolution:
     assets: list[str] = field(default_factory=list)
     profile_id: str | None = None
     role: str | None = None
-    diagnostics: list[str] = field(default_factory=list)
+    # #6460: typed ``{code, message}`` entries, in producer order; consumers match on ``code``.
+    diagnostics: list[GovernanceDiagnostic] = field(default_factory=list)
 
 
-def _drop_unknown(kind: str, token: str, diagnostics: list[str]) -> None:
+def _drop_unknown(kind: str, token: str, diagnostics: list[GovernanceDiagnostic]) -> None:
     """Record that *token* was dropped because no layer knows it (#6407)."""
-    diagnostics.append(UNKNOWN_SELECTION_DIAGNOSTIC.format(kind=kind, token=token))
+    diagnostics.append(GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, UNKNOWN_SELECTION_DIAGNOSTIC.format(kind=kind, token=token)))
 
 
 def _resolve_selected_paradigms(
     selected_paradigms: list[str],
     offering_catalog: OfferingCatalog,
     identity: IdentityIndex,
-    diagnostics: list[str],
+    diagnostics: list[GovernanceDiagnostic],
 ) -> list[str]:
     """Map each selected paradigm to its declared id; drop (with a diagnostic) unknown ones.
 
@@ -676,7 +679,7 @@ def _resolve_paradigm_base(
     offering_catalog: OfferingCatalog,
     pack_ctx: PackContext,
     identity: IdentityIndex,
-    diagnostics: list[str],
+    diagnostics: list[GovernanceDiagnostic],
 ) -> tuple[list[str], str]:
     """Resolve the *base* paradigm set and its provenance label (FR-013),
     mirroring :func:`_resolve_directive_base`'s three-state guard for
@@ -700,7 +703,11 @@ def _resolve_paradigm_base(
     activated_paradigms = pack_ctx.allow_for(ArtifactKind.PARADIGM)
     if activated_paradigms is None:
         base = sorted(offering_catalog.paradigms)
-        diagnostics.append(f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms).")
+        diagnostics.append(
+            GovernanceDiagnostic(
+                GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED, f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms)."
+            )
+        )
         return base, "catalog_fallback"
     warnings: list[str] = []
     ids = {identity.activation_id(ArtifactKind.PARADIGM, token, warnings) for token in activated_paradigms}
@@ -712,7 +719,7 @@ def _resolve_paradigm_base(
 def _resolve_tools_selection(
     charter_config: GovernanceCharterConfig,
     available_tools: set[str],
-    diagnostics: list[str],
+    diagnostics: list[GovernanceDiagnostic],
 ) -> tuple[list[str], str]:
     """Resolve tool list as the union of registry baseline and charter selection.
 
@@ -739,10 +746,17 @@ def _resolve_tools_selection(
         unioned = sorted(set(selected_tools) | available_tools)
         added_from_charter = sorted(set(selected_tools) - available_tools)
         if added_from_charter:
-            diagnostics.append("Charter declared additional tool(s) beyond the runtime registry: " + ", ".join(added_from_charter) + ".")
+            diagnostics.append(
+                GovernanceDiagnostic(
+                    GovernanceDiagnosticCode.SELECTION_MERGED,
+                    "Charter declared additional tool(s) beyond the runtime registry: " + ", ".join(added_from_charter) + ".",
+                )
+            )
         return unioned, "charter+registry"
 
-    diagnostics.append("No available_tools selection provided; using runtime tool registry fallback.")
+    diagnostics.append(
+        GovernanceDiagnostic(GovernanceDiagnosticCode.FALLBACK_APPLIED, "No available_tools selection provided; using runtime tool registry fallback.")
+    )
     return sorted(available_tools), "registry_only"
 
 
@@ -751,7 +765,7 @@ def _resolve_selected_directives(
     local_ids: set[str],
     catalog_ids: set[str],
     identity: IdentityIndex,
-    diagnostics: list[str],
+    diagnostics: list[GovernanceDiagnostic],
 ) -> list[str]:
     """Map each selected directive to its declared id; drop (with a diagnostic) unknown ones.
 
@@ -772,7 +786,7 @@ def _resolve_selected_directives(
     return resolved
 
 
-def _report_charter_selection(noun: str, resolved: list[str], base: list[str], base_source: str, diagnostics: list[str]) -> None:
+def _report_charter_selection(noun: str, resolved: list[str], base: list[str], base_source: str, diagnostics: list[GovernanceDiagnostic]) -> None:
     """Append the "beyond the base" / "none added" diagnostic for a resolved charter selection.
 
     Silent when nothing resolved (every entry was unknown): the unknown-selection
@@ -783,9 +797,18 @@ def _report_charter_selection(noun: str, resolved: list[str], base: list[str], b
     base_set = set(base)
     added = [item for item in resolved if item not in base_set]
     if added:
-        diagnostics.append(f"Charter selected {len(added)} {noun}(s) beyond the {base_source} base: " + ", ".join(added) + ".")
+        diagnostics.append(
+            GovernanceDiagnostic(
+                GovernanceDiagnosticCode.SELECTION_MERGED, f"Charter selected {len(added)} {noun}(s) beyond the {base_source} base: " + ", ".join(added) + "."
+            )
+        )
     else:
-        diagnostics.append(f"All {len(resolved)} charter-selected {noun}(s) already present in the {base_source} base; none added: " + ", ".join(resolved) + ".")
+        diagnostics.append(
+            GovernanceDiagnostic(
+                GovernanceDiagnosticCode.SELECTION_MERGED,
+                f"All {len(resolved)} charter-selected {noun}(s) already present in the {base_source} base; none added: " + ", ".join(resolved) + ".",
+            )
+        )
 
 
 def _resolve_directive_base(
@@ -794,7 +817,7 @@ def _resolve_directive_base(
     offering_catalog: OfferingCatalog,
     pack_ctx: PackContext,
     identity: IdentityIndex,
-    diagnostics: list[str],
+    diagnostics: list[GovernanceDiagnostic],
 ) -> tuple[list[str], str]:
     """Resolve the *base* directive set and its provenance label, before the
     additive project-local layer (see :func:`_resolve_directives_selection`).
@@ -831,7 +854,11 @@ def _resolve_directive_base(
     activated_directives = pack_ctx.allow_for(ArtifactKind.DIRECTIVE)
     if activated_directives is None:
         base = sorted(catalog_ids)
-        diagnostics.append(f"No activated directive set configured; using built-in catalog default ({len(base)} directives).")
+        diagnostics.append(
+            GovernanceDiagnostic(
+                GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED, f"No activated directive set configured; using built-in catalog default ({len(base)} directives)."
+            )
+        )
         base_source = "catalog_fallback"
     else:
         warnings: list[str] = []
@@ -857,7 +884,7 @@ def _resolve_directives_selection(
     offering_catalog: OfferingCatalog,
     pack_ctx: PackContext,
     identity: IdentityIndex,
-    diagnostics: list[str],
+    diagnostics: list[GovernanceDiagnostic],
 ) -> tuple[list[str], str]:
     """Resolve the effective directive list as the base set **plus** an additive
     project-local layer declared in ``charter.yaml``'s ``directives:`` section.
@@ -886,9 +913,18 @@ def _resolve_directives_selection(
     base_set = set(base)
     added = [d for d in local_ids if d not in base_set]
     if added:
-        diagnostics.append(f"Merged {len(added)} project-local directive(s) onto the {base_source} set: " + ", ".join(added) + ".")
+        diagnostics.append(
+            GovernanceDiagnostic(
+                GovernanceDiagnosticCode.SELECTION_MERGED, f"Merged {len(added)} project-local directive(s) onto the {base_source} set: " + ", ".join(added) + "."
+            )
+        )
     else:
-        diagnostics.append(f"All {len(local_ids)} project-local directive(s) already present in the {base_source} set; none added: " + ", ".join(local_ids) + ".")
+        diagnostics.append(
+            GovernanceDiagnostic(
+                GovernanceDiagnosticCode.SELECTION_MERGED,
+                f"All {len(local_ids)} project-local directive(s) already present in the {base_source} set; none added: " + ", ".join(local_ids) + ".",
+            )
+        )
     return resolved, f"{base_source}+project_local"
 
 
@@ -896,7 +932,7 @@ def _resolve_template_set_selection(
     charter_config: GovernanceCharterConfig,
     offering_catalog: OfferingCatalog,
     fallback_template_set: str,
-    diagnostics: list[str],
+    diagnostics: list[GovernanceDiagnostic],
 ) -> tuple[str, str]:
     """Resolve template set from charter selection or fallback."""
     if charter_config.template_set:
@@ -910,7 +946,9 @@ def _resolve_template_set_selection(
             )
         return charter_config.template_set, "charter"
 
-    diagnostics.append(f"Template set not selected in charter; fallback '{fallback_template_set}' applied.")
+    diagnostics.append(
+        GovernanceDiagnostic(GovernanceDiagnosticCode.FALLBACK_APPLIED, f"Template set not selected in charter; fallback '{fallback_template_set}' applied.")
+    )
     return fallback_template_set, "fallback"
 
 
@@ -946,7 +984,7 @@ def resolve_project_governance(
     directives_cfg = load_directives_config(repo_root)
     offering_catalog = load_offering_catalog()
     charter_config = governance.charter
-    diagnostics: list[str] = []
+    diagnostics: list[GovernanceDiagnostic] = []
 
     # FR-013: activated_paradigms is the base; charter_config.selected_paradigms
     # (validated exactly as before, unchanged — boundary 4, already "fails
@@ -1024,7 +1062,10 @@ def resolve_governance_for_profile(
         graph=graph,
         repo_root=repo_root,
     )
-    diagnostics = [f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in resolution_graph.unresolved]
+    diagnostics = [
+        GovernanceDiagnostic(GovernanceDiagnosticCode.UNRESOLVED_REFERENCE, f"Unresolved reference: {artifact_type}/{artifact_id}")
+        for artifact_type, artifact_id in resolution_graph.unresolved
+    ]
 
     return GovernanceResolution(
         paradigms=list(interview.selected_paradigms),
@@ -1052,7 +1093,13 @@ def collect_governance_diagnostics(
     tool_registry: set[str] | None = None,
     fallback_template_set: str = DEFAULT_TEMPLATE_SET,
 ) -> list[str]:
-    """Collect diagnostics for planning/runtime checks."""
+    """Collect diagnostic messages for planning/runtime checks.
+
+    Returns plain text: the resolution's diagnostic ``message`` values on
+    success, or the uncoded :attr:`GovernanceResolutionError.issues` on a
+    resolution failure. Callers that classify a diagnostic must read the typed
+    ``GovernanceResolution.diagnostics`` (match on ``code``) instead.
+    """
     try:
         resolution = resolve_project_governance(
             repo_root,
@@ -1061,7 +1108,7 @@ def collect_governance_diagnostics(
         )
     except GovernanceResolutionError as exc:
         return exc.issues
-    return resolution.diagnostics
+    return [diagnostic.message for diagnostic in resolution.diagnostics]
 
 
 def _merge_unique(primary: list[str], secondary: list[str]) -> list[str]:

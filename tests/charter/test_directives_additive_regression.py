@@ -19,6 +19,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from charter.activation.api import GovernanceDiagnosticCode
 from charter.activation.resolver import resolve_project_governance
 from tests.charter.test_resolver import _write_charter_files
 
@@ -54,7 +55,9 @@ directives:
     # Base (sorted catalog) then the appended local id — no base id dropped.
     assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010", "LOCAL_QA_PROBE"]
     assert result.metadata["directives_source"] == "catalog_fallback+project_local"
-    assert any("project-local directive" in line and "LOCAL_QA_PROBE" in line for line in result.diagnostics), result.diagnostics
+    assert any(
+        d.code is GovernanceDiagnosticCode.SELECTION_MERGED and "project-local directive" in d.message and "LOCAL_QA_PROBE" in d.message for d in result.diagnostics
+    ), result.diagnostics
 
 
 def test_multiple_local_directives_lose_no_base_ids(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

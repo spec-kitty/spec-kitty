@@ -133,7 +133,10 @@ def test_context_json_passes_diagnostics_through(tmp_path: Path, monkeypatch: py
 
     data = _context_json(repo, monkeypatch)
 
-    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in data["diagnostics"]
+    assert {
+        "code": "UNKNOWN_SELECTION_DROPPED",
+        "message": UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999"),
+    } in data["diagnostics"]
     entries = {e["id"]: e for e in data["all_directives"]}
     assert entries["QA_003"]["source"] == "org"
     assert data["context_schema_version"] == "1.4.0"
@@ -148,4 +151,5 @@ def test_context_json_diagnostics_empty_on_clean_fixture(tmp_path: Path, monkeyp
     data = _context_json(repo, monkeypatch)
 
     assert isinstance(data["diagnostics"], list)
-    assert not any(d.startswith("Unknown selected") for d in data["diagnostics"])
+    assert all(set(d) == {"code", "message"} for d in data["diagnostics"])
+    assert not any(d["code"] == "UNKNOWN_SELECTION_DROPPED" for d in data["diagnostics"])

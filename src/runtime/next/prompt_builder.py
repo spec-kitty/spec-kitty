@@ -550,7 +550,7 @@ def _legacy_governance_context(repo_root: Path) -> str:
         f"  - Tools: {tools}",
     ]
     if resolution.diagnostics:
-        lines.append(f"  - Diagnostics: {' | '.join(resolution.diagnostics)}")
+        lines.append(f"  - Diagnostics: {' | '.join(diagnostic.message for diagnostic in resolution.diagnostics)}")
     return "\n".join(lines)
 
 

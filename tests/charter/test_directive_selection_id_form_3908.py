@@ -28,6 +28,7 @@ from pathlib import Path
 import pytest
 import yaml
 
+from charter.activation.api import GovernanceDiagnosticCode
 from charter.activation.compact import _resolve_governance_summary
 from charter.activation.resolver import resolve_project_governance
 from charter.resolution import resolve_canonical_repo_root
@@ -105,7 +106,10 @@ def test_a_genuinely_absent_directive_is_dropped_with_a_diagnostic(tmp_path: Pat
 
     assert "DIRECTIVE_001" in resolution.directives
     assert not any("999" in d for d in resolution.directives)
-    assert any("999-not-a-real-directive" in d and "Unknown selected directive" in d for d in resolution.diagnostics)
+    assert any(
+        d.code is GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED and "999-not-a-real-directive" in d.message and "Unknown selected directive" in d.message
+        for d in resolution.diagnostics
+    )
 
 
 def test_this_repository_compact_context_keeps_its_activated_governance() -> None:

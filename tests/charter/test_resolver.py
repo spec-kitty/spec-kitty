@@ -17,12 +17,24 @@ from charter.activation.resolver import (
     resolve_project_governance,
 )
 
+from charter.activation.api import GovernanceDiagnostic, GovernanceDiagnosticCode
+from charter.activation.resolver import GovernanceResolution
 from tests.charter.org_pack_identity_support import real_pack_context, write_identity_org_pack
 
 pytestmark = pytest.mark.fast
 
 
 _GOVERNANCE_SELECTION_KEY = "charter"
+
+
+def _messages(resolution: GovernanceResolution) -> list[str]:
+    """The message text of each typed diagnostic (#6460); classification stays on ``code``."""
+    return [diagnostic.message for diagnostic in resolution.diagnostics]
+
+
+def _dropped(message: str) -> GovernanceDiagnostic:
+    """The typed ``UNKNOWN_SELECTION_DROPPED`` entry carrying *message*."""
+    return GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, message)
 
 
 def _write_charter_files(
@@ -160,7 +172,7 @@ charter:
     resolution = resolve_project_governance(tmp_path)
 
     assert "missing-paradigm" not in resolution.paradigms
-    assert any("missing-paradigm" in d and "Unknown selected paradigm" in d for d in resolution.diagnostics)
+    assert any("missing-paradigm" in d and "Unknown selected paradigm" in d for d in _messages(resolution))
 
 
 def test_resolve_governance_missing_directive_dropped_with_diagnostic(tmp_path: Path) -> None:
@@ -175,7 +187,7 @@ charter:
     resolution = resolve_project_governance(tmp_path)
 
     assert "NOT_A_DIRECTIVE" not in resolution.directives
-    assert any("NOT_A_DIRECTIVE" in d and "Unknown selected directive" in d for d in resolution.diagnostics)
+    assert any("NOT_A_DIRECTIVE" in d and "Unknown selected directive" in d for d in _messages(resolution))
 
 
 def test_resolve_governance_charter_declares_tool_outside_registry_is_unioned(tmp_path: Path) -> None:
@@ -206,7 +218,7 @@ charter:
     assert result.metadata["tools_source"] == "charter+registry"
     assert any(
         "imaginary-tool" in diag and "Charter declared additional tool" in diag
-        for diag in result.diagnostics
+        for diag in _messages(result)
     )
 
 
@@ -290,11 +302,11 @@ directives:
         "directives_source": "catalog_fallback+project_local",
         "template_set_source": "fallback",
     }
-    assert any("runtime tool registry fallback" in line for line in result.diagnostics)
-    assert any("fallback-pack" in line for line in result.diagnostics)
+    assert any("runtime tool registry fallback" in line for line in _messages(result))
+    assert any("fallback-pack" in line for line in _messages(result))
     assert any(
         "project-local directive" in line and "LOCAL_ONLY" in line
-        for line in result.diagnostics
+        for line in _messages(result)
     ), result.diagnostics
 
 
@@ -320,7 +332,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
     # FR-005: the catalog-default fallback is never silent -- a diagnostic names it and its size.
     assert any(
         "built-in catalog default" in line and "2 directives" in line
-        for line in result.diagnostics
+        for line in _messages(result)
     ), result.diagnostics
 
 
@@ -365,7 +377,7 @@ directives:
     assert "DIRECTIVE_A" in result.directives
     assert any(
         "project-local directive" in line and "charter" in line
-        for line in result.diagnostics
+        for line in _messages(result)
     ), result.diagnostics
 
 
@@ -402,7 +414,7 @@ directives:
     # case — it names the already-present id instead of claiming a merge.
     assert any(
         "already present" in line and "none added" in line
-        for line in result.diagnostics
+        for line in _messages(result)
     ), result.diagnostics
 
 
@@ -453,7 +465,7 @@ directives:
     assert result.metadata["directives_source"] == "activation+project_local"
     assert any(
         "project-local directive" in line and "LOCAL_NEW" in line
-        for line in result.diagnostics
+        for line in _messages(result)
     ), result.diagnostics
 
 
@@ -538,7 +550,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     assert resolution.procedures == ["PROC_001"]
     assert resolution.role is None
     assert resolution.metadata["profile_directives_count"] == "2"
-    assert any("MISSING_DIRECTIVE" in line for line in resolution.diagnostics)
+    assert any("MISSING_DIRECTIVE" in line for line in _messages(resolution))
 
 
 def test_resolve_governance_for_profile_missing_profile_raises_value_error() -> None:
@@ -733,7 +745,7 @@ def test_org_directive_selection_resolves_in_either_spelling(tmp_path: Path, spe
     resolution = resolve_project_governance(repo)
 
     assert resolution.directives == ["QA_003"]
-    assert not any("Unknown selected" in d for d in resolution.diagnostics)
+    assert not any(d.code is GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED for d in resolution.diagnostics)
 
 
 def test_unknown_selected_directive_is_dropped_with_diagnostic(tmp_path: Path) -> None:
@@ -749,7 +761,7 @@ def test_unknown_selected_directive_is_dropped_with_diagnostic(tmp_path: Path) -
     assert "DIRECTIVE_001" in resolution.directives
     assert "NOPE_999" not in resolution.directives
     expected = UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999")
-    assert expected in resolution.diagnostics
+    assert _dropped(expected) in resolution.diagnostics
     assert ".kittify/charter-packs" in expected
     assert "packs/built-in/" not in expected
 
@@ -761,7 +773,7 @@ def test_org_paradigm_selection_accepted_and_unknown_dropped(tmp_path: Path) -> 
 
     assert "qa-nine" in resolution.paradigms
     assert "ghost-paradigm" not in resolution.paradigms
-    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="paradigm", token="ghost-paradigm") in resolution.diagnostics
+    assert _dropped(UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="paradigm", token="ghost-paradigm")) in resolution.diagnostics
 
 
 def test_all_unknown_charter_selections_add_no_misleading_diagnostics_or_source_suffix(tmp_path: Path) -> None:
@@ -775,8 +787,8 @@ def test_all_unknown_charter_selections_add_no_misleading_diagnostics_or_source_
 
     resolution = resolve_project_governance(repo)
 
-    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in resolution.diagnostics
-    assert not any("none added" in d or "beyond the" in d for d in resolution.diagnostics)
+    assert _dropped(UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999")) in resolution.diagnostics
+    assert not any("none added" in d or "beyond the" in d for d in _messages(resolution))
     assert resolution.metadata["directives_source"] == "activation"
 
 

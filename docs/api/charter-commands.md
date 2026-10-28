@@ -73,7 +73,13 @@ what they print, is in [Activation and the activation ledger](#activation-and-th
 | `--available-tools TEXT` | Comma-separated tool IDs override | — |
 | `--narrow-activation` | Replace (not append to) activated directives, tactics and paradigms with the selection plus org-required ids; kinds with no selection are untouched | — |
 | `--mission-slug TEXT` | Mission slug for decision moment paper trail (optional) | — |
-| `--json` | Output JSON (adds `languages`, `languages_source`: `stored`, `confirmed`, `detected` or `none`, and `languages_notice`: a human-readable notice when the list was detected and stored, else `null`) | — |
+| `--json` | Output JSON (adds `languages`, `languages_source`: `stored`, `confirmed`, `detected` or `none`, `languages_notice`: a human-readable notice when the list was detected and stored, else `null`, and `narrowed`: see below) | — |
+
+**`--json` `narrowed`**: an object that maps an activation key (for example
+`activated_directives`) to the list of ids that stopped being in force because
+`--narrow-activation` replaced that key with the selection plus the org-required ids. Only keys
+that lost at least one id appear. It is `{}` when `--narrow-activation` is not given or nothing
+was narrowed. Without `--json` the same information prints as `No longer in force (N) for <key>: ...`.
 
 **Project languages (`languages` in `.kittify/config.yaml`)**: before the questions, the interview
 detects the repository's languages (manifests and source counts) and proposes them. You confirm or
@@ -341,11 +347,27 @@ uv run spec-kitty charter context --action implement --json
 uv run spec-kitty charter context --action specify --no-mark-loaded --json
 ```
 
-> **`--json` `diagnostics` (schema 1.4.0).** `context_schema_version` is `1.4.0`.
-> The payload carries a top-level `diagnostics` list of strings, always present
-> (`[]` when clean). It holds the governance resolution's diagnostics, for example
-> `Unknown selected {kind} '{token}' dropped` for a selected id found in no layer.
-> The key is additive; consumers that ignore unknown keys are unaffected.
+**`--json` `diagnostics` (schema 1.4.0).** `context_schema_version` is `1.4.0`.
+The payload carries a top-level `diagnostics` list, always present (`[]` when clean or
+when governance resolution fails). Each entry is an object with exactly two keys:
+
+```json
+{"code": "UNKNOWN_SELECTION_DROPPED", "message": "Unknown selected directive 'NOPE_999' dropped: ..."}
+```
+
+Match on `code`; `message` is human text and may be reworded without notice. `code` is one
+of this closed set:
+
+| `code` | When it fires |
+| --- | --- |
+| `UNKNOWN_SELECTION_DROPPED` | A selected directive or paradigm exists in no layer (built-in, org packs, `.kittify/charter-packs/`) and was dropped. `spec-kitty doctor` warns on it. |
+| `CATALOG_DEFAULT_APPLIED` | No activation key is set for paradigms or directives, so the built-in catalog default is the base set. |
+| `FALLBACK_APPLIED` | The charter selects no `available_tools` (the runtime tool registry is used) or no `template_set` (the fallback template set is used). |
+| `SELECTION_MERGED` | A selection in `charter.yaml`, extra tools or project-local directives were unioned onto the base set (including the "already present; none added" case). |
+| `UNRESOLVED_REFERENCE` | A reference followed during profile-aware governance resolution resolves to nothing. Part of the closed set, but `charter context` does not produce it. |
+
+The key is additive; consumers that ignore unknown keys are unaffected. Per-code detail:
+`src/charter/activation/ERROR_CODES.md`.
 
 > **`--json` `project_charter.present` semantics (authority-of-record).**
 > `project_charter.present` / `project_charter.path` key on the **compiled

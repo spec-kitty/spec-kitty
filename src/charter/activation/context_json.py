@@ -37,6 +37,7 @@ from kernel.pack_tiers import BUILT_IN
 from charter.activation import progressive_disclosure as _pd
 from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.activation.context_state import KITTIFY_DIRNAME
+from charter.activation._diagnostics import GovernanceDiagnostic
 from charter.activation.schemas import DirectivesConfig
 from charter.offering.artifact_kinds import ArtifactKind
 
@@ -135,7 +136,7 @@ def _load_project_directives_with_diagnostics(
     repo_root: Path,
     load_directives_config: Callable[[Path], DirectivesConfig],
     identity: IdentityIndex | None = None,
-) -> tuple[dict[str, object], list[str], str | None, list[str]]:
+) -> tuple[dict[str, object], list[str], str | None, list[dict[str, str]]]:
     """Resolve project directive IDs **and** the resolution-level
     ``directives_source`` provenance from a *single* governance resolution.
 
@@ -147,8 +148,9 @@ def _load_project_directives_with_diagnostics(
     resolver failure — provenance-unavailable is itself an operator signal, and
     the broad-except degrade sites stay out of scope here (C-002).
 
-    The fourth element is the resolution's ``diagnostics`` (for example the
-    unknown-selection lines, #6407); ``[]`` on a resolver failure. *identity* is
+    The fourth element is the resolution's ``diagnostics`` as JSON-ready
+    ``{"code", "message"}`` objects (for example an ``UNKNOWN_SELECTION_DROPPED``
+    entry, #6407 / #6460); ``[]`` on a resolver failure. *identity* is
     the caller's per-entry-point :class:`IdentityIndex` (NFR-003).
     """
     try:
@@ -171,13 +173,26 @@ def _load_project_directives_with_diagnostics(
     # in existing seam tests that omit it.
     metadata = getattr(resolution, "metadata", None)
     directives_source = metadata.get("directives_source") if isinstance(metadata, dict) else None
-    diagnostics = getattr(resolution, "diagnostics", None)
     return (
         local_by_id,
         list(dict.fromkeys(list(resolution.directives) + directive_ids)),
         directives_source,
-        list(diagnostics) if isinstance(diagnostics, (list, tuple)) else [],
+        _diagnostics_json(getattr(resolution, "diagnostics", None)),
     )
+
+
+def _diagnostics_json(diagnostics: object) -> list[dict[str, str]]:
+    """Serialise resolution diagnostics as ``{"code", "message"}`` objects (#6460).
+
+    A real ``GovernanceResolution`` always holds typed
+    :class:`GovernanceDiagnostic` entries. A duck-typed resolver stub without a
+    ``diagnostics`` list yields ``[]``, and any entry that is not a
+    ``GovernanceDiagnostic`` is dropped: an uncoded entry has no place in the
+    closed-code contract.
+    """
+    if not isinstance(diagnostics, (list, tuple)):
+        return []
+    return [entry.to_json() for entry in diagnostics if isinstance(entry, GovernanceDiagnostic)]
 
 
 def _load_project_directives_with_source(
@@ -273,7 +288,7 @@ def _assemble_directive_entries(
 def _project_directive_resolution(
     repo_root: Path,
     identity: IdentityIndex | None = None,
-) -> tuple[list[dict[str, object]], str | None, list[str]]:
+) -> tuple[list[dict[str, object]], str | None, list[dict[str, str]]]:
     """Return the project directive entries, the resolution-level
     ``directives_source`` provenance **and** the resolution ``diagnostics``
     from a single governance resolution.

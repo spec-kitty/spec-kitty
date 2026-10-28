@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from charter.activation.api import GovernanceDiagnostic, GovernanceDiagnosticCode
 from charter.activation.compiler import compile_charter, write_compiled_charter
 from charter.activation.interview import apply_answer_overrides, default_interview
 from tests._factories import provision_test_charter
@@ -539,7 +540,7 @@ class TestGovernanceContext:
             paradigms=["test-first"],
             directives=["TEST_FIRST"],
             tools=["git", "pytest"],
-            diagnostics=["Template set from charter."],
+            diagnostics=[GovernanceDiagnostic(GovernanceDiagnosticCode.FALLBACK_APPLIED, "Template set from charter.")],
         )
         text = _governance_context(feature_dir.parent.parent)
         assert "Governance:" in text
@@ -552,15 +553,20 @@ class TestGovernanceContext:
         from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
 
         diagnostic = UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999")
+        merged = "Charter declared additional tool(s) beyond the runtime registry: ruff."
         mock_resolve.return_value = MagicMock(
             template_set="software-dev-default",
             paradigms=[],
             directives=["QA_003"],
             tools=[],
-            diagnostics=[diagnostic],
+            diagnostics=[
+                GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, diagnostic),
+                GovernanceDiagnostic(GovernanceDiagnosticCode.SELECTION_MERGED, merged),
+            ],
         )
         text = _governance_context(feature_dir.parent.parent)
-        assert f"Diagnostics: {diagnostic}" in text
+        # #6460 (SC-004): the prompt shows the message text only, exactly as before typing.
+        assert f"  - Diagnostics: {diagnostic} | {merged}" in text.splitlines()
         assert "Directives: QA_003" in text
 
     @patch("runtime.next.prompt_builder.resolve_project_governance")

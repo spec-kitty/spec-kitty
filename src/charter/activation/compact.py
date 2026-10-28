@@ -334,7 +334,7 @@ def _resolve_governance_summary(
         paradigms = ", ".join(resolution.paradigms)
     if resolution.tools:
         tools = ", ".join(resolution.tools)
-    diagnostics.extend(list(resolution.diagnostics))
+    diagnostics.extend(diagnostic.message for diagnostic in resolution.diagnostics)
     resolver_directives = list(resolution.directives)
     return resolution.template_set, paradigms, tools, diagnostics, resolver_directives
 

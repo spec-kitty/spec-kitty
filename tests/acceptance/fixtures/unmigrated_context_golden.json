@@ -17,9 +17,18 @@
   "context": "Charter Context (Bootstrap):\n  - Source: <ROOT>/.kittify/charter/charter.md\n  - This is the first load for this action. Use the summary and follow references as needed.\n\nPolicy Summary:\n  - No explicit policy summary section found in charter.md.\n\nAction-Critical Charter Sections (implement):\n\n### Terminology Canon\n  Run: spec-kitty charter context --include section:terminology-canon\n  When you rename or introduce a term in the diff, run this command and apply the returned rule.\n\n### Code Review Checklist\n  Run: spec-kitty charter context --include section:code-review-checklist\n  When you prepare a WP for review, run this command and apply the returned rule.\n\n### Regression Vigilance\n  Run: spec-kitty charter context --include section:regression-vigilance\n  When you perform a terminology cutover, run this command and apply the returned rule.\n\nAction Doctrine (implement):\n\n  SPDD/REASONS Guidance (action: implement):\n    - Honour the full canvas: Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards.\n    - Before coding, restate the WP-scoped Requirements (R) and Entities (E) in your own words.\n    - Execute Operations (O) in the order recorded; do not skip ahead silently.\n    - Capture deviations in the canvas 'Deviations' subsection \u2014 never in scattered comments.\n    - Verify Norms (N) and Safeguards (S) before marking the WP for review.\n    - Reference: kitty-specs/<mission>/reasons-canvas.md (when present).\n\nReference Docs:\n  - No references manifest found.",
   "context_schema_version": "1.4.0",
   "diagnostics": [
-    "No activated paradigm set configured; using built-in catalog default (14 paradigms).",
-    "No available_tools selection provided; using runtime tool registry fallback.",
-    "Template set not selected in charter; fallback 'software-dev-default' applied."
+    {
+      "code": "CATALOG_DEFAULT_APPLIED",
+      "message": "No activated paradigm set configured; using built-in catalog default (14 paradigms)."
+    },
+    {
+      "code": "FALLBACK_APPLIED",
+      "message": "No available_tools selection provided; using runtime tool registry fallback."
+    },
+    {
+      "code": "FALLBACK_APPLIED",
+      "message": "Template set not selected in charter; fallback 'software-dev-default' applied."
+    }
   ],
   "directives": [],
   "directives_source": "activation",

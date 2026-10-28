@@ -1,11 +1,14 @@
 # Charter Activation Error & Warning Codes
 
-This file has two parts:
+This file has three parts:
 
 1. **Charter encoding codes** (below): a hand-maintained mirror of the
    `CharterEncodingDiagnostic` StrEnum.
-2. **Activation configuration codes** (at the end): codes raised when the
-   active charter configuration cannot be read.
+2. **Activation configuration codes**: codes raised when the active charter
+   configuration cannot be read.
+3. **Governance resolution diagnostic codes** (at the end): the `code` of each
+   `{code, message}` entry in `GovernanceResolution.diagnostics` and in the
+   `charter context --json` `diagnostics` list.
 
 # Charter encoding codes
 
@@ -13,7 +16,7 @@ This file has two parts:
 > This part is a hand-maintained mirror. Until #645's code-to-docs flow exists,
 > the StrEnum members and this part's `##` section count must match per NFR-008.
 > The NFR-008 mirror rule covers this part only, not the activation
-> configuration codes below.
+> configuration codes or the governance resolution diagnostic codes below.
 
 ## CHARTER_ENCODING_AMBIGUOUS
 
@@ -109,4 +112,90 @@ Error (ACTIVE_CHARTER_CONFIG_INVALID): .kittify/config.yaml 'charter:' pointer n
 /path/to/charter.yaml, which does not exist.
 Remediation: fix .kittify/config.yaml (or the charter.yaml it points to) or run
 `spec-kitty upgrade` to restore the default active charter shape.
+```
+
+# Governance resolution diagnostic codes
+
+> **Source of truth**: `src/charter/activation/_diagnostics.py` (StrEnum class
+> `GovernanceDiagnosticCode`, carried by the `GovernanceDiagnostic` value object).
+> Every entry of `GovernanceResolution.diagnostics` has a `code` from this closed
+> set and a human `message`. `charter context --json` (schema 1.4.0) renders
+> each entry as `{"code": "<CODE>", "message": "<text>"}`. Consumers match on
+> `code`; `message` is display text and may be reworded without notice. These
+> are informational notes, not errors: resolution still succeeds.
+
+## UNKNOWN_SELECTION_DROPPED
+
+**When it fires**: a selection in `charter.yaml` (`selected_directives` or
+`selected_paradigms`) names an id that no layer knows (built-in, org packs or
+`.kittify/charter-packs/`). The id is dropped and the rest of the resolution
+stands. `spec-kitty doctor` warns on this code.
+
+**JSON stability**: this code string is stable across minor releases; consumers
+may match it as an opaque identifier.
+
+**Example message**:
+
+```text
+Unknown selected directive 'NOPE_999' dropped: not found in built-in, org packs (charter_packs.org.packs) or .kittify/charter-packs/; see 'spec-kitty charter list'.
+```
+
+## CATALOG_DEFAULT_APPLIED
+
+**When it fires**: the activation key for paradigms or directives is absent, so
+the built-in catalog default is the base set.
+
+**JSON stability**: this code string is stable across minor releases; consumers
+may match it as an opaque identifier.
+
+**Example message**:
+
+```text
+No activated paradigm set configured; using built-in catalog default (14 paradigms).
+```
+
+## FALLBACK_APPLIED
+
+**When it fires**: the charter does not select `available_tools` (the runtime
+tool registry is used) or a `template_set` (the fallback template set is used).
+
+**JSON stability**: this code string is stable across minor releases; consumers
+may match it as an opaque identifier.
+
+**Example message**:
+
+```text
+Template set not selected in charter; fallback 'software-dev-default' applied.
+```
+
+## SELECTION_MERGED
+
+**When it fires**: a selection in `charter.yaml` or a project-local declaration is
+unioned onto the base set: tools beyond the runtime registry, selected
+directives or paradigms beyond the base (or all already present), and
+project-local directives merged onto the resolved set (or all already present).
+
+**JSON stability**: this code string is stable across minor releases; consumers
+may match it as an opaque identifier.
+
+**Example message**:
+
+```text
+Charter selected 1 directive(s) beyond the activation base: QA_003.
+```
+
+## UNRESOLVED_REFERENCE
+
+**When it fires**: profile-aware governance resolution
+(`resolve_governance_for_profile`) follows a reference that resolves to no
+artifact. It is part of the closed set, but `charter context` does not produce
+it.
+
+**JSON stability**: this code string is stable across minor releases; consumers
+may match it as an opaque identifier.
+
+**Example message**:
+
+```text
+Unresolved reference: directive/MISSING_DIRECTIVE
 ```

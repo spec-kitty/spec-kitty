@@ -120,8 +120,11 @@ def test_json_payload_carries_unknown_selection_diagnostics(tmp_path: Path) -> N
 
     payload = build_charter_context_json(repo, action="plan")
 
-    diagnostics = cast("list[str]", payload["diagnostics"])
-    assert UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999") in diagnostics
+    diagnostics = cast("list[dict[str, str]]", payload["diagnostics"])
+    assert {
+        "code": "UNKNOWN_SELECTION_DROPPED",
+        "message": UNKNOWN_SELECTION_DIAGNOSTIC.format(kind="directive", token="NOPE_999"),
+    } in diagnostics
     entries = {e["id"]: e for e in cast("list[dict[str, object]]", payload["all_directives"])}
     assert "QA_003" in entries
     assert entries["QA_003"]["source"] == "org"
@@ -135,9 +138,9 @@ def test_json_payload_diagnostics_empty_on_clean_fixture(tmp_path: Path) -> None
 
     payload = build_charter_context_json(repo, action="plan")
 
-    diagnostics = cast("list[str]", payload["diagnostics"])
+    diagnostics = cast("list[dict[str, str]]", payload["diagnostics"])
     # Other informational resolver notes (for example "using built-in catalog default")
     # are legitimate; the control is that no selected id was reported unknown.
     assert isinstance(diagnostics, list)
-    assert not any(d.startswith("Unknown selected") for d in diagnostics)
+    assert not any(d["code"] == "UNKNOWN_SELECTION_DROPPED" for d in diagnostics)
     assert "diagnostics" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS

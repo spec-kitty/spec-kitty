@@ -73,11 +73,16 @@ CONTEXT_SCHEMA_VERSION = "1.4.0"
 #:   rehome-writing-comms-doctrine because it embedded the live directive
 #:   catalog and red on every doctrine addition.)
 #:
-#: **``diagnostics`` (#6407, FR-010, bumped to 1.4.0).** A top-level
-#: ``list[str]``, always present (``[]`` when clean): the governance
-#: resolution's ``GovernanceResolution.diagnostics``, for example the
-#: ``Unknown selected {kind} '{token}' dropped`` line for a selected id found
-#: in no layer. Additive; consumers that ignore unknown keys are unaffected.
+#: **``diagnostics`` (#6407, FR-010, bumped to 1.4.0; typed by #6460).** A
+#: top-level list of ``{"code": ..., "message": ...}`` objects, always present
+#: (``[]`` when clean): the governance resolution's
+#: ``GovernanceResolution.diagnostics``. ``code`` is from the closed set
+#: ``UNKNOWN_SELECTION_DROPPED``, ``CATALOG_DEFAULT_APPLIED``,
+#: ``FALLBACK_APPLIED``, ``SELECTION_MERGED``, ``UNRESOLVED_REFERENCE``
+#: (``GovernanceDiagnosticCode``); consumers match on ``code``, and ``message``
+#: is human text that may be reworded. Still 1.4.0: the key was unshipped and
+#: redefined before 4.0.0rc8. Additive; consumers that ignore unknown keys are
+#: unaffected.
 #:
 #: This is a superset guard, not a strict-equality contract: which of these
 #: keys are actually present is conditional on the action (bootstrap vs.

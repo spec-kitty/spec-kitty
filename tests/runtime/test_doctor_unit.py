@@ -391,6 +391,7 @@ def test_governance_check_warns_on_unknown_selection_diagnostics(
     """#6407: a typo'd selection is a warning naming the id, never a green 'Resolved governance'."""
     from types import SimpleNamespace
 
+    from charter.activation.api import GovernanceDiagnostic, GovernanceDiagnosticCode
     from charter.activation.resolver import UNKNOWN_SELECTION_DIAGNOSTIC
     from specify_cli.runtime import doctor
 
@@ -401,7 +402,10 @@ def test_governance_check_warns_on_unknown_selection_diagnostics(
         paradigms=[],
         directives=["QA_003"],
         tools=[],
-        diagnostics=[diagnostic, "Charter declared additional tool(s) beyond the runtime registry: ruff."],
+        diagnostics=[
+            GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, diagnostic),
+            GovernanceDiagnostic(GovernanceDiagnosticCode.SELECTION_MERGED, "Charter declared additional tool(s) beyond the runtime registry: ruff."),
+        ],
     )
     monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
 
@@ -431,6 +435,9 @@ def test_governance_check_classifies_dropped_selection_by_code_not_wording(
     resolution = SimpleNamespace(
         template_set="software-dev-default",
         metadata={},
+        paradigms=[],
+        directives=[],
+        tools=[],
         diagnostics=[
             GovernanceDiagnostic(GovernanceDiagnosticCode.UNKNOWN_SELECTION_DROPPED, reworded),
             GovernanceDiagnostic(GovernanceDiagnosticCode.SELECTION_MERGED, "Charter declared additional tool(s) beyond the runtime registry: ruff."),
@@ -456,6 +463,9 @@ def test_governance_check_ignores_unknown_wording_under_other_code(
     resolution = SimpleNamespace(
         template_set="software-dev-default",
         metadata={},
+        paradigms=[],
+        directives=[],
+        tools=[],
         diagnostics=[GovernanceDiagnostic(GovernanceDiagnosticCode.CATALOG_DEFAULT_APPLIED, "Unknown selected nothing; catalog default used.")],
     )
     monkeypatch.setattr(doctor, "resolve_project_governance", lambda _project_dir: resolution)
