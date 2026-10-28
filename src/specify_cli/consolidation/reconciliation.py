@@ -1332,7 +1332,8 @@ def _is_nested_alias_coordination_file(path: str, mission_slug: str | None, plan
     # Function-local: this module imports nothing from the coordination package at its top.
     from specify_cli.coordination.coherence import is_coordination_kind_file
 
-    return is_coordination_kind_file("/".join(parts[2:]))
+    is_coordination_kind: bool = is_coordination_kind_file("/".join(parts[2:]))
+    return is_coordination_kind
 
 
 def is_legitimate_three_way_resolution(
@@ -1404,7 +1405,7 @@ def is_legitimate_three_way_resolution(
     for contribution in (lane_a, lane_b):
         if blob_id_at(repo_root, contribution.lane_commit, path) != contribution.authored_blob:
             return False
-    resolved_blob = three_way_merge_blob(repo_root, lane_a.lane_commit, lane_b.lane_commit, path)
+    resolved_blob: str | None = three_way_merge_blob(repo_root, lane_a.lane_commit, lane_b.lane_commit, path)
     return resolved_blob == target_blob
 
 
