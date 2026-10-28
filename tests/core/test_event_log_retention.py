@@ -426,6 +426,24 @@ def test_derived_views_and_ops_index_are_rebuildable_regardless_of_age(project: 
 
 @pytest.mark.unit
 @pytest.mark.fast
+def test_the_op_index_is_never_listed_or_removed(project: Path) -> None:
+    """DS-H2 (operator ruling 2026-10-28): ``invocations list`` trusts a partial
+    Op index, so deleting it would hide history; it is out of cleanup scope."""
+    ops_index = _write(project / "kitty-ops" / "ops-index.jsonl", '{"invocation_id": "x"}\n')
+    _set_age(ops_index, 400)
+    before = ops_index.read_bytes()
+
+    plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
+    assert _rel(ops_index, project) not in _by_path(plan.items, project)
+    apply_retention(project, plan)
+
+    assert ops_index.read_bytes() == before
+    with pytest.raises(UnsafeRetentionPathError):
+        retention._assert_deletable(project, ops_index)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
 def test_an_empty_project_scans_to_an_empty_plan(tmp_path: Path) -> None:
     plan = scan_retention(tmp_path, RetentionLimits(), now=NOW)
     assert plan.items == []
