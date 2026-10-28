@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "mission_slug": "typed-context-diagnostics-01M5ZA6Q",
+  "mission_id": "01M5ZA6Q3NXC4HC9FRF0CX8FXM",
+  "mission_branch": "kitty/mission-typed-context-diagnostics-01M5ZA6Q",
+  "target_branch": "issue-6460-typed-context-diagnostics",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/ERROR_CODES.md",
+        "src/charter/activation/_diagnostics.py",
+        "src/charter/activation/api.py",
+        "src/charter/activation/compact.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/context_contract.py",
+        "src/charter/activation/context_json.py",
+        "src/charter/activation/resolver.py",
+        "src/runtime/next/prompt_builder.py",
+        "src/specify_cli/runtime/doctor.py",
+        "tests/acceptance/fixtures/unmigrated_context_golden.json",
+        "tests/architectural/test_charter_activation_api_reexport.py",
+        "tests/charter/fixtures/*_in_force_snapshot.json",
+        "tests/charter/test_*.py",
+        "tests/charter/test_context_diagnostics_typed.py",
+        "tests/next/test_prompt_builder_unit.py",
+        "tests/runtime/test_doctor_unit.py",
+        "tests/specify_cli/cli/commands/test_charter_org_directive_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/reach_only.py",
+        "tests/charter/synthesizer/test_styleguide_reach_only.py",
+        "tests/charter/synthesizer/test_synthesize_activation_append.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-27T18:41:31.745212+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f8d5afe7f1f73ffbf5eb196f6b7919a2978dffb2"
+}

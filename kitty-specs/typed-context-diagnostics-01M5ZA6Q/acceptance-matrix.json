@@ -1,0 +1,79 @@
+{
+  "mission_slug": "typed-context-diagnostics-01M5ZA6Q",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_context_diagnostics_typed.py (red 96440e91 -> green 32fcfbe1); mutation: context_json emitting strings fails 7 tests (WP01 review cycle 1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T20:16:04.528927+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "per-code resolver mapping tests in test_context_diagnostics_typed.py; reviewer checked all producer sites vs data-model.md; messages byte-identical to 581b5c46",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T20:16:10.229069+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_doctor_unit.py reworded-message + lookalike-prefix negative control; mutation to prefix classifier fails both; _UNKNOWN_SELECTION_PREFIX removed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T20:16:15.563466+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_compact.py, tests/next/test_prompt_builder_unit.py unchanged text assertions green; goldens diff: only diagnostics shape changed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T20:16:22.118961+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "review",
+      "evidence": "CONTEXT_SCHEMA_VERSION 1.4.0; context_contract.py ledger, docs/api/charter-commands.md, ERROR_CODES.md part 3, CHANGELOG rc8 entry reworded (b6720ccd, 9c4280a2); test_context_schema_version_ledger green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T20:16:28.172938+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "review",
+      "evidence": "docs/api/charter-commands.md interview section documents narrowed; verified against interview.py:219,510 (WP01 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T20:16:33.643741+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_styleguide_reach_only.py signature test (red d1ac0c73 -> green 008afd8e); None/foreign input still empty; mypy --strict clean (WP02 review cycle 1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T20:16:39.153425+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

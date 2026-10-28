@@ -1,0 +1,35 @@
+{
+  "accept_commit": "36d87ee1006480a76d2373f02793946d16ec4be0",
+  "acceptance_history": [
+    {
+      "accept_commit": "36d87ee1006480a76d2373f02793946d16ec4be0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-27T20:16:46.168636+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "7c5d3c8b326d6b912880be9124d7c8a52664238f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-27T20:16:46.168636+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "7c5d3c8b326d6b912880be9124d7c8a52664238f",
+  "baseline_merge_commit": "e3f6095c2eb88b193501e6ed9debaa2179f01a41",
+  "created_at": "2026-10-27T18:33:18.768778+00:00",
+  "flattened": true,
+  "friendly_name": "Typed context JSON diagnostics",
+  "merged_at": "2026-10-27T20:18:47.116322+00:00",
+  "merged_commit": "3e9c64e058411697ed5ecb03876db2b6617c8391",
+  "mid8": "01M5ZA6Q",
+  "mission_id": "01M5ZA6Q3NXC4HC9FRF0CX8FXM",
+  "mission_number": 243,
+  "mission_slug": "typed-context-diagnostics-01M5ZA6Q",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The charter context JSON reports governance diagnostics as free text, and the doctor command recognises them by matching message prefixes, which breaks silently when wording changes. Before the unreleased context schema 1.4.0 ships, each diagnostic becomes a coded entry with a readable message. The mission also documents the interview narrowed field and gives two synthesis helpers a real parameter type.",
+  "purpose_tldr": "Give charter context JSON diagnostics a stable code so tools stop guessing from wording.",
+  "slug": "typed-context-diagnostics-01M5ZA6Q",
+  "status_phase": "1",
+  "target_branch": "issue-6460-typed-context-diagnostics",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T18:42:13.056690+00:00"
+}
