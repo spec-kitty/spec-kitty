@@ -13,7 +13,7 @@ contracts/
   _shared/                 pieces shared by more than one module
     schemas/  parameters/  responses/   (each with an _index.yaml)
   <module>/
-    openapi.yaml           info, servers, tags and the path-to-file map only
+    openapi.yaml           info, servers, tags, the path-to-file map and any security schemes
     CHANGELOG.md
     paths/  schemas/  parameters/  responses/  examples/
   tools/                   Python checks and libraries; not a module
@@ -89,6 +89,26 @@ info:
   version: 1.0.0-SNAPSHOT
 servers:
   - url: /api/v1
+```
+
+## Security schemes
+
+A module whose operations need credentials declares them in its root `openapi.yaml`
+under `components.securitySchemes`, and names the requirement with `security` (at the
+root, or on an operation). `securitySchemes` is the only key a root `components` may
+hold: any other key (`schemas`, `responses`, ...), an empty `components` or one that is
+not a mapping marks the root as a bundled document, and `layout_check.py` fails with
+`TRACKED_BUNDLE`. Schemas stay in their own files.
+
+```yaml
+# contracts/mission-write/openapi.yaml
+components:
+  securitySchemes:
+    writeToken:
+      type: http
+      scheme: bearer
+security:
+  - writeToken: []
 ```
 
 ## x-source, x-derived and x-provisional

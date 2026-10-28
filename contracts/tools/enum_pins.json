@@ -20,5 +20,9 @@
     "OpsClosedBy": ["agent", "doctor_sweep"],
     "OpsEvidenceKind": ["repo_path", "url", "text"],
     "OpsRefusalCode": ["ops_unreadable"]
+  },
+  "mission-write": {
+    "WriteSurface": ["checkout_append", "coordination_transaction_append"],
+    "HealthStatus": ["ready", "draining"]
   }
 }

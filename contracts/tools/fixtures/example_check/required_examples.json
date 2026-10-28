@@ -20,6 +20,21 @@
       {"schema": "StreamRefusal", "example": "StreamRefusal.misaligned.yaml", "reason": "stream refusal: misaligned"},
       {"schema": "StreamRefusal", "example": "StreamRefusal.content-mismatch.yaml", "reason": "stream refusal: content_mismatch"},
       {"schema": "StreamRefusal", "example": "StreamRefusal.cursor-without-mission.yaml", "reason": "stream refusal: cursor_without_mission"}
+    ],
+    "mission-write": [
+      {"schema": "TransitionUnit", "example": "TransitionUnit.claim.yaml", "reason": "request: one transition unit"},
+      {"schema": "TransitionBatch", "example": "TransitionBatch.two-units.yaml", "reason": "request: a batch of two units"},
+      {"schema": "AnnotationRequest", "example": "AnnotationRequest.note.yaml", "reason": "request: a standalone annotation"},
+      {"schema": "DurabilityAck", "example": "DurabilityAck.appended.yaml", "reason": "response: a durable unit"},
+      {"schema": "DurabilityAck", "example": "DurabilityAck.replayed.yaml", "reason": "response: an idempotent replay (provisional)"},
+      {"schema": "BatchDurabilityAck", "example": "BatchDurabilityAck.two-units.yaml", "reason": "response: a durable batch"},
+      {"schema": "Handshake", "example": "Handshake.example.yaml", "reason": "response: identity and version negotiation"},
+      {"schema": "Health", "example": "Health.ready.yaml", "reason": "response: health"},
+      {"schema": "WriteRefusal", "example": "WriteRefusal.illegal-transition.yaml", "reason": "refusal: a guard refusal with a reason URN"},
+      {"schema": "WriteRefusal", "example": "WriteRefusal.protected-branch.yaml", "reason": "refusal: a placement refusal"},
+      {"schema": "WriteRefusal", "example": "WriteRefusal.token-invalid.yaml", "reason": "refusal: protocol-only, no detail"},
+      {"schema": "WriteRefusal", "example": "WriteRefusal.service-busy.yaml", "reason": "refusal: backpressure (provisional)"},
+      {"schema": "WriteRefusal", "example": "WriteRefusal.batch-unit.yaml", "reason": "refusal: a batch names the failing unit"}
     ]
   }
 }

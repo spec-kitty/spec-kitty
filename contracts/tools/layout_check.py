@@ -61,10 +61,17 @@ INDEXED_DIRECTORIES = ("schemas", "parameters", "responses", "examples")
 INDEX_REQUIRED_DIRECTORIES = frozenset({"schemas", "parameters", "responses"})
 INDEX_NAME = "_index.yaml"
 ROOT_DOCUMENT = "openapi.yaml"
+# The one root `components` key a module may author: a security scheme is declared, never bundled.
+ROOT_COMPONENTS_ADMITTED = frozenset({"securitySchemes"})
 PATHS_DIRECTORY = "paths"
 SCHEMAS_DIRECTORY = "schemas"
 SKIPPED_DIRECTORIES = frozenset({"build", ".gradle", "node_modules"})
 YAML_SUFFIXES = (".yaml", ".yml")
+
+
+def _admitted_root_components(components: Any) -> bool:
+    """True when a root ``components`` is a non-empty mapping holding only admitted keys."""
+    return isinstance(components, dict) and bool(components) and set(components) <= ROOT_COMPONENTS_ADMITTED
 
 
 @dataclass(frozen=True)
@@ -246,8 +253,12 @@ class _Check:
             if not isinstance(document, dict) or "openapi" not in document:
                 continue
             if yaml_file == module / ROOT_DOCUMENT:
-                if "components" in document:
-                    self.add("TRACKED_BUNDLE", yaml_file, "the root openapi.yaml carries components, so it is a bundled document")
+                if "components" in document and not _admitted_root_components(document["components"]):
+                    self.add(
+                        "TRACKED_BUNDLE",
+                        yaml_file,
+                        f"the root openapi.yaml carries components beyond {sorted(ROOT_COMPONENTS_ADMITTED)}, so it is a bundled document",
+                    )
             else:
                 self.add("TRACKED_BUNDLE", yaml_file, "an OpenAPI document other than the root openapi.yaml is a bundled document")
 
