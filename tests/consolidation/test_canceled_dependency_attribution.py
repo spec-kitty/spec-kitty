@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation import wp_attribution as wpa
+from specify_cli.consolidation.canceled_attestation import OVERRIDABLE_REASONS
 from specify_cli.consolidation.git_probes import GitProbeError, first_parent_commits_in_range
 from specify_cli.consolidation.reconciliation import (
     CANCELED_REACHABLE_VIA_DEPENDENCY,
@@ -154,11 +155,13 @@ def test_commit_superseded_on_one_carrier_but_live_on_another_stays_subtracted(t
     spine_b = first_parent_commits_in_range(mission.repo, mission.target_branch, built.lane_b_branch)
     carriers = {LANE_B: spine_b, "lane-c": [built.wp01_sha]}
 
-    superseded, content = _carried_dependency_content(query, {LANE_A: own}, carriers, own)
+    superseded, content, refusal = _carried_dependency_content(query, {LANE_A: own}, carriers, own)
+
+    assert refusal is None
 
     assert superseded == frozenset(), "live on lane-c, so it must leave every lane's authorship"
     assert [(e.carrier_lane_id, e.path) for e in content] == [("lane-c", WP01_PATH)]
-    assert _carried_dependency_content(query, {LANE_A: own}, {LANE_B: spine_b}, own) == (own, frozenset())
+    assert _carried_dependency_content(query, {LANE_A: own}, {LANE_B: spine_b}, own) == (own, frozenset(), None)
 
 
 def test_mixed_lane_claim_is_untouched(tmp_path: Path) -> None:
@@ -359,19 +362,58 @@ def test_never_started_dependency_with_an_unreadable_event_log_refuses_naming_th
     assert "refs/spec-kitty/lane-tip" not in claim.refusal
 
 
-def test_unreadable_carrier_spine_keeps_the_stricter_verdict(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A probe error supersedes nothing: the canceled commit stays subtracted (unnamed), so the strategy axis still fails."""
+def test_unreadable_carrier_spine_refuses_and_cannot_be_overridden(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6313: a probe error on a carrier spine REFUSEs (``spine_unreadable``), as the mixed-lane axis does.
+
+    Subtracting the canceled commits alone is not stricter: the laundered lines stay in
+    the carrier's authored blobs, so without a refusal the canceled content would ship.
+    An attestation of the canceled WP never lifts it (infrastructure: repair, never override).
+    """
     built = build_canceled_dependency_mission(tmp_path, wp02_overwrites_wp01=True, mid8="01M5569P")
 
     def boom(*_args: object, **_kwargs: object) -> object:
         raise GitProbeError("spine unreadable")
 
     monkeypatch.setattr(f"{_RECONCILIATION}.canceled_spine_content", boom)
+    monkeypatch.setattr(f"{_RECONCILIATION}.attestation_stamps", lambda _events: {"WP01": None})
     claim = _claim(built)
 
-    assert claim.refusal is None
-    assert built.wp01_sha not in claim.authored_shas
-    assert claim.canceled_dependency_content == frozenset()
+    assert claim.refusal is not None
+    assert "WP01" in claim.refusal and LANE_A in claim.refusal and LANE_B in claim.refusal
+    assert "spine unreadable" in claim.refusal
+    assert "spine_unreadable" in claim.refusal
+    assert f"repair the branch of carrier lane(s) {LANE_B}" in claim.refusal, "the recovery names the carrier, not the canceled lane"
+    assert "renamed to more than one path" in claim.refusal, "a deterministic probe error (ambiguous rename) gets a fix that can work"
+    assert "cannot be overridden" in claim.refusal
+    assert "--attest-canceled-superseded" not in claim.refusal
+    assert wpa.UnattributableReason.SPINE_UNREADABLE not in OVERRIDABLE_REASONS
+
+
+def test_one_unreadable_carrier_among_readable_ones_refuses_naming_only_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6313: the canceled WP is named once, with only the carrier whose spine could not be read."""
+    built = build_canceled_dependency_mission(tmp_path, mid8="01M6313C")
+    mission = built.mission
+    manifest = read_lanes_json(mission.feature_dir)
+    assert manifest is not None
+    query = _CanceledLaneQuery(mission.repo, _status_dir(mission), manifest, {}, frozenset({"WP01"}), mission.target_branch, None, None, None)
+    own = frozenset({built.wp01_sha})
+    spine_b = first_parent_commits_in_range(mission.repo, mission.target_branch, built.lane_b_branch)
+    unreadable_spine = [built.wp01_sha, "c" * 40]
+    real = wpa.canceled_spine_content
+
+    def flaky(repo_root: Path, spine: list[str], *args: object) -> object:
+        if spine == unreadable_spine:
+            raise GitProbeError("object store damaged")
+        return real(repo_root, spine, *args)
+
+    monkeypatch.setattr(f"{_RECONCILIATION}.canceled_spine_content", flaky)
+
+    _, _, refusal = _carried_dependency_content(query, {LANE_A: own}, {LANE_B: spine_b, "lane-c": unreadable_spine}, own)
+
+    assert refusal is not None
+    assert refusal.count("canceled WP01") == 1
+    assert "carried by approved lane(s) lane-c but" in refusal and f"carrier lane(s) {LANE_B}" not in refusal
+    assert "lane-c: object store damaged" in refusal
 
 
 def test_verifier_step_noop_without_entries_refuses_without_window_base_and_on_probe_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

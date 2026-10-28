@@ -143,7 +143,8 @@ mission where no approved lane carries such a commit
   non-merge commit touched each of its content paths again
   (`wp_attribution.canceled_spine_content`). Nothing of such a commit is the
   lane's final state, so nothing of it ships. This removes an over-refusal under
-  `--strategy merge`. A carrier whose spine cannot be read supersedes nothing.
+  `--strategy merge`. A carrier whose spine cannot be read supersedes nothing
+  (and, since #6313, REFUSEs; see Follow-up 2026-10-27).
   Supersession is per path, as on a mixed lane: an approved WP that touches a
   canceled WP's file supersedes the whole path.
 - **Unstamped REFUSE and its attestation lift.** A canceled dependency WP with a
@@ -327,3 +328,31 @@ Two more are documented here without a pin:
 
 Content resolved inside a merge commit stays the existing residual. The
 decisions above are otherwise unchanged.
+
+## Follow-up 2026-10-27: an unreadable carrier spine REFUSEs (#6313)
+
+The 2026-10-04 follow-up let a `GitProbeError` on a carrier lane's spine
+(`wp_attribution.canceled_spine_content`) subtract the carried canceled commits
+and record no content. That was not the stricter verdict. The canceled lines
+stay in the carrier's authored blobs, so the squash blob-attribution axis passed
+and canceled content could ship at exit 0. It also contradicted this record's
+own rule that the callers map `GitProbeError` onto REFUSE.
+
+`reconciliation._carried_dependency_content` now REFUSEs before any mutation
+with reason `spine_unreadable`, the same reason a mixed lane uses for an
+unreadable spine. The refusal names every canceled WP of every fully-canceled
+lane an unreadable carrier holds, once each, with the unreadable carriers that
+hold it. The recovery names the carrier: repair its branch, or, when the error
+reports a path renamed to more than one path (a deterministic `GitProbeError`
+from line attribution), keep only one of those renames on the carrier, then
+re-run. `canceled_attestation.OVERRIDABLE_REASONS` still omits
+`spine_unreadable` (operator ruling of 2026-10-27, recorded on #6313), so
+`--attest-canceled-superseded` does not lift it. The rule is the same on both
+axes.
+
+Residuals: `_lane_first_parent_spine` and `_lane_tip_commits` still read an
+unreadable lane as empty. An approved lane whose spine read fails that way is
+not seen as a carrier, so this refusal does not fire for it. Its authored set is
+then empty, so the blob-attribution axis is expected to fail it rather than pass
+it (not pinned by a test). The mixed-lane recovery for `spine_unreadable` does
+not name the ambiguous-rename fix either.

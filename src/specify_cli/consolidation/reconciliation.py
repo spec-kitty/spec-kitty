@@ -2535,19 +2535,53 @@ def _unstamped_carried_refusal(
     return _join_refusals(refusals) if refusals else None
 
 
+def _unreadable_carrier_refusal(
+    query: _CanceledLaneQuery,
+    own_by_lane: Mapping[str, frozenset[str]],
+    unreadable: Mapping[str, tuple[list[str], GitProbeError]],
+) -> str | None:
+    """The REFUSE for carrier lanes whose spine could not be read, or ``None`` (#6313).
+
+    Every canceled WP of every fully-canceled lane an unreadable carrier holds is named
+    once, with the unreadable carriers that hold it, lanes and WPs in id order. The
+    reason is ``spine_unreadable``, as on a mixed lane, and the recovery names the
+    carrier: ``OVERRIDABLE_REASONS`` omits the reason, so no attestation lifts it. A
+    probe error is not always a broken branch: a path renamed to more than one target
+    raises one too, so the recovery names that fix as well.
+    """
+    wps_by_lane = {lane.lane_id: sorted(lane.wp_ids) for lane in query.lanes_manifest.lanes}
+    refusals: list[str] = []
+    for lane_id, own in sorted(own_by_lane.items()):
+        held_by = sorted(carrier_id for carrier_id, (spine, _error) in unreadable.items() if own.intersection(spine))
+        if not held_by:
+            continue
+        carriers = ", ".join(held_by)
+        errors = "; ".join(f"{carrier_id}: {unreadable[carrier_id][1]}" for carrier_id in held_by)
+        refusals.extend(
+            f"canceled {wp_id} (lane {lane_id}) is carried by approved lane(s) {carriers} "
+            f"but cannot be attributed ({UnattributableReason.SPINE_UNREADABLE.value}) — "
+            f"the git history of carrier lane(s) {carriers} could not be read to resolve which canceled content they still carry ({errors}). "
+            f"Recovery: repair the branch of carrier lane(s) {carriers} so its history reads, or, when the error reports a path renamed to "
+            f"more than one path, keep only one of those renames on the carrier, {_RECOVERY_TAIL}; this refusal cannot be overridden."
+            for wp_id in wps_by_lane[lane_id]
+        )
+    return _join_refusals(refusals) if refusals else None
+
+
 def _carried_dependency_content(
     query: _CanceledLaneQuery,
     own_by_lane: Mapping[str, frozenset[str]],
     carriers: Mapping[str, list[str]],
     canceled: frozenset[str],
-) -> tuple[frozenset[str], frozenset[CanceledDependencyContent]]:
-    """``(superseded commits, carried content)`` over every carrier lane's spine (#5613).
+) -> tuple[frozenset[str], frozenset[CanceledDependencyContent], str | None]:
+    """``(superseded commits, carried content, refusal)`` over every carrier lane's spine (#5613).
 
     A canceled commit counts as superseded only when it is superseded on EVERY
     carrier that holds it; then it stays in that lane's authorship (its content is
     not the lane's final state) and consolidation is not refused for it. A carrier
-    whose spine cannot be read supersedes nothing and names nothing: every canceled
-    commit on it stays subtracted, the stricter verdict.
+    whose spine cannot be read REFUSEs (#6313, :func:`_unreadable_carrier_refusal`):
+    subtracting its canceled commits is not enough, because the canceled lines stay in
+    the carrier's authored blobs and would ship unnamed.
     """
     is_bookkeeping = functools.partial(_is_bookkeeping, mission_slug=query.lanes_manifest.mission_slug, planning_prefix=query.planning_prefix)
     lane_of = {sha: lane_id for lane_id, own in own_by_lane.items() for sha in own}
@@ -2555,25 +2589,27 @@ def _carried_dependency_content(
     superseded: set[str] = set()
     live_commits: set[str] = set()
     content: set[CanceledDependencyContent] = set()
+    unreadable: dict[str, tuple[list[str], GitProbeError]] = {}
     for carrier_id, spine in carriers.items():
         on_spine = canceled.intersection(spine)
         try:
             lane_superseded, live = canceled_spine_content(query.repo_root, spine, canceled, is_bookkeeping)
-        except GitProbeError:
+        except GitProbeError as exc:
             live_commits |= on_spine
+            unreadable[carrier_id] = (spine, exc)
             continue
         superseded |= lane_superseded
         live_commits |= on_spine - lane_superseded
         for path, entry in live.items():
             content.add(CanceledDependencyContent(wps_of[lane_of[entry.sha]], lane_of[entry.sha], carrier_id, path, entry.state, entry.renamed_from))
-    return frozenset(superseded - live_commits), frozenset(content)
+    return frozenset(superseded - live_commits), frozenset(content), _unreadable_carrier_refusal(query, own_by_lane, unreadable)
 
 
 def _resolve_canceled_dependency_lanes(query: _CanceledLaneQuery, event_log: _ClaimEventLog | None = None) -> _CanceledDependencyResolution:
     """Resolve the fully-canceled lanes whose commits an approved lane carries (#5569, #5613).
 
     The base is :func:`_fully_canceled_lane_commits`: every such lane's own commits
-    leave the approved claim. Three refinements, none of which runs (and no event
+    leave the approved claim. Four refinements, none of which runs (and no event
     log is read) for a mission where no approved lane carries such a commit:
 
     * a canceled WP without ``lane_head`` stamps REFUSEs with the override named,
@@ -2584,7 +2620,9 @@ def _resolve_canceled_dependency_lanes(query: _CanceledLaneQuery, event_log: _Cl
       whether its WP is stamped, or unstamped and attested;
     * the remaining live content is recorded so the verifier can name it with
       ``CANCELED_REACHABLE_VIA_DEPENDENCY``. It is computed over ALL of the lanes'
-      own commits, attested or not: content that would ship always FAILs.
+      own commits, attested or not: content that would ship always FAILs;
+    * a carrier whose spine cannot be read REFUSEs (``spine_unreadable``, #6313),
+      as the mixed-lane axis does; no attestation lifts it.
     """
     own_by_lane = _fully_canceled_lane_own_commits(query.repo_root, query.lanes_manifest, query.excluded_ids, query.coord_base_ref, query.target_base)
     own = frozenset().union(*own_by_lane.values())
@@ -2594,7 +2632,9 @@ def _resolve_canceled_dependency_lanes(query: _CanceledLaneQuery, event_log: _Cl
     refusal = _unstamped_carried_refusal(query, own_by_lane, carriers, event_log or _ClaimEventLog(query.feature_dir))
     if refusal is not None:
         return _CanceledDependencyResolution(refusal=refusal)
-    superseded, content = _carried_dependency_content(query, own_by_lane, carriers, own)
+    superseded, content, unreadable_refusal = _carried_dependency_content(query, own_by_lane, carriers, own)
+    if unreadable_refusal is not None:
+        return _CanceledDependencyResolution(refusal=unreadable_refusal)
     return _CanceledDependencyResolution(unapproved_commits=own - superseded, content=content)
 
 
