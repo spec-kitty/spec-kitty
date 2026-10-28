@@ -5,7 +5,7 @@
   "friendly_name": "Local event-log retention",
   "mid8": "01M5ZCJP",
   "mission_id": "01M5ZCJPQQ36KZ6BYGND2300SG",
-  "mission_number": null,
+  "mission_number": 243,
   "mission_slug": "local-event-log-retention-01M5ZCJP",
   "mission_type": "software-dev",
   "pr_bound": true,

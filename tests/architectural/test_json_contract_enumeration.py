@@ -113,6 +113,7 @@ ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
     "doctor cutover": ((), 1, "outside"),
     "doctor charter-packs": ((), 1, "outside"),
     "doctor env-file": ((), 1, "outside"),
+    "doctor event-logs": ((), 2, "outside"),
     "doctor identity": ((), 1, "outside"),
     "doctor invocation-pairing": ((), 1, "outside"),
     "doctor mission-state": (("--audit",), 1, "outside"),

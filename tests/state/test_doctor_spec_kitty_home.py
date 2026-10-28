@@ -17,7 +17,9 @@ import pytest
 from specify_cli.state import doctor as doctor_mod
 from specify_cli.state.contract import (
     AuthorityClass,
+    CleanupPolicy,
     GitClass,
+    RetentionRule,
     StateFormat,
     StateRoot,
     StateSurface,
@@ -85,6 +87,7 @@ def test_global_sync_bare_pattern_resolves_under_base(tmp_path, monkeypatch):
         git_class=GitClass.OUTSIDE_REPO,
         owner_module="test",
         creation_trigger="test",
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     )
 
     assert doctor_mod._check_surface_present(tmp_path, surface) is True

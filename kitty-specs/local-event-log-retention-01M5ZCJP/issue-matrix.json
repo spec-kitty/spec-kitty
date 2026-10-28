@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#3895": {
+      "evidence_ref": "Cited for context only in the grounding/plan artefacts (epic, sibling run, or cross-repo reference); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3970": {
+      "evidence_ref": "Cited for context only (spec C-005: sibling scope, not built here)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5212": {
+      "evidence_ref": "WP01 approved: lane-a commits ab47cffa (red tests) + ba450b48 (CleanupPolicy on every StateSurface)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5213": {
+      "evidence_ref": "Cited for context only (spec C-005: sibling scope, not built here)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6117": {
+      "evidence_ref": "Cited for context only in the grounding/plan artefacts (epic, sibling run, or cross-repo reference); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6185": {
+      "evidence_ref": "Cited for context only in the grounding/plan artefacts (epic, sibling run, or cross-repo reference); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6608": {
+      "evidence_ref": "Cited for context only in the grounding/plan artefacts (epic, sibling run, or cross-repo reference); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6610": {
+      "evidence_ref": "WP02 engine (lane-b) + WP03 doctor event-logs (lane-c cccd636f/e21fc40d/c9bfd2ff) approved",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#6675": {
+      "evidence_ref": "Cited for context only in the grounding/plan artefacts (epic, sibling run, or cross-repo reference); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6715": {
+      "evidence_ref": "Cited for context only in the grounding/plan artefacts (epic, sibling run, or cross-repo reference); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#92": {
+      "evidence_ref": "Cited for context only in the grounding/plan artefacts (epic, sibling run, or cross-repo reference); no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

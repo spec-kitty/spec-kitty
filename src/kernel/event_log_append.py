@@ -72,6 +72,7 @@ __all__ = [
     "EventLogTornTailError",
     "append_event_log_lines",
     "event_log_lock",
+    "event_log_lock_path",
 ]
 
 #: Directory under ``<git-common-dir>/spec-kitty-locks/`` that holds the per-log lock files.

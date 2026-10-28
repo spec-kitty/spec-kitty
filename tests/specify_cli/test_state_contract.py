@@ -110,6 +110,7 @@ def test_to_dict_serializable():
             "atomic_write",
             "notes",
             "target_owned",
+            "cleanup_policy",
         }
 
 
