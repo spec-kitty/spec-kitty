@@ -65,14 +65,16 @@ The operator re-runs the command with `--apply`. Exactly the previewed candidate
 
 1. **Given** an eligible run whose Mission has a run-index entry, **When** the operator applies, **Then** the run directory is gone and the index no longer has that entry.
 2. **Given** a run whose run lock is held by another process, **When** the operator applies, **Then** the run is kept with the reason "lock held".
-3. **Given** derived views and the Op index cache exist, **When** the operator applies, **Then** both are deleted (they are rebuilt, or fall back to a directory scan, on the next read).
+3. **Given** derived views exist, **When** the operator applies, **Then** they are deleted (they are rebuilt on the next read).
+4. **Given** the Op index (`kitty-ops/ops-index.jsonl`) exists, **When** the operator applies, **Then** it is untouched: `invocations list` trusts a partial index, so it is out of scope (operator ruling 2026-10-28).
 
 ### Edge Cases
 
 - `ledger.retention` missing → defaults 20 / 30 apply.
 - `ledger.retention.keep_runs` negative, non-integer, or a boolean, or `max_age_days` likewise → refuse with a config error (exit 2) before anything is read or deleted, also in preview.
-- A run with no readable journal and no snapshot Mission → kept, "Mission not found".
-- A run present on disk but absent from the run index → judged by the same rules; no index entry to drop.
+- A run's Mission is the one its run-index entry records (`next` records none in `state.json`); a run with no index entry falls back to its own snapshot's `mission_id` / `mission_slug` (older writers), id only when an id is recorded. A run that neither names, whose entries disagree, or whose id or log stem maps to more than one Mission directory → kept, "Mission not found".
+- A run present on disk but absent from the run index → judged by the same rules (its snapshot decides its Mission); no index entry to drop.
+- A run of a Mission whose WPs are all done but which is not merged, and whose own journal has no `MissionRunCompleted` → kept, "Mission is open" (operator ruling 2026-10-28).
 - An index entry naming a missing run directory → left untouched (out of scope; not a retention candidate).
 - `_cli.events.jsonl` and `_renderer.events.jsonl` (no Mission) → never candidates.
 - Lock files of any kind → never candidates.
@@ -87,6 +89,7 @@ The operator re-runs the command with `--apply`. Exactly the previewed candidate
 | Retention rule | One of `never`, `ledger_retention`, `rebuildable`, `owner_lifecycle`, `manual`, `retired` | free-text rules |
 | Committed tier / local tier | ADR 2026-10-13-2 D-3's two retention tiers | "durable vs temp" |
 | Mission (open / completed) | Completed = merged or derived lifecycle state recently-completed / archived; open otherwise | "feature" |
+| Work is over | A run: its Mission is merged or the run recorded `MissionRunCompleted`. A per-Mission log: its Mission is completed | "stale" |
 | Candidate / kept item | An item the command would delete / will not delete, each with a reason | "orphan" for unknown-Mission items |
 
 ## Requirements *(mandatory)*
@@ -98,13 +101,13 @@ The operator re-runs the command with `--apply`. Exactly the previewed candidate
 | FR-001 | Policy field on every surface | As a maintainer, I want every state surface to carry a cleanup policy (retention rule + cleanup command), emitted in its serialized form, so that a reader sees how each surface is cleaned. | High | Open | [build] | no |
 | FR-002 | Policy is mandatory | As a maintainer, I want a surface declared without a cleanup policy to fail the test suite so that no surface drifts out of the policy. | High | Open | [build] | no |
 | FR-003 | Committed tier is never prunable | As an operator, I want only gitignored surfaces to be declared `ledger_retention` or `rebuildable`, and every tracked ledger to be `never`, enforced by a test, so that no policy can reach the committed tier. | High | Open | [build] | no — paired with a self-mutation case that flips a tracked surface to `ledger_retention` and must fail |
-| FR-004 | Local-tier surfaces declared | As an operator, I want the run-journal family and per-Mission glossary logs declared `ledger_retention`, and the derived views and Op index cache declared `rebuildable`, each naming `spec-kitty doctor event-logs --apply`, so that the command's scope matches ADR D-3. | High | Open | [build] | no |
+| FR-004 | Local-tier surfaces declared | As an operator, I want the run-journal family and per-Mission glossary logs declared `ledger_retention`, and the derived views declared `rebuildable`, each naming `spec-kitty doctor event-logs --apply`, so that the command's scope matches ADR D-3. The Op index is `manual` (operator ruling 2026-10-28: `invocations list` trusts a partial index, so deleting it hides history; a rebuild belongs to the invocations owner). | High | Open | [build] | no |
 | FR-005 | Retention config | As an operator, I want `ledger.retention.keep_runs` (default 20) and `ledger.retention.max_age_days` (default 30) read from `.kittify/config.yaml`, with an invalid value refusing with exit 2 and deleting nothing, so that the limits are mine to tune and a typo never deletes data. | High | Open | [build] | no |
 | FR-006 | Preview by default | As an operator, I want `spec-kitty doctor event-logs` without `--apply` to report and change nothing, so that I see the effect first. | High | Open | [build] | no — fixture tree hashed before/after alongside FR-007's apply deleting from the same fixture |
-| FR-007 | Run and log eligibility | As an operator, I want a run or per-Mission log to be a candidate only when it is outside the newest `keep_runs` of its kind, older than `max_age_days`, its Mission is found and completed, and no lock is held on it, so that nothing in use or recent is lost. | High | Open | [build] | no |
+| FR-007 | Run and log eligibility | As an operator, I want a run or per-Mission log to be a candidate only when it is outside the newest `keep_runs` of its kind, older than `max_age_days`, its Mission is found, its work is over (a run: its Mission is merged or the run itself recorded `MissionRunCompleted`; a per-Mission log: its Mission is completed), and no lock is held on it, so that nothing in use or recent is lost. | High | Open | [build] | no |
 | FR-008 | Unknown Mission is protected | As an operator, I want a run or log whose Mission is not found in this checkout kept and reported as "Mission not found", so that a Mission on another branch is never pruned. | High | Open | [build] | no |
 | FR-009 | Run index stays consistent | As an operator, I want deleting a run to also remove its run-index entry under the index lock, so that `spec-kitty next` never resolves a run that is gone. | High | Open | [build] | no |
-| FR-010 | Rebuildable caches | As an operator, I want the derived views and the Op index cache to be candidates regardless of the limits, unless locked, so that rebuildable data can always be reclaimed. | Medium | Open | [build] | no |
+| FR-010 | Rebuildable caches | As an operator, I want the derived views to be candidates regardless of the limits, unless locked, so that rebuildable data can always be reclaimed. | Medium | Open | [build] | no |
 | FR-011 | Never-delete set | As an operator, I want lock files, the non-Mission glossary logs and every tracked file never to be candidates, so that mutual exclusion and the committed record survive. | High | Open | [build] | no |
 | FR-012 | Report and exit codes | As an operator or CI script, I want the human and `--json` report to list every candidate and kept item with its surface and reason, and the command to exit 0 for a preview or a clean apply, 1 if any deletion failed, 2 on a config or usage error, so that I can act on and script it. | High | Open | [build] | no |
 | FR-013 | One owning policy | As a maintainer, I want the command to choose its surfaces only through the registry's cleanup policy (no second list), pinned by a test, so that eligibility has one owner. | High | Open | [build] | no — the test changes a surface's rule and asserts the command's scope follows |

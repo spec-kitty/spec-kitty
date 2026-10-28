@@ -20,4 +20,4 @@ ledger:
     max_age_days: 90
 ```
 
-Never removed: committed ledgers (`status.events.jsonl`, `decisions.events.jsonl`, Op records), lock files, logs of an open Mission or of a Mission this checkout cannot find, and anything whose lock another process holds.
+Never removed: committed ledgers (`status.events.jsonl`, `decisions.events.jsonl`, Op records), the Op index (`kitty-ops/ops-index.jsonl`), the run index file, lock files, runs whose Mission is not merged and that did not finish, logs of an open Mission, items of a Mission this checkout cannot find, and anything whose lock another process holds.

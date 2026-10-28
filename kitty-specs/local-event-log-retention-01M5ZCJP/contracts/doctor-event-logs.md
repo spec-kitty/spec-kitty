@@ -5,7 +5,9 @@ spec-kitty doctor event-logs [--apply] [--json]
 ```
 
 - No flag: preview. Lists candidates and kept items with reasons. Changes nothing.
-- `--apply`: deletes every candidate (re-checking its lock), removes a deleted run's `.kittify/runtime/feature-runs.json` entries under the index lock, reports `deleted` and `failed`.
+- `--apply`: deletes every candidate (re-checking its lock), removes a deleted run's `.kittify/runtime/feature-runs.json` entries under the run lock and the index lock, then removes the run directory after releasing both, and reports `deleted` and `failed`.
+- Scope: run directories and per-Mission glossary logs (`ledger_retention`), derived Mission views (`rebuildable`). The Op index (`kitty-ops/ops-index.jsonl`) and the run index file are never deleted.
+- A run is a candidate only when its Mission is merged or the run itself recorded `MissionRunCompleted`; a glossary log when its Mission is completed (merged, or every WP terminal).
 - `--json`: machine-readable report.
 
 ## JSON shape
@@ -22,7 +24,9 @@ spec-kitty doctor event-logs [--apply] [--json]
 }
 ```
 
-In preview, `deleted`, `failed` and `removed_index_entries` are empty.
+In preview, `deleted`, `failed` and `removed_index_entries` are empty. `mission` is the Mission directory name or `null`; each `failed` entry adds `error` (the error text).
+
+On exit 2 with `--json`, the payload is the doctor error envelope `{"ok": false, "error": {"code": ..., "message": ...}}` with code `config_error`, `not_in_project` or `retention_policy_drift`.
 
 ## Exit codes
 
@@ -30,7 +34,7 @@ In preview, `deleted`, `failed` and `removed_index_entries` are empty.
 |---|---|
 | 0 | Preview, or an apply where every candidate was deleted (or there were none) |
 | 1 | An apply where at least one deletion failed |
-| 2 | Not inside a project, or `ledger.retention` invalid (nothing scanned, nothing deleted) |
+| 2 | Not inside a project, the configuration unreadable or `ledger.retention` invalid, or the internal registry/engine drift error (nothing scanned, nothing deleted) |
 
 ## Config
 

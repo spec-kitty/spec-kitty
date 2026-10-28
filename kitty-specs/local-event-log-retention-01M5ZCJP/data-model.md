@@ -5,11 +5,13 @@
 | Value | Meaning | Allowed git class |
 |---|---|---|
 | `never` | Never pruned by the CLI; git (or the owner) keeps it. All tracked ledgers. | any |
-| `ledger_retention` | Pruned by `doctor event-logs` under `ledger.retention` limits and Mission completion. | `ignored` only |
+| `ledger_retention` | Pruned by `doctor event-logs` under `ledger.retention` limits once the item's work is over (a run: its Mission merged or the run recorded `MissionRunCompleted`; a per-Mission log: its Mission completed). | `ignored` only |
 | `rebuildable` | A cache rebuilt (or bypassed) on read; `doctor event-logs` may delete it at any time unless locked. | `ignored` only |
 | `owner_lifecycle` | Removed by the command that owns it (named in `cleanup_command`). | any |
 | `manual` | No automated cleanup; an operator removes it by hand if ever. | any |
 | `retired` | A deprecated tombstone surface with no live writer. | any |
+
+Pinned local tier: `ledger_retention` = the run family (`runtime_run_snapshot`, `runtime_run_event_log`, `runtime_frozen_template`) and `glossary_fallback_events`; `rebuildable` = `derived_mission_views` only. `op_invocation_index` is `manual` with no cleanup command (operator ruling 2026-10-28: `invocations list` trusts a partial index); `tracker_cache` is `manual`.
 
 Invariants (tests): a `tracked` surface is never `ledger_retention` or `rebuildable`; a `ledger_retention` or `rebuildable` surface names `spec-kitty doctor event-logs --apply`; an `owner_lifecycle` surface names a command; a deprecated surface is `retired`.
 
@@ -40,11 +42,13 @@ Missing file / missing `ledger` / missing `retention` → defaults. A non-mappin
 | `surface` | registry surface name that selected the item |
 | `path` | repo-relative POSIX path (a run directory, a log file, a cache file or directory) |
 | `kind` | `run`, `mission_log`, `cache` |
-| `mission` | Mission slug when resolved, else `null` |
+| `mission` | the Mission directory name under `kitty-specs/` when resolved, else `null` |
 | `age_days` | float |
 | `verdict` | `candidate` or `kept` |
 | `reason` | see below |
 
 Reasons — candidate: `past retention; Mission completed`, `rebuildable cache`. Kept: `within keep_runs`, `younger than max_age_days`, `Mission is open`, `Mission not found`, `lock held`.
+
+A run's Mission is resolved from its run-index entry (`mission_id`, else `mission_slug` when the entry records no id); a run with no entry falls back to its snapshot's own fields under the same id-only rule. A `mission_id` or glossary log stem that maps to more than one Mission directory is ambiguous and resolves to none (`Mission not found`).
 
 State transition on apply: `candidate` → `deleted` | `failed` (with error text). A `candidate` whose lock is found held at apply time becomes `kept: lock held`.
