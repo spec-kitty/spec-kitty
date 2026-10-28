@@ -233,6 +233,65 @@ def test_a_run_linked_only_through_the_index_resolves_its_mission(project: Path)
     assert (item.verdict, item.reason, item.mission) == ("candidate", REASON_COMPLETED, DONE_SLUG)
 
 
+FINISHED_SLUG = "003-finished-mission"
+FINISHED_ID = "01FINI0000000000000000000D"
+
+
+def _all_wps_done_unmerged_mission(repo: Path) -> Path:
+    """A Mission whose every WP is done but that was never merged (completed, not merged)."""
+    feature_dir = _mission(repo, FINISHED_SLUG, FINISHED_ID, merged=False)
+    event = {
+        "actor": "t",
+        "at": "2026-09-01T00:00:00+00:00",
+        "event_id": "01K0000000000000000000000A",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "feature_slug": FINISHED_SLUG,
+        "force": True,
+        "from_lane": "planned",
+        "reason": "fixture",
+        "review_ref": None,
+        "to_lane": "done",
+        "wp_id": "WP01",
+    }
+    _write(feature_dir / "status.events.jsonl", json.dumps(event) + "\n")
+    return feature_dir
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_a_run_of_a_completed_but_unmerged_mission_is_eligible_only_once_it_finished(project: Path) -> None:
+    """DS-M2: a run is pruned when its Mission is merged or the run itself finished."""
+    from spec_kitty_events.mission_next import MISSION_RUN_COMPLETED
+
+    _all_wps_done_unmerged_mission(project)
+    unfinished = _run(project, slug=FINISHED_SLUG, mission_id=FINISHED_ID, age_days=60)
+    finished = _run(project, slug=FINISHED_SLUG, mission_id=FINISHED_ID, age_days=61)
+    with (finished / "run.events.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"event_type": MISSION_RUN_COMPLETED, "payload": {}}) + "\n")
+    _set_age(finished, 61)
+    log = _glossary_log(project, FINISHED_ID, 60)
+
+    items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
+    assert (items[_rel(unfinished, project)].verdict, items[_rel(unfinished, project)].reason) == ("kept", REASON_MISSION_OPEN)
+    assert (items[_rel(finished, project)].verdict, items[_rel(finished, project)].reason) == ("candidate", REASON_COMPLETED)
+    # Glossary logs keep the Mission-completed rule (merged, or every WP terminal).
+    assert (items[_rel(log, project)].verdict, items[_rel(log, project)].reason) == ("candidate", REASON_COMPLETED)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_a_run_whose_events_mention_completion_only_in_a_payload_is_not_finished(project: Path) -> None:
+    _all_wps_done_unmerged_mission(project)
+    run_dir = _run(project, slug=FINISHED_SLUG, mission_id=FINISHED_ID, age_days=60)
+    with (run_dir / "run.events.jsonl").open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"event_type": "NextStepIssued", "payload": {"note": "MissionRunCompleted"}}) + "\n")
+        handle.write("{torn MissionRunCompleted\n")
+    _set_age(run_dir, 60)
+    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
+    assert (item.verdict, item.reason) == ("kept", REASON_MISSION_OPEN)
+
+
 @pytest.mark.unit
 @pytest.mark.fast
 def test_runs_beyond_keep_runs_but_younger_than_max_age_are_kept(project: Path) -> None:
