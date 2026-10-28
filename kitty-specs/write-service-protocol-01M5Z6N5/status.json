@@ -1,0 +1,161 @@
+{
+  "event_count": 39,
+  "last_event_id": "01M5ZMKCKXFG9Z96M056Q7GW2R",
+  "materialized_at": "2026-10-27T21:34:58.685838+00:00",
+  "mission_number": "",
+  "mission_slug": "write-service-protocol-01M5Z6N5",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5ZBADH6S65FPE49CCKJXA64",
+      "last_transition_at": "2026-10-27T18:52:47.526798+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-27T17:58:24Z – claude – shell_pid=7123 – T003: on a scratch copy of mission-status with the scheme, layout_check passes and bundle.py --bundle-only keeps components.securitySchemes and security in the bundle. Full Gradle validation hit HTTP 429 from Maven Central through the proxy; retried later in WP03 T016 and run by the Contracts workflow on the PR.",
+        "Ready for review",
+        "Review passed (reviewer-renata). RED-first verified: 8d6f5742 alone fails test_root_document_may_declare_security_schemes_only (1 failed/48 passed), green after ce4cd26b (49 passed). Admitted set is exactly frozenset({securitySchemes}); empty/non-mapping/extra-key components refused (paired controls). Reviewer re-proved T003 on a scratch copy of mission-status: layout_check exit 0, bundle.py --bundle-only keeps components.securitySchemes and security. Full Gradle could not run locally (JDK 25 'class file major version 69' vs pinned Gradle; implementer saw Maven 429) - CI Contracts workflow must confirm. ruff check/format clean; _shared untouched. Non-blocking nit: TRACKED_BUNDLE message names the admitted set rather than the extra keys the prompt asked for (layout_check.py:256-260). Anti-pattern checklist: 1 N/A, 2 PASS, 3 PASS, 4 PASS (FR-008; FR-007 completes in WP03), 5 PASS, 6 PASS, 7 PASS, 8 N/A."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 16547,
+      "shell_pid_created_at": "1793126801.75",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5ZFDZQX5P43M3XJJD00YF09",
+      "last_transition_at": "2026-10-27T20:04:38.781857+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-27T18:34:37Z – claude – shell_pid=23418 – Deviations from the prompt: (1) no reset_event_bridge in src (it would import a private name across modules; tests reset both halves). (2) The symbol gate counts every public name, so the operator ruled (2026-10-27) a new category category_c_write_service_client_6675 with 11 entries (issue #6195) and the module in dead-module category 7; bind_work_package_transition_port revived and category_c_eventbridge_port_seam_6675 burned down; cap 229 -> 239. (3) Out-of-map: tests/architectural/test_runtime_emitter_seam.py now also scans for bind_event_bridge (the composite binder's module is an allowed definition site) with a positive control.",
+        "Ready for review",
+        "- 2026-10-27T19:05:45Z – unknown – Review cycle 1 addressed: (1) every from_wire refuses a non-mapping body with ProtocolShapeError; (2) endpoint schema_version must be the int 1 (bool/float refused); (3) the JSON decode refusal is raised from None, so no chained exception holds the file text; (4) the file is opened once (lstat link check, O_NOFOLLOW, fstat on the handle); FileNotFoundError is MISSING and any other OS error a named MALFORMED/EXPOSED refusal. Should-fix: protocol versions strictly ascending; transition_unit_from refuses a row without actor or wp_id; appendedLines >= 0 and a non-empty batch; on Windows only the mode/uid checks are skipped (regular-file and link checks run everywhere). Nits: bind_event_bridge judges conflicts by module+qualname like the transition binder; blank lines fixed; the allowlist-size ruling is DM-01M5ZC1PYHBB6QB02YQ4H1V52P. Not folded: WP01 nit (TRACKED_BUNDLE message names the admitted set, not the extra keys) belongs to the approved WP01.",
+        "Review cycle 1 addressed; see history",
+        "- 2026-10-27T19:46:02Z – unknown – Review cycle 2 addressed: a non-regular file (FIFO, device) or a link is refused on lstat before any open, and the open adds O_NONBLOCK so a FIFO swapped in after the lstat is refused on fstat; the parse refusal is raised outside the except block via _decode, so it has no __cause__ and no __context__ (the cycle-1 test that pinned __suppress_context__ is re-pinned to __context__ is None, the stronger invariant). New tests are bounded (thread join 5 s).",
+        "Review cycle 2 addressed; see history",
+        "Review passed, cycle 3 (reviewer-renata). Cycle-2 FIFO regression fixed: a non-regular file or link is refused on lstat before any open, and O_NONBLOCK plus the fstat S_ISREG check covers a FIFO swapped in afterwards. Probe: FIFO -> EXPOSED immediately. The parse refusal is raised outside the except block (no __cause__ or __context__; probe confirms no token reachable). Test-first holds: at 4f385dee 2 failed / 65 passed (the FIFO and context tests); at HEAD 229 targeted tests pass; ruff, format and mypy clean. Non-blocking follow-up: _decode catches only UnicodeDecodeError/JSONDecodeError, so a 64 KiB '[[[...' file raises RecursionError and a >4300-digit integer raises ValueError, unnamed. Neither leaks the token and both still fail closed, but they contradict the read_endpoint_file docstring ('Every refusal is an EndpointFileError'). Catch ValueError (JSONDecodeError's base) and RecursionError in _decode when convenient. Anti-pattern checklist: 1-8 PASS."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 11302,
+      "shell_pid_created_at": "1793131006.37",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5ZGXYX4K457SM93GQGBQZTF",
+      "last_transition_at": "2026-10-27T20:30:50.788373+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-27T20:10:58Z – claude – shell_pid=12942 – T016 on the real tree: layout, structure, citation, provisional, example, enum_pin, event_mapping, leak_scan, codeowners all exit 0; bundle.py --bundle-only modules=2 bundles=2 path_items=16 (byte-identical twice); vacuum lint violations=0. Not runnable locally: Gradle validate/javaView/client_smoke/resolver_parity (Maven Central 429 through the proxy) and breaking_check (SHALLOW_CHECKOUT) - the Contracts workflow runs them on the PR. tests/contract (12 files touching the real tree) 506 passed, 14 skipped; the 23 new contract tests take 0.74 s of test time (analysis finding C1: under 10 s). Out-of-map (recorded): the WP02 reviewer's non-blocking follow-up folded in with a RED-first test - _decode now also catches ValueError and RecursionError so pathological endpoint content is a named MALFORMED refusal (src/specify_cli/status/write_service_protocol.py).",
+        "Ready for review",
+        "Review passed (reviewer-renata). Tests come first: 71cb1f5f (tests + inventory) errors at fixture setup before the module exists (1 failed, 2 passed, 1 skipped, 16 errors); 9152af98 fails the two pathological-content tests (2 failed, 62 passed) before 6574cff6. At HEAD, 378 targeted tests pass (mission-write contract, example/leak/structure/codeowners/layout checks, the write_service_protocol tests). All contract tools exit 0 on the real tree: layout, structure, citation, provisional, example, enum_pin, event_mapping, leak_scan, codeowners (--root .). bundle --bundle-only twice gives byte-identical bundles (modules=2, path_items=16). vacuum lint reports 0 violations. All 20 cli-origin codes were checked by hand: each literal is the error_code/_fail/diagnostic_code the cited file raises. Parity is not vacuous: two mutation tests, and the inventory, contract and WriteRefusalCode agree as ordered lists. Client shapes and examples validate against the resolved schemas. ruff, format and mypy are clean. The Gradle validate, javaView, client_smoke, resolver_parity and breaking_check runs are left to CI. Non-blocking follow-ups: (1) EVENT_ID_CONFLICT, SERVICE_BUSY, REQUEST_TOO_LARGE and WRITE_LOCATION_UNVERIFIED are marked provisional only in description prose and the CHANGELOG, not with x-provisional as the prompt asked (provisional_check cannot mark a const branch). Record this deviation, and name the open decision on WRITE_LOCATION_UNVERIFIED, whose text says only 'Provisional.' (2) RequestContext.checkout and missionDirectory patterns accept '..', '../x' and 'C:\\x', which contradicts their own 'relative, no host path' description; tighten them (no '..' segment, no backslash or drive letter). (3) WriteRefusal does not enforce that a reason URN travels under the code REASON_CODE fixes; an if-type-then-code branch per guard code would pin it. Anti-pattern checklist: 1-8 PASS."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 30473,
+      "shell_pid_created_at": "1793132514.84",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M5ZMKCKXFG9Z96M056Q7GW2R",
+      "last_transition_at": "2026-10-27T21:34:58.685838+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-27T20:33:40Z – claude – shell_pid=307 – ADR via the canonical freshen_adr_inventory (index row + docs/development/page-inventory.yaml) and docs_index.py --write (docs/development/docs-retrieval-index.yaml); those two generated files are out-of-map outputs of the canonical tools. Gates: tests/docs ADR/changelog/inventory/index freshness + test_no_legacy_terminology: 301 passed (after regenerating the retrieval index); check_changelog_style 0 errors (entry 807 chars).",
+        "Ready for review",
+        "- 2026-10-27T21:20:18Z – unknown – Review cycle 1 addressed: (1) ADR D-5 and TransitionUnit name store.serialize_event_line (sanitize_event_for_log, then sort_keys) as the service-owned encoding; retries compare sanitized rows; the client sends rows unsanitized (owner: the service, derived from ADR 2026-10-22-1 D-7). (2) changelog says 9 protocol-only codes. (3) ADR description 162 chars (gate 180). Should-fix: Confirmation names health as unversioned; ADR 2026-10-22-1 header line points at the amendment (OQ3, D-3, D-7). Nits: an unknown write target is a ProtocolShapeError (RED test first); WriteRefusal.from_wire documents its leniency. The test_upgrade_recovery_preservation errors are the shallow clone (missing commit), not this change.",
+        "Review cycle 1 addressed; see history",
+        "Review passed, cycle 2 (reviewer-renata). All 5 cycle-1 items fixed. (1) ADR D-5 and the TransitionUnit description now name store.serialize_event_line (sanitize_event_for_log, then sort_keys) as the service's encoding, say the client sends rows unsanitized, and compare retries on sanitized rows. (2) The changelog says 9 protocol-only codes. (3) The ADR description fits the 180-character limit; test_description_length_gate passes. (4) The Confirmation section now names handshake and health. (5) The ADR 2026-10-22-1 header points to its amendment (open question 3, D-3, D-7). The fold nits are also done: an unknown write target is a ProtocolShapeError, and the WriteRefusal docstring states the client is lenient. Tests come first: at 603c1600, 2 failed and 114 passed. The rebase onto origin/main left the mission paths byte-identical to the pre-rebase-6675 tag (git diff --stat empty). ADR gate set + mission tests: 945 passed, 1 skipped, and 1 failed + 117 errors, all in test_upgrade_recovery_preservation.py; those come from the shallow clone and are environmental. citation, example, leak_scan and structure checks exit 0; ruff, format and mypy are clean. Nit: test_the_row_encoding_is_the_clis_one_encoder only checks that the description text names the encoder; it does not check that serialize_event_line still sanitizes. Anti-pattern checklist 1-8 PASS/N/A."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14199,
+      "shell_pid_created_at": "1793136158.55",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
+    }
+  }
+}

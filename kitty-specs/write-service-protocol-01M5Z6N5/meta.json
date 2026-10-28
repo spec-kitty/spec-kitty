@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-10-27T17:31:17.854828+00:00",
+  "flattened": false,
+  "friendly_name": "Mission Write API: CLI to write-service protocol",
+  "mid8": "01M5Z6N5",
+  "mission_id": "01M5Z6N54A59R5FVKJRAGZNTVK",
+  "mission_number": null,
+  "mission_slug": "write-service-protocol-01M5Z6N5",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The CLI must reach the resident Java write service through its EventBridge client. This Mission fixes that protocol as a validated contract: the request and response shapes, the refusal codes that match today's CLI refusals, the token handshake, and version negotiation, so the client and the service can be built against one agreed boundary.",
+  "purpose_tldr": "Define the versioned contract the CLI uses to send writes to the Java write service.",
+  "slug": "write-service-protocol-01M5Z6N5",
+  "target_branch": "issue-6675-write-service-protocol",
+  "topology": "single_branch"
+}

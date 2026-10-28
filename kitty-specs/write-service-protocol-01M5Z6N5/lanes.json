@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mission_slug": "write-service-protocol-01M5Z6N5",
+  "mission_id": "01M5Z6N54A59R5FVKJRAGZNTVK",
+  "mission_branch": "issue-6675-write-service-protocol",
+  "target_branch": "issue-6675-write-service-protocol",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "contracts/README.md",
+        "contracts/mission-write/**",
+        "contracts/tools/fixtures/example_check/required_examples.json",
+        "contracts/tools/layout_check.py",
+        "docs/adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md",
+        "docs/adr/4.x/2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md",
+        "docs/adr/4.x/index.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/runtime/next/_internal_runtime/events.py",
+        "src/specify_cli/status/write_service_protocol.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/dead_symbol_allowlist.yaml",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/contract/fixtures/mission_write_refusal_parity.yaml",
+        "tests/contract/test_layout_check.py",
+        "tests/contract/test_mission_write_contract.py",
+        "tests/runtime/test_bind_event_bridge.py",
+        "tests/specify_cli/status/test_write_service_protocol.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-27T17:42:28.562098+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "592dce3de3266add6fd7e48ba3faca0e6ff580f3"
+}
