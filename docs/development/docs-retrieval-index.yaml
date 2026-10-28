@@ -3325,6 +3325,7 @@ pages:
     - {slug: "amendment-2026-10-05-the-attestation-does-not-cover-a-commit-of-the-approval-stamp-bound-5720", text: "Amendment 2026-10-05: the attestation does not cover a commit of the approval-stamp bound (#5720)", level: 2}
     - {slug: "follow-up-2026-10-16-a-canceled-dependency-lane-that-never-started-5937", text: "Follow-up 2026-10-16: a canceled dependency lane that never started (#5937)", level: 2}
     - {slug: "amendment-2026-10-22-canceled-content-is-judged-line-by-line-6309", text: "Amendment 2026-10-22: canceled content is judged line by line (#6309)", level: 2}
+    - {slug: "follow-up-2026-10-27-an-unreadable-carrier-spine-refuses-6313", text: "Follow-up 2026-10-27: an unreadable carrier spine REFUSEs (#6313)", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"
