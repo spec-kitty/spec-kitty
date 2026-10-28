@@ -749,11 +749,11 @@ def test_a_guard_refusal_is_recorded_as_a_failure(project: Path) -> None:
 
 @pytest.mark.unit
 @pytest.mark.fast
-@pytest.mark.parametrize("mission_id", [DONE_ID, "a/b\\c d:e", "ok_id-1.2", "ünï"])
-def test_glossary_log_stem_matches_the_glossary_writer(mission_id: str) -> None:
-    from glossary.events import _sanitize_mission_id
+def test_glossary_log_stems_come_from_the_glossary_writer() -> None:
+    """AR-M2: the engine calls glossary's own sanitiser, never a copy of it."""
+    from glossary import events as glossary_events
 
-    assert retention._glossary_log_stem(mission_id) == _sanitize_mission_id(mission_id)
+    assert retention.sanitize_mission_id is glossary_events.sanitize_mission_id
 
 
 # ---------------------------------------------------------------------------

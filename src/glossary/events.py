@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _sanitize_mission_id(mission_id: str) -> str:
+def sanitize_mission_id(mission_id: str) -> str:
     """Sanitize mission ID for use as filename.
 
     Replaces path separators and special characters with hyphens.
@@ -82,7 +82,7 @@ def get_event_log_path(
     events_dir = repo_root / ".kittify" / "events" / "glossary"
     events_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_id = _sanitize_mission_id(mission_id)
+    safe_id = sanitize_mission_id(mission_id)
     return events_dir / f"{safe_id}.events.jsonl"
 
 

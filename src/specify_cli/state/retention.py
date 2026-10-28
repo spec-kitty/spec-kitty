@@ -36,7 +36,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
@@ -44,6 +43,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from glossary.events import sanitize_mission_id
 from kernel.clock import DEFAULT_CLOCK
 from kernel.event_log_append import event_log_lock_path
 from kernel.locks import LockAcquireTimeout, LockNotAcquired, SyncMachineFileLock, machine_file_lock
@@ -108,7 +108,6 @@ _RUN_STATE_FILENAME = "state.json"
 _RUN_EVENTS_FILENAME = "run.events.jsonl"
 _LOCK_SUFFIX = ".lock"
 _SECONDS_PER_DAY = 86400.0
-_UNSAFE_LOG_STEM_CHARS = re.compile(r"[^a-zA-Z0-9_\-.]")
 
 
 class RetentionPolicyDriftError(RuntimeError):
@@ -244,16 +243,6 @@ def _relative(path: Path, repo_root: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def _glossary_log_stem(mission_id: str) -> str:
-    """The glossary log file stem for *mission_id*.
-
-    Mirrors ``glossary.events._sanitize_mission_id`` (private there), which
-    names ``.kittify/events/glossary/<stem>.events.jsonl``; a unit test pins
-    the two equal.
-    """
-    return _UNSAFE_LOG_STEM_CHARS.sub("-", mission_id)
-
-
 def _claim(table: dict[str, Path | None], key: str, feature_dir: Path) -> None:
     """Map *key* to *feature_dir*; a key claimed by two Mission directories maps to ``None``.
 
@@ -287,7 +276,7 @@ class _Missions:
         mission_id = meta.get("mission_id")
         if isinstance(mission_id, str) and mission_id:
             _claim(self._by_id, mission_id, feature_dir)
-            _claim(self._by_stem, _glossary_log_stem(mission_id), feature_dir)
+            _claim(self._by_stem, sanitize_mission_id(mission_id), feature_dir)
 
     def by_slug(self, slug: object) -> Path | None:
         return self._by_slug.get(slug) if isinstance(slug, str) else None
