@@ -23,7 +23,8 @@ PACKAGE_LANES: tuple[str, ...] = tuple(lane.value for lane in _PackageLane)
 NON_AUTHORABLE_LANES: frozenset[str] = frozenset({_PackageLane.GENESIS.value})
 
 #: The authorable lanes: :data:`PACKAGE_LANES` minus :data:`NON_AUTHORABLE_LANES`,
-#: package order kept.
+#: package order kept. Follows the installed 11.x package; a package lane change is
+#: caught by the literal ratchet in ``tests/status/test_status_lanes_derivation.py``.
 CANONICAL_LANES: tuple[str, ...] = tuple(lane for lane in PACKAGE_LANES if lane not in NON_AUTHORABLE_LANES)
 
 LANE_ALIASES: dict[str, str] = {
