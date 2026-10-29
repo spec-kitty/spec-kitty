@@ -45,7 +45,7 @@ Proposed assets per `service-v<ver>` release (session A):
 | Architectural gates | `test_gate_selection_authority.py:255-263` (a services-only diff selects `ci`), `test_module_shard_registry.py:744`, `test_no_dead_modules.py` plus `_baselines.yaml` and `dead_symbol_allowlist.yaml` (`write_service_protocol`, until #6195) | update the services case; the dead-symbol entry stays |
 | Goldens read from `services/` by Python tests | `tests/contract/_mission_status_conformance.py` (`conformance/`, `leak-patterns.json`), `_mission_status_artifact_goldens.py` and `test_mission_status_artifact_goldens.py` (`artifact-conformance/golden.json`), `tests/glossary/test_torn_tail_repair_goldens.py` (`torn-tail/repair-cases.json`) | fetch from the pinned fixtures asset (§3.4) |
 | Python oracle on `contracts/` | `tests/contract/_mission_status_*.py`, `test_mission_status_*.py`, `test_mission_write_contract.py`, `fixtures/mission_write_refusal_parity.yaml`, `tests/specify_cli/status/test_write_service_protocol.py` | stay; repoint at the pinned `contract-bundles-<ver>.tar.gz` |
-| Contracts | `contracts/{mission-status,mission-write,_shared,fixtures,lint,tools}` with its own Gradle build, `contracts.yml`, `contracts-release.yml` (tags `contract-<module>-v*`), plus contract-tool tests (`test_gradle_pin_check.py`, `test_tamper_check.py`, `test_bundle.py`, `test_client_smoke.py`) | **moves (decided)**: remove from core except `fixtures/fixture_0*.json`; retire `contracts.yml` and `contracts-release.yml`; move the contract-tool tests; acceptance-jvm keeps local copies of `install_tools.py` and `gradle_pin_check.py` (Q5) |
+| Contracts | `contracts/{mission-status,mission-write,_shared,fixtures,lint,tools}` with its own Gradle build, `contracts.yml`, `contracts-release.yml` (tags `contract-<module>-v*`), plus contract-tool tests (`test_gradle_pin_check.py`, `test_tamper_check.py`, `test_bundle.py`, `test_client_smoke.py`) | **moves (decided)**: remove from core except `fixtures/fixture_0*.json`; retire `contracts.yml` and `contracts-release.yml`; move the contract-tool tests; acceptance-jvm fetches `install_tools.py` and `gradle_pin_check.py` from the pinned `service-v*` release (Q5, decided) |
 | Packaging | `pyproject.toml` sdist excludes `services/**` and `contracts/**`; `also_copy` lists `contracts/`; `test_packaging_safety.py:240-254`; `NOTICE:19-25` (Gradle wrapper under `services/`); charter licence line 665 | drop the stale excludes and NOTICE entry; the guard keeps asserting that nothing is bundled |
 | Docs | ADRs 2026-10-01-2, 10-03-1, 10-12-2, 10-13-2, 10-14-1, 10-16-1, 10-22-1, 10-27-1; `docs/architecture/{event-ledger-writers-and-readers,status-model}.md` and the C4 `01_context`, `02_containers`, `00_landscape`, `04_implementation_mapping`; `docs/development/reference/{ci-gate-mechanics,lock-interop-spike,events-in-core}.md`; `docs/plans/4-0-0-milestone-roadmap.md`; CLAUDE.md and AGENTS.md (Team Kitty producer line); charter lines 22-25, 620, 665 | pointer edits to the spec-kitty-events docs; history stays |
 | Not coupled | `acceptance-jvm/` (its own Gradle build, no `services/` reference), `sonar.yml` and `sonar-project.properties` (scan only acceptance-jvm), the Makefile, `scripts/dev/cloud-session-setup.sh` (Java setup for acceptance-jvm only) | none |
@@ -129,7 +129,7 @@ fixtures:        {name: conformance-fixtures-<ver>.tar.gz,        sha256: <64-he
    - remove `services/` and `mission-status-api.yml`, plus the ci-router, module-registry, fleet-verdict, CODEOWNERS and `.gitattributes` entries;
    - move the build-pin tests (or delete them, since A re-homes them) and repoint the goldens tests at the fixtures asset;
    - repoint the nightly corpus compare at the pinned binary;
-   - remove `contracts/` (except `fixtures/fixture_0*.json`), `contracts.yml` and `contracts-release.yml`; keep acceptance-jvm's tool copies;
+   - remove `contracts/` (except `fixtures/fixture_0*.json`), `contracts.yml` and `contracts-release.yml`; repoint acceptance-jvm's tool use at the fetched contract tools;
    - drop the stale NOTICE, pyproject excludes and `also_copy` entries;
    - add docs pointers;
    - run the packaging guards, `test_pyproject_shape.py`, `test_shared_package_boundary.py`, `test_gate_selection_authority.py`, `test_module_shard_registry.py` and `test_ci_module_wiring.py`.
@@ -156,9 +156,9 @@ Session A owns the events-side list; this is the core-side cross-check.
 - New ADR `docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md`. It amends 2026-10-01-2 (D-7, D-9 to D-12: in-repo becomes external), 2026-10-22-1 (D-5: where the binary comes from), 2026-10-27-1 (the launcher's binary source), 2026-10-14-1 (the writer's home), and 3.x 2026-04-25-1 (events = PyPI package **plus** a pinned service binary). Modelled on the charter precedents.
 - Charter "Shared Package Boundaries" amendment, plus CLAUDE.md/AGENTS.md pointer updates (Team Kitty producer line, Shared Package Boundary, Modularity SSOT).
 
-## 7. Open questions for the operator
-- **Q1** binary shipping: A / B / C (§3.4).
-- ~~Q2~~ decided: `contracts/` moves; bundles ride on `service-v*`.
-- **Q3** read service in core: pin it for CI conformance only (the CLI never launches it; consumers fetch it themselves), or also ship it to users?
-- **Q4** freeze gate timing: land it as soon as the in-flight sessions finish, or only together with core PR 1?
-- **Q5** acceptance-jvm's `install_tools.py` and `gradle_pin_check.py`: keep local copies in core (default), or fetch them from an events release?
+## 7. Operator decisions (2026-10-29)
+- **Q1 shipping:** option A, first-run digest-verified fetch; the wheel stays pure. The resolution order keeps an install-provided slot, so option C remains possible later.
+- **Q2 contracts:** move with the services; the bundles ride on `service-v*`.
+- **Q3 read service:** CI-only pin. The CLI never launches it; ADR 2026-10-01-2 D-7 holds.
+- **Q4 freeze gate:** a small standalone PR once the live mission sessions have merged.
+- **Q5 acceptance-jvm tools:** fetched from the pinned `service-v*` release, not copied. Ask session A to put `install_tools.py` and `gradle_pin_check.py` inside the contract-bundles asset, or into a separate `contract-tools-<ver>.tar.gz`.
