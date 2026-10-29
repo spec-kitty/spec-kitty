@@ -24,7 +24,7 @@ from specify_cli.acceptance.matrix import AcceptanceCriterion, AcceptanceMatrix,
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 from specify_cli.status.models import TransitionRequest
-from tests.lane_test_utils import derive_mission_id, write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, derive_mission_id, write_single_lane_manifest
 
 import pytest
 
@@ -146,7 +146,8 @@ def _make_acceptable_mission(tmp_path: Path, mission_slug: str = "099-test-missi
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\nsubtasks: []\n---\n\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\nsubtasks: []\n"
+            f"owned_files:\n- src/{wp_id.lower()}_impl.py\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
     _write_tasks_index(mission_dir, {"WP01": 2, "WP02": 2})
@@ -168,8 +169,14 @@ def _make_acceptable_mission(tmp_path: Path, mission_slug: str = "099-test-missi
     }
     (mission_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     _seed_planned_events(mission_dir, mission_slug, ("WP01", "WP02"))
+    # #6715: commit the planning state first, so lanes.json records the planning commit the
+    # evidence window starts from, as ``finalize-tasks`` does on a real Mission.
+    _commit_all(repo_root, "seed planning")
 
     write_single_lane_manifest(mission_dir, wp_ids=("WP01", "WP02"), target_branch="main", mission_id=mission_id)
+    # #6715: each work package's implementation is committed to its owned file on the lane branch.
+    for wp_id in ("WP01", "WP02"):
+        commit_lane_implementation(repo_root, mission_dir, path=f"src/{wp_id.lower()}_impl.py")
     write_acceptance_matrix(
         mission_dir,
         AcceptanceMatrix(
@@ -267,7 +274,8 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
             mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane="done",
-            actor=actor,
+            # #6715: the approval is recorded by an independent reviewer, not the implementer.
+            actor="reviewer-agent",
             evidence={
                 "review": {
                     "reviewer": "reviewer-agent",
@@ -314,7 +322,8 @@ def _emit_planned_to_approved(
             mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane="approved",
-            actor=actor,
+            # #6715: the approval is recorded by an independent reviewer, not the implementer.
+            actor="reviewer-agent",
             evidence={
                 "review": {
                     "reviewer": "reviewer-agent",

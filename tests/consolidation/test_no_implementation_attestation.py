@@ -162,6 +162,24 @@ def test_an_attestation_by_the_implementer_does_not_unconfirm_an_independent_rev
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize(("force", "independent"), [(False, True), (True, False)])
+def test_an_unforced_review_straight_to_done_is_the_approving_transition(tmp_path: Path, force: bool, independent: bool) -> None:
+    """An unforced ``in_review -> done`` names its reviewer as the approver, as the approval bound reads it; a forced one does not."""
+    feature_dir = tmp_path / "done"
+    feature_dir.mkdir(parents=True)
+    events = [
+        _event(1, "WP02", "planned", "claimed", "claude"),
+        _event(2, "WP02", "claimed", "in_progress", "claude"),
+        _event(3, "WP02", "in_progress", "for_review", "claude"),
+        _event(4, "WP02", "for_review", "in_review", "bob"),
+        _event(5, "WP02", "in_review", "done", "bob", force=force),
+    ]
+    append_events_atomic(feature_dir, events)
+
+    assert _independent_reviewer_confirmed(feature_dir, "WP02") is independent
+
+
+@pytest.mark.unit
 def test_the_attestation_does_not_feed_the_hollow_review_force_count(tmp_path: Path) -> None:
     feature_dir = tmp_path / "force"
     _approved_log(feature_dir, implementer="claude", reviewer="bob", attester="stijn")

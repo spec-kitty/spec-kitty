@@ -65,6 +65,7 @@ if TYPE_CHECKING:
     from specify_cli.consolidation.push_preflight import TargetBranchSyncStatus
     from specify_cli.coordination.types import Refused
     from specify_cli.lanes.models import LanesManifest
+    from specify_cli.status.models import StatusEvent
     from specify_cli.post_merge.review_artifact_consistency import (
         ReviewArtifactFinding,
     )
@@ -548,7 +549,7 @@ def _latest_actor_for_transition(feature_dir: Path, wp_id: str, to_lane: str) ->
     """
     latest: str | None = None
     for event in read_events_lenient(feature_dir):
-        if event.wp_id != wp_id or str(event.to_lane) != to_lane:
+        if event.wp_id != wp_id or not _enters_lane(event, to_lane):
             continue
         if _is_operator_attestation(event.policy_metadata) or is_migration_actor(event.actor):
             continue
@@ -561,9 +562,22 @@ def _latest_actor_for_transition(feature_dir: Path, wp_id: str, to_lane: str) ->
     return latest
 
 
+def _enters_lane(event: StatusEvent, to_lane: str) -> bool:
+    """True when *event* moves into *to_lane*; an unforced ``in_review -> done`` also enters ``approved``.
+
+    That hop records the review verdict and the landing in one move, so the approval bound
+    already reads it as an approval (#5668); the approving-actor read does the same (#6715).
+    """
+    if str(event.to_lane) == to_lane:
+        return True
+    review_to_done: bool = str(event.from_lane) == "in_review" and str(event.to_lane) == "done" and not event.force
+    return to_lane == "approved" and review_to_done
+
+
 def _is_operator_attestation(policy_metadata: dict[str, Any] | None) -> bool:
     """True for an operator attestation that is never a review (approved-reviewed, #5668; no-implementation, #6715)."""
-    return is_approved_reviewed_attestation(policy_metadata) or is_no_implementation_attestation(policy_metadata)
+    attested: bool = is_approved_reviewed_attestation(policy_metadata) or is_no_implementation_attestation(policy_metadata)
+    return attested
 
 
 def _latest_implementer_identity(feature_dir: Path, wp_id: str) -> str | None:
