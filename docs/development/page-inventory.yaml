@@ -3500,6 +3500,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/configuration/review-test-budget.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/configuration/yaml-libraries.md
   tag: current
   divio_type: none
@@ -5055,6 +5061,12 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/2026-09-21-full-mission-driving-tactical-workarounds-field-report.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2026-10-28-review-test-budget.md
   tag: current
   divio_type: none
   owning_workstream: none
