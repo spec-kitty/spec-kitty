@@ -249,3 +249,29 @@ def test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed(tmp_pa
     assert approvals[0]["actor"] == {"tool": "migration:backfill", "role": "reviewer", "profile": None, "model": None}
     assert is_migration_actor(approvals[0]["actor"])
     assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(approvals[0])))
+
+
+def test_explicit_migration_agent_is_parsed_strictly_and_is_not_a_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An explicit ``--agent migration:x`` is parsed like any compact value: tool ``migration``, never a seed (operator 2026-10-29)."""
+    from specify_cli.status import is_migration_actor
+
+    m = h.build_mission(tmp_path, monkeypatch)
+
+    appended = _move_ok(m, "claimed", "migration:x")
+
+    actors = [e["actor"] for e in _lane(appended)]
+    assert actors == [{"tool": "migration", "role": "implementer", "profile": None, "model": "x"}]
+    assert not is_migration_actor(actors[0])
+
+
+def test_explicit_agent_with_more_than_four_segments_parses_like_mark_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An explicit ``--agent`` goes through the strict builder mark-status uses, whatever its segment count."""
+    from specify_cli.status import build_status_actor
+
+    m = h.build_mission(tmp_path, monkeypatch)
+
+    appended = _move_ok(m, "claimed", "a:b:c:d:e")
+
+    expected = build_status_actor(role="implementer", agent="a:b:c:d:e", fallback_tool="user", binding=None)
+    assert expected == {"tool": "a", "role": "implementer", "profile": "c", "model": "b"}
+    assert [e["actor"] for e in _lane(appended)] == [expected]
