@@ -1,0 +1,29 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T18:45:09.815925Z",
+      "decision_id": "01M5ZAWEHQ2NKMF62T2Y39W7G5",
+      "final_answer": "Confirm",
+      "input_key": "intent_confirmation",
+      "mission_id": "01M5ZAW00AB28EA0CCZ12V7SDZ",
+      "mission_slug": "decision-log-integrity-01M5ZAW0",
+      "opened_by": "cli",
+      "options": [
+        "Confirm",
+        "Revise"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the extracted Intent Summary and FR/NFR/C set for decision-log-integrity?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T18:48:56.561659Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.confirm-requirements",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5ZAW00AB28EA0CCZ12V7SDZ",
+  "version": 1
+}

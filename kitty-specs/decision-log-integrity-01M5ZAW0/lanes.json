@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "decision-log-integrity-01M5ZAW0",
+  "mission_id": "01M5ZAW00AB28EA0CCZ12V7SDZ",
+  "mission_branch": "issue-4848-decision-open-lock",
+  "target_branch": "issue-4848-decision-open-lock",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/decisions/index_fold.py",
+        "src/specify_cli/decisions/service.py",
+        "tests/decisions/test_decisions_concurrency.py",
+        "tests/decisions/test_decisions_reconciler.py",
+        "tests/specify_cli/decisions/test_index_fold_duplicate_open.py",
+        "tests/specify_cli/decisions/test_service_open_concurrency.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-27T18:54:27.156597+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "07333d28b7c141cf0e689ab8131b8cb2ff950918"
+}
