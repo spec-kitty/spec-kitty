@@ -1,0 +1,55 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T19:25:49.120967Z",
+      "decision_id": "01M5ZD6WP0NFPTFYC1QBEQCWQS",
+      "final_answer": "Collision fix + clearer error wording only; file staging-accumulation and neutrality-gate as follow-ups",
+      "input_key": "side_findings_scope",
+      "mission_id": "01M5ZD628AM07EEPS0GGTN409T",
+      "mission_slug": "resynthesis-after-activation-01M5ZD62",
+      "opened_by": "cli",
+      "options": [
+        "Collision fix + clearer error wording only; file staging-accumulation and neutrality-gate as follow-ups",
+        "Also bound the .failed staging directories",
+        "Also fix the neutrality gate on generated companion tactics",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which #4226 side-findings are in scope besides the collision fix?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:28:04.797206Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.side-findings",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:30:29.301700Z",
+      "decision_id": "01M5ZDFE9NHWH3BH0X6YD8REBE",
+      "final_answer": "Confirm as proposed",
+      "input_key": "ownership_and_refusal_design",
+      "mission_id": "01M5ZD628AM07EEPS0GGTN409T",
+      "mission_slug": "resynthesis-after-activation-01M5ZD62",
+      "opened_by": "cli",
+      "options": [
+        "Confirm as proposed",
+        "Ownership reader private to specify_cli",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Confirm engineering alignment: ownership reader in charter synthesizer manifest module; exclusion at _synthesis.py request seam; origin-aware refusal via structured colliding_urn on the core error + shared CLI remedy helper",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:31:10.357098Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.ownership-and-refusal",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5ZD628AM07EEPS0GGTN409T",
+  "version": 1
+}

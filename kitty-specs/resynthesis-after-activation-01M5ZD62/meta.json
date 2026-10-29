@@ -1,0 +1,37 @@
+{
+  "accept_commit": "a89691867cc3bd538cd6f94e2376e032c63e8cd5",
+  "acceptance_history": [
+    {
+      "accept_commit": "a89691867cc3bd538cd6f94e2376e032c63e8cd5",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-29T05:15:46.985454+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "401e2af710df78a523afc438ef6ca23d4524a011"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-29T05:15:46.985454+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "401e2af710df78a523afc438ef6ca23d4524a011",
+  "baseline_merge_commit": "86575c9e880c20ff9bfb4236f0c8f6fdf9793d9c",
+  "contracts": "none",
+  "contracts_rationale": "Bug fix inside the charter synthesis request build; no API, schema or event contract changes. The only user-visible surface is the CLI refusal text, covered by FR-007 acceptance tests.",
+  "created_at": "2026-10-27T19:25:24.469009+00:00",
+  "flattened": true,
+  "friendly_name": "Re-synthesis after activation",
+  "merged_at": "2026-10-29T05:13:27.487409+00:00",
+  "merged_commit": "84cf75df1e3072023b9748ba314b7226c8c1070e",
+  "mid8": "01M5ZD62",
+  "mission_id": "01M5ZD628AM07EEPS0GGTN409T",
+  "mission_number": 243,
+  "mission_slug": "resynthesis-after-activation-01M5ZD62",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Once an operator activates any directive, the activation list includes the project directive that synthesis itself created, and every later synthesize or resynthesize refuses with a URN collision on that directive. This blocks the documented activate-then-resynthesize workflow and the implement gate that prescribes synthesis as its remedy (#6510, #4226).",
+  "purpose_tldr": "Let operators re-run charter synthesis after activating directives, without it refusing on the project's own directive.",
+  "slug": "resynthesis-after-activation-01M5ZD62",
+  "status_phase": "1",
+  "target_branch": "issue-6510-resynthesis-after-activation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T19:37:19.345099+00:00"
+}

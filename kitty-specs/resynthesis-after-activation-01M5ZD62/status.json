@@ -1,0 +1,88 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6316PFA0G0QQ6S8A35WQBDK",
+  "materialized_at": "2026-10-29T05:12:57.578265+00:00",
+  "mission_number": "243",
+  "mission_slug": "resynthesis-after-activation-01M5ZD62",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M6316KGW5M2TR93N0AM3WY73",
+      "last_transition_at": "2026-10-29T05:12:54.556075+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-27T19:50:53Z – claude – shell_pid=4266 – T002 RED (commit 00fe12d2): uv run --frozen pytest tests/specify_cli/cli/commands/charter/test_resynthesis_after_activation_6510.py -n0 -> 8 failed, 5 passed. Failing: test_resynthesize_after_activation_succeeds, test_resynthesize_after_activation_via_charter_activate, test_resynthesize_topic_project_directive_succeeds (all: ProjectDRGValidationError 'Additive-only violation (FR-020 / EC-6): URN directive:PROJECT_001 already exists in the built-in DRG layer ... built_in_nodes=2, colliding_urn=directive:PROJECT_001'); test_owned_directive_still_delivered + test_activation_files_untouched (synthesize exit 1 == 0, same collision); test_no_companion_tactic_for_own_directive (GeneratedArtifactMissingError for tactic:how-we-apply-project-001); test_unreadable_manifest_fails_closed_for_explicit_list (DID NOT RAISE: base never reads ownership); test_every_owned_directive_is_excluded (selected = [DIRECTIVE_003, PROJECT_001, PROJECT_002] != [DIRECTIVE_003]). Passing controls: test_hand_authored_directive_kept_in_snapshot (FR-008), test_ownership_read_only_when_list_explicit (NFR-002/D-3), test_deactivated_own_directive_leaves_nothing_to_exclude, 2 helper units. The charter-activate variant seeds an explicit [001-project-intent-directive] list first so activate appends instead of expanding to ~39 directives.",
+        "- 2026-10-27T20:30:50Z – claude – shell_pid=4266 – T004 GREEN (f51aa9a8): test_resynthesis_after_activation_6510.py 14 passed (all 8 former reds green). resynthesize path: resynthesize.py:129 uses the same _build_synthesis_request; resynthesize_pipeline._load_merged_drg merges the persisted project graph only for topic resolution, while the additive-only check builds built_in_drg from request.drg_snapshot (_built_in_drg_from_request), which no longer holds directive:PROJECT_001, so it does not collide (test 2 green). Existing reconcile.synthesized_node_urns deliberately excludes directives (slug-keyed), so the new provenance-based synthesized_urns is not a duplicate authority; reconcile.py untouched. Only src caller of synthesized_urns: _synthesis._synthesized_directive_ids (one call per request build, and only for a non-empty explicit list).",
+        "- 2026-10-27T20:30:52Z – claude – shell_pid=4266 – T005 gates (worktree venv, -n 4 --dist loadfile): tests/charter/synthesizer 599 passed/12 skipped; tests/charter -x --ignore=synthesizer 4031 passed/7 skipped; tests/charter_offering 4300 passed/12 skipped; tests/specify_cli/cli/commands/charter 423 passed/2 skipped; make test-fast 2476 passed/6 skipped; test_no_dead_symbols+test_layer_rules first run 1 failed/110 passed (MINE: exported SynthesisOwnershipUnreadableError had no src caller) -> fixed in d4e5c053 (made module-private), re-run with test_manifest.py 144 passed. ruff check, ruff format --check --force-exclude, ruff C901, mypy (manifest.py+_synthesis.py with errors/provenance/synthesize_pipeline, since charter.* uses follow_imports=skip) all clean; no new noqa/type: ignore; diff-cover vs e60dab24 100% (39 lines). Live quickstart in scratch dir with worktree CLI: init 0, interview 0, generate 0, synthesize 0, activate 003 0 (list now holds 001-project-intent-directive), synthesize 0 (no colliding_urn; how-we-apply-project-001 not authored, not demanded), resynthesize --topic directive:PROJECT_001 0, context --action implement 0 with PROJECT_001 rule text, activation.yaml git diff empty. Deviation: ownership-read failures raise a module-private ManifestIntegrityError subclass with accurate wording (errors.py off-limits; ManifestIntegrityError's own message claims a content-hash mismatch).",
+        "Synthesis-owned directives (manifest + provenance artifact_urn via new charter synthesized_urns) leave selected_directives and the DRG snapshot; activation untouched. RED 00fe12d2: 8 failed (colliding_urn='directive:PROJECT_001', missing how-we-apply-project-001, fail-closed not raised). GREEN f51aa9a8/d4e5c053: 14/14. Gates: synthesizer 599, charter 4031, charter_offering 4300, CLI charter 423, test-fast 2476, dead-symbols+layer+manifest 144 all passed; ruff/format/C901/mypy clean; diff-cover 100%; live quickstart all steps exit 0, activation.yaml unchanged.",
+        "Review passed (reviewer-renata): RED at 00fe12d2 8 failed/5 passed (colliding_urn='directive:PROJECT_001' on synthesize, activate+synthesize, resynthesize --topic); GREEN at tip 47/47 (acceptance + test_manifest). Ownership only from manifest+provenance artifact_urn, read once and only for a non-empty explicit list, fail-closed; no activation writes; forbidden files untouched; real CLI, no request-builder patching. Targeted run 1133 passed/14 skipped. Non-blocking: no explicit 'owned but no longer a target' test (safe by construction); mypy needs imported modules on the command line (follow_imports=skip)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4482,
+      "shell_pid_created_at": "1793133820.8",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M6316PFA0G0QQ6S8A35WQBDK",
+      "last_transition_at": "2026-10-29T05:12:57.578265+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-27T21:14:51Z – claude – shell_pid=13055 – T006 RED (742dccdb): uv run --frozen pytest tests/charter/synthesizer/test_project_drg.py tests/specify_cli/cli/commands/charter/test_collision_refusal_6510.py -> 15 failed, 40 passed. Core: AttributeError/TypeError no colliding_urn (3). Classifier: ModuleNotFoundError _collision_remedy / TypeError (8). CLI (real synthesize/resynthesize, manifest entry for PROJECT_001 dropped): exit 1 with old 'built-in DRG layer ... must carry new URNs' text, no Hint, no remedy in JSON (4).",
+        "- 2026-10-27T21:48:41Z – claude – shell_pid=13055 – GREEN (2bb1a9c5). Tests: synthesizer 601 passed/12 skipped; tests/charter (excl synthesizer) 4031 passed/7 skipped; charter_offering 4300 passed/12 skipped; tests/specify_cli/cli/commands/charter 430 passed + 5 pytest-timeout (240s) under 5-suite parallel load; arch dead_symbols/layer_rules/legacy_terminology 208 passed + 1 timeout; the 6 timed-out tests re-run alone: 44 passed (no red to attribute). make test-fast 2476 passed/6 skipped. New+WP01 6510 tests 69 passed. ruff check + ruff format --check --force-exclude clean; mypy: 0 findings in changed code (3 pre-existing: untyped-decorator on @charter_app lines from 70932d82, manifest.py:438 no-any-return from WP01 8e5bb8a0d). C901: charter_synthesize 43->43, charter_resynthesize 32->32 (pre-existing noqa C901), new functions <=4. diff-cover vs 7a3714cd: 53 lines, 100%. additive-only conditions byte-identical.",
+        "Origin-aware collision refusal: colliding_urn on ProjectDRGValidationError (both raise sites), neutral target text, _collision_remedy (unowned project / owned / built-in-org / unreadable) wired into synthesize+resynthesize human+--json, exit 1 unchanged. RED 742dccdb (15 failed) -> GREEN 2bb1a9c5 (69 passed). Gates: ruff/format/mypy clean on changes, C901 unchanged 43/32, diff-cover 100%, test-fast 2476 passed.",
+        "Review passed (reviewer-renata): RED at 742dccdb (TypeError colliding_urn / ModuleNotFound / CLI assertions with exit 1 kept) -> GREEN at tip; project_drg diff is raise args only (C-003); remedy names origin from project pack scan + WP01 synthesized_urns, no deactivation/rename advice, JSON+human carry it; complexity 43/32 unchanged, no new noqa/type-ignore; ruff/format clean, mypy findings pre-existing on base; tests: synthesizer 601p/12s, cli charter 435p/2s, arch gates 209p. Non-blocking: agent_profile URN classed as built-in/org with a 'synthesis id' remedy (unreachable via CLI today); edge-triple refusal still says 'built-in DRG layer' (edges empty in CLI snapshot); classifier does not itself check activation."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261029",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 16860,
+      "shell_pid_created_at": "1793138648.34",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    }
+  }
+}

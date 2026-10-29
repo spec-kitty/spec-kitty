@@ -1,0 +1,99 @@
+{
+  "mission_slug": "resynthesis-after-activation-01M5ZD62",
+  "mission_number": "243",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_resynthesis_after_activation_6510.py::test_resynthesize_after_activation_succeeds, ::test_resynthesize_after_activation_via_charter_activate (lane-b, 102 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T05:10:22.245034+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_resynthesis_after_activation_6510.py::test_resynthesize_topic_project_directive_succeeds",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T05:10:27.502483+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_resynthesis_after_activation_6510.py::test_directive_inputs_drop_owned_ids_from_both_outputs, ::test_every_owned_directive_is_excluded, ::test_no_companion_tactic_for_own_directive",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T05:10:32.697263+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_resynthesis_after_activation_6510.py::test_owned_directive_still_delivered",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T05:10:37.792370+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_resynthesis_after_activation_6510.py::test_activation_files_untouched",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T05:10:42.962355+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_project_drg.py (collision still refuses, colliding_urn set); tests/specify_cli/cli/commands/charter/test_collision_refusal_6510.py::test_synthesize_json_refusal_carries_remedy (exit 1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T05:10:48.181462+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_collision_refusal_6510.py::test_unowned_project_directive_names_manifest_and_hand_authored_remedy, ::test_upstream_node_says_built_in_or_org, ::test_*_refusal_prints_hint",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T05:10:53.220694+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_resynthesis_after_activation_6510.py::test_hand_authored_directive_kept_in_snapshot",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T05:10:58.386012+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No synthesis refusal tells operators to choose new URNs without naming the origin",
+      "verification_method": "grep_absence",
+      "verification_command": "must carry new URNs",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/charter/activation/synthesizer src/specify_cli/cli/commands/charter"
+    }
+  ]
+}

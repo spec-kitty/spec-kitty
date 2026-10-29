@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "mission_slug": "resynthesis-after-activation-01M5ZD62",
+  "mission_id": "01M5ZD628AM07EEPS0GGTN409T",
+  "mission_branch": "kitty/mission-resynthesis-after-activation-01M5ZD62",
+  "target_branch": "issue-6510-resynthesis-after-activation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/manifest.py",
+        "src/specify_cli/cli/commands/charter/_synthesis.py",
+        "tests/charter/synthesizer/test_manifest.py",
+        "tests/specify_cli/cli/commands/charter/test_resynthesis_after_activation_6510.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/errors.py",
+        "src/charter/activation/synthesizer/project_drg.py",
+        "src/specify_cli/cli/commands/charter/_collision_remedy.py",
+        "src/specify_cli/cli/commands/charter/resynthesize.py",
+        "src/specify_cli/cli/commands/charter/synthesize.py",
+        "tests/charter/synthesizer/test_project_drg.py",
+        "tests/specify_cli/cli/commands/charter/test_collision_refusal_6510.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-27T19:36:18.006547+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8e89b10706e7b6a1f4632161227f24a367d5d307"
+}
