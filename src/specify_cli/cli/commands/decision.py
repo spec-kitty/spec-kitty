@@ -242,6 +242,12 @@ def _resolve_decision_context(mission_handle: str, owned_claim: Path | None) -> 
     return repo_root, slug, None
 
 
+#: Deliberately narrower than ``_owned_checkout._registered_owned_error_codes``:
+#: a refusal raised AFTER owned resolution (the ledger write-containment, the
+#: repair-runtime-lock path checks) only ever carries an ``OwnedRefusalCode``
+#: member. The resolution-time ``MISSION_CONTEXT_*`` and registry-read codes are
+#: rendered once, in ``_resolve_decision_context``; matching them here would turn
+#: a post-resolution ``MISSION_CONTEXT_*`` resolver error into an owned refusal.
 _OWNED_REFUSAL_CODES: frozenset[str] = frozenset(member.value for member in OwnedRefusalCode)
 
 
@@ -1004,6 +1010,12 @@ def _runtime_lock_error_code(exc: Exception) -> str:
     return _RUNTIME_LOCK_REPAIR_FAILED
 
 
+def _echo_runtime_lock_failure(exc: Exception) -> NoReturn:
+    """Print a non-owned repair failure as ``{status, code, message}`` and exit(1)."""
+    typer.echo(json.dumps({"status": "error", "code": _runtime_lock_error_code(exc), "message": str(exc)}))
+    raise typer.Exit(1) from exc
+
+
 def _runtime_lock_preflight(owned: OwnedCheckout) -> tuple[Path, Path, bool, bool]:
     """Validate only the service-owned lock and its local ignore file."""
     from kernel.git import status_entries, tracked_paths
@@ -1125,7 +1137,14 @@ def cmd_repair_runtime_lock(
         raise typer.Exit(1)
     try:
         payload = _repair_runtime_lock(owned, dry_run=dry_run)
+    except ActionContextError as exc:
+        # #6353 (ADR 2026-10-27-2): an owned refusal raised after resolution
+        # (e.g. ``OWNED_MISSION_PATH_REFUSED`` from ``owned.files([lock])``) is
+        # the C2 owned refusal on stdout; any other code keeps the
+        # ``{status, code, message}`` shape.
+        if exc.code in _OWNED_REFUSAL_CODES:
+            emit_owned_refusal(exc, json_output=True)
+        _echo_runtime_lock_failure(exc)
     except Exception as exc:
-        typer.echo(json.dumps({"status": "error", "code": _runtime_lock_error_code(exc), "message": str(exc)}))
-        raise typer.Exit(1) from exc
+        _echo_runtime_lock_failure(exc)
     typer.echo(json.dumps(payload))

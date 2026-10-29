@@ -147,12 +147,18 @@ def _classify_delegate_error(
     already-exists classification -- the retired substring heuristic over
     the delegate's message prose could silently mislabel when wording
     changed.
+
+    The host's owned refusal is C2, ``{ok: false, error: {code, message}}``
+    (ADR ``2026-10-27-2``): code and plain-text message are read through
+    :func:`_host_error_code_and_message`, the same reader
+    ``check-prerequisites`` uses, so the owned code survives (``plan`` still
+    wraps it through ``_plan_contract_error``). A string ``error`` with an
+    optional top-level ``error_code`` classifies exactly as before.
     """
     if payload is None:
         message = raw_output.strip() or fallback_message
         return fallback_code, message, {"raw_output": raw_output}
-    message = str(payload.get("error") or payload.get("message") or fallback_message)
-    error_code = payload.get("error_code")
+    error_code, message = _host_error_code_and_message(payload, fallback_message=fallback_message)
     if error_code:
         return str(error_code), message, payload
     return fallback_code, message, payload
@@ -459,17 +465,22 @@ def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str)
     return value
 
 
-def _host_error_code_and_message(payload: Mapping[str, Any]) -> tuple[object, str]:
+def _host_error_code_and_message(
+    payload: Mapping[str, Any],
+    *,
+    fallback_message: str = _CHECK_PREREQUISITES_FAILED_MESSAGE,
+) -> tuple[object, str]:
     """Return the host error code and plain-text message from a failed payload.
 
     A C2 owned refusal nests both under ``error`` (``{code, message}``, ADR
     ``2026-10-27-2``); every other host error carries ``error`` as a string and
-    the code, when present, as the top-level ``error_code``.
+    the code, when present, as the top-level ``error_code``. ``fallback_message``
+    is the calling verb's own text for a payload that carries no message.
     """
     error = payload.get("error")
     if isinstance(error, Mapping):
-        return error.get("code"), str(error.get("message") or _CHECK_PREREQUISITES_FAILED_MESSAGE)
-    return payload.get("error_code"), str(error or payload.get("message") or _CHECK_PREREQUISITES_FAILED_MESSAGE)
+        return error.get("code"), str(error.get("message") or fallback_message)
+    return payload.get("error_code"), str(error or payload.get("message") or fallback_message)
 
 
 def _classify_check_prerequisites_error(payload: dict[str, Any] | None, raw_output: str) -> tuple[str, str, dict[str, Any]]:
