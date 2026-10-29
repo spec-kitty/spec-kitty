@@ -182,3 +182,13 @@ Repoint the golden tests at cut-over using these entry names in `conformance-fix
 - Every asset is listed in `SHA256SUMS`, and the attestation covers the subjects of `SHA256SUMS`.
 
 Additional cut-over item: close #6692 as done, citing core ADR 2026-10-22-1 and spec-kitty-events ADR 0002 (operator decision, relayed 2026-10-29).
+
+### 8.1 Updates from spec-kitty-events (2026-10-29)
+
+- The pre-cut-over PR in spec-kitty-events is draft [#148](https://github.com/spec-kitty/spec-kitty-events/pull/148).
+- ADR 0002, which the #6692 close cites, will be at `https://github.com/spec-kitty/spec-kitty-events/blob/main/docs/adr/0002-events-domain-owns-its-services.md` once #148 merges.
+- Provenance check: `gh attestation verify <asset> --repo spec-kitty/spec-kitty-events --signer-workflow spec-kitty/spec-kitty-events/.github/workflows/service-release.yml --source-ref refs/tags/<tag>`.
+  - Follow-up for core: `spec-kitty service vendor` runs this check when `gh` is available, as a second guard beside the sha256 pin. The check stays optional at fetch time for users, because the sha256 in the signed wheel is the trust anchor.
+- A release uploads exactly the assets listed in `SHA256SUMS`, plus their `.sha256` files.
+- From the cut-over on, `contracts/` is part of spec-kitty-events' root Gradle build as `:contracts`.
+- The first tag will be `service-v0.1.0-rc.1`. It waits for the spec-kitty-events operator's cut-over go.
