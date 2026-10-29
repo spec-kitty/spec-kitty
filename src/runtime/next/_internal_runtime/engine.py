@@ -24,7 +24,7 @@ from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc, now_utc_iso
 from runtime.next.run_lock import run_cursor_lock
 from runtime.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
-from spec_kitty_events import RaciRoleBinding, SignificanceEvaluatedPayload
+from spec_kitty_events import SIGNIFICANCE_EVALUATED, RaciRoleBinding, SignificanceEvaluatedPayload
 from spec_kitty_events.mission_next import (
     DecisionInputAnsweredPayload,
     DecisionInputRequestedPayload,
@@ -486,7 +486,7 @@ def _record_step_completed(run_dir: Path, run_id: str, step_id: str, agent_id: s
 
 def _record_significance(run_dir: Path, payload: SignificanceEvaluatedPayload, emitter: RuntimeEventEmitter) -> None:
     """Persist + emit the ``SignificanceEvaluated`` event of an audit gate."""
-    _append_event(run_dir, "SignificanceEvaluated", payload.model_dump(mode="json"))
+    _append_event(run_dir, SIGNIFICANCE_EVALUATED, payload.model_dump(mode="json"))
     emitter.emit_significance_evaluated(payload)
 
 
