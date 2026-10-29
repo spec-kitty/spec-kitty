@@ -203,7 +203,20 @@ has created in `.kittify/charter/synthesized-artifacts.yaml` (`created_tactics`,
 and never appends one again, even when a later run regenerates it. A legacy
 `synthesized-tactics.yaml` is still read and never written. Bring an artifact back with
 `spec-kitty charter activate tactic <id>` or `activate styleguide <id>`. Re-synthesis replaces legacy
-`applies` edges on synthesized tactics and styleguides and reports the replacement.
+`applies` edges only on the tactics and styleguides the run regenerates and reports the replacement;
+the others keep the edge until a run regenerates them.
+
+If the record (or the legacy `synthesized-tactics.yaml`) cannot be read, synthesis appends nothing to
+any activation list and warns that the file is unreadable. Restore it from version control
+(`git checkout -- <path>`, or from an earlier commit) or repair its YAML by hand, keeping every listed
+id. Do not delete it: synthesis would forget which artifacts it created and add back ones you removed.
+
+One writing synthesis run holds the worktree's synthesis lock at a time. A second `synthesize` or
+`resynthesize` waits about 10 seconds, then refuses with `CHARTER_SYNTHESIS_LOCK_HELD` and writes
+nothing; retry once the other run finishes. `--dry-run`, `--dry-run-evidence` and `--list-topics`
+take no lock. `charter activate`/`deactivate`, presets and the interview restamp the manifest's
+bundle hash under the same lock. While a synthesis run holds it, they save their change, skip the
+restamp and warn; the next activation or synthesis restamps it.
 
 The always-synthesized directive is named `project-intent-directive`; synthesis converges a legacy
 `mission-type-scope-directive` first, and `spec-kitty upgrade` does the same through the
@@ -252,7 +265,7 @@ Selector forms:
 - `directive:DIRECTIVE_003` — regenerate every artifact whose provenance references the built-in DIRECTIVE_003 URN
 - `testing-philosophy` — regenerate all artifacts from that interview section
 
-Resynthesis follows the `synthesize` rules above: the `suggests` edge, appended tactic and styleguide ids and replaced legacy `applies` edges.
+Resynthesis follows the `synthesize` rules above: the `suggests` edge, appended tactic and styleguide ids, the synthesis lock (`CHARTER_SYNTHESIS_LOCK_HELD`) and legacy `applies` edges replaced on the artifacts it regenerates.
 
 | Flag | Description | Default |
 | --- | --- | --- |
