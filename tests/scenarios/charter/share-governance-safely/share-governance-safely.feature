@@ -14,8 +14,9 @@
 # - PR-CHARTER-SHARING-002 is @wip: witnessing that the project's choice WINS over the org pack's
 #   needs the black-box override + layer-provenance fixture tracked by #6137; the promise is
 #   captured now, bound-and-green when that fixture lands.
-# - PR-CHARTER-SHARING-004 is @wip @defect:6418 (#6369): it landed gating without ever running
-#   and was red on the 2026-10-18 nightly; `doctor charter-packs` exits 0 on the escaping asset.
+# - PR-CHARTER-SHARING-004 is gating again: #6418 made `doctor charter-packs` exit non-zero on a
+#   fragment node whose `body_path` reaches outside its pack (it was red on the 2026-10-18
+#   nightly, #6369).
 # - Promises mapped to FR/ADR in tests/scenarios/charter/PROMISES.md.
 
 Feature: I can share governance across a team or project safely
@@ -48,7 +49,7 @@ Feature: I can share governance across a team or project safely
     When the author checks the shared governance is sound
     Then the shared governance is not reported healthy
 
-  @promise:PR-CHARTER-SHARING-004 @wip @wip-owner:stijn-dejongh @wip-since:2026-10-18 @defect:6418
+  @promise:PR-CHARTER-SHARING-004
   Scenario: A shared asset that reaches outside its pack is not accepted as sound
     Given the team pack ships an asset that points outside its own folder
     When the author checks the shared governance is sound
