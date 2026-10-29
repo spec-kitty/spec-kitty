@@ -798,6 +798,8 @@ _NO_PACKS_ORG_DRG: dict[str, object] = {
     "configured_packs": [],
     "collision_warnings": [],
     "dangling_endpoints": [],
+    # #6418 (NFR-002): the one sanctioned addition, always present and empty here.
+    "body_path_escapes": [],
     "errors": [],
     "operating_procedures_unresolved": [],
     # The activation ledger check (#6496, docs/api/charter-commands.md): a fresh project has no finding.

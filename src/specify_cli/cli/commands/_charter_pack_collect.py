@@ -688,6 +688,10 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         # signalled by this key but by the hard-failure entry in ``errors``,
         # which is the channel the health verdict reads.
         "dangling_endpoints": [],
+        # Unconditionally present for the same reason (#6418): an empty list
+        # means "checked, nothing escapes". A check that could not run is
+        # reported in ``errors`` instead, never as this list being empty.
+        "body_path_escapes": [],
         "errors": [],
     }
 
@@ -717,6 +721,10 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
 
     if not fragments:
         return result
+
+    # Before the merge: an escaping body_path is a pack fault in its own right,
+    # so a merge that refuses or crashes must not hide it.
+    _record_body_path_escapes(result, repo_root, fragments)
 
     # The merge is the ONLY thing in this try. The post-merge checks used to sit
     # inside it, which cost twice: a hard-fail raise aborted the block before
@@ -757,6 +765,27 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         _append_org_errors(result, [f"org-layer post-merge check failed: {exc}"])
 
     return result
+
+
+def _record_body_path_escapes(result: dict[str, object], repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> None:
+    """Record authored fragment nodes whose ``body_path`` escapes their pack (#6418).
+
+    Each escape lands twice: as a structured entry in ``body_path_escapes`` and
+    as a message in ``errors``, the channel ``CharterPackHealthReport.healthy``
+    reads, so one escape flips ``doctor charter-packs`` to RC=1. The predicate
+    is the charter's; ``_render_org_layer_section`` calls the same function.
+    """
+    from charter.activation.drg_activation import find_org_body_path_escapes
+
+    try:
+        escapes = find_org_body_path_escapes(repo_root, fragments)
+    except Exception as exc:
+        # Diagnostics never crash, and a check that could not RUN is not a
+        # check that PASSED: report it on the verdict channel.
+        _append_org_errors(result, [f"org-layer body_path check failed: {exc}"])
+        return
+    result["body_path_escapes"] = [escape.as_dict() for escape in escapes]
+    _append_org_errors(result, [escape.message for escape in escapes])
 
 
 def _record_org_conflicts(result: dict[str, object], exc: OrgDRGConflictError) -> None:

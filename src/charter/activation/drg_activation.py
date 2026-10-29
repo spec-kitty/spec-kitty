@@ -15,6 +15,8 @@ Provides:
 
 * :func:`load_org_drg` — loads all configured org packs from
   ``.kittify/config.yaml`` (FR-001, FR-004, NEW-1).
+* :func:`find_org_body_path_escapes` — pairs each loaded fragment with its
+  pack's effective root and reports authored ``body_path`` escapes (#6418).
 * :func:`filter_graph_by_activation` — the FR-006/FR-018 activation filter
   (WP11), plus its private helpers.
 * :data:`merge_three_layers` — re-exported here (rather than from
@@ -28,6 +30,7 @@ Provides:
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -38,9 +41,11 @@ from kernel.charter_pack_paths import pack_drg_fragment, project_pack_root
 from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_config import load_pack_registry
 from charter.offering.drg.org_pack_loader import (
+    BodyPathEscape,
     OrgDRGFragment,
     OrgPackParseError,
     OrgPackSchemaError,
+    find_body_path_escapes,
     load_org_pack,
 )
 
@@ -59,6 +64,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "filter_graph_by_activation",
+    "find_org_body_path_escapes",
     "load_org_drg",
     "merge_three_layers",
 ]
@@ -179,6 +185,31 @@ def load_org_drg(
                 exc,
             )
     return fragments
+
+
+def find_org_body_path_escapes(repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> list[BodyPathEscape]:
+    """Return every authored ``body_path`` escape across *fragments* (#6418).
+
+    A fragment does not carry its pack root, so the root is resolved here the
+    same way :func:`load_org_drg` resolved it: ``pack.effective_root(repo_root)``
+    from the same registry. Each fragment is then judged by the offering
+    predicate :func:`find_body_path_escapes`; nothing here restates containment.
+
+    *fragments* must be the instances :func:`load_org_drg` returned for this
+    *repo_root*. A registry fault, or a fragment whose pack is not registered
+    (``KeyError``), propagates: a caller must report "the check could not run",
+    never "no escapes".
+    """
+    # A name-paired registry read, not a root chain: each fragment is matched to
+    # its own pack by name, which the Path-only ``resolve_pack_chain`` cannot
+    # provide (see the name-paired rule in test_org_pack_chain_single_authority).
+    roots: dict[str, Path] = {}
+    for pack in load_pack_registry(repo_root).packs:
+        roots[pack.name] = pack.effective_root(repo_root)
+    escapes: list[BodyPathEscape] = []
+    for fragment in fragments:
+        escapes.extend(find_body_path_escapes(fragment, roots[fragment.pack_name]))
+    return escapes
 
 
 # ---------------------------------------------------------------------------

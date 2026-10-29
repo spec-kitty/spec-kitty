@@ -35,6 +35,7 @@ from __future__ import annotations
 import warnings
 from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
@@ -44,6 +45,7 @@ from ruamel.yaml.error import YAMLError
 
 from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
 from charter.offering.drg.models import NodeKind, Relation
+from charter.offering.drg.org_pack_config import OrgPackSubdirEscapeError, resolve_relative_path_within_root
 from kernel.charter_pack_paths import pack_drg_fragment
 from kernel.pack_tiers import ORG
 
@@ -52,9 +54,11 @@ __all__ = [
     "AUGMENTATION_RELATIONS",
     "ORG_PLURAL_TO_SINGULAR_KIND",
     "TOPOLOGY_KINDS",
+    "BodyPathEscape",
     "OrgDRGFragment",
     "OrgPackMissingError",
     "augmentation_plural_kinds",
+    "find_body_path_escapes",
     "load_org_pack",
     "merge_topology_artifact",
 ]
@@ -487,6 +491,62 @@ class OrgDRGFragment(BaseModel):
         the same copy/re-validation caveat as :attr:`authored_nodes` applies.
         """
         return [edge for edge in self.edges if not isinstance(edge, _ProjectedOrgDRGEdge)]
+
+
+# ---------------------------------------------------------------------------
+# body_path containment (#6418)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class BodyPathEscape:
+    """One authored fragment node whose ``body_path`` leaves its pack root (#6418).
+
+    ``body_path`` is kept exactly as written and ``reason`` is the containment
+    primitive's own message, so a reporter never re-derives either.
+    """
+
+    pack: str
+    node: str
+    kind: str
+    body_path: str
+    reason: str
+
+    @property
+    def message(self) -> str:
+        """Operator-facing finding naming the pack, the node and the path."""
+        return f"org pack {self.pack!r}: node {self.node!r} ({self.kind}) body_path {self.body_path!r} escapes the pack root: {self.reason}"
+
+    def as_dict(self) -> dict[str, str]:
+        """JSON-ready ``{pack, node, kind, body_path, reason}`` record."""
+        return {"pack": self.pack, "node": self.node, "kind": self.kind, "body_path": self.body_path, "reason": self.reason}
+
+
+def find_body_path_escapes(fragment: OrgDRGFragment, pack_root: Path) -> list[BodyPathEscape]:
+    """Return the authored nodes of *fragment* whose ``body_path`` escapes *pack_root*.
+
+    Containment is judged by :func:`resolve_relative_path_within_root`, the one
+    pack-relative containment authority (C-001): an absolute path (POSIX,
+    Windows or UNC), a ``..`` part, or a path that resolves outside the root (a
+    symlink) is an escape. A contained path is never one, whether or not its
+    target exists. No ``body_path`` target is opened or read (NFR-001).
+
+    Only :attr:`OrgDRGFragment.authored_nodes` are judged: an authored
+    ``body_path`` is pack-root-relative per the org-DRG contract, while a
+    discovered node's ``body_path`` is relative to its own artifact file and is
+    owned by that kind's validator. *pack_root* must be the pack's effective
+    root (``subdir`` applied), and *fragment* the instance :func:`load_org_pack`
+    returned (see the copy caveat on ``authored_nodes``).
+    """
+    escapes: list[BodyPathEscape] = []
+    for node in fragment.authored_nodes:
+        if not node.body_path:
+            continue
+        try:
+            resolve_relative_path_within_root(pack_root, node.body_path)
+        except OrgPackSubdirEscapeError as exc:
+            escapes.append(BodyPathEscape(pack=fragment.pack_name, node=node.id, kind=node.kind, body_path=node.body_path, reason=str(exc)))
+    return escapes
 
 
 # ---------------------------------------------------------------------------

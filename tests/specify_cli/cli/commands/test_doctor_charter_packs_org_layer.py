@@ -23,6 +23,7 @@ from textwrap import dedent
 from unittest.mock import patch
 
 import pytest
+import yaml
 from rich.console import Console
 from typer.testing import CliRunner
 
@@ -626,3 +627,202 @@ def test_doctor_charter_packs_json_includes_org_drg_key_when_no_packs(
     org_drg = payload["org_drg"]
     packs = org_drg.get("configured_packs", [])
     assert packs == [], f"expected empty packs when none configured, got: {packs}"
+
+
+# ---------------------------------------------------------------------------
+# #6418: an authored fragment node whose body_path escapes the pack is unhealthy
+# ---------------------------------------------------------------------------
+#
+# RED before the fix: ``org_drg`` carried no ``body_path_escapes`` key, the
+# escaping node produced ``errors: []`` and ``doctor charter-packs`` exited 0.
+
+_ESCAPING_BODY_PATH = "../../../../etc/hostname"
+
+
+def _add_authored_node(repo: Path, body_path: str) -> None:
+    fragment = repo / "example_org" / "drg" / "fragment.yaml"
+    data = yaml.safe_load(fragment.read_text(encoding="utf-8"))
+    data["nodes"].append({"id": "team-asset", "kind": "assets", "title": "Team asset", "body_path": body_path})
+    fragment.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+
+@pytest.fixture
+def tmp_repo_with_escaping_pack(tmp_repo_with_org_pack: Path) -> Path:
+    """``example_org`` (its own ``body_path`` is the contained control) plus one escaping node."""
+    _add_authored_node(tmp_repo_with_org_pack, _ESCAPING_BODY_PATH)
+    return tmp_repo_with_org_pack
+
+
+def test_collect_org_layer_data_reports_an_escaping_body_path(tmp_repo_with_escaping_pack: Path) -> None:
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    result = _collect_org_layer_data(tmp_repo_with_escaping_pack)
+
+    escapes = result["body_path_escapes"]
+    assert isinstance(escapes, list) and len(escapes) == 1, result
+    entry = escapes[0]
+    assert {k: entry[k] for k in ("pack", "node", "kind", "body_path")} == {
+        "pack": "example-org",
+        "node": "team-asset",
+        "kind": "assets",
+        "body_path": _ESCAPING_BODY_PATH,
+    }
+    assert ".." in entry["reason"]
+    errors = result["errors"]
+    assert isinstance(errors, list)
+    assert any("team-asset" in e and _ESCAPING_BODY_PATH in e and "escapes the pack root" in e for e in errors), errors
+
+
+def test_collect_org_layer_data_contained_body_path_is_healthy(tmp_repo_with_org_pack: Path) -> None:
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    result = _collect_org_layer_data(tmp_repo_with_org_pack)
+
+    assert result["body_path_escapes"] == []
+    assert result["errors"] == []
+
+
+def test_body_path_escapes_key_is_present_on_early_returns(tmp_repo_without_org_pack: Path, tmp_path: Path) -> None:
+    """Missing-pack and load-error returns still carry the key (an absent key is not a finding)."""
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    assert _collect_org_layer_data(tmp_repo_without_org_pack)["body_path_escapes"] == []
+
+    missing = tmp_path / "missing-repo"
+    _build_kittify_config_for_test(missing, Path("/nonexistent/path/to/pack"))
+    missing_result = _collect_org_layer_data(missing)
+    assert missing_result["errors"] and missing_result["body_path_escapes"] == []
+
+    broken = tmp_path / "broken-repo"
+    pack = broken / "pack"
+    (pack / "drg").mkdir(parents=True)
+    (pack / "drg" / "fragment.yaml").write_text("nodes: [unclosed\n", encoding="utf-8")
+    _build_kittify_config_for_test(broken, pack)
+    broken_result = _collect_org_layer_data(broken)
+    assert any("org-DRG load error" in e for e in broken_result["errors"]), broken_result
+    assert broken_result["body_path_escapes"] == []
+
+
+def test_body_path_check_runs_even_when_the_merge_refuses(
+    tmp_repo_with_escaping_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import charter.activation.drg_activation as drg_activation
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    def _boom(**_kwargs: object) -> object:
+        raise RuntimeError("merge exploded")
+
+    monkeypatch.setattr(drg_activation, "merge_three_layers", _boom)
+
+    result = _collect_org_layer_data(tmp_repo_with_escaping_pack)
+
+    assert [e["node"] for e in result["body_path_escapes"]] == ["team-asset"]
+
+
+def test_collect_org_layer_data_records_a_crashed_body_path_check(
+    tmp_repo_with_escaping_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A check that could not RUN is reported, never read as "no escapes"."""
+    import charter.activation.drg_activation as drg_activation
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("registry exploded")
+
+    monkeypatch.setattr(drg_activation, "find_org_body_path_escapes", _boom)
+
+    result = _collect_org_layer_data(tmp_repo_with_escaping_pack)
+
+    assert result["body_path_escapes"] == []
+    assert "org-layer body_path check failed: registry exploded" in result["errors"]
+
+
+def _render(repo: Path) -> str:
+    from specify_cli.cli.commands.doctor import _render_org_layer_section
+
+    buf = StringIO()
+    _render_org_layer_section(repo, Console(file=buf, highlight=False, width=400))
+    return buf.getvalue()
+
+
+def test_render_org_layer_section_names_an_escaping_body_path(tmp_repo_with_escaping_pack: Path) -> None:
+    output = _render(tmp_repo_with_escaping_pack)
+
+    assert "body_path escapes:" in output
+    assert "1 fragment node(s) point outside their pack" in output
+    assert "team-asset" in output and _ESCAPING_BODY_PATH in output
+
+
+def test_render_org_layer_section_truncates_many_escapes(tmp_repo_with_org_pack: Path) -> None:
+    fragment = tmp_repo_with_org_pack / "example_org" / "drg" / "fragment.yaml"
+    data = yaml.safe_load(fragment.read_text(encoding="utf-8"))
+    data["nodes"].extend({"id": f"leak-{i}", "kind": "assets", "body_path": f"/etc/leak-{i}"} for i in range(5))
+    fragment.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+
+    output = _render(tmp_repo_with_org_pack)
+
+    assert "5 fragment node(s) point outside their pack" in output
+    assert "leak-2" in output and "leak-3" not in output
+    assert "… and 2 more" in output
+
+
+def test_render_org_layer_section_reports_no_body_path_escape_when_contained(tmp_repo_with_org_pack: Path) -> None:
+    assert "body_path escapes: none" in _render(tmp_repo_with_org_pack)
+
+
+def test_render_org_layer_section_reports_a_crashed_body_path_check(
+    tmp_repo_with_escaping_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import charter.activation.drg_activation as drg_activation
+
+    def _boom(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("registry exploded")
+
+    monkeypatch.setattr(drg_activation, "find_org_body_path_escapes", _boom)
+
+    output = _render(tmp_repo_with_escaping_pack)
+
+    assert "body_path escapes: not checked (registry exploded)" in output
+
+
+@pytest.mark.parametrize(
+    ("body_path", "expected_exit"),
+    [(_ESCAPING_BODY_PATH, 1), ("/etc/hostname", 1), (None, 0)],
+    ids=["dot-dot-escape", "absolute-escape", "contained-control"],
+)
+def test_doctor_charter_packs_exit_code_reflects_body_path_containment(
+    tmp_repo_with_org_pack: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    body_path: str | None,
+    expected_exit: int,
+) -> None:
+    """Entry point (SC-001/SC-002): RC=1 for both escape forms, RC=0 for the contained control."""
+    from specify_cli.cli.commands.doctor import app as doctor_app
+
+    if body_path is not None:
+        _add_authored_node(tmp_repo_with_org_pack, body_path)
+    monkeypatch.chdir(tmp_repo_with_org_pack)
+
+    with patch("specify_cli.cli.commands.doctor.locate_project_root", return_value=tmp_repo_with_org_pack):
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
+
+    assert result.exit_code == expected_exit, result.output
+    org_drg = json.loads(result.output)["org_drg"]
+    if body_path is None:
+        assert org_drg["body_path_escapes"] == []
+    else:
+        assert [(e["node"], e["body_path"]) for e in org_drg["body_path_escapes"]] == [("team-asset", body_path)]
+        assert any("team-asset" in e for e in org_drg["errors"])
+
+
+def test_doctor_charter_packs_human_exit_code_on_escape(
+    tmp_repo_with_escaping_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.cli.commands.doctor import app as doctor_app
+
+    monkeypatch.chdir(tmp_repo_with_escaping_pack)
+    with patch("specify_cli.cli.commands.doctor.locate_project_root", return_value=tmp_repo_with_escaping_pack):
+        result = runner.invoke(doctor_app, ["charter-packs"])
+
+    assert result.exit_code == 1, result.output
+    assert "team-asset" in result.output
