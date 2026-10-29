@@ -4380,6 +4380,9 @@ pages:
     - {slug: "activation-and-the-activation-ledger", text: "Activation and the activation ledger", level: 2}
     - {slug: "charter-deactivate", text: "`charter deactivate`", level: 3}
     - {slug: "charter-activate", text: "`charter activate`", level: 3}
+    - {slug: "charter-activate-charter-deactivate-with-json", text: "`charter activate` / `charter deactivate` with `--json`", level: 3}
+    - {slug: "error-envelope-and-codes", text: "Error envelope and codes", level: 3}
+    - {slug: "local-shapes-not-the-activation-contract", text: "Local shapes, not the activation contract", level: 3}
     - {slug: "presets-and-exclusions", text: "Presets and exclusions", level: 3}
     - {slug: "charter-list-json", text: "`charter list --json`", level: 3}
     - {slug: "activation-ledger-findings-in-spec-kitty-doctor-charter-packs", text: "Activation ledger findings in `spec-kitty doctor charter-packs`", level: 3}

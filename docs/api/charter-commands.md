@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-10-29'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -308,6 +308,100 @@ uv run spec-kitty charter status --json
 uv run spec-kitty charter status --provenance
 ```
 
+**Refusals.** `charter status` first checks that `.kittify/charter/charter.yaml` is sound. An
+unparseable, non-mapping or empty file is refused with `ACTIVE_CHARTER_CONFIG_INVALID` and its
+remedy, exit 1, before the bundle check, so a list-rooted file no longer reports a bundle schema
+version problem. Every refusal prints `Error (<CODE>): <message>`; with `--json` it prints the
+error envelope instead. See [Error envelope and codes](#error-envelope-and-codes) for the codes.
+
+**JSON output.** The success payload keeps its keys (`result: "success"`, `charter_sync`,
+`synthesis`, `org_layer`, `governance_references`, `freshness`) and adds an `activation`
+block. The block appears only under `--json`; the text output does not render it.
+
+#### The `activation` block
+
+The block is a local shape (`schema_version` `1.0.0`), not the spec-kitty-charter activation
+contract; see [Local shapes, not the activation contract](#local-shapes-not-the-activation-contract).
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `schema_version` | `"1.0.0"` | Local schema version of this block |
+| `source` | `"ledger"` \| `"legacy"` | Where activation was read: the activation ledger, or the old keys of an unmigrated project |
+| `path` | string | The file actually read, relative to the project when it is inside it |
+| `exists` | bool | Whether the activation ledger file exists |
+| `selected` | `{<plural>: [id, ...] \| null}` | One key per activatable kind. `null`: the kind has no allow list (unrestricted, or the kind's default). `[]`: an allow list that is present and empty |
+| `deactivated` | `{<plural>: [id, ...]}` | The exclusions; a kind appears only when it has at least one |
+| `mission_types` | `[id, ...]` \| `null` | Mission-type activations; `null` when the key is absent |
+| `activated_kinds` | `[kind, ...]` \| `null` | `null` when the key is absent |
+| `required` | `[{kind, id, in_force, packs}]` | The org-required floor, sorted by kind, then id |
+
+Each `required` row:
+
+- `kind` is the operator token (`directive`, `agent-profile`, `glossary-pack`, ...).
+- It lists only kinds that are org-requirable and activatable. An org-required `asset` is not
+  listed, because assets are not activated.
+- `in_force` is `false` when the kind has an explicit allow list that leaves the id out: core
+  keeps such an id out of force (`doctor charter-packs` reports it as
+  `REQUIRED_OMITTED_BY_ALLOW_LIST`). An exclusion never removes an org-required id, so a
+  deactivated required id is still `in_force: true`.
+- `packs` names the requiring org packs, without repeats.
+
+Example:
+
+```json
+"activation": {
+  "schema_version": "1.0.0",
+  "source": "ledger",
+  "path": ".kittify/charter/activation.yaml",
+  "exists": true,
+  "selected": {
+    "directives": [
+      "003-decision-documentation-requirement"
+    ],
+    "tactics": null,
+    "styleguides": null,
+    "toolguides": null,
+    "paradigms": null,
+    "procedures": null,
+    "agent_profiles": null,
+    "mission_step_contracts": null,
+    "glossary_packs": null,
+    "anti_patterns": null,
+    "skills": null
+  },
+  "deactivated": {
+    "tactics": [
+      "premortem-risk-identification"
+    ]
+  },
+  "mission_types": [
+    "software-dev"
+  ],
+  "activated_kinds": null,
+  "required": [
+    {
+      "kind": "directive",
+      "id": "001-architectural-integrity-standard",
+      "in_force": false,
+      "packs": [
+        "acme"
+      ]
+    }
+  ]
+}
+```
+
+Here the `directives` allow list leaves out `001-architectural-integrity-standard`, which org pack
+`acme` requires, so that id is not in force.
+
+When the activation state cannot be read (for example an activation ledger with an unknown key), the
+block degrades to its error form and `charter status` still succeeds, exit 0, with every other
+section:
+
+```json
+"activation": {"schema_version": "1.0.0", "error": {"code": "ACTIVE_CHARTER_CONFIG_INVALID", "message": "..."}}
+```
+
 ---
 
 ## spec-kitty charter lint
@@ -502,6 +596,224 @@ Hint: Run with --include-deactivated to activate these and clear their exclusion
 The `Hint` line follows when any node was skipped as deactivated or left unreached. With
 `--include-deactivated`, each target whose exclusion the walk cleared is reported as
 `Reinstated: kind/id (exclusion cleared)`.
+
+### `charter activate` / `charter deactivate` with `--json`
+
+The positional forms, `charter activate KIND ARTIFACT_ID --json` and
+`charter deactivate KIND ARTIFACT_ID --json`, print exactly one JSON document on stdout: the
+change report on success, the [error envelope](#error-envelope-and-codes) on a refusal. The
+change report is built from the same value the text output prints, so the two never disagree.
+`charter activate --preset <name> --json` keeps its own payload
+([Presets and exclusions](#presets-and-exclusions)). `--json` with neither a positional
+`KIND ARTIFACT_ID` nor `--preset` is a usage error.
+
+**Change report.**
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `schema_version` | `"1.0.0"` | Local schema version of this payload |
+| `command` | `"activate"` \| `"deactivate"` | The command that ran |
+| `kind` | string | The `KIND` argument as given (operator token) |
+| `id` | string | The `ARTIFACT_ID` argument as given |
+| `changed` | `[string]` | What the direct write activated or deactivated, as the `Activated:` / `Deactivated:` lines name it |
+| `no_longer_in_force` | `[string]` | `activate --only`: the ids the narrowed list dropped; `[]` otherwise |
+| `warnings` | `[string]` | Every warning the run printed, in print order (see below) |
+| `referenced_not_cascaded` | `[ArtifactRef]` | Without `--cascade`: the referenced artifacts the `Warning: referenced ...` lines name; `[]` with `--cascade` |
+| `cascade` | object \| `null` | The cascade report; `null` without `--cascade` |
+
+An `ArtifactRef` is `{"kind", "id", "urn"}`: `kind` is the operator token (`directive`,
+`agent-profile`, ...), `id` the stored (file-stem) spelling written to the activation files,
+and `urn` the DRG URN (`<kind>:<declared id>`), or `null` when it does not resolve.
+
+`warnings` order: for `activate mission-type`, the in-flight step-removal warnings come first,
+because they print before the change; then the project registration and activation manager's
+warnings (for `deactivate`, also the mission-step default warning of a named agent profile);
+then the tension findings of `activate`; then the advisory warnings of cascaded artifacts.
+
+`referenced_not_cascaded` lists the artifacts that were skipped and those that are deactivated.
+It leaves out referenced artifacts of a kind that cannot be activated (an `asset`, for example),
+which the cascade reports as `skipped_kind_filtered`.
+
+**Cascade report** (`cascade`, with `--cascade`). Each artifact a cascade line names appears in
+exactly one list, in the order the text output prints it.
+
+| Field | Entries | Meaning |
+| --- | --- | --- |
+| `source_urn` | string | The cascade source |
+| `scope` | `"all"` or `[kind, ...]` | The parsed `--cascade` value |
+| `cascaded` | `ArtifactRef` | Activated (or, for `deactivate`, deactivated) by the walk |
+| `reinstated` | `ArtifactRef` | Activated with its exclusion cleared (`--include-deactivated`) |
+| `failed` | `ArtifactRef` + `message` | This target failed; the command carries on |
+| `skipped_out_of_scope` | `ArtifactRef` + `deactivated` (bool) | Outside the scope; `deactivated: true` when the node is itself deactivated and nothing behind it was walked |
+| `skipped_deactivated` | `ArtifactRef` + `required_by` (`[urn]`) | `activate`: deactivated, so not activated; `required_by` names the requiring parents (`[]` when reached only through `suggests`) |
+| `unreached_behind_deactivated` | `ArtifactRef` | `activate`: reachable only through a deactivated artifact |
+| `skipped_kind_filtered` | `ArtifactRef` | A kind that cannot be activated (for example `asset`) |
+| `skipped_shared` | `ArtifactRef` + `referenced_by` (urn) | `deactivate`: still referenced by another active artifact |
+| `skipped_required` | `ArtifactRef` + `packs` (`[string]`) | `deactivate`: required by these org packs |
+| `still_active_unrestricted` | `ArtifactRef` | `deactivate`: a child of a kind with no allow list, which stays in force |
+
+Example, `charter activate directive p-dir --json` (no `--cascade`; the ids are those of the
+test fixture project):
+
+```json
+{
+  "schema_version": "1.0.0",
+  "command": "activate",
+  "kind": "directive",
+  "id": "p-dir",
+  "changed": [
+    "p-dir"
+  ],
+  "no_longer_in_force": [],
+  "warnings": [],
+  "referenced_not_cascaded": [
+    {
+      "kind": "procedure",
+      "id": "g-proc",
+      "urn": "procedure:PROCEDURE_G"
+    },
+    {
+      "kind": "styleguide",
+      "id": "s-style",
+      "urn": "styleguide:STYLEGUIDE_S"
+    },
+    {
+      "kind": "tactic",
+      "id": "c-tac",
+      "urn": "tactic:TACTIC_C"
+    }
+  ],
+  "cascade": null
+}
+```
+
+With `--cascade all` the same three artifacts land in `cascade.cascaded`,
+`referenced_not_cascaded` is `[]`, and the asset the directive references is in
+`cascade.skipped_kind_filtered`.
+
+Example, `charter deactivate directive p1-dir --cascade all --json`:
+
+```json
+{
+  "schema_version": "1.0.0",
+  "command": "deactivate",
+  "kind": "directive",
+  "id": "p1-dir",
+  "changed": [
+    "p1-dir"
+  ],
+  "no_longer_in_force": [],
+  "warnings": [],
+  "referenced_not_cascaded": [],
+  "cascade": {
+    "source_urn": "directive:DIRECTIVE_P1",
+    "scope": "all",
+    "cascaded": [
+      {
+        "kind": "tactic",
+        "id": "x-tac",
+        "urn": "tactic:TACTIC_X"
+      }
+    ],
+    "reinstated": [],
+    "failed": [],
+    "skipped_out_of_scope": [],
+    "skipped_deactivated": [],
+    "unreached_behind_deactivated": [],
+    "skipped_kind_filtered": [
+      {
+        "kind": "asset",
+        "id": "a-asset",
+        "urn": "asset:ASSET_A"
+      }
+    ],
+    "skipped_shared": [
+      {
+        "kind": "tactic",
+        "id": "t-tac",
+        "urn": "tactic:TACTIC_T",
+        "referenced_by": "directive:DIRECTIVE_P2"
+      }
+    ],
+    "skipped_required": [
+      {
+        "kind": "tactic",
+        "id": "r-tac",
+        "urn": "tactic:TACTIC_R",
+        "packs": [
+          "acme"
+        ]
+      }
+    ],
+    "still_active_unrestricted": [
+      {
+        "kind": "styleguide",
+        "id": "s-style",
+        "urn": "styleguide:STYLEGUIDE_S"
+      }
+    ]
+  }
+}
+```
+
+**After the change.** The catalog refresh and, for a `skill`, the pack-skill projection run
+after the change is recorded. Under `--json`, a failure there is reported as a coded error whose
+`error` object also carries every field of the change report (`schema_version`, `command`,
+`kind`, `id`, `changed`, ...), exit 1: `RESYNTHESIS_FAILED` for the catalog refresh,
+`ACTIVATION_FAILED` for the pack-skill projection. The change itself stays recorded.
+
+### Error envelope and codes
+
+`charter status`, `charter activate` (positional form) and `charter deactivate` report a
+refusal as `Error (<CODE>): <message>` in text mode. Under `--json` they print one error
+envelope:
+
+```json
+{"ok": false, "error": {"code": "ACTIVE_CHARTER_CONFIG_INVALID", "message": "..."}}
+```
+
+The message carries the remedy where there is one. Some codes add fields to `error` (below).
+The exit code is the one the same invocation has without `--json`.
+
+| Code | Command(s) | Cause | Exit |
+| --- | --- | --- | --- |
+| `ACTIVE_CHARTER_CONFIG_INVALID` | all three | `charter.yaml`, the activation state or the pack configuration is unsound; also `deactivate` of an artifact on an unmigrated project | 1 |
+| `CHARTER_CONFIG_SHAPE_INVALID` | status | The config shape error of the evidence reader; reachable only after the soundness check passed | 1 |
+| `CHARTER_STATUS_FAILED` | status | Repository or task resolution failed, or the charter bundle is not compatible with this CLI | 1 |
+| `INTERNAL_ERROR` | status | An unexpected exception; the only message that starts `Unexpected error:` | 1 |
+| `ACTIVATION_KIND_UNKNOWN` | activate, deactivate | `KIND` is not an activation kind; the message lists the valid kinds | 1 |
+| `CASCADE_SCOPE_INVALID` | activate, deactivate | A bad `--cascade` value | 1 |
+| `CHARTER_WRITE_ROOT_INVALID` | activate, deactivate | The command ran where activation cannot be written (a linked worktree) | 1 |
+| `DEACTIVATION_REFUSED_REQUIRED` | deactivate | An org pack requires the id; `error.requiring_packs` lists the packs | 1 |
+| `ACTIVATION_FAILED` | activate, deactivate | The activation engine or DRG load failed (an unknown artifact id, for example); under `--json` also a failed pack-skill projection | 1 |
+| `RESYNTHESIS_FAILED` | activate, deactivate (`--json`) | The change is recorded, but the catalog refresh after it failed; `error` carries the change report | 1 |
+
+A refusal writes nothing, except `RESYNTHESIS_FAILED` and the pack-skill `ACTIVATION_FAILED`,
+which come after the change was recorded.
+
+Edge cases:
+
+- A `.kittify/config.yaml` that is not a mapping is refused by the soundness check as
+  `ACTIVE_CHARTER_CONFIG_INVALID`. `CHARTER_CONFIG_SHAPE_INVALID` appears only after that check
+  passed.
+- A malformed `charter_packs` entry in `.kittify/config.yaml` is refused as `ACTIVATION_FAILED`
+  by `activate` but as `ACTIVE_CHARTER_CONFIG_INVALID` by `deactivate`, because the two read
+  the org pack registry through different paths. This asymmetry is known; the follow-up is #6772.
+
+Usage errors (flag misuse such as `--include-deactivated` without `--cascade`) stay Click usage
+errors: exit 2, printed as usage text, not JSON.
+
+**Before this change**, `charter status --json` reported an error as
+`{"result": "error", "success": false, "error": "<message>"}`. Consumers that read `success` or
+a string `error` must read `ok` and `error.code` / `error.message` instead.
+
+### Local shapes, not the activation contract
+
+The `charter status` `activation` block, the activate/deactivate change report, the error
+envelope and the codes above are **local** to the Spec Kitty CLI, with `schema_version`
+`1.0.0`. They are not the spec-kitty-charter activation contract. Mapping them onto that
+contract (its field names, revision and refusal codes) is held under epic #6518 (#6520, #6521,
+#6524).
 
 ### Presets and exclusions
 
