@@ -153,6 +153,7 @@ from .actor import (
     build_status_actor,
     compose_status_actor,
     role_for_hop,
+    role_for_wp,
 )
 from .emit import (
     TransitionError,
@@ -667,6 +668,7 @@ __all__ = [
     "ActorRole",
     "build_status_actor",
     "compose_status_actor",
+    "role_for_wp",
     "role_for_hop",
     "emit_status_transition",
     "generate_status_view",

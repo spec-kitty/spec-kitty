@@ -24,7 +24,9 @@ decoder accepts the fifth key. Readers already accept it
 from __future__ import annotations
 
 from enum import StrEnum
+from pathlib import Path
 
+from .lane_reader import CanonicalStatusNotFoundError, get_wp_lane
 from .models import MIGRATION_ACTOR_PREFIX, Lane, parse_agent_boundary_string
 from .resolved_binding import ResolvedBinding
 from .transitions import resolve_lane_alias
@@ -35,6 +37,7 @@ __all__ = [
     "build_status_actor",
     "compose_status_actor",
     "role_for_hop",
+    "role_for_wp",
 ]
 
 
@@ -61,6 +64,23 @@ def role_for_hop(from_lane: str | Lane | None, to_lane: str | Lane) -> str:
     if target in _REVIEWER_TARGET_LANES or source == str(Lane.IN_REVIEW):
         return str(ActorRole.REVIEWER)
     return str(ActorRole.IMPLEMENTER)
+
+
+def role_for_wp(feature_dir: Path, wp_id: str, to_lane: str | Lane | None = None) -> str:
+    """The actor role for a write on ``wp_id``, read off its current lane once (FR-006).
+
+    For a transition (``to_lane`` given) this is :func:`role_for_hop` from the current
+    lane. For a note (no ``to_lane``) it is ``reviewer`` while the WP is ``in_review``,
+    else ``implementer``. A Mission with no event log yet has no current lane (the WP
+    cannot be in review).
+    """
+    try:
+        current: str | None = str(get_wp_lane(feature_dir, wp_id))
+    except CanonicalStatusNotFoundError:
+        current = None
+    if to_lane is not None:
+        return role_for_hop(current, to_lane)
+    return str(ActorRole.REVIEWER) if current == str(Lane.IN_REVIEW) else str(ActorRole.IMPLEMENTER)
 
 
 def compose_status_actor(

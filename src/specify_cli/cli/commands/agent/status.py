@@ -24,7 +24,7 @@ from specify_cli.missions._read_path_resolver import (
     resolve_bare_modern_mission_dir_name,
 )
 from specify_cli.status import feature_status_lock, mission_lock_key
-from specify_cli.status import EVENTS_FILENAME, CanonicalStatusNotFoundError, EventPersistenceError, StoreError
+from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
 from specify_cli.status import normalize_wp_id, parse_review_result_json
 
 if TYPE_CHECKING:
@@ -309,19 +309,16 @@ def _resolve_wp_arg(wp_id: str | None, wp: str | None) -> str:
 def _emit_actor(ms: MissionStatus, wp_id: str, to_lane: str, actor: str) -> dict[str, str | None]:
     """The structured 4-key actor ``agent status emit`` records (#6400, FR-011).
 
-    ``--actor`` is the agent value: its bare tool fills ``tool`` and a compact
+    ``--actor`` is free text: its bare tool fills ``tool`` and a compact
     ``tool:model:profile`` segment fills ``model``/``profile``; ``role`` comes from the
-    hop (:func:`~specify_cli.status.actor.role_for_hop`) out of the WP's current lane.
-    A WP with no event log yet has no current lane (it cannot be in review). A value
-    the compact parser rejects is stored whole as ``tool``, as before (``actor_from_option``).
+    hop out of the WP's current lane (:func:`~specify_cli.status.role_for_wp`). A value
+    the compact parser rejects, one with more than four segments or a ``migration:``
+    value is stored whole as ``tool``, as before (``actor_from_option``).
     """
-    from specify_cli.status import actor_from_option, role_for_hop
+    from specify_cli.status import actor_from_option, role_for_wp
 
-    try:
-        from_lane: str | None = str(ms.claim(wp_id).current_lane)
-    except CanonicalStatusNotFoundError:
-        from_lane = None
-    return actor_from_option(actor, role_for_hop(from_lane, to_lane))
+    structured: dict[str, str | None] = actor_from_option(actor, role_for_wp(ms.read_dir, wp_id, to_lane))
+    return structured
 
 
 @app.command()

@@ -1136,18 +1136,14 @@ def list_tasks(
 def _add_history_actor(status_dir: Path, wp_id: str, agent: str | None, recorded_agent: str) -> dict[str, str | None]:
     """The structured actor of an ``add-history`` note (#6400).
 
-    ``role`` is ``reviewer`` while the WP is ``in_review``, else ``implementer``
-    (also when the Mission has no event log yet). An explicit ``--agent`` was already
-    checked upfront and is parsed strictly (compact form accepted); without it the WP's
-    recorded agent (or ``unknown``) goes through the lenient builder.
+    ``role`` follows the WP's current lane (:func:`~specify_cli.status.role_for_wp`):
+    ``reviewer`` while it is ``in_review``, else ``implementer``. An explicit ``--agent``
+    was already checked upfront and is parsed strictly (compact form accepted); without
+    it the WP's recorded agent (or ``unknown``) goes through the lenient builder.
     """
-    from specify_cli.status import CanonicalStatusNotFoundError, actor_from_option, build_self_asserting_actor, get_wp_lane
+    from specify_cli.status import actor_from_option, build_self_asserting_actor, role_for_wp
 
-    try:
-        under_review = get_wp_lane(status_dir, wp_id) == Lane.IN_REVIEW
-    except CanonicalStatusNotFoundError:
-        under_review = False
-    role = "reviewer" if under_review else "implementer"
+    role = role_for_wp(status_dir, wp_id)
     actor: dict[str, str | None]
     if agent:
         actor = build_self_asserting_actor(role=role, agent=agent, fallback_tool="user", binding=None)

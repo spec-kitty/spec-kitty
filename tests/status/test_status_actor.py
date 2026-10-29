@@ -16,13 +16,16 @@ the WP-frontmatter fill and ``profile_source`` on the wire wait for the events r
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from spec_kitty_events.diary import decode_actor as diary_decode_actor
 
-from specify_cli.status.actor import ActorRole, actor_from_option, build_status_actor, role_for_hop
+from specify_cli.status.actor import ActorRole, actor_from_option, build_status_actor, role_for_hop, role_for_wp
 from specify_cli.status.emit import build_resolved_actor, build_self_asserting_actor
-from specify_cli.status.models import Lane, ProfileSource, actor_full_identity, decode_actor
+from specify_cli.status.models import Lane, ProfileSource, StatusEvent, actor_full_identity, decode_actor
 from specify_cli.status.resolved_binding import ResolvedBinding
+from tests._support.status_seed import seed_status_event
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -136,6 +139,45 @@ def test_delegating_builders_emit_the_four_key_value() -> None:
     self_asserting = build_self_asserting_actor(role="reviewer", agent="claude:opus:seg", fallback_tool="user", binding=None)
     assert self_asserting == build_status_actor(role="reviewer", agent="claude:opus:seg", fallback_tool="user", binding=None)
     assert self_asserting == {"tool": "claude", "role": "reviewer", "profile": "seg", "model": "opus"}
+
+
+def _feature_dir_at(tmp_path: Path, lane: Lane | None) -> Path:
+    """A Mission dir whose WP01 sits in ``lane`` (``None``: no event log at all)."""
+    feature_dir = tmp_path / "kitty-specs" / "m"
+    feature_dir.mkdir(parents=True)
+    if lane is not None:
+        seed_status_event(
+            feature_dir,
+            StatusEvent(
+                event_id="01ROLE00000000000000000001",
+                mission_slug="m",
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=lane,
+                at="2026-01-01T00:00:00+00:00",
+                actor="test",
+                force=True,
+                execution_mode="worktree",
+            ),
+        )
+    return feature_dir
+
+
+@pytest.mark.parametrize(
+    ("lane", "to_lane", "expected"),
+    [
+        pytest.param(None, None, "implementer", id="note-no-event-log"),
+        pytest.param(Lane.IN_PROGRESS, None, "implementer", id="note-in-progress"),
+        pytest.param(Lane.FOR_REVIEW, None, "implementer", id="note-for-review"),
+        pytest.param(Lane.IN_REVIEW, None, "reviewer", id="note-in-review"),
+        pytest.param(None, Lane.CLAIMED, "implementer", id="hop-no-event-log"),
+        pytest.param(Lane.FOR_REVIEW, Lane.IN_REVIEW, "reviewer", id="hop-review-claim"),
+        pytest.param(Lane.IN_REVIEW, Lane.IN_PROGRESS, "reviewer", id="hop-leaving-review"),
+        pytest.param(Lane.CLAIMED, Lane.IN_PROGRESS, "implementer", id="hop-start"),
+    ],
+)
+def test_role_for_wp_reads_the_current_lane(tmp_path: Path, lane: Lane | None, to_lane: Lane | None, expected: str) -> None:
+    assert role_for_wp(_feature_dir_at(tmp_path, lane), "WP01", to_lane) == expected
 
 
 # ---------------------------------------------------------------------------
