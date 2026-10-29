@@ -1,0 +1,293 @@
+schema_version: 1
+mission_id: 01M5YHXFTMBPM6B1ATWQ5YVQ0R
+mission_slug: lane-evidence-independence-01M5YHXF
+mission_number: 243
+friendly_name: Lane evidence and review independence
+mission_type: software-dev
+target_branch: issue-6715-lane-evidence-independence
+created_at: '2026-10-29T11:52:25.200211+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-29T11:52:25.200211+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-005
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-014
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-010
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-011
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP03 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-022
+  category: tooling
+  summary: 'Tracer: [2026-10-27][implement] The first WP01 implementer reported all suites green while two of its own new
+    tests failed.'
+  evidence_refs:
+  - e-017
+  details: '- **[2026-10-27][implement] The first WP01 implementer reported all suites green while two of its own new tests
+    failed.** It had not re-run a file after changing its fixture. Disposition: the orchestrator now reruns the claimed files
+    before every review.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-10-27][implement] WP01 rejected at review cycle 1, approved at cycle 2.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-10-27][implement] WP01 rejected at review cycle 1, approved at cycle 2.** The reviewer found a vacuous
+    lanes fixture (planning commit recorded before bootstrap; WPs owned their own task files) and a fail-open dependency-window
+    widening; both reproduced by the orchestrator and fixed (window now `merge-base(dep_tip, lane_tip)..lane_tip`).'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-10-27][implement] WP02 rejected at cycle 1 (stale attestation), approved at cycle 2.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-10-27][implement] WP02 rejected at cycle 1 (stale attestation), approved at cycle 2.** A container restart
+    between cycles lost no state; the fix went to a fresh implementer because the first could not be resumed.'
+- id: n-021
+  category: tooling
+  summary: 'Tracer: [2026-10-27][implement] With auto-commit off, review verdicts and claim metadata are written but not committed.'
+  evidence_refs:
+  - e-017
+  details: '- **[2026-10-27][implement] With auto-commit off, review verdicts and claim metadata are written but not committed.**
+    Each move left `status.events.jsonl`/`status.json`/`review-cycle-N.md` dirty in the coordination worktree and claim metadata
+    staged in the root checkout; the orchestrator committed them by hand. Workaround.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-10-27][plan] Attestation recordable from accept and consolidate.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-27][plan] Attestation recordable from accept and consolidate.** Accept now refuses first, so consolidate-only
+    would make a docs-only WP unlandable.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-10-27][plan] Evidence window base is `lanes.json planning_commit_sha`.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-27][plan] Evidence window base is `lanes.json planning_commit_sha`.** Fixed point that survives a
+    resume after lanes landed; `merge-base(target, lane)` rejected because it empties after landing. Tree diff, so commit-then-revert
+    is no evidence.'
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-10-27][plan] Generalise the #5939 single_branch axis instead of adding a parallel one.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-10-27][plan] Generalise the #5939 single_branch axis instead of adding a parallel one.** One module
+    (`consolidation/wp_evidence.py`) serves move-task, accept, consolidate and orchestrator-api; `approved_bound` stays unchanged.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-10-27][research] Red baseline reproduced through the real CLI.'
+  evidence_refs:
+  - e-015
+  details: '- **[2026-10-27][research] Red baseline reproduced through the real CLI.** Coord: hollow self-approval, accept
+    and consolidate all exit 0 and the owned file is absent on the target; lanes is only caught by a commit-count check that
+    `--force` or any non-owned commit defeats. Disposition: build one owned-file evidence predicate.'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-10-27][review] A no-implementation attestation counts only while the WP stays in approved/done.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-27][review] A no-implementation attestation counts only while the WP stays in approved/done.** Operator
+    ruling after WP02 review cycle 1 showed a stale attestation lifting IMPLEMENTATION_MISSING for reopened, re-approved hollow
+    work; any later non-migration move out voids it, matching how the other two attestations are bounded.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-10-27][review] Residual: the planning window counts content merged into a lane.'
+  evidence_refs:
+  - e-016
+  details: "- **[2026-10-27][review] Residual: the planning window counts content merged into a lane.** A hollow WP passes
+    if its lane merges in content someone else committed to its owned paths (needs an out-of-map edit; #5939's single_branch
+    window has the same limit). Disposition: record in the ADR amendment (WP04) and the PR; candidate follow-up is to read
+    only the lane's own non-merge commits."
+- id: n-019
+  category: tooling
+  summary: 'Tracer: [2026-10-27][setup] Cloud image has JDK 21; acceptance-jvm needs 25.'
+  evidence_refs:
+  - e-017
+  details: '- **[2026-10-27][setup] Cloud image has JDK 21; acceptance-jvm needs 25.** Installed Temurin 25 per `acceptance-jvm/README.md`;
+    `cloud-session-setup.sh` only writes env when `CLAUDE_ENV_FILE` is set, so it was pointed at a scratchpad env file and
+    sourced. Workaround.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-10-27][specify] Independence keeps the #5939 identity (`tool:model:profile`).'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-27][specify] Independence keeps the #5939 identity (`tool:model:profile`).** The recorded role is
+    stamped from the target lane, so a role comparison could never detect self-approval; operator chose "keep #5939 identity"
+    over profile-else-tool, strict profile, or a new role field.'
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-10-27][specify] Planning lanes are checked too.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-27][specify] Planning lanes are checked too.** Operator ruling; window `planning_commit_sha..target_branch`,
+    bookkeeping paths excluded.'
+- id: n-020
+  category: tooling
+  summary: 'Tracer: [2026-10-27][specify] `mission create` on a topic branch resolved to `coord`, not `lanes`.'
+  evidence_refs:
+  - e-017
+  details: "- **[2026-10-27][specify] `mission create` on a topic branch resolved to `coord`, not `lanes`.** Matches the documented
+    caveat (no `origin/HEAD` locally); fine here since coord is the bug's topology. No action."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-10-27][specify] `move-task --force` keeps bypassing evidence; accept and consolidate stay strict.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-27][specify] `move-task --force` keeps bypassing evidence; accept and consolidate stay strict.**
+    Decision 01M5YHYFRJPTE0SQ9V7SWGK26J; keeps the docs-only route to `approved` and the #5939 test shape.'
+- id: n-017
+  category: tooling
+  summary: 'Tracer: [2026-10-29][review] A placeholder approver (no `--agent`, recorded as `user`) is not an independent reviewer,
+    and the move refuses it too.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-29][review] A placeholder approver (no `--agent`, recorded as `user`) is not an independent reviewer,
+    and the move refuses it too.** WP03 review cycle 1 showed a self-approval without `--agent` landing as reviewed at every
+    surface; operator ruled it refuses at the move (unforced) as well as at accept/consolidate. The implementer side already
+    excluded generic placeholders; the approver side now uses the same set.'
+- id: n-018
+  category: tooling
+  summary: 'Tracer: [2026-10-29][review] An unforced `in_review -> approved` after a forced `for_review` is not re-checked
+    for evidence at the move.'
+  evidence_refs:
+  - e-016
+  details: '- **[2026-10-29][review] An unforced `in_review -> approved` after a forced `for_review` is not re-checked for
+    evidence at the move.** Consistent with the force ruling; accept and consolidate refuse it. Record in the ADR amendment.'
+gaps:
+- id: g-002
+  category: tooling
+  summary: 'Tracer: [2026-10-27][tasks] Re-running `finalize-tasks` keeps existing frontmatter `dependencies`; a fix to the
+    `Depends on` prose in tasks.md is ignored.'
+  evidence_refs:
+  - e-017
+  details: '- **[2026-10-27][tasks] Re-running `finalize-tasks` keeps existing frontmatter `dependencies`; a fix to the `Depends
+    on` prose in tasks.md is ignored.** Edited the WP frontmatter instead. Candidate gap (docs say dependencies are parsed
+    from tasks.md).'
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-10-27][tasks] `finalize-tasks` failed twice with `.git/index.lock: File exists` on the first run
+    after a file edit; no other git process was running and the retry succeeded.'
+  evidence_refs:
+  - e-017
+  details: "- **[2026-10-27][tasks] `finalize-tasks` failed twice with `.git/index.lock: File exists` on the first run after
+    a file edit; no other git process was running and the retry succeeded.** Looks like a race inside the command's own git
+    calls. Candidate gap: file once reproduced."
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/tasks/WP01-shared-evidence-predicate-and-consolidate-axis.md
+- id: e-006
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/tasks/WP02-no-implementation-attestation.md
+- id: e-007
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/tasks/WP03-move-task-and-accept-gates.md
+- id: e-008
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/tasks/WP04-decision-record-changelog-and-scenario.md
+- id: e-009
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/status.events.jsonl
+- id: e-010
+  kind: event_range
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/status.events.jsonl
+  range: 01M5Z8B77SG46PYQ3R5HS70FQY
+- id: e-011
+  kind: event_range
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/status.events.jsonl
+  range: 01M5ZHW3J4ZYJTC82NTE2V91ZC
+- id: e-012
+  kind: event_range
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/status.events.jsonl
+  range: 01M637H66D5JCDQ54ABZRP6ZF5..01M63HR64036JCXSRSVTY8JFM0
+- id: e-013
+  kind: event_range
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/status.events.jsonl
+  range: 01M63NKBF3X9DDQDR2DR205SNE
+- id: e-014
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/analysis-report.md
+- id: e-015
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/traces/approach.md
+- id: e-016
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/traces/design-decisions.md
+- id: e-017
+  kind: file
+  path: kitty-specs/lane-evidence-independence-01M5YHXF/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
