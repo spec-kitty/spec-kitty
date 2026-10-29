@@ -20,6 +20,7 @@ from typer.testing import CliRunner
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 from specify_cli.status.store import read_events
+from tests._support.reconstruction_seed import reduces_as_reconstruction_seed
 from tests.agent.test_orchestrator_commands_integration import _make_mission, _valid_policy_json
 
 pytestmark = pytest.mark.git_repo
@@ -190,6 +191,7 @@ def test_migration_actor_is_stored_whole_and_stays_a_reconstruction_seed(tmp_pat
     for raw in raws:
         assert is_migration_actor(raw["actor"])
         assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(raw)))
+        assert reduces_as_reconstruction_seed(raw["actor"])
 
 
 def test_append_history_note_takes_the_reviewer_role_while_in_review(tmp_path: Path) -> None:

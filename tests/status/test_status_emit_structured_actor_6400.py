@@ -22,6 +22,7 @@ from specify_cli.cli.commands.agent.status import app
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.store import read_events
+from tests._support.reconstruction_seed import reduces_as_reconstruction_seed
 from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = pytest.mark.fast
@@ -147,6 +148,7 @@ def _assert_reconstruction_seed(actor: object, raw_event: dict[str, object]) -> 
 
     assert is_migration_actor(cast("ActorField", actor))
     assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(raw_event)))
+    assert reduces_as_reconstruction_seed(raw_event["actor"])
 
 
 def test_migration_actor_is_stored_whole_and_stays_a_reconstruction_seed(mission_repo: Path) -> None:
