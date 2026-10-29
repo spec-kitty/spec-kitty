@@ -888,9 +888,6 @@ entries:
 - module: specify_cli.charter_activate
   name: AffectedMission
   category: category_c_wp_in_flight_charter_activation
-- module: specify_cli.charter_activate
-  name: StepRemovalWarning
-  category: category_c_wp_in_flight_charter_activation
 - module: charter.activation.org_charter
   name: OrgCharterCycleError
   category: category_c_wp_in_flight_charter_activation

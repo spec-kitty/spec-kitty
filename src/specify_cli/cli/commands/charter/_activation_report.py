@@ -18,7 +18,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 __all__ = [
-    "SCHEMA_VERSION",
     "ActivationChangeReport",
     "ArtifactRef",
     "CascadeEntry",

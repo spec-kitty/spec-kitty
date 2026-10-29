@@ -23,6 +23,7 @@ from click.testing import Result
 from typer.testing import CliRunner
 
 import specify_cli.cli.commands.charter as charter_pkg
+from tests._support.eacces import deny_path_method
 from specify_cli.cli.commands.charter import charter_app
 from tests._factories.activation_ledger import legacy_seed, seed_activation_ledger
 
@@ -278,24 +279,11 @@ def test_a_malformed_org_charter_is_reported_beside_the_lenient_floor(tmp_path: 
 
 def test_an_unreadable_ledger_file_degrades_the_block(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An OSError reading activation.yaml is this block's error, not an INTERNAL_ERROR of status."""
-    import os
-
     seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"])
-    ledger = tmp_path / _LEDGER_REL
-    ledger.chmod(0)
-    try:
-        readable = os.access(ledger, os.R_OK)
-        if readable:
-            # Running as root: the mode bits do not stop the read, so fail the
-            # lowest real read (the kernel's YAML load of the ledger file).
-            def unreadable(path: Path) -> object:
-                raise PermissionError(13, "Permission denied", str(path))
+    # Inject the denial at the read seam (#5691): mode bits do not stop root.
+    deny_path_method(monkeypatch, "read_bytes", tmp_path / _LEDGER_REL)
 
-            monkeypatch.setattr("kernel.activation_ledger_store._safe_load_mapping", unreadable)
-
-        block = _block(tmp_path)
-    finally:
-        ledger.chmod(0o644)
+    block = _block(tmp_path)
 
     assert set(block) == {"schema_version", "error"}
     assert block["error"]["code"] == "ACTIVATION_STATE_UNREADABLE"
