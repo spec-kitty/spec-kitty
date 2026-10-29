@@ -222,8 +222,20 @@ def test_notice_names_the_git_aware_reason_and_the_remedy() -> None:
     text = residue_notice("kitty-specs/x")
     assert "kitty-specs/x" in text
     assert "no mission_id" in text and "on disk or in git" in text
-    assert "Add a spec.md or meta.json" in text and "remove the folder" in text
-    assert "{path}" in RESIDUE_NOTICE
+    assert "add a meta.json with a mission_id" in text and "`spec-kitty agent mission create`" in text
+    assert "remove the folder" in text
+    assert "Add a spec.md" not in text  # #5875: a spec.md alone no longer makes a Mission
+    assert RESIDUE_NOTICE.count("{path}") == 1
+
+
+@pytest.mark.parametrize(
+    "rel",
+    ["kitty-specs/x", ".worktrees/wt1/kitty-specs/a folder (copy)", "kitty-specs/odd: name; with `ticks`"],
+)
+def test_reworded_notice_round_trips_every_rendered_line(rel: str) -> None:
+    """#5875 / D7: the regex derived from the reworded template still parses every rendered notice."""
+    for prefix in ("", "001-slug: ", "Worktree wt1: ", "[yellow]skipped[/yellow] "):
+        assert residue_notice_path(prefix + residue_notice(rel)) == rel
 
 
 def test_corrupt_git_index_degrades_to_file_presence_instead_of_crashing(tracked_repo: Path) -> None:

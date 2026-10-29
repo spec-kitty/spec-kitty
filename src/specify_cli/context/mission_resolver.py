@@ -508,10 +508,14 @@ def is_selectable_mission_dir(
 
 
 #: The one operator-facing text for a ``kitty-specs/`` residue directory (#6627, #6668); every
-#: residue-aware step renders it through :func:`residue_notice`.
+#: residue-aware step renders it through :func:`residue_notice`, and :func:`residue_notice_path`
+#: parses it back (its regex is derived from this template, so keep exactly one ``{path}``).
+#: The remedy names a ``meta.json`` with a ``mission_id`` (#5875): a ``spec.md`` alone no longer
+#: makes a folder a Mission for selection.
 RESIDUE_NOTICE = (
     "not a Mission (residue directory {path}: no mission_id, and no spec.md or meta.json on disk or in git); "
-    "left untouched. Add a spec.md or meta.json to make it a Mission, or remove the folder."
+    "left untouched. To make it a Mission, add a meta.json with a mission_id (for example, re-create it with "
+    "`spec-kitty agent mission create`), or remove the folder."
 )
 _RESIDUE_NOTICE_HEAD, _, _RESIDUE_NOTICE_TAIL = RESIDUE_NOTICE.partition("{path}")
 _RESIDUE_NOTICE_RE = re.compile(re.escape(_RESIDUE_NOTICE_HEAD) + r"(?P<path>.+?)" + re.escape(_RESIDUE_NOTICE_TAIL))
