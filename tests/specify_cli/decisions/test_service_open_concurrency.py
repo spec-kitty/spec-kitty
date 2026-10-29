@@ -216,3 +216,86 @@ def test_serial_retries_after_interrupted_open_write_one_opening(tmp_path: Path,
     assert first.idempotent is True and first.event_lamport is not None
     assert second.idempotent is True and second.event_lamport is None
     assert _fold(tmp_path, first.decision_id).status == DecisionStatus.OPEN
+
+
+def _open_key(repo_root: Path, key: str) -> DecisionOpenResponse:
+    resp: DecisionOpenResponse = open_decision(
+        repo_root,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id=f"step-{key}",
+        input_key=key,
+        question=f"Question {key}?",
+        options=("a", "b"),
+        actor="alice",
+    )
+    return resp
+
+
+class _StatusLockHolder:
+    """Hold the REAL Mission status lock on a daemon thread until released."""
+
+    def __init__(self, repo_root: Path) -> None:
+        self.held = threading.Event()
+        self.release = threading.Event()
+        self._feature_dir = _mission_dir(repo_root)
+        self.thread = threading.Thread(target=self._run, daemon=True)
+
+    def _run(self) -> None:
+        from specify_cli.status import feature_status_lock, mission_lock_key
+        from specify_cli.workspace.root_resolver import resolve_status_lock_root
+
+        lock_root = resolve_status_lock_root(self._feature_dir)
+        with feature_status_lock(lock_root, mission_lock_key(self._feature_dir, repo_root=lock_root)):
+            self.held.set()
+            assert self.release.wait(_WAIT_S), "status lock holder was never released"
+
+    def start(self) -> _StatusLockHolder:
+        self.thread.start()
+        assert self.held.wait(_WAIT_S)
+        return self
+
+
+@pytest.mark.timeout(60)
+def test_distinct_open_waits_without_bound_behind_open_held_on_status_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """S1 (operator ruling): an open waits on the decisions lock without a time bound.
+
+    Open A holds the decisions lock while its opening append waits (without a
+    bound) on the Mission status lock another writer holds. Open B, of a
+    DIFFERENT decision, must wait behind A and then succeed -- not fail with a
+    lock timeout once the (here shortened) bounded wait expires.
+
+    Red on 581b5c46: B raised ``LockAcquireTimeout`` after the bounded wait.
+    """
+    from specify_cli.decisions import service
+
+    _setup(tmp_path)
+    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.5)
+    holder = _StatusLockHolder(tmp_path).start()
+
+    a_in_emit = threading.Event()
+    real_emit = _emit.emit_decision_opened
+
+    def _signal_then_emit(*args: Any, **kwargs: Any) -> int:
+        a_in_emit.set()
+        return int(real_emit(*args, **kwargs))
+
+    monkeypatch.setattr(_emit, "emit_decision_opened", _signal_then_emit)
+    a = _Worker(lambda: _open_key(tmp_path, "k1")).start()
+    assert a_in_emit.wait(_WAIT_S), "open A never reached its opening append"
+    b = _Worker(lambda: _open_key(tmp_path, "k2")).start()
+    b.thread.join(1.5)  # three times the shortened bound
+    b_waiting = b.thread.is_alive()
+    b_error = b.error
+
+    holder.release.set()
+    holder.thread.join(_WAIT_S)
+    a.finish()
+    assert b_error is None, repr(b_error)
+    assert b_waiting, "open B must still be waiting on the decisions lock, not have given up"
+    b.finish()
+
+    index = json.loads((_mission_dir(tmp_path) / "decisions" / "index.json").read_text(encoding="utf-8"))
+    assert len(index["entries"]) == 2
+    assert len(_opened_rows(tmp_path)) == 2
+    assert a.result.decision_id != b.result.decision_id

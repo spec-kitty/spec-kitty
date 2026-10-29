@@ -173,8 +173,8 @@ def test_opened_event_exists_returns_false_when_events_log_absent() -> None:
     the first ``_invoke`` call in each corrupt-log test)."""
     from specify_cli.decisions.service import _opened_event_exists
 
-    repo_root = Path("/nonexistent-repo-root-for-absent-check")
-    assert _opened_event_exists(repo_root, "some-mission", "some-decision-id") is False
+    events_path = Path("/nonexistent-repo-root-for-absent-check/kitty-specs/some-mission/status.events.jsonl")
+    assert _opened_event_exists(events_path, "some-decision-id") is False
 
 
 # ---------------------------------------------------------------------------

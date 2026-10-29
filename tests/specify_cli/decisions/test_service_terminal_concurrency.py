@@ -16,11 +16,10 @@ from typing import Any
 
 import pytest
 
-from kernel.locks import LockAcquireTimeout
 from specify_cli.decisions import emit as _emit
 from specify_cli.decisions.index_fold import fold_events
-from specify_cli.decisions.models import DecisionStatus, DecisionTerminalResponse, IndexEntry, OriginFlow
-from specify_cli.decisions.service import open_decision, resolve_decision
+from specify_cli.decisions.models import DecisionErrorCode, DecisionStatus, DecisionTerminalResponse, IndexEntry, OriginFlow
+from specify_cli.decisions.service import DecisionError, open_decision, resolve_decision
 
 pytestmark = [pytest.mark.unit]
 
@@ -238,7 +237,12 @@ def test_terminal_calls_do_not_deadlock_with_other_decision_lock_holders(tmp_pat
 
 @pytest.mark.timeout(60)
 def test_decisions_lock_waiter_times_out_and_writes_nothing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """NFR-002 (3): a waiter that outlives the lock timeout fails closed and writes nothing."""
+    """NFR-002 (3): a waiter that outlives the lock timeout fails closed and writes nothing.
+
+    S1 (operator ruling): the timeout surfaces as a structured
+    ``DecisionError(LOCK_TIMEOUT)`` naming the lock and telling the caller to
+    retry -- never a bare ``LockAcquireTimeout`` traceback. Red on 581b5c46.
+    """
     from specify_cli.decisions import service
 
     d1 = _open(tmp_path, "k1")
@@ -254,7 +258,13 @@ def test_decisions_lock_waiter_times_out_and_writes_nothing(tmp_path: Path, monk
     b = _Worker(lambda: _resolve(tmp_path, d2)).start()
     b.thread.join(10)
     assert not b.thread.is_alive()
-    assert isinstance(b.error, LockAcquireTimeout)
+    assert isinstance(b.error, DecisionError), repr(b.error)
+    assert b.error.code is DecisionErrorCode.LOCK_TIMEOUT
+    lock_path = _mission_dir(tmp_path) / "decisions" / "index.json.lock"
+    assert b.error.details["lock_path"] == str(lock_path)
+    assert b.error.details["decision_id"] == d2
+    assert str(lock_path) in str(b.error)
+    assert "retry" in str(b.error).lower()
     assert (index_path.read_bytes(), artifact.read_bytes(), len(_events(tmp_path))) == before
 
     pause.release.set()

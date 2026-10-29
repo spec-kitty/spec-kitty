@@ -1039,3 +1039,34 @@ def test_terminal_verb_retry_with_corrupt_event_log_emits_json_envelope(tmp_path
     assert envelope["error_code"] == "DESIGN_STATUS_EVENT_LOG_UNREADABLE", envelope
     assert index_path.read_bytes() == index_before
     assert events_path.read_bytes() == events_before
+
+
+# ---------------------------------------------------------------------------
+# #4848 squad fold S1 -- a decisions-lock wait that times out is a
+# DECISION_LOCK_TIMEOUT envelope (contract 1.19.0), never a traceback
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("verb", _TERMINAL_VERBS)
+def test_terminal_verb_lock_timeout_returns_lock_timeout_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verb: str) -> None:
+    """Red on 581b5c46: ``LockAcquireTimeout`` escaped with an empty stdout."""
+    from kernel.locks import machine_file_lock
+    from specify_cli.decisions import service
+
+    repo = _init_repo(tmp_path)
+    mission_slug, feature_dir = _build_mission(repo, f"lock-timeout-{verb}")
+    decision_id = _open_decision(repo, mission_slug)["data"]["decision_id"]
+    lock_path = feature_dir / "decisions" / "index.json.lock"
+    index_before = (feature_dir / "decisions" / "index.json").read_bytes()
+    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+
+    with machine_file_lock(lock_path, blocking=True, timeout_s=5.0), contextlib.chdir(repo):
+        result = runner.invoke(app, _write_verb_args(verb, mission_slug, decision_id), catch_exceptions=True)
+
+    assert result.exception is None or isinstance(result.exception, SystemExit), repr(result.exception)
+    envelope = _envelope(result)
+    assert result.exit_code == 1, result.output
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "DECISION_LOCK_TIMEOUT", envelope
+    assert envelope["data"]["lock_path"] == str(lock_path)
+    assert (feature_dir / "decisions" / "index.json").read_bytes() == index_before

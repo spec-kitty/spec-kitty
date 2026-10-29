@@ -1206,3 +1206,33 @@ def test_terminal_retry_repairs_missing_event_via_cli(tmp_path: Path, verb: str)
     assert isinstance(data["event_lamport"], int)
     events = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
     assert events.count("DecisionPointResolved") == 1
+
+
+# ---------------------------------------------------------------------------
+# #4848 squad fold S1: a decisions-lock wait that times out is a structured
+# DECISION_LOCK_TIMEOUT diagnostic, never a LockAcquireTimeout traceback.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("verb", ["resolve", "defer", "cancel"])
+def test_terminal_lock_timeout_exits_1_structured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verb: str) -> None:
+    """Red on 581b5c46: the timeout escaped as an uncaught ``LockAcquireTimeout``."""
+    from kernel.locks import machine_file_lock
+    from specify_cli.decisions import service
+
+    mission_dir = _setup_mission(tmp_path)
+    decision_id = _open_decision(tmp_path)
+    lock_path = mission_dir / "decisions" / "index.json.lock"
+    monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+    before = _tree_bytes(mission_dir / "decisions")
+
+    with machine_file_lock(lock_path, blocking=True, timeout_s=5.0), contextlib.chdir(tmp_path):
+        result = runner.invoke(agent_app, _terminal_args(verb, decision_id), catch_exceptions=True)
+
+    assert result.exit_code == 1, result.output
+    assert result.exception is None or isinstance(result.exception, SystemExit), repr(result.exception)
+    payload = json.loads(result.stderr)
+    assert payload["code"] == "DECISION_LOCK_TIMEOUT"
+    assert payload["details"]["lock_path"] == str(lock_path)
+    assert "retry" in payload["error"].lower()
+    assert _tree_bytes(mission_dir / "decisions") == before
