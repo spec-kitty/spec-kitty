@@ -311,12 +311,17 @@ uv run spec-kitty charter status --provenance
 **Refusals.** `charter status` first checks that `.kittify/charter/charter.yaml` is sound. An
 unparseable, non-mapping or empty file is refused with `ACTIVE_CHARTER_CONFIG_INVALID` and its
 remedy, exit 1, before the bundle check, so a list-rooted file no longer reports a bundle schema
-version problem. Every refusal prints `Error (<CODE>): <message>`; with `--json` it prints the
-error envelope instead. See [Error envelope and codes](#error-envelope-and-codes) for the codes.
+version problem. A `charter:` pointer in `.kittify/config.yaml` that names a missing file is
+refused the same way, with the remedy for that case: point the key at an existing file or remove
+it, or re-run `spec-kitty charter generate --from-interview`. `charter status` writes nothing, so
+its refusal text leaves out the "Nothing was written." line the synthesis commands print for the
+same check. Every refusal prints `Error (<CODE>): <message>`; with `--json` it prints the error
+envelope instead. See [Error envelope and codes](#error-envelope-and-codes) for the codes.
 
 **JSON output.** The success payload keeps its keys (`result: "success"`, `charter_sync`,
 `synthesis`, `org_layer`, `governance_references`, `freshness`) and adds an `activation`
-block. The block appears only under `--json`; the text output does not render it.
+block. The block appears only under `--json`; the text output does not render it. The success
+payload has no `ok` key; only the error envelope does.
 
 #### The `activation` block
 
@@ -329,21 +334,32 @@ contract; see [Local shapes, not the activation contract](#local-shapes-not-the-
 | `source` | `"ledger"` \| `"legacy"` | Where activation was read: the activation ledger, or the old keys of an unmigrated project |
 | `path` | string | The file actually read, relative to the project when it is inside it |
 | `exists` | bool | Whether the activation ledger file exists |
-| `selected` | `{<plural>: [id, ...] \| null}` | One key per activatable kind. `null`: the kind has no allow list (unrestricted, or the kind's default). `[]`: an allow list that is present and empty |
+| `selected` | `{<plural>: [id, ...] \| null}` | One key per activatable kind. `null`: the kind has no allow list (see below). `[]`: an allow list that is present and empty |
 | `deactivated` | `{<plural>: [id, ...]}` | The exclusions; a kind appears only when it has at least one |
 | `mission_types` | `[id, ...]` \| `null` | Mission-type activations; `null` when the key is absent |
 | `activated_kinds` | `[kind, ...]` \| `null` | `null` when the key is absent |
 | `required` | `[{kind, id, in_force, packs}]` | The org-required floor, sorted by kind, then id |
+| `required_error` | `{code, message}` | Present only when an org pack's `org-charter.yaml` is malformed (unparseable, not a mapping, a `required_<plural>` that is not a list of ids). `required` then holds what could still be read |
+
+What a `null` (absent key) puts in force in core today:
+
+- `selected.<plural>`: every artifact of that kind, except `skills`, where only the org packs'
+  required skills (plus built-in defaults, none today) are in force.
+- `mission_types`: no mission type, the same as `[]`.
+- `activated_kinds`: every kind.
 
 Each `required` row:
 
-- `kind` is the operator token (`directive`, `agent-profile`, `glossary-pack`, ...).
-- It lists only kinds that are org-requirable and activatable. An org-required `asset` is not
-  listed, because assets are not activated.
-- `in_force` is `false` when the kind has an explicit allow list that leaves the id out: core
-  keeps such an id out of force (`doctor charter-packs` reports it as
-  `REQUIRED_OMITTED_BY_ALLOW_LIST`). An exclusion never removes an org-required id, so a
-  deactivated required id is still `in_force: true`.
+- `kind` is the operator token (`directive`, `agent-profile`, `glossary-pack`, `asset`, ...).
+- It covers every kind an org pack can require, including a kind that is not activated
+  (`asset`). An id of such a kind is always `in_force: true`, since no allow list can leave it
+  out. Ids are normalized to their stored (file-stem) spelling.
+- `in_force` reflects core's current rule: it is `false` when the kind has an explicit allow list
+  that leaves the id out, because core keeps such an id out of force (`doctor charter-packs`
+  reports it as `REQUIRED_OMITTED_BY_ALLOW_LIST`). An exclusion never removes an org-required id,
+  so a deactivated required id is still `in_force: true`. Under the activation contract's
+  read-time floor (spec-kitty-charter ADR-0020 D7) a required id is in force whatever the
+  document says, so `in_force` is expected to become always `true`.
 - `packs` names the requiring org packs, without repeats.
 
 Example:
@@ -394,13 +410,17 @@ Example:
 Here the `directives` allow list leaves out `001-architectural-integrity-standard`, which org pack
 `acme` requires, so that id is not in force.
 
-When the activation state cannot be read (for example an activation ledger with an unknown key), the
-block degrades to its error form and `charter status` still succeeds, exit 0, with every other
-section:
+When the activation state cannot be read, the block degrades to its error form and
+`charter status` still succeeds, exit 0, with every other section:
 
 ```json
 "activation": {"schema_version": "1.0.0", "error": {"code": "ACTIVE_CHARTER_CONFIG_INVALID", "message": "..."}}
 ```
+
+The `error.code` is `ACTIVE_CHARTER_CONFIG_INVALID` (or another internal-consistency code) when
+the activation state is unsound, for example an activation ledger with an unknown key, and
+`ACTIVATION_STATE_UNREADABLE` when the file cannot be read at all (a permission error, for
+example).
 
 ---
 
@@ -618,7 +638,9 @@ change report is built from the same value the text output prints, so the two ne
 | `changed` | `[string]` | What the direct write activated or deactivated, as the `Activated:` / `Deactivated:` lines name it |
 | `no_longer_in_force` | `[string]` | `activate --only`: the ids the narrowed list dropped; `[]` otherwise |
 | `warnings` | `[string]` | Every warning the run printed, in print order (see below) |
+| `notices` | `[string]` | The lines the steps after the change printed (see [After the change](#after-the-change)), in print order |
 | `referenced_not_cascaded` | `[ArtifactRef]` | Without `--cascade`: the referenced artifacts the `Warning: referenced ...` lines name; `[]` with `--cascade` |
+| `referenced_kind_filtered` | `[ArtifactRef]` | Without `--cascade`: the referenced artifacts of a kind that cannot be activated, which the `Not cascaded: ...` lines name; `[]` with `--cascade`, where `cascade.skipped_kind_filtered` carries them |
 | `cascade` | object \| `null` | The cascade report; `null` without `--cascade` |
 
 An `ArtifactRef` is `{"kind", "id", "urn"}`: `kind` is the operator token (`directive`,
@@ -631,8 +653,8 @@ warnings (for `deactivate`, also the mission-step default warning of a named age
 then the tension findings of `activate`; then the advisory warnings of cascaded artifacts.
 
 `referenced_not_cascaded` lists the artifacts that were skipped and those that are deactivated.
-It leaves out referenced artifacts of a kind that cannot be activated (an `asset`, for example),
-which the cascade reports as `skipped_kind_filtered`.
+Referenced artifacts of a kind that cannot be activated (an `asset` or a `template`, for example)
+are in `referenced_kind_filtered` instead.
 
 **Cascade report** (`cascade`, with `--cascade`). Each artifact a cascade line names appears in
 exactly one list, in the order the text output prints it.
@@ -652,8 +674,8 @@ exactly one list, in the order the text output prints it.
 | `skipped_required` | `ArtifactRef` + `packs` (`[string]`) | `deactivate`: required by these org packs |
 | `still_active_unrestricted` | `ArtifactRef` | `deactivate`: a child of a kind with no allow list, which stays in force |
 
-Example, `charter activate directive p-dir --json` (no `--cascade`; the ids are those of the
-test fixture project):
+Example, `charter activate directive p-dir --no-compile --json` (no `--cascade`; the ids are
+those of the test fixture project):
 
 ```json
 {
@@ -666,6 +688,9 @@ test fixture project):
   ],
   "no_longer_in_force": [],
   "warnings": [],
+  "notices": [
+    "Catalog not recompiled (--no-compile): catalog.references may go stale until the next `charter generate` or `charter activate --resynthesize`."
+  ],
   "referenced_not_cascaded": [
     {
       "kind": "procedure",
@@ -683,15 +708,22 @@ test fixture project):
       "urn": "tactic:TACTIC_C"
     }
   ],
+  "referenced_kind_filtered": [
+    {
+      "kind": "asset",
+      "id": "a-asset",
+      "urn": "asset:ASSET_A"
+    }
+  ],
   "cascade": null
 }
 ```
 
 With `--cascade all` the same three artifacts land in `cascade.cascaded`,
-`referenced_not_cascaded` is `[]`, and the asset the directive references is in
-`cascade.skipped_kind_filtered`.
+`referenced_not_cascaded` and `referenced_kind_filtered` are `[]`, and the asset the directive
+references is in `cascade.skipped_kind_filtered`.
 
-Example, `charter deactivate directive p1-dir --cascade all --json`:
+Example, `charter deactivate directive p1-dir --cascade all --no-compile --json`:
 
 ```json
 {
@@ -704,7 +736,11 @@ Example, `charter deactivate directive p1-dir --cascade all --json`:
   ],
   "no_longer_in_force": [],
   "warnings": [],
+  "notices": [
+    "Catalog not recompiled (--no-compile): catalog.references may go stale until the next `charter generate` or `charter activate --resynthesize`."
+  ],
   "referenced_not_cascaded": [],
+  "referenced_kind_filtered": [],
   "cascade": {
     "source_urn": "directive:DIRECTIVE_P1",
     "scope": "all",
@@ -756,10 +792,16 @@ Example, `charter deactivate directive p1-dir --cascade all --json`:
 }
 ```
 
-**After the change.** The catalog refresh and, for a `skill`, the pack-skill projection run
-after the change is recorded. Under `--json`, a failure there is reported as a coded error whose
-`error` object also carries every field of the change report (`schema_version`, `command`,
-`kind`, `id`, `changed`, ...), exit 1: `RESYNTHESIS_FAILED` for the catalog refresh,
+#### After the change
+
+The catalog refresh and, for a `skill`, the pack-skill projection run after the change is
+recorded. Under `--json`, what they print becomes `notices`: one entry per non-empty line, with
+styling removed. That covers the `--no-compile` notice, a recompile that degraded to a notice
+(`Catalog not recompiled: every activated 'directive' reference is unresolvable ...`), and the
+`Skill file synced` / `Skill file preserved` lines and skill warnings. A failure there is
+reported as a coded error whose `error` object also carries every field of the change report
+(`schema_version`, `command`, `kind`, `id`, `changed`, `notices`, ...) and `detail`, the
+failed step's own output, exit 1: `RESYNTHESIS_FAILED` for the catalog refresh,
 `ACTIVATION_FAILED` for the pack-skill projection. The change itself stays recorded.
 
 ### Error envelope and codes
@@ -772,12 +814,17 @@ envelope:
 {"ok": false, "error": {"code": "ACTIVE_CHARTER_CONFIG_INVALID", "message": "..."}}
 ```
 
+Only the error envelope carries `ok`, and it is always `false`. A success payload has no `ok`:
+`charter status` keeps `result: "success"`, and the activate/deactivate change report has
+neither. Detect an error by the presence of `ok` (or `error`), not by reading `ok` from every
+payload.
+
 The message carries the remedy where there is one. Some codes add fields to `error` (below).
 The exit code is the one the same invocation has without `--json`.
 
 | Code | Command(s) | Cause | Exit |
 | --- | --- | --- | --- |
-| `ACTIVE_CHARTER_CONFIG_INVALID` | all three | `charter.yaml`, the activation state or the pack configuration is unsound; also `deactivate` of an artifact on an unmigrated project | 1 |
+| `ACTIVE_CHARTER_CONFIG_INVALID` | all three | `charter.yaml`, the activation state or the pack configuration is unsound, or the `charter:` pointer of `.kittify/config.yaml` names a missing file; also `deactivate` of an artifact on an unmigrated project | 1 |
 | `CHARTER_CONFIG_SHAPE_INVALID` | status | The config shape error of the evidence reader; reachable only after the soundness check passed | 1 |
 | `CHARTER_STATUS_FAILED` | status | Repository or task resolution failed, or the charter bundle is not compatible with this CLI | 1 |
 | `INTERNAL_ERROR` | status | An unexpected exception; the only message that starts `Unexpected error:` | 1 |
@@ -786,7 +833,13 @@ The exit code is the one the same invocation has without `--json`.
 | `CHARTER_WRITE_ROOT_INVALID` | activate, deactivate | The command ran where activation cannot be written (a linked worktree) | 1 |
 | `DEACTIVATION_REFUSED_REQUIRED` | deactivate | An org pack requires the id; `error.requiring_packs` lists the packs | 1 |
 | `ACTIVATION_FAILED` | activate, deactivate | The activation engine or DRG load failed (an unknown artifact id, for example); under `--json` also a failed pack-skill projection | 1 |
-| `RESYNTHESIS_FAILED` | activate, deactivate (`--json`) | The change is recorded, but the catalog refresh after it failed; `error` carries the change report | 1 |
+| `RESYNTHESIS_FAILED` | activate, deactivate (`--json`) | The change is recorded, but the catalog refresh after it failed; `error` carries the change report and `detail` | 1 |
+
+`charter status` can also pass through, unchanged, any other internal-consistency code an
+underlying reader raises. Treat a code that is not listed here as an error all the same.
+
+`ACTIVATION_STATE_UNREADABLE` is not a refusal of the command: it appears only as the `error.code`
+of the `charter status` `activation` block, which degrades while status succeeds (exit 0).
 
 A refusal writes nothing, except `RESYNTHESIS_FAILED` and the pack-skill `ACTIVATION_FAILED`,
 which come after the change was recorded.
@@ -805,7 +858,9 @@ errors: exit 2, printed as usage text, not JSON.
 
 **Before this change**, `charter status --json` reported an error as
 `{"result": "error", "success": false, "error": "<message>"}`. Consumers that read `success` or
-a string `error` must read `ok` and `error.code` / `error.message` instead.
+a string `error` must instead detect the envelope by its `ok` key and read `error.code` /
+`error.message`. A dangling `charter:` pointer used to let `charter status` exit 0; it is now
+refused with `ACTIVE_CHARTER_CONFIG_INVALID`.
 
 ### Local shapes, not the activation contract
 
@@ -814,6 +869,13 @@ envelope and the codes above are **local** to the Spec Kitty CLI, with `schema_v
 `1.0.0`. They are not the spec-kitty-charter activation contract. Mapping them onto that
 contract (its field names, revision and refusal codes) is held under epic #6518 (#6520, #6521,
 #6524).
+
+That mapping is semantic, not a rename. The contract (spec-kitty-charter ADR-0020) omits an absent
+key where these shapes print `null`, and `null` is not a contract value. Each absent key keeps
+its meaning across the mapping: in the contract, absent `missionTypes` means no mission type,
+absent `activatedKinds` every kind, and an absent `selected.<kind>` the kind's default. Some local
+fields have no contract counterpart, and some contract fields (`revision`, `requiredBy` as
+`{packId, via}`) have no local one yet.
 
 ### Presets and exclusions
 
