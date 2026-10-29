@@ -269,6 +269,43 @@ def _select_terminal_event(
     raise FoldError(f"unfoldable combination of {len(resolved_events)} DecisionPointResolved events for one decision_point_id: outcomes={outcomes}")
 
 
+#: The one payload field two openings of the same decision may differ in:
+#: concurrent writers (#4848) build the opening from the same saved index
+#: entry, so only the moment each row was recorded differs.
+_OPENED_VOLATILE_FIELD = "recorded_at"
+
+
+def _opened_identity(event: Mapping[str, Any]) -> dict[str, Any]:
+    """The opening payload without its :data:`_OPENED_VOLATILE_FIELD`."""
+    return {k: v for k, v in event["payload"].items() if k != _OPENED_VOLATILE_FIELD}
+
+
+def _select_opened_event(opened_events: list[Mapping[str, Any]]) -> Mapping[str, Any]:
+    """Pick the single ``DecisionPointOpened`` envelope to fold.
+
+    #4848: two concurrent identical ``decision open`` calls (or a concurrent
+    retry after an interrupted open) could each append an opening row. Their
+    payloads are equal except ``recorded_at``; logs already holding such rows
+    must read again without being rewritten. Several openings whose payloads
+    are equal after removing ``recorded_at`` therefore fold to the earliest,
+    ordered by ``(payload recorded_at, event_id)`` -- deterministic and
+    independent of row order (the event-log merge driver re-sorts the log).
+
+    Raises:
+        FoldError: *opened_events* is empty, or holds openings whose payloads
+            differ in any field other than ``recorded_at``.
+    """
+    if not opened_events:
+        raise FoldError("no DecisionPointOpened event in the fold input")
+    first_identity = _opened_identity(opened_events[0])
+    if any(_opened_identity(e) != first_identity for e in opened_events[1:]):
+        raise FoldError("more than one DecisionPointOpened event for one decision_point_id with differing payloads")
+    return min(
+        opened_events,
+        key=lambda e: (str(e["payload"].get(_OPENED_VOLATILE_FIELD, "")), str(e.get("event_id", ""))),
+    )
+
+
 #: Errors a malformed on-disk PAYLOAD raises inside the fold (a missing key,
 #: an out-of-enum value, a wrong-typed field, a pydantic ``ValidationError``
 #: -- itself a ``ValueError``). :func:`fold_events` re-raises them as
@@ -308,7 +345,9 @@ def _fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
     Args:
         events: Envelopes (``{"event_id", "at", "event_type", "payload"}``)
             for exactly ONE ``decision_point_id``, in any order. Must contain
-            exactly one ``DecisionPointOpened`` event; any
+            at least one ``DecisionPointOpened`` event; several are accepted
+            only when their payloads are equal apart from ``recorded_at``
+            (#4848, :func:`_select_opened_event`); any
             ``DecisionPointResolved`` event(s), if present, are folded on top
             of the opened state via :func:`_select_terminal_event`.
 
@@ -317,18 +356,15 @@ def _fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
 
     Raises:
         FoldError: no ``DecisionPointOpened`` event is present, more than one
-            ``DecisionPointOpened`` event is present, the
+            ``DecisionPointOpened`` event is present and their payloads
+            differ beyond ``recorded_at`` (see :func:`_select_opened_event`), the
             ``DecisionPointResolved`` events do not form an allowed
             deferred+resolved pair (or a single event), or an event of an
             unrecognized type is present.
     """
     materialized = list(events)
 
-    opened = [e for e in materialized if e.get("event_type") == DECISION_POINT_OPENED]
-    if not opened:
-        raise FoldError("no DecisionPointOpened event in the fold input")
-    if len(opened) > 1:
-        raise FoldError("more than one DecisionPointOpened event for one decision_point_id")
+    opened_event = _select_opened_event([e for e in materialized if e.get("event_type") == DECISION_POINT_OPENED])
 
     resolved = [e for e in materialized if e.get("event_type") == DECISION_POINT_RESOLVED]
 
@@ -338,7 +374,7 @@ def _fold_events(events: Iterable[Mapping[str, Any]]) -> IndexEntry:
 
     terminal_event = _select_terminal_event(resolved)
 
-    entry = _fold_opened(opened[0]["payload"])
+    entry = _fold_opened(opened_event["payload"])
     if terminal_event is not None:
         entry = _fold_resolved(entry, terminal_event["payload"])
     return entry
