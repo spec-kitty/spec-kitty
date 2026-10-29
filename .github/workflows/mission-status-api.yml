@@ -1,5 +1,6 @@
 # Mission Status API: the standalone Java service under services/mission-status-api/. Path-filtered on push to main and on pull
-# requests (the service tree, the contract module, the shared contract fragments, the bundler and the gate helper script);
+# requests (the service tree, the contract module, the shared contract fragments, the bundler, the gate helper script, and the
+# lock-interop spike's Python peer with the kernel lock modules it exercises);
 # `workflow_dispatch` carries no filter. The one `schedule` (a nightly cron) runs `nightly-corpus` only. Jobs: `contract-bundle` (the
 # contract document, built once by the Python resolver), `jvm` (./gradlew check), `native` (four targets, golden replay and digest),
 # the terminal `mission-status-api-gate`, `release` (a mission-status-api-v*.*.* tag push only) and `nightly-corpus` (a schedule or a
@@ -23,6 +24,9 @@ on:
       - 'contracts/_shared/**'
       - 'contracts/tools/**'
       - 'scripts/ci/mission_status_gate_checks.py'
+      - 'scripts/ci/lock_interop_peer.py'
+      - 'src/kernel/locks.py'
+      - 'src/kernel/event_log_append.py'
       - '.github/workflows/mission-status-api.yml'
   pull_request:
     paths:
@@ -31,6 +35,9 @@ on:
       - 'contracts/_shared/**'
       - 'contracts/tools/**'
       - 'scripts/ci/mission_status_gate_checks.py'
+      - 'scripts/ci/lock_interop_peer.py'
+      - 'src/kernel/locks.py'
+      - 'src/kernel/event_log_append.py'
       - '.github/workflows/mission-status-api.yml'
   # The one cron: only `nightly-corpus` runs on it. Every other job carries a `github.event_name != 'schedule'` conjunct, because a job that
   # `needs` a skipped job is skipped too, but the gate's `always()` would otherwise run it. 04:37 UTC, off the hour.
@@ -372,12 +379,15 @@ jobs:
         include:
           - runner: ubuntu-24.04
             os: linux
+            results: 2
             python: .venv/bin/python
           - runner: macos-15
             os: macos
+            results: 2
             python: .venv/bin/python
           - runner: windows-2025
             os: windows
+            results: 1
             python: .venv/Scripts/python.exe
     defaults:
       run:
@@ -412,10 +422,18 @@ jobs:
           {
             echo "### Lock interop (${{ matrix.os }})"
             echo
-            echo "| OS | Java lock vs Python lock | Python holds: Java excluded | Java holds: Python excluded | overlaps / rounds | refused / rows | intact / Python reader / Java reader | writer switches | verdict |"
-            echo "|---|---|---|---|---|---|---|---|---|"
-            cat "$SERVICE_DIR"/event-log/build/lock-interop/*.md 2>/dev/null || echo "| ${{ matrix.os }} | (no result recorded) | | | | | | | |"
+            echo "| OS | Java lock vs Python lock | Python holds: Java excluded | Java holds: Python excluded | overlaps / rounds | contended (Java / Python) | refused / rows | intact / Python reader / Java reader | switches (cross-language / all) | verdict |"
+            echo "|---|---|---|---|---|---|---|---|---|---|"
+            cat "$SERVICE_DIR"/event-log/build/lock-interop/*.md 2>/dev/null || echo "| ${{ matrix.os }} | (no result recorded) | | | | | | | | |"
           } | tee -a "$GITHUB_STEP_SUMMARY"
+      # A skipped test or a test filter that matches nothing leaves Gradle green: no recorded result is a failure, not evidence.
+      - name: Require one recorded result per Java lock
+        run: |
+          recorded=$(find "$SERVICE_DIR/event-log/build/lock-interop" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$recorded" != "${{ matrix.results }}" ]; then
+            echo "::error::expected ${{ matrix.results }} lock-interop results, found $recorded"
+            exit 1
+          fi
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:

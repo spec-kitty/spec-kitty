@@ -830,13 +830,17 @@ ROUTER_WORKFLOW = WORKFLOWS_DIR / "ci-router.yml"
 FLEET_VERDICT_WORKFLOW = WORKFLOWS_DIR / "ci-fleet-verdict.yml"
 WORKFLOW_NAME = "Mission Status API"
 # Every input that changes the served contract or the gate checks (landing review A1): the shared fragments and the bundler
-# the contract-bundle job runs, and the helper script the native legs run.
+# the contract-bundle job runs, and the helper script the native legs run. Plus the inputs of the #6193 lock-interop evidence: its
+# Python peer and the kernel lock and locked append it exercises, so a change on the Python lock side re-runs it.
 WORKFLOW_PATHS = [
     "services/mission-status-api/**",
     "contracts/mission-status/**",
     "contracts/_shared/**",
     "contracts/tools/**",
     "scripts/ci/mission_status_gate_checks.py",
+    "scripts/ci/lock_interop_peer.py",
+    "src/kernel/locks.py",
+    "src/kernel/event_log_append.py",
     ".github/workflows/mission-status-api.yml",
 ]
 FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"

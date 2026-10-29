@@ -1,12 +1,16 @@
 package org.speckitty.missionstatus.spike.lockinterop;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -48,12 +52,27 @@ final class PythonPeer {
     return new ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.INHERIT).start();
   }
 
-  /** Waits for a started peer and returns the raw stdout; a non-zero exit is a harness error. */
+  /** Waits for a started peer and returns the raw stdout; a non-zero exit or a hang past the timeout is a harness error. */
   static String finish(Process process) throws IOException, InterruptedException {
-    String out = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+    // Drained on its own thread so the timeout below also bounds a peer that hangs with stdout open.
+    CompletableFuture<byte[]> stdout =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                return process.getInputStream().readAllBytes();
+              } catch (IOException e) {
+                throw new UncheckedIOException(e);
+              }
+            });
     if (!process.waitFor(TIMEOUT_S, TimeUnit.SECONDS)) {
       process.destroyForcibly();
       throw new IOException("python peer timed out");
+    }
+    String out;
+    try {
+      out = new String(stdout.get(TIMEOUT_S, TimeUnit.SECONDS), StandardCharsets.UTF_8);
+    } catch (ExecutionException | TimeoutException e) {
+      throw new IOException("python peer output unreadable", e);
     }
     if (process.exitValue() != 0) {
       throw new IOException("python peer exited " + process.exitValue() + ": " + out);

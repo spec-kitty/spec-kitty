@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -84,18 +85,31 @@ class LockInteropSpikeTest {
     try (JavaLock.Held held = lock.tryAcquire(lockFile)) {
       assertThat(held).as("java acquires the free lock").isNotNull();
     }
+    // The Java lock also creates a missing lock file itself (the O_CREAT path, with its variadic mode argument under FFM).
+    Path fresh = repo.resolve("fresh.lock");
+    try (JavaLock.Held held = lock.tryAcquire(fresh)) {
+      assertThat(held).as("java creates and locks a missing lock file").isNotNull();
+    }
+    if (lock instanceof FlockLock) {
+      // Mode 0600, as kernel.locks creates its lock files: proves the variadic mode argument reached open(2) intact.
+      assertThat(Files.getPosixFilePermissions(fresh)).containsExactlyInAnyOrder(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
+    }
 
     result.put("python_holds_java_excluded", pythonHoldsJavaTries(peer, log, lock, lockFile));
     result.put("java_holds_python_excluded", javaHoldsPythonTries(peer, log, lock, lockFile));
     result.putAll(contention(peer, log, lock, lockFile));
     result.putAll(appends(peer, log, lock, lockFile));
 
+    // Zero overlaps is evidence only when the writers really met: Java must have found the lock held by a Python writer at least once.
     boolean excludes =
         (boolean) result.get("python_holds_java_excluded")
             && (boolean) result.get("java_holds_python_excluded")
-            && (long) result.get("overlaps") == 0;
+            && (long) result.get("overlaps") == 0
+            && (long) result.get("java_contended") > 0;
+    // The appends must really interleave across languages, not run Java before or after the Python writers.
     boolean appendsAccepted =
         (long) result.get("refused_appends") == 0
+            && (long) result.get("cross_language_switches") > 0
             && (boolean) result.get("appends_intact")
             && (boolean) result.get("python_reader_accepts")
             && (boolean) result.get("java_reader_accepts");
@@ -104,8 +118,9 @@ class LockInteropSpikeTest {
     record(result);
 
     // What the spike established (report section "Verdict"). The JDK lock and flock(2) are independent on Linux; FFM flock(2) is the
-    // same lock as Python's on Linux and macOS; on Windows both sides take LockFileEx byte-range locks that overlap at byte 0.
-    if (lock instanceof FlockLock || OS.equals("windows")) {
+    // same lock as Python's on Linux and macOS; macOS's lock manager also makes the JDK's fcntl lock conflict with flock(2); on Windows
+    // both sides take byte-range locks that overlap at byte 0.
+    if (lock instanceof FlockLock || !OS.equals("linux")) {
       assertThat(result.get("verdict")).as(String.valueOf(result)).isEqualTo("GO");
     }
     if (lock instanceof FileChannelLock && OS.equals("linux")) {
@@ -143,8 +158,16 @@ class LockInteropSpikeTest {
     List<Process> pythons =
         startAll(peer, dir, i -> List.of("contend", log.toString(), "--sentinel", sentinel.toString(), "--rounds", String.valueOf(ROUNDS)));
     long javaOverlaps = 0;
+    long javaContended = 0;
     int javaRounds = 0;
     while (javaRounds < ROUNDS || pythons.stream().anyMatch(Process::isAlive)) {
+      // A first, non-blocking attempt counts the rounds in which a Python writer held the lock (proof that the writers met).
+      JavaLock.Held probe = lock.tryAcquire(lockFile);
+      if (probe == null) {
+        javaContended++;
+      } else {
+        probe.close();
+      }
       try (JavaLock.Held held = lock.acquire(lockFile, WAIT)) {
         if (!enterCriticalSection(sentinel)) {
           javaOverlaps++;
@@ -154,12 +177,17 @@ class LockInteropSpikeTest {
       jitter();
     }
     long pythonOverlaps = 0;
+    long pythonContended = 0;
     for (Process python : pythons) {
-      pythonOverlaps += PythonPeer.json(PythonPeer.finish(python)).get("overlaps").asLong();
+      var report = PythonPeer.json(PythonPeer.finish(python));
+      pythonOverlaps += report.get("overlaps").asLong();
+      pythonContended += report.get("contended").asLong();
     }
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("rounds", (long) ROUNDS * PYTHON_WRITERS + javaRounds);
     out.put("overlaps", javaOverlaps + pythonOverlaps);
+    out.put("java_contended", javaContended);
+    out.put("python_contended", pythonContended);
     return out;
   }
 
@@ -220,18 +248,26 @@ class LockInteropSpikeTest {
     Map<String, Object> out = new LinkedHashMap<>();
     out.put("rows", (long) expected.size());
     out.put("refused_appends", refused);
-    out.put("writer_switches", writerSwitches(lines));
+    out.put("writer_switches", writerSwitches(lines, false));
+    out.put("cross_language_switches", writerSwitches(lines, true));
     out.put("appends_intact", intact);
     out.put("python_reader_accepts", pythonAccepts);
     out.put("java_reader_accepts", javaAccepts);
     return out;
   }
 
-  /** How often the writer changes from one line to the next: proof that the appends really interleaved. */
-  private static long writerSwitches(List<String> lines) {
+  /**
+   * How often the writer changes from one line to the next: proof that the appends really interleaved. With {@code crossLanguage},
+   * only a change between the Java writer and a Python writer counts.
+   */
+  private static long writerSwitches(List<String> lines, boolean crossLanguage) {
+    String javaActor = "lock-interop-" + JAVA_WRITER;
     long switches = 0;
     for (int i = 1; i < lines.size(); i++) {
-      if (!actor(lines.get(i)).equals(actor(lines.get(i - 1)))) {
+      String previous = actor(lines.get(i - 1));
+      String current = actor(lines.get(i));
+      boolean counts = crossLanguage ? previous.equals(javaActor) != current.equals(javaActor) : !previous.equals(current);
+      if (counts) {
         switches++;
       }
     }
@@ -279,7 +315,7 @@ class LockInteropSpikeTest {
     String stem = result.get("os") + "-" + result.get("java_lock");
     Files.writeString(OUT.resolve(stem + ".json"), JSON.writeValueAsString(result) + "\n");
     String row =
-        "| %s | %s vs %s | %s | %s | %s / %s | %s / %s | %s / %s / %s | %s | **%s** |%n"
+        "| %s | %s vs %s | %s | %s | %s / %s | %s / %s | %s / %s | %s / %s / %s | %s / %s | **%s** |%n"
             .formatted(
                 result.get("os"),
                 result.get("java_lock"),
@@ -288,11 +324,14 @@ class LockInteropSpikeTest {
                 result.get("java_holds_python_excluded"),
                 result.get("overlaps"),
                 result.get("rounds"),
+                result.get("java_contended"),
+                result.get("python_contended"),
                 result.get("refused_appends"),
                 result.get("rows"),
                 result.get("appends_intact"),
                 result.get("python_reader_accepts"),
                 result.get("java_reader_accepts"),
+                result.get("cross_language_switches"),
                 result.get("writer_switches"),
                 result.get("verdict"));
     Files.writeString(OUT.resolve(stem + ".md"), row);

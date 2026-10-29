@@ -74,8 +74,14 @@ def test_try_acquires_a_free_lock_and_is_excluded_by_a_held_one(peer: ModuleType
     assert peer.main(["try", str(log)]) == 0
     assert _out(capsys) == {"acquired": True}
     with machine_file_lock(event_log_lock_path(log)):
-        peer.main(["try", str(log)])
+        assert peer.main(["try", str(log)]) == 0
     assert _out(capsys) == {"acquired": False}
+
+
+def test_a_probe_reports_a_held_lock_as_contended(peer: ModuleType, log: Path) -> None:
+    assert peer.lock_was_free(log) is True
+    with machine_file_lock(event_log_lock_path(log)):
+        assert peer.lock_was_free(log) is False
 
 
 def test_hold_keeps_the_lock_until_released(peer: ModuleType, log: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -97,7 +103,7 @@ def test_contend_counts_no_overlap_for_a_single_holder(peer: ModuleType, log: Pa
     start.touch()
     args = ["contend", str(log), "--sentinel", str(tmp_path / "inside"), "--rounds", "5", "--ready", str(tmp_path / "ready"), "--start", str(start)]
     assert peer.main(args) == 0
-    assert _out(capsys) == {"overlaps": 0, "rounds": 5}
+    assert _out(capsys) == {"contended": 0, "overlaps": 0, "rounds": 5}
     assert (tmp_path / "ready").exists()
     assert not (tmp_path / "inside").exists()
 

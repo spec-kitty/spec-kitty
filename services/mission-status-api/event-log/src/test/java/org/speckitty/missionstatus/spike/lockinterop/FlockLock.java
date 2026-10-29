@@ -23,7 +23,15 @@ final class FlockLock implements JavaLock {
   private static final int O_RDWR = 2;
   private static final int LOCK_EX = 2;
   private static final int LOCK_NB = 4;
-  private static final boolean MAC = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac");
+  private static final String OS_NAME = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+  private static final boolean MAC = OS_NAME.contains("mac");
+
+  static {
+    // The open(2) and errno constants below are those of Linux and macOS only; any other system must not silently get Linux's.
+    if (!MAC && !OS_NAME.contains("linux")) {
+      throw new ExceptionInInitializerError("FlockLock supports Linux and macOS only, not " + OS_NAME);
+    }
+  }
   private static final int O_CREAT = MAC ? 0x200 : 0x40;
   private static final int EWOULDBLOCK = MAC ? 35 : 11;
 

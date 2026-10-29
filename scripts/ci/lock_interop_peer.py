@@ -12,7 +12,8 @@ Commands (each prints one JSON object on stdout):
 - ``try ANCHOR``: one non-blocking attempt on that lock; ``{"acquired": bool}``.
 - ``hold ANCHOR --ready R --release S``: take the lock, create R, wait until S exists, release.
 - ``contend ANCHOR --sentinel F --rounds N``: N times, take the lock and create F exclusively inside it; a create that finds F
-  already present means another holder is inside the critical section at the same time (an overlap).
+  already present means another holder is inside the critical section at the same time (an overlap). Each round first probes the
+  lock without waiting and counts the probes that found it held (``contended``).
 - ``append LOG --writer W --count N``: N locked appends of one status-event row each; the indexes of refused appends and their
   error codes are reported, not raised.
 
@@ -36,7 +37,13 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
-from kernel.event_log_append import EventLogAppendError, append_event_log_lines, event_log_lock, event_log_lock_path
+from kernel.event_log_append import (
+    EventLogAppendError,
+    EventLogLockTimeoutError,
+    append_event_log_lines,
+    event_log_lock,
+    event_log_lock_path,
+)
 from kernel.locks import LockNotAcquired, machine_file_lock
 
 #: The ULID alphabet (Crockford base32), so every event id passes both readers' ULID checks.
@@ -140,15 +147,28 @@ def _barrier(ready: Path | None, start: Path | None) -> None:
         _wait_for(start, _HOLD_TIMEOUT_S)
 
 
+def lock_was_free(anchor: Path) -> bool:
+    """One zero-wait attempt on the lock, released at once; ``False`` when another holder has it (contention was observed)."""
+    try:
+        with event_log_lock(anchor, timeout_s=0):
+            return True
+    except EventLogLockTimeoutError:
+        return False
+
+
 def cmd_contend(anchor: Path, sentinel: Path, rounds: int, ready: Path | None = None, start: Path | None = None) -> int:
     _barrier(ready, start)
     overlaps = 0
+    contended = 0
     for _ in range(rounds):
+        # Probing first proves the lock was really contested: zero overlaps is evidence only when the writers met.
+        if not lock_was_free(anchor):
+            contended += 1
         with event_log_lock(anchor, timeout_s=_CONTEND_TIMEOUT_S):
             if not enter_critical_section(sentinel):
                 overlaps += 1
         time.sleep(random.uniform(0, _JITTER_S))  # noqa: S311 - scheduling jitter, not a secret
-    return _emit({"overlaps": overlaps, "rounds": rounds})
+    return _emit({"contended": contended, "overlaps": overlaps, "rounds": rounds})
 
 
 def cmd_append(log: Path, writer: int, count: int, ready: Path | None = None, start: Path | None = None) -> int:

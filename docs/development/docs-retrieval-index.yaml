@@ -11740,7 +11740,7 @@ pages:
   - path: "docs/development/reference/lock-interop-spike.md"
     title: "Lock-interop spike (#6193)"
     divio_type: "reference"
-    abstract: "Verdict and evidence of the #6193 spike: which Java lock excludes the CLI's interim event-log lock on Linux, macOS and Windows, and whether interleaved appends from both sides pass both readers."
+    abstract: "Verdict and CI evidence of the #6193 spike: which Java lock excludes the CLI's event-log lock on Linux, macOS and Windows, and whether mixed appends pass both readers."
     anchors:
     - {slug: "what-was-tested", text: "What was tested", level: 2}
     - {slug: "evidence", text: "Evidence", level: 2}
