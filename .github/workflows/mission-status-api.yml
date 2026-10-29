@@ -405,6 +405,7 @@ jobs:
         env:
           SPEC_KITTY_LOCK_INTEROP_PYTHON: ${{ github.workspace }}/${{ matrix.python }}
         run: ./gradlew --no-daemon :event-log:test --tests '*LockInteropSpikeTest'
+      # In the job log too, so the evidence can be read without downloading the artefact.
       - name: Show the verdict table
         if: always()
         run: |
@@ -414,7 +415,7 @@ jobs:
             echo "| OS | Java lock vs Python lock | Python holds: Java excluded | Java holds: Python excluded | overlaps / rounds | refused / rows | intact / Python reader / Java reader | writer switches | verdict |"
             echo "|---|---|---|---|---|---|---|---|---|"
             cat "$SERVICE_DIR"/event-log/build/lock-interop/*.md 2>/dev/null || echo "| ${{ matrix.os }} | (no result recorded) | | | | | | | |"
-          } >> "$GITHUB_STEP_SUMMARY"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
