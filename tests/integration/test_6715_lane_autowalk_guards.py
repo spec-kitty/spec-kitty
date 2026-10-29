@@ -17,8 +17,11 @@ comparison (``tool:model:profile``); ``accept`` refuses before writing anything,
 * :func:`test_a_non_owned_lane_commit_does_not_count` -- a commit outside the owned files defeats
   the commit count but not the evidence check.
 * :func:`test_self_approval_with_real_work_is_not_independent` -- a real owned commit approved by
-  its own implementer refuses ``REVIEW_NOT_INDEPENDENT``; the same agent name with a different
-  ``--profile`` is another identity and is allowed (coord, lanes and single_branch).
+  its own implementer refuses ``REVIEW_NOT_INDEPENDENT`` (the implementer recorded as
+  ``claude:claude-opus:implementer-ivan``, the approver as bare ``claude``: a profile recorded on one
+  side only never proves independence, operator ruling R1); the same agent with a different
+  ``--profile``, recorded on both sides, is another identity and is allowed (coord, lanes and
+  single_branch).
 * :func:`test_forced_hollow_approval_is_refused_at_accept_until_attested` -- ``--force`` still
   bypasses the move (ruling 3), ``accept`` refuses ``IMPLEMENTATION_MISSING`` (JSON envelope,
   nothing ``done``), and ``accept --attest-no-implementation`` then ``consolidate`` land it.
@@ -127,7 +130,7 @@ def test_a_non_owned_lane_commit_does_not_count(tmp_path: Path, topology: str) -
 @pytest.mark.parametrize("topology", ["coord", "lanes", "single_branch"])
 def test_self_approval_with_real_work_is_not_independent(tmp_path: Path, topology: str) -> None:
     mission = setup_mission(tmp_path, topology)
-    _claim(mission, "WP02", "T2", "claude", topology=topology)
+    _claim(mission, "WP02", "T2", "claude:claude-opus:implementer-ivan", topology=topology)
     _commit_owned(mission, "WP02", "tools/check.sh")
     _commit_specs(mission.repo)
 
@@ -141,7 +144,7 @@ def test_self_approval_with_real_work_is_not_independent(tmp_path: Path, topolog
 
     allowed = _move(mission, "WP02", "approved", "--agent", "claude", "--profile", "reviewer-renata")
 
-    assert allowed.returncode == 0, f"the same agent name with another profile is another identity. output:\n{_out(allowed)[-2000:]}"
+    assert allowed.returncode == 0, f"the same agent with another profile, recorded on both sides, is another identity. output:\n{_out(allowed)[-2000:]}"
     assert lanes_of(mission).get("WP02") == "approved"
 
 
