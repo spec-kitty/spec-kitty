@@ -897,8 +897,9 @@ def test_hand_authored_requires_edges_into_regenerated_tactic_survive(
 
 
 def test_legacy_applies_strip_is_limited_to_regenerated_reach_only_sources() -> None:
-    """#6404, #6442: a synthesized styleguide's source-side ``applies`` edge is legacy like a tactic's; a
-    topic-scoped run leaves an untargeted node's legacy edge untouched, a full run strips it. A node
+    """#6404, #6442, #6456: a synthesized styleguide's source-side ``applies`` edge is legacy like a tactic's;
+    both a topic-scoped and a full run strip it only from an owner they regenerated and leave an untargeted
+    node's edge untouched (#6456 reverses the earlier "a full run strips every synthesized one"). A node
     synthesis does not own keeps its edge."""
     from charter.activation.synthesizer.reconcile import legacy_applies_edges, merge_project_overlay
     from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
@@ -925,7 +926,7 @@ def test_legacy_applies_strip_is_limited_to_regenerated_reach_only_sources() -> 
     assert {e.source for e in merged.edges} == {"tactic:untargeted", "styleguide:style", "styleguide:hand-authored"}
 
     full = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
-    assert {e.source for e in full.edges} == {"styleguide:hand-authored"}  # not synthesized: untouched
+    assert {e.source for e in full.edges} == {"tactic:untargeted", "styleguide:style", "styleguide:hand-authored"}
     stripped = legacy_applies_edges(existing, synthesized, {"tactic:regen"})
     assert [e.source for e in stripped] == ["tactic:regen"]
     assert {e.source for e in legacy_applies_edges(existing, synthesized)} == {"tactic:regen", "tactic:untargeted", "styleguide:style"}
@@ -978,3 +979,154 @@ def test_classify_conflicts_edge_to_unshipped_urn_is_dangling() -> None:
     dangling = [c for c in conflicts if c.kind == "preserved_dangling_endpoint"]
     assert len(dangling) == 1
     assert dangling[0].target_id == f"directive:NOT_SHIPPED_999--suggests-->{_TABLE_STYLEGUIDE}"
+
+
+# ---------------------------------------------------------------------------
+# #6456 -- a full run strips a legacy applies edge only from artifacts it regenerated
+# ---------------------------------------------------------------------------
+
+_LEGACY_TARGET_6456 = "directive:DIRECTIVE_003"
+
+
+def _graph_6456(nodes: list[Any], edges: list[Any]) -> DRGGraph:
+    return DRGGraph(schema_version="1.0", generated_at="S", generated_by="t", nodes=nodes, edges=edges)
+
+
+def _fixture_6456(target: str = _LEGACY_TARGET_6456) -> tuple[DRGGraph, DRGGraph, set[str]]:
+    """Existing overlay with a legacy edge on a regenerated tactic, an untargeted tactic and a styleguide."""
+    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+
+    regen = DRGNode(urn="tactic:regen", kind=NodeKind.TACTIC, label="regen")
+    untargeted = DRGNode(urn="tactic:untargeted", kind=NodeKind.TACTIC, label="untargeted")
+    style = DRGNode(urn="styleguide:style", kind=NodeKind.STYLEGUIDE, label="style")
+    edges = [
+        DRGEdge(source=u, target=target, relation=Relation.APPLIES)
+        for u in ("tactic:regen", "tactic:untargeted", "styleguide:style")
+    ]
+    existing = _graph_6456([regen, untargeted, style], edges)
+    updated = _graph_6456([regen], [])
+    return existing, updated, {"tactic:regen", "tactic:untargeted", "styleguide:style"}
+
+
+def test_full_run_keeps_legacy_applies_edge_of_artifacts_it_did_not_regenerate() -> None:
+    """#6456 (FR-007, FR-009): only the regenerated tactic loses its legacy edge; no successor is written (C-005)."""
+    from charter.activation.synthesizer.reconcile import merge_project_overlay
+
+    existing, updated, synthesized = _fixture_6456()
+
+    full = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
+
+    assert {e.source for e in full.edges} == {"tactic:untargeted", "styleguide:style"}
+    assert {e.relation.value for e in full.edges} == {"applies"}  # no suggests successor for what was not regenerated
+
+
+def test_full_run_delta_reports_only_the_regenerated_legacy_edge_as_stripped() -> None:
+    """#6456 (FR-008): the delta's stripped refs name only the regenerated artifact's edge."""
+    from charter.activation.synthesizer.reconcile import _graph_delta
+
+    existing, updated, synthesized = _fixture_6456()
+
+    _retained, _added, removable = _graph_delta(
+        existing_overlay=existing, fresh_overlay=updated, urn_to_path={}, synthesized_urns=synthesized
+    )
+
+    stripped = [r.urn for r in removable if r.reason is not None]
+    assert stripped == [f"tactic:regen--applies-->{_LEGACY_TARGET_6456}"]
+
+
+def test_full_run_still_strips_dead_mission_type_edge_of_an_unregenerated_directive() -> None:
+    """#6443 guard (FR-010): the dead edge goes even when its PROJECT_* directive was not regenerated."""
+    from charter.activation.synthesizer.reconcile import DEAD_MISSION_TYPE_EDGE_REASON, _graph_delta, merge_project_overlay
+    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
+
+    directive = DRGNode(urn="directive:PROJECT_001", kind=NodeKind.DIRECTIVE, label="intent")
+    other = DRGNode(urn="tactic:other", kind=NodeKind.TACTIC, label="other")
+    dead = DRGEdge(source="directive:PROJECT_001", target="mission_type:software-dev", relation=Relation.REQUIRES)
+    existing = _graph_6456([directive, other], [dead])
+    updated = _graph_6456([other], [])
+
+    merged = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns={"tactic:other"})
+    _retained, _added, removable = _graph_delta(
+        existing_overlay=existing, fresh_overlay=updated, urn_to_path={}, synthesized_urns={"tactic:other"}
+    )
+
+    assert merged.edges == []
+    assert [r.reason for r in removable if r.reason is not None] == [DEAD_MISSION_TYPE_EDGE_REASON]
+
+
+def test_kept_legacy_edge_to_an_absent_directive_is_a_non_blocking_dangling_conflict() -> None:
+    """#6456: a kept legacy edge whose directive is in no layer is reported as a preserved (report-only) conflict."""
+    from charter.activation.synthesizer.reconcile import _classify_conflicts, merge_project_overlay
+
+    gone = "directive:GONE_6456"  # a shipped directive would be folded into the base, so use a URN no layer holds
+    existing, updated, synthesized = _fixture_6456(gone)
+    merged = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
+
+    conflicts = _classify_conflicts(
+        merged_overlay=merged, built_in_drg=_graph_6456([], []), fresh_overlay=updated, urn_to_path={}
+    )
+
+    dangling = [c for c in conflicts if c.kind == "preserved_dangling_endpoint"]
+    assert {c.target_id for c in dangling} == {
+        f"tactic:untargeted--applies-->{gone}",
+        f"styleguide:style--applies-->{gone}",
+    }
+    assert {c.provenance for c in dangling} == {"preserved"}
+
+
+def test_prune_excises_a_kept_legacy_edge_with_its_node_as_ordinary_content() -> None:
+    """#6456: under --prune the kept edge goes with its non-regenerated node and is not reported as "replaced"."""
+    from charter.activation.synthesizer.manifest import finalize_manifest
+    from charter.activation.synthesizer.reconcile import _graph_delta, merge_project_overlay
+
+    existing, updated, synthesized = _fixture_6456()
+    merged = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
+    _retained, _added, removable = _graph_delta(
+        existing_overlay=existing, fresh_overlay=updated, urn_to_path={}, synthesized_urns=synthesized
+    )
+    kept_edge_label = f"tactic:untargeted--applies-->{_LEGACY_TARGET_6456}"
+    assert [r.reason for r in removable if r.urn == kept_edge_label] == [None]  # ordinary content, no "replaced" reason
+
+    manifest = finalize_manifest(
+        SynthesisManifest(
+            mission_id=None,
+            created_at="2026-01-01T00:00:00+00:00",
+            run_id="01TESTRUNID0000000000000002",
+            adapter_id="test",
+            adapter_version="0.0.0",
+            synthesizer_version="0.0.0",
+            manifest_hash="0" * 64,
+            artifacts=[],
+        )
+    )
+    outcome = ReconciliationOutcome(
+        merged_overlay=merged, merged_manifest=manifest, delta=ReconciliationDelta(removable=removable)
+    )
+
+    pruned = apply_prune(outcome)
+
+    assert {n.urn for n in pruned.merged_overlay.nodes} == {"tactic:regen"}
+    assert pruned.merged_overlay.edges == []
+
+
+def test_kept_legacy_applies_edge_does_not_change_reach_only_ids(
+    minimal_interview_snapshot: dict[str, Any],
+    minimal_doctrine_snapshot: dict[str, Any],
+    minimal_drg_snapshot: dict[str, Any],
+    fixture_adapter: FixtureAdapter,
+    tmp_path: Path,
+) -> None:
+    """#6456 (NFR-002): a legacy ``applies`` edge never makes an artifact reach-only, kept or stripped."""
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    args = (minimal_interview_snapshot, minimal_doctrine_snapshot, minimal_drg_snapshot, fixture_adapter, tmp_path)
+    _synth("01AAAAAAAAAAAAAAAAAAAAAAAAA", *args)
+    without_edge = reach_only_ids(tmp_path, "tactic")
+    assert without_edge, "positive control: the synthesized tactic is reach-only"
+
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
+    graph = _load_graph(graph_path)
+    graph["edges"].append({"source": _SYNTH_TACTIC, "target": _LEGACY_EDGE_TARGET, "relation": "applies", "reason": "legacy"})
+    _dump_graph(graph_path, graph)
+
+    assert reach_only_ids(tmp_path, "tactic") == without_edge

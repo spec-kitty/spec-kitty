@@ -468,8 +468,9 @@ def test_created_slugs_filters_the_manifest_delta_by_kind() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_legacy_styleguide_applies_edge_is_stripped_and_reported() -> None:
-    """An untargeted synthesized styleguide's legacy ``applies`` edge is dropped by a full run and reported."""
+def test_legacy_styleguide_applies_edge_is_kept_when_not_regenerated() -> None:
+    """#6456 reverses scenario 5: an untargeted synthesized styleguide's legacy ``applies`` edge survives a full run
+    (no successor is written, so nothing is "replaced"); a regenerated one is still stripped."""
     from charter.activation.synthesizer.reconcile import legacy_applies_edges, merge_project_overlay
 
     regenerated = DRGNode(urn=f"styleguide:{_TESTING_STYLEGUIDE}", kind=NodeKind.STYLEGUIDE, label="s")
@@ -482,9 +483,10 @@ def test_legacy_styleguide_applies_edge_is_stripped_and_reported() -> None:
     full = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
     scoped = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized, topic_scoped=True)
 
-    assert full.edges == []
-    assert scoped.edges == [legacy]  # control: a topic-scoped run leaves an untargeted node's edge alone
-    assert legacy_applies_edges(existing, synthesized) == (legacy,)
+    assert full.edges == [legacy]
+    assert scoped.edges == [legacy]  # a topic-scoped run leaves an untargeted node's edge alone too
+    assert legacy_applies_edges(existing, synthesized, {regenerated.urn}) == ()  # not reported as stripped
+    assert legacy_applies_edges(existing, synthesized, {untargeted.urn}) == (legacy,)  # control: regenerated is stripped
     assert legacy_applies_edges(existing, set()) == ()  # control: an unsynthesized styleguide keeps it
 
 

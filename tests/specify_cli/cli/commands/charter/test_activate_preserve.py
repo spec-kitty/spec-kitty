@@ -349,13 +349,17 @@ def test_activate_resynthesize_preserves_backed_overlay_content(tmp_path: Path) 
     assert _LEGACY_URN in node_urns, (
         "activate --resynthesize silently dropped backed overlay content"
     )
-    # #6404: the legacy node is registered in the synthesis manifest, so its
-    # inert ``applies`` edge is stripped -- and reported, never silent.
-    assert not any(e["source"] == _LEGACY_URN for e in graph.get("edges", [])), (
-        "legacy applies edge from a synthesized node must be stripped"
+    # #6456 (reverses the #6404 expectation for non-regenerated artifacts): the legacy tactic is
+    # preserved backed content that a full ``--resynthesize`` run does NOT regenerate, so its
+    # legacy ``applies`` edge is KEPT and the stripped-edge notice must not name it.
+    assert any(e["source"] == _LEGACY_URN for e in graph.get("edges", [])), (
+        "legacy applies edge of a non-regenerated node must be kept (#6456)"
     )
-    assert "legacy 'applies' edge" in result.output, result.output
-    assert _LEGACY_URN in result.output, "the stripped edge must be named in the output"
+    notice_text = " ".join(result.output.split())
+    stripped_notice = notice_text.split("legacy 'applies' edge")[1:]
+    assert not any(_LEGACY_URN in seg for seg in stripped_notice), (
+        "a non-regenerated node must not be reported as a stripped legacy edge"
+    )
 
 
 def test_deactivate_resynthesize_preserves_backed_overlay_content(tmp_path: Path) -> None:

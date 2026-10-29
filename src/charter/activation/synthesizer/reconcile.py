@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
+from types import EllipsisType
 from typing import TYPE_CHECKING, Any, Literal
 
 from charter.offering.drg.loader import DRGLoadError as DRGLoadError  # re-export (FR-007)
@@ -221,6 +222,7 @@ class ReconciliationOutcome:
 # ---------------------------------------------------------------------------
 
 
+# Reported only for an edge stripped from an artifact the run regenerated (a successor suggests edge is written then).
 LEGACY_APPLIES_REASON = "legacy applies edge replaced by suggests"
 DEAD_MISSION_TYPE_EDGE_REASON = "dead mission-type requires edge removed (#6443)"
 
@@ -311,16 +313,20 @@ def _is_legacy_applies(
     edge: DRGEdge,
     synthesized_urns: Collection[str],
     regenerated_urns: Collection[str] | None = None,
+    *,
+    dead_edge_regenerated_urns: Collection[str] | None | EllipsisType = ...,
 ) -> bool:
     """A legacy edge a run strips: ``<kind> --applies--> ...`` on a synthesized reach-only artifact
     (#6404, #6442) or the dead project-intent ``requires --> mission_type:*`` edge (#6443).
 
     Only sources of a kind in :data:`REACH_ONLY_KINDS` qualify for the ``applies`` case: the current
     shape links FROM the directive, so a source-side ``applies`` edge is legacy. With
-    *regenerated_urns* given (a topic-scoped run) only an owner regenerated in this run qualifies;
-    an untargeted node is left untouched.
+    *regenerated_urns* given only an owner regenerated in this run qualifies; an untargeted node is
+    left untouched (a full run passes its regenerated set too, #6456). *dead_edge_regenerated_urns* filters the dead-edge case
+    separately (``...``, the default, means the same set as *regenerated_urns*).
     """
-    if _is_dead_mission_type_edge(edge, regenerated_urns):
+    dead_filter = regenerated_urns if dead_edge_regenerated_urns is ... else dead_edge_regenerated_urns
+    if _is_dead_mission_type_edge(edge, dead_filter):
         return True
     return (
         edge.relation is Relation.APPLIES
@@ -345,9 +351,15 @@ def legacy_applies_edges(
     existing_overlay: DRGGraph,
     synthesized_urns: Collection[str],
     regenerated_urns: Collection[str] | None = None,
+    *,
+    dead_edge_regenerated_urns: Collection[str] | None | EllipsisType = ...,
 ) -> tuple[DRGEdge, ...]:
     """Existing legacy ``applies`` edges a run strips (see :func:`_is_legacy_applies`) (#6404)."""
-    return tuple(e for e in existing_overlay.edges if _is_legacy_applies(e, synthesized_urns, regenerated_urns))
+    return tuple(
+        e
+        for e in existing_overlay.edges
+        if _is_legacy_applies(e, synthesized_urns, regenerated_urns, dead_edge_regenerated_urns=dead_edge_regenerated_urns)
+    )
 
 
 def merge_project_overlay(
@@ -366,9 +378,10 @@ def merge_project_overlay(
     every other owner's edges are preserved untouched.
 
     Legacy ``applies`` edges sourced at a reach-only-kind node in
-    *synthesized_urns* are dropped (#6404); a *topic_scoped* run drops only
-    those of owners it regenerated. Callers report them via
-    :func:`legacy_applies_edges`.
+    *synthesized_urns* are dropped only for owners this run regenerated (#6404, #6456):
+    an artifact the run did not regenerate keeps its edge, and no successor is written for it.
+    The dead project-intent ``requires --> mission_type:*`` edge (#6443) is dropped on a full
+    run wherever it sits; a *topic_scoped* run drops only that of a regenerated directive.
     """
     updated_urns = {node.urn for node in updated_overlay.nodes}
     updated_nodes_by_urn = {node.urn: node for node in updated_overlay.nodes}
@@ -390,7 +403,9 @@ def merge_project_overlay(
     merged_edges: list[DRGEdge] = []
     inserted_owners: set[str] = set()
     for edge in existing_overlay.edges:
-        if _is_legacy_applies(edge, synthesized_urns, updated_urns if topic_scoped else None):
+        if _is_legacy_applies(
+            edge, synthesized_urns, updated_urns, dead_edge_regenerated_urns=updated_urns if topic_scoped else None
+        ):
             continue
         owner = _owner(edge)
         if owner not in updated_urns:
@@ -607,7 +622,7 @@ def _graph_delta(
 
     existing_node_urns = {n.urn for n in existing_overlay.nodes}
     overlay_urns = fresh_node_urns | existing_node_urns
-    legacy = legacy_applies_edges(existing_overlay, synthesized_urns)
+    legacy = legacy_applies_edges(existing_overlay, synthesized_urns, fresh_node_urns, dead_edge_regenerated_urns=None)
 
     def _owner_in(edge: DRGEdge, urns: set[str]) -> bool:
         return edge_owner(edge, overlay_urns) in urns
@@ -617,7 +632,8 @@ def _graph_delta(
     ) + tuple(
         _edge_ref(e, urn_to_path, overlay_urns)
         for e in existing_overlay.edges
-        if not _owner_in(e, fresh_node_urns) and not _is_legacy_applies(e, synthesized_urns)
+        if not _owner_in(e, fresh_node_urns)
+        and not _is_legacy_applies(e, synthesized_urns, fresh_node_urns, dead_edge_regenerated_urns=None)
     )
     added_refs = tuple(
         _node_ref(n, urn_to_path) for n in fresh_overlay.nodes if n.urn not in existing_node_urns
