@@ -20,12 +20,15 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
+from . import provenance as _provenance
 from .errors import ManifestIntegrityError
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.packs.hashing import hash_manifest_payload
@@ -383,6 +386,84 @@ def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Synthesis ownership (#6510 / #4226)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _SynthesisOwnershipUnreadableError(ManifestIntegrityError):
+    """The synthesis ownership record (manifest or a listed provenance sidecar) cannot be read.
+
+    A :class:`ManifestIntegrityError` (the manifest's record no longer holds),
+    with its own wording: nothing here is a content-hash mismatch. Private on
+    purpose: callers catch :class:`ManifestIntegrityError` / ``SynthesisError``.
+    ``offending_artifact`` is the repo-relative file that could not be read.
+    """
+
+    reason: str = ""
+
+    def __str__(self) -> str:
+        return (
+            f"Synthesis ownership record unreadable: '{self.offending_artifact}' "
+            f"(listed by {self.manifest_path}): {self.reason}. "
+            "Restore or repair that file (for example from git), then retry."
+        )
+
+
+def _ownership_unreadable(offending: str, exc: Exception) -> _SynthesisOwnershipUnreadableError:
+    return _SynthesisOwnershipUnreadableError(
+        manifest_path=MANIFEST_PATH.as_posix(),
+        offending_artifact=offending,
+        reason=f"{type(exc).__name__}: {exc}".strip(),
+    )
+
+
+def _sidecar_urn(repo_root: Path, entry: ManifestArtifactEntry) -> str:
+    """Return the ``artifact_urn`` recorded by *entry*'s provenance sidecar, or raise."""
+    try:
+        rel = _validate_manifest_path(
+            entry.provenance_path,
+            field_name="manifest provenance path",
+            required_prefix=_PROVENANCE_PATH_PREFIX,
+        )
+        sidecar = _provenance.load_yaml(_resolve_under_repo(repo_root, rel, field_name="manifest provenance path"))
+    except (OSError, ValueError, YAMLError) as exc:
+        raise _ownership_unreadable(entry.provenance_path, exc) from exc
+    urn_kind, _, urn_id = sidecar.artifact_urn.partition(":")
+    if urn_kind != entry.kind or not urn_id:
+        raise _ownership_unreadable(
+            entry.provenance_path,
+            ValueError(f"artifact_urn {sidecar.artifact_urn!r} is not a {entry.kind} URN"),
+        )
+    return sidecar.artifact_urn
+
+
+def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
+    """URNs of the *kind* artifacts synthesis created, from the manifest and provenance sidecars.
+
+    Ownership comes from the existing record only (no id-prefix heuristic): the
+    manifest lists each synthesized artifact, and only its provenance sidecar
+    records the URN (``artifact_urn``, e.g. ``directive:PROJECT_001``).
+
+    Absent manifest: empty set (nothing synthesized). Unreadable or invalid
+    manifest, or a missing/unreadable/URN-less sidecar for an entry of *kind*:
+    raise :class:`_SynthesisOwnershipUnreadableError` (fail closed, never empty).
+
+    This is a strict read. The lenient display reader
+    ``specify_cli.cli.commands.charter._synthesis._extract_artifact_id_from_provenance``
+    (never raises, feeds the JSON envelope) is a different contract.
+    """
+    manifest_file = repo_root / MANIFEST_PATH
+    if not manifest_file.exists():
+        return frozenset()
+    try:
+        manifest = load_yaml(manifest_file)
+    except (OSError, ValueError, YAMLError) as exc:
+        raise _ownership_unreadable(MANIFEST_PATH.as_posix(), exc) from exc
+    return frozenset(_sidecar_urn(repo_root, entry) for entry in manifest.artifacts if entry.kind == kind)
+
+
+# ---------------------------------------------------------------------------
 # Charter absorption into the unified pack manifest (IC-01 / T002)
 # ---------------------------------------------------------------------------
 
@@ -439,4 +520,5 @@ __all__ = [
     "verify",
     "verify_manifest_hash",
     "absorb_synthesis_manifest",
+    "synthesized_urns",
 ]

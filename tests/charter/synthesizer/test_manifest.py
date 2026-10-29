@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from typing import Literal
 
 import jsonschema
 import pytest
@@ -23,15 +24,18 @@ from ruamel.yaml import YAML
 
 from charter.activation.synthesizer.errors import ManifestIntegrityError
 from charter.activation.synthesizer.manifest import (
+    MANIFEST_PATH,
     ManifestArtifactEntry,
     SynthesisManifest,
     compute_manifest_hash,
     dump_yaml,
     finalize_manifest,
     load_yaml,
+    synthesized_urns,
     verify,
     verify_manifest_hash,
 )
+from charter.activation.synthesizer.manifest import _SynthesisOwnershipUnreadableError
 from charter.activation.synthesizer.path_guard import PathGuard
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
@@ -696,3 +700,151 @@ def test_manifest_synthesizer_version_empty_raises() -> None:
             manifest_hash=manifest_hash,
             artifacts=[],
         )
+
+
+# ---------------------------------------------------------------------------
+# synthesized_urns -- the synthesis ownership read (#6510 / #4226)
+# ---------------------------------------------------------------------------
+
+_OwnedKind = Literal["directive", "tactic", "styleguide"]
+
+
+def _ownership_entry(kind: _OwnedKind, slug: str) -> ManifestArtifactEntry:
+    return ManifestArtifactEntry(
+        kind=kind,
+        slug=slug,
+        path=f".kittify/charter-packs/{kind}/{slug}.{kind}.yaml",
+        provenance_path=f".kittify/charter/provenance/{kind}-{slug}.yaml",
+        content_hash="a" * 64,
+    )
+
+
+def _write_ownership_record(
+    repo_root: Path,
+    guard: PathGuard,
+    records: list[tuple[_OwnedKind, str, str | None]],
+) -> None:
+    """Write a real manifest plus one provenance sidecar per ``(kind, slug, urn)``; ``urn=None`` writes no sidecar."""
+    from charter.activation.synthesizer.provenance import ProvenanceEntry
+    from charter.activation.synthesizer.provenance import dump_yaml as dump_provenance
+
+    entries = [_ownership_entry(kind, slug) for kind, slug, _ in records]
+    for entry, (kind, slug, urn) in zip(entries, records, strict=True):
+        if urn is None:
+            continue
+        sidecar = ProvenanceEntry(
+            artifact_urn=urn,
+            artifact_kind=kind,
+            artifact_slug=slug,
+            artifact_content_hash="a" * 64,
+            inputs_hash="b" * 64,
+            adapter_id="fixture",
+            adapter_version="1.0.0",
+            synthesizer_version="3.2.0a5",
+            source_section="mission_type",
+            source_urns=[],
+            source_input_ids=[],
+            generated_at="2026-04-17T12:00:00+00:00",
+            produced_at="2026-04-17T12:00:00+00:00",
+            corpus_snapshot_id="(none)",
+            synthesis_run_id="01KPE222TESTRUNID0000000001",
+        )
+        path = repo_root / entry.provenance_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        dump_provenance(sidecar, path, guard)
+    manifest_path = repo_root / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    dump_yaml(_make_manifest_for_artifacts(entries), manifest_path, guard)
+
+
+def test_synthesized_urns_absent_manifest_is_empty(tmp_path: Path) -> None:
+    assert synthesized_urns(tmp_path, "directive") == frozenset()
+
+
+def test_synthesized_urns_returns_only_the_requested_kind(tmp_path: Path, guard: PathGuard) -> None:
+    _write_ownership_record(
+        tmp_path,
+        guard,
+        [
+            ("directive", "project-intent-directive", "directive:PROJECT_001"),
+            ("directive", "risk-appetite-directive", "directive:PROJECT_002"),
+            ("tactic", "review-policy-tactic", "tactic:review-policy-tactic"),
+        ],
+    )
+
+    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001", "directive:PROJECT_002"})
+    assert synthesized_urns(tmp_path, "tactic") == frozenset({"tactic:review-policy-tactic"})
+    assert synthesized_urns(tmp_path, "styleguide") == frozenset()
+
+
+def test_synthesized_urns_corrupt_manifest_raises(tmp_path: Path) -> None:
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text("artifacts: [this is: not a manifest\n", encoding="utf-8")
+
+    with pytest.raises(ManifestIntegrityError, match="synthesis-manifest.yaml"):
+        synthesized_urns(tmp_path, "directive")
+
+
+def test_synthesized_urns_schema_invalid_manifest_raises(tmp_path: Path) -> None:
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text("artifacts: []\n", encoding="utf-8")
+
+    with pytest.raises(_SynthesisOwnershipUnreadableError, match="ValidationError"):
+        synthesized_urns(tmp_path, "directive")
+
+
+def test_synthesized_urns_missing_sidecar_raises(tmp_path: Path, guard: PathGuard) -> None:
+    _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", None)])
+
+    with pytest.raises(_SynthesisOwnershipUnreadableError, match="directive-project-intent-directive.yaml") as raised:
+        synthesized_urns(tmp_path, "directive")
+    assert raised.value.offending_artifact == ".kittify/charter/provenance/directive-project-intent-directive.yaml"
+
+
+def test_synthesized_urns_missing_sidecar_of_other_kind_is_not_read(tmp_path: Path, guard: PathGuard) -> None:
+    _write_ownership_record(
+        tmp_path,
+        guard,
+        [("directive", "project-intent-directive", "directive:PROJECT_001"), ("tactic", "review-policy-tactic", None)],
+    )
+
+    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
+
+
+def test_synthesized_urns_sidecar_without_artifact_urn_raises(tmp_path: Path, guard: PathGuard) -> None:
+    _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", "directive:PROJECT_001")])
+    sidecar = tmp_path / ".kittify/charter/provenance/directive-project-intent-directive.yaml"
+    sidecar.write_text(
+        "\n".join(line for line in sidecar.read_text(encoding="utf-8").splitlines() if not line.startswith("artifact_urn")) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(_SynthesisOwnershipUnreadableError, match="artifact_urn"):
+        synthesized_urns(tmp_path, "directive")
+
+
+@pytest.mark.parametrize("urn", ["tactic:PROJECT_001", "directive:", "PROJECT_001"])
+def test_synthesized_urns_sidecar_urn_of_wrong_shape_raises(tmp_path: Path, guard: PathGuard, urn: str) -> None:
+    _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", urn)])
+
+    with pytest.raises(_SynthesisOwnershipUnreadableError, match="is not a directive URN"):
+        synthesized_urns(tmp_path, "directive")
+
+
+def test_synthesized_urns_sidecar_path_outside_provenance_root_raises(tmp_path: Path, guard: PathGuard) -> None:
+    entry = _ownership_entry("directive", "project-intent-directive").model_copy(update={"provenance_path": "../escape.yaml"})
+    manifest_path = tmp_path / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True)
+    dump_yaml(_make_manifest_for_artifacts([entry]), manifest_path, guard)
+
+    with pytest.raises(_SynthesisOwnershipUnreadableError, match="escape.yaml"):
+        synthesized_urns(tmp_path, "directive")
+
+
+def test_ownership_unreadable_is_a_manifest_integrity_error() -> None:
+    error = _SynthesisOwnershipUnreadableError(manifest_path="m.yaml", offending_artifact="p.yaml", reason="gone")
+
+    assert isinstance(error, ManifestIntegrityError)
+    assert str(error).startswith("Synthesis ownership record unreadable: 'p.yaml' (listed by m.yaml): gone.")
