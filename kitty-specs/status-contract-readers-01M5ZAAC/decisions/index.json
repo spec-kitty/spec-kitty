@@ -1,0 +1,146 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T18:35:44.161821Z",
+      "decision_id": "01M5ZAB651KB7VY47JC7D2AS8N",
+      "final_answer": "profile_source in {invocation, flag, agent_string, wp_frontmatter}, null exactly when profile is null",
+      "input_key": "profile_source_field",
+      "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+      "mission_slug": "status-contract-readers-01M5ZAAC",
+      "opened_by": "cli",
+      "options": [
+        "profile_source with invocation/flag/wp_frontmatter",
+        "profile_source with invocation/flag/agent_string/wp_frontmatter",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Field name and values for profile provenance on the structured actor?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T18:35:47.194662Z",
+      "resolved_by": null,
+      "slot_key": "specify.actor.profile-source-field",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T18:35:50.322452Z",
+      "decision_id": "01M5ZABC5J1MEY4H9BZAV09A6A",
+      "final_answer": "Ignore: actor_full_identity drops a wp_frontmatter profile so identity comparisons stay as today",
+      "input_key": "frontmatter_identity",
+      "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+      "mission_slug": "status-contract-readers-01M5ZAAC",
+      "opened_by": "cli",
+      "options": [
+        "Ignore frontmatter fills",
+        "Count them"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How does reviewer independence treat a profile filled from WP frontmatter?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T18:35:53.346742Z",
+      "resolved_by": null,
+      "slot_key": "specify.actor.independence-frontmatter",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T18:35:56.308321Z",
+      "decision_id": "01M5ZABJ0MKPGM63ZESKFZVN2Q",
+      "final_answer": "Agent/operator paths (move-task, mark-status, action implement/review, issue-verdict, emit default, orchestrator-api lifecycle); system writers keep string actors, follow-up issue",
+      "input_key": "write_path_scope",
+      "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+      "mission_slug": "status-contract-readers-01M5ZAAC",
+      "opened_by": "cli",
+      "options": [
+        "Agent/operator paths",
+        "Every writer"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which status writers move to the structured actor?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T18:35:59.482874Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.write-paths",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T18:36:02.412736Z",
+      "decision_id": "01M5ZABQZCA80C10GQ5N64KEHX",
+      "final_answer": "Add optional --agent; tool defaults to user, role implementer, profile from --agent segment else WP frontmatter",
+      "input_key": "mark_status_agent",
+      "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+      "mission_slug": "status-contract-readers-01M5ZAAC",
+      "opened_by": "cli",
+      "options": [
+        "Add --agent, default tool user",
+        "No new flag"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What actor does mark-status record?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T18:36:05.316216Z",
+      "resolved_by": null,
+      "slot_key": "specify.mark-status.agent",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:24:37.422413Z",
+      "decision_id": "01M5ZD4PNEEMAFHA7SN4VJZR2N",
+      "final_answer": "Split: every agent/operator write path emits the 4-key structured actor now (profile from invocation, --profile or compact --agent only); frontmatter fill and profile_source wait for an events release whose decoder accepts the fifth key, rolled out readers-first then writers via an explicit pin-floor bump",
+      "input_key": "events_decoder_gate",
+      "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+      "mission_slug": "status-contract-readers-01M5ZAAC",
+      "opened_by": "cli",
+      "options": [
+        "Split: 4-key now, source later",
+        "Events first, then full shape",
+        "Fill frontmatter in 4-key now"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "spec-kitty-events 11.0.0 diary.decode_actor refuses the 5-key actor; how do we proceed?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:24:40.634754Z",
+      "resolved_by": null,
+      "slot_key": "plan.actor.events-decoder-gate",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T21:26:40.118587Z",
+      "decision_id": "01M5ZM45QPJCR7SDYWM45PCCM9",
+      "final_answer": "Keep: same tool and same asserted profile is the same actor; call it out in the PR and on #6715",
+      "input_key": "independence_asserted_profile",
+      "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+      "mission_slug": "status-contract-readers-01M5ZAAC",
+      "opened_by": "cli",
+      "options": [
+        "Keep it",
+        "Preserve old verdicts"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "move-task hops now record the asserted profile on the implementer hop; same tool + same asserted profile compares as the same identity for new events. Keep?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T21:26:42.881439Z",
+      "resolved_by": null,
+      "slot_key": "plan.actor.independence-asserted-profile",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+  "version": 1
+}

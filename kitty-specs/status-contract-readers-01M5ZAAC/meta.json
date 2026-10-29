@@ -1,0 +1,42 @@
+{
+  "accept_commit": "6532d99174265a2683b5d8cb59761e7d207a0eee",
+  "acceptance_history": [
+    {
+      "accept_commit": "3075ed424c8bd060760ee5afd20e8de9bdd52f7a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-27T21:55:00.469370+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "95ff55ff329888a206e0ef219d9875999e019580"
+    },
+    {
+      "accept_commit": "6532d99174265a2683b5d8cb59761e7d207a0eee",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-27T22:18:13.049083+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "7849804f0b1d960390fbd27c226ed288348e09c4"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-27T22:18:13.049083+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "7849804f0b1d960390fbd27c226ed288348e09c4",
+  "baseline_merge_commit": "7849804f0b1d960390fbd27c226ed288348e09c4",
+  "created_at": "2026-10-27T18:35:19.381432+00:00",
+  "flattened": true,
+  "friendly_name": "Status contract readers",
+  "merged_at": "2026-10-27T22:21:51.346579+00:00",
+  "merged_commit": "915183ecff2804d23085f17549070195c4420b9f",
+  "mid8": "01M5ZAAC",
+  "mission_id": "01M5ZAACMGXEMDESD011SH8VTW",
+  "mission_number": 243,
+  "mission_slug": "status-contract-readers-01M5ZAAC",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Status events record the actor two ways and never carry the agent profile, and the CLI keeps its own hand-copied lane list. Consumers such as the Mission Status Read API and the Java write core need one actor shape with the profile and where it came from, and one lane authority, before the write cut-over.",
+  "purpose_tldr": "Status events name who acted in one shape, and lanes come from the shared events package.",
+  "slug": "status-contract-readers-01M5ZAAC",
+  "status_phase": "1",
+  "target_branch": "issue-6400-structured-status-actor",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T18:47:22.191431+00:00"
+}
