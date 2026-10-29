@@ -50,6 +50,7 @@ from tests.terminus.canceled_dependency_support import (
     ACTOR,
     LANE_A,
     LANE_B,
+    REVIEWER,
     _approve,
     _commit_in,
     build_canceled_dependency_mission,
@@ -190,6 +191,8 @@ def rework_and_reapprove(mission: CoordMission, wp_id: str = "WP01", *, final: L
         _approve(mission, wp_id, reference=reference)
         return tip
     transition(mission, wp_id, "for_review", actor=ACTOR, subtasks_complete=True)
-    transition(mission, wp_id, "in_review", actor=ACTOR)
-    transition(mission, wp_id, "done", actor=ACTOR, review_ref=reference, review_result=ReviewResult(reviewer=ACTOR, verdict="approved", reference=reference))
+    # #6715: the review straight to done is the newest approval, so it is recorded by the
+    # independent reviewer, as :func:`_approve` records the ``approved`` stop.
+    transition(mission, wp_id, "in_review", actor=REVIEWER)
+    transition(mission, wp_id, "done", actor=REVIEWER, review_ref=reference, review_result=ReviewResult(reviewer=REVIEWER, verdict="approved", reference=reference))
     return tip
