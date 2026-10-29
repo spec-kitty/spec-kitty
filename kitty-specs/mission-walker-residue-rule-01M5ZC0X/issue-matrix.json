@@ -1,0 +1,149 @@
+{
+  "rows": {
+    "#3194": {
+      "evidence_ref": "Unstattable-entry fail-soft posture already on main; preserved unchanged by the WP02 walk helper",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#5528": {
+      "evidence_ref": "Mission Status Read API already finds Missions by meta.json mission_id; cited for consistency only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5856": {
+      "evidence_ref": "verified-already-fixed: is_mission_dir / tracked_mission_paths exist on main (mission_resolver.py) and are reused here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "is_mission_dir predicate (origin of #5875)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#5875": {
+      "evidence_ref": "WP01 selection predicate (c46ad0f8), WP02 doctor residue state (f8ff78e2, 293bfe3e), WP03 parity test (5ec9d481)",
+      "fr": "FR-001",
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-001",
+      "scope": "primary",
+      "source_file": "spec.md",
+      "title": "Route every kitty-specs Mission walker through is_mission_dir",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6193": {
+      "evidence_ref": "In-flight session checked for overlap; touches none of this Mission's files",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6627": {
+      "evidence_ref": "Upgrade-migration route fixed on main via #6662/#6680; cited for context",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6662": {
+      "evidence_ref": "Merged on main; residue-safe migration route; cited for context",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6673": {
+      "evidence_ref": "Follow-up: #6673 stays open (write-seam identity minting); this mission only makes such folders visible as residue in doctor identity",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "related",
+      "source_file": "spec.md",
+      "title": "upgrade mints mission_id when tracked meta.json is missing",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6675": {
+      "evidence_ref": "In-flight session checked for overlap; touches none of this Mission's files",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6680": {
+      "evidence_ref": "verified-already-fixed: residue-safe migration sweep and is_kitty_specs_residue on main; left unchanged (C-002)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context",
+      "source_file": "spec.md",
+      "title": "residue-safe migration sweep (write-seam rule)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6715": {
+      "evidence_ref": "In-flight session checked for overlap; touches none of this Mission's files",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#92": {
+      "evidence_ref": "In-flight session checked for overlap; touches none of this Mission's files",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

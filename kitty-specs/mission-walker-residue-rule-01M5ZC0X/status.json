@@ -1,0 +1,118 @@
+{
+  "event_count": 26,
+  "last_event_id": "01M5ZQ3SRK11M9TVSPZQZ8T285",
+  "materialized_at": "2026-10-27T22:18:53.587949+00:00",
+  "mission_number": "243",
+  "mission_slug": "mission-walker-residue-rule-01M5ZC0X",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5ZQ3NSN13CZ8ZRGQ43QKY37",
+      "last_transition_at": "2026-10-27T22:18:49.525082+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "is_selectable_mission_dir (meta.json on disk + is_mission_dir, lazy single git probe) now gates list_missions_for_selection and _list_feature_spec_candidates; spec.md-only folders are residue. Red-first tests in b9bebcf3, impl in c46ad0f8; 3 out-of-map fixtures given a meta.json with a mission_id.",
+        "Approved by reviewer-renata: predicate order, single lazy probe, selection/candidate parity, write-seam untouched; 3046 passed targeted, 67 architectural gates passed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 15209,
+      "shell_pid_created_at": "1793132360.37",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5ZQ3QYFH75MYHCN6H64T4XD",
+      "last_transition_at": "2026-10-27T22:18:51.727913+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: residue state in doctor identity (count, paths, remedy, --fail-on, JSON residue_remedy), collisions exclude residue, doctor mission-type skips residue; lazy once-per-walk git probe; T006 is its own refactor commit",
+        "Cycle 1 fix: residue is opt-in (residue_aware) for doctor identity only; audit engine output byte-identical to base, pinned by tests/audit/test_engine_keeps_its_mission_rule.py; nits 1, 2, 4, 5 folded in",
+        "Review cycle 2 passed: residue_aware opt-in keeps the audit engine byte-identical to base (verified base-vs-HEAD on git and non-git fixtures); new tests/audit regression test is red with the cycle-1 behaviour and green now; selection/doctor identity/mission-type parity holds on git, non-git, nested-tracked and nested-untracked layouts; walker-gate allowlist removal tightens the gate; ruff/C901/format/mypy clean except the pre-existing doctor.py:1266. Suite: 2383 passed, 9 skipped."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1734,
+      "shell_pid_created_at": "1793137433.29",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M5ZQ3SRK11M9TVSPZQZ8T285",
+      "last_transition_at": "2026-10-27T22:18:53.587949+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Parity test (git + non-git) red under the old selection rule, green now; changelog, cli-commands and migration guide updated. test-fast 2476 passed; tests/context 99 passed; docs gates 255 passed.",
+        "Review passed: FR-007 parity tests assert explicit expected sets (git + non-git) and fail under the old spec.md-or-meta selection rule (scratch plugin, not committed); changelog entry accurate, 0 style errors/warnings; cli-commands.md block matches live help; migration-guide residue entry consistent with RESIDUE_REMEDY; Mission terminology. Gates: 354 passed. Nits (non-blocking): changelog Before clause over-generalises orphan/typeless for the untracked id-less meta case; 'untracked id-less meta' lacks 'in a git repository' qualifier in changelog and guide."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1246,
+      "shell_pid_created_at": "1793139106.91",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    }
+  }
+}

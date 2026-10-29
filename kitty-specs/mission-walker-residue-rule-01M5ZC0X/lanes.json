@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "mission_slug": "mission-walker-residue-rule-01M5ZC0X",
+  "mission_id": "01M5ZC0X6KM0ZEB399AM94DMSW",
+  "mission_branch": "issue-5875-mission-walker-is-mission-dir",
+  "target_branch": "issue-5875-mission-walker-is-mission-dir",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/migrations/mission-id-canonical-identity.md",
+        "src/specify_cli/cli/commands/_identity_audit.py",
+        "src/specify_cli/cli/commands/_mission_type_audit.py",
+        "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/context/mission_resolver.py",
+        "src/specify_cli/status/identity_audit.py",
+        "tests/context/test_is_mission_dir.py",
+        "tests/doctor/test_identity_audit.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_feature_resolution.py",
+        "tests/specify_cli/cli/commands/test_doctor_mission_type.py",
+        "tests/specify_cli/cli/commands/test_identity_audit.py",
+        "tests/specify_cli/context/test_mission_selection.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-27T19:14:47.190859+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "61bc01e691fe939422b0b859c310d203ec12d3b0"
+}
