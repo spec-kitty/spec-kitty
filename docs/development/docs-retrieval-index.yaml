@@ -4369,6 +4369,7 @@ pages:
     - {slug: "presets-and-exclusions", text: "Presets and exclusions", level: 3}
     - {slug: "charter-list-json", text: "`charter list --json`", level: 3}
     - {slug: "activation-ledger-findings-in-spec-kitty-doctor-charter-packs", text: "Activation ledger findings in `spec-kitty doctor charter-packs`", level: 3}
+    - {slug: "path-escapes-in-spec-kitty-doctor-charter-packs", text: "Path escapes in `spec-kitty doctor charter-packs`", level: 3}
     - {slug: "spec-kitty-migrate-activation-ledger", text: "`spec-kitty migrate activation-ledger`", level: 3}
     - {slug: "charter-activation-api", text: "`charter.activation.api`", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
