@@ -191,3 +191,31 @@ def test_migration_actor_is_stored_whole_and_stays_a_reconstruction_seed(tmp_pat
         assert is_migration_actor(raw["actor"])
         assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(raw)))
 
+
+def test_append_history_note_takes_the_reviewer_role_while_in_review(tmp_path: Path) -> None:
+    """Notes take the lane rule (operator decision 2026-10-29): ``reviewer`` while the WP is ``in_review`` (#6400 F4)."""
+    from specify_cli.status import Lane, StatusEvent
+    from specify_cli.status.store import read_events_raw
+    from tests._support.status_seed import seed_status_event
+
+    repo_root, mission_dir = _make_mission(tmp_path, _SLUG)
+    seed_status_event(
+        mission_dir,
+        StatusEvent(
+            event_id="test-WP01-in-review",
+            mission_slug=_SLUG,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.IN_REVIEW,
+            at="2026-01-01T00:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+
+    _invoke(repo_root, "append-history", "--mission", _SLUG, "--wp", "WP01", "--actor", "codex", "--note", "reviewing")
+
+    notes = [raw for raw in read_events_raw(mission_dir) if raw.get("wp_id") == "WP01" and (raw.get("delta") or {}).get("note")]
+    assert notes, "append-history wrote no note annotation"
+    assert notes[-1]["actor"] == _reviewer("codex")
