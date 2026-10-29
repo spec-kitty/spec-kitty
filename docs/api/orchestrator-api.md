@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.20.0`
+- `CONTRACT_VERSION`: `1.21.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -160,7 +160,7 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   is present only when non-empty — a clean commit leaves the payload
   byte-identical — so this is a purely additive, optional field; no field is
   removed or renamed.
-- `1.20.0` — `consolidate-mission` and `accept-mission` now run the implementation-evidence and
+- `1.21.0` — `consolidate-mission` and `accept-mission` now run the implementation-evidence and
   review-independence axis on every topology (#6715; it covered `single_branch` only, #5939).
   `consolidate-mission` fails with the existing `PREFLIGHT_FAILED` envelope — the codes in
   `data.preflight_error_code` / `data.preflight_error_codes` — before it consolidates its first lane;
@@ -214,7 +214,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.20.0",
+  "contract_version": "1.21.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -390,7 +390,7 @@ SAME host readiness verdict the `accept` CLI computes via
 `collect_feature_summary(..., strict_metadata=True)` — one readiness
 authority, never a second computation of it. Before that summary is collected
 it runs the implementation-evidence and review-independence check (contract
->= 1.20.0, #6715): the same predicate the `accept` CLI runs
+>= 1.21.0, #6715): the same predicate the `accept` CLI runs
 (`consolidation.wp_evidence.mission_evidence_report`), on every topology. When
 it refuses, `accept-mission` answers `MISSION_NOT_READY` with the refusal in
 `data.errors` and its codes in `data.evidence_error_codes` (see the table
@@ -405,7 +405,7 @@ so on), `accept-mission` refuses with `MISSION_NOT_READY` and this error data:
 | `activity_issues` | `list[str]` — human-readable readiness issues |
 | `skipped_checks` | `list[{check, detail}]` — gates the readiness pass never reached |
 | `blocked_checks` | `list[{check, detail}]` — gates that stopped readiness outright (e.g. a missing `lanes.json` reports `check: "lanes_manifest"`) |
-| `evidence_error_codes` | optional, contract >= 1.20.0: `list[str]` — present only on an evidence refusal, every distinct code it names in order (`IMPLEMENTATION_MISSING`, `REVIEW_NOT_INDEPENDENT`, `IMPLEMENTATION_UNREADABLE`, `EVIDENCE_WINDOW_UNCOMPUTABLE`, or a `SINGLE_BRANCH_*` alias on a `single_branch` Mission; meanings in the `consolidate-mission` table below). The readiness fields above are absent then. |
+| `evidence_error_codes` | optional, contract >= 1.21.0: `list[str]` — present only on an evidence refusal, every distinct code it names in order (`IMPLEMENTATION_MISSING`, `REVIEW_NOT_INDEPENDENT`, `IMPLEMENTATION_UNREADABLE`, `EVIDENCE_WINDOW_UNCOMPUTABLE`, or a `SINGLE_BRANCH_*` alias on a `single_branch` Mission; meanings in the `consolidate-mission` table below). The readiness fields above are absent then. |
 
 No acceptance is recorded on this refusal: `meta.json` gains no `accepted_at` /
 `acceptance_mode` / `acceptance_history`, and HEAD is unchanged. The readiness
@@ -1054,10 +1054,10 @@ envelope code, puts the message in `data.errors`, and carries a stable code in
 | `LANE_MOVED_AFTER_APPROVAL` | The lane holds a content commit made after review approved it. | Move the work package back for review, approve it again, re-run. |
 | `APPROVAL_STAMP_MISSING` | An approved work package records no lane head, so what review approved cannot be determined. | Move it back for review and approve it again, or attest the approval with `spec-kitty consolidate --attest-approved-reviewed` (the host command only). |
 | `APPROVAL_STAMP_NOT_ON_LANE` | The approval names a commit that is not on the lane: the lane was rewritten after review. | Move the work package back for review, approve it again, re-run. |
-| `IMPLEMENTATION_MISSING` | (1.20.0) An approved work package's evidence window holds no change to its `owned_files` (Mission files the CLI writes itself, such as `tasks/`, `lanes.json` or `acceptance-matrix.json`, never count). | Commit the work package's change to its owned files and have it reviewed and approved again, or record `spec-kitty accept` / `spec-kitty consolidate --attest-no-implementation <WP> --attest-reason "<why>"` (host commands only) when it owes none. |
-| `REVIEW_NOT_INDEPENDENT` | (1.20.0) The approver is not provably another identity than the implementer of record: the same tool with no model or profile recorded on both sides that differs, or an identity that is not recorded (a placeholder such as `user` included). | Have a reviewer with another identity review and approve it (`--agent <tool>:<model>:<profile>`). No attestation lifts it. |
-| `IMPLEMENTATION_UNREADABLE` | (1.20.0) The evidence window cannot be diffed, for example the lane branch or the recorded planning commit is gone. | Restore or fetch the lane branch and the planning commit, re-run. |
-| `EVIDENCE_WINDOW_UNCOMPUTABLE` | (1.20.0) `lanes.json` records no planning commit, or the work package is in no lane. | Re-run `spec-kitty agent mission finalize-tasks`, re-run. |
+| `IMPLEMENTATION_MISSING` | (1.21.0) An approved work package's evidence window holds no change to its `owned_files` (Mission files the CLI writes itself, such as `tasks/`, `lanes.json` or `acceptance-matrix.json`, never count). | Commit the work package's change to its owned files and have it reviewed and approved again, or record `spec-kitty accept` / `spec-kitty consolidate --attest-no-implementation <WP> --attest-reason "<why>"` (host commands only) when it owes none. |
+| `REVIEW_NOT_INDEPENDENT` | (1.21.0) The approver is not provably another identity than the implementer of record: the same tool with no model or profile recorded on both sides that differs, or an identity that is not recorded (a placeholder such as `user` included). | Have a reviewer with another identity review and approve it (`--agent <tool>:<model>:<profile>`). No attestation lifts it. |
+| `IMPLEMENTATION_UNREADABLE` | (1.21.0) The evidence window cannot be diffed, for example the lane branch or the recorded planning commit is gone. | Restore or fetch the lane branch and the planning commit, re-run. |
+| `EVIDENCE_WINDOW_UNCOMPUTABLE` | (1.21.0) `lanes.json` records no planning commit, or the work package is in no lane. | Re-run `spec-kitty agent mission finalize-tasks`, re-run. |
 | `SINGLE_BRANCH_IMPLEMENTATION_MISSING`, `SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT`, `SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE` | (#5939) The same three meanings on a `single_branch` Mission, which keeps emitting these aliases. | As for the neutral code. |
 | `SINGLE_BRANCH_EVIDENCE_UNREADABLE` | (#5939) The `single_branch` alias of `IMPLEMENTATION_UNREADABLE`, as `consolidate-mission`, `accept-mission`, `accept` and `consolidate` emit it. (`move-task` emits the other alias, `SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE`, for the same meaning.) | As for `IMPLEMENTATION_UNREADABLE`. |
 

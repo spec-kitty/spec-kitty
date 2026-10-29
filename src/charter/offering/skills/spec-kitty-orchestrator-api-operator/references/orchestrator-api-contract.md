@@ -337,7 +337,7 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 
 | Code | Cause |
 |------|-------|
-| `MISSION_NOT_READY` | One or more WPs are not `approved` or `done`, OR (contract >= 1.7.0) the host readiness verdict (`collect_feature_summary(..., strict_metadata=True).ok`) is `False` -- a pending/failing acceptance matrix, missing/corrupt `lanes.json`, target-branch mismatch, unmet path convention, dirty working tree, etc., OR (contract >= 1.20.0) an approved WP has no implementation evidence or no independent review (codes in `data.evidence_error_codes`, below) |
+| `MISSION_NOT_READY` | One or more WPs are not `approved` or `done`, OR (contract >= 1.7.0) the host readiness verdict (`collect_feature_summary(..., strict_metadata=True).ok`) is `False` -- a pending/failing acceptance matrix, missing/corrupt `lanes.json`, target-branch mismatch, unmet path convention, dirty working tree, etc., OR (contract >= 1.21.0) an approved WP has no implementation evidence or no independent review (codes in `data.evidence_error_codes`, below) |
 
 **Error data (readiness-verdict refusal, contract >= 1.7.0):**
 
@@ -348,7 +348,7 @@ spec-kitty orchestrator-api accept-mission --mission TEXT --actor TEXT
 | `skipped_checks` | `list[{check, detail}]` | Gates never reached |
 | `blocked_checks` | `list[{check, detail}]` | Gates that stopped readiness (e.g. `check: "lanes_manifest"` for a missing `lanes.json`) |
 
-**Error data (implementation-evidence refusal, contract >= 1.20.0):** checked before the
+**Error data (implementation-evidence refusal, contract >= 1.21.0):** checked before the
 readiness verdict, with the same predicate the host `accept` and `consolidate` run, on every
 topology. The message is in `data.errors`; the readiness fields above are absent.
 
@@ -901,7 +901,7 @@ transition — it never invokes the WP-loop or `next` engines.
 |------------|----------|-------------|
 | `CONTRACT_VERSION_MISMATCH` | contract-version | Provider version too old |
 | `MISSION_NOT_FOUND` | mission-state, list-ready | Unknown mission slug |
-| `MISSION_NOT_READY` | accept-mission | Not all WPs are approved/done, or (contract >= 1.7.0) the host readiness verdict is not passing, or (contract >= 1.20.0) the implementation-evidence check refuses (`data.evidence_error_codes`) |
+| `MISSION_NOT_READY` | accept-mission | Not all WPs are approved/done, or (contract >= 1.7.0) the host readiness verdict is not passing, or (contract >= 1.21.0) the implementation-evidence check refuses (`data.evidence_error_codes`) |
 | `POLICY_METADATA_REQUIRED` | start-implementation, start-review, transition | Missing or incomplete policy JSON |
 | `POLICY_VALIDATION_FAILED` | start-implementation, start-review, transition | Policy JSON invalid or contains secret-like values |
 | `USAGE_ERROR` | all commands | CLI usage error or missing required arguments |
@@ -945,7 +945,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `DECISION_OPERATION_FAILED` | open-decision, resolve-decision, defer-decision, cancel-decision | A decision-ledger operation failed for a reason without a more specific registered code |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | design-status, open-decision, resolve-decision, defer-decision, cancel-decision | `status.events.jsonl` could not be read cleanly (torn/truncated line, or a detected drift against `status.json`) while deriving the tasks-finalized signal (design-status), or on an idempotent decision retry (open-decision; resolve/defer/cancel-decision since contract 1.17.0); all four decision write verbs also return it for an unreadable `decisions/index.json` |
 | `WP_NOT_FOUND` | resolve-workspace, start-implementation, start-review, transition, append-history | Work package ID does not exist in the mission |
-| `PREFLIGHT_FAILED` | consolidate-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step); an approval-bound or (contract >= 1.20.0) implementation-evidence refusal carries its codes in `data.preflight_error_code` / `data.preflight_error_codes` |
+| `PREFLIGHT_FAILED` | consolidate-mission | Preflight checks failed before merge (target-branch/git-state errors, or a `RuntimeError` from the lane-consolidation step); an approval-bound or (contract >= 1.21.0) implementation-evidence refusal carries its codes in `data.preflight_error_code` / `data.preflight_error_codes` |
 | `UNSUPPORTED_STRATEGY` | consolidate-mission | Requested `--strategy` is not one of `merge`, `squash`, `rebase` |
 | `LANE_ALLOCATION_FAILED` | start-implementation, transition | Lane worktree allocation failed (dirty reuse, a dependency-lane consolidation conflict, or an unhonorable base) |
 | `ANCESTRY_NOT_ESTABLISHED` | start-implementation, transition | The recorded planning commit or an approved dependency lane's tip is not (yet) a git ancestor of the claimed workspace's HEAD, even after self-heal re-ran the reuse-path merges |
