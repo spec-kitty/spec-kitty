@@ -1,7 +1,7 @@
 {
   "rows": {
     "#4848": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "7b55055b (open path under decisions lock); reader tolerance lands in WP02",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,35 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#5681": {
+      "evidence_ref": "Cited for context in planning artifacts; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6193": {
+      "evidence_ref": "Cited for context in planning artifacts; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6194": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context: Java write core owns the envelope half (C-002); no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +45,35 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6294": {
+      "evidence_ref": "Cited for context in planning artifacts; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6411": {
+      "evidence_ref": "Cited for context in planning artifacts; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6412": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Reopen-rule part only (operator ruling 2); envelope half stays with spec-kitty-events #92 / #6194",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +81,59 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#6447": {
+      "evidence_ref": "Cited for context in planning artifacts; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6449": {
+      "evidence_ref": "Cited for context in planning artifacts; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6606": {
+      "evidence_ref": "Cited for context in planning artifacts; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6608": {
+      "evidence_ref": "Cited for context in planning artifacts; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#92": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Cited for context: spec-kitty-events #92 (other repo) owns envelope adoption (C-002); no work owed here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,7 +141,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     }
   },
