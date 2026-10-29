@@ -182,7 +182,7 @@ def test_resolve_next_owned_adopts_or_falls_through_to_the_guard(tmp_path: Path,
     assert guard_calls == [], "an explicit flag never meets the syntactic guard"
 
 
-def test_resolve_next_owned_renders_a_refusal_in_nexts_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+def test_resolve_next_owned_renders_a_refusal_as_the_c2_owned_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     from mission_runtime import ActionContextError, OwnedRefusalCode
 
     def _refuse(*_a: Any, **_k: Any) -> None:
@@ -195,7 +195,7 @@ def test_resolve_next_owned_renders_a_refusal_in_nexts_envelope(tmp_path: Path, 
 
     assert excinfo.value.exit_code == 1
     payload = json.loads(capsys.readouterr().out)
-    assert payload == {"success": False, "error_code": OwnedRefusalCode.OWNED_BRANCH_REFUSED, "error": "no"}
+    assert payload == {"ok": False, "error": {"code": OwnedRefusalCode.OWNED_BRANCH_REFUSED, "message": "no"}}
 
 
 # -- handle-less owned next ---------------------------------------------------

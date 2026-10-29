@@ -198,10 +198,16 @@ def _invoke_command(command: str, owned_checkout: Path, mission_slug: str) -> tu
 
 
 def _extract_code(command: str, exit_code: int, combined: str) -> str:
-    """Extract the ``error_code`` from a refused invocation's output, per the command's envelope."""
+    """Extract the refusal code from a refused invocation's output.
+
+    JSON commands print the C2 owned refusal (``error.code``, #6353); a payload
+    without that object is not an owned refusal, so the extraction itself fails.
+    """
     if command in ("status", "setup-plan", "context-resolve"):
         payload = json.loads(combined)
-        return str(payload["error_code"])
+        error = payload.get("error")
+        assert isinstance(error, dict), payload
+        return str(error["code"])
     # implement/review: human-only "Error: [<CODE>] ..." on stderr (NFR-004 carve-out).
     import re
 

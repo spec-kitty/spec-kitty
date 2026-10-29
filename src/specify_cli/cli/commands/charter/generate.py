@@ -12,7 +12,7 @@ import typer
 from charter.packs import RetiredPackFieldError
 
 from specify_cli.task_utils import TaskCliError
-from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_refuse, success_false_envelope
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_refuse
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._charter_write_root import (
@@ -27,6 +27,10 @@ from specify_cli.cli.commands.charter._common import _emit_error, _interview_pat
 import specify_cli.cli.commands.charter as _charter_pkg
 
 __all__ = ["generate"]
+
+# Typed handle on the shared charter app: ``_app`` is not followed by narrow
+# ``mypy`` checks (``follow_imports = "skip"``), so the decorator would read as untyped.
+_typed_charter_app: typer.Typer = charter_app
 
 
 def _build_active_charter_service_with_org_layer(
@@ -465,14 +469,13 @@ def _resolve_generate_write_root(owned_checkout: OwnedCheckoutOption, mission_ha
         cwd=Path.cwd(),
         allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
         json_output=json_output,
-        envelope=success_false_envelope,
     )
     assert owned is not None  # Explicit claim either validates or exits.
     _validate_owned_charter_destinations(owned.owned_root)
-    return cast(Path, owned.owned_root)
+    return owned.owned_root
 
 
-@charter_app.command()
+@_typed_charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
     mission: str | None = typer.Option(None, "--mission", hidden=True, help="(deprecated) Use --mission-type"),

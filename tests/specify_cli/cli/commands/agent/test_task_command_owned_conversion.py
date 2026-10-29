@@ -67,7 +67,7 @@ def fact(owned_checkouts: OwnedCheckouts) -> OwnedCheckout:
 
 
 # ---------------------------------------------------------------------------
-# _owned_checkout: the Typer-edge wrapper and the flat envelope
+# _owned_checkout: the Typer-edge wrapper
 # ---------------------------------------------------------------------------
 
 
@@ -80,7 +80,6 @@ class TestResolveOwnedOrRefuse:
             cwd=owned_checkouts.sibling,
             allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
             json_output=True,
-            envelope=_owned_checkout.flat_error_envelope,
         )
         assert result is not None
         assert result.owned_root == owned_checkouts.owned_root.resolve()
@@ -93,7 +92,6 @@ class TestResolveOwnedOrRefuse:
             cwd=owned_checkouts.repository_root,
             allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
             json_output=True,
-            envelope=_owned_checkout.flat_error_envelope,
         )
         assert result is None
 
@@ -106,12 +104,11 @@ class TestResolveOwnedOrRefuse:
                 cwd=owned_checkouts.repository_root,
                 allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
                 json_output=True,
-                envelope=_owned_checkout.flat_error_envelope,
             )
         assert excinfo.value.exit_code == 1
         payload = json.loads(capsys.readouterr().out)
-        assert payload["error_code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
-        assert set(payload) == {"error", "error_code"}
+        assert payload["error"]["code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
+        assert set(payload) == {"ok", "error"}
 
     def test_target_override_is_forwarded_on_the_explicit_path(self, owned_checkouts: OwnedCheckouts, capsys: pytest.CaptureFixture[str]) -> None:
         with pytest.raises(typer.Exit):
@@ -122,14 +119,9 @@ class TestResolveOwnedOrRefuse:
                 cwd=owned_checkouts.owned_root,
                 allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
                 json_output=True,
-                envelope=_owned_checkout.flat_error_envelope,
                 target_override="codex/not-the-checked-out-branch",
             )
-        assert json.loads(capsys.readouterr().out)["error_code"] == OwnedRefusalCode.OWNED_BRANCH_REFUSED
-
-
-def test_flat_error_envelope_shape() -> None:
-    assert _owned_checkout.flat_error_envelope("CODE", "msg") == {"error": "msg", "error_code": "CODE"}
+        assert json.loads(capsys.readouterr().out)["error"]["code"] == OwnedRefusalCode.OWNED_BRANCH_REFUSED
 
 
 # ---------------------------------------------------------------------------
@@ -140,7 +132,7 @@ def test_flat_error_envelope_shape() -> None:
 class TestResolveTaskOwned:
     def test_no_project_root_leaves_the_body_to_report_it(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(tasks, "locate_project_root", lambda: None)
-        assert tasks._resolve_task_owned(Path("/nowhere"), "m", json_output=True, envelope=_owned_checkout.flat_error_envelope) is None
+        assert tasks._resolve_task_owned(Path("/nowhere"), "m", json_output=True) is None
 
     def test_explicit_checkout_is_validated_once(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(tasks, "locate_project_root", lambda: owned_checkouts.repository_root)
@@ -149,7 +141,6 @@ class TestResolveTaskOwned:
             owned_checkouts.owned_root,
             owned_checkouts.mission_slug,
             json_output=True,
-            envelope=_owned_checkout.flat_error_envelope,
         )
         assert result is not None
         assert result.mission_slug == owned_checkouts.mission_slug
@@ -164,12 +155,12 @@ class TestResolveTaskOwned:
                 owned_checkouts.repository_root,
                 owned_checkouts.mission_slug,
                 json_output=True,
-                envelope=tasks_mark_status._ms_failure_payload,
+                context=tasks_mark_status._ms_failure_context(),
             )
         payload = json.loads(capsys.readouterr().out)
-        assert payload["result"] == "error"
-        assert payload["error_code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
-        assert payload["state_applied"] is False
+        assert set(payload) == {"ok", "error", "context"}
+        assert payload["error"]["code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
+        assert payload["context"]["state_applied"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -338,11 +329,8 @@ def test_revert_commit_worktree_is_the_owned_checkout(fact: OwnedCheckout) -> No
 
 class TestMarkStatusFailureEnvelope:
     def test_refusal_shape_has_nothing_applied(self) -> None:
-        payload = tasks_mark_status._ms_failure_payload("CODE", "msg")
-        assert payload == {
-            "result": "error",
-            "error_code": "CODE",
-            "error": "msg",
+        context = tasks_mark_status._ms_failure_context()
+        assert context == {
             "state_applied": False,
             "event_ids": [],
             "applied_wps": [],
@@ -353,9 +341,7 @@ class TestMarkStatusFailureEnvelope:
         }
 
     def test_applied_state_is_reported(self, tmp_path: Path) -> None:
-        payload = tasks_mark_status._ms_failure_payload(
-            "CODE",
-            "msg",
+        payload = tasks_mark_status._ms_failure_context(
             event_ids=["E1"],
             applied_wps=["WP01"],
             destination_ref="codex/owned",
@@ -382,13 +368,16 @@ class TestMarkStatusFailureEnvelope:
         captured = capsys.readouterr()
         if json_output:
             payload = json.loads(captured.out)
-            assert payload["error_code"] == "TEST_CODE"
-            assert payload["event_ids"] == ["E1"]
-            assert payload["applied_wps"] == ["WP01"]
-            assert payload["destination_ref"] == fact.write_branch
-            assert payload["status_events_path"] == str(fact.mission_dir / "status.events.jsonl")
-            assert payload["status_snapshot_path"] is None
-            assert payload["dirty"] is False
+            assert set(payload) == {"ok", "error", "context"}
+            assert payload["ok"] is False
+            assert payload["error"] == {"code": "TEST_CODE", "message": "boom"}
+            context = payload["context"]
+            assert context["event_ids"] == ["E1"]
+            assert context["applied_wps"] == ["WP01"]
+            assert context["destination_ref"] == fact.write_branch
+            assert context["status_events_path"] == str(fact.mission_dir / "status.events.jsonl")
+            assert context["status_snapshot_path"] is None
+            assert context["dirty"] is False
             assert captured.err == ""
         else:
             # Unified owned-refusal output (#5445): human mode lands on
@@ -404,8 +393,8 @@ class TestMarkStatusFailureEnvelope:
             tasks_mark_status._ms_report_owned_failure(st, fact, RuntimeError("plain"))
 
         payload = json.loads(capsys.readouterr().out)
-        assert payload["error_code"] == "MARK_STATUS_FAILED"
-        assert payload["status_snapshot_path"] == str(fact.mission_dir / "status.json")
+        assert payload["error"]["code"] == "MARK_STATUS_FAILED"
+        assert payload["context"]["status_snapshot_path"] == str(fact.mission_dir / "status.json")
 
 
 # ---------------------------------------------------------------------------
@@ -438,12 +427,8 @@ class TestSpecCommitConversion:
         assert spec_commit_cmd._mission_slug_from_args([Path("kitty-specs/from-path/spec.md")], " explicit ") == "explicit"
         assert spec_commit_cmd._mission_slug_from_args([], None) is None
 
-    def test_refusal_envelope_keeps_the_command_shape_and_adds_the_code(self) -> None:
-        payload = spec_commit_cmd._refusal_envelope("SOME_CODE", "why")
-        assert payload["success"] is False
-        assert payload["result"] == "error"
-        assert payload["error"] == "why"
-        assert payload["error_code"] == "SOME_CODE"
+    def test_owned_refusal_context_records_that_nothing_was_committed(self) -> None:
+        assert spec_commit_cmd._OWNED_REFUSAL_CONTEXT == {"committed": False}
 
 
 # ---------------------------------------------------------------------------
@@ -452,11 +437,15 @@ class TestSpecCommitConversion:
 
 
 class TestCheckPrerequisitesConversion:
-    def test_refusal_envelope_carries_the_cli_version_like_every_json_payload(self) -> None:
-        payload = mission_check_prerequisites._refusal_envelope("SOME_CODE", "why")
-        assert payload["error"] == "why"
-        assert payload["error_code"] == "SOME_CODE"
-        assert "spec_kitty_version" in payload
+    def test_owned_refusal_carries_the_cli_version_like_every_json_payload(self, checkouts: tuple[Path, Path, Path]) -> None:
+        _primary, owned, _sibling = checkouts
+
+        result = invoke("check-prerequisites", owned / "kitty-specs")
+
+        assert result.exit_code == 1, result.output
+        payload = json.loads(result.output)
+        assert set(payload) == {"ok", "error", "spec_kitty_version"}
+        assert payload["error"]["code"] == OwnedRefusalCode.OWNERSHIP_NESTED
 
     def test_resume_probe_with_a_validated_checkout_is_refused(self, fact: OwnedCheckout) -> None:
         with pytest.raises(ActionContextError) as excinfo:
@@ -474,7 +463,7 @@ class TestCheckPrerequisitesConversion:
         result = invoke("check-prerequisites", owned / "kitty-specs", "--resume-probe")
 
         assert result.exit_code == 1, result.output
-        assert json.loads(result.output)["error_code"] == OwnedRefusalCode.OWNERSHIP_NESTED
+        assert json.loads(result.output)["error"]["code"] == OwnedRefusalCode.OWNERSHIP_NESTED
 
     def test_flagless_resume_probe_never_adopts_the_invoking_checkout(self, checkouts: tuple[Path, Path, Path]) -> None:
         _primary, owned, _sibling = checkouts

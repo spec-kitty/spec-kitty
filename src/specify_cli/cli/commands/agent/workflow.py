@@ -1106,7 +1106,7 @@ def _refuse_owned_action(owned_claim: Path, mission: str | None, *, action: str)
     """
     from mission_runtime import ActionContextError
 
-    from specify_cli.cli.commands._owned_checkout import emit_owned_refusal, refuse_owned_action, success_false_envelope
+    from specify_cli.cli.commands._owned_checkout import emit_owned_refusal, refuse_owned_action
 
     repo_root = locate_project_root()
     if repo_root is None:
@@ -1116,7 +1116,7 @@ def _refuse_owned_action(owned_claim: Path, mission: str | None, *, action: str)
     try:
         refuse_owned_action(repo_root, owned_claim, mission, action=action)
     except ActionContextError as exc:
-        emit_owned_refusal(exc, json_output=False, envelope=success_false_envelope)
+        emit_owned_refusal(exc, json_output=False)
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:

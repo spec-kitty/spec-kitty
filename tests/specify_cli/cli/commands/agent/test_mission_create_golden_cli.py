@@ -225,6 +225,16 @@ def _invoke(repo: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]) -> tup
     return result.exit_code, _first_json_object(result.output), result.output[-400:]
 
 
+def _envelope_error_code(envelope: dict[str, Any] | None) -> object:
+    """The envelope's error code: top-level ``error_code``, or ``error.code`` for C2 (#6353)."""
+    if envelope is None:
+        return None
+    error = envelope.get("error")
+    if isinstance(error, dict):
+        return error.get("code")
+    return envelope.get("error_code")
+
+
 def _observe(repo: Path, outcome: tuple[int, dict[str, Any] | None, str], *, extra_heads: dict[str, Path] | None = None) -> dict[str, Any]:
     exit_code, envelope, tail = outcome
     heads = {"root": _git(repo, "rev-parse", "--abbrev-ref", "HEAD")}
@@ -233,7 +243,7 @@ def _observe(repo: Path, outcome: tuple[int, dict[str, Any] | None, str], *, ext
     return {
         "exit_code": exit_code,
         "topology": envelope.get("topology") if envelope else None,
-        "error_code": envelope.get("error_code") if envelope else None,
+        "error_code": _envelope_error_code(envelope),
         "envelope": envelope,
         "stdout_tail": None if envelope is not None else tail,
         "heads": heads,

@@ -9,7 +9,7 @@ Covers:
 * the public surface of ``specify_cli.cli.commands._owned_checkout`` (T039,
   landing in a later commit in this same file): option declaration, the
   single validation entry point, the typed refusal emitter and its registry
-  validation, the envelope builders, and the stale-repository-root-copy
+  validation, the C2 owned-refusal payload builder, and the stale-repository-root-copy
   reporter.
 * the re-homed ``operation_context.py`` behaviours (T043, also landing
   later), mapped explicitly onto their WP08 replacement below.
@@ -503,45 +503,38 @@ class TestEmitOwnedRefusal:
     pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
     def test_json_mode_prints_envelope_and_exits(self, capsys: pytest.CaptureFixture[str]) -> None:
-        from specify_cli.cli.commands._owned_checkout import emit_owned_refusal, success_false_envelope
+        from specify_cli.cli.commands._owned_checkout import emit_owned_refusal
 
         with pytest.raises(typer.Exit) as excinfo:
-            emit_owned_refusal(
-                ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "bad branch"),
-                json_output=True,
-                envelope=success_false_envelope,
-            )
+            emit_owned_refusal(ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "bad branch"), json_output=True)
         assert excinfo.value.exit_code == 1
         payload = json.loads(capsys.readouterr().out)
-        assert payload == {"success": False, "error_code": OwnedRefusalCode.OWNED_BRANCH_REFUSED, "error": "bad branch"}
+        assert payload == {"ok": False, "error": {"code": OwnedRefusalCode.OWNED_BRANCH_REFUSED, "message": "bad branch"}}
 
     def test_human_mode_prints_on_stderr(self, capsys: pytest.CaptureFixture[str]) -> None:
-        from specify_cli.cli.commands._owned_checkout import emit_owned_refusal, success_false_envelope
+        from specify_cli.cli.commands._owned_checkout import emit_owned_refusal
 
         with pytest.raises(typer.Exit):
-            emit_owned_refusal(
-                ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "bad branch"),
-                json_output=False,
-                envelope=success_false_envelope,
-            )
+            emit_owned_refusal(ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "bad branch"), json_output=False)
         captured = capsys.readouterr()
         assert captured.out == ""
         assert OwnedRefusalCode.OWNED_BRANCH_REFUSED in captured.err
 
-    def test_envelope_without_error_code_key_gets_one_added(self, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_json_mode_never_adds_a_top_level_error_code(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """#6353: the old ``error_code`` force-add is gone; ``context`` and the stamp are the only extras."""
         from specify_cli.cli.commands._owned_checkout import emit_owned_refusal
-
-        def _bare_envelope(code: str, message: str) -> dict[str, object]:
-            return {"ok": False, "message": message}
 
         with pytest.raises(typer.Exit):
             emit_owned_refusal(
                 ActionContextError(OwnedRefusalCode.OWNED_INDEX_REFUSED, "staged"),
                 json_output=True,
-                envelope=_bare_envelope,
+                context={"committed": False},
+                stamp_version=True,
             )
         payload = json.loads(capsys.readouterr().out)
-        assert payload["error_code"] == OwnedRefusalCode.OWNED_INDEX_REFUSED
+        assert set(payload) == {"ok", "error", "context", "spec_kitty_version"}
+        assert payload["error"] == {"code": OwnedRefusalCode.OWNED_INDEX_REFUSED, "message": "staged"}
+        assert payload["context"] == {"committed": False}
 
     @pytest.mark.parametrize(
         "code",
@@ -568,54 +561,69 @@ class TestEmitOwnedRefusal:
         ],
     )
     def test_every_registered_code_is_accepted(self, code: str, capsys: pytest.CaptureFixture[str]) -> None:
-        from specify_cli.cli.commands._owned_checkout import emit_owned_refusal, success_false_envelope
+        from specify_cli.cli.commands._owned_checkout import emit_owned_refusal
 
         with pytest.raises(typer.Exit):
-            emit_owned_refusal(ActionContextError(code, "refused"), json_output=True, envelope=success_false_envelope)
+            emit_owned_refusal(ActionContextError(code, "refused"), json_output=True)
         payload = json.loads(capsys.readouterr().out)
-        assert payload["error_code"] == code
+        assert payload["error"]["code"] == code
 
     def test_unregistered_code_raises_typed_error(self) -> None:
         """Review cycle 1 finding 11: an explicit typed raise, not an ``assert`` (stripped under ``python -O``)."""
-        from specify_cli.cli.commands._owned_checkout import (
-            UnregisteredOwnedRefusalCode,
-            emit_owned_refusal,
-            success_false_envelope,
-        )
+        from specify_cli.cli.commands._owned_checkout import UnregisteredOwnedRefusalCode, emit_owned_refusal
 
         with pytest.raises(UnregisteredOwnedRefusalCode):
-            emit_owned_refusal(
-                ActionContextError("SOME_UNRELATED_CODE", "not an owned refusal"),
-                json_output=True,
-                envelope=success_false_envelope,
-            )
+            emit_owned_refusal(ActionContextError("SOME_UNRELATED_CODE", "not an owned refusal"), json_output=True)
 
 
-class TestEnvelopeBuilders:
+class TestOwnedRefusalPayloadC2:
+    """#6353: every owned refusal is the strict C2 core plus optional ``context`` / version stamp."""
+
     pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-    def test_success_false_envelope(self) -> None:
-        from specify_cli.cli.commands._owned_checkout import success_false_envelope
+    def test_owned_refusal_payload_is_strict_c2(self) -> None:
+        from specify_cli.cli.commands._owned_checkout import owned_refusal_payload
 
-        assert success_false_envelope("CODE", "msg") == {"success": False, "error_code": "CODE", "error": "msg"}
-
-    def test_json_error_envelope(self) -> None:
-        from specify_cli.cli.commands._owned_checkout import json_error_envelope
-
-        payload = json_error_envelope("CODE", "msg")
-        assert payload["error_code"] == "CODE"
-        assert payload["ok"] is False
-        assert payload["error"] == {"code": "CODE", "message": "msg"}
-
-    def test_result_error_envelope(self) -> None:
-        from specify_cli.cli.commands._owned_checkout import result_error_envelope
-
-        assert result_error_envelope("CODE", "msg") == {
-            "result": "error",
-            "phase_complete": False,
-            "error_code": "CODE",
-            "error": "msg",
+        assert owned_refusal_payload("OWNED_CHECKOUT_IS_REPOSITORY_ROOT", "m") == {
+            "ok": False,
+            "error": {"code": "OWNED_CHECKOUT_IS_REPOSITORY_ROOT", "message": "m"},
         }
+
+    def test_owned_refusal_payload_adds_context_only_when_given(self) -> None:
+        from specify_cli.cli.commands._owned_checkout import owned_refusal_payload
+
+        with_context = owned_refusal_payload("CODE", "m", context={"committed": False})
+        assert with_context == {"ok": False, "error": {"code": "CODE", "message": "m"}, "context": {"committed": False}}
+        assert "context" not in owned_refusal_payload("CODE", "m", context=None)
+
+    def test_owned_refusal_payload_stamps_version_only_when_asked(self) -> None:
+        from specify_cli.cli.commands._owned_checkout import owned_refusal_payload
+        from specify_cli.version_utils import cli_version
+
+        stamped = owned_refusal_payload("CODE", "m", stamp_version=True)
+        assert stamped["spec_kitty_version"] == cli_version()
+        assert set(stamped) == {"ok", "error", "spec_kitty_version"}
+        assert "spec_kitty_version" not in owned_refusal_payload("CODE", "m")
+
+    def test_emit_owned_refusal_json_prints_c2_and_exits_one(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from specify_cli.cli.commands._owned_checkout import emit_owned_refusal
+
+        with pytest.raises(typer.Exit) as excinfo:
+            emit_owned_refusal(ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "bad branch"), json_output=True)
+        assert excinfo.value.exit_code == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert "error_code" not in payload
+        assert payload == {"ok": False, "error": {"code": OwnedRefusalCode.OWNED_BRANCH_REFUSED, "message": "bad branch"}}
+
+    def test_emit_owned_refusal_human_mode_unchanged(self, capsys: pytest.CaptureFixture[str]) -> None:
+        from specify_cli.cli.commands._owned_checkout import emit_owned_refusal
+
+        with pytest.raises(typer.Exit) as excinfo:
+            emit_owned_refusal(ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "bad branch"), json_output=False)
+        assert excinfo.value.exit_code == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err.strip() == f"Error: [{OwnedRefusalCode.OWNED_BRANCH_REFUSED}] bad branch"
 
 
 class TestStaleRepositoryRootCopy:

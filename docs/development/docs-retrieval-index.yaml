@@ -3990,6 +3990,20 @@ pages:
     - {slug: "loopback-http-with-a-bearer-token-chosen", text: "Loopback HTTP with a bearer token (chosen)", level: 3}
     - {slug: "a-process-per-write", text: "A process per write", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md"
+    title: "ADR: owned-checkout refusals use the C2 error contract"
+    divio_type: "none"
+    abstract: "Every owned-checkout refusal prints the strict C2 error core in JSON mode, with an optional context object and spec_kitty_version stamp; one shared renderer fixes the shape."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "supersedes", text: "Supersedes", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "positive", text: "Positive", level: 3}
+    - {slug: "negative", text: "Negative", level: 3}
+    - {slug: "neutral", text: "Neutral", level: 3}
+    - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"

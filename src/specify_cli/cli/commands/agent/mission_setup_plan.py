@@ -1230,7 +1230,6 @@ def _resolve_setup_plan_scope(feature: str | None, json_output: bool, *, owned_c
     from specify_cli.cli.commands._owned_checkout import (
         emit_owned_refusal,
         resolve_owned_or_adopt,
-        result_error_envelope,
     )
     from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
 
@@ -1246,7 +1245,7 @@ def _resolve_setup_plan_scope(feature: str | None, json_output: bool, *, owned_c
     try:
         owned = resolve_owned_or_adopt(repo_root, owned_claim, feature, cwd=Path.cwd(), allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
     except ActionContextError as exc:
-        emit_owned_refusal(exc, json_output=json_output, envelope=result_error_envelope)
+        emit_owned_refusal(exc, json_output=json_output, context={"phase_complete": False}, stamp_version=True)
 
     if owned is not None:
         _mission._enforce_git_preflight(owned.owned_root, json_output=json_output, command_name=SETUP_PLAN_COMMAND_NAME)

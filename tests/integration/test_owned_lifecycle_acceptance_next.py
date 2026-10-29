@@ -190,8 +190,8 @@ class TestO9BranchAndProtection:
         _assert_no_uncaught_exception(result)
         assert result.exit_code == 1, result.output
         payload = _payload(result)
-        assert payload["success"] is False
-        assert payload["error_code"] == OwnedRefusalCode.OWNED_BRANCH_REFUSED
+        assert payload["ok"] is False
+        assert payload["error"]["code"] == OwnedRefusalCode.OWNED_BRANCH_REFUSED
 
     def test_unprotected_control_is_accepted(self, make_owned_checkouts: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         checkouts = make_owned_checkouts()
@@ -231,7 +231,7 @@ class TestFr023TopologyPairing:
             ["finalize-tasks", "--mission", checkouts.mission_slug, "--owned-checkout", str(checkouts.owned_root), "--json"],
         )
         assert refused.exit_code != 0, refused.output
-        assert _payload(refused)["error_code"] == OwnedRefusalCode.OWNED_TOPOLOGY_UNSUPPORTED
+        assert _payload(refused)["error"]["code"] == OwnedRefusalCode.OWNED_TOPOLOGY_UNSUPPORTED
 
 
 # ---------------------------------------------------------------------------
@@ -430,7 +430,7 @@ class TestHandlelessOwnedNext:
         result = _next("--owned-checkout", str(owned_checkouts.repository_root), "--json")
 
         assert result.exit_code == 1, result.output
-        assert _payload(result)["error_code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
+        assert _payload(result)["error"]["code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
         assert listed == []
         assert len(validation_count) == 1, f"observed {len(validation_count)} validations"
 

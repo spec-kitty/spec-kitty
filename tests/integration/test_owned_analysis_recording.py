@@ -153,7 +153,9 @@ def test_invalid_claim_refuses_before_writes(analysis_checkouts, tmp_path, monke
     before = tuple(snapshot(root) for root in (primary, owned, sibling))
     result = record(owned, explicit=True, report_only=report_only, claim=claim)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error_code"].startswith(("OWNED_", "OWNERSHIP_"))
+    payload = json.loads(result.output)
+    assert set(payload) == {"ok", "error", "spec_kitty_version"}
+    assert payload["error"]["code"].startswith(("OWNED_", "OWNERSHIP_"))
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before
 
 
@@ -207,7 +209,7 @@ def test_owned_destination_symlink_refuses_before_write(analysis_checkouts, monk
     before = tuple(snapshot(root) for root in (primary, owned, sibling))
     result = record(owned, explicit=True, report_only=report_only)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error_code"] == "OWNED_MISSION_PATH_REFUSED"
+    assert json.loads(result.output)["error"]["code"] == "OWNED_MISSION_PATH_REFUSED"
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before
 
 

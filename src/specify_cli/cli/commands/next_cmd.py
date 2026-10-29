@@ -48,7 +48,6 @@ from specify_cli.cli.commands._owned_checkout import (
     emit_owned_refusal,
     resolve_owned_or_adopt,
     stale_copy_payload,
-    success_false_envelope,
 )
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import (
@@ -224,7 +223,7 @@ def _resolve_next_owned(
     (lane/coordination worktree, a checkout the validator rejects, the
     repository root) yields ``None`` and meets the UNCHANGED legacy
     ``.worktrees`` guard. A refusal exits fail-closed with the typed code in
-    ``next``'s ``{success, error_code, error}`` envelope.
+    the C2 owned refusal ``{ok: false, error: {code, message}}`` (ADR 2026-10-27-2).
     """
     from mission_runtime import ActionContextError
     from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, OwnedMissionSelectionRequired
@@ -249,7 +248,7 @@ def _resolve_next_owned(
         _emit_missing_handle_discovery(MissingHandleDiscovery(exc.listings), json_output)
         raise typer.Exit(1) from exc
     except ActionContextError as exc:
-        emit_owned_refusal(exc, json_output=json_output, envelope=success_false_envelope)
+        emit_owned_refusal(exc, json_output=json_output)
     if owned is None and owned_checkout is None:
         _legacy_main_repo_guard()
     return owned

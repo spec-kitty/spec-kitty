@@ -103,7 +103,6 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission import get_mission_type
 from specify_cli.cli.commands.agent.mission_parsing import (
     _invalid_mission_specs_owned_files,
-    _with_cli_version,
     _extract_wp_ids_from_task_files,
 )
 
@@ -589,18 +588,6 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
     return feature_dir.name
 
 
-def _finalize_refusal_envelope(code: str, message: str) -> dict[str, object]:
-    """finalize-tasks' own error envelope shape for an owned refusal.
-
-    ``error`` + ``error_code``, plus ``spec_kitty_version`` -- the key every
-    other finalize JSON payload carries (``mission._emit_json`` attaches it via
-    ``_with_cli_version``), which ``emit_owned_refusal`` bypasses by printing
-    directly.
-    """
-    envelope: dict[str, object] = _with_cli_version({"error": message, "error_code": code})
-    return envelope
-
-
 @dataclass(frozen=True)
 class _FinalizeContext:
     """T071 campsite: identity, repo root, owned resolution and mission dirs."""
@@ -645,8 +632,8 @@ def _resolve_finalize_context(
     # that never touches disk or git, so this call is inert for every
     # ordinary, non-owned finalize invocation. A refused claim renders through
     # ``emit_owned_refusal`` (registry-validated code, ``Error: [<code>]``
-    # human line); the JSON envelope keeps finalize's ``error`` +
-    # ``error_code`` keys.
+    # human line); the JSON payload is the C2 owned refusal, stamped with
+    # ``spec_kitty_version`` like every other finalize payload (ADR 2026-10-27-2).
     try:
         owned = resolve_owned_or_adopt(
             repo_root,
@@ -656,11 +643,12 @@ def _resolve_finalize_context(
             allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
             target_override=target_branch_override,
         )
-    except ActionContextError as refusal:
-        emit_owned_refusal(refusal, json_output=json_output, envelope=_finalize_refusal_envelope)
-    if owned is not None:
-        if not validate_only:
+        if owned is not None and not validate_only:
+            # ``OWNED_INDEX_REFUSED`` is an owned refusal too: same renderer, same shape.
             require_unstaged_index(owned)
+    except ActionContextError as refusal:
+        emit_owned_refusal(refusal, json_output=json_output, stamp_version=True)
+    if owned is not None:
         repo_root = owned.owned_root
     mission_slug = owned.mission_slug if owned else _resolve_mission_slug(repo_root, mission_handle, json_output=json_output)
 
@@ -794,7 +782,7 @@ def _run_finalize_branch_setup(
             emit_owned_refusal(
                 ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "The target-branch override must match the mission's declared target."),
                 json_output=json_output,
-                envelope=_finalize_refusal_envelope,
+                stamp_version=True,
             )
         target_branch = ctx.owned.write_branch
     else:

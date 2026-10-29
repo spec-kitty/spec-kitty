@@ -710,8 +710,8 @@ def test_owned_refusal_is_routed_through_emit_owned_refusal(
     Naming the repository root as the owned checkout is refused with the typed
     ``OWNED_CHECKOUT_IS_REPOSITORY_ROOT`` code. ``emit_owned_refusal`` validates
     the code against the registry and prints ``Error: [<code>] <message>`` in
-    human mode and an envelope that keeps the finalize keys (``error`` plus
-    ``error_code``) in JSON mode.
+    human mode and, in JSON mode, the C2 owned refusal (``ok`` / ``error.code`` /
+    ``error.message``) stamped with ``spec_kitty_version`` (#6353).
     """
     from specify_cli.workspace.context import clear_workspace_resolution_caches
 
@@ -727,8 +727,9 @@ def test_owned_refusal_is_routed_through_emit_owned_refusal(
     machine = runner.invoke(mission_app, [*args, "--json"], catch_exceptions=False)
     assert machine.exit_code == 1, machine.output
     envelope = json.loads(machine.stdout)
-    assert envelope["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
-    assert envelope["error"]
+    assert set(envelope) == {"ok", "error", "spec_kitty_version"}
+    assert envelope["error"]["code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
+    assert envelope["error"]["message"]
     # Finalize's other JSON payloads carry the CLI version; the refusal must too.
     from specify_cli import __version__
 

@@ -116,6 +116,17 @@ def _assert_registered_refusal(result: Any) -> dict[str, Any]:
     return payload
 
 
+def _assert_owned_refusal(result: Any) -> str:
+    """The ownership-resolution refusal: the C2 owned refusal (#6353); returns its code."""
+    _assert_no_uncaught_exception(result)
+    assert result.exit_code == 1, result.output
+    payload = _payload(result)
+    assert set(payload) == {"ok", "error"}, payload
+    code = str(payload["error"]["code"])
+    assert code in _REGISTERED_ERROR_CODES, code
+    return code
+
+
 @pytest.fixture(autouse=True)
 def _clear_repo_root_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """``locate_project_root`` honours ``SPECIFY_REPO_ROOT``; unset it so cwd governs (T038 edge case)."""
@@ -522,8 +533,7 @@ def test_us7_as5_conflicting_ids_refuse(
     stale_root_copy(different_id=True)
     monkeypatch.chdir(owned_checkouts.owned_root)
     result = _resolve(runner, "--action", "implement", "--mission", owned_checkouts.mission_slug, "--wp-id", "WP01", "--json")
-    payload = _assert_registered_refusal(result)
-    assert payload["error_code"] == MISSION_CONTEXT_CONFLICT
+    assert _assert_owned_refusal(result) == MISSION_CONTEXT_CONFLICT
 
 
 # ---------------------------------------------------------------------------
@@ -550,8 +560,7 @@ def test_fr020_owned_checkout_is_repository_root(
         "--owned-checkout",
         str(owned_checkouts.repository_root),
     )
-    payload = _assert_registered_refusal(result)
-    assert payload["error_code"] == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
+    assert _assert_owned_refusal(result) == OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT
 
 
 def test_nfr004_no_lanes_stale_copy_never_uncaught(

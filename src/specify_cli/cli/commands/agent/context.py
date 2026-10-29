@@ -16,7 +16,6 @@ from specify_cli.cli.commands._owned_checkout import (
     emit_owned_refusal,
     resolve_owned_or_adopt,
     stale_copy_payload,
-    success_false_envelope,
 )
 from specify_cli.context.mission_resolver import (
     AmbiguousHandleError,
@@ -216,12 +215,12 @@ def _emit_context_error(exc: ActionContextError, json_output: bool) -> NoReturn:
     (``MISSION_NOT_FOUND``, ``MISSION_AMBIGUOUS_SELECTOR``, ``INVALID_ACTION``,
     ``PROJECT_ROOT_UNRESOLVED``, ``MISSING_MISSION``), and
     :func:`emit_owned_refusal`'s registry assertion would reject every one of
-    them. The envelope SHAPE still lives in one place
-    (:func:`success_false_envelope`, the same builder the owned path uses);
-    only the registry validation is owned-refusal-specific and lives solely
-    on the :func:`resolve_owned_or_adopt` call site below.
+    them. These non-owned errors keep this command's own
+    ``{"success": false, "error_code", "error"}`` envelope byte-identical
+    (FR-011); only the owned refusal on the :func:`resolve_owned_or_adopt`
+    call site below renders the C2 owned refusal (ADR ``2026-10-27-2``).
     """
-    payload = success_false_envelope(exc.code, str(exc))
+    payload: dict[str, object] = {"success": False, "error_code": exc.code, "error": str(exc)}
     if json_output:
         print(json.dumps(payload, indent=2))
     else:
@@ -265,7 +264,7 @@ def resolve_context(
                 allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
             )
         except ActionContextError as exc:
-            emit_owned_refusal(exc, json_output=json_output, envelope=success_false_envelope)
+            emit_owned_refusal(exc, json_output=json_output)
 
         if owned is not None:
             mission_slug = owned.mission_slug

@@ -1178,12 +1178,11 @@ def test_resolve_setup_plan_scope_owned_arm_uses_the_fact(monkeypatch: pytest.Mo
     assert preflight_roots == [fact.owned_root]
 
 
-def test_resolve_setup_plan_scope_refusal_renders_result_error_envelope(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_resolve_setup_plan_scope_refusal_renders_the_c2_owned_refusal(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     import json
 
     from mission_runtime import ActionContextError, OwnedRefusalCode
+    from specify_cli.version_utils import cli_version
 
     _patch_scope_environment(monkeypatch, tmp_path)
 
@@ -1197,10 +1196,11 @@ def test_resolve_setup_plan_scope_refusal_renders_result_error_envelope(
 
     assert exc_info.value.exit_code == 1
     payload = json.loads(capsys.readouterr().out)
-    assert payload["result"] == "error"
-    assert payload["phase_complete"] is False
-    assert payload["error_code"] == OwnedRefusalCode.OWNED_BRANCH_REFUSED.value
-    assert payload["error"] == "wrong branch"
+    assert set(payload) == {"ok", "error", "context", "spec_kitty_version"}
+    assert payload["ok"] is False
+    assert payload["error"] == {"code": OwnedRefusalCode.OWNED_BRANCH_REFUSED.value, "message": "wrong branch"}
+    assert payload["context"] == {"phase_complete": False}
+    assert payload["spec_kitty_version"] == cli_version()
 
 
 @pytest.mark.parametrize("json_output", [True, False])

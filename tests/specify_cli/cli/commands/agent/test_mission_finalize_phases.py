@@ -1488,7 +1488,7 @@ def test_preserve_or_capture_refresh_refused_when_recorded_not_ancestor(monkeypa
 
 
 def test_resolve_finalize_context_renders_a_refused_claim_via_emit_owned_refusal(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """A refused claim exits through ``emit_owned_refusal`` with finalize's ``error`` + ``error_code`` keys."""
+    """A refused claim exits through ``emit_owned_refusal`` as the C2 owned refusal stamped with ``spec_kitty_version``."""
     from mission_runtime import ActionContextError, OwnedRefusalCode
 
     printed: list[str] = []
@@ -1506,11 +1506,7 @@ def test_resolve_finalize_context_renders_a_refused_claim_via_emit_owned_refusal
 
     envelope = json.loads(printed[0])
     assert envelope == {
-        "error": "names the repository root",
-        "error_code": OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT,
+        "ok": False,
+        "error": {"code": OwnedRefusalCode.OWNED_CHECKOUT_IS_REPOSITORY_ROOT, "message": "names the repository root"},
         "spec_kitty_version": SPEC_KITTY_VERSION,
     }
-
-
-def test_finalize_refusal_envelope_shape() -> None:
-    assert seam._finalize_refusal_envelope("CODE", "message") == {"error": "message", "error_code": "CODE", "spec_kitty_version": SPEC_KITTY_VERSION}

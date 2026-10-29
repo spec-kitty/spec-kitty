@@ -15,7 +15,6 @@ from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
     echo_stale_copy_warning,
     resolve_owned_or_refuse,
-    success_false_envelope,
 )
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit, show_banner
@@ -220,7 +219,6 @@ def research(
         cwd=Path.cwd(),
         allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
         json_output=False,
-        envelope=success_false_envelope,
     )
     if owned is not None:
         repo_root = owned.owned_root

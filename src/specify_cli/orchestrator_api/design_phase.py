@@ -14,7 +14,7 @@ import threading
 from kernel.clock import now_utc_iso
 from pathlib import Path
 from dataclasses import dataclass
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -96,6 +96,17 @@ def _plan_contract_error(error_code: str, error_data: dict[str, Any]) -> tuple[s
 # ``plan``/``tasks``) inside the canonical orchestrator-api envelope.
 
 
+def _parse_json_object(text: str) -> dict[str, Any] | None:
+    """Return ``text`` parsed as a JSON object, or ``None`` when it is not one."""
+    if not text.startswith("{"):
+        return None
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def _extract_json_payload(raw_output: str) -> dict[str, Any] | None:
     """Parse the one JSON object a delegate command printed to its stdout.
 
@@ -103,16 +114,17 @@ def _extract_json_payload(raw_output: str) -> dict[str, Any] | None:
     (first line starting with ``{`` that parses as a JSON object) rather than
     assuming line 1 verbatim -- tolerant of incidental non-JSON stdout noise
     from the delegate without duplicating its parsing logic wholesale.
+
+    A capture that is, as a whole, one JSON object is parsed first: the host's
+    owned refusal is rendered as an indented, multi-line C2 document
+    (``emit_owned_refusal``, ADR ``2026-10-27-2``) that no single line holds.
     """
+    whole = _parse_json_object(raw_output.strip())
+    if whole is not None:
+        return whole
     for line in raw_output.splitlines():
-        stripped = line.strip()
-        if not stripped.startswith("{"):
-            continue
-        try:
-            payload = json.loads(stripped)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(payload, dict):
+        payload = _parse_json_object(line.strip())
+        if payload is not None:
             return payload
     return None
 
@@ -405,6 +417,7 @@ def tasks(
 
 
 _MISSION_CONTEXT_UNRESOLVED = "MISSION_CONTEXT_UNRESOLVED"
+_CHECK_PREREQUISITES_FAILED_MESSAGE = "check-prerequisites failed"
 
 
 def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str) -> Any:
@@ -446,6 +459,19 @@ def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str)
     return value
 
 
+def _host_error_code_and_message(payload: Mapping[str, Any]) -> tuple[object, str]:
+    """Return the host error code and plain-text message from a failed payload.
+
+    A C2 owned refusal nests both under ``error`` (``{code, message}``, ADR
+    ``2026-10-27-2``); every other host error carries ``error`` as a string and
+    the code, when present, as the top-level ``error_code``.
+    """
+    error = payload.get("error")
+    if isinstance(error, Mapping):
+        return error.get("code"), str(error.get("message") or _CHECK_PREREQUISITES_FAILED_MESSAGE)
+    return payload.get("error_code"), str(error or payload.get("message") or _CHECK_PREREQUISITES_FAILED_MESSAGE)
+
+
 def _classify_check_prerequisites_error(payload: dict[str, Any] | None, raw_output: str) -> tuple[str, str, dict[str, Any]]:
     """Classify a failed ``check-prerequisites`` delegate call.
 
@@ -468,12 +494,20 @@ def _classify_check_prerequisites_error(payload: dict[str, Any] | None, raw_outp
     Renaming the host code to ``MISSION_CONTEXT_UNRESOLVED`` (#5976) did not
     change this public surface: the host-emitted token changed, the public
     ``MISSION_NOT_FOUND`` it normalises to did not.
+
+    The host's owned refusal uses the CLI's C2 error contract,
+    ``{ok: false, error: {code, message}}`` (ADR ``2026-10-27-2``), so the code
+    and plain-text message are read from the nested ``error`` object; the
+    host's other errors still carry ``error`` as a string beside an optional
+    top-level ``error_code`` and classify as before.
     """
     if payload is None:
-        message = raw_output.strip() or "check-prerequisites failed"
-        return "CHECK_PREREQUISITES_FAILED", message, {"raw_output": raw_output}
-    message = str(payload.get("error") or payload.get("message") or "check-prerequisites failed")
-    error_code = payload.get("error_code")
+        # Defense in depth: unparseable output must not carry the forbidden
+        # host code onto the surface either (in the message or ``raw_output``).
+        scrubbed = raw_output.replace(_MISSION_CONTEXT_UNRESOLVED, "MISSION_NOT_FOUND")
+        message = scrubbed.strip() or _CHECK_PREREQUISITES_FAILED_MESSAGE
+        return "CHECK_PREREQUISITES_FAILED", message, {"raw_output": scrubbed}
+    error_code, message = _host_error_code_and_message(payload)
     if error_code == _MISSION_CONTEXT_UNRESOLVED:
         sanitized = cast(
             "dict[str, Any]",

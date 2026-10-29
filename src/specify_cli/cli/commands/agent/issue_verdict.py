@@ -50,7 +50,6 @@ from mission_runtime import MissionArtifactKind, coord_read_dir_for
 from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
     resolve_owned_or_refuse,
-    success_false_envelope,
 )
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -172,7 +171,8 @@ def _load_raw_rows(json_path: Path) -> dict[str, IssueMatrixEntry]:
     if not json_path.exists():
         return {}
     data: dict[str, Any] = json.loads(json_path.read_text(encoding="utf-8"))
-    return parse_issue_matrix_document(data)
+    parsed: dict[str, IssueMatrixEntry] = parse_issue_matrix_document(data)
+    return parsed
 
 
 def _migrate_if_needed(
@@ -212,6 +212,7 @@ def _migrate_if_needed(
             policy=policy,
             read_dir=read_dir,
             actor=actor,
+            owned=owned,
         )
     except IssueMatrixMigrationError as exc:
         # #4868: a malformed authoritative .md surfaces as a structured CLI
@@ -383,7 +384,6 @@ def do_issue_verdict(
         cwd=Path.cwd(),
         allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
         json_output=json_mode,
-        envelope=success_false_envelope,
     )
     if owned is not None:
         mission_slug = owned.mission_slug

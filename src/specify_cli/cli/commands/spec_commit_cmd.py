@@ -23,7 +23,7 @@ import json
 import logging
 import subprocess
 from pathlib import Path
-from typing import cast
+from typing import Final, cast
 
 import typer
 from specify_cli.cli.console import console
@@ -31,7 +31,7 @@ from specify_cli.cli.console import console
 from kernel.resolution import resolve_commit_path
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout
 from specify_cli.cli.commands._commit_message import MESSAGE_OPTION_HELP, join_message_paragraphs
-from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_refuse
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, emit_owned_refusal, resolve_owned_or_refuse
 from specify_cli.coordination import commit_outcome
 from specify_cli.coordination.commit_outcome import (
     SurfaceOutcome,
@@ -109,8 +109,8 @@ def _payload(
     # WP13 (FR-007 / FR-007a): additive-only -- every existing key above keeps
     # its exact meaning; these two are populated only once a
     # ``CommitRouterResult`` exists to render through the shared trio
-    # (``commit_outcome.py``), never for the pre-commit refusal envelopes
-    # (``_refusal_envelope``) that short-circuit before ``commit_for_mission``
+    # (``commit_outcome.py``), never for the pre-commit owned refusals
+    # (``_OWNED_REFUSAL_CONTEXT``) that short-circuit before ``commit_for_mission``
     # is even called.
     if surfaces is not None:
         result["surfaces"] = surfaces
@@ -148,9 +148,8 @@ def _resolve_commit_inputs(
     return mission_slug, abs_files
 
 
-def _refusal_envelope(code: str, message: str) -> dict[str, object]:
-    """This command's failure payload plus the owned refusal's ``error_code``."""
-    return {**_payload(success=False, error=message), "error_code": code}
+#: The ``context`` of this command's C2 owned refusal (ADR 2026-10-27-2): nothing was committed.
+_OWNED_REFUSAL_CONTEXT: Final[dict[str, object]] = {"committed": False}
 
 
 def _mission_slug_from_args(files: list[Path], mission: str | None) -> str | None:
@@ -514,8 +513,9 @@ def spec_commit_command(
         repo_root = _current_repo_root()
         derived_slug = _mission_slug_from_args(files, mission)
         # Validate --owned-checkout (or adopt the caller's checkout) exactly once. A
-        # refusal renders through emit_owned_refusal with this command's failure
-        # envelope; the raw option value goes straight into the shared helper.
+        # refusal renders through emit_owned_refusal as the C2 owned refusal with
+        # ``context.committed: false``; the raw option value goes straight into the
+        # shared helper.
         owned = resolve_owned_or_refuse(
             repo_root,
             owned_checkout,
@@ -523,10 +523,15 @@ def spec_commit_command(
             cwd=Path.cwd(),
             allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
             json_output=json_output,
-            envelope=_refusal_envelope,
+            context=_OWNED_REFUSAL_CONTEXT,
             target_override=target_branch,
         )
-        mission_slug, abs_files = _resolve_commit_inputs(repo_root, files, derived_slug, owned)
+        try:
+            mission_slug, abs_files = _resolve_commit_inputs(repo_root, files, derived_slug, owned)
+        except ActionContextError as exc:
+            # Only the owned batch raises here (``OWNED_MISSION_PATH_REFUSED`` /
+            # ``OWNED_INDEX_REFUSED``): an owned refusal, rendered like the one above.
+            emit_owned_refusal(exc, json_output=json_output, context=_OWNED_REFUSAL_CONTEXT)
         _reject_directory_args(abs_files, json_output)
         if not mission_slug:
             _err(

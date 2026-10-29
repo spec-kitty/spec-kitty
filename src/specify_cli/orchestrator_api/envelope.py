@@ -156,7 +156,12 @@ from kernel.clock import now_utc_iso
 # interrupted open) before the terminal event, so ``DECISION_EVENT_REPAIR_FAILED`` gains a trigger
 # on a first (non-idempotent) call: that opening could not be written, and nothing else was. A new
 # ``error_code`` on existing verbs, so a minor bump; no field is removed or renamed.
-CONTRACT_VERSION = "1.19.0"
+# 1.20.0: host owned-checkout refusals embedded by ``check-prerequisites`` and ``next`` now use
+# the CLI's C2 error contract, ``{ok: false, error: {code, message}}`` (ADR ``2026-10-27-2``,
+# #6353); ``check-prerequisites`` classifies the code and message from that ``error`` object.
+# The embedded host payload in ``data`` changes shape, so a minor bump; no ``error_code`` is
+# added, removed or renamed.
+CONTRACT_VERSION = "1.20.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

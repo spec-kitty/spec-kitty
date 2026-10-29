@@ -140,7 +140,7 @@ def test_dispatch_refuses_the_repository_root_as_owned_checkout(tmp_path: Path, 
     result = _dispatch("--owned-checkout", str(root), *extra)
 
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
     assert _porcelain(root) == ""
 
 
@@ -154,7 +154,7 @@ def test_dispatch_refuses_a_checkout_of_another_repository(tmp_path: Path, monke
     result = _dispatch("--owned-checkout", str(foreign))
 
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNERSHIP_FOREIGN"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNERSHIP_FOREIGN"
     assert _porcelain(root) == ""
     assert not (foreign / EVENTS_DIR).exists()
 
@@ -182,7 +182,7 @@ def test_complete_refuses_an_invalid_owned_checkout_before_closing(tmp_path: Pat
     )
 
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
     assert record.read_text(encoding="utf-8") == before
 
 
@@ -214,4 +214,4 @@ def test_list_refuses_the_repository_root_as_owned_checkout(tmp_path: Path, monk
     result = _cli("invocations", "list", "--json", "--owned-checkout", str(root))
 
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"

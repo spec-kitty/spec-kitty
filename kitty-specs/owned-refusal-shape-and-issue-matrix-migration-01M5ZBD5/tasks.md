@@ -53,7 +53,7 @@ T005 Blast-radius run incl. the issue-matrix terminality tests and the malformed
 
 T006 Red-first tests: renderer unit tests for the C2 payload and an issue-verdict owned refusal integration assertion (WP02)
 T007 Renderer core: `owned_refusal_payload`, new `emit_owned_refusal` / `resolve_owned_or_refuse` signatures, Op-root refusal, delete the four envelope builders (WP02)
-T008 ADR `2026-10-27-1` superseding the "keeps each command's existing JSON envelope keys" contract line; rewrite the module docstring's envelope rule (WP02)
+T008 ADR `2026-10-27-2` superseding the "keeps each command's existing JSON envelope keys" contract line; rewrite the module docstring's envelope rule (WP02)
 T009 Agent mission family call sites: issue-verdict, acceptance-verdict, context resolve, setup-plan, finalize-tasks, check-prerequisites, record-analysis (WP02)
 T010 Tasks family call sites: move-task, map-requirements, tasks status, mark-status (edge refusal and in-command owned failure) (WP02)
 T011 Top-level call sites: next, accept, spec-commit, charter generate, research, agent action implement/review, decision repair-runtime-lock and the decision verbs' owned resolution (stdout) (WP02)

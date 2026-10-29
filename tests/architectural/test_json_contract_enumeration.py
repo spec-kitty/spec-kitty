@@ -2,6 +2,14 @@
 
 This is deliberately a command-contract test, not an implementation-shape test.
 Resolved Click metadata preserves Typer binding and every registration alias.
+
+The inventory is per command: each registration carries ONE classification
+(``ADOPTED`` / ``PARSEABLE`` / ``DEFERRED``) for all of its error arms, so it
+cannot record that one error path of a command is C2 while its other errors
+are not. Owned-checkout refusals are that case (ADR ``2026-10-27-2``): every
+in-scope command prints its owned refusal as C2, but most of their non-owned
+errors keep their own shapes, so none is promoted to ``ADOPTED`` for it. The
+owned-refusal C2 pin is ``tests/integration/test_owned_refusal_c2_shape.py``.
 """
 
 from __future__ import annotations

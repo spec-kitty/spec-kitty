@@ -30,7 +30,7 @@ from specify_cli.core.constants import (
 # the relocated ``_ft_apply_writes`` (tasks_finalize.py) no longer proxies
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
 import subprocess
-from collections.abc import Callable
+from collections.abc import Mapping
 from pathlib import Path
 
 import typer
@@ -644,7 +644,6 @@ from specify_cli.cli.commands.agent.tasks_map_requirements import (
 # ===========================================================================
 from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
-    flat_error_envelope,
     owned_checkout_option,
     resolve_owned_or_refuse,
 )
@@ -691,7 +690,7 @@ def _resolve_task_owned(
     mission: str | None,
     *,
     json_output: bool,
-    envelope: Callable[[str, str], dict[str, object]],
+    context: Mapping[str, object] | None = None,
 ) -> OwnedCheckout | None:
     """Validate ``--owned-checkout`` (or adopt the caller's checkout) once, at the Typer edge.
 
@@ -701,8 +700,8 @@ def _resolve_task_owned(
     :class:`~mission_runtime.OwnedCheckout` travels into the command internals.
     ``None`` when neither the flag nor adoption applies, and also when no
     project root can be located (the command body then reports "Could not
-    locate project root" exactly as before). A refusal prints ``envelope`` and
-    exits 1.
+    locate project root" exactly as before). A refusal prints the C2 owned
+    refusal (with the optional ``context``) and exits 1.
     """
     from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
 
@@ -716,7 +715,7 @@ def _resolve_task_owned(
         cwd=Path.cwd(),
         allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
         json_output=json_output,
-        envelope=envelope,
+        context=context,
     )
 
 
@@ -889,7 +888,7 @@ def move_task(
     # WP03 decision core and executes it through the WP02 coord READ/WRITE ports.
     # WP07 (T033, #2649): the 19 raw inputs collapse into ONE ``_MoveTaskArgs``
     # parameter object (``_do_move_task``'s ≤13-param ceiling).
-    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output, envelope=flat_error_envelope)
+    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output)
     _do_move_task(
         _MoveTaskArgs(
             task_id=task_id,
@@ -945,7 +944,7 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     _ms_apply_updates as _ms_apply_updates,
     _ms_commit as _ms_commit,
     _ms_emit_subtask_state as _ms_emit_subtask_state,
-    _ms_failure_payload as _ms_failure_payload,
+    _ms_failure_context as _ms_failure_context,
     _ms_output as _ms_output,
     _ms_report_none_resolved as _ms_report_none_resolved,
     _ms_report_owned_failure as _ms_report_owned_failure,
@@ -1022,7 +1021,7 @@ def mark_status(
     # (WP01 golden byte-identity) and delegates to the CORELESS ``_do_mark_status``,
     # which resolves/writes/commits through the WP02 ports + existing resolver
     # helpers — with NO borrowed transition core (deferred #2300).
-    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output, envelope=_ms_failure_payload)
+    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output, context=_ms_failure_context())
     _do_mark_status(
         task_ids=task_ids,
         status=status,
@@ -1378,7 +1377,7 @@ def map_requirements(
     # (WP01 golden byte-identity) and delegates to ``_do_map_requirements``, which
     # runs the WP04 ``plan_mapping`` core and executes the write/commit through the
     # WP02 ports (``FsReader.primary_anchor_dir`` fold, ``commit_artifact``).
-    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output, envelope=flat_error_envelope)
+    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output)
     _do_map_requirements(
         wp=wp,
         refs=refs,

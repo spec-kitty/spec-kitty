@@ -377,9 +377,11 @@ def test_agent_mission_create_owned_checkout_repository_root_refused_via_cli(
 
     assert result.exit_code == 1
     payload = json.loads(result.output.strip().splitlines()[-1])
-    assert payload["success"] is False
-    assert payload["error_code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
-    assert "error" in payload
+    # #6353 / ADR 2026-10-27-2: C2 owned refusal plus the create verb's stamp.
+    assert set(payload) == {"ok", "error", "spec_kitty_version"}
+    assert payload["ok"] is False
+    assert set(payload["error"]) == {"code", "message"}
+    assert payload["error"]["code"] == "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"
     assert not (repo_root / "kitty-specs" / "repo-root-refused").exists()
 
 
@@ -478,5 +480,6 @@ def test_create_mission_never_switches_start_branch_before_owned_claim_is_valida
 
     assert result.exit_code == 1
     payload = json.loads(result.output.strip().splitlines()[-1])
-    assert payload["error_code"] == expected_error_code
+    assert payload["error"]["code"] == expected_error_code
+    assert "error_code" not in payload
     assert not (repository_root / "kitty-specs" / "probe").exists()

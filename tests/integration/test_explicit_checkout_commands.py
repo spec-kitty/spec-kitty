@@ -463,7 +463,7 @@ def test_unsupported_topology_is_readonly(checkouts, command, topology):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke(command, owned)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_TOPOLOGY_UNSUPPORTED"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_TOPOLOGY_UNSUPPORTED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -483,7 +483,7 @@ def test_absent_topology_is_readonly(checkouts, command):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke(command, owned)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_TOPOLOGY_UNSUPPORTED"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_TOPOLOGY_UNSUPPORTED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -502,7 +502,7 @@ def test_branch_refusal_has_no_side_effects(checkouts, command, branch_state):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke(command, owned)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_BRANCH_REFUSED"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_BRANCH_REFUSED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -514,7 +514,7 @@ def test_staged_changes_are_never_stashed_or_committed(checkouts, command):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke(command, owned)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_INDEX_REFUSED"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_INDEX_REFUSED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
     assert not git(owned, "stash", "list")
 
@@ -528,7 +528,7 @@ def test_foreign_repository_is_refused(checkouts, tmp_path, command):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke(command, foreign)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNERSHIP_FOREIGN"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNERSHIP_FOREIGN"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -553,7 +553,9 @@ def test_whole_commit_batch_is_validated_before_staging(checkouts, extra_path):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke("spec-commit", owned, extra_path)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_MISSION_PATH_REFUSED"
+    payload = json.loads(result.stdout)
+    # #6353: the C2 owned refusal, with spec-commit's ``committed: false`` under ``context``.
+    assert payload == {"ok": False, "error": {"code": "OWNED_MISSION_PATH_REFUSED", "message": payload["error"]["message"]}, "context": {"committed": False}}
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -562,7 +564,7 @@ def test_resume_probe_cannot_opt_in(checkouts):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke("check-prerequisites", owned, "--resume-probe")
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_OPTION_UNSUPPORTED"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_OPTION_UNSUPPORTED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -606,7 +608,7 @@ def test_broken_pointer_is_refused_before_effects(checkouts, command):
             file.truncate()
         result = invoke(command, owned)
         assert result.exit_code == 1, result.output
-        assert json.loads(result.stdout)["error_code"] == "OWNERSHIP_BROKEN_POINTER"
+        assert json.loads(result.stdout)["error"]["code"] == "OWNERSHIP_BROKEN_POINTER"
     finally:
         with pointer.open("r+", encoding="utf-8") as file:
             file.write(original)
@@ -625,7 +627,7 @@ def test_symlink_escape_is_refused_before_effects(checkouts, command):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke(command, owned)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_MISSION_PATH_REFUSED"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_MISSION_PATH_REFUSED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -691,7 +693,7 @@ def test_accept_diagnosis_refuses_encoding_repair(checkouts):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke("accept", owned, "--normalize-encoding")
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_OPTION_UNSUPPORTED"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_OPTION_UNSUPPORTED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -707,7 +709,7 @@ def test_accept_missing_owned_mission_does_not_fall_back(checkouts):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke("accept", owned)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
+    assert json.loads(result.stdout)["error"]["code"] == "MISSION_CONTEXT_UNRESOLVED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 
@@ -887,7 +889,7 @@ def test_accept_writing_modes_refuse_staged_changes(ready_accept_checkouts, extr
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = run_owned_accept(owned, slug, *extra)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "OWNED_INDEX_REFUSED"
+    assert json.loads(result.stdout)["error"]["code"] == "OWNED_INDEX_REFUSED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 

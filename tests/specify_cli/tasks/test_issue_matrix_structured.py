@@ -21,8 +21,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 import pytest
+
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -404,6 +408,61 @@ class TestMigrateIssueMatrixToJson:
 
         assert result is None
         assert not calls
+
+    @staticmethod
+    def _record_writer_owned(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, list[object]]:
+        from specify_cli.tasks import issue_matrix_migration
+
+        seen: list[object] = []
+
+        def _recording_writer(**kwargs: object) -> None:
+            seen.append(kwargs.get("owned"))
+
+        monkeypatch.setattr(issue_matrix_migration, "write_issue_matrix", _recording_writer)
+        feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "issue-matrix.md").write_text(
+            "| Issue | Title | Verdict | Evidence ref |\n"
+            "|-------|-------|---------|--------------|\n"
+            "| #1 | legacy row | fixed | commit abc123 |\n",
+            encoding="utf-8",
+        )
+        return feature_dir, seen
+
+    def test_owned_fact_is_forwarded_to_the_writer(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#6354: the owned-checkout fact reaches the writer, so it resolves the owned write dir."""
+        from specify_cli.tasks.issue_matrix_migration import migrate_issue_matrix_to_json
+
+        feature_dir, seen = self._record_writer_owned(monkeypatch, tmp_path)
+        # Identity sentinel: only the forwarding is under test, never the fact's content.
+        sentinel = object()
+
+        migrate_issue_matrix_to_json(
+            feature_dir,
+            repo_root=tmp_path,
+            mission_slug=_MISSION_SLUG,
+            policy=_Policy(),
+            owned=cast("OwnedCheckout", sentinel),
+        )
+
+        assert len(seen) == 1
+        assert seen[0] is sentinel
+
+    def test_owned_defaults_to_none_for_existing_callers(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """#6354 FR-003: callers that pass no ``owned`` keep the repository-root write."""
+        from specify_cli.tasks.issue_matrix_migration import migrate_issue_matrix_to_json
+
+        feature_dir, seen = self._record_writer_owned(monkeypatch, tmp_path)
+
+        migrate_issue_matrix_to_json(
+            feature_dir, repo_root=tmp_path, mission_slug=_MISSION_SLUG, policy=_Policy()
+        )
+
+        assert seen == [None]
 
 
 # ---------------------------------------------------------------------------

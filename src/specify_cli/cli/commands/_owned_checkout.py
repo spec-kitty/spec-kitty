@@ -11,8 +11,8 @@ command. It owns:
   :func:`refuse_owned_action` and :func:`resolve_owned_op_record_root` (the
   Op commands, which are not bound to a Mission), which validate ownership
   exactly once per command invocation (NFR-002);
-* typed refusal rendering (:func:`emit_owned_refusal`) and the four envelope
-  builders each consuming command needs;
+* typed refusal rendering (:func:`emit_owned_refusal`) and the ONE
+  owned-refusal payload builder (:func:`owned_refusal_payload`);
 * the stale-repository-root-copy channel (R-12, R-16): :func:`stale_repository_root_copy`,
   :func:`stale_copy_payload` and :func:`echo_stale_copy_warning`.
 
@@ -22,14 +22,18 @@ command. It owns:
 (``tests/architectural/test_owned_checkout_single_authority.py``) enforces it
 with an empty allowlist -- no other module calls either function.
 
-**Envelope rule (occurrence map ``serialized_keys: do_not_change``).** Keys
-this module adds to a command's JSON payload are ADDITIVE ONLY.
+**Envelope rule (ADR ``2026-10-27-2``).** Every owned refusal is the adopted
+CLI error contract C2: ``{"ok": false, "error": {"code", "message"}}`` from
+:func:`specify_cli.cli.json_contract.json_error`, plus an optional top-level
+``context`` object (command-specific facts) and an optional top-level
+``spec_kitty_version`` (commands that stamp every payload). There is no
+top-level ``error_code``; the shape is fixed by construction in
+:func:`owned_refusal_payload`, so the renderer takes no per-command envelope.
+On **success** payloads, keys this module adds stay ADDITIVE ONLY:
 ``stale_repository_root_copy`` is emitted only when the command holds an
 ``OwnedCheckout`` fact (explicit ``--owned-checkout`` or flagless adoption);
 its value is ``null`` when the repository root holds no stale copy. The
-non-owned payload of every consuming command stays byte-identical to today's
-shape. WP09, WP13 and WP19 MUST follow this same convention for every
-command they wire through this helper.
+non-owned payload of every consuming command stays byte-identical.
 
 **G5 note.** The named ``CLI_CLAIM_INPUT_RULE``
 (``tests/architectural/_owned_checkout_scan.py``) exempts a
@@ -51,7 +55,7 @@ imported lazily, inside the functions that use them, mirroring
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Annotated, Final, NoReturn
 
@@ -63,8 +67,6 @@ from specify_cli.cli.console import err_console
 from specify_cli.cli.json_contract import json_error
 
 _stderr_console: Final = err_console
-
-_ERROR_CODE_KEY: Final = "error_code"
 
 OWNED_CHECKOUT_HELP: Final[str] = (
     "Run against an owned checkout: a linked checkout that owns this mission. Refuses the repository root checkout, lane worktrees and coordination worktrees."
@@ -127,7 +129,7 @@ def resolve_owned_or_adopt(
     root = get_main_repo_root(repository_root).resolve()
     if owned_claim is not None:
         checkout = owned_claim if owned_claim.is_absolute() else cwd / owned_claim
-        return resolve_owned_mission(
+        validated: OwnedCheckout = resolve_owned_mission(
             root,
             checkout,
             handle,
@@ -135,7 +137,9 @@ def resolve_owned_or_adopt(
             allowed_topologies=allowed_topologies,
             discover_sole=discover_sole,
         )
-    return adopt_owned_checkout(root, cwd, handle, allowed_topologies=allowed_topologies)
+        return validated
+    adopted: OwnedCheckout | None = adopt_owned_checkout(root, cwd, handle, allowed_topologies=allowed_topologies)
+    return adopted
 
 
 def resolve_owned_or_refuse(
@@ -146,7 +150,8 @@ def resolve_owned_or_refuse(
     cwd: Path,
     allowed_topologies: frozenset[MissionTopology],
     json_output: bool,
-    envelope: Callable[[str, str], dict[str, object]],
+    context: Mapping[str, object] | None = None,
+    stamp_version: bool = False,
     target_override: str | None = None,
 ) -> OwnedCheckout | None:
     """:func:`resolve_owned_or_adopt`, rendering any validation refusal through :func:`emit_owned_refusal`.
@@ -155,7 +160,8 @@ def resolve_owned_or_refuse(
     plumbing (owned-checkout-lifecycle-authority WP16: ``move-task``,
     ``mark-status``, ``spec-commit``, ``check-prerequisites``): the raw
     ``--owned-checkout`` value goes straight into the minter here, a refusal
-    prints the command's ``envelope`` and exits 1, and the caller receives
+    prints the C2 owned refusal (with the caller's optional ``context`` and
+    version stamp) and exits 1, and the caller receives
     only the validated fact (or ``None`` when neither the flag nor adoption
     applies). Validation runs exactly once per invocation (NFR-002).
     """
@@ -169,7 +175,7 @@ def resolve_owned_or_refuse(
             target_override=target_override,
         )
     except ActionContextError as exc:
-        emit_owned_refusal(exc, json_output=json_output, envelope=envelope)
+        emit_owned_refusal(exc, json_output=json_output, context=context, stamp_version=stamp_version)
 
 
 #: ``--owned-checkout`` help for the Op commands, which are not bound to a Mission.
@@ -201,8 +207,8 @@ def resolve_owned_op_record_root(
     Known residual: because no Mission is bound, a registered coordination
     worktree or lane worktree is NOT refused here (the lane check needs a
     Mission's ``lanes.json``); do not point ``--owned-checkout`` at one.
-    A refusal prints :func:`flat_error_envelope` through
-    :func:`emit_owned_refusal` and exits 1 before anything is written.
+    A refusal prints the C2 owned refusal through :func:`emit_owned_refusal`
+    and exits 1 before anything is written.
     Returns ``None`` without the flag, so the caller keeps the #6564
     invoking-checkout rule (#6682 follow-up).
 
@@ -220,7 +226,7 @@ def resolve_owned_op_record_root(
     try:
         validated: Path = resolve_owned_create_root(root, checkout).checkout
     except ActionContextError as exc:
-        emit_owned_refusal(exc, json_output=json_output, envelope=flat_error_envelope)
+        emit_owned_refusal(exc, json_output=json_output)
     return validated
 
 
@@ -295,55 +301,58 @@ class UnregisteredOwnedRefusalCode(RuntimeError):
     """
 
 
+def owned_refusal_payload(
+    code: str,
+    message: str,
+    *,
+    context: Mapping[str, object] | None = None,
+    stamp_version: bool = False,
+) -> dict[str, object]:
+    """The ONE owned-refusal JSON payload: C2 core + optional ``context`` + optional version stamp.
+
+    Non-validating by design: :func:`emit_owned_refusal` checks the code
+    against the registry first, while the off-renderer paths (mark-status's
+    in-command owned failure, move-task's owned catch-all) build the same
+    shape for codes the registry does not list.
+    """
+    payload: dict[str, object] = json_error(code, message)
+    if context is not None:
+        payload["context"] = dict(context)
+    if stamp_version:
+        # Lazy: keep this module's cold-import boundary (see the module docstring).
+        from specify_cli.version_utils import cli_version
+
+        payload["spec_kitty_version"] = cli_version()
+    return payload
+
+
 def emit_owned_refusal(
     exc: ActionContextError,
     *,
     json_output: bool,
-    envelope: Callable[[str, str], dict[str, object]],
+    context: Mapping[str, object] | None = None,
+    stamp_version: bool = False,
 ) -> NoReturn:
-    """Render one owned-checkout refusal through ``envelope`` and exit(1).
+    """Render one owned-checkout refusal and exit(1).
 
-    JSON mode prints ``envelope(exc.code, str(exc))`` on stdout (adding a
-    top-level ``error_code`` key when the envelope omits one -- additive
-    only). Human mode prints ``Error: [<code>] <message>`` on **stderr**.
-    ``exc.code`` is validated against :func:`_registered_owned_error_codes`
-    first: an unregistered code is a programming error in the caller, not a
-    user-facing refusal, so it raises :class:`UnregisteredOwnedRefusalCode`
-    rather than rendering an un-auditable code.
+    JSON mode prints :func:`owned_refusal_payload` (the C2 core plus the
+    optional ``context`` / version stamp) on stdout. Human mode prints
+    ``Error: [<code>] <message>`` on **stderr**. ``exc.code`` is validated
+    against :func:`_registered_owned_error_codes` first: an unregistered code
+    is a programming error in the caller, not a user-facing refusal, so it
+    raises :class:`UnregisteredOwnedRefusalCode` rather than rendering an
+    un-auditable code.
     """
     registered = _registered_owned_error_codes()
     if exc.code not in registered:
         raise UnregisteredOwnedRefusalCode(f"emit_owned_refusal: unregistered owned refusal error_code {exc.code!r}")
 
-    payload = envelope(exc.code, str(exc))
-    if _ERROR_CODE_KEY not in payload:
-        payload[_ERROR_CODE_KEY] = exc.code
-
     if json_output:
+        payload = owned_refusal_payload(exc.code, str(exc), context=context, stamp_version=stamp_version)
         print(json.dumps(payload, indent=2))
     else:
         _stderr_console.print(f"Error: [{exc.code}] {exc}")
     raise typer.Exit(1)
-
-
-def success_false_envelope(code: str, message: str) -> dict[str, object]:
-    """``{"success": False, "error_code", "error"}`` -- for ``agent context resolve``."""
-    return {"success": False, "error_code": code, "error": message}
-
-
-def json_error_envelope(code: str, message: str) -> dict[str, object]:
-    """``json_error`` plus a top-level ``error_code`` -- for ``agent tasks status``."""
-    return {**json_error(code, message), "error_code": code}
-
-
-def flat_error_envelope(code: str, message: str) -> dict[str, object]:
-    """``{"error", "error_code"}`` -- for ``move-task`` and ``check-prerequisites``."""
-    return {"error": message, "error_code": code}
-
-
-def result_error_envelope(code: str, message: str) -> dict[str, object]:
-    """``{"result": "error", "phase_complete": False, "error_code", "error"}`` -- for ``setup-plan``."""
-    return {"result": "error", "phase_complete": False, "error_code": code, "error": message}
 
 
 def stale_repository_root_copy(owned: OwnedCheckout) -> dict[str, str] | None:
@@ -404,14 +413,11 @@ __all__ = [
     "OwnedCheckoutOption",
     "echo_stale_copy_warning",
     "emit_owned_refusal",
-    "flat_error_envelope",
-    "json_error_envelope",
     "owned_checkout_option",
+    "owned_refusal_payload",
     "refuse_owned_action",
     "resolve_owned_op_record_root",
     "resolve_owned_or_adopt",
     "resolve_owned_or_refuse",
-    "result_error_envelope",
     "stale_copy_payload",
-    "success_false_envelope",
 ]

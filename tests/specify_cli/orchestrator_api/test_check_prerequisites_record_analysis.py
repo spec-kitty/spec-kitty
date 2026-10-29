@@ -400,6 +400,79 @@ def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(tmp
     assert "MISSION_CONTEXT_UNRESOLVED" not in serialized, serialized
 
 
+@pytest.mark.parametrize(
+    ("host_code", "expected_code"),
+    [
+        ("OWNED_CHECKOUT_IS_REPOSITORY_ROOT", "OWNED_CHECKOUT_IS_REPOSITORY_ROOT"),
+        ("MISSION_CONTEXT_UNRESOLVED", "MISSION_NOT_FOUND"),
+    ],
+)
+def test_check_prerequisites_classifies_real_rendered_c2_owned_refusal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    host_code: str,
+    expected_code: str,
+) -> None:
+    """FR-012 end to end (#6353): the host renders its owned refusal through the
+    REAL ``emit_owned_refusal`` (C2, ``json.dumps(..., indent=2)``, ADR
+    ``2026-10-27-2``). The verb must parse that multi-line document, surface the
+    host code (``MISSION_NOT_FOUND`` for the translated host-internal code) with
+    the plain-text ``error.message``, and keep the forbidden host code out of the
+    whole serialized envelope.
+    """
+    from mission_runtime import ActionContextError
+
+    from specify_cli.cli.commands._owned_checkout import emit_owned_refusal
+
+    repo = _init_repo(tmp_path)
+    mission_slug, _feature_dir = _build_mission(repo, "wp03-c2-owned-refusal")
+    host_message = "owned refusal message in plain text"
+
+    import specify_cli.cli.commands.agent.mission_check_prerequisites as host_module
+
+    def _renders_owned_refusal(*, feature: str | None, json_output: bool, include_tasks: bool = False) -> None:
+        emit_owned_refusal(ActionContextError(host_code, host_message), json_output=json_output, stamp_version=True)
+
+    monkeypatch.setattr(host_module, "check_prerequisites", _renders_owned_refusal)
+
+    result = _run(repo, ["check-prerequisites", "--mission", mission_slug])
+    envelope = _envelope(result)
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == expected_code, envelope
+    assert envelope["data"]["message"] == host_message, envelope
+    assert envelope["data"]["error"] == {"code": expected_code, "message": host_message}, envelope
+    assert "MISSION_CONTEXT_UNRESOLVED" not in json.dumps(envelope), envelope
+
+
+def test_extract_json_payload_parses_indented_document_and_keeps_line_scan() -> None:
+    """The whole-capture parse (indented host refusal) is tried first; the
+    single-line scan with stdout noise, used by every other delegate, is unchanged."""
+    from specify_cli.orchestrator_api.design_phase import _extract_json_payload
+
+    indented = json.dumps({"ok": False, "error": {"code": "C", "message": "m"}}, indent=2)
+    assert _extract_json_payload(indented + "\n") == {"ok": False, "error": {"code": "C", "message": "m"}}
+    assert _extract_json_payload('noise line\n{"a": 1}\n{"b": 2}\n') == {"a": 1}
+    assert _extract_json_payload("noise\n" + indented) is None
+    assert _extract_json_payload("[1, 2]\n") is None
+    assert _extract_json_payload("{not json\n") is None
+
+
+def test_classifier_scrubs_forbidden_code_from_unparseable_output() -> None:
+    """Defense in depth: unparseable delegate output must not carry the
+    forbidden host code onto the surface in ``raw_output`` or the message."""
+    from specify_cli.orchestrator_api.design_phase import _classify_check_prerequisites_error
+
+    raw = "not json: MISSION_CONTEXT_UNRESOLVED happened\n"
+
+    code, message, data = _classify_check_prerequisites_error(None, raw)
+
+    assert code == "CHECK_PREREQUISITES_FAILED"
+    assert "MISSION_CONTEXT_UNRESOLVED" not in message
+    assert "MISSION_CONTEXT_UNRESOLVED" not in json.dumps(data), data
+    assert data == {"raw_output": "not json: MISSION_NOT_FOUND happened\n"}
+
+
 def test_sanitize_forbidden_error_code_scrubs_dict_keys_and_substrings() -> None:
     """PR-TESTS-002 residual (severity 3): the prior sanitizer recursed
     dict/list VALUES only and matched the forbidden token by whole-value
@@ -430,6 +503,69 @@ def test_sanitize_forbidden_error_code_scrubs_dict_keys_and_substrings() -> None
     sanitized_substring = _sanitize_forbidden_error_code(substring_shape, forbidden, replacement)
     assert forbidden not in json.dumps(sanitized_substring), sanitized_substring
     assert sanitized_substring == {"message": f"error: {replacement}_v2 occurred while resolving"}
+
+
+# ---------------------------------------------------------------------------
+# #6353 / FR-012: the host ``check-prerequisites`` owned refusal now uses the
+# CLI's C2 error contract (``{ok: false, error: {code, message}}``, ADR
+# ``2026-10-27-2``). The classifier must read the code and the plain-text
+# message from the nested ``error`` object, keep the forbidden host code off
+# the surface at every nesting level, and classify the non-owned string-error
+# host payloads exactly as before.
+# ---------------------------------------------------------------------------
+
+
+def test_classifier_reads_c2_host_owned_refusal() -> None:
+    from specify_cli.orchestrator_api.design_phase import _classify_check_prerequisites_error
+
+    payload: dict[str, Any] = {
+        "ok": False,
+        "error": {"code": "OWNED_CHECKOUT_IS_REPOSITORY_ROOT", "message": "m"},
+        "spec_kitty_version": "x",
+    }
+
+    assert _classify_check_prerequisites_error(payload, "") == ("OWNED_CHECKOUT_IS_REPOSITORY_ROOT", "m", payload)
+
+
+def test_classifier_translates_c2_mission_context_unresolved() -> None:
+    from specify_cli.orchestrator_api.design_phase import _classify_check_prerequisites_error
+
+    payload: dict[str, Any] = {
+        "ok": False,
+        "error": {"code": "MISSION_CONTEXT_UNRESOLVED", "message": "no Mission resolved"},
+        "spec_kitty_version": "x",
+    }
+
+    code, message, returned = _classify_check_prerequisites_error(payload, "")
+
+    assert code == "MISSION_NOT_FOUND"
+    assert message == "no Mission resolved"
+    assert "MISSION_CONTEXT_UNRESOLVED" not in json.dumps(returned), returned
+    assert returned["error"]["code"] == "MISSION_NOT_FOUND"
+
+
+def test_classifier_keeps_string_error_host_payloads() -> None:
+    """Positive control: the non-owned host errors keep their string shape and classify unchanged."""
+    from specify_cli.orchestrator_api.design_phase import _classify_check_prerequisites_error
+
+    no_code: dict[str, Any] = {"error": "boom", "spec_kitty_version": "x"}
+    assert _classify_check_prerequisites_error(no_code, "") == ("CHECK_PREREQUISITES_FAILED", "boom", no_code)
+
+    with_code: dict[str, Any] = {"error": "boom", "error_code": "X"}
+    assert _classify_check_prerequisites_error(with_code, "") == ("X", "boom", with_code)
+
+    legacy_unresolved: dict[str, Any] = {"error": "gone", "error_code": "MISSION_CONTEXT_UNRESOLVED"}
+    code, message, returned = _classify_check_prerequisites_error(legacy_unresolved, "")
+    assert (code, message) == ("MISSION_NOT_FOUND", "gone")
+    assert "MISSION_CONTEXT_UNRESOLVED" not in json.dumps(returned), returned
+
+
+def test_classifier_c2_error_without_message_falls_back() -> None:
+    from specify_cli.orchestrator_api.design_phase import _classify_check_prerequisites_error
+
+    payload: dict[str, Any] = {"ok": False, "error": {"code": "SOME_CODE"}}
+
+    assert _classify_check_prerequisites_error(payload, "") == ("SOME_CODE", "check-prerequisites failed", payload)
 
 
 # ---------------------------------------------------------------------------

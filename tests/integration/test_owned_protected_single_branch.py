@@ -314,4 +314,4 @@ def test_protected_mint_prerequisites_refuse_wrong_checkout_branch(protected_min
         ["check-prerequisites", "--mission", protected_mint.mission_slug, "--json", "--owned-checkout", str(protected_mint.owned_root)],
     )
     assert result.exit_code != 0
-    assert json.loads(result.output)["error_code"] == "OWNED_BRANCH_REFUSED"
+    assert json.loads(result.output)["error"]["code"] == "OWNED_BRANCH_REFUSED"

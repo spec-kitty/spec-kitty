@@ -41,7 +41,7 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/commands/
 create_intent:
-- docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md
+- docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md
 execution_mode: code_change
 model: ''
 owned_files:
@@ -62,7 +62,7 @@ owned_files:
 - src/specify_cli/cli/commands/research.py
 - src/specify_cli/cli/commands/charter/generate.py
 - src/specify_cli/cli/commands/decision.py
-- docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md
+- docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md
 - tests/specify_cli/cli/commands/test_owned_checkout_helper.py
 - tests/specify_cli/cli/commands/test_owned_refusal_format_unified.py
 - tests/specify_cli/cli/commands/agent/test_task_command_owned_conversion.py
@@ -217,14 +217,14 @@ spec-kitty agent action implement WP02 --agent claude --mission owned-refusal-sh
    `result_error_envelope`. Remove the now-unused `Callable` import. Add
    `owned_refusal_payload` to any `__all__` the module has (it has none today; do not add one).
 6. Rewrite the module docstring's "Envelope rule" paragraph: owned refusals are C2 (see ADR
-   `2026-10-27-1`), and `stale_repository_root_copy` stays additive-only on **success** payloads.
+   `2026-10-27-2`), and `stale_repository_root_copy` stays additive-only on **success** payloads.
    Update the bullet "typed refusal rendering ... and the four envelope builders" to name
    `owned_refusal_payload`.
 7. Keep complexity <= 15 and `mypy --strict` clean.
 
 ### Subtask T008 – ADR
 
-Create `docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md`. Mirror the
+Create `docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md`. Mirror the
 frontmatter/heading style of a recent ADR in `docs/adr/4.x/` (read
 `2026-10-26-1-done-judges-every-issue-matrix-row.md` for the house style; include `status`,
 date, an `updated:` freshness date as other ADRs do). Content:

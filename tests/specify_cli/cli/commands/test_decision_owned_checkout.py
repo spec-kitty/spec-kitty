@@ -79,9 +79,12 @@ def test_wrong_owned_checkout_refuses_before_writes(owned_checkouts, claim):
     c = owned_checkouts
     with contextlib.chdir(c.owned_root):
         result = runner.invoke(agent_app, ["decision", "open", *open_args("refuse"), "--mission", c.mission_slug, "--owned-checkout", str(getattr(c, claim))])
-    assert result.exit_code != 0
-    payload = json.loads(result.output.strip().splitlines()[-1])
-    assert payload["code"].startswith("OWNED_") or payload["code"] == "MISSION_CONTEXT_UNRESOLVED"
+    assert result.exit_code == 1
+    # FR-009 (#6353): the owned refusal is the C2 owned refusal on stdout.
+    payload = json.loads(result.stdout)
+    assert set(payload) == {"ok", "error"}
+    code = payload["error"]["code"]
+    assert code.startswith("OWNED_") or code == "MISSION_CONTEXT_UNRESOLVED"
     assert not (c.mission_dir / "decisions").exists()
 
 
@@ -121,6 +124,29 @@ def test_owned_escaped_ledger_refuses(owned_checkouts, tmp_path, target, verb):
     with contextlib.chdir(c.owned_root):
         result = runner.invoke(agent_app, args)
     assert result.exit_code == 1
-    assert json.loads(result.output.strip().splitlines()[-1])["code"] == "OWNED_MISSION_PATH_REFUSED"
+    # #6353 / ADR 2026-10-27-2: the ledger write-containment refusal is a
+    # registered owned refusal, so it is the C2 owned refusal on stdout.
+    payload = json.loads(result.stdout)
+    assert payload == {"ok": False, "error": {"code": "OWNED_MISSION_PATH_REFUSED", "message": payload["error"]["message"]}}
+    assert payload["error"]["message"]
+    assert "OWNED_MISSION_PATH_REFUSED" not in result.stderr
     assert outside.read_bytes() == original
     assert (c.mission_dir / "status.events.jsonl").read_bytes() == events_before
+
+
+def test_owned_run_non_owned_context_error_keeps_stderr_payload(owned_checkouts, monkeypatch):
+    """FR-011 control: a non-owned code on an owned run keeps ``{error, code}`` on stderr."""
+    from mission_runtime import ActionContextError
+    from specify_cli.cli.commands import decision as decision_module
+
+    c = owned_checkouts
+
+    def _deleted(*_args: object, **_kwargs: object) -> None:
+        raise ActionContextError("COORDINATION_BRANCH_DELETED", "coordination branch gone")
+
+    monkeypatch.setattr(decision_module, "_resolve_ledger_dir", _deleted)
+    with contextlib.chdir(c.owned_root):
+        result = runner.invoke(agent_app, ["decision", "list", "--mission", c.mission_slug, "--owned-checkout", str(c.owned_root)])
+    assert result.exit_code == 1
+    assert result.stdout == ""
+    assert json.loads(result.stderr) == {"error": "coordination branch gone", "code": "COORDINATION_BRANCH_DELETED"}

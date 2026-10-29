@@ -122,7 +122,7 @@ spec-kitty agent action implement WP04 --agent claude --mission owned-refusal-sh
    if present), so do not also pass `stamp_version=True`; the result has one stamp either
    way, and `_emit_json` keeps the module's single emit path. Rewrite the comment block
    (it says "mirrors emit_owned_refusal ... exactly {success, error_code, error}") to name the
-   C2 contract and ADR `2026-10-27-1`. Human mode unchanged.
+   C2 contract and ADR `2026-10-27-2`. Human mode unchanged.
 
 ### Subtask T018 – move-task owned catch-all → C2
 
@@ -178,14 +178,14 @@ error scenario), add owned-refusal entries for the renderer callers. If its stru
 per-command only (one shape per command for every error), do **not** promote commands to
 ADOPTED (their non-owned errors are not C2). Instead add a short docstring note pointing at
 `tests/integration/test_owned_refusal_c2_shape.py` as the owned-refusal pin and ADR
-`2026-10-27-1`. Do not loosen any existing assertion. Record which option you took.
+`2026-10-27-2`. Do not loosen any existing assertion. Record which option you took.
 
 ### Subtask T021 – CHANGELOG
 
 `docs/changelog/CHANGELOG.md`, `[Unreleased]` section, matching its existing style
 (read 2-3 recent entries first). Entry content:
 - **Fixed** (#6354): recording an issue verdict on an owned Mission that still holds a legacy `issue-matrix.md` now migrates it into the owned checkout instead of failing.
-- **Changed** (#6353, breaking for JSON consumers of owned refusals): every owned-checkout refusal in `--json` mode now prints the CLI's C2 error contract `{"ok": false, "error": {"code", "message"}}` (plus `context` / `spec_kitty_version` where listed); the top-level `error_code`, `success`, `result` keys of the old per-command shapes are gone; the `agent decision` verbs' owned refusal moves to stdout; orchestrator-api contract `1.19.0`. ADR `2026-10-27-1`.
+- **Changed** (#6353, breaking for JSON consumers of owned refusals): every owned-checkout refusal in `--json` mode now prints the CLI's C2 error contract `{"ok": false, "error": {"code", "message"}}` (plus `context` / `spec_kitty_version` where listed); the top-level `error_code`, `success`, `result` keys of the old per-command shapes are gone; the `agent decision` verbs' owned refusal moves to stdout; orchestrator-api contract `1.19.0`. ADR `2026-10-27-2`.
 
 ## Test Strategy
 

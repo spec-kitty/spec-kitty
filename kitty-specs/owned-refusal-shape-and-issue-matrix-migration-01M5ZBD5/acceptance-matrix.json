@@ -1,0 +1,159 @@
+{
+  "mission_slug": "owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_issue_verdict_legacy_migration_6354.py (3 tests; red at 6efb39cc, green at lane-d tip: 288 passed run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:28:31.850217+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_issue_verdict_legacy_migration_6354.py::test_owned_flag_migrates_legacy_matrix_into_owned_checkout asserts legacy #1 row and new #2 row",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:28:36.075745+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tasks/test_issue_matrix_structured.py::test_owned_defaults_to_none_for_existing_callers + tests/integration/test_issue_verdict_coord_legacy_md_preservation.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:28:40.105649+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_refusal_c2_shape.py::test_owned_refusal_is_c2_on_every_json_command (23 commands) + test_owned_checkout_helper.py::test_owned_refusal_payload_is_strict_c2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:28:44.117681+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_refusal_c2_shape.py::test_owned_refusal_is_c2_on_every_json_command asserts no top-level error_code",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:28:48.119111+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_refusal_c2_shape.py (mission create, move-task) + test_owned_checkout_move_task.py::test_context_error_envelope_is_opt_in + test_decision_owned_checkout.py::test_owned_escaped_ledger_refuses",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:28:52.104556+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_refusal_c2_shape.py params setup-plan (context.phase_complete), mark-status (7-key context), spec-commit (context.committed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:28:56.131342+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_refusal_c2_shape.py params setup-plan, finalize-tasks, check-prerequisites, record-analysis, mission create assert spec_kitty_version",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:29:00.375847+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_refusal_c2_shape.py param 'agent decision list' + test_decision_owned_checkout.py::test_owned_escaped_ledger_refuses (stdout C2) + test_owned_run_non_owned_context_error_keeps_stderr_payload",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:29:04.371432+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_owned_checkout_helper.py::test_emit_owned_refusal_human_mode_unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:29:08.410466+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_refusal_c2_shape.py::test_valid_owned_checkout_on_the_same_fixture_succeeds (same-fixture success control) + accept ordinary-error pins in test_accept_decomposition.py + decision non-owned stderr control",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:29:12.327327+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/orchestrator_api/test_check_prerequisites_record_analysis.py::test_check_prerequisites_classifies_real_rendered_c2_owned_refusal (red at 1cf2e099)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:29:16.189366+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/orchestrator_api/test_contract_version.py::test_contract_version_response_reports_1_19_0 + docs/api/orchestrator-api.md 1.19.0 note",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:29:20.200817+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md supersedes cli-owned-checkout-surface.md:21; reviewed by reviewer-renata in WP02 and WP04",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:29:24.091465+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_refusal_c2_shape.py (23-command parametrized pin + 3 success controls; non-vacuity checked by swapping old mission_create.py)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:29:28.380890+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

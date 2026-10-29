@@ -111,7 +111,7 @@ src/specify_cli/
 │   ├── agent/tasks_move_task.py                    # IC-03
 │   └── agent/tasks_mark_status.py                  # IC-02 (edge refusal), IC-03 (in-command failure)
 └── orchestrator_api/{design_phase,runtime_next,envelope}.py   # IC-04
-docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md   # IC-02
+docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md   # IC-02
 docs/api/orchestrator-api.md                       # IC-04
 docs/changelog/CHANGELOG.md                        # IC-05
 tests/                                             # per IC
@@ -137,7 +137,7 @@ No charter violations to justify.
 
 - **Purpose**: make the shared renderer produce exactly the C2 owned refusal and move all its callers onto it.
 - **Relevant requirements**: FR-004, FR-005, FR-007, FR-008, FR-010, FR-011, FR-014, C-001, C-002, C-004
-- **Affected surfaces**: `_owned_checkout.py` (new `owned_refusal_payload`, changed `emit_owned_refusal` / `resolve_owned_or_refuse` / `resolve_owned_op_record_root`, deleted builders, docstring envelope rule rewritten); research rows 1-21 call sites; `agent/context.py::_emit_context_error` inlines its non-owned dict (it reused `success_false_envelope`); ADR `docs/adr/4.x/2026-10-27-1-...` superseding the line in `kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/contracts/cli-owned-checkout-surface.md:21`; re-pinned tests (research §1.4).
+- **Affected surfaces**: `_owned_checkout.py` (new `owned_refusal_payload`, changed `emit_owned_refusal` / `resolve_owned_or_refuse` / `resolve_owned_op_record_root`, deleted builders, docstring envelope rule rewritten); research rows 1-21 call sites; `agent/context.py::_emit_context_error` inlines its non-owned dict (it reused `success_false_envelope`); ADR `docs/adr/4.x/2026-10-27-2-...` superseding the line in `kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/contracts/cli-owned-checkout-surface.md:21`; re-pinned tests (research §1.4).
 - **Sequencing/depends-on**: none.
 - **Risks**: largest diff. Every renderer signature change must land in one WP (an intermediate state would not import). Shape-agnostic tests reading `["error_code"]` must move to `["error"]["code"]`. `mark-status`'s edge refusal shares `_ms_failure_payload` with IC-03, so the builder change lands here.
 

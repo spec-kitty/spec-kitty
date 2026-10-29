@@ -36,6 +36,7 @@ from specify_cli.tasks.issue_matrix import (
 if TYPE_CHECKING:
     from specify_cli.cli.commands.review._issue_matrix import IssueMatrixRow
     from specify_cli.coordination.write_seam import ProtectionPolicyLike, WriteSeamResult
+    from mission_runtime import OwnedCheckout
 
 _ROWS_KEY = "rows"
 
@@ -251,7 +252,8 @@ def load_issue_matrix(feature_dir: Path, *, content: str | None = None) -> list[
 
         from specify_cli.cli.commands.review._issue_matrix import validate_issue_matrix
 
-        return validate_issue_matrix(feature_dir / ISSUE_MATRIX_MD_FILENAME, content=content).rows
+        content_rows: list[IssueMatrixRow] = validate_issue_matrix(feature_dir / ISSUE_MATRIX_MD_FILENAME, content=content).rows
+        return content_rows
 
     json_path = feature_dir / ISSUE_MATRIX_JSON_FILENAME
     if json_path.exists():
@@ -307,6 +309,7 @@ def migrate_issue_matrix_to_json(
     read_dir: Path | None = None,
     target_branch: str | None = None,
     actor: str = "issue-matrix-migrate",
+    owned: OwnedCheckout | None = None,
 ) -> WriteSeamResult | None:
     """Migrate a legacy ``issue-matrix.md`` mission to structured JSON (FR-013).
 
@@ -334,6 +337,11 @@ def migrate_issue_matrix_to_json(
     ``feature_dir`` for the router to copy (:func:`write_issue_matrix` now
     resolves ``write_dir(ISSUE_MATRIX)`` itself, lazily, inside its own
     ``stage=`` thunk) -- it lands in place on the owning surface directly.
+
+    ``owned`` (#6354): the validated owned-checkout fact; forwarded to the
+    writer so an owned Mission's migrated matrix lands in its owned checkout.
+    ``None`` (default) keeps the repository-root write for every existing
+    caller, including the bulk ``issue-matrix migrate`` command.
 
     Returns ``None`` (nothing to migrate) when ``issue-matrix.json`` already
     exists on the read surface or no legacy ``.md`` is present there.
@@ -379,6 +387,7 @@ def migrate_issue_matrix_to_json(
         policy=policy,
         actor=actor,
         target_branch=target_branch,
+        owned=owned,
     )
 
 

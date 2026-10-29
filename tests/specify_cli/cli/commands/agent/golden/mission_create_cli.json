@@ -1051,13 +1051,15 @@
         "main"
       ],
       "envelope": {
-        "error": "Cannot validate claimed checkout <TMP>/stranger against resolved primary <TMP>/repo: PosixPath('<TMP>/stranger') is not inside a git repository.",
-        "error_code": "OWNERSHIP_BROKEN_POINTER",
+        "error": {
+          "code": "OWNERSHIP_BROKEN_POINTER",
+          "message": "Cannot validate claimed checkout <TMP>/stranger against resolved primary <TMP>/repo: PosixPath('<TMP>/stranger') is not inside a git repository."
+        },
+        "ok": false,
         "spec_kitty_version": {
           "present": true,
           "type": "str"
-        },
-        "success": false
+        }
       },
       "error_code": "OWNERSHIP_BROKEN_POINTER",
       "exit_code": 1,

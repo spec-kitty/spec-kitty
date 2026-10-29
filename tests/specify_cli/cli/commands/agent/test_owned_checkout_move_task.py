@@ -256,6 +256,22 @@ def test_owned_move_task_completes_with_sync_active(finalized_checkouts, monkeyp
     assert transitions[-1]["to_lane"] == "in_progress"
 
 
+#: Cases refused at the Typer edge (``resolve_owned_or_refuse``): the C2 owned refusal
+#: (#6353). The rest are refused in the command body by move-task's own owned catch-all.
+def assert_owned_catch_all_refusal(payload: dict[str, object], code: str) -> None:
+    """The C2 owned refusal (#6353, ADR 2026-10-27-2): exactly ``{ok, error: {code, message}}``."""
+    assert set(payload) == {"ok", "error"}, payload
+    assert payload["ok"] is False
+    error = payload["error"]
+    assert isinstance(error, dict)
+    assert set(error) == {"code", "message"}
+    assert error["code"] == code
+    assert error["message"]
+
+
+_EDGE_REFUSAL_CASES = frozenset({"nested", "foreign", "missing_mission", "protected", "wrong_branch", "topology"})
+
+
 @pytest.mark.parametrize(
     "case,code",
     [
@@ -309,7 +325,10 @@ def test_owned_preflight_refuses_before_effects(checkouts, tmp_path, monkeypatch
     before = tuple(snapshot(root) for root in checkouts)
     result = CliRunner().invoke(tasks_app, args)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error_code"] == code
+    payload = json.loads(result.output)
+    # Edge refusals (renderer) and in-body refusals (the move-task owned
+    # catch-all) print the same C2 owned refusal (#6353, ADR 2026-10-27-2).
+    assert_owned_catch_all_refusal(payload, code)
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before
 
 
@@ -331,9 +350,13 @@ def test_context_error_envelope_is_opt_in(checkouts, monkeypatch, explicit):
     before = tuple(snapshot(root) for root in checkouts)
     result = CliRunner().invoke(tasks_app, args)
     assert result.exit_code == 1, result.output
-    expected = {"error": "context refused"}
+    # ``TEST_CONTEXT`` is NOT a registered owned refusal code: the owned
+    # catch-all still prints it as the C2 owned refusal, which proves it uses
+    # the non-validating ``owned_refusal_payload`` builder, not the validating
+    # ``emit_owned_refusal`` renderer. The flagless run keeps its own shape.
+    expected: dict[str, object] = {"error": "context refused"}
     if explicit:
-        expected["error_code"] = "TEST_CONTEXT"
+        expected = {"ok": False, "error": {"code": "TEST_CONTEXT", "message": "context refused"}}
     assert json.loads(result.output) == expected
     assert tuple(snapshot(root) for root in checkouts) == before
 
@@ -550,7 +573,7 @@ def test_owned_review_refuses_status_only_commits(finalized_checkouts):
     )
 
     assert submitted.exit_code == 1, submitted.output
-    assert json.loads(submitted.output)["error_code"] == "OWNED_IMPLEMENTATION_MISSING"
+    assert_owned_catch_all_refusal(json.loads(submitted.output), "OWNED_IMPLEMENTATION_MISSING")
     assert git(owned, "rev-parse", "HEAD") == before_review
     mission = owned / "kitty-specs" / SLUG
     state = json.loads((mission / "status.json").read_text(encoding="utf-8"))["work_packages"]["WP01"]
@@ -601,7 +624,7 @@ def test_owned_review_refuses_auto_commit_outside_owned_files(finalized_checkout
     )
 
     assert submitted.exit_code == 1, submitted.output
-    assert json.loads(submitted.output)["error_code"] == "OWNED_DELIVERABLE_SCOPE_REFUSED"
+    assert_owned_catch_all_refusal(json.loads(submitted.output), "OWNED_DELIVERABLE_SCOPE_REFUSED")
     assert git(owned, "rev-parse", "HEAD") == before_review
     assert git(owned, "status", "--porcelain").splitlines() == ["M app.py", "?? unrelated.txt"]
     assert (snapshot(primary), snapshot(sibling)) == other_before
@@ -637,7 +660,7 @@ def test_owned_review_refuses_a_rename_from_outside_owned_files(finalized_checko
 
     assert submitted.exit_code == 1, submitted.output
     payload = json.loads(submitted.output)
-    assert payload["error_code"] == "OWNED_DELIVERABLE_SCOPE_REFUSED"
+    assert_owned_catch_all_refusal(payload, "OWNED_DELIVERABLE_SCOPE_REFUSED")
     assert "other.py" in json.dumps(payload)
     assert git(owned, "rev-parse", "HEAD") == before_review
     assert git(owned, "status", "--porcelain").splitlines() == ["R other.py -> app.py"]  # git() strips the leading worktree-column space
@@ -691,7 +714,7 @@ def test_owned_review_refuses_invalid_planning_commit_before_effects(finalized_c
     )
 
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error_code"] == "OWNED_REVIEW_BASE_INVALID"
+    assert_owned_catch_all_refusal(json.loads(result.output), "OWNED_REVIEW_BASE_INVALID")
     assert tuple(snapshot(root) for root in finalized_checkouts) == before
 
 
@@ -1163,7 +1186,7 @@ def test_move_task_refusal_still_validates_exactly_once(checkouts, claim_counter
     result = _counted_move_task(claim_counter, "--to", "doing", "--owned-checkout", str(owned / "kitty-specs"))
 
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error_code"] == "OWNERSHIP_NESTED"
+    assert json.loads(result.output)["error"]["code"] == "OWNERSHIP_NESTED"
     assert len(claim_counter) == 1, claim_counter
 
 

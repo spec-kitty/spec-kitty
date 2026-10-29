@@ -86,6 +86,7 @@ from specify_cli.agent_tasks_ports import (
     MissionHandle,
     TasksPorts,
 )
+from specify_cli.cli.commands._owned_checkout import owned_refusal_payload
 from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     _read_transactional_wp_lane,
 )
@@ -1737,16 +1738,17 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         raise
     except Exception as e:
         if args.owned is not None and isinstance(e, ActionContextError):
-            # Unified owned-refusal output (#5445): human mode on stderr as
-            # ``Error: [<CODE>] <message>``, ``--json`` mode indented -- the
-            # same shape ``emit_owned_refusal`` renders. Not routed through
-            # ``emit_owned_refusal`` itself: this catch-all accepts ANY
-            # ``ActionContextError`` (including codes outside the registered
-            # owned-refusal vocabulary; see
+            # Unified owned-refusal output (#5445, #6353): human mode on stderr
+            # as ``Error: [<CODE>] <message>``; ``--json`` mode indented, the
+            # C2 owned refusal ``emit_owned_refusal`` prints (ADR 2026-10-27-2),
+            # built by the shared non-validating ``owned_refusal_payload``. Not
+            # routed through ``emit_owned_refusal`` itself: this catch-all
+            # accepts ANY ``ActionContextError`` (including codes outside the
+            # registered owned-refusal vocabulary; see
             # ``test_context_error_envelope_is_opt_in``), and
             # ``emit_owned_refusal`` fails closed on an unregistered code.
             if args.json_output:
-                print(json.dumps({"error_code": e.code, "error": str(e)}, indent=2))
+                print(json.dumps(owned_refusal_payload(e.code, str(e)), indent=2))
             else:
                 err_console.print(f"Error: [{e.code}] {e}")
             raise typer.Exit(1) from e

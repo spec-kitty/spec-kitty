@@ -146,7 +146,7 @@ else:
 ```
 
 then keep the existing translation/return logic unchanged. Extend the docstring with one
-sentence naming the C2 owned refusal shape (ADR `2026-10-27-1`). Keep complexity <= 15
+sentence naming the C2 owned refusal shape (ADR `2026-10-27-2`). Keep complexity <= 15
 (extract a `_host_error_code_and_message(payload) -> tuple[object, str]` helper if needed).
 
 ### Subtask T015 – Contract version 1.19.0
@@ -168,7 +168,7 @@ sentence naming the C2 owned refusal shape (ADR `2026-10-27-1`). Keep complexity
 - Add a change-log entry above the `1.18.0` one (~163), matching its style:
   "`1.19.0` — host owned-checkout refusals embedded by `check-prerequisites` and `next`
   now use the CLI's C2 error contract (`{ok: false, error: {code, message}}`, ADR
-  `2026-10-27-1`); `check-prerequisites` classifies the code and message from `error`.
+  `2026-10-27-2`); `check-prerequisites` classifies the code and message from `error`.
   Error codes are unchanged."
 - Bump the page's `updated:` freshness date if it has one.
 

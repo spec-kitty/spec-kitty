@@ -54,6 +54,13 @@ def test_flagless_adoption_from_inside_owned_checkout_records(checkouts, monkeyp
 def test_owned_fact_resolving_no_mission_still_refuses(checkouts) -> None:  # noqa: F811
     primary, owned, _sibling = checkouts
     res = _verdict("--owned-checkout", str(owned), mission="no-such-mission-01ZZZZZZ")
-    assert res.exit_code != 0, res.output
+    assert res.exit_code == 1, res.output
+    # #6353: the owned refusal is the strict C2 core on stdout -- no top-level ``error_code``.
+    payload = json.loads(res.stdout)
+    assert set(payload) == {"ok", "error"}
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "MISSION_CONTEXT_UNRESOLVED"
+    assert set(payload["error"]) == {"code", "message"}
+    assert isinstance(payload["error"]["message"], str) and payload["error"]["message"].strip()
     assert not (primary / "kitty-specs").exists() or not list((primary / "kitty-specs").glob("*/issue-matrix.json"))
     assert not list((owned / "kitty-specs").glob("no-such-mission*"))

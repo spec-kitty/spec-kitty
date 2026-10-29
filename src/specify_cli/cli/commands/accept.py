@@ -60,9 +60,9 @@ from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, emit_o
 from specify_cli.cli.selector_resolution import resolve_mission_dir_with_bare_modern_fold
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
+from specify_cli.task_utils.support import TaskCliError
 from specify_cli.task_utils import (
     LANES,
-    TaskCliError,
     find_repo_root,
     git_status_entries,
     run_git,
@@ -834,7 +834,7 @@ def _owned_accept_context(
     Returns the validated fact, or ``None`` when the run stays on the
     repository root checkout. Every later phase consumes this one fact.
     """
-    owned = resolve_owned_or_adopt(
+    owned: OwnedCheckout | None = resolve_owned_or_adopt(
         repo_root,
         checkout,
         mission,
@@ -956,11 +956,6 @@ def _fail(
     raise typer.Exit(code)
 
 
-def _refusal_envelope(code: str, message: str) -> dict[str, object]:
-    """Accept's owned-refusal JSON envelope: ``{"error_code", "error"}``."""
-    return {"error_code": code, "error": message}
-
-
 def _resolve_accept_entry(
     json_output: bool,
     checkout: Path | None,
@@ -980,7 +975,7 @@ def _resolve_accept_entry(
             normalize_encoding=normalize_encoding,
         )
     except ActionContextError as exc:
-        emit_owned_refusal(exc, json_output=json_output, envelope=_refusal_envelope)
+        emit_owned_refusal(exc, json_output=json_output)
     except TaskCliError as exc:
         _fail(json_output, str(exc))
     return (owned.owned_root if owned is not None else repo_root), owned

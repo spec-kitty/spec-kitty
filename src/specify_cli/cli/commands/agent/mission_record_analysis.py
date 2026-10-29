@@ -55,7 +55,6 @@ from specify_cli.cli.commands._owned_checkout import (
     emit_owned_refusal,
     resolve_owned_or_refuse,
     stale_copy_payload,
-    success_false_envelope,
 )
 
 
@@ -369,7 +368,7 @@ def _record_analysis_feature_dir(
         try:
             owned.files([owned.mission_dir / ANALYSIS_REPORT_FILENAME])
         except ActionContextError as exc:
-            emit_owned_refusal(exc, json_output=json_output, envelope=success_false_envelope)
+            emit_owned_refusal(exc, json_output=json_output, stamp_version=True)
         return owned.mission_dir
     try:
         return cast(Path, _find_feature_directory(repo_root, Path.cwd().resolve(), explicit_feature=feature))
@@ -423,7 +422,7 @@ def record_analysis(
             cwd=Path.cwd(),
             allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
             json_output=json_output,
-            envelope=success_false_envelope,
+            stamp_version=True,
         )
         if owned is not None:
             repo_root = cwd_repo_root = owned.owned_root

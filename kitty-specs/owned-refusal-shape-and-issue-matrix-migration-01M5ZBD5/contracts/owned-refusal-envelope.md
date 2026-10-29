@@ -1,7 +1,7 @@
 # Contract: owned refusal envelope (C2)
 
 Status: proposed by mission `owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5`;
-recorded by ADR `docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md`.
+recorded by ADR `docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md`.
 Supersedes the line "`emit_owned_refusal` keeps each command's existing JSON envelope
 keys" in `kitty-specs/owned-checkout-lifecycle-authority-01M3M2ZB/contracts/cli-owned-checkout-surface.md`.
 

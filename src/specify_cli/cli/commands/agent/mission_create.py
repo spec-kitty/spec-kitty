@@ -34,7 +34,7 @@ from mission_runtime import MissionTopology
 from specify_cli.cli.console import console
 import typer
 
-from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, owned_refusal_payload
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.diagnostics import mark_invocation_succeeded
@@ -513,21 +513,16 @@ def _emit_create_core_error_and_exit(
         # refusal to this single ActionContextError type instead), so it was
         # deleted rather than kept unreachable. This branch carries the SAME
         # registered error codes (including OWNED_CHECKOUT_IS_REPOSITORY_ROOT)
-        # the old CheckoutOwnershipError branch handled, so the --json
-        # envelope is unchanged.
+        # the old CheckoutOwnershipError branch handled.
         error_msg = str(exc)
         if json_output:
-            # Shared ownership refusal contract (mirrors
-            # _owned_checkout.emit_owned_refusal): exactly
-            # {success, error_code, error} — no redundant `message` key from
-            # StructuredError.to_dict().
-            _emit_json(
-                {
-                    "success": False,
-                    "error_code": exc.code,
-                    "error": error_msg,
-                }
-            )
+            # The C2 owned refusal (#6353, ADR 2026-10-27-2):
+            # ``{ok: false, error: {code, message}}`` from the shared builder
+            # ``owned_refusal_payload``, the same shape ``emit_owned_refusal``
+            # prints. ``_emit_json`` stays this module's single emit path and
+            # adds the ``spec_kitty_version`` stamp every create payload
+            # carries, so ``stamp_version`` is not passed here.
+            _emit_json(owned_refusal_payload(exc.code, error_msg))
         else:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
     elif isinstance(exc, MissionCreationError):

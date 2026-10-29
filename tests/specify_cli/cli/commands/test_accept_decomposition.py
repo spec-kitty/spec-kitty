@@ -266,8 +266,7 @@ class TestEarlyExits:
         result = harness.invoke("--mission", _SLUG, "--owned-checkout", str(tmp_path))
         assert result.exit_code == 1
         payload = json.loads(result.stdout)
-        assert set(payload) == {"error_code", "error"}
-        assert payload == {"error_code": _OWNED_REFUSAL_CODE, "error": "wrong branch"}
+        assert payload == {"ok": False, "error": {"code": _OWNED_REFUSAL_CODE, "message": "wrong branch"}}
         assert harness.calls == []
 
     def test_owned_refusal_human(self, harness: Harness, tmp_path: Path) -> None:
@@ -710,8 +709,8 @@ class TestOwnedEntry:
         result = harness.invoke("--mission", _SLUG, "--owned-checkout", str(tmp_path), "--diagnose", "--normalize-encoding")
         assert result.exit_code == 1
         payload = json.loads(result.output)
-        assert set(payload) == {"error_code", "error"}
-        assert payload["error_code"] == _OPTION_UNSUPPORTED_CODE
+        assert set(payload) == {"ok", "error"}
+        assert payload["error"]["code"] == _OPTION_UNSUPPORTED_CODE
         assert harness.calls == []
 
 

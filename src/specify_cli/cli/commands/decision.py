@@ -37,11 +37,12 @@ if TYPE_CHECKING:
     from specify_cli.coordination.coord_seed import CoordBranchUndeclaredAndAbsent, CoordSeedForkRefused
     from specify_cli.status import FeatureStatusLockTimeoutError
 
-from mission_runtime import ActionContextError, OwnedCheckout
+from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode
 
 from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
     echo_stale_copy_warning,
+    emit_owned_refusal,
     resolve_owned_or_adopt,
     stale_copy_payload,
 )
@@ -228,14 +229,23 @@ def _resolve_decision_context(mission_handle: str, owned_claim: Path | None) -> 
     from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
 
     repo_root = locate_project_root() or Path.cwd()
-    owned = resolve_owned_or_adopt(repo_root, owned_claim, mission_handle, cwd=Path.cwd(), allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
+    try:
+        owned = resolve_owned_or_adopt(repo_root, owned_claim, mission_handle, cwd=Path.cwd(), allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
+    except ActionContextError as exc:
+        # FR-009 (ADR 2026-10-27-2): the owned refusal is the C2 owned refusal on
+        # stdout (these verbs always print JSON). Only this call is wrapped, so a
+        # non-owned resolver error raised below keeps ``_handle_action_context_error``.
+        emit_owned_refusal(exc, json_output=True)
     if owned is not None:
         return repo_root, owned.mission_dir.name, owned
     repo_root, slug = _resolve_repo_root_and_slug(mission_handle)
     return repo_root, slug, None
 
 
-def _handle_action_context_error(exc: ActionContextError) -> None:
+_OWNED_REFUSAL_CODES: frozenset[str] = frozenset(member.value for member in OwnedRefusalCode)
+
+
+def _handle_action_context_error(exc: ActionContextError, owned: OwnedCheckout | None = None) -> None:
     """Render a read-path resolver failure as a structured typed diagnostic.
 
     FR-003 / C-IC03: the canonical resolver raises :class:`ActionContextError`
@@ -244,7 +254,15 @@ def _handle_action_context_error(exc: ActionContextError) -> None:
     MUST see that structured payload — never an uncaught Rich traceback (the
     live #8 symptom). Mirrors the GOOD-citizen pattern in
     ``agent context resolve`` (``agent/context.py``).
+
+    #6353 (ADR 2026-10-27-2): on an owned run (``owned`` is the validated
+    fact), an error carrying a registered :class:`OwnedRefusalCode` -- e.g. the
+    decision ledger's write-containment ``OWNED_MISSION_PATH_REFUSED`` -- is an
+    owned refusal, so it renders through :func:`emit_owned_refusal` as the C2
+    owned refusal on stdout. Every other code keeps ``{error, code}`` on stderr.
     """
+    if owned is not None and exc.code in _OWNED_REFUSAL_CODES:
+        emit_owned_refusal(exc, json_output=True)
     payload = {
         "error": str(exc),
         "code": exc.code,
@@ -529,7 +547,7 @@ def cmd_open(  # noqa: PLR0913
         _handle_status_read_path_error(exc)
         return  # unreachable — _handle_status_read_path_error raises
     except ActionContextError as exc:
-        _handle_action_context_error(exc)
+        _handle_action_context_error(exc, owned)
 
     _echo_decision_payload(
         _open_response_to_dict(resp, origin_flow=origin_flow, mission_slug=mission_slug, step_id=step_id, slot_key=slot_key, input_key=input_key),
@@ -601,7 +619,7 @@ def cmd_resolve(  # noqa: PLR0913
         _handle_status_read_path_error(exc)
         return  # unreachable — _handle_status_read_path_error raises
     except ActionContextError as exc:
-        _handle_action_context_error(exc)
+        _handle_action_context_error(exc, owned)
 
     _echo_decision_payload(_terminal_response_to_dict(resp), owned)
 
@@ -675,7 +693,7 @@ def cmd_defer(
         _handle_status_read_path_error(exc)
         return  # unreachable — _handle_status_read_path_error raises
     except ActionContextError as exc:
-        _handle_action_context_error(exc)
+        _handle_action_context_error(exc, owned)
 
     _echo_decision_payload(_terminal_response_to_dict(resp), owned)
 
@@ -749,7 +767,7 @@ def cmd_cancel(
         _handle_status_read_path_error(exc)
         return  # unreachable — _handle_status_read_path_error raises
     except ActionContextError as exc:
-        _handle_action_context_error(exc)
+        _handle_action_context_error(exc, owned)
 
     _echo_decision_payload(_terminal_response_to_dict(resp), owned)
 
@@ -792,7 +810,7 @@ def cmd_verify(
     try:
         mission_dir = _resolve_ledger_dir(repo_root, mission_slug, owned=owned)
     except ActionContextError as exc:
-        _handle_action_context_error(exc)
+        _handle_action_context_error(exc, owned)
 
     try:
         result = _verify_decisions(mission_dir, mission_slug)
@@ -934,7 +952,7 @@ def cmd_list(
     try:
         mission_dir = _resolve_ledger_dir(repo_root, mission_slug, owned=owned)
     except ActionContextError as exc:
-        _handle_action_context_error(exc)
+        _handle_action_context_error(exc, owned)
 
     from specify_cli.decisions.store import load_index
 
@@ -1090,7 +1108,6 @@ def cmd_repair_runtime_lock(
     Also adds the exact ignore rule to the Mission's decisions/.gitignore when
     the lock is untracked but not ignored.
     """
-    from typing import cast
     from specify_cli.cli.commands._owned_checkout import resolve_owned_or_refuse
     from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
 
@@ -1098,12 +1115,11 @@ def cmd_repair_runtime_lock(
         raise typer.BadParameter("repair-runtime-lock requires explicit --owned-checkout")
     owned = resolve_owned_or_refuse(
         locate_project_root() or Path.cwd(),
-        cast(Path, owned_checkout),
+        owned_checkout,
         mission,
         cwd=Path.cwd(),
         allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
         json_output=True,
-        envelope=lambda code, message: {"status": "error", "code": code, "message": message},
     )
     if owned is None:
         raise typer.Exit(1)

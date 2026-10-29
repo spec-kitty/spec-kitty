@@ -69,6 +69,7 @@ from kernel.git import GitCommandError, status_entries
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, OwnedRefusalCode
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.cli.console import err_console
+from specify_cli.cli.commands._owned_checkout import owned_refusal_payload
 from specify_cli.cli.commands.agent.tasks_materialization import (
     _resolve_checkbox,
     _resolve_pipe_table,
@@ -354,7 +355,8 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
 
 def _owners_for_task(owner_map: dict[str, frozenset[str]], tasks_content: str, task_id: str) -> list[str]:
     """Owning WPs of *task_id*: the authored rosters decide; ``tasks.md`` only when no roster does."""
-    return authored_roster_owners(owner_map, task_id) or history_wp_ids(tasks_content, task_id)
+    owners: list[str] = authored_roster_owners(owner_map, task_id) or history_wp_ids(tasks_content, task_id)
+    return owners
 
 
 def _not_an_owner_message(st: _MarkStatusState, task_id: str, owners: list[str]) -> str:
@@ -644,9 +646,7 @@ def _reconstruct_applied_events(
     return []
 
 
-def _ms_failure_payload(
-    error_code: str,
-    error: str,
+def _ms_failure_context(
     *,
     event_ids: list[str] | None = None,
     applied_wps: list[str] | None = None,
@@ -655,18 +655,16 @@ def _ms_failure_payload(
     status_snapshot_path: Path | None = None,
     dirty: bool | None = None,
 ) -> dict[str, object]:
-    """The owned ``mark-status`` failure envelope (#3865): the ONE builder of its key set.
+    """The owned ``mark-status`` failure ``context`` (#3865): the ONE builder of its key set.
 
     Both the in-command recovery path (real applied state) and the Typer-edge
-    ownership refusal (called positionally as an ``emit_owned_refusal``
-    envelope, so nothing applied) render through it, so the two cannot drift
-    key-for-key.
+    ownership refusal (``context=_ms_failure_context()``, so nothing applied)
+    carry it as the ``context`` object of the C2 owned refusal built by
+    :func:`~specify_cli.cli.commands._owned_checkout.owned_refusal_payload`
+    (ADR ``2026-10-27-2``), so the two cannot drift key-for-key.
     """
     event_ids = event_ids or []
     return {
-        "result": "error",
-        "error_code": error_code,
-        "error": error,
         "state_applied": bool(event_ids),
         "event_ids": event_ids,
         "applied_wps": applied_wps or [],
@@ -678,7 +676,13 @@ def _ms_failure_payload(
 
 
 def _ms_report_owned_failure(st: _MarkStatusState, owned: OwnedCheckout, error: Exception) -> NoReturn:
-    """Render the owned failure envelope (which events landed, dirty tree) and exit 1 (#3865)."""
+    """Render the owned failure as a C2 owned refusal (which events landed, dirty tree) and exit 1 (#3865).
+
+    The JSON payload is :func:`owned_refusal_payload` with
+    :func:`_ms_failure_context` as its ``context``. Not routed through
+    ``emit_owned_refusal``: this path keeps its ``MARK_STATUS_FAILED`` fallback
+    code, which the owned-refusal registry does not list.
+    """
     status_dir = st.status_dir if st.status_dir != Path() else owned.mission_dir
     events_path = status_dir / "status.events.jsonl"
     detected = _reconstruct_applied_events(owned, error, events_path)
@@ -692,9 +696,7 @@ def _ms_report_owned_failure(st: _MarkStatusState, owned: OwnedCheckout, error: 
         # unreadable tree reports "unknown" (None), as a failed probe did before.
         dirty = None
     error_code = getattr(error, "code", None) or getattr(error, "error_code", None) or "MARK_STATUS_FAILED"
-    payload = _ms_failure_payload(
-        error_code,
-        str(error),
+    context = _ms_failure_context(
         event_ids=event_ids,
         applied_wps=applied_wps,
         destination_ref=owned.write_branch,
@@ -702,14 +704,12 @@ def _ms_report_owned_failure(st: _MarkStatusState, owned: OwnedCheckout, error: 
         status_snapshot_path=st.status_dir / "status.json" if st.status_dir != Path() else None,
         dirty=dirty,
     )
-    # Unified owned-refusal output (#5445): human mode on stderr as
-    # ``Error: [<CODE>] <message>``, ``--json`` mode indented -- the same shape
-    # ``emit_owned_refusal`` renders for the Typer-edge ownership refusal
-    # above. Every key of ``payload`` (event_ids, applied_wps, destination_ref,
-    # recovery detail) is preserved verbatim; only the stream, human format and
-    # indentation change.
+    # Unified owned-refusal output (#5445, ADR 2026-10-27-2): human mode on
+    # stderr as ``Error: [<CODE>] <message>``, ``--json`` mode the indented C2
+    # owned refusal -- the same shape ``emit_owned_refusal`` renders for the
+    # Typer-edge ownership refusal, with the recovery facts under ``context``.
     if st.json_output:
-        print(json.dumps(payload, indent=2))
+        print(json.dumps(owned_refusal_payload(error_code, str(error), context=context), indent=2))
     else:
         err_console.print(f"Error: [{error_code}] {error}")
     raise typer.Exit(1) from error

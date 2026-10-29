@@ -2,7 +2,7 @@
 title: Orchestrator API Reference
 description: Machine-contract API for external orchestration providers.
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-27'
 related:
 - docs/api/event-envelope.md
 - docs/migrations/feature-flag-deprecation.md
@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.19.0`
+- `CONTRACT_VERSION`: `1.20.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -171,6 +171,10 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   a first (non-idempotent) call: that opening could not be written, and nothing else
   was. A new `error_code` on existing verbs, so a minor bump; no field is removed or
   renamed.
+- `1.20.0` — host owned-checkout refusals embedded by `check-prerequisites` and `next`
+  now use the CLI's C2 error contract (`{ok: false, error: {code, message}}`, ADR
+  `2026-10-27-2`); `check-prerequisites` classifies the code and message from `error`.
+  Error codes are unchanged.
 - `1.18.0` — `consolidate-mission` now skips a fully-canceled-with-provenance lane at
   parity with host `consolidate` (#5814): a lane whose every work package is an acceptable
   canceled-with-provenance ending is no longer merged, so its committed content never lands
@@ -195,7 +199,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.19.0",
+  "contract_version": "1.20.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",

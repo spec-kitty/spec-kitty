@@ -63,7 +63,6 @@ from specify_cli.agent_tasks_ports import RealRender
 from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
     resolve_owned_or_refuse,
-    success_false_envelope,
 )
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -597,7 +596,6 @@ def acceptance_verdict(
         cwd=Path.cwd(),
         allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
         json_output=json_output,
-        envelope=success_false_envelope,
     )
     if owned is not None:
         mission_slug = owned.mission_slug

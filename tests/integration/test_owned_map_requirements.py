@@ -113,7 +113,7 @@ def test_invalid_owned_claim_refused_before_writes(protected_mint: OwnedCheckout
         tasks.app, ["map-requirements", "--mission", f.mission_slug, "--owned-checkout", str(claim), "--wp", "WP01", "--refs", "FR-001", "--json"]
     )
     assert result.exit_code != 0
-    assert json.loads(result.output)["error_code"].startswith(("OWNED_", "OWNERSHIP_"))
+    assert json.loads(result.output)["error"]["code"].startswith(("OWNED_", "OWNERSHIP_"))
     assert tuple(snapshot(r) for r in (f.repository_root, f.owned_root, f.sibling)) == before
 
 

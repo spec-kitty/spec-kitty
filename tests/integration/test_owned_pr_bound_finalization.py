@@ -95,12 +95,14 @@ def test_invalid_owned_claim_refuses_before_writes(pr_bound_checkouts, monkeypat
         extra += ["--target-branch", PLANNING if bad_claim == "override_planning" else "codex/foreign"]
     result = invoke("finalize-tasks", owned, *extra, opt_in=explicit)
     assert result.exit_code == 1, result.output
-    code = json.loads(result.output)["error_code"]
+    payload = json.loads(result.output)
     if not explicit and bad_claim in {"wrong_branch", "detached"}:
-        # Flagless adoption declines an invalid checkout; primary has no mission.
-        assert code == "MISSION_CONTEXT_UNRESOLVED"
+        # Flagless adoption declines an invalid checkout; primary has no mission
+        # (a non-owned error: finalize's own ``error_code`` payload, unchanged).
+        assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
     else:
-        assert code == "OWNED_BRANCH_REFUSED"
+        # The C2 owned refusal (#6353).
+        assert payload["error"]["code"] == "OWNED_BRANCH_REFUSED"
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before
 
 

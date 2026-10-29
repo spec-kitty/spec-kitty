@@ -7,8 +7,10 @@ check-prerequisites`` and ``agent tasks mark-status`` each carried a bespoke
 message[/red]`` on **stdout** (human mode) and compact JSON (``--json``
 mode) -- diverging from the canonical ``emit_owned_refusal`` contract
 (``specify_cli.cli.commands._owned_checkout``): ``Error: [<CODE>] <message>``
-on **stderr**, indented JSON carrying ``error_code``/``error`` under
-``--json``. Each test below drives the real in-body except branch (not the
+on **stderr**, indented JSON under ``--json`` (since #6353 / ADR
+``2026-10-27-2`` the C2 owned refusal ``{ok, error: {code, message}}`` for
+check-prerequisites and mark-status, and for move-task's owned catch-all,
+which builds it with the non-validating ``owned_refusal_payload``). Each test below drives the real in-body except branch (not the
 Typer-edge ``resolve_owned_or_refuse`` refusal, which already used the
 canonical renderer) with a minimal, fast, in-process fact minted via
 ``tests._owned_fixtures.mint_test_fact`` -- no real git checkout.
@@ -109,8 +111,7 @@ def test_move_task_owned_refusal_is_unified(tmp_path: Path, monkeypatch: pytest.
     captured = capsys.readouterr()
     assert captured.out.startswith("{\n")
     payload = json.loads(captured.out)
-    assert payload["error_code"] == "OWNED_OPTION_UNSUPPORTED"
-    assert payload["error"] == "owned move-task refusal"
+    assert payload == {"ok": False, "error": {"code": "OWNED_OPTION_UNSUPPORTED", "message": "owned move-task refusal"}}
     assert captured.err == ""
 
 
@@ -160,8 +161,9 @@ def test_check_prerequisites_owned_refusal_is_unified(
     captured = capsys.readouterr()
     assert captured.out.startswith("{\n")
     payload = json.loads(captured.out)
-    assert payload["error_code"] == "OWNED_OPTION_UNSUPPORTED"
-    assert "error" in payload
+    assert set(payload) == {"ok", "error", "spec_kitty_version"}
+    assert payload["error"]["code"] == "OWNED_OPTION_UNSUPPORTED"
+    assert payload["error"]["message"]
     assert captured.err == ""
 
 
@@ -197,11 +199,11 @@ def test_mark_status_owned_refusal_is_unified(tmp_path: Path, monkeypatch: pytes
     captured = capsys.readouterr()
     assert captured.out.startswith("{\n")
     payload = json.loads(captured.out)
-    assert payload["error_code"] == "OWNED_OPTION_UNSUPPORTED"
-    assert payload["error"] == "owned mark-status refusal"
-    # The rich recovery envelope (#3865) is preserved verbatim, not collapsed
-    # to the generic 2-key ``emit_owned_refusal`` shape.
-    assert "event_ids" in payload
-    assert "applied_wps" in payload
-    assert "destination_ref" in payload
+    assert set(payload) == {"ok", "error", "context"}
+    assert payload["error"] == {"code": "OWNED_OPTION_UNSUPPORTED", "message": "owned mark-status refusal"}
+    # The rich recovery facts (#3865) are preserved under ``context``, not
+    # collapsed to the bare C2 core.
+    assert "event_ids" in payload["context"]
+    assert "applied_wps" in payload["context"]
+    assert "destination_ref" in payload["context"]
     assert captured.err == ""

@@ -192,7 +192,6 @@ def _st_resolve_owned(st: _StatusState, repo_root: Path, explicit_mission: str |
     from mission_runtime import ActionContextError
     from specify_cli.cli.commands._owned_checkout import (
         emit_owned_refusal,
-        json_error_envelope,
         resolve_owned_or_adopt,
     )
     from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
@@ -206,7 +205,7 @@ def _st_resolve_owned(st: _StatusState, repo_root: Path, explicit_mission: str |
             allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
         )
     except ActionContextError as exc:
-        emit_owned_refusal(exc, json_output=st.json_output, envelope=json_error_envelope)
+        emit_owned_refusal(exc, json_output=st.json_output)
 
     if owned is None:
         return False

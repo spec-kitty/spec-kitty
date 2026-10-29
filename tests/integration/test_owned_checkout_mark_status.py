@@ -199,7 +199,11 @@ def test_owned_preflight_refuses_before_effects(
     result = CliRunner().invoke(tasks_app, args)
 
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error_code"] == code
+    payload = json.loads(result.output)
+    # #6353: the C2 owned refusal; mark-status's nothing-applied facts sit under ``context``.
+    assert set(payload) == {"ok", "error", "context"}
+    assert payload["error"]["code"] == code
+    assert payload["context"]["state_applied"] is False
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before
 
 
@@ -232,10 +236,11 @@ def test_owned_materialization_failure_rolls_back_without_ambient_writes(
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
-    assert payload["error_code"] == "MARK_STATUS_FAILED"
-    assert payload["state_applied"] is False
-    assert payload["event_ids"] == []
-    assert payload["dirty"] is False
+    assert payload["error"]["code"] == "MARK_STATUS_FAILED"
+    context = payload["context"]
+    assert context["state_applied"] is False
+    assert context["event_ids"] == []
+    assert context["dirty"] is False
     assert tuple(snapshot(root) for root in finalized_checkouts) == before
 
 
@@ -310,10 +315,11 @@ def test_multi_wp_failure_reports_committed_prefix(
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
-    assert payload["error_code"] == "TEST_SECOND_WP"
-    assert payload["state_applied"] is True
-    assert payload["applied_wps"] == ["WP01"]
-    assert len(payload["event_ids"]) == 1
+    assert payload["error"]["code"] == "TEST_SECOND_WP"
+    context = payload["context"]
+    assert context["state_applied"] is True
+    assert context["applied_wps"] == ["WP01"]
+    assert len(context["event_ids"]) == 1
     state = json.loads((owned / "kitty-specs" / SLUG / "status.json").read_text(encoding="utf-8"))["work_packages"]
     assert state["WP01"]["subtasks"]["T001"] == "done"
     assert state["WP02"].get("subtasks", {}).get("T002") != "done"
@@ -370,10 +376,11 @@ def test_concurrent_event_is_not_claimed_in_failure_envelope(
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
-    assert payload["error_code"] == "TEST_INTERLEAVED"
-    assert payload["applied_wps"] == ["WP01"]
-    assert len(payload["event_ids"]) == 1
-    assert foreign_event_ids and foreign_event_ids[0] not in payload["event_ids"]
+    assert payload["error"]["code"] == "TEST_INTERLEAVED"
+    context = payload["context"]
+    assert context["applied_wps"] == ["WP01"]
+    assert len(context["event_ids"]) == 1
+    assert foreign_event_ids and foreign_event_ids[0] not in context["event_ids"]
     assert git(owned, "status", "--porcelain") == ""
     assert (snapshot(primary), snapshot(sibling)) == others_before
 
@@ -421,10 +428,11 @@ def test_post_commit_recovery_reports_only_exact_commit_events(
 
     assert result.exit_code == 1, result.output
     payload = json.loads(result.output)
-    assert payload["error_code"] == "MARK_STATUS_FAILED"
-    assert payload["state_applied"] is True
-    assert payload["applied_wps"] == ["WP01"]
-    assert payload["event_ids"] == committed_event_ids
+    assert payload["error"]["code"] == "MARK_STATUS_FAILED"
+    context = payload["context"]
+    assert context["state_applied"] is True
+    assert context["applied_wps"] == ["WP01"]
+    assert context["event_ids"] == committed_event_ids
     assert git(owned, "status", "--porcelain") == ""
     assert (snapshot(primary), snapshot(sibling)) == others_before
 

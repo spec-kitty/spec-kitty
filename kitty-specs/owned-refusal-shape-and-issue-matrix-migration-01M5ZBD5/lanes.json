@@ -31,7 +31,7 @@
         "WP02"
       ],
       "write_scope": [
-        "docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md",
+        "docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md",
         "src/specify_cli/cli/commands/_owned_checkout.py",
         "src/specify_cli/cli/commands/accept.py",
         "src/specify_cli/cli/commands/agent/acceptance_verdict.py",

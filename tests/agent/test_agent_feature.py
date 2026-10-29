@@ -714,17 +714,16 @@ class TestCreateFeatureCommand:
 
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().splitlines()[0])
-        assert payload["error_code"] == "OWNERSHIP_FOREIGN"
-        assert str(foreign.resolve()) in payload["error"]
-        assert str(primary.resolve()) in payload["error"]
+        # #6353 / ADR 2026-10-27-2: the owned refusal is the C2 owned refusal
+        # built by ``owned_refusal_payload``; ``_emit_json`` adds only the
+        # version stamp (``_with_mission_aliases`` adds nothing).
+        assert set(payload) == {"ok", "error", "spec_kitty_version"}
+        assert payload["ok"] is False
+        assert set(payload["error"]) == {"code", "message"}
+        assert payload["error"]["code"] == "OWNERSHIP_FOREIGN"
+        assert str(foreign.resolve()) in payload["error"]["message"]
+        assert str(primary.resolve()) in payload["error"]["message"]
         assert not any((primary / "kitty-specs").glob("foreign-feature-*"))
-        # Shared ownership refusal contract: same core JSON shape as
-        # _owned_checkout.emit_owned_refusal — success/error_code/error
-        # present, and no redundant `message` key from the previous
-        # `**exc.to_dict()` spread (StructuredError.to_dict() would add it).
-        assert payload["success"] is False
-        assert "message" not in payload
-        assert {"success", "error_code", "error"} <= payload.keys()
 
     def test_owned_checkout_subdirectory_refusal_is_structured_json(
         self,
@@ -752,9 +751,11 @@ class TestCreateFeatureCommand:
 
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().splitlines()[0])
-        assert payload["error_code"] == "OWNERSHIP_NESTED"
-        assert str(nested.resolve()) in payload["error"]
-        assert str(linked.resolve()) in payload["error"]
+        assert payload["ok"] is False
+        assert payload["error"]["code"] == "OWNERSHIP_NESTED"
+        assert "error_code" not in payload
+        assert str(nested.resolve()) in payload["error"]["message"]
+        assert str(linked.resolve()) in payload["error"]["message"]
         assert not any((linked / "kitty-specs").glob("nested-feature-*"))
 
 

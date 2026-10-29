@@ -468,7 +468,7 @@ def test_owned_failure_envelope_reports_dirty_unknown_when_the_probe_fails(
     with pytest.raises(typer.Exit):
         tasks_mark_status._ms_report_owned_failure(st, owned, RuntimeError("boom"))
 
-    assert json.loads(capsys.readouterr().out)["dirty"] is None
+    assert json.loads(capsys.readouterr().out)["context"]["dirty"] is None
 
 
 # ---------------------------------------------------------------------------
