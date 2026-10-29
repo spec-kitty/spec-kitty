@@ -33,6 +33,7 @@ from specify_cli.status import (
     StatusEvent,
     _actor_key,
     actor_from_option,
+    build_status_actor,
     emission_event_verdict,
     resolve_lane_alias,
     role_for_hop,
@@ -169,19 +170,24 @@ def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_l
 def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> dict[str, str | None]:
     """The structured 4-key ``{tool, role, profile, model}`` actor a move-task write records (#6400).
 
-    ``tool_identity`` is the one identity the caller already chose (``--agent``, the
-    implementer handoff, the recorded reviewer, ``"user"`` or ``"operator"``). It goes
-    through the lenient builder (:func:`~specify_cli.status.actor_from_option`): a
-    compact string keeps the ``tool:model:profile`` it asserts, a value that does not
-    parse (or a ``migration:`` identity) is kept whole as ``tool``. An explicit
-    ``--agent`` was already refused upfront when it does not parse. A reviewer recorded
-    as a structured actor reaches here as its bare tool (``actor_identity_str``), so only
-    string-recorded identities keep their model/profile. The dispatch binding
-    (``--invocation-id`` / ``--profile``) wins for ``profile``/``model``. No WP file is
-    read: the frontmatter profile is never filled in (phase split, spec C-006).
+    An explicit ``--agent`` (already refused upfront when it does not parse) is parsed
+    strictly (:func:`~specify_cli.status.build_status_actor`), as on mark-status and
+    add-history: ``migration:x`` is tool ``migration``, never a seed. Without it,
+    ``tool_identity`` is the recorded identity the caller chose (the implementer
+    handoff, the recorded reviewer, ``"user"`` or ``"operator"``) and goes through the
+    lenient builder (:func:`~specify_cli.status.actor_from_option`): a compact string
+    keeps its ``tool:model:profile``; a value that does not parse, has more than four
+    segments or is a ``migration:`` seed is kept whole as ``tool``. A reviewer recorded
+    as a structured actor reaches here as its bare tool (``actor_identity_str``). The
+    dispatch binding (``--invocation-id`` / ``--profile``) wins for ``profile``/``model``.
+    No WP file is read: the frontmatter profile is never filled in (phase split, spec C-006).
     """
     # Bound explicitly: mypy widens ``specify_cli.*`` returns to ``Any`` through ``follow_imports=skip``.
-    actor: dict[str, str | None] = actor_from_option(tool_identity, role, binding=st.resolved_binding)
+    actor: dict[str, str | None]
+    if st.agent:
+        actor = build_status_actor(role=role, agent=st.agent, fallback_tool=None, binding=st.resolved_binding)
+    else:
+        actor = actor_from_option(tool_identity, role, binding=st.resolved_binding)
     return actor
 
 
