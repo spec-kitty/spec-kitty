@@ -198,10 +198,13 @@ def test_mission_create_and_next_share_structured_ownership_refusals(
     assert create_result.exit_code == next_result.exit_code == 1
     create_payload = _json_object(create_result.stdout)
     next_payload = _json_object(next_result.stdout)
-    assert create_payload["success"] is next_payload["success"] is False
-    assert create_payload["error_code"] == next_payload["error_code"] == expected_code
-    assert create_payload["error"]
-    assert next_payload["error"]
+    # ADR 2026-10-27-1: both surfaces render the C2 owned refusal.
+    assert create_payload["ok"] is next_payload["ok"] is False
+    assert create_payload["error"]["code"] == next_payload["error"]["code"] == expected_code
+    assert create_payload["error"]["message"]
+    assert next_payload["error"]["message"]
+    assert "error_code" not in create_payload
+    assert "error_code" not in next_payload
 
 
 def test_owned_refusal_never_calls_legacy_worktree_navigation_hint(

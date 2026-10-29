@@ -22,8 +22,12 @@ import pytest
 from typer.testing import CliRunner, Result
 
 from specify_cli.cli.commands.agent import app as agent_app
+from tests.integration import test_explicit_checkout_commands as _explicit
 from tests.integration.test_explicit_checkout_commands import SLUG, git
-from tests.integration.test_explicit_checkout_commands import checkouts as checkouts  # noqa: F401 -- pytest fixture
+
+# Reuse the owned-checkout fixture by binding it as a module attribute, so
+# pytest discovers it here without a suppressed re-export import.
+checkouts = _explicit.checkouts
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -61,7 +65,7 @@ def _assert_legacy_and_new_rows(owned: Path) -> None:
     assert rows["#2"]["verdict"] == "fixed"
 
 
-def test_owned_flag_migrates_legacy_matrix_into_owned_checkout(checkouts: tuple[Path, Path, Path]) -> None:  # noqa: F811
+def test_owned_flag_migrates_legacy_matrix_into_owned_checkout(checkouts: tuple[Path, Path, Path]) -> None:
     _primary, owned, _sibling = checkouts
     _seed_legacy_matrix(owned)
     res = _verdict("--owned-checkout", str(owned))
@@ -69,7 +73,7 @@ def test_owned_flag_migrates_legacy_matrix_into_owned_checkout(checkouts: tuple[
     _assert_legacy_and_new_rows(owned)
 
 
-def test_owned_migration_never_touches_the_repository_root(checkouts: tuple[Path, Path, Path]) -> None:  # noqa: F811
+def test_owned_migration_never_touches_the_repository_root(checkouts: tuple[Path, Path, Path]) -> None:
     primary, owned, _sibling = checkouts
     _seed_legacy_matrix(owned)
     res = _verdict("--owned-checkout", str(owned))
@@ -77,7 +81,7 @@ def test_owned_migration_never_touches_the_repository_root(checkouts: tuple[Path
     assert not (primary / "kitty-specs" / SLUG).exists(), "migration must not write into the repository root checkout"
 
 
-def test_flagless_adoption_migrates_legacy_matrix_into_owned_checkout(checkouts: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:  # noqa: F811
+def test_flagless_adoption_migrates_legacy_matrix_into_owned_checkout(checkouts: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     primary, owned, _sibling = checkouts
     _seed_legacy_matrix(owned)
     monkeypatch.chdir(owned)
