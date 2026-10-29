@@ -2439,6 +2439,8 @@ module = [
     "specify_cli.decisions.index_fold",             # is_allowed_terminal_reopen() -> bool (decisions/service.py, #6002)
     "specify_cli.decisions.models",                 # decision models, imported by index_fold
     "specify_cli.invocation.errors",                # InvocationError, subclassed by op_custody.OpWriteRefused (#6564)
+    "charter.offering.base",                        # BaseArtifactRepository, subclassed by MissionStepContractRepository (step_contracts)
+    "specify_cli.cli.commands.charter._app",        # charter_app, whose .command() decorates charter interview
 ]
 follow_imports = "normal"
 
