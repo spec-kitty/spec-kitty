@@ -1,0 +1,37 @@
+{
+  "accept_commit": "d45d44d7e186902acd2f3d0bc2ef7f4cda3ccb0d",
+  "acceptance_history": [
+    {
+      "accept_commit": "d45d44d7e186902acd2f3d0bc2ef7f4cda3ccb0d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-27T21:15:46.475919+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "d1adc52acd54023aa116fee71d01f29c9da21430"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-27T21:15:46.475919+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "d1adc52acd54023aa116fee71d01f29c9da21430",
+  "baseline_merge_commit": "92eb0b6def3ce17a014e01e71244539b62ff7078",
+  "contracts": "none",
+  "contracts_rationale": "Internal CLI behaviour fix: no API, event or payload contract is added or changed; the only operator-visible surface is the CHARTER_SYNTHESIS_LOCK_HELD refusal and warning text, pinned by tests.",
+  "created_at": "2026-10-27T18:53:50.469172+00:00",
+  "flattened": true,
+  "friendly_name": "Synthesis record integrity",
+  "merged_at": "2026-10-27T21:20:13.275117+00:00",
+  "merged_commit": "692115c499838afe755b43f71e21d060cddb7701",
+  "mid8": "01M5ZBC9",
+  "mission_id": "01M5ZBC98ZCPEX1JM9ATXXZAWF",
+  "mission_number": 243,
+  "mission_slug": "synthesis-record-integrity-01M5ZBC9",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Concurrent synthesize/resynthesize runs can lose entries in the created-artifacts record (re-adding tactics an operator removed); the unreadable-record warning gives no safe repair path; and a full synthesize run strips legacy applies edges from artifacts it did not regenerate while claiming they were replaced. This mission makes the record writes serialized, the warning actionable, and the strip honest (issues #6453, #6455, #6456).",
+  "purpose_tldr": "Keep charter synthesis from losing which artifacts it created and from dropping stored directive links.",
+  "slug": "synthesis-record-integrity-01M5ZBC9",
+  "status_phase": "1",
+  "target_branch": "issue-6453-synthesis-record-integrity",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T19:25:50.171561+00:00"
+}

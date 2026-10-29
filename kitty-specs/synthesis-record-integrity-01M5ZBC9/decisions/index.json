@@ -1,0 +1,105 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T18:54:15.656918Z",
+      "decision_id": "01M5ZBD3K8FQQZ2KFANYVMX0JZ",
+      "final_answer": "Run-wide, git common dir",
+      "input_key": "synthesis_lock_design",
+      "mission_id": "01M5ZBC98ZCPEX1JM9ATXXZAWF",
+      "mission_slug": "synthesis-record-integrity-01M5ZBC9",
+      "opened_by": "cli",
+      "options": [
+        "Run-wide, git common dir",
+        "Record-only, git common dir",
+        "Run-wide, under .kittify/",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#6453: scope and placement of the new charter synthesis lock?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T18:54:19.221235Z",
+      "resolved_by": null,
+      "slot_key": "specify.locking.lock-design",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T18:54:22.754035Z",
+      "decision_id": "01M5ZBDAH1Z51X0W35XMMYPHTY",
+      "final_answer": "Skip non-regenerated",
+      "input_key": "legacy_applies_strip_policy",
+      "mission_id": "01M5ZBC98ZCPEX1JM9ATXXZAWF",
+      "mission_slug": "synthesis-record-integrity-01M5ZBC9",
+      "opened_by": "cli",
+      "options": [
+        "Skip non-regenerated",
+        "Write a successor edge",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "#6456: emit a suggests successor edge, or skip stripping legacy applies edges of artifacts the run did not regenerate?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T18:54:26.931092Z",
+      "resolved_by": null,
+      "slot_key": "specify.reconcile.legacy-applies-strip",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T18:55:10.256157Z",
+      "decision_id": "01M5ZBERXGAS37DZCNTPG1WMC0",
+      "final_answer": "Short wait (~10s), then refuse with CHARTER_SYNTHESIS_LOCK_HELD; nothing written",
+      "input_key": "synthesis_lock_contention",
+      "mission_id": "01M5ZBC98ZCPEX1JM9ATXXZAWF",
+      "mission_slug": "synthesis-record-integrity-01M5ZBC9",
+      "opened_by": "cli",
+      "options": [
+        "Short wait, then refuse",
+        "Refuse immediately",
+        "Wait indefinitely",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "What does a second synthesis run do when the lock is held?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T18:55:13.784911Z",
+      "resolved_by": null,
+      "slot_key": "specify.locking.contention",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:13:35.716774Z",
+      "decision_id": "01M5ZCGGF4N7SWFM9MZF8Y4SBF",
+      "final_answer": "Also lock restamp_bundle_hash; file the activation-ledger migration and activate/deactivate config race as a follow-up under #6518",
+      "input_key": "other_manifest_writers",
+      "mission_id": "01M5ZBC98ZCPEX1JM9ATXXZAWF",
+      "mission_slug": "synthesis-record-integrity-01M5ZBC9",
+      "opened_by": "cli",
+      "options": [
+        "Also lock restamp; file rest",
+        "Synthesis only; file all",
+        "Lock every writer",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How far should the lock reach beyond synthesize/resynthesize (restamp_bundle_hash, activation-ledger migration, activate/deactivate)?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:13:39.353570Z",
+      "resolved_by": null,
+      "slot_key": "plan.locking.other-manifest-writers",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5ZBC98ZCPEX1JM9ATXXZAWF",
+  "version": 1
+}

@@ -1,0 +1,119 @@
+{
+  "mission_slug": "synthesis-record-integrity-01M5ZBC9",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_activation_append.py::test_concurrent_appends_lose_no_recorded_id (red-first at lane-c 6d0b9d30; fails under lock-removal mutant; WP03 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:14:14.279683+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesis_lock_cli.py::test_synthesize_takes_the_lock_before_the_legacy_convergence, ::test_resynthesize_takes_the_lock_before_the_legacy_convergence, ::test_synthesize_dry_run_takes_no_lock, ::test_resynthesize_list_topics_takes_no_lock (mutants A/B red; WP02 cycle-2 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:14:23.103019+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesis_lock_cli.py::test_synthesize_refuses_when_lock_held_and_writes_nothing, ::test_synthesize_json_envelope_carries_the_lock_code; tests/charter/synthesizer/test_synthesis_lock.py::test_other_thread_holding_lock_raises_held",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:14:30.751224+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_activation_append.py::test_concurrent_regeneration_keeps_an_operator_removal_removed (real config, positive control t4/t5)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:14:38.281067+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_activation_append.py::test_unreadable_record_warning_says_how_to_restore_or_repair (current, non-mapping, legacy record)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:14:46.649799+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_activation_append.py::test_unreadable_record_warning_says_how_to_restore_or_repair (do-not-delete caution asserted)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:14:54.880179+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_full_run_keeps_legacy_applies_edge_of_artifacts_it_did_not_regenerate; tests/charter/synthesizer/test_styleguide_reach_only.py::test_legacy_styleguide_applies_edge_is_kept_when_not_regenerated (red-first lane-a 9c09083b)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:15:02.623959+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_full_run_delta_reports_only_the_regenerated_legacy_edge_as_stripped (red-first lane-a 9c09083b)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:15:10.470758+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_full_run_keeps_legacy_applies_edge_of_artifacts_it_did_not_regenerate (regenerated tactic stripped, positive control)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:15:18.771053+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_full_run_still_strips_dead_mission_type_edge_of_an_unregenerated_directive",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:15:26.910724+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesis_lock.py::test_restamp_refuses_while_another_thread_holds_lock, ::test_restamp_nests_inside_a_held_lock_on_same_thread",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T21:15:34.598279+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

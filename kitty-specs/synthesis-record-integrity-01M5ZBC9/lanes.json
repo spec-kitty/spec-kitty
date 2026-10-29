@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "mission_slug": "synthesis-record-integrity-01M5ZBC9",
+  "mission_id": "01M5ZBC98ZCPEX1JM9ATXXZAWF",
+  "mission_branch": "kitty/mission-synthesis-record-integrity-01M5ZBC9",
+  "target_branch": "issue-6453-synthesis-record-integrity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/reconcile.py",
+        "tests/charter/synthesizer/test_orchestrator_resynthesize.py",
+        "tests/charter/synthesizer/test_project_intent_directive.py",
+        "tests/charter/synthesizer/test_styleguide_reach_only.py",
+        "tests/charter/synthesizer/test_synthesize_reconcile.py",
+        "tests/specify_cli/cli/commands/charter/test_synthesis_report_6404.py",
+        "tests/specify_cli/cli/commands/charter/test_synthesize_cli_reconcile.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/api.py",
+        "src/charter/activation/bundle_restamp.py",
+        "src/charter/activation/synthesizer/synthesis_lock.py",
+        "src/specify_cli/cli/commands/charter/resynthesize.py",
+        "src/specify_cli/cli/commands/charter/synthesize.py",
+        "tests/architectural/test_charter_activation_api_reexport.py",
+        "tests/charter/synthesizer/test_synthesis_lock.py",
+        "tests/charter/synthesizer/test_synthesis_lock_cli.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "src/charter/activation/synthesizer/reach_only.py",
+        "tests/charter/synthesizer/test_synthesize_activation_append.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-27T19:23:31.695530+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1131d02264b6a990f30c37ad419b0401df6d4bcd"
+}
