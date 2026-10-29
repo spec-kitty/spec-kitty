@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "mission_slug": "owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5",
+  "mission_id": "01M5ZBD5VCWGSQKRJ34AT655MX",
+  "mission_branch": "kitty/mission-owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5",
+  "target_branch": "issue-6354-owned-issue-verdict-cleanup",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/issue_verdict.py",
+        "src/specify_cli/tasks/issue_matrix_migration.py",
+        "tests/integration/test_owned_issue_verdict_legacy_migration_6354.py",
+        "tests/specify_cli/tasks/test_issue_matrix_structured.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md",
+        "src/specify_cli/cli/commands/_owned_checkout.py",
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/acceptance_verdict.py",
+        "src/specify_cli/cli/commands/agent/context.py",
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_mark_status.py",
+        "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "src/specify_cli/cli/commands/decision.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/cli/commands/research.py",
+        "src/specify_cli/cli/commands/spec_commit_cmd.py",
+        "tests/integration/test_explicit_checkout_commands.py",
+        "tests/integration/test_owned_analysis_recording.py",
+        "tests/integration/test_owned_charter_generation.py",
+        "tests/integration/test_owned_checkout_mark_status.py",
+        "tests/integration/test_owned_decision_runtime_lock.py",
+        "tests/integration/test_owned_issue_verdict_authority_6320.py",
+        "tests/integration/test_owned_lifecycle_acceptance_*.py",
+        "tests/integration/test_owned_map_requirements.py",
+        "tests/integration/test_p0_repro_6023_owned_acceptance_verdict.py",
+        "tests/integration/test_p0_repro_6320_owned_issue_verdict.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py",
+        "tests/specify_cli/cli/commands/agent/test_task_command_owned_conversion.py",
+        "tests/specify_cli/cli/commands/test_accept_decomposition.py",
+        "tests/specify_cli/cli/commands/test_decision_owned_checkout.py",
+        "tests/specify_cli/cli/commands/test_next_owned_fact.py",
+        "tests/specify_cli/cli/commands/test_owned_checkout_helper.py",
+        "tests/specify_cli/cli/commands/test_owned_refusal_format_unified.py",
+        "tests/specify_cli/invocation/cli/test_op_owned_checkout.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/orchestrator-api.md",
+        "src/specify_cli/orchestrator_api/design_phase.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "src/specify_cli/orchestrator_api/runtime_next.py",
+        "tests/orchestrator_api/test_origin_freshness_envelopes.py",
+        "tests/specify_cli/orchestrator_api/test_check_prerequisites_record_analysis.py",
+        "tests/specify_cli/orchestrator_api/test_contract_version.py",
+        "tests/specify_cli/orchestrator_api/test_runtime_next.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/agent/mission_create.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/agent/test_agent_feature.py",
+        "tests/architectural/test_json_contract_enumeration.py",
+        "tests/integration/test_owned_refusal_c2_shape.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_create*.py",
+        "tests/specify_cli/cli/commands/agent/test_owned_checkout_move_task.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-27T19:11:40.463048+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "26793e8598879b0c811fadad79f0d0fd8bc55c90"
+}

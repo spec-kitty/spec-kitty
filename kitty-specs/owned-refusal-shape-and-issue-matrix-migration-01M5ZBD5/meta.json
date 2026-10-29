@@ -1,0 +1,34 @@
+{
+  "accept_commit": "e5f0ffe782a85aa844945e111da135f69db7a533",
+  "acceptance_history": [
+    {
+      "accept_commit": "e5f0ffe782a85aa844945e111da135f69db7a533",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-29T06:29:40.035863+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "40f2ffc158d557e674dbdfc5e7232f8f3eeb0f8c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-29T06:29:40.035863+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "40f2ffc158d557e674dbdfc5e7232f8f3eeb0f8c",
+  "coordination_branch": "kitty/mission-owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5",
+  "created_at": "2026-10-27T18:54:19.381935+00:00",
+  "flattened": false,
+  "friendly_name": "Owned-checkout issue-verdict cleanup",
+  "mid8": "01M5ZBD5",
+  "mission_id": "01M5ZBD5VCWGSQKRJ34AT655MX",
+  "mission_number": null,
+  "mission_slug": "owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Two follow-ups from the owned-checkout work (#6354, #6353): a legacy issue-matrix.md migration for an owned mission still writes against the repository root checkout, and owned-checkout refusals emit a different JSON error shape per command. The operator ruled one shared refusal shape for every command: the adopted CLI error contract {ok:false, error:{code,message}}.",
+  "purpose_tldr": "Owned missions keep their migrated issue matrix in their own checkout, and every owned-checkout refusal speaks one JSON error shape.",
+  "slug": "owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5",
+  "status_phase": "1",
+  "target_branch": "issue-6354-owned-issue-verdict-cleanup",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T19:14:21.704699+00:00"
+}
