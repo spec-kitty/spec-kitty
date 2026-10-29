@@ -418,8 +418,15 @@ def _ownership_unreadable(offending: str, exc: Exception) -> _SynthesisOwnership
     )
 
 
-def _sidecar_urn(repo_root: Path, entry: ManifestArtifactEntry) -> str:
-    """Return the ``artifact_urn`` recorded by *entry*'s provenance sidecar, or raise."""
+def _synthesized_sidecar_urn(repo_root: Path, entry: ManifestArtifactEntry) -> str | None:
+    """Return the ``artifact_urn`` *entry*'s provenance sidecar records when synthesis wrote it, or raise.
+
+    ``None`` for a ``project-direct-write`` sidecar: project registration
+    (``charter activate``) records hand-authored files, and re-records
+    synthesized ones, in the same manifest; that record is not synthesis
+    ownership (the same split ``project_drg._registered_project_artifacts``
+    and ``project_registration._sidecar_recorded_urn`` draw).
+    """
     try:
         rel = _validate_manifest_path(
             entry.provenance_path,
@@ -435,6 +442,8 @@ def _sidecar_urn(repo_root: Path, entry: ManifestArtifactEntry) -> str:
             entry.provenance_path,
             ValueError(f"artifact_urn {sidecar.artifact_urn!r} is not a {entry.kind} URN"),
         )
+    if sidecar.adapter_id == "project-direct-write":
+        return None
     return sidecar.artifact_urn
 
 
@@ -443,7 +452,11 @@ def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
 
     Ownership comes from the existing record only (no id-prefix heuristic): the
     manifest lists each synthesized artifact, and only its provenance sidecar
-    records the URN (``artifact_urn``, e.g. ``directive:PROJECT_001``).
+    records the URN (``artifact_urn``, e.g. ``directive:PROJECT_001``). A URN is
+    synthesis-owned when at least one entry recording it has a sidecar whose
+    ``adapter_id`` is not ``project-direct-write``: a direct-write registration
+    alone (a hand-authored file ``charter activate`` registered) is not
+    ownership, and a synthesized artifact re-registered as direct-write stays owned.
 
     Absent manifest: empty set (nothing synthesized). Unreadable or invalid
     manifest, or a missing/unreadable/URN-less sidecar for an entry of *kind*:
@@ -460,7 +473,8 @@ def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
         manifest = load_yaml(manifest_file)
     except (OSError, ValueError, YAMLError) as exc:
         raise _ownership_unreadable(MANIFEST_PATH.as_posix(), exc) from exc
-    return frozenset(_sidecar_urn(repo_root, entry) for entry in manifest.artifacts if entry.kind == kind)
+    urns = (_synthesized_sidecar_urn(repo_root, entry) for entry in manifest.artifacts if entry.kind == kind)
+    return frozenset(urn for urn in urns if urn is not None)
 
 
 # ---------------------------------------------------------------------------

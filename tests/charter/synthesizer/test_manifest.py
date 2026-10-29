@@ -723,8 +723,13 @@ def _write_ownership_record(
     repo_root: Path,
     guard: PathGuard,
     records: list[tuple[_OwnedKind, str, str | None]],
+    direct_write_slugs: frozenset[str] = frozenset(),
 ) -> None:
-    """Write a real manifest plus one provenance sidecar per ``(kind, slug, urn)``; ``urn=None`` writes no sidecar."""
+    """Write a real manifest plus one provenance sidecar per ``(kind, slug, urn)``; ``urn=None`` writes no sidecar.
+
+    A slug in *direct_write_slugs* gets a ``project-direct-write`` sidecar (a
+    project registration record) instead of a synthesis one.
+    """
     from charter.activation.synthesizer.provenance import ProvenanceEntry
     from charter.activation.synthesizer.provenance import dump_yaml as dump_provenance
 
@@ -738,7 +743,7 @@ def _write_ownership_record(
             artifact_slug=slug,
             artifact_content_hash="a" * 64,
             inputs_hash="b" * 64,
-            adapter_id="fixture",
+            adapter_id="project-direct-write" if slug in direct_write_slugs else "fixture",
             adapter_version="1.0.0",
             synthesizer_version="3.2.0a5",
             source_section="mission_type",
@@ -775,6 +780,30 @@ def test_synthesized_urns_returns_only_the_requested_kind(tmp_path: Path, guard:
     assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001", "directive:PROJECT_002"})
     assert synthesized_urns(tmp_path, "tactic") == frozenset({"tactic:review-policy-tactic"})
     assert synthesized_urns(tmp_path, "styleguide") == frozenset()
+
+
+def test_synthesized_urns_direct_write_registration_is_not_ownership(tmp_path: Path, guard: PathGuard) -> None:
+    """A hand-authored directive ``charter activate`` registered is recorded, not synthesis-owned."""
+    _write_ownership_record(
+        tmp_path,
+        guard,
+        [("directive", "project-intent-directive", "directive:PROJECT_001"), ("directive", "team-001", "directive:TEAM_001")],
+        direct_write_slugs=frozenset({"team-001"}),
+    )
+
+    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
+
+
+def test_synthesized_urns_reregistered_synthesized_directive_stays_owned(tmp_path: Path, guard: PathGuard) -> None:
+    """A second, direct-write record of a synthesized URN does not take its ownership away."""
+    _write_ownership_record(
+        tmp_path,
+        guard,
+        [("directive", "project-intent-directive", "directive:PROJECT_001"), ("directive", "project-001", "directive:PROJECT_001")],
+        direct_write_slugs=frozenset({"project-001"}),
+    )
+
+    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
 
 
 def test_synthesized_urns_corrupt_manifest_raises(tmp_path: Path) -> None:
