@@ -158,8 +158,12 @@ def test_build_identity_json_shape() -> None:
     assert payload["ambiguous_selectors"] == {}
 
 
+#: A fake checkout path for residue rows; nothing is read from or written to it.
+_RESIDUE_ROOT = Path("/repo/kitty-specs")
+
+
 def _residue(slug: str, reason: ResidueReason, error: str | None = None) -> IdentityState:
-    return IdentityState(Path("/tmp") / slug, slug, None, None, "residue", error, reason)
+    return IdentityState(_RESIDUE_ROOT / slug, slug, None, None, "residue", error, reason)
 
 
 def test_build_identity_json_adds_one_remedy_per_present_reason() -> None:
@@ -237,7 +241,7 @@ def test_corrupt_remedy_recipe_restores_the_latest_meta(tmp_path: Path, removal_
 
 
 def test_residue_groups_refuse_a_row_without_a_reason() -> None:
-    row = IdentityState(Path("/tmp") / "x", "x", None, None, "residue", None, None)
+    row = IdentityState(_RESIDUE_ROOT / "x", "x", None, None, "residue", None, None)
     with pytest.raises(ValueError, match="carries no residue_reason"):
         ia._residue_groups([row])
 
@@ -260,8 +264,8 @@ def test_print_identity_summary_table_lists_residue() -> None:
 def test_print_identity_path_sections_groups_residue_by_reason() -> None:
     from specify_cli.cli.commands._doctor_shared import console
 
-    summary: dict[str, object] = {"legacy_paths": [], "orphan_paths": [], "residue_paths": ["/tmp/a", "/tmp/b", "/tmp/c"]}
-    states = [_residue("a", "no_meta"), _residue("b", "no_meta"), _residue("c", "corrupt_meta", "Cannot read /tmp/c/meta.json")]
+    summary: dict[str, object] = {"legacy_paths": [], "orphan_paths": [], "residue_paths": [str(_RESIDUE_ROOT / n) for n in ("a", "b", "c")]}
+    states = [_residue("a", "no_meta"), _residue("b", "no_meta"), _residue("c", "corrupt_meta", f"Cannot read {_RESIDUE_ROOT / 'c' / 'meta.json'}")]
     with console.capture() as capture:
         ia._print_identity_path_sections(summary, states)
     out = capture.get()
@@ -269,8 +273,8 @@ def test_print_identity_path_sections_groups_residue_by_reason() -> None:
     assert "Residue folders (not Missions; Mission selection does not list them):" in flat
     assert flat.count(ia.RESIDUE_REMEDY_NO_META) == 1 and flat.count(ia.RESIDUE_REMEDY_CORRUPT_META) == 1
     assert ia.RESIDUE_REMEDY_UNTRACKED_IDLESS_META not in flat
-    assert flat.index("No meta.json:") < flat.index("/tmp/a") < flat.index("Corrupt meta.json")
-    assert "/tmp/c — Cannot read /tmp/c/meta.json" in flat
+    assert flat.index("No meta.json:") < flat.index(str(_RESIDUE_ROOT / "a")) < flat.index("Corrupt meta.json")
+    assert f"{_RESIDUE_ROOT / 'c'} — Cannot read {_RESIDUE_ROOT / 'c' / 'meta.json'}" in flat
 
 
 def test_print_identity_path_sections_no_residue_no_remedy() -> None:
