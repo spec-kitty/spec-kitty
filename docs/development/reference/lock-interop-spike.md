@@ -52,11 +52,15 @@ A run is **GO** when both cross-holding checks exclude, the Java writer found th
 
 ## Evidence
 
-CI run [40553799689](https://github.com/spec-kitty/spec-kitty/actions/runs/40553799689) (head `c9d5950`) EVIDENCE_RUN_NOTE
+CI run [40557031791](https://github.com/spec-kitty/spec-kitty/actions/runs/40557031791) (head `21751d8`); all three `lock-interop` jobs passed, including the guard that requires one recorded result per Java lock.
 
 | OS | Java lock vs Python lock | Python holds: Java excluded | Java holds: Python excluded | overlaps / rounds | contended (Java / Python) | refused / rows | intact / Python reader / Java reader | switches (cross-language / all) | verdict |
 |---|---|---|---|---|---|---|---|---|---|
-EVIDENCE_ROWS
+| linux | java-ffm-flock vs fcntl.flock | true | true | 0 / 1730 | 147 / 105 | 0 / 1268 | true / true / true | 484 / 490 | **GO** |
+| linux | java-filechannel vs fcntl.flock | false | false | 172 / 495 | 0 / 12 | 0 / 743 | true / true / true | 516 / 520 | **NO-GO** |
+| macos | java-ffm-flock vs fcntl.flock | true | true | 0 / 792 | 110 / 109 | 0 / 1950 | true / true / true | 474 / 492 | **GO** |
+| macos | java-filechannel vs fcntl.flock | true | true | 0 / 667 | 99 / 103 | 0 / 1214 | true / true / true | 444 / 453 | **GO** |
+| windows | java-filechannel vs msvcrt.locking | true | true | 0 / 1779 | 187 / 120 | 0 / 3382 | true / true / true | 560 / 567 | **GO** |
 
 Each row is the `lock-interop result:` record the test writes to `event-log/build/lock-interop/` (artefact `lock-interop-<os>`) and to the job's step summary. The assertions in `LockInteropSpikeTest` pin these outcomes, so a JDK or OS change that moves one turns the job red:
 
