@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+  "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+  "mission_branch": "kitty/mission-charter-cli-typed-errors-json-01M5ZC9Z",
+  "target_branch": "issue-6557-charter-cli-typed-errors-json",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/_activation_report.py",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "src/specify_cli/cli/commands/charter/deactivate.py",
+        "tests/architectural/test_json_contract_enumeration.py",
+        "tests/specify_cli/cli/commands/charter/snapshots/activation_json/**",
+        "tests/specify_cli/cli/commands/charter/test_activation_json_6525.py",
+        "tests/specify_cli/cli/commands/charter/test_activation_text_golden.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/_status_collectors.py",
+        "src/specify_cli/cli/commands/charter/status.py",
+        "tests/specify_cli/cli/commands/charter/snapshots/status_activation/**",
+        "tests/specify_cli/cli/commands/charter/test_status_activation_block_6526.py",
+        "tests/specify_cli/cli/commands/charter/test_status_broken_charter_6557.py",
+        "tests/specify_cli/cli/commands/charter/test_status_json_safe.py",
+        "tests/specify_cli/cli/commands/charter/test_status_sk16_config_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-27T19:23:07.332833+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "823b853f86f0b62517a2f31c05835e3d52aa0c1b"
+}

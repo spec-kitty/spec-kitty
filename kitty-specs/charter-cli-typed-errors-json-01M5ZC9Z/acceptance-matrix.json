@@ -1,0 +1,129 @@
+{
+  "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_status_broken_charter_6557.py (unparseable charter, text+JSON; 15 passed on lane-b)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:11:42.809373+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_status_broken_charter_6557.py (list-rooted/empty charter, no bundle/upgrade text)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:11:48.764983+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_status_broken_charter_6557.py + test_status_sk16_config_guard.py; enumeration gate 'charter status' ADOPTED",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:11:54.514603+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activation_json_6525.py refusal cases + status _status_error unit tests; contracts/cli-json.md code table",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:00.392094+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activation_json_6525.py activate cases + snapshots/activation_json/activate_*.json (38 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:06.253540+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activation_json_6525.py deactivate cases + snapshots/activation_json/deactivate_cascade.json",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:11.909824+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activation_json_6525.py cascade report assertions (cascaded/reinstated/failed/skipped buckets, deactivated flag)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:18.007475+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activation_json_6525.py exit-code parity per refusal (JSON vs text)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:23.654432+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_status_activation_block_6526.py ledger/legacy fixtures + snapshots/status_activation/ledger.json (10 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:28.918474+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_status_activation_block_6526.py required in_force true/false cases via required_not_in_force",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:34.505399+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activation_text_golden.py (10 passed) + status text golden; reviewer byte-exact cmp vs base (WP02 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:40.679647+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/api/charter-commands.md (59d13584) examples byte-equal to snapshot files, verified in WP03 review; snapshot tests in WP01/WP02",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T06:12:46.641004+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

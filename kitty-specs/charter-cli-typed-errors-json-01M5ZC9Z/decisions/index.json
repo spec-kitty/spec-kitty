@@ -1,0 +1,168 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T19:10:24.626018Z",
+      "decision_id": "01M5ZCANVH16B2ANT1BJ115S8R",
+      "final_answer": "Canonical everywhere: status, activate and deactivate errors all use {ok:false,error:{code,message}} (json_contract.json_error); status's legacy error envelope is replaced (breaking for status error consumers; CHANGELOG note).",
+      "input_key": "error_envelope",
+      "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+      "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+      "opened_by": "cli",
+      "options": [
+        "Canonical for new, add code to status",
+        "Canonical everywhere"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which JSON error envelope should charter status/activate/deactivate use?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:10:27.780452Z",
+      "resolved_by": null,
+      "slot_key": "specify.json.error-envelope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:10:30.684014Z",
+      "decision_id": "01M5ZCAVRVKZDA0FG068BRK6WZ",
+      "final_answer": "Local schema_version 1.0.0 on the activate/deactivate success payload and inside the status activation block; labelled local, not the contract revision (#6521 held).",
+      "input_key": "schema_version",
+      "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+      "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+      "opened_by": "cli",
+      "options": [
+        "Local schema_version 1.0.0",
+        "No version field"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should new JSON payloads carry a schema version?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:10:33.985147Z",
+      "resolved_by": null,
+      "slot_key": "specify.json.schema-version",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:10:37.033851Z",
+      "decision_id": "01M5ZCB1Z9H59Y3ZW0MBWQQK4T",
+      "final_answer": "snake_case, local: source, path, selected, deactivated, mission_types, activated_kinds, required; camelCase contract mapping left to #6520.",
+      "input_key": "activation_field_naming",
+      "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+      "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+      "opened_by": "cli",
+      "options": [
+        "snake_case, local",
+        "camelCase as #6526 lists"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Field naming of the status activation block?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:10:40.450677Z",
+      "resolved_by": null,
+      "slot_key": "specify.json.activation-naming",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:10:43.568144Z",
+      "decision_id": "01M5ZCB8BGSJS0VXC7Y2F5T3V2",
+      "final_answer": "Credit only if they share work: Co-authored-by trailer if they link a branch/draft before the PR; otherwise thank and invite review.",
+      "input_key": "volunteer_credit",
+      "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+      "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+      "opened_by": "cli",
+      "options": [
+        "Credit only if they share work",
+        "Credit regardless",
+        "Wait for their reply"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How to credit volunteer Venkatasai200628 on #6557?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:10:46.768465Z",
+      "resolved_by": null,
+      "slot_key": "specify.community.coauthor",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:11:41.461838Z",
+      "decision_id": "01M5ZCD0WNV5AYF5KTBADN4Y4E",
+      "final_answer": "Confirm: intent summary as presented (status typed refusal; activate/deactivate --json with versioned success payload and cascade report; status activation block; text byte-identical except refusal/coded error lines; no contract values invented).",
+      "input_key": "intent_confirmed",
+      "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+      "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+      "opened_by": "cli",
+      "options": [
+        "Confirm",
+        "Adjust"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the M8 intent summary?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:14:53.903652Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.confirm",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:11:44.465834Z",
+      "decision_id": "01M5ZCD3TH927QR0Y2FN842T63",
+      "final_answer": "Proposed local set: ACTIVATION_KIND_UNKNOWN, CASCADE_SCOPE_INVALID, DEACTIVATION_REFUSED_REQUIRED, CHARTER_WRITE_ROOT_INVALID, ACTIVATION_FAILED, CHARTER_CONFIG_SHAPE_INVALID, CHARTER_STATUS_FAILED, INTERNAL_ERROR, plus existing ACTIVE_CHARTER_CONFIG_INVALID; text prints Error (<CODE>): ...",
+      "input_key": "local_error_codes",
+      "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+      "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+      "opened_by": "cli",
+      "options": [
+        "Proposed local UPPER_SNAKE set",
+        "Reuse ACTIVE_CHARTER_CONFIG_INVALID + one generic code"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Local error codes for activate/deactivate/status refusals?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:14:56.973060Z",
+      "resolved_by": null,
+      "slot_key": "specify.json.local-codes",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T19:16:24.372866Z",
+      "decision_id": "01M5ZCNN5MDNY0AJDA38A6DQG2",
+      "final_answer": "Confirm: CLI-layer report module; tidy-first WP01 with golden text; captured console under --json; activation read via charter.activation.api; render_coded_error everywhere + enumeration ADOPTED; WP01-WP04 slicing.",
+      "input_key": "engineering_alignment",
+      "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+      "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+      "opened_by": "cli",
+      "options": [
+        "Confirm",
+        "Adjust"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Confirm engineering alignment for M8?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T19:16:52.827974Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.alignment",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+  "version": 1
+}

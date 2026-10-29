@@ -1,0 +1,35 @@
+{
+  "accept_commit": "ba542311b67391336bac01f55a5329b959b300cf",
+  "acceptance_history": [
+    {
+      "accept_commit": "ba542311b67391336bac01f55a5329b959b300cf",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-29T06:12:53.592790+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "aacc9e9c3cf825a961337231422f4307a9ac1361"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-29T06:12:53.592790+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "aacc9e9c3cf825a961337231422f4307a9ac1361",
+  "baseline_merge_commit": "ce364d1592134f8de2da723033a2303bce5f4ff2",
+  "created_at": "2026-10-27T19:10:03.362773+00:00",
+  "flattened": true,
+  "friendly_name": "Charter CLI typed errors and JSON",
+  "merged_at": "2026-10-29T06:15:24.014866+00:00",
+  "merged_commit": "2ed27aef2f489f7af38e644e07e9edd3b54c94cb",
+  "mid8": "01M5ZC9Z",
+  "mission_id": "01M5ZC9ZQVQ4MT57GJWE56ZASP",
+  "mission_number": 243,
+  "mission_slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators and tooling get an actionable, coded refusal when charter.yaml is broken instead of an 'Unexpected error', and can read activation changes and the effective activation state as documented JSON without parsing files or human text. Covers #6557 and the independent local-acceptance slices of #6525 and #6526; contract integration stays with epic #6518.",
+  "purpose_tldr": "Charter status, activate and deactivate report failures with a typed code and offer machine-readable JSON output.",
+  "slug": "charter-cli-typed-errors-json-01M5ZC9Z",
+  "status_phase": "1",
+  "target_branch": "issue-6557-charter-cli-typed-errors-json",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T19:24:14.772324+00:00"
+}
