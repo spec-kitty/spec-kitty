@@ -6060,6 +6060,7 @@ pages:
     - {slug: "configuration", text: "Configuration", level: 3}
     - {slug: "migration-workflow", text: "Migration Workflow", level: 3}
     - {slug: "canonical-event-log-format", text: "Canonical Event Log Format", level: 2}
+    - {slug: "the-actor", text: "The actor", level: 3}
     - {slug: "commit-attribution-stamp-policy-metadata-lane-head", text: "Commit attribution stamp (`policy_metadata.lane_head`)", level: 2}
     - {slug: "mission-write-lock-and-rollback", text: "Mission write lock and rollback", level: 2}
     - {slug: "file-layout-per-feature", text: "File Layout (per feature)", level: 2}
