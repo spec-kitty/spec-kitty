@@ -1,4 +1,5 @@
 {
+  "accept_commit": "e305cd0fb3440c5b874d5b738b7bf5e8fb6e833d",
   "acceptance_history": [
     {
       "accept_commit": "a89691867cc3bd538cd6f94e2376e032c63e8cd5",
@@ -8,6 +9,7 @@
       "accepted_from_commit": "401e2af710df78a523afc438ef6ca23d4524a011"
     },
     {
+      "accept_commit": "e305cd0fb3440c5b874d5b738b7bf5e8fb6e833d",
       "acceptance_mode": "pr",
       "accepted_at": "2026-10-29T07:49:36.456483+00:00",
       "accepted_by": "claude",
