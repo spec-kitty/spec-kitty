@@ -228,7 +228,8 @@ class MissionStepContractRepository(BaseArtifactRepository[MissionStepContract])
         """
         for contract in self._items.values():
             if contract.mission == mission and contract.action == action:
-                return contract
+                found: MissionStepContract = contract
+                return found
         return None
 
     def get_by_mission(self, mission: str) -> list[MissionStepContract]:
@@ -278,7 +279,8 @@ class MissionStepContractRepository(BaseArtifactRepository[MissionStepContract])
             yaml.dump(data, f)
 
         self._items[contract.id] = contract
-        return yaml_file
+        saved: Path = yaml_file
+        return saved
 
 
 def resolve_step_contract_ids(

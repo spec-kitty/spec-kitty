@@ -608,7 +608,8 @@ class _PreparedMissionTypeActivations:
 
     def apply(self) -> bool:
         """Apply the retained bytes, refusing changed inputs without retry."""
-        return apply_yaml_write(self.write)
+        applied: bool = apply_yaml_write(self.write)
+        return applied
 
 
 class DefaultPresetMissingError(KittyInternalConsistencyError):
@@ -1143,7 +1144,8 @@ def _default_active_charter_service(repo_root: Path | None) -> ActiveCharterServ
             build_active_charter_service,
         )
 
-        return build_active_charter_service(repo_root)
+        service: ActiveCharterService = build_active_charter_service(repo_root)
+        return service
 
     from charter.activation.resolver import ActiveCharterService
     from charter.offering.service import CharterOfferingService

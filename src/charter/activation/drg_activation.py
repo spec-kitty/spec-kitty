@@ -433,7 +433,8 @@ def _admitted_by_deny(node_kind: str, artifact_id: str, pack_context: PackContex
     if node_kind not in _SINGULAR_TO_PER_KIND_FIELD:
         return True
     deny = pack_context.denied_for(ArtifactKind(node_kind))
-    return deny.admits(artifact_id) and deny.admits(f"{node_kind}:{artifact_id}")
+    admitted: bool = deny.admits(artifact_id) and deny.admits(f"{node_kind}:{artifact_id}")
+    return admitted
 
 
 def _node_is_activated(

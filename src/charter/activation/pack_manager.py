@@ -68,7 +68,7 @@ import logging
 from collections.abc import Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -290,7 +290,7 @@ def _resolve_org_layer_dir(root: Path, kind: ArtifactKind) -> Path:
     (mission ``charter-pack-cutover-01M491G6``, FR-011: no read-side fallback
     for the retired doctrine layout).
     """
-    return cast(Path, root / kind.plural)
+    return root / kind.plural
 
 
 def _kittify_root_of_project_pack(project_pack_root: Path) -> Path:
@@ -324,7 +324,7 @@ def _resolve_layer_candidate(
     if layered and layer == PROJECT and kind is not None:
         # ``root`` is the project pack root (``.kittify/charter-packs/``).
         kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
-        return cast(Path, root / kind_dir)
+        return root / kind_dir
     if layered and layer == ORG and kind is not None:
         return _resolve_org_layer_dir(root, kind)
     if layered and layer == BUILT_IN and kind is not None:
@@ -343,7 +343,8 @@ def _resolve_layer_candidate(
         # ``layered=False``, so the ``layered`` guard above already
         # excludes it before ``built_in_dir(kind)`` is ever called --
         # this never raises ``BuiltInContentDirNotAvailable``.
-        return cast(Path, built_in_dir(kind))
+        built_in_path: Path = built_in_dir(kind)
+        return built_in_path
     if layered:
         return root / base_dir / layer
     if layer == BUILT_IN:
@@ -367,7 +368,8 @@ def _resolve_layer_candidate(
         # _scan_layout_for), so only its final segment is joined onto
         # the missions root. (`root` here is `_SRC_ROOT`, deliberately
         # unused in this branch.)
-        return cast(Path, MissionTemplateRepository.default_missions_root() / Path(base_dir).name)
+        missions_root: Path = MissionTemplateRepository.default_missions_root()
+        return missions_root / Path(base_dir).name
     if kind is None and layer == ORG:
         # FR-003: the org-layer mission-type roster is flat --
         # <pack_root>/mission_types/*.yaml (CL-005; see ADR
@@ -380,7 +382,8 @@ def _resolve_layer_candidate(
         # authority's own constant (#3427) -- the same one
         # resolve_layered_mission_types scans -- never a locally re-spelled
         # literal.
-        return root / ORG_MISSION_TYPES_SUBDIR
+        org_roster: Path = root / ORG_MISSION_TYPES_SUBDIR
+        return org_roster
     if kind is None and layer == PROJECT:
         # FR-005: the project-layer mission-type roster is flat and
         # non-recursive -- .kittify/missions/mission_types/*.yaml (CL-005).
