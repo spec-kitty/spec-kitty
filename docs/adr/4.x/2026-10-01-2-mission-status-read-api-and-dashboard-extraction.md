@@ -390,3 +390,11 @@ it.
 - [Status model](../../architecture/status-model.md): the event log and reducers.
 - [ADR 2026-09-26-3](../3.x/2026-09-26-3-hosted-interaction-opt-in.md): drain posture. The
   produce/drain amendment is a separate 4.x ADR.
+
+## Amendment 2026-10-29 (DRAFT, awaiting operator sign-off): the events services live in spec-kitty-events
+
+[ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
+
+- **D-7 and D-9 to D-12 (the service is its own build in this repository, extracted when its contract freezes).** The service, its `domain-model` and `event-log` libraries and the `mission-status` contract move to `spec-kitty-events` with their history, and are released there on the `service-v*` line. Core pins the read service for CI conformance only. The CLI never launches it, so D-5 (CLI reads stay native Python) and D-7's "the CLI wheel ships no server" hold unchanged. The contract and conformance fixtures are canonical in `spec-kitty-events`; core's Python oracle tests run against the pinned contract bundle and fixtures.
+
+Nothing else in this record changes.

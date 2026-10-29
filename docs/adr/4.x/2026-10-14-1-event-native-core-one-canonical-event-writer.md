@@ -223,3 +223,11 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
   - #4941's library fix (the approved-departure lift, `spec-kitty-events` 10.5.1) has shipped. What remains is narrower: a non-approval transition minted on a clock behind the event it follows still sorts before it.
   - The consolidation gates read through that same reducer.
   - The Technical Story's "keeps ADR 2026-02-09-3 unchanged" now holds only for its merge rules. Its ordering is amended to wall clock for 4.0.0 (ADR 2026-02-09-3, Amendment 2026-10-22), and Lamport-primary ordering is a post-GA direction (#6609).
+
+## Amendment 2026-10-29 (DRAFT, awaiting operator sign-off): the events services live in spec-kitty-events
+
+[ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
+
+- **Where the writer lives.** The Java write service that 2026-10-22-1 made the canonical writer is built and released by `spec-kitty-events`. Core keeps the domain port, `bind_event_bridge` and the client adapter. D-1 to D-5 are otherwise unchanged.
+
+Nothing else in this record changes.

@@ -181,3 +181,11 @@ Every provisional element is settled before the contract's first release (`1.0.0
 - The read service: `services/mission-status-api/README.md` (bind and guard rules).
 - Contract conventions: `contracts/README.md` (the security-scheme rule is added there).
 - The current-state map: [event ledger writers and readers](../../architecture/event-ledger-writers-and-readers.md).
+
+## Amendment 2026-10-29 (DRAFT, awaiting operator sign-off): the events services live in spec-kitty-events
+
+[ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
+
+- **The launcher (#6676).** The launcher stays in core and resolves the binary from the pinned release (2026-10-29-1 D-3 to D-5). The native-image build half of #6676 moves to `spec-kitty-events`. The protocol, the endpoint file and the trust model are unchanged; the pin records the protocol versions the build serves, and the launcher refuses a build whose versions do not intersect `SUPPORTED_PROTOCOL_VERSIONS`.
+
+Nothing else in this record changes.

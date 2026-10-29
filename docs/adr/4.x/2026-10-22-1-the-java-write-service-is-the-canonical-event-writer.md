@@ -264,3 +264,11 @@ Nothing else in this record changes.
 - Contributor rules: [Events in core](../../development/reference/events-in-core.md).
 - `spec-kitty-events`: `docs/api/ledger-write-contract.md`, `src/spec_kitty_events/conformance/fixtures/ledger_append/README.md`.
 - The read service: `services/mission-status-api/README.md`.
+
+## Amendment 2026-10-29 (DRAFT, awaiting operator sign-off): the events services live in spec-kitty-events
+
+[ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
+
+- **D-1 (the `event-log` module writes all ledgers) and D-5 (native first, JVM jar fallback).** The `event-log` module and the `command-cli` deployable live in `spec-kitty-events`. Core takes both the native binary and the jar from a pinned `service-v*` release, executes either only when its sha256 matches the pin, and fetches it on first use. The no-Python-writer rule and the named refusal are unchanged; the refusal codes are listed in 2026-10-29-1 D-5.
+
+Nothing else in this record changes.
