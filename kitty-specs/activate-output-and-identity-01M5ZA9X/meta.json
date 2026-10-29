@@ -1,0 +1,37 @@
+{
+  "accept_commit": "fdbaf9551002419f5bf3f7ec4570d62e1ebffc5a",
+  "acceptance_history": [
+    {
+      "accept_commit": "fdbaf9551002419f5bf3f7ec4570d62e1ebffc5a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-28T06:34:16.833909+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "f94554445d1771ca17db12bb7cef4a7a62359cfa"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-28T06:34:16.833909+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "f94554445d1771ca17db12bb7cef4a7a62359cfa",
+  "baseline_merge_commit": "e0caf977c1072742f39ab8d4a1411c67ec6bcb0e",
+  "contracts": "none",
+  "contracts_rationale": "Output-text and docs changes only: no API, CLI flag, exit code or JSON envelope changes (activate has a JSON envelope only for --preset, untouched).",
+  "created_at": "2026-10-27T18:35:03.544241+00:00",
+  "flattened": true,
+  "friendly_name": "Activate output and identity",
+  "merged_at": "2026-10-28T06:37:27.525969+00:00",
+  "merged_commit": "7cc824ea9d456654780a4d658e35249da8b55805",
+  "mid8": "01M5ZA9X",
+  "mission_id": "01M5ZA9X7C300SZBK507H3N051",
+  "mission_number": 243,
+  "mission_slug": "activate-output-and-identity-01M5ZA9X",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operators narrowing a charter activation list get contradictory messages, are not told that activating a skill freezes their org's required skills, and the rule that a file name beats a declared id is undocumented. This mission fixes the output, adds the freeze warning, pins the resolution rule with a test and corrects two glossary entries about pack-level loading.",
+  "purpose_tldr": "Make charter activate say what it actually wrote, warn when skill activation freezes org-required skills, and pin and document how activation tokens resolve.",
+  "slug": "activate-output-and-identity-01M5ZA9X",
+  "status_phase": "1",
+  "target_branch": "issue-6457-activate-output-identity",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T18:42:53.767396+00:00"
+}

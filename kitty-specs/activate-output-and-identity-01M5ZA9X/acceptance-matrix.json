@@ -1,0 +1,109 @@
+{
+  "mission_slug": "activate-output-and-identity-01M5ZA9X",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activate_output_6457.py (WP01, reviewer-renata approved; live CLI base-vs-lane comparison)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:02.965078+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activate_output_6457.py::mission-type --only (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:07.794070+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activate_output_6457.py + tests/specify_cli/cli/commands/charter/test_activate_only_6408.py unresolvable case (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:12.778159+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activate_output_6457.py Now listed line (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:17.823834+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_skill_freeze_warning_6458.py plain absent key + tests/charter/activation/test_activation_engine_freeze_warning.py (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:22.477968+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_skill_freeze_warning_6458.py --only absent/present (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:27.465235+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_skill_freeze_warning_6458.py toolguide + present-key controls; tests/charter/activation/test_activation_engine_freeze_warning.py 'all' kind (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:32.156990+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/activation/test_stem_first_gating_6459.py; mutation (by_id-first) killed (WP02)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:37.107169+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/architecture/org-doctrine-layer.md 'Activation tokens: a file name beats a declared id' + resolver._gated docstring (WP02, reviewer-renata)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:41.999166+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/context/governance.md Pack Level, docs/context/charter.md Charter Pack verified against org_pack_loader.py/pack_validator.py (WP03, reviewer-renata)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:33:46.677129+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

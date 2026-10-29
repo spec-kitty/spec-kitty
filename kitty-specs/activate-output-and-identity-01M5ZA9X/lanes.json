@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "mission_slug": "activate-output-and-identity-01M5ZA9X",
+  "mission_id": "01M5ZA9X7C300SZBK507H3N051",
+  "mission_branch": "kitty/mission-activate-output-and-identity-01M5ZA9X",
+  "target_branch": "issue-6457-activate-output-identity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/activation_engine.py",
+        "src/charter/activation/pack_manager.py",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "tests/charter/activation/test_activation_engine_freeze_warning.py",
+        "tests/charter/test_skill_freeze_warning_6458.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_only_6408.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_output_6457.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/org-doctrine-layer.md",
+        "src/charter/activation/resolver.py",
+        "tests/charter/activation/test_stem_first_gating_6459.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/charter.md",
+        "docs/context/governance.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/activation/effective_set.py",
+        "src/charter/activation/identity_index.py",
+        "src/charter/activation/org_charter.py",
+        "src/charter/activation/preset_application.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
+        "tests/charter/activation/test_effective_set.py",
+        "tests/charter/activation/test_identity_index.py",
+        "tests/charter/activation/test_stored_spelling_6527.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_stem_writes_stem.py",
+        "tests/specify_cli/cli/commands/test_charter_interview_promotion.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/activation/compiler.py",
+        "src/charter/activation/consistency_check.py",
+        "src/charter/activation/drg_activation.py",
+        "tests/charter/activation/test_compile_check_identity_6433.py",
+        "tests/charter/test_compiler.py",
+        "tests/charter/test_consistency_check.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-27T19:24:08.541699+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "de98950ea20836c5a2bfd60a339fa3361d078d1f"
+}
