@@ -59,8 +59,19 @@ project's own directive), which no run can ever successfully produce today.
   paths; only the provenance sidecar records the URN (`directive:PROJECT_001`). No new record (C-001).
   *Alternative rejected:* a `PROJECT_` id-prefix heuristic; it is not an authority and would misfire
   on a hand-authored `PROJECT_NNN`.
-- **D-3 Read ownership only for a non-empty explicit list.** It keeps first runs and absent keys
-  free of manifest I/O and of the fail-closed path (NFR-002 without new refusals).
+  *Amended 2026-10-29 (pre-PR squad):* `charter activate` registers hand-authored project
+  directives in the same manifest, with sidecar `adapter_id: project-direct-write`. Those
+  registrations are not synthesis ownership: a URN is synthesis-owned only when at least one
+  manifest entry recording it has a sidecar from another adapter. This mirrors
+  `project_drg._registered_project_artifacts`.
+- **D-3 Read ownership only when a project-layer directive is activated.** *Amended 2026-10-29
+  (pre-PR squad):* the original rule read ownership for any non-empty explicit list, so a
+  built-in-only list plus one missing sidecar refused a run that main accepts. Ownership is now
+  read only when an activated id is declared by a project-pack directive; first runs, absent keys
+  and built-in-only lists do no manifest I/O. When the project-pack scan itself fails, every
+  requested id is a candidate and ownership is read (fail closed). The rule lives in charter
+  (`synthesis_owned_directive_ids`, `project_directive_ids` via `charter.activation.api`). The CLI
+  only calls it.
 - **D-4 Origin-aware refusal at the CLI seam.** The core error gains an additive `colliding_urn`
   field and neutral wording. `specify_cli` classifies the origin, because it knows activation and
   ownership. *Alternative rejected:* annotating snapshot nodes with an origin; `DRGNode` forbids
