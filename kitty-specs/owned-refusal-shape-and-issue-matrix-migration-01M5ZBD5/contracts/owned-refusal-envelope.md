@@ -48,6 +48,6 @@ for the commands listed in `data-model.md`.
   `error.code` / `error.message` from the host payload, so the owned code is kept
   (`plan` still maps an unregistered code to `PLAN_SETUP_FAILED` with `data.reason`);
   `next` embeds the host payload in `data`. orchestrator-api `contract_version` is
-  `1.19.0` from this change.
+  `1.20.0` from this change.
 - Human mode is not part of this contract: an owned refusal prints
   `Error: [<CODE>] <message>` on stderr.
