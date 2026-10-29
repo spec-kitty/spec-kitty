@@ -1,5 +1,4 @@
 {
-  "accept_commit": "a89691867cc3bd538cd6f94e2376e032c63e8cd5",
   "acceptance_history": [
     {
       "accept_commit": "a89691867cc3bd538cd6f94e2376e032c63e8cd5",
@@ -7,12 +6,18 @@
       "accepted_at": "2026-10-29T05:15:46.985454+00:00",
       "accepted_by": "claude",
       "accepted_from_commit": "401e2af710df78a523afc438ef6ca23d4524a011"
+    },
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-29T07:49:36.456483+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "35e4eade25b1af9795393246fd42bf9a093b67b2"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-10-29T05:15:46.985454+00:00",
+  "accepted_at": "2026-10-29T07:49:36.456483+00:00",
   "accepted_by": "claude",
-  "accepted_from_commit": "401e2af710df78a523afc438ef6ca23d4524a011",
+  "accepted_from_commit": "35e4eade25b1af9795393246fd42bf9a093b67b2",
   "baseline_merge_commit": "86575c9e880c20ff9bfb4236f0c8f6fdf9793d9c",
   "contracts": "none",
   "contracts_rationale": "Bug fix inside the charter synthesis request build; no API, schema or event contract changes. The only user-visible surface is the CLI refusal text, covered by FR-007 acceptance tests.",
