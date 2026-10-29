@@ -185,9 +185,10 @@ def _append_project_profile_nodes(
             raise ProjectDRGValidationError(
                 errors=(
                     f"Additive-only violation (INV-1): project agent_profile URN "
-                    f"'{urn}' is already present in the synthesis input graph.  A "
-                    f"hand-authored project profile must carry a new URN disjoint "
-                    f"from the nodes it composes with.",
+                    f"'{urn}' is already present in the synthesis input graph. "
+                    f"A project agent profile is added beside the nodes it composes "
+                    f"with and never replaces one; give it a profile-id no other "
+                    f"layer declares.",
                 ),
                 merged_graph_summary=(
                     f"built_in_nodes={built_in_node_count}, colliding_urn={urn!r}"

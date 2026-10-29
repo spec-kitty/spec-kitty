@@ -644,6 +644,10 @@ class TestComposeProjectProfileNodes:
         with pytest.raises(ProjectDRGValidationError) as exc_info:
             emit_project_layer([], "0.1.0", shipped, project_root=tmp_path)
         assert exc_info.value.colliding_urn == "agent_profile:researcher-ryan"
+        message = str(exc_info.value)
+        assert "already present in the synthesis input graph" in message
+        assert "never replaces one" in message
+        assert "built-in DRG layer" not in message
 
     def test_duplicate_profile_id_across_files_fails_loud(self, tmp_path: Path) -> None:
         """NFR-002: the SAME profile-id in two authored files fails loud (naming
