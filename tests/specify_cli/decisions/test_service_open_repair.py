@@ -74,7 +74,7 @@ def _event_types(repo_root: Path) -> list[str]:
 def _only_decision_id(repo_root: Path) -> str:
     entries = _store.load_index(_mission_dir(repo_root)).entries
     assert len(entries) == 1
-    return entries[0].decision_id
+    return str(entries[0].decision_id)
 
 
 def _raise_oserror(*_a: Any, **_k: Any) -> None:

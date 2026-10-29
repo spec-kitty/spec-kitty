@@ -343,30 +343,20 @@ def _mission_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | N
 
     coord-artifact-single-home-01M3V4BE WP09: this is the READ-ONLY half of
     the read/write split (analyze-report correction "Read/write split in
-    service.py too"). ``_opened_event_exists`` (via
-    ``_repair_missing_opened_event``) is a pure idempotency PROBE -- it must
-    use ``read_dir``'s ``EMPTY`` -> PRIMARY leniency (C-002), never
-    ``write_dir``, or a mere existence check would seed or materialize a
-    coordination surface as a side effect. Writers use
-    :func:`_write_mission_dir` / :func:`_write_events_path` instead.
+    service.py too"): ``read_dir``'s ``EMPTY`` -> PRIMARY leniency (C-002),
+    never ``write_dir``, so resolving it never seeds or materializes a
+    coordination surface. Writers use :func:`_write_mission_dir` /
+    :func:`_write_events_path` instead. The opened-row and terminal-row
+    existence checks no longer read through this helper: they run after a
+    write call has pre-resolved :func:`_write_events_path` and read that
+    same file (#4848), so the check and the append cannot disagree.
 
     #4966 AC-D2 (WP03 residual): the decisions LEDGER directory
-    (``decisions/index.json`` / ``DM-<id>.md``) no longer resolves through
-    this helper -- see :func:`_ledger_dir` below. Only ``status.events.jsonl``
-    (:func:`_events_path`) stays COORD-routed here.
+    (``decisions/index.json`` / ``DM-<id>.md``) does not resolve through
+    this helper -- see :func:`_ledger_dir` below.
     """
     mission_dir: Path = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
-
-
-def _events_path(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
-    """Return the READ-side kitty-specs/<mission_slug>/status.events.jsonl.
-
-    Read-only callers only (see :func:`_mission_dir`). Writers use
-    :func:`_write_events_path`.
-    """
-    path = _mission_dir(repo_root, mission_slug, owned=owned) / "status.events.jsonl"
-    return owned.files([path])[0] if owned is not None else path
 
 
 def _write_mission_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
@@ -458,8 +448,12 @@ def _parse_opened_events(content: bytes | str) -> list[dict[str, Any]]:
     return events
 
 
-def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str, *, owned: OwnedCheckout | None = None) -> bool:
-    """Return True when the canonical opened event already exists.
+def _opened_event_exists(events_path: Path, decision_id: str) -> bool:
+    """Return True when the log at *events_path* holds this decision's opened event.
+
+    *events_path* is the WRITE-side path the emit appends to (pre-resolved by
+    the calling write command, as for :func:`_terminal_event_exists`), so the
+    check and the repair append always use the same file.
 
     Raises:
         DecisionEventLogReadError: when ``status.events.jsonl`` exists but
@@ -467,12 +461,11 @@ def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str, *
             fail-closed (FR-012). Never raised when the file is simply
             absent (D5); that case returns ``False``.
     """
-    path = _events_path(repo_root, mission_slug, owned=owned)
-    if not path.exists():
+    if not events_path.exists():
         return False
 
     events = read_guarded(
-        path,
+        events_path,
         _parse_opened_events,
         errors=(json.JSONDecodeError,),
         error_cls=DecisionEventLogReadError,
@@ -519,6 +512,7 @@ def _repair_missing_opened_event(
     repo_root: Path,
     mission_slug: str,
     *,
+    events_path: Path,
     entry: IndexEntry,
     owned: OwnedCheckout | None = None,
 ) -> int | None:
@@ -528,16 +522,16 @@ def _repair_missing_opened_event(
     already in the log; otherwise returns the repaired event's lamport. Must
     run under the decisions lock (FR-002, the open half of #4848): every
     ``DecisionPointOpened`` writer in the service holds it, so no opening row
-    can land between the check and the repair append. The check reads the
-    read-side log path; after the write-side pre-resolve in ``open_decision``
-    and ``_terminal_command`` both sides name the same file.
+    can land between the check and the repair append. The check reads
+    *events_path*, the write-side log the caller pre-resolved, so it reads
+    the file the repair appends to.
 
     Raises:
         DecisionError(EVENT_REPAIR_FAILED): the opening actor was not
             persisted, or the event append failed.
         DecisionEventLogReadError: the log is unreadable (not wrapped).
     """
-    if _opened_event_exists(repo_root, mission_slug, entry.decision_id, owned=owned):
+    if _opened_event_exists(events_path, entry.decision_id):
         return None
     return _append_missing_opened_event(repo_root, mission_slug, entry=entry, owned=owned)
 
@@ -547,6 +541,7 @@ def _finish_interrupted_open(
     mission_slug: str,
     mission_dir: Path,
     *,
+    events_path: Path,
     entry: IndexEntry,
     owned: OwnedCheckout | None = None,
 ) -> tuple[int | None, Path]:
@@ -567,7 +562,7 @@ def _finish_interrupted_open(
         DecisionEventLogReadError: the log is unreadable (not wrapped).
     """
     artifact = _store.artifact_path(mission_dir, entry.decision_id)
-    opened = _opened_event_exists(repo_root, mission_slug, entry.decision_id, owned=owned)
+    opened = _opened_event_exists(events_path, entry.decision_id)
     if opened and artifact.exists():
         return None, artifact
     try:
@@ -589,6 +584,7 @@ def _repair_opening_before_terminal(
     mission_dir: Path,
     decision_id: str,
     *,
+    events_path: Path,
     owned: OwnedCheckout | None = None,
 ) -> None:
     """Record a missing ``DecisionPointOpened`` row before a terminal row (#4848 squad fold S3).
@@ -612,7 +608,7 @@ def _repair_opening_before_terminal(
     entry = next((e for e in index.entries if e.decision_id == decision_id), None)
     if entry is None or entry.opened_by is None:
         return
-    _repair_missing_opened_event(repo_root, mission_slug, entry=entry, owned=owned)
+    _repair_missing_opened_event(repo_root, mission_slug, events_path=events_path, entry=entry, owned=owned)
 
 
 def _terminal_event_exists(events_path: Path, decision_id: str, outcome: str) -> bool:
@@ -753,6 +749,7 @@ def _record_open_locked(
     actor: str,
     mission_id: str,
     decision_id: str | None,
+    events_path: Path,
     owned: OwnedCheckout | None,
 ) -> tuple[IndexEntry, bool, int | None, Path]:
     """Record an open, or finish an interrupted one. The CALLER holds the decisions lock.
@@ -796,7 +793,7 @@ def _record_open_locked(
                 },
                 message=(f"Decision {existing.decision_id!r} is already in terminal state {existing.status.value!r}"),
             )
-        repaired_lamport, artifact_path = _finish_interrupted_open(repo_root, mission_slug, mission_dir, entry=existing, owned=owned)
+        repaired_lamport, artifact_path = _finish_interrupted_open(repo_root, mission_slug, mission_dir, events_path=events_path, entry=existing, owned=owned)
         return existing, True, repaired_lamport, artifact_path
 
     assert entry is not None  # narrows for mypy: is_new=True implies entry
@@ -887,7 +884,7 @@ def open_decision(
     # decision). A placement failure here fails BEFORE the ledger write
     # below, so a refusal leaves the ledger untouched (zero record loss,
     # NFR-002).
-    _write_events_path(repo_root, mission_slug, owned=owned)  # pre-resolve: any placement failure fails before write
+    events_path = _write_events_path(repo_root, mission_slug, owned=owned)  # pre-resolve: any placement failure fails before write
 
     # T010 (D4/FR-004) and #4848 (open half, FR-001/FR-002): ONE hold of
     # the decisions lock covers the dedup lookup, the index append, the
@@ -915,6 +912,7 @@ def open_decision(
             actor=actor,
             mission_id=mission_id,
             decision_id=decision_id,
+            events_path=events_path,
             owned=owned,
         )
 
@@ -1068,7 +1066,8 @@ def _terminal_command(
     # #5113 / FR-013, corrected by coord-artifact-single-home-01M3V4BE WP09:
     # see ``open_decision``'s identical rationale -- resolve the event WRITE
     # location before this terminal write (resolve / defer / cancel all
-    # route through here). The same path is what the repair check reads.
+    # route through here). The same path is what the opening and terminal
+    # repair checks read.
     events_path = _write_events_path(repo_root, mission_slug, owned=owned)  # pre-resolve: any placement failure fails before write
 
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
@@ -1076,7 +1075,7 @@ def _terminal_command(
     mission_dir = _ledger_dir(repo_root, mission_slug, owned=owned)
     lock_path = _decisions_lock_path(mission_dir)
     with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=decision_id):
-        _repair_opening_before_terminal(repo_root, mission_slug, mission_dir, decision_id, owned=owned)
+        _repair_opening_before_terminal(repo_root, mission_slug, mission_dir, decision_id, events_path=events_path, owned=owned)
         updated_entry, idempotent = _apply_terminal_locked(
             mission_dir,
             decision_id,
