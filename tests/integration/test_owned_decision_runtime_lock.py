@@ -365,3 +365,51 @@ def test_dirty_operator_ignore_refuses_repair_but_never_blocks_next(owned_checko
         assert str(lock.relative_to(c.owned_root)) not in files
         assert str((lock.parent / "new-authored.lock").relative_to(c.owned_root)) in files
     assert local_ignore.read_bytes() == authored
+
+
+def test_repair_renders_a_post_resolution_owned_refusal_as_c2(owned_checkouts, monkeypatch):
+    """#6353 squad fold (ADR 2026-10-27-2): an owned refusal raised after
+    resolution -- the lock-path containment ``OWNED_MISSION_PATH_REFUSED``
+    from ``owned.files([lock])`` -- prints the C2 owned refusal on stdout and
+    keeps its code, never ``RUNTIME_LOCK_REPAIR_FAILED``."""
+    import json
+
+    from mission_runtime import OwnedCheckout, OwnedRefusalCode
+    from mission_runtime.owned_checkout import OwnedCheckoutPathRefused
+
+    c = owned_checkouts
+    lock = seed(c)
+    original_files = OwnedCheckout.files
+
+    def refuse_lock(self, paths, *, follow_links=False):
+        if any(Path(p).name == lock.name for p in paths):
+            raise OwnedCheckoutPathRefused(f"Path is outside the selected mission: {lock}")
+        return original_files(self, paths, follow_links=follow_links)
+
+    monkeypatch.setattr(OwnedCheckout, "files", refuse_lock)
+    result = invoke(c, monkeypatch)
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["ok"] is False, payload
+    assert payload["error"]["code"] == OwnedRefusalCode.OWNED_MISSION_PATH_REFUSED
+    assert payload["error"]["message"] == f"Path is outside the selected mission: {lock}"
+    assert "status" not in payload
+    assert "code" not in payload
+
+
+def test_repair_keeps_the_status_shape_for_a_non_owned_failure(owned_checkouts, monkeypatch):
+    """Positive control: a non-owned repair failure (a dirty lock) keeps
+    ``{status, code, message}`` unchanged."""
+    import json
+
+    c = owned_checkouts
+    lock = seed(c)
+    lock.write_text("operator lock bytes\n")
+    result = invoke(c, monkeypatch)
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert set(payload) == {"status", "code", "message"}
+    assert payload["status"] == "error"
+    assert payload["code"] == "RUNTIME_LOCK_PRECONDITION_REFUSED"

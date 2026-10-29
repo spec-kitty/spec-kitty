@@ -908,3 +908,115 @@ def test_classify_delegate_error_shared_helper_is_unchanged_for_other_verbs() ->
     )
 
     assert code == "SPEC_FILE_MISSING"
+
+
+# ---------------------------------------------------------------------------
+# #6353 squad fold -- the host's owned refusals are C2
+# (``{ok: false, error: {code, message}}``, ADR 2026-10-27-2): the shared
+# classifier reads the nested code and the plain-text message, while a
+# string-error payload still classifies exactly as before.
+# ---------------------------------------------------------------------------
+
+
+def _c2_owned_refusal(code: str, message: str) -> dict[str, Any]:
+    from specify_cli.cli.commands._owned_checkout import owned_refusal_payload
+
+    return owned_refusal_payload(code, message)
+
+
+def test_classify_delegate_error_reads_a_c2_owned_refusal_for_tasks() -> None:
+    from specify_cli.orchestrator_api import design_phase
+
+    payload = _c2_owned_refusal("OWNED_INDEX_REFUSED", "the owned index holds foreign paths")
+
+    code, message, data = design_phase._classify_delegate_error(
+        payload,
+        json.dumps(payload, indent=2),
+        fallback_code="TASKS_FINALIZE_FAILED",
+        fallback_message="tasks finalization failed",
+    )
+
+    assert code == "OWNED_INDEX_REFUSED"
+    assert message == "the owned index holds foreign paths"
+    assert data == payload
+
+
+def test_classify_delegate_error_reads_a_c2_owned_refusal_for_plan() -> None:
+    """``plan`` keeps its contract wrap: the owned code is not registered for
+    orchestrator_api, so it degrades to ``PLAN_SETUP_FAILED`` with the real
+    owned code preserved as ``data.reason`` -- as it was before C2."""
+    from specify_cli.orchestrator_api import design_phase
+
+    payload = _c2_owned_refusal("OWNERSHIP_NESTED", "the owned checkout is nested")
+
+    code, message, data = design_phase._classify_delegate_error(
+        payload,
+        json.dumps(payload, indent=2),
+        fallback_code=design_phase._PLAN_SETUP_FAILED_FALLBACK,
+        fallback_message="plan scaffolding failed",
+    )
+    code, data = design_phase._plan_contract_error(code, data)
+
+    assert code == "PLAN_SETUP_FAILED"
+    assert data["reason"] == "OWNERSHIP_NESTED"
+    assert message == "the owned checkout is nested"
+
+
+def test_classify_delegate_error_keeps_a_string_error_payload_unchanged() -> None:
+    """Positive control: a string ``error`` with no code falls back to the
+    verb's own code and keeps the string verbatim; an absent message uses the
+    verb's own fallback message."""
+    from specify_cli.orchestrator_api import design_phase
+
+    code, message, data = design_phase._classify_delegate_error(
+        {"error": "plain failure"},
+        "",
+        fallback_code="TASKS_FINALIZE_FAILED",
+        fallback_message="m",
+    )
+    assert (code, message, data) == ("TASKS_FINALIZE_FAILED", "plain failure", {"error": "plain failure"})
+
+    code, message, _ = design_phase._classify_delegate_error(
+        {"error_code": "SPEC_FILE_MISSING"},
+        "",
+        fallback_code="TASKS_FINALIZE_FAILED",
+        fallback_message="tasks finalization failed",
+    )
+    assert (code, message) == ("SPEC_FILE_MISSING", "tasks finalization failed")
+
+
+def test_tasks_surfaces_the_host_owned_refusal_code_end_to_end(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``orchestrator-api tasks`` over a host ``finalize_tasks`` that renders
+    its owned refusal through the real ``emit_owned_refusal`` keeps the owned
+    code and a plain-text message (never ``TASKS_FINALIZE_FAILED`` with a
+    dict repr)."""
+    repo = _init_repo(tmp_path)
+    created = _specify(repo, "squad-fold-6353-tasks")
+    assert created["success"] is True, created
+    mission_slug = created["data"]["mission_slug"]
+
+    spec_file = Path(created["data"]["spec_file"])
+    spec_file.write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "substantive spec")
+
+    plan_envelope = _envelope(_run(repo, ["plan", "--mission", mission_slug, "--policy", _POLICY]))
+    assert plan_envelope["success"] is True, plan_envelope
+
+    import specify_cli.cli.commands.agent.mission as agent_mission_module
+    from mission_runtime import ActionContextError, OwnedRefusalCode
+    from specify_cli.cli.commands._owned_checkout import emit_owned_refusal
+
+    def _owned_refusal(*, feature: str, json_output: bool) -> None:
+        emit_owned_refusal(
+            ActionContextError(OwnedRefusalCode.OWNED_INDEX_REFUSED, "the owned index holds foreign paths"),
+            json_output=json_output,
+        )
+
+    monkeypatch.setattr(agent_mission_module, "finalize_tasks", _owned_refusal)
+
+    envelope = _envelope(_run(repo, ["tasks", "--mission", mission_slug, "--policy", _POLICY]))
+
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "OWNED_INDEX_REFUSED", envelope
+    assert envelope["data"]["message"] == "the owned index holds foreign paths", envelope
