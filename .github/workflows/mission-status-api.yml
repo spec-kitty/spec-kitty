@@ -356,6 +356,75 @@ jobs:
           if-no-files-found: warn
           overwrite: true
 
+  # The lock-interop spike of #6193 (Mission Write API step 3): does a Java writer exclude, and is it excluded by, the CLI's interim
+  # event-log lock (kernel.event_log_append: fcntl.flock on Linux and macOS, msvcrt.locking on Windows), and do interleaved appends
+  # from both sides land whole and pass both readers? LockInteropSpikeTest drives scripts/ci/lock_interop_peer.py; it runs only when
+  # SPEC_KITTY_LOCK_INTEROP_PYTHON is set, so `check` in the jvm job skips it. Evidence, not a gate job: the per-OS verdict table goes
+  # to the step summary and the lock-interop-<os> artefact. Report: docs/development/spikes/2026-10-27-lock-interop-spike.md.
+  lock-interop:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
+    name: lock-interop (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            os: linux
+            python: .venv/bin/python
+          - runner: macos-15
+            os: macos
+            python: .venv/bin/python
+          - runner: windows-2025
+            os: windows
+            python: .venv/Scripts/python.exe
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen
+      # The Python reader imports the charter, which needs the built-in pack tree.
+      - name: Sync packs from the pinned open-packs commits
+        run: PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/sync_packs.py --pack all
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
+        with:
+          java-version: '25.0.2'
+          distribution: 'graalvm-community'
+          github-token: ${{ github.token }}
+      - name: Run the lock-interop spike
+        working-directory: ${{ env.SERVICE_DIR }}
+        env:
+          SPEC_KITTY_LOCK_INTEROP_PYTHON: ${{ github.workspace }}/${{ matrix.python }}
+        run: ./gradlew --no-daemon :event-log:test --tests '*LockInteropSpikeTest'
+      - name: Show the verdict table
+        if: always()
+        run: |
+          {
+            echo "### Lock interop (${{ matrix.os }})"
+            echo
+            echo "| OS | Java lock vs Python lock | Python holds: Java excluded | Java holds: Python excluded | overlaps / rounds | refused / rows | intact / Python reader / Java reader | writer switches | verdict |"
+            echo "|---|---|---|---|---|---|---|---|---|"
+            cat "$SERVICE_DIR"/event-log/build/lock-interop/*.md 2>/dev/null || echo "| ${{ matrix.os }} | (no result recorded) | | | | | | | |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: lock-interop-${{ matrix.os }}
+          path: |
+            ${{ env.SERVICE_DIR }}/event-log/build/lock-interop
+            ${{ env.SERVICE_DIR }}/event-log/build/test-results
+          if-no-files-found: warn
+          overwrite: true
+
   mission-status-api-gate:
     needs: [jvm, native]
     # always() makes the job self-starting, so the canonical fork guard is first; always() is last.

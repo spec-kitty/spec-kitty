@@ -2608,7 +2608,8 @@ def jobs_that_run(text: str, event: str, ref: str, repository: str = "spec-kitty
 
 
 TAG_REF = "refs/tags/mission-status-api-v0.1.0"
-LEG_JOBS = {"contract-bundle", "jvm", "native", "mission-status-api-gate"}
+# lock-interop: the #6193 lock-interop spike's evidence matrix, outside the gate; it carries the jvm job's condition.
+LEG_JOBS = {"contract-bundle", "jvm", "native", "lock-interop", "mission-status-api-gate"}
 
 
 def tag_run_violations(text: str) -> list[str]:
