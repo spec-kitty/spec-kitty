@@ -72,7 +72,7 @@ def _status_actor(actor: str, role: str) -> dict[str, str | None]:
     """The structured 4-key actor an orchestrator lifecycle command records (#6400, FR-011).
 
     The one construction site for this module (see
-    :func:`~specify_cli.status.work_package_lifecycle.actor_from_option`); ``role``
+    :func:`~specify_cli.status.actor.actor_from_option`); ``role``
     comes from the hop. Only the stored event changes; envelopes keep echoing
     ``--actor`` as given.
     """

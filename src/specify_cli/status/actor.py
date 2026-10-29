@@ -15,18 +15,23 @@ decoder accepts the fifth key. Readers already accept it
 
 * ``role`` comes from the action (:func:`role_for_hop`), never from the profile (FR-006).
 * Nothing is synthesized: a value absent everywhere stays ``None`` (C-002/C-007).
+* Two builders: :func:`build_status_actor` is strict (an explicit operator ``--agent``
+  that does not parse raises) and :func:`actor_from_option` is lenient (free text and
+  recorded identities that do not parse are kept whole as ``tool``). Only this module
+  decides that fallback; every dict goes through :func:`compose_status_actor`.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
 
-from .models import Lane, parse_agent_boundary_string
+from .models import MIGRATION_ACTOR_PREFIX, Lane, parse_agent_boundary_string
 from .resolved_binding import ResolvedBinding
 from .transitions import resolve_lane_alias
 
 __all__ = [
     "ActorRole",
+    "actor_from_option",
     "build_status_actor",
     "compose_status_actor",
     "role_for_hop",
@@ -108,3 +113,33 @@ def build_status_actor(
         agent_profile=agent_profile,
         agent_model=agent_model,
     )
+
+
+#: Segments of the compact ``tool:model:profile:role`` form; a value with more is not one.
+_COMPACT_AGENT_SEGMENTS = 4
+
+
+def actor_from_option(actor: str, role: str, *, binding: ResolvedBinding | None = None) -> dict[str, str | None]:
+    """The lenient builder: the structured actor of a free-text or recorded identity (#6400, FR-011).
+
+    Used for ``agent status emit --actor``, the ``orchestrator-api`` ``--actor`` and an
+    identity read back from the record (a recorded reviewer or agent). Those values
+    were always stored verbatim, so this never refuses. The value is kept whole as
+    ``tool`` (``profile`` and ``model`` from ``binding`` only) when it:
+
+    * starts with :data:`~specify_cli.status.models.MIGRATION_ACTOR_PREFIX`, so a
+      reconstruction seed stays one (``is_migration_actor`` and the package reducer);
+    * has more than four ``:`` segments, so it is not a compact agent string;
+    * fails :func:`~specify_cli.status.models.parse_agent_boundary_string` (an empty
+      tool segment, e.g. ``":x"``).
+
+    Otherwise it is parsed like a compact ``--agent``: the bare tool, the model and the
+    profile segment; the role segment is ignored (``role`` comes from the action).
+    """
+    if actor.startswith(MIGRATION_ACTOR_PREFIX) or len(actor.split(":")) > _COMPACT_AGENT_SEGMENTS:
+        return compose_status_actor(role=role, tool=actor, binding=binding)
+    try:
+        tool, agent_model, agent_profile, _role = parse_agent_boundary_string(actor)
+    except ValueError:
+        return compose_status_actor(role=role, tool=actor, binding=binding)
+    return compose_status_actor(role=role, tool=tool, binding=binding, agent_profile=agent_profile, agent_model=agent_model)

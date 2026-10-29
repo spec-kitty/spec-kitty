@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 from spec_kitty_events.diary import decode_actor as diary_decode_actor
 
-from specify_cli.status.actor import ActorRole, build_status_actor, role_for_hop
+from specify_cli.status.actor import ActorRole, actor_from_option, build_status_actor, role_for_hop
 from specify_cli.status.emit import build_resolved_actor, build_self_asserting_actor
 from specify_cli.status.models import Lane, ProfileSource, actor_full_identity, decode_actor
 from specify_cli.status.resolved_binding import ResolvedBinding
@@ -136,6 +136,32 @@ def test_delegating_builders_emit_the_four_key_value() -> None:
     self_asserting = build_self_asserting_actor(role="reviewer", agent="claude:opus:seg", fallback_tool="user", binding=None)
     assert self_asserting == build_status_actor(role="reviewer", agent="claude:opus:seg", fallback_tool="user", binding=None)
     assert self_asserting == {"tool": "claude", "role": "reviewer", "profile": "seg", "model": "opus"}
+
+
+# ---------------------------------------------------------------------------
+# actor_from_option — the lenient builder (free text and recorded identities)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("claude", ("claude", None, None), id="bare-tool"),
+        pytest.param("claude:opus:python-pedro:reviewer", ("claude", "opus", "python-pedro"), id="compact-role-segment-ignored"),
+        pytest.param("migration:backfill", ("migration:backfill", None, None), id="migration-seed-kept-whole"),
+        pytest.param("a:b:c:d:e", ("a:b:c:d:e", None, None), id="more-than-four-segments-kept-whole"),
+        pytest.param(":x", (":x", None, None), id="unparseable-kept-whole"),
+    ],
+)
+def test_actor_from_option_parses_or_keeps_the_value_whole(value: str, expected: tuple[str, str | None, str | None]) -> None:
+    tool, model, profile = expected
+    assert actor_from_option(value, ActorRole.IMPLEMENTER) == {"role": "implementer", "profile": profile, "tool": tool, "model": model}
+
+
+@pytest.mark.parametrize("value", ["claude:opus:ivan", ":x", "migration:backfill"])
+def test_actor_from_option_binding_wins_for_profile_and_model(value: str) -> None:
+    actor = actor_from_option(value, ActorRole.REVIEWER, binding=_BINDING)
+    assert (actor["profile"], actor["model"], actor["role"]) == ("op-profile", "op-model", "reviewer")
 
 
 # ---------------------------------------------------------------------------

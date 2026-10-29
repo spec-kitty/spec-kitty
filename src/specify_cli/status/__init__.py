@@ -149,6 +149,7 @@ from .wp_state import (
 )
 from .actor import (
     ActorRole,
+    actor_from_option,
     build_status_actor,
     compose_status_actor,
     role_for_hop,
@@ -349,7 +350,6 @@ from .work_package_lifecycle import (
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
     _actor_key,
-    actor_from_option,
     start_implementation_status,
     start_review_status,
 )

@@ -32,8 +32,7 @@ from specify_cli.status import (
     ReviewResult,
     StatusEvent,
     _actor_key,
-    build_status_actor,
-    compose_status_actor,
+    actor_from_option,
     emission_event_verdict,
     resolve_lane_alias,
     role_for_hop,
@@ -170,20 +169,19 @@ def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_l
 def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> dict[str, str | None]:
     """The structured 4-key ``{tool, role, profile, model}`` actor a move-task write records (#6400).
 
-    ``tool_identity`` is the identity the caller already chose (``--agent``, the
-    implementer handoff, the recorded reviewer, ``"user"`` or ``"operator"``); it is
-    parsed to its bare tool, so a recorded compact identity keeps the
-    ``tool:model:profile`` it already asserted. The dispatch binding
+    ``tool_identity`` is the one identity the caller already chose (``--agent``, the
+    implementer handoff, the recorded reviewer, ``"user"`` or ``"operator"``). It goes
+    through the lenient builder (:func:`~specify_cli.status.actor_from_option`): a
+    compact string keeps the ``tool:model:profile`` it asserts, a value that does not
+    parse (or a ``migration:`` identity) is kept whole as ``tool``. An explicit
+    ``--agent`` was already refused upfront when it does not parse. A reviewer recorded
+    as a structured actor reaches here as its bare tool (``actor_identity_str``), so only
+    string-recorded identities keep their model/profile. The dispatch binding
     (``--invocation-id`` / ``--profile``) wins for ``profile``/``model``. No WP file is
     read: the frontmatter profile is never filled in (phase split, spec C-006).
     """
     # Bound explicitly: mypy widens ``specify_cli.*`` returns to ``Any`` through ``follow_imports=skip``.
-    actor: dict[str, str | None]
-    try:
-        actor = build_status_actor(role=role, agent=st.agent or tool_identity, fallback_tool=tool_identity, binding=st.resolved_binding)
-    except ValueError:
-        # An identity with an empty tool segment cannot be parsed: keep it whole as the tool, as recorded.
-        actor = compose_status_actor(role=role, tool=tool_identity, binding=st.resolved_binding)
+    actor: dict[str, str | None] = actor_from_option(tool_identity, role, binding=st.resolved_binding)
     return actor
 
 

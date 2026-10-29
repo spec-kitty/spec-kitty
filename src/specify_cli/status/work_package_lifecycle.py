@@ -57,26 +57,6 @@ _UNKNOWN_ACTOR = "unknown"
 GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", _UNKNOWN_ACTOR, "user"})
 
 
-def actor_from_option(actor: str, role: str) -> dict[str, str | None]:
-    """The structured actor for a free-text ``--actor`` option (#6400, FR-011).
-
-    Shared by ``agent status emit`` and the ``orchestrator-api`` lifecycle commands.
-    The value is parsed as a compact ``tool:model:profile`` agent string
-    (:func:`~specify_cli.status.actor.build_status_actor`). Those surfaces always
-    accepted ``--actor`` verbatim, so a value the parser rejects (an empty tool
-    segment, e.g. ``":x"``) is not refused: it is stored whole as ``tool`` with
-    ``profile`` and ``model`` null.
-    """
-    from specify_cli.status.actor import build_status_actor
-
-    structured: dict[str, str | None]
-    try:
-        structured = build_status_actor(role=role, agent=actor, fallback_tool=actor, binding=None)
-    except ValueError:
-        structured = {"tool": actor, "role": role, "profile": None, "model": None}
-    return structured
-
-
 class WorkPackageClaimConflict(TransitionError):
     """Raised when another actor owns an implementation or review claim."""
 
