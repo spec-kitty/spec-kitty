@@ -25,8 +25,10 @@ rejects it, so Mission selection does not list it) is ``residue`` (#5875):
     Requires manual triage.
 
 ``residue``
-    Not a Mission: no ``meta.json`` on disk, or an untracked ``meta.json``
-    without a ``mission_id`` in a git repository. Set only by the walk, and
+    Not a Mission: no ``meta.json`` on disk; or, in a git repository, a
+    ``meta.json`` without a ``mission_id`` that git does not track (nor the
+    ``spec.md``), or an unreadable one. Its ``residue_reason`` names which
+    (:data:`RESIDUE_REASONS`). Set only by the walk, and
     only on request (``residue_aware=True``, ``doctor identity``), never by
     :func:`classify_mission`. Residue is left out of the duplicate-prefix and
     selector-ambiguity reports. The default walk keeps the pre-#5875 contract
@@ -53,23 +55,29 @@ All I/O is synchronous file reads; a residue-aware walk adds at most one
 batch ``git ls-files``, and none when every child carries a ``mission_id``. The probe is
 :func:`~specify_cli.context.mission_resolver.tracked_mission_paths`, not the
 hardened one: this is a read-only reporter, so a broken git index raises
-rather than producing a silently weaker answer.
+:class:`~kernel.git.GitCommandError` rather than producing a silently weaker
+answer (``doctor identity`` renders it as one error line).
+
+Layering: the walk and the read-side Mission rule live in
+``specify_cli.context.mission_resolver``, which imports ``specify_cli.status``
+(through ``context.resolver``). They are imported inside the functions that
+need them, so ``status`` keeps no module-level edge back into ``context``.
 """
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.utils import safe_is_dir
 import logging
 from collections.abc import Callable
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-from specify_cli.context.mission_resolver import is_selectable_mission_dir, tracked_mission_paths
 from specify_cli.lanes.branch_naming import strip_numeric_prefix
 from specify_cli.mission_metadata import _coerce_mission_number
+
+if TYPE_CHECKING:
+    from specify_cli.context.mission_resolver import TrackedMissionPaths
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +89,13 @@ IdentityStateLabel = Literal["assigned", "pending", "legacy", "orphan", "residue
 
 #: Every state label, in report order: the four Mission states, then ``residue``.
 IDENTITY_STATES: tuple[IdentityStateLabel, ...] = ("assigned", "pending", "legacy", "orphan", "residue")
+
+#: Why a ``kitty-specs/`` child is ``residue`` (#5875): no ``meta.json`` on disk; an untracked
+#: ``meta.json`` without a ``mission_id`` (git repository); a ``meta.json`` that cannot be read (D5).
+ResidueReason = Literal["no_meta", "untracked_idless_meta", "corrupt_meta"]
+
+#: Every residue reason, in report order.
+RESIDUE_REASONS: tuple[ResidueReason, ...] = ("no_meta", "untracked_idless_meta", "corrupt_meta")
 
 # Regex to extract exactly 3-digit leading prefix from a directory name.
 _PREFIX_RE = re.compile(r"^(\d{3})-")
@@ -97,6 +112,7 @@ class IdentityState:
         mission_number: Integer from ``meta.json`` (after coercion), or ``None``.
         state: Four-state label per FR-045, or ``residue`` for a non-Mission folder (#5875).
         error: Non-empty when ``meta.json`` could not be read / parsed.
+        residue_reason: Why a ``residue`` row is residue (:data:`RESIDUE_REASONS`); ``None`` otherwise.
     """
 
     path: Path
@@ -105,6 +121,7 @@ class IdentityState:
     mission_number: int | None
     state: IdentityStateLabel
     error: str | None = field(default=None)
+    residue_reason: ResidueReason | None = field(default=None)
 
     def to_dict(self) -> dict[str, object]:
         """Serialise to a JSON-compatible dict."""
@@ -115,6 +132,7 @@ class IdentityState:
             "mission_number": self.mission_number,
             "state": self.state,
             "error": self.error,
+            "residue_reason": self.residue_reason,
         }
 
 
@@ -205,89 +223,39 @@ def classify_mission(feature_dir: Path) -> IdentityState:
 # ---------------------------------------------------------------------------
 
 
-def iter_kitty_specs_children(repo_root: Path) -> list[Path]:
-    """Return the sorted directory children of ``kitty-specs/`` (the doctor audits' one raw walk).
-
-    Shared by :func:`audit_repo`, :func:`find_duplicate_prefixes` and
-    ``doctor mission-type``'s ``audit_mission_types``. An absent
-    ``kitty-specs/``, or an ``OSError`` while listing it (an unreadable
-    ancestor), yields ``[]``: a read-only, best-effort survey must not crash on
-    an unreadable ancestor any more than on an absent one, the same posture as
-    ``specify_cli.audit.engine._scan_missions``. Entries that are not
-    directories (``README.md``, templates) are skipped, and so, per `#3194`,
-    is an entry that cannot be examined at all (most commonly ``EACCES``
-    behind a symlink): it is folded into the SAME "not a directory" skip
-    rather than raising or silently vanishing depending on interpreter (see
-    ``safe_is_dir``'s docstring for why ``Path.is_dir()``/``Path.exists()``
-    cannot be used here unguarded).
-    """
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    try:
-        if not safe_is_dir(specs_dir):
-            return []
-        entries = sorted(specs_dir.iterdir())
-    except OSError:
-        return []
-
-    children: list[Path] = []
-    for entry in entries:
-        try:
-            is_dir = safe_is_dir(entry)
-        except OSError:
-            continue  # unstattable entry: same skip as "not a directory"
-        if is_dir:
-            children.append(entry)
-    return children
-
-
-class ReporterTrackedPaths:
-    """A per-walk memo of :func:`tracked_mission_paths` (the unhardened probe) for ``doctor identity``.
-
-    ``doctor identity`` is a read-only reporter: a broken git index raises
-    instead of degrading to file presence (the hardened
-    ``LazyTrackedMissionPaths`` would degrade). The probe runs on the first
-    :meth:`get` only, and :func:`classify_walk_entry` calls it only for a child
-    whose answer depends on git, so a walk whose every child carries a
-    ``mission_id`` makes no git call (NFR-001).
-    """
-
-    def __init__(self, repo_root: Path) -> None:
-        self._repo_root = repo_root
-        self._probed = False
-        self._tracked: frozenset[str] | None = None
-
-    def get(self) -> frozenset[str] | None:
-        """The tracked set (``None`` outside a git work tree), probed on the first call only."""
-        if not self._probed:
-            self._tracked = tracked_mission_paths(self._repo_root)
-            self._probed = True
-        return self._tracked
-
-
-_NO_TRACKED_PATHS: frozenset[str] = frozenset()
-
-
 def _residue_state(entry: Path) -> IdentityState:
-    """The ``residue`` row for a ``kitty-specs/`` child that is not a Mission (#5875)."""
-    return IdentityState(path=entry, slug=entry.name, mission_id=None, mission_number=None, state="residue", error=None)
+    """The ``residue`` row for a ``kitty-specs/`` child that is not a Mission, with its reason (#5875, D5).
+
+    ``corrupt_meta`` keeps the read error, so ``doctor identity`` can say the
+    Mission content is corrupt instead of offering to delete it.
+    """
+    reason: ResidueReason = "no_meta"
+    error: str | None = None
+    if (entry / "meta.json").is_file():
+        from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+
+        reason = "untracked_idless_meta"
+        try:
+            load_meta_fail_closed(entry)
+        except (OSError, MissionMetaReadError) as exc:
+            reason, error = "corrupt_meta", str(exc)
+    return IdentityState(path=entry, slug=entry.name, mission_id=None, mission_number=None, state="residue", error=error, residue_reason=reason)
 
 
-def classify_walk_entry(entry: Path, *, repo_root: Path, tracked: ReporterTrackedPaths) -> IdentityState:
+def classify_walk_entry(entry: Path, *, repo_root: Path, tracked: TrackedMissionPaths | None = None) -> IdentityState:
     """Classify one ``kitty-specs/`` child: ``residue`` when it is not a Mission, else :func:`classify_mission`.
 
-    The rule is :func:`is_selectable_mission_dir`. *tracked* is the walk's
-    memo, read only when the answer depends on git, so the probe runs at most
-    once per walk. The first predicate call passes an empty tracked set: it
-    makes no git call and accepts exactly a child whose ``meta.json`` carries a
-    ``mission_id``, so the common case reads ``meta.json`` once there and once
-    in :func:`classify_mission`. Only a child with an id-less ``meta.json``
-    reaches the second call, the one that consults git.
+    The rule is :func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir`,
+    called once. *tracked* is the walk's memo; ``None`` builds a fresh
+    reporter memo (``probe=tracked_mission_paths``: a broken git index raises).
+    The memo probes git only for a child whose answer depends on it, so the
+    probe runs at most once per walk and not at all when every child carries
+    a ``mission_id``.
     """
-    if is_selectable_mission_dir(entry, repo_root=repo_root, tracked=_NO_TRACKED_PATHS):
-        return classify_mission(entry)
-    if not (entry / "meta.json").is_file():
-        return _residue_state(entry)
-    if is_selectable_mission_dir(entry, repo_root=repo_root, tracked=tracked.get()):
+    from specify_cli.context.mission_resolver import TrackedMissionPaths, is_selectable_mission_dir, tracked_mission_paths
+
+    memo = tracked if tracked is not None else TrackedMissionPaths(repo_root, probe=tracked_mission_paths)
+    if is_selectable_mission_dir(entry, repo_root=repo_root, tracked=memo):
         return classify_mission(entry)
     return _residue_state(entry)
 
@@ -296,8 +264,17 @@ def _walk_classifier(repo_root: Path, *, residue_aware: bool) -> Callable[[Path]
     """The per-child classifier of one walk: residue-aware (``doctor identity``) or plain :func:`classify_mission`."""
     if not residue_aware:
         return classify_mission
-    tracked = ReporterTrackedPaths(repo_root)
+    from specify_cli.context.mission_resolver import TrackedMissionPaths, tracked_mission_paths
+
+    tracked = TrackedMissionPaths(repo_root, probe=tracked_mission_paths)
     return lambda entry: classify_walk_entry(entry, repo_root=repo_root, tracked=tracked)
+
+
+def _kitty_specs_children(repo_root: Path) -> list[Path]:
+    """The doctor audits' one raw walk (:func:`~specify_cli.context.mission_resolver.iter_kitty_specs_children`)."""
+    from specify_cli.context.mission_resolver import iter_kitty_specs_children
+
+    return iter_kitty_specs_children(repo_root)
 
 
 def audit_repo(repo_root: Path, *, residue_aware: bool = False) -> list[IdentityState]:
@@ -326,7 +303,7 @@ def audit_repo(repo_root: Path, *, residue_aware: bool = False) -> list[Identity
         Sorted list of :class:`IdentityState` objects, one per mission directory.
     """
     classify = _walk_classifier(repo_root, residue_aware=residue_aware)
-    return [classify(entry) for entry in iter_kitty_specs_children(repo_root)]
+    return [classify(entry) for entry in _kitty_specs_children(repo_root)]
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +367,7 @@ def find_duplicate_prefixes(repo_root: Path, *, residue_aware: bool = False) -> 
     """
     groups: dict[str, list[IdentityState]] = {}
     classify = _walk_classifier(repo_root, residue_aware=residue_aware)
-    for entry in iter_kitty_specs_children(repo_root):
+    for entry in _kitty_specs_children(repo_root):
         m = _PREFIX_RE.match(entry.name)
         if not m:
             continue

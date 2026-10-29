@@ -232,9 +232,12 @@ from .event_log_merge import (
     merge_event_log_texts,
 )
 from .identity_audit import (
+    IDENTITY_STATES,
+    RESIDUE_REASONS,
     IdentityState,
     audit_repo,
     classify_mission,
+    classify_walk_entry,
     find_ambiguous_selectors,
     find_duplicate_prefixes,
     summarize,
@@ -648,6 +651,11 @@ __all__ = [
     "audit_repo",
     "bootstrap_canonical_state",
     "classify_mission",
+    # #5875: ``doctor identity`` (cli/commands/_identity_audit.py) reads these
+    # through the facade, never the ``status.identity_audit`` submodule (SR-2).
+    "classify_walk_entry",
+    "IDENTITY_STATES",
+    "RESIDUE_REASONS",
     "feature_status_lock",
     "find_ambiguous_selectors",
     "find_duplicate_prefixes",

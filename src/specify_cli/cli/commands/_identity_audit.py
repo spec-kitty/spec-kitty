@@ -18,8 +18,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
+from rich.markup import escape
 from rich.table import Table
 
+from kernel.git import GitCommandError
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
@@ -37,15 +39,43 @@ __all__ = [
     "run_topology_audit",
 ]
 
-#: The one remedy for a ``residue`` row of ``doctor identity`` (#5875, FR-004). It is separate from
-#: ``mission_resolver.RESIDUE_NOTICE`` (the write-seam text, whose wording a regex depends on).
-RESIDUE_REMEDY = (
-    "Not a Mission: no meta.json, or an untracked meta.json without a mission_id, so Mission selection "
-    "does not list it. If it is leftover residue, delete the folder. If it is a real Mission, restore its "
-    "meta.json from git history (`git log --diff-filter=D -- <path>/meta.json`, then "
-    "`git checkout <sha>^ -- <path>/meta.json`), or re-create it with `spec-kitty agent mission create` "
-    "and move its spec.md into the new folder."
+#: The remedy for each ``residue`` reason of ``doctor identity`` (#5875, FR-004, D5). They are
+#: separate from ``mission_resolver.RESIDUE_NOTICE`` (the write-seam text, which a regex parses).
+#: ``~1`` rather than ``^``: ``^`` is the escape character of Windows ``cmd``.
+RESIDUE_REMEDY_NO_META = (
+    "No meta.json on disk, so Mission selection does not list it. If it is leftover residue, delete the folder. "
+    "If it is a real Mission whose meta.json was deleted: when `git status` shows the deletion, run "
+    "`git restore <path>/meta.json`; when the deletion was committed, find it with "
+    "`git log --diff-filter=D --format=%h -1 -- <path>/meta.json` and run "
+    "`git checkout <sha>~1 -- <path>/meta.json`. If its meta.json was never committed, re-create the Mission "
+    "with `spec-kitty agent mission create` and move its spec.md into the new folder."
 )
+RESIDUE_REMEDY_UNTRACKED_IDLESS_META = (
+    "A meta.json without a mission_id that git does not track (nor the spec.md), so Mission selection does not "
+    "list it. If it is a real Mission, commit its meta.json or run `spec-kitty migrate backfill-identity`; "
+    "otherwise delete the folder."
+)
+RESIDUE_REMEDY_CORRUPT_META = (
+    "The Mission content is corrupt: meta.json could not be read (the error is on each row). Repair it: fix "
+    "its permissions or its JSON, or restore it with `git restore <path>/meta.json` or "
+    "`git checkout HEAD -- <path>/meta.json`. Do not delete the folder before checking."
+)
+#: ``residue_reason`` -> remedy, in report order (``status.RESIDUE_REASONS``).
+RESIDUE_REMEDIES: dict[str, str] = {
+    "no_meta": RESIDUE_REMEDY_NO_META,
+    "untracked_idless_meta": RESIDUE_REMEDY_UNTRACKED_IDLESS_META,
+    "corrupt_meta": RESIDUE_REMEDY_CORRUPT_META,
+}
+#: ``residue_reason`` -> the heading of its group in the human output.
+_RESIDUE_GROUP_HEADINGS: dict[str, str] = {
+    "no_meta": "No meta.json:",
+    "untracked_idless_meta": "Untracked meta.json without a mission_id:",
+    "corrupt_meta": "Corrupt meta.json (could not be read):",
+}
+
+#: ``--json`` ``error_code`` when git cannot list the tracked ``kitty-specs/`` paths (a broken index).
+GIT_INDEX_UNREADABLE = "GIT_INDEX_UNREADABLE"
+_GIT_INDEX_REMEDIATION = "Repair the git index: run `git reset`; if that fails too, run `rm .git/index && git reset`, then re-run."
 
 
 # --- identity helpers --------------------------------------------------------
@@ -57,7 +87,7 @@ def _scope_to_mission(
     mission: str,
 ) -> list[IdentityState]:
     """Filter states to a single mission slug (or classify it directly, residue rule included)."""
-    from specify_cli.status.identity_audit import ReporterTrackedPaths, classify_walk_entry
+    from specify_cli.status import classify_walk_entry
 
     filtered = [s for s in all_states if s.slug == mission]
     if filtered:
@@ -73,7 +103,7 @@ def _scope_to_mission(
     target_dir = placement_seam(repo_root, mission).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     # #5875: the same read-side rule as the walk, so ``--mission <residue>`` reports ``residue``.
     if target_dir.is_dir():
-        return [classify_walk_entry(target_dir, repo_root=repo_root, tracked=ReporterTrackedPaths(repo_root))]
+        return [classify_walk_entry(target_dir, repo_root=repo_root)]
     return []
 
 
@@ -120,13 +150,13 @@ def _print_dup_and_ambig(
 def _print_identity_summary_table(all_states: list[IdentityState], summary: dict[str, object]) -> None:
     """Print the per-state count table (extracted to keep callers <=15 CC)."""
     counts_dict: dict[str, int] = summary["counts"]  # type: ignore[assignment]
-    total = len(all_states)
-    console.print(f"\n[bold]Mission Identity Audit[/bold] — {total} mission(s)\n")
+    residue = sum(1 for s in all_states if s.state == "residue")
+    console.print(f"\n[bold]Mission Identity Audit[/bold] — {len(all_states) - residue} Mission(s), {residue} residue folder(s)\n")
 
     summary_table = Table(box=None, padding=(0, 2), show_edge=False)
     summary_table.add_column("State", style="cyan", min_width=10)
     summary_table.add_column("Count", justify="right", min_width=6)
-    from specify_cli.status.identity_audit import IDENTITY_STATES
+    from specify_cli.status import IDENTITY_STATES
 
     _state_styles = {"assigned": "[green]", "pending": "[yellow]", "legacy": "[red]", "orphan": "[red]", "residue": "[yellow]"}
     for state_name in IDENTITY_STATES:
@@ -148,14 +178,37 @@ def _print_path_section(heading: str, paths: object) -> bool:
     return True
 
 
-def _print_identity_path_sections(summary: dict[str, object]) -> None:
-    """Print the legacy, orphan and residue path sections; the residue remedy prints once after its section."""
+def _residue_groups(all_states: list[IdentityState]) -> dict[str, list[IdentityState]]:
+    """The ``residue`` rows grouped by ``residue_reason``, in report order, present reasons only."""
+    from specify_cli.status import RESIDUE_REASONS
+
+    groups: dict[str, list[IdentityState]] = {reason: [] for reason in RESIDUE_REASONS}
+    for s in all_states:
+        if s.state == "residue":
+            groups[s.residue_reason or "no_meta"].append(s)
+    return {reason: rows for reason, rows in groups.items() if rows}
+
+
+def _print_residue_section(all_states: list[IdentityState]) -> None:
+    """Print the residue rows grouped by reason; each present reason's remedy prints once, after its rows."""
+    groups = _residue_groups(all_states)
+    if not groups:
+        return
+    console.print("[bold yellow]Residue folders (not Missions; Mission selection does not list them):[/bold yellow]")
+    for reason, rows in groups.items():
+        console.print(f"  [yellow]{_RESIDUE_GROUP_HEADINGS[reason]}[/yellow]")
+        for row in rows:
+            detail = f" — {escape(row.error)}" if row.error else ""
+            console.print(f"    {escape(str(row.path))}{detail}", soft_wrap=True)
+        console.print(f"  [bold]Remedy:[/bold] {RESIDUE_REMEDIES[reason]}", soft_wrap=True)
+    console.print()
+
+
+def _print_identity_path_sections(summary: dict[str, object], all_states: list[IdentityState]) -> None:
+    """Print the legacy and orphan path sections, then the residue section grouped by reason."""
     _print_path_section("[bold red]Legacy missions (need backfill):[/bold red]", summary.get("legacy_paths"))
     _print_path_section("[bold red]Orphan missions (need triage):[/bold red]", summary.get("orphan_paths"))
-    residue_heading = "[bold yellow]Residue folders (not Missions; Mission selection does not list them):[/bold yellow]"
-    if _print_path_section(residue_heading, summary.get("residue_paths")):
-        console.print(f"[bold]Remedy:[/bold] {RESIDUE_REMEDY}", soft_wrap=True)
-        console.print()
+    _print_residue_section(all_states)
 
 
 def _print_identity_human(
@@ -170,7 +223,7 @@ def _print_identity_human(
     """Render the human-readable identity report to the console."""
     _print_identity_summary_table(all_states, summary)
     _print_dup_and_ambig(duplicate_prefixes, ambiguous_selectors)
-    _print_identity_path_sections(summary)
+    _print_identity_path_sections(summary, all_states)
 
     if fail_on_triggered:
         console.print(f"[bold red]FAIL:[/bold red] --fail-on {fail_on!r} triggered (one or more missions in: {', '.join(sorted(fail_on_states))})")
@@ -192,7 +245,8 @@ def _build_identity_json(
 ) -> dict[str, object]:
     """Build the ``--json`` report payload for ``doctor identity``.
 
-    ``residue_remedy`` is added only when at least one row is ``residue`` (#5875).
+    ``residue_remedies`` (``{residue_reason: remedy}``, the reasons present) is
+    added only when at least one row is ``residue`` (#5875).
     """
     report: dict[str, object] = {
         "summary": summary["counts"],
@@ -201,9 +255,37 @@ def _build_identity_json(
         "ambiguous_selectors": {handle: [s.to_dict() for s in items] for handle, items in ambig_selectors.items()},
         "fail_on_triggered": fail_on_triggered,
     }
-    if any(s.state == "residue" for s in all_states):
-        report["residue_remedy"] = RESIDUE_REMEDY
+    groups = _residue_groups(all_states)
+    if groups:
+        report["residue_remedies"] = {reason: RESIDUE_REMEDIES[reason] for reason in groups}
     return report
+
+
+def _git_index_unreadable(exc: GitCommandError, *, json_output: bool) -> typer.Exit:
+    """Report a git index that cannot be read as one line (or a JSON envelope); the caller raises the exit."""
+    message = f"git could not read the git index, so doctor identity cannot tell tracked kitty-specs/ files apart: {exc}"
+    if json_output:
+        envelope = {"error_code": GIT_INDEX_UNREADABLE, "error": message, "remediation": _GIT_INDEX_REMEDIATION}
+        sys.stdout.write(json.dumps(envelope, indent=2) + "\n")
+        sys.stdout.flush()
+    else:
+        console.print(f"[red]Error:[/red] {escape(message)} {escape(_GIT_INDEX_REMEDIATION)}", soft_wrap=True)
+    return typer.Exit(1)
+
+
+def _audit_identity(repo_root: Path, mission: str | None) -> tuple[list[IdentityState], dict[str, list[IdentityState]]] | None:
+    """Walk ``kitty-specs/`` (scoped to *mission* when given); ``None`` when *mission* is not found."""
+    from specify_cli.status import audit_repo, find_duplicate_prefixes
+
+    all_states = audit_repo(repo_root, residue_aware=True)
+    if mission is not None:
+        all_states = _scope_to_mission(repo_root, all_states, mission)
+        if not all_states:
+            return None
+    dup_prefixes = find_duplicate_prefixes(repo_root, residue_aware=True)
+    if mission is not None:
+        dup_prefixes = _scope_prefixes(dup_prefixes, mission)
+    return all_states, dup_prefixes
 
 
 def run_identity_audit(repo_root: Path, json_output: bool, mission: str | None, fail_on: str | None) -> None:
@@ -211,28 +293,24 @@ def run_identity_audit(repo_root: Path, json_output: bool, mission: str | None, 
 
     *repo_root* is resolved by the ``doctor.py`` command shell (which owns the
     patchable ``locate_project_root`` seam) and injected here, preserving the
-    existing monkeypatch contracts of the command's tests.
+    existing monkeypatch contracts of the command's tests. A git index that
+    cannot be read exits 1 with one error line (``GIT_INDEX_UNREADABLE`` under
+    ``--json``) instead of a traceback (#5875).
     """
-    from specify_cli.status import (
-        audit_repo,
-        find_ambiguous_selectors,
-        find_duplicate_prefixes,
-        summarize,
-    )
+    from specify_cli.status import find_ambiguous_selectors, summarize
 
-    all_states = audit_repo(repo_root, residue_aware=True)
-
-    if mission is not None:
-        scoped = _scope_to_mission(repo_root, all_states, mission)
-        if not scoped:
-            console.print(f"[red]Error:[/red] Mission not found: {mission!r}")
-            raise typer.Exit(1)
-        all_states = scoped
+    try:
+        audited = _audit_identity(repo_root, mission)
+    except GitCommandError as exc:
+        if exc.timed_out:
+            raise  # a timeout is not a broken index
+        raise _git_index_unreadable(exc, json_output=json_output) from exc
+    if audited is None:
+        console.print(f"[red]Error:[/red] Mission not found: {mission!r}")
+        raise typer.Exit(1)
+    all_states, dup_prefixes = audited
 
     summary = summarize(all_states)
-    dup_prefixes = find_duplicate_prefixes(repo_root, residue_aware=True)
-    if mission is not None:
-        dup_prefixes = _scope_prefixes(dup_prefixes, mission)
     ambig_selectors = find_ambiguous_selectors(all_states)
 
     fail_on_states, fail_on_triggered = _compute_fail_on(fail_on, all_states)

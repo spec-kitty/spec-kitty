@@ -157,23 +157,46 @@ def test_build_identity_json_shape() -> None:
     assert payload["ambiguous_selectors"] == {}
 
 
-def test_build_identity_json_adds_remedy_only_with_residue() -> None:
-    summary = {"counts": {"assigned": 1, "residue": 1}}
-    with_residue = ia._build_identity_json([_state("083-a", "assigned"), _state("old", "residue", None)], summary, {}, {}, False)
-    assert with_residue["residue_remedy"] == ia.RESIDUE_REMEDY
+def _residue(slug: str, reason: str, error: str | None = None) -> IdentityState:
+    return IdentityState(Path("/tmp") / slug, slug, None, None, "residue", error, reason)  # type: ignore[arg-type]
+
+
+def test_build_identity_json_adds_one_remedy_per_present_reason() -> None:
+    summary = {"counts": {"assigned": 1, "residue": 2}}
+    states = [_state("083-a", "assigned"), _residue("old", "no_meta"), _residue("bad", "corrupt_meta", "Cannot read")]
+    with_residue = ia._build_identity_json(states, summary, {}, {}, False)
+    assert with_residue["residue_remedies"] == {"no_meta": ia.RESIDUE_REMEDY_NO_META, "corrupt_meta": ia.RESIDUE_REMEDY_CORRUPT_META}
+    assert "residue_remedy" not in with_residue
     without = ia._build_identity_json([_state("083-a", "assigned")], summary, {}, {}, False)
-    assert "residue_remedy" not in without
+    assert "residue_remedies" not in without
 
 
-def test_residue_remedy_is_the_planned_text() -> None:
-    # Copied word for word from plan.md, "Remedy text" (FR-004).
-    assert ia.RESIDUE_REMEDY == (
-        "Not a Mission: no meta.json, or an untracked meta.json without a mission_id, so Mission selection does "
-        "not list it. If it is leftover residue, delete the folder. If it is a real Mission, restore its meta.json "
-        "from git history (`git log --diff-filter=D -- <path>/meta.json`, then `git checkout <sha>^ -- "
-        "<path>/meta.json`), or re-create it with `spec-kitty agent mission create` and move its spec.md into the "
-        "new folder."
-    )
+def test_residue_remedies_cover_every_reason_in_report_order() -> None:
+    from specify_cli.status import RESIDUE_REASONS
+
+    assert tuple(ia.RESIDUE_REMEDIES) == RESIDUE_REASONS
+
+
+def test_no_meta_remedy_restores_with_a_windows_safe_parent_ref() -> None:
+    text = ia.RESIDUE_REMEDY_NO_META
+    assert "delete the folder" in text
+    assert "`git restore <path>/meta.json`" in text
+    assert "`git log --diff-filter=D --format=%h -1 -- <path>/meta.json`" in text
+    assert "`git checkout <sha>~1 -- <path>/meta.json`" in text and "^" not in text
+    assert "`spec-kitty agent mission create`" in text
+
+
+def test_untracked_idless_remedy_offers_commit_or_backfill() -> None:
+    text = ia.RESIDUE_REMEDY_UNTRACKED_IDLESS_META
+    assert "commit its meta.json" in text and "`spec-kitty migrate backfill-identity`" in text
+    assert "delete the folder" in text
+
+
+def test_corrupt_remedy_says_corrupt_and_never_to_delete_first() -> None:
+    text = ia.RESIDUE_REMEDY_CORRUPT_META
+    assert text.startswith("The Mission content is corrupt: meta.json could not be read")
+    assert "`git checkout HEAD -- <path>/meta.json`" in text and "`git restore <path>/meta.json`" in text
+    assert "Do not delete the folder before checking." in text
 
 
 def test_print_identity_summary_table_lists_residue() -> None:
@@ -183,26 +206,60 @@ def test_print_identity_summary_table_lists_residue() -> None:
         ia._print_identity_summary_table([_state("old", "residue", None)], {"counts": {"residue": 1}})
     out = capture.get()
     assert "residue" in out
+    assert "0 Mission(s), 1 residue folder(s)" in " ".join(out.split())
 
 
-def test_print_identity_path_sections_prints_residue_then_one_remedy() -> None:
+def test_print_identity_path_sections_groups_residue_by_reason() -> None:
     from specify_cli.cli.commands._doctor_shared import console
 
-    summary = {"legacy_paths": [], "orphan_paths": [], "residue_paths": ["kitty-specs/a", "kitty-specs/b"]}
+    summary = {"legacy_paths": [], "orphan_paths": [], "residue_paths": ["/tmp/a", "/tmp/b", "/tmp/c"]}
+    states = [_residue("a", "no_meta"), _residue("b", "no_meta"), _residue("c", "corrupt_meta", "Cannot read /tmp/c/meta.json")]
     with console.capture() as capture:
-        ia._print_identity_path_sections(summary)
-    flat = " ".join(capture.get().split())
+        ia._print_identity_path_sections(summary, states)
+    out = capture.get()
+    flat = " ".join(out.split())
     assert "Residue folders (not Missions; Mission selection does not list them):" in flat
-    assert "kitty-specs/a" in flat and "kitty-specs/b" in flat
-    assert flat.count("Not a Mission:") == 1
+    assert flat.count(ia.RESIDUE_REMEDY_NO_META) == 1 and flat.count(ia.RESIDUE_REMEDY_CORRUPT_META) == 1
+    assert ia.RESIDUE_REMEDY_UNTRACKED_IDLESS_META not in flat
+    assert flat.index("No meta.json:") < flat.index("/tmp/a") < flat.index("Corrupt meta.json")
+    assert "/tmp/c — Cannot read /tmp/c/meta.json" in flat
+
+
+def test_residue_row_without_a_reason_is_grouped_as_no_meta() -> None:
+    groups = ia._residue_groups([_state("old", "residue", None)])
+    assert list(groups) == ["no_meta"]
 
 
 def test_print_identity_path_sections_no_residue_no_remedy() -> None:
     from specify_cli.cli.commands._doctor_shared import console
 
     with console.capture() as capture:
-        ia._print_identity_path_sections({"legacy_paths": [], "orphan_paths": [], "residue_paths": []})
-    assert "Not a Mission" not in capture.get()
+        ia._print_identity_path_sections({"legacy_paths": [], "orphan_paths": [], "residue_paths": []}, [])
+    assert "Remedy" not in capture.get()
+
+
+def test_git_index_unreadable_human_is_one_error_line() -> None:
+    from kernel.git import GitCommandError
+
+    from specify_cli.cli.commands._doctor_shared import console
+
+    exc = GitCommandError(argv=("ls-files",), cwd=Path("/r"), returncode=128, stderr="index file corrupt")
+    with console.capture() as capture:
+        exit_ = ia._git_index_unreadable(exc, json_output=False)
+    assert exit_.exit_code == 1
+    assert "git index" in capture.get() and "git reset" in capture.get()
+
+
+def test_git_index_timeout_is_not_reported_as_a_broken_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.status as status_mod
+    from kernel.git import GitCommandError
+
+    def _timeout(*_a: object, **_kw: object) -> object:
+        raise GitCommandError(argv=("ls-files",), cwd=tmp_path, returncode=-1, stderr="", timed_out=True)
+
+    monkeypatch.setattr(status_mod, "audit_repo", _timeout)
+    with pytest.raises(GitCommandError):
+        ia.run_identity_audit(tmp_path, json_output=True, mission=None, fail_on=None)
 
 
 # --- render helpers (smoke: must not crash, cover branches) ------------------

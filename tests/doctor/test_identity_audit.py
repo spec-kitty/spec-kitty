@@ -851,7 +851,7 @@ def _invoke_identity(repo: Path, monkeypatch: pytest.MonkeyPatch, *args: str) ->
 
 @pytest.mark.git_repo
 def test_identity_json_reports_residue_with_remedy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.cli.commands._identity_audit import RESIDUE_REMEDY
+    from specify_cli.cli.commands._identity_audit import RESIDUE_REMEDIES
 
     repo = _residue_repo(tmp_path)
 
@@ -868,8 +868,11 @@ def test_identity_json_reports_residue_with_remedy(tmp_path: Path, monkeypatch: 
         "mission_number": None,
         "state": "residue",
         "error": None,
+        "residue_reason": "untracked_idless_meta",
     }
-    assert doc["residue_remedy"] == RESIDUE_REMEDY
+    assert rows["001-mission"]["residue_reason"] is None
+    assert doc["residue_remedies"] == {reason: RESIDUE_REMEDIES[reason] for reason in ("no_meta", "untracked_idless_meta")}
+    assert "residue_remedy" not in doc
     assert "001" not in doc["duplicate_prefixes"]
     assert "mission" not in doc["ambiguous_selectors"]
 
@@ -882,7 +885,7 @@ def test_identity_json_omits_remedy_without_residue(tmp_path: Path, monkeypatch:
     assert result.exit_code == 0, result.output
     doc = json.loads(result.output)
     assert doc["summary"]["residue"] == 0
-    assert "residue_remedy" not in doc
+    assert "residue_remedies" not in doc and "residue_remedy" not in doc
 
 
 @pytest.mark.git_repo
@@ -906,8 +909,10 @@ def test_identity_human_output_shows_residue_section_and_remedy(tmp_path: Path, 
     assert "residue" in flat
     assert "Residue folders (not Missions; Mission selection does not list them):" in flat
     assert "006-lock-only" in flat
-    assert "Not a Mission: no meta.json, or an untracked meta.json without a mission_id" in flat
+    assert flat.count("git restore <path>/meta.json") == 1  # the no_meta remedy, printed once for three rows
+    assert flat.count("spec-kitty migrate backfill-identity") == 1  # the untracked_idless_meta remedy
     assert "spec-kitty agent mission create" in flat
+    assert "could not be read" not in flat  # no corrupt_meta row, so no corrupt_meta remedy
 
 
 @pytest.mark.git_repo
@@ -920,3 +925,166 @@ def test_identity_mission_scope_reports_residue(tmp_path: Path, monkeypatch: pyt
     doc = json.loads(result.output)
     assert [(m["slug"], m["state"]) for m in doc["missions"]] == [("001-spec-only", "residue")]
     assert doc["duplicate_prefixes"] == {}
+
+
+# ---------------------------------------------------------------------------
+# #5875 fold: residue reasons (D5), the broken-index message, the header count, NFR-002
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.git_repo
+def test_residue_rows_carry_their_reason(tmp_path: Path) -> None:
+    repo = _residue_repo(tmp_path)
+
+    reasons = {s.slug: s.residue_reason for s in audit_repo(repo, residue_aware=True)}
+
+    assert reasons == {
+        "001-mission": None,
+        "001-spec-only": "no_meta",
+        "002-mission": "no_meta",
+        "003-noid": "untracked_idless_meta",
+        "004-legacy": None,
+        "005-orphan": None,
+        "006-lock-only": "no_meta",
+    }
+
+
+@pytest.mark.git_repo
+@pytest.mark.parametrize("raw", ["{not json", "[1, 2]"], ids=["malformed", "non-object"])
+def test_an_untracked_corrupt_meta_is_residue_with_its_read_error(tmp_path: Path, raw: str) -> None:
+    """D5: a present but unparseable or non-object meta.json stays residue, reported as corrupt."""
+    repo = _residue_repo(tmp_path)
+    corrupt = repo / "kitty-specs" / "007-corrupt"
+    corrupt.mkdir()
+    (corrupt / "meta.json").write_text(raw, encoding="utf-8")
+
+    row = {s.slug: s for s in audit_repo(repo, residue_aware=True)}["007-corrupt"]
+
+    assert (row.state, row.residue_reason) == ("residue", "corrupt_meta")
+    assert row.error and "meta.json" in row.error
+
+
+@pytest.mark.git_repo
+def test_an_unreadable_meta_is_residue_with_its_read_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """D5: an unreadable meta.json (EACCES) is residue with reason corrupt_meta, never "delete it"."""
+    repo = _residue_repo(tmp_path)
+    unreadable = repo / "kitty-specs" / "008-unreadable"
+    _write_meta(unreadable, {"mission_id": _ULID_B})
+    real_read_text = Path.read_text
+    real_read_bytes = Path.read_bytes
+
+    def _denied_text(self: Path, *args: Any, **kwargs: Any) -> str:
+        if self.parent == unreadable:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_read_text(self, *args, **kwargs)
+
+    def _denied_bytes(self: Path) -> bytes:
+        if self.parent == unreadable:
+            raise PermissionError(13, "Permission denied", str(self))
+        return real_read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_text", _denied_text)
+    monkeypatch.setattr(Path, "read_bytes", _denied_bytes)
+
+    row = {s.slug: s for s in audit_repo(repo, residue_aware=True)}["008-unreadable"]
+
+    assert (row.state, row.residue_reason) == ("residue", "corrupt_meta")
+    assert row.error
+
+
+@pytest.mark.git_repo
+def test_identity_human_output_groups_corrupt_residue_with_its_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _residue_repo(tmp_path)
+    corrupt = repo / "kitty-specs" / "007-corrupt"
+    corrupt.mkdir()
+    (corrupt / "meta.json").write_text("{not json", encoding="utf-8")
+
+    result = _invoke_identity(repo, monkeypatch)
+
+    assert result.exit_code == 0, result.output
+    flat = " ".join(result.output.split())
+    assert "The Mission content is corrupt" in flat
+    assert "Do not delete the folder before checking." in flat
+    corrupt_line = next(line for line in result.output.splitlines() if "007-corrupt" in line)
+    assert "meta.json" in corrupt_line.split("007-corrupt", 1)[1]  # the read error sits on the row
+
+
+@pytest.mark.git_repo
+def test_identity_json_names_the_corrupt_remedy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.cli.commands._identity_audit import RESIDUE_REMEDIES
+
+    repo = _residue_repo(tmp_path)
+    corrupt = repo / "kitty-specs" / "007-corrupt"
+    corrupt.mkdir()
+    (corrupt / "meta.json").write_text("[1, 2]", encoding="utf-8")
+
+    doc = json.loads(_invoke_identity(repo, monkeypatch, "--json").output)
+
+    row = next(m for m in doc["missions"] if m["slug"] == "007-corrupt")
+    assert row["residue_reason"] == "corrupt_meta" and row["error"]
+    assert set(doc["residue_remedies"]) == {"no_meta", "untracked_idless_meta", "corrupt_meta"}
+    assert doc["residue_remedies"]["corrupt_meta"] == RESIDUE_REMEDIES["corrupt_meta"]
+
+
+def _corrupt_index_repo(tmp_path: Path) -> Path:
+    """A git repo whose index is garbage, with an id-less meta.json so the walk must ask git."""
+    repo = _residue_repo(tmp_path)
+    (repo / ".git" / "index").write_bytes(b"not a git index" * 4)
+    return repo
+
+
+@pytest.mark.git_repo
+def test_identity_with_a_broken_index_prints_one_line_and_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _corrupt_index_repo(tmp_path)
+
+    result = _invoke_identity(repo, monkeypatch)
+
+    assert result.exit_code == 1, result.output
+    assert not isinstance(result.exception, Exception) or isinstance(result.exception, SystemExit), result.exception
+    assert "Traceback" not in result.output
+    flat = " ".join(result.output.split())
+    assert "git index" in flat and "git reset" in flat
+
+
+@pytest.mark.git_repo
+def test_identity_json_with_a_broken_index_emits_an_error_envelope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _corrupt_index_repo(tmp_path)
+
+    result = _invoke_identity(repo, monkeypatch, "--json")
+
+    assert result.exit_code == 1, result.output
+    doc = json.loads(result.output)
+    assert doc["error_code"] == "GIT_INDEX_UNREADABLE"
+    assert doc["error"] and "git reset" in doc["remediation"]
+
+
+@pytest.mark.git_repo
+def test_identity_header_counts_missions_and_residue_apart(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _residue_repo(tmp_path)
+
+    result = _invoke_identity(repo, monkeypatch)
+
+    flat = " ".join(result.output.split())
+    assert "Mission Identity Audit — 3 Mission(s), 4 residue folder(s)" in flat
+
+
+@pytest.mark.git_repo
+@pytest.mark.performance
+def test_nfr_002_timing_residue_aware_200_children_half_id_less(tmp_path: Path) -> None:
+    """NFR-002 on the residue-aware path: a real git repo, 200 children, half without a mission_id."""
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    specs = tmp_path / "kitty-specs"
+    for i in range(200):
+        _mission_dir(specs, f"{i + 1:03d}-m{i}", _ULID_A if i % 2 == 0 else None, i + 1)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+
+    start = time.monotonic()
+    states = audit_repo(tmp_path, residue_aware=True)
+    find_duplicate_prefixes(tmp_path, residue_aware=True)
+    find_ambiguous_selectors(states)
+    elapsed = time.monotonic() - start
+
+    assert len(states) == 200 and "residue" not in {s.state for s in states}
+    assert_timing_budget(elapsed, 3.0, name="elapsed")

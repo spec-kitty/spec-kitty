@@ -47,10 +47,11 @@ in-memory list) on every ``resolve``/``all_missions`` call.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.utils import safe_is_dir
 import logging
 import os
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -250,6 +251,42 @@ def _iter_mission_dirs(repo_root: Path) -> Iterator[Path]:
             yield entry
 
 
+def iter_kitty_specs_children(repo_root: Path) -> list[Path]:
+    """Return the sorted directory children of ``kitty-specs/`` (the doctor audits' one raw walk).
+
+    Shared by ``doctor identity`` (``status.identity_audit.audit_repo`` and
+    ``find_duplicate_prefixes``) and ``doctor mission-type``
+    (``audit_mission_types``). Unlike :func:`_iter_mission_dirs` it is
+    fail-soft: an absent ``kitty-specs/``, or an ``OSError`` while listing it
+    (an unreadable ancestor), yields ``[]``, since a read-only, best-effort
+    survey must not crash on an unreadable ancestor any more than on an absent
+    one (the same posture as ``specify_cli.audit.engine._scan_missions``).
+    Entries that are not directories (``README.md``, templates) are skipped,
+    and so, per `#3194`, is an entry that cannot be examined at all (most
+    commonly ``EACCES`` behind a symlink): it is folded into the SAME "not a
+    directory" skip rather than raising or silently vanishing depending on
+    interpreter (see ``safe_is_dir``'s docstring for why
+    ``Path.is_dir()``/``Path.exists()`` cannot be used here unguarded).
+    """
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    try:
+        if not safe_is_dir(specs_dir):
+            return []
+        entries = sorted(specs_dir.iterdir())
+    except OSError:
+        return []
+
+    children: list[Path] = []
+    for entry in entries:
+        try:
+            is_dir = safe_is_dir(entry)
+        except OSError:
+            continue  # unstattable entry: same skip as "not a directory"
+        if is_dir:
+            children.append(entry)
+    return children
+
+
 _MISSION_MARKER_FILES = ("spec.md", "meta.json")
 #: Mission artifacts whose presence keeps a directory out of :func:`is_kitty_specs_residue`.
 _MISSION_CONTENT = (*_MISSION_MARKER_FILES, "plan.md", "tasks.md", "tasks", "status.events.jsonl", "status.json", "lanes.json")
@@ -348,8 +385,11 @@ def is_mission_dir(path: Path, *, repo_root: Path, tracked: frozenset[str] | Non
        fresh ``mission create`` writes this before anything is committed, so a
        genuine uncommitted Mission is never residue; residue never has one.
     2. ``spec.md`` or ``meta.json`` is git-tracked -> True. *tracked* is an
-       optional precomputed set from :func:`tracked_mission_paths` (batch use);
-       without it each marker is probed with ``git ls-files``.
+       optional precomputed set from :func:`tracked_mission_paths` (batch use).
+       ``tracked=None`` (the default) means "not precomputed": each marker is
+       then probed with ``git ls-files``. Note that this differs from
+       :func:`is_selectable_mission_dir`, where ``tracked=None`` means "probed,
+       no usable git".
     3. Otherwise False.
 
     Outside a git work tree (or when git is unavailable), rule 2 falls back to
@@ -383,23 +423,36 @@ class _Unset:
 _UNSET = _Unset()
 
 
-class LazyTrackedMissionPaths:
-    """A per-walk memo of :func:`probe_tracked_mission_paths` for *repo_root* (#5875, NFR-001).
+class TrackedMissionPaths:
+    """A per-walk memo of a ``tracked=`` probe for *repo_root* (#5875, NFR-001).
 
     A walker builds one per walk and hands it to :func:`is_selectable_mission_dir`
     as ``tracked=``. The probe runs only when the first child without an
     identity needs it, and at most once: a walk whose every child carries a
     ``mission_id`` makes no git call at all.
+
+    *probe* picks the posture. The default, :func:`probe_tracked_mission_paths`,
+    is the hardened one that Mission selection, the agent candidates and
+    ``doctor mission-type`` use: a broken git index degrades to file presence
+    with one warning. ``doctor identity`` is a read-only reporter and passes
+    ``probe=tracked_mission_paths``, so a broken index raises
+    :class:`~kernel.git.GitCommandError` there instead of a weaker answer.
     """
 
-    def __init__(self, repo_root: Path) -> None:
+    def __init__(
+        self,
+        repo_root: Path,
+        *,
+        probe: Callable[[Path], frozenset[str] | None] = probe_tracked_mission_paths,
+    ) -> None:
         self._repo_root = repo_root
+        self._probe = probe
         self._value: frozenset[str] | None | _Unset = _UNSET
 
     def get(self) -> frozenset[str] | None:
         """The tracked set (``None`` for no usable git), probed on the first call only."""
         if isinstance(self._value, _Unset):
-            self._value = probe_tracked_mission_paths(self._repo_root)
+            self._value = self._probe(self._repo_root)
         return self._value
 
 
@@ -407,7 +460,7 @@ def is_selectable_mission_dir(
     path: Path,
     *,
     repo_root: Path,
-    tracked: frozenset[str] | None | _Unset | LazyTrackedMissionPaths = _UNSET,
+    tracked: frozenset[str] | None | _Unset | TrackedMissionPaths = _UNSET,
 ) -> bool:
     """Whether Mission selection lists the ``kitty-specs/`` child *path* (#5875): the read-side Mission test.
 
@@ -417,13 +470,23 @@ def is_selectable_mission_dir(
        residue, not a Mission, whether git tracks it or not; so is a Mission
        whose ``meta.json`` was deleted on disk.
     2. ``meta.json`` carries a non-empty ``mission_id`` -> True, with no git call.
-    3. Otherwise git decides: *tracked* is the batch set of
-       :func:`tracked_mission_paths`, a :class:`LazyTrackedMissionPaths` memo
-       (probed here only when needed), or unset (probed with
-       :func:`probe_tracked_mission_paths`). ``None`` (non-git root, or git
-       unusable) -> True: the ``meta.json`` exists, so the existence fallback
-       holds. A set -> :func:`is_mission_dir` (an id-less ``meta.json`` counts
-       only when git tracks a marker).
+    3. Otherwise git decides, through *tracked*:
+
+       * a :class:`TrackedMissionPaths` memo: probed here, once per walk, only
+         when a child reaches this rule;
+       * unset (the default): probed here with :func:`probe_tracked_mission_paths`;
+       * a set (the batch result of :func:`tracked_mission_paths`): an id-less
+         ``meta.json`` counts only when git tracks ``spec.md`` or ``meta.json``
+         (rule 2 of :func:`is_mission_dir`);
+       * ``None``: "probed, no usable git" (a non-git root, or git unusable).
+         The ``meta.json`` exists, so the existence fallback holds -> True.
+         This differs from :func:`is_mission_dir`, where ``tracked=None``
+         means "not precomputed, probe each marker".
+
+    A ``meta.json`` that is present but unreadable or not a JSON object
+    carries no identity, so rule 3 decides it like an id-less one: residue
+    when git tracks no marker (``doctor identity`` reports it as corrupt), a
+    Mission otherwise.
 
     This is stricter than the write-seam rule :func:`is_kitty_specs_residue`,
     deliberately: there a ``spec.md`` on disk keeps the folder out of residue,
@@ -435,7 +498,7 @@ def is_selectable_mission_dir(
         return False
     if _carries_identity(path):
         return True
-    if isinstance(tracked, LazyTrackedMissionPaths):
+    if isinstance(tracked, TrackedMissionPaths):
         tracked = tracked.get()
     elif isinstance(tracked, _Unset):
         tracked = probe_tracked_mission_paths(repo_root)
@@ -606,7 +669,7 @@ def list_missions_for_selection(main_repo: Path) -> list[MissionListing]:
     :meth:`FsMissionResolver.all_missions`, whose index requires an identity
     because it resolves by ``mission_id``. Git is probed lazily, at most once
     per call, and not at all when every candidate carries a ``mission_id``
-    (:class:`LazyTrackedMissionPaths`); a broken git index degrades to file
+    (:class:`TrackedMissionPaths`); a broken git index degrades to file
     presence (:func:`probe_tracked_mission_paths`) instead of failing selection.
 
     ``mission_id`` / ``mid8`` / ``friendly_name`` are read best-effort via
@@ -624,7 +687,7 @@ def list_missions_for_selection(main_repo: Path) -> list[MissionListing]:
         ``kitty-specs/`` is absent or holds no selectable directory.
     """
     listings: list[MissionListing] = []
-    tracked = LazyTrackedMissionPaths(main_repo)
+    tracked = TrackedMissionPaths(main_repo)
     for entry in _iter_mission_dirs(main_repo):
         if not is_selectable_mission_dir(entry, repo_root=main_repo, tracked=tracked):
             continue

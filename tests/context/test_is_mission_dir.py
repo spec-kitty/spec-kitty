@@ -109,9 +109,20 @@ def _build_walker_corpus(root: Path, *, git: bool) -> None:
     _write(legacy, "meta.json", json.dumps({"mission_number": 7}))
     tracked_spec = _dir(root, "spec-only-tracked")
     _write(tracked_spec, "spec.md", "# s\n")
+    spec_then_meta = _dir(root, "spec-tracked-meta-untracked")
+    _write(spec_then_meta, "spec.md", "# s\n")
+    meta_deleted = _dir(root, "meta-deleted-on-disk")
+    _write(meta_deleted, "meta.json", json.dumps({"mission_number": 9}))
+    _write(meta_deleted, "spec.md", "# s\n")
     if git:
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "fixture")
+    # (a) a tracked spec.md makes an untracked id-less meta.json count (kills "only a tracked meta.json counts").
+    _write(spec_then_meta, "meta.json", json.dumps({"mission_number": 8}))
+    # (b) #6673: the tracked meta.json was deleted on disk, so nothing is selectable.
+    (meta_deleted / "meta.json").unlink()
+    # (c) D5: a corrupt untracked meta.json.
+    _write(_dir(root, "corrupt-untracked"), "meta.json", "{not json")
     fresh = _dir(root, "fresh-01BBBBBB")
     _write(fresh, "meta.json", json.dumps({"mission_id": "01HYYYYYYYYYYYYYYYYYYYYREA"}))
     noid = _dir(root, "noid-untracked")
@@ -138,10 +149,17 @@ def test_walkers_agree_on_the_mission_set(repo: Path) -> None:
 
     sets = _walker_slug_sets(repo)
 
-    expected = {"committed-01AAAAAA", "fresh-01BBBBBB", "legacy-tracked"}
+    expected = {"committed-01AAAAAA", "fresh-01BBBBBB", "legacy-tracked", "spec-tracked-meta-untracked"}
     assert sets == dict.fromkeys(sets, expected)
-    residue = {s.slug for s in audit_repo(repo, residue_aware=True) if s.state == "residue"}
-    assert residue == {"noid-untracked", "spec-only-tracked", "spec-only-untracked", "lock-only"}
+    residue = {s.slug: s.residue_reason for s in audit_repo(repo, residue_aware=True) if s.state == "residue"}
+    assert residue == {
+        "noid-untracked": "untracked_idless_meta",
+        "spec-only-tracked": "no_meta",
+        "spec-only-untracked": "no_meta",
+        "lock-only": "no_meta",
+        "meta-deleted-on-disk": "no_meta",
+        "corrupt-untracked": "corrupt_meta",
+    }
 
 
 def test_walkers_agree_on_a_non_git_root(tmp_path: Path) -> None:
@@ -150,5 +168,6 @@ def test_walkers_agree_on_a_non_git_root(tmp_path: Path) -> None:
 
     sets = _walker_slug_sets(tmp_path)
 
-    expected = {"committed-01AAAAAA", "fresh-01BBBBBB", "legacy-tracked", "noid-untracked"}
+    # Outside git a meta.json on disk is enough, a corrupt one included (doctor identity reports it ``orphan``).
+    expected = {"committed-01AAAAAA", "fresh-01BBBBBB", "legacy-tracked", "noid-untracked", "spec-tracked-meta-untracked", "corrupt-untracked"}
     assert sets == dict.fromkeys(sets, expected)

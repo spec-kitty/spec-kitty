@@ -28,7 +28,7 @@ from typing import Any
 from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.version_utils import cli_version
 from specify_cli.context.mission_resolver import (
-    LazyTrackedMissionPaths,
+    TrackedMissionPaths,
     is_selectable_mission_dir,
     mission_not_found_message,
 )
@@ -349,7 +349,7 @@ def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
     if not mission_specs_dir.is_dir():
         return []
 
-    tracked = LazyTrackedMissionPaths(main_repo_root)
+    tracked = TrackedMissionPaths(main_repo_root)
     candidates: list[dict[str, object]] = []
     for feature_dir in sorted(mission_specs_dir.iterdir()):
         if not feature_dir.is_dir():

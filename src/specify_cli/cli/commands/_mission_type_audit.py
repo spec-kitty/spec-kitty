@@ -78,8 +78,7 @@ from charter.activation.api import canonical_mission_type_key
 from charter.activation.mission_type_profiles import existing_mission_types
 from charter.missions import MissionTemplateRepository, resolve_layered_mission_types
 from specify_cli.core.paths import load_meta_fail_closed
-from specify_cli.context.mission_resolver import LazyTrackedMissionPaths, is_selectable_mission_dir
-from specify_cli.status.identity_audit import iter_kitty_specs_children
+from specify_cli.context.mission_resolver import TrackedMissionPaths, is_selectable_mission_dir, iter_kitty_specs_children
 
 from ._doctor_shared import console
 
@@ -279,7 +278,7 @@ def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
     """Walk ``kitty-specs/`` and classify every mission directory.
 
     Shares :func:`specify_cli.status.identity_audit.audit_repo`'s walk
-    (:func:`~specify_cli.status.identity_audit.iter_kitty_specs_children`) —
+    (:func:`~specify_cli.context.mission_resolver.iter_kitty_specs_children`) —
     deliberately, not by omission. A raw walk (rather than routing through
     ``specify_cli.context.mission_resolver.FsMissionResolver.all_missions()``)
     is a **documented distinct corpus walk**
@@ -302,7 +301,7 @@ def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
     rejects (no ``meta.json``, or an untracked id-less one in a git
     repository) is skipped, so a ``spec.md``-only folder is never ``typeless``.
     ``doctor identity`` reports those folders as ``residue``. The git probe is
-    lazy (:class:`~specify_cli.context.mission_resolver.LazyTrackedMissionPaths`):
+    lazy (:class:`~specify_cli.context.mission_resolver.TrackedMissionPaths`):
     at most one per walk, none when every child carries a ``mission_id``.
 
     Args:
@@ -311,7 +310,7 @@ def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
     Returns:
         List of :class:`MissionTypeState` objects, one per mission directory.
     """
-    tracked = LazyTrackedMissionPaths(repo_root)
+    tracked = TrackedMissionPaths(repo_root)
     entries = [entry for entry in iter_kitty_specs_children(repo_root) if is_selectable_mission_dir(entry, repo_root=repo_root, tracked=tracked)]
     if not entries:
         return []

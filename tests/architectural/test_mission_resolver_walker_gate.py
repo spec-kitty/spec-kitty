@@ -23,7 +23,6 @@ _SCAFFOLD_SNAPSHOT_MODULE = "src/specify_cli/core/mission_creation_duplicates.py
 _SCAFFOLD_SNAPSHOT_FUNCTION = "_list_mission_scaffolds"
 _LEGACY_WALKER_ALLOWLIST = frozenset(
     {
-        "src/specify_cli/status/identity_audit.py",
         "src/specify_cli/consolidation/mission_number/bake.py",
         "src/specify_cli/core/paths.py",
         "src/specify_cli/charter_activate.py",
@@ -31,9 +30,10 @@ _LEGACY_WALKER_ALLOWLIST = frozenset(
         "src/specify_cli/cli/commands/_coordination_doctor.py",
         "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
         "src/specify_cli/cli/commands/_identity_audit.py",
-        # `doctor mission-type` (cli/commands/_mission_type_audit.py) no longer
-        # walks kitty-specs/ itself (#5875): it shares status/identity_audit.py's
-        # iter_kitty_specs_children walk, allowlisted above, so it has no entry.
+        # `doctor identity` (status/identity_audit.py) and `doctor mission-type`
+        # (cli/commands/_mission_type_audit.py) no longer walk kitty-specs/
+        # themselves (#5875): both share mission_resolver.iter_kitty_specs_children
+        # (the sanctioned module), so neither has an entry.
         "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
         # #3619 / PR #3660: the pre-create collision probe must see partial
         # and legacy numbered directories that MissionResolver intentionally
