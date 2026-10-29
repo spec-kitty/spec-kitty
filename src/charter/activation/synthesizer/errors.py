@@ -304,7 +304,13 @@ class StagingPromoteError(SynthesisError):
 
 @dataclass(frozen=True)
 class ManifestIntegrityError(SynthesisError):
-    """A reader found that manifest-listed content_hash does not match disk content (E-6)."""
+    """The synthesis manifest's record no longer holds for a reader (E-6).
+
+    Raised when a manifest-listed ``content_hash`` does not match the content on
+    disk, and (through a subclass with its own wording) when the manifest or a
+    provenance record it lists cannot be read or is invalid, so the record
+    cannot be trusted. ``offending_artifact`` names the file at fault.
+    """
 
     manifest_path: str
     offending_artifact: str
