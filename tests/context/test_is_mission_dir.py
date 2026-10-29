@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands._mission_type_audit import audit_mission_types
-from specify_cli.cli.commands.agent.mission_feature_resolution import _list_feature_spec_candidates
+from specify_cli.cli.commands.agent.mission_feature_resolution import _list_mission_spec_candidates
 from specify_cli.context.mission_resolver import is_mission_dir, list_missions_for_selection, tracked_mission_paths
 from specify_cli.status.identity_audit import audit_repo
 
@@ -137,7 +137,7 @@ def _build_walker_corpus(root: Path, *, git: bool) -> None:
 def _walker_slug_sets(root: Path) -> dict[str, set[str]]:
     return {
         "selection": {listing.mission_slug for listing in list_missions_for_selection(root)},
-        "agent_candidates": {str(c["mission_slug"]) for c in _list_feature_spec_candidates(root)},
+        "agent_candidates": {str(c["mission_slug"]) for c in _list_mission_spec_candidates(root)},
         "doctor_identity": {s.slug for s in audit_repo(root, residue_aware=True) if s.state != "residue"},
         "doctor_mission_type": {s.slug for s in audit_mission_types(root)},
     }

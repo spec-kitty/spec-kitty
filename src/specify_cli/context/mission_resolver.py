@@ -666,7 +666,7 @@ def list_missions_for_selection(main_repo: Path) -> list[MissionListing]:
 
     The population rule is :func:`is_selectable_mission_dir`: a ``meta.json``
     exists on disk **and** :func:`is_mission_dir` accepts the directory (#5875).
-    The agent-layer ``_list_feature_spec_candidates`` uses the SAME predicate,
+    The agent-layer ``_list_mission_spec_candidates`` uses the SAME predicate,
     so ``next`` and plan/tasks never disagree on the count. A folder with only
     a ``spec.md`` is residue and is not listed. A legacy ``meta.json`` without
     a ``mission_id`` is listed when git tracks it (or on a non-git root), unlike

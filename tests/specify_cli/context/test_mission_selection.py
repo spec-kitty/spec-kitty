@@ -5,7 +5,7 @@ These cover the three building blocks WP02-WP06 reuse:
 * :func:`list_missions_for_selection` -- the population helper that lists a
   ``kitty-specs/`` directory only when a ``meta.json`` exists on disk **and**
   ``is_mission_dir`` accepts it (#5875, the same rule the agent-layer
-  ``_list_feature_spec_candidates`` uses), so ``next`` and plan/tasks never
+  ``_list_mission_spec_candidates`` uses), so ``next`` and plan/tasks never
   disagree on the count. A spec.md-only folder is residue, not a Mission. A
   legacy ``meta.json`` without a ``mission_id`` is still listed when git tracks
   it, or on a non-git root (existence fallback) -- missions

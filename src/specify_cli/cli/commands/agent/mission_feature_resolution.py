@@ -334,7 +334,7 @@ def _primary_anchored_feature_dir(repo_root: Path, explicit_feature: str | None)
     return candidate if candidate.is_dir() else None
 
 
-def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
+def _list_mission_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
     """List candidate Missions with absolute spec.md paths for remediation output.
 
     A ``kitty-specs/`` child is a candidate only when
@@ -378,7 +378,7 @@ def _sole_mission_slug_or_none(repo_root: Path) -> str | None:
     zero or >1 candidates so the existing structured detection-error path fires
     (no silent fallback when ambiguous).
     """
-    candidates = _list_feature_spec_candidates(repo_root)
+    candidates = _list_mission_spec_candidates(repo_root)
     if len(candidates) != 1:
         return None
     return str(candidates[0]["mission_slug"])
@@ -401,7 +401,7 @@ def _sole_active_mission_slug_or_none(repo_root: Path) -> str | None:
     from specify_cli.status import is_mission_completed
 
     active: list[str] = []
-    for candidate in _list_feature_spec_candidates(repo_root):
+    for candidate in _list_mission_spec_candidates(repo_root):
         try:
             completed = is_mission_completed(Path(str(candidate["feature_dir"])))
         except Exception:  # unreadable meta/event log -> keep it as a candidate
@@ -446,7 +446,7 @@ def _build_setup_plan_detection_error(
             "remediation": "Re-run with an existing --mission <slug>, or create it: spec-kitty agent mission create <name> --json",
         }
 
-    candidates = _list_feature_spec_candidates(repo_root)
+    candidates = _list_mission_spec_candidates(repo_root)
     command_args = command_args if command_args is not None else ["--json"]
 
     payload: dict[str, object] = {

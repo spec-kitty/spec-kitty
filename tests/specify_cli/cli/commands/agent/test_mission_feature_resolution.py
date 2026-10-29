@@ -61,20 +61,20 @@ def repo(tmp_path: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# _list_feature_spec_candidates
+# _list_mission_spec_candidates
 # ---------------------------------------------------------------------------
 
 
 def test_list_candidates_empty_when_no_specs_dir(tmp_path: Path) -> None:
     """No ``kitty-specs`` directory → empty candidate list (no crash)."""
-    assert seam._list_feature_spec_candidates(tmp_path) == []
+    assert seam._list_mission_spec_candidates(tmp_path) == []
 
 
 def test_list_candidates_skips_dirs_without_spec_or_meta(repo: Path) -> None:
     """A bare directory (no spec.md / meta.json) is not a candidate."""
     (repo / "kitty-specs" / "001-empty").mkdir()
     _make_mission(repo / "kitty-specs", "002-real")
-    candidates = seam._list_feature_spec_candidates(repo)
+    candidates = seam._list_mission_spec_candidates(repo)
     slugs = {c["mission_slug"] for c in candidates}
     assert slugs == {"002-real"}
 
@@ -85,7 +85,7 @@ def test_list_candidates_excludes_spec_only_folder(repo: Path) -> None:
 
     _make_mission(repo / "kitty-specs", "001-spec-only", meta=False)
     _make_mission(repo / "kitty-specs", "002-real")
-    candidates = seam._list_feature_spec_candidates(repo)
+    candidates = seam._list_mission_spec_candidates(repo)
     assert [c["mission_slug"] for c in candidates] == ["002-real"]
     assert [m.mission_slug for m in list_missions_for_selection(repo)] == ["002-real"]
 
@@ -100,7 +100,7 @@ def test_sole_mission_ignores_spec_only_folder(repo: Path) -> None:
 def test_list_candidates_includes_meta_only_mission(repo: Path) -> None:
     """A mission with only meta.json (no spec.md, no mission_id) is a candidate on a non-git root."""
     _make_mission(repo / "kitty-specs", "003-meta-only", spec=False, meta=True, mission_id=False)
-    candidates = seam._list_feature_spec_candidates(repo)
+    candidates = seam._list_mission_spec_candidates(repo)
     assert len(candidates) == 1
     assert candidates[0]["mission_slug"] == "003-meta-only"
     assert candidates[0]["spec_exists"] is False
@@ -139,7 +139,7 @@ def test_git_candidates_match_selection_rule(git_repo: Path) -> None:
     _make_mission(specs, "005-untracked-fresh")
 
     expected = ["002-tracked-legacy", "005-untracked-fresh"]
-    assert [c["mission_slug"] for c in seam._list_feature_spec_candidates(git_repo)] == expected
+    assert [c["mission_slug"] for c in seam._list_mission_spec_candidates(git_repo)] == expected
     assert [m.mission_slug for m in list_missions_for_selection(git_repo)] == expected
 
 
@@ -157,11 +157,11 @@ def test_candidates_probe_git_at_most_once(repo: Path, monkeypatch: pytest.Monke
     monkeypatch.setattr(mission_resolver, "tracked_mission_paths", _probe)
     _make_mission(repo / "kitty-specs", "001-a")
     _make_mission(repo / "kitty-specs", "002-b")
-    assert len(seam._list_feature_spec_candidates(repo)) == 2
+    assert len(seam._list_mission_spec_candidates(repo)) == 2
     assert calls == []
     _make_mission(repo / "kitty-specs", "003-c", mission_id=False)
     _make_mission(repo / "kitty-specs", "004-d", mission_id=False)
-    assert len(seam._list_feature_spec_candidates(repo)) == 4
+    assert len(seam._list_mission_spec_candidates(repo)) == 4
     assert len(calls) == 1
 
 
