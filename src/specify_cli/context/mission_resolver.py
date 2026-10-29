@@ -18,6 +18,12 @@ Missions whose ``meta.json`` lacks a ``mission_id`` are silently skipped during
 index construction (they cannot be resolved by identity).  To fix such missions,
 run ``spec-kitty migrate backfill-identity``.
 
+Selection (:func:`list_missions_for_selection`) uses a wider population than
+the index: :func:`is_selectable_mission_dir` (a ``meta.json`` on disk and
+:func:`is_mission_dir`), so a git-tracked legacy ``meta.json`` without a
+``mission_id`` is listed for the operator to pick, while a folder holding only
+a ``spec.md`` is residue in both (#5875).
+
 Implementation note: ``kitty-specs/`` is walked once per ``resolve_mission``
 call, except for a handle that names an indexed directory exactly (and is
 neither ULID- nor mid8-shaped): the ladder can only return that directory, so
@@ -347,10 +353,11 @@ def is_mission_dir(path: Path, *, repo_root: Path, tracked: frozenset[str] | Non
     3. Otherwise False.
 
     Outside a git work tree (or when git is unavailable), rule 2 falls back to
-    the population rule of :func:`list_missions_for_selection` (``spec.md`` or
-    ``meta.json`` exists), so a non-git scan root never errors out of
-    enumeration. Any other git failure propagates. This is a per-directory test
-    applied to what :func:`_iter_mission_dirs` yields, never a second scan.
+    marker existence (``spec.md`` or ``meta.json`` exists), so a non-git scan
+    root never errors out of enumeration. Selection adds a ``meta.json`` on
+    disk on top of this rule (:func:`is_selectable_mission_dir`). Any other
+    git failure propagates. This is a per-directory test applied to what
+    :func:`_iter_mission_dirs` yields, never a second scan.
     """
     if _carries_identity(path):
         return True
@@ -371,6 +378,68 @@ class _Unset:
 
 
 _UNSET = _Unset()
+
+
+class LazyTrackedMissionPaths:
+    """A per-walk memo of :func:`probe_tracked_mission_paths` for *repo_root* (#5875, NFR-001).
+
+    A walker builds one per walk and hands it to :func:`is_selectable_mission_dir`
+    as ``tracked=``. The probe runs only when the first child without an
+    identity needs it, and at most once: a walk whose every child carries a
+    ``mission_id`` makes no git call at all.
+    """
+
+    def __init__(self, repo_root: Path) -> None:
+        self._repo_root = repo_root
+        self._value: frozenset[str] | None | _Unset = _UNSET
+
+    def get(self) -> frozenset[str] | None:
+        """The tracked set (``None`` for no usable git), probed on the first call only."""
+        if isinstance(self._value, _Unset):
+            self._value = probe_tracked_mission_paths(self._repo_root)
+        return self._value
+
+
+def is_selectable_mission_dir(
+    path: Path,
+    *,
+    repo_root: Path,
+    tracked: frozenset[str] | None | _Unset | LazyTrackedMissionPaths = _UNSET,
+) -> bool:
+    """Whether Mission selection lists the ``kitty-specs/`` child *path* (#5875): the read-side Mission test.
+
+    The rule, in order (operator ruling 2026-10-27):
+
+    1. No ``meta.json`` on disk -> False. A folder holding only ``spec.md`` is
+       residue, not a Mission, whether git tracks it or not; so is a Mission
+       whose ``meta.json`` was deleted on disk.
+    2. ``meta.json`` carries a non-empty ``mission_id`` -> True, with no git call.
+    3. Otherwise git decides: *tracked* is the batch set of
+       :func:`tracked_mission_paths`, a :class:`LazyTrackedMissionPaths` memo
+       (probed here only when needed), or unset (probed with
+       :func:`probe_tracked_mission_paths`). ``None`` (non-git root, or git
+       unusable) -> True: the ``meta.json`` exists, so the existence fallback
+       holds. A set -> :func:`is_mission_dir` (an id-less ``meta.json`` counts
+       only when git tracks a marker).
+
+    This is stricter than the write-seam rule :func:`is_kitty_specs_residue`,
+    deliberately: there a ``spec.md`` on disk keeps the folder out of residue,
+    so the upgrade sweep can still repair it; here a ``spec.md`` alone never
+    makes a folder selectable. The resolver index (:func:`_index_entry`) is
+    stricter still: it needs a ``mission_id``, since it resolves by identity.
+    """
+    if not (path / "meta.json").is_file():
+        return False
+    if _carries_identity(path):
+        return True
+    if isinstance(tracked, LazyTrackedMissionPaths):
+        tracked = tracked.get()
+    elif isinstance(tracked, _Unset):
+        tracked = probe_tracked_mission_paths(repo_root)
+    if tracked is None:
+        return True
+    return is_mission_dir(path, repo_root=repo_root, tracked=tracked)
+
 
 #: The one operator-facing text for a ``kitty-specs/`` residue directory (#6627, #6668); every
 #: residue-aware step renders it through :func:`residue_notice`.
@@ -523,14 +592,19 @@ def _index_entry_named(repo_root: Path, name: str) -> ResolvedMission | None:
 
 
 def list_missions_for_selection(main_repo: Path) -> list[MissionListing]:
-    """List every existing mission for selection/discovery, legacy included.
+    """List every existing Mission for selection/discovery, legacy included.
 
-    The population rule counts any ``kitty-specs/`` directory bearing
-    ``spec.md`` **or** ``meta.json`` — the SAME rule the agent-layer
-    ``_list_feature_spec_candidates`` uses — so ``next`` and plan/tasks never
-    disagree on the count. It deliberately includes legacy missions whose
-    ``meta.json`` lacks a ``mission_id`` (and missions with only a ``spec.md``),
-    which :meth:`FsMissionResolver.all_missions` silently drops.
+    The population rule is :func:`is_selectable_mission_dir`: a ``meta.json``
+    exists on disk **and** :func:`is_mission_dir` accepts the directory (#5875).
+    The agent-layer ``_list_feature_spec_candidates`` uses the SAME predicate,
+    so ``next`` and plan/tasks never disagree on the count. A folder with only
+    a ``spec.md`` is residue and is not listed. A legacy ``meta.json`` without
+    a ``mission_id`` is listed when git tracks it (or on a non-git root), unlike
+    :meth:`FsMissionResolver.all_missions`, whose index requires an identity
+    because it resolves by ``mission_id``. Git is probed lazily, at most once
+    per call, and not at all when every candidate carries a ``mission_id``
+    (:class:`LazyTrackedMissionPaths`); a broken git index degrades to file
+    presence (:func:`probe_tracked_mission_paths`) instead of failing selection.
 
     ``mission_id`` / ``mid8`` / ``friendly_name`` are read best-effort via
     :func:`load_meta` (tolerating a missing, malformed, or non-object
@@ -543,12 +617,13 @@ def list_missions_for_selection(main_repo: Path) -> list[MissionListing]:
         main_repo: Repository root containing the ``kitty-specs/`` tree.
 
     Returns:
-        The mission listings in ``mission_slug`` order; empty when
-        ``kitty-specs/`` is absent or holds no spec/meta-bearing directory.
+        The Mission listings in ``mission_slug`` order; empty when
+        ``kitty-specs/`` is absent or holds no selectable directory.
     """
     listings: list[MissionListing] = []
+    tracked = LazyTrackedMissionPaths(main_repo)
     for entry in _iter_mission_dirs(main_repo):
-        if not (entry / "spec.md").exists() and not (entry / "meta.json").exists():
+        if not is_selectable_mission_dir(entry, repo_root=main_repo, tracked=tracked):
             continue
         data = load_meta(entry, on_malformed="none") or {}
         # A syntactically valid meta.json can carry a non-string ``mission_id``
@@ -570,7 +645,9 @@ def sole_mission_for_selection(main_repo: Path) -> str | None:
     FR-004 convention: a command with a missing ``--mission`` may auto-select
     when exactly one mission exists, but must NEVER silently pick among
     several. Thin over :func:`list_missions_for_selection` so every consumer
-    (``next`` and the plan/tasks/merge gates) shares one population definition.
+    (``next`` and the plan/tasks/merge gates) shares one population definition
+    (:func:`is_selectable_mission_dir`): a spec.md-only residue folder neither
+    blocks nor wins the auto-select.
     """
     listings = list_missions_for_selection(main_repo)
     if len(listings) == 1:

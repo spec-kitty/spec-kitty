@@ -42,10 +42,15 @@ _NOT_FOUND_ERROR = "Mission not found for handle 'zznope'; checked the coordinat
 _DISAMBIGUATE_FRAGMENTS = ("missions found", "to disambiguate")
 
 
+_MISSION_IDS = {"001-alpha": "01J8ALPHA000000000000000AA", "002-beta": "01J8BETA000000000000000BBB"}
+
+
 def _make_mission(specs: Path, slug: str) -> None:
+    """A real Mission: spec.md plus a meta.json with a ``mission_id`` (a spec.md alone is residue, #5875)."""
     d = specs / slug
     d.mkdir(parents=True, exist_ok=True)
     (d / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (d / "meta.json").write_text(json.dumps({"mission_slug": slug, "mission_id": _MISSION_IDS[slug]}), encoding="utf-8")
 
 
 @pytest.fixture()

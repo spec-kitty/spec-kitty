@@ -27,7 +27,11 @@ from typing import Any
 
 from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.version_utils import cli_version
-from specify_cli.context.mission_resolver import mission_not_found_message
+from specify_cli.context.mission_resolver import (
+    LazyTrackedMissionPaths,
+    is_selectable_mission_dir,
+    mission_not_found_message,
+)
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
 
@@ -331,20 +335,28 @@ def _primary_anchored_feature_dir(repo_root: Path, explicit_feature: str | None)
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
-    """List candidate missions with absolute spec.md paths for remediation output."""
+    """List candidate Missions with absolute spec.md paths for remediation output.
+
+    A ``kitty-specs/`` child is a candidate only when
+    :func:`is_selectable_mission_dir` accepts it (a ``meta.json`` on disk and
+    ``is_mission_dir``, #5875), the same predicate as
+    ``list_missions_for_selection``, so the two never disagree on the count.
+    Git is probed at most once per call, and not at all when every child
+    carries a ``mission_id``.
+    """
     main_repo_root = get_main_repo_root(repo_root)
     mission_specs_dir = main_repo_root / KITTY_SPECS_DIR
     if not mission_specs_dir.is_dir():
         return []
 
+    tracked = LazyTrackedMissionPaths(main_repo_root)
     candidates: list[dict[str, object]] = []
     for feature_dir in sorted(mission_specs_dir.iterdir()):
         if not feature_dir.is_dir():
             continue
-        spec_file = feature_dir / "spec.md"
-        meta_file = feature_dir / "meta.json"
-        if not spec_file.exists() and not meta_file.exists():
+        if not is_selectable_mission_dir(feature_dir, repo_root=main_repo_root, tracked=tracked):
             continue
+        spec_file = feature_dir / "spec.md"
         candidates.append(
             {
                 "mission_slug": feature_dir.name,

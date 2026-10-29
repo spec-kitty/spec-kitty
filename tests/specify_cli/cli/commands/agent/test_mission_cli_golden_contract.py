@@ -455,10 +455,12 @@ def test_setup_plan_unresolved_error_envelope_keys(runner: CliRunner, tmp_path: 
     """
     _init_repo(tmp_path)
     specs = tmp_path / "kitty-specs"
-    for slug in ("001-alpha-mission", "002-beta-mission"):
+    # Real Missions carry a meta.json with a mission_id; a spec.md alone is residue (#5875).
+    for slug, mission_id in (("001-alpha-mission", "01J8ALPHA000000000000000AA"), ("002-beta-mission", "01J8BETA000000000000000BBB")):
         d = specs / slug
         d.mkdir(parents=True, exist_ok=True)
         (d / "spec.md").write_text("# Spec\n", encoding="utf-8")
+        (d / "meta.json").write_text(json.dumps({"mission_slug": slug, "mission_id": mission_id}), encoding="utf-8")
     _git(tmp_path, "add", "-A")
     _git(tmp_path, "commit", "-m", "two missions")
     # The SaaS-auth FR-011 guard fires first when sync is opt-in; the mission

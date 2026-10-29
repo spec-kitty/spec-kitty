@@ -1019,6 +1019,9 @@ class TestCheckPrerequisitesCommand:
         feature_b.mkdir(parents=True)
         (feature_a / "spec.md").write_text("# Alpha", encoding="utf-8")
         (feature_b / "spec.md").write_text("# Beta", encoding="utf-8")
+        # Real Missions carry a meta.json with a mission_id; a spec.md alone is residue (#5875).
+        (feature_a / "meta.json").write_text(json.dumps({"mission_id": "01J8ALPHA000000000000000AA"}), encoding="utf-8")
+        (feature_b / "meta.json").write_text(json.dumps({"mission_id": "01J8BETA000000000000000BBB"}), encoding="utf-8")
 
         result = runner.invoke(
             app,
@@ -1205,6 +1208,9 @@ class TestFinalizeTasksCommand:
         feature_b.mkdir(parents=True)
         (feature_a / "spec.md").write_text("# Alpha", encoding="utf-8")
         (feature_b / "spec.md").write_text("# Beta", encoding="utf-8")
+        # Real Missions carry a meta.json with a mission_id; a spec.md alone is residue (#5875).
+        (feature_a / "meta.json").write_text(json.dumps({"mission_id": "01J8ALPHA000000000000000AA"}), encoding="utf-8")
+        (feature_b / "meta.json").write_text(json.dumps({"mission_id": "01J8BETA000000000000000BBB"}), encoding="utf-8")
 
         result = runner.invoke(app, ["finalize-tasks", "--json"])
 
