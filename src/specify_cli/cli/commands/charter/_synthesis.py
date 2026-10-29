@@ -7,6 +7,7 @@ behaviour-preserving; only import paths changed.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -46,6 +47,23 @@ BUNDLE_INCOMPLETE_MESSAGE = (
     "Run `spec-kitty charter generate` (or the charter.yaml migration) first "
     "to compile it, then retry `charter synthesize`."
 )
+
+
+def _directive_synthesis_inputs(directive_ids: Sequence[str]) -> tuple[list[str], list[dict[str, str]]]:
+    """Return ``(selected_directives, drg snapshot nodes)`` for the activated directive ids.
+
+    Both outputs derive from the SAME list (rather than, say, the raw
+    ``config_roots.directives`` fallback) so they never drift into an
+    inconsistent state where nodes exist for directives no target references,
+    or a companion-tactic target names a source URN the snapshot lacks.
+    """
+    selected = list(directive_ids)
+    # Only fields ``DRGNode`` declares: the snapshot is validated as a
+    # ``DRGGraph`` downstream. An ``id`` key rode along here for a while --
+    # redundant with the URN suffix, read by nothing, and silently dropped
+    # at validation until WP04 made ``DRGNode`` forbid extras (FR-004).
+    nodes = [{"urn": f"directive:{directive_id}", "kind": "directive"} for directive_id in selected]
+    return selected, nodes
 
 
 def _build_synthesis_request(
@@ -104,11 +122,12 @@ def _build_synthesis_request(
     # `answers.selected_directives` and defaulted to `[]` on a fresh interview.
     pack_context = PackContext.from_config(repo_root)
     directives_for_synthesis: list[str] = [] if pack_context.allow_for(ArtifactKind.DIRECTIVE) is None else config_roots.directives
+    selected_directives, drg_nodes = _directive_synthesis_inputs(directives_for_synthesis)
 
     # Build a minimal interview snapshot, config-activated selections + answers
     interview_snapshot: dict[str, Any] = {
         "mission_id": interview_data.mission,
-        "selected_directives": directives_for_synthesis,
+        "selected_directives": selected_directives,
         "selected_paradigms": config_roots.paradigms,
     }
     interview_snapshot.update(dict(interview_data.answers))
@@ -125,23 +144,6 @@ def _build_synthesis_request(
         "styleguides": {},
     }
 
-    # Build a minimal DRG snapshot with config-activated directives as nodes.
-    # Sourced from the SAME `directives_for_synthesis` list as
-    # `selected_directives` above (rather than the raw `config_roots.directives`
-    # fallback) so the two never drift into an inconsistent state where nodes
-    # exist for directives no target references.
-    drg_nodes = []
-    for directive_id in directives_for_synthesis:
-        # Only fields ``DRGNode`` declares: the snapshot is validated as a
-        # ``DRGGraph`` downstream. An ``id`` key rode along here for a while --
-        # redundant with the URN suffix, read by nothing, and silently dropped
-        # at validation until WP04 made ``DRGNode`` forbid extras (FR-004).
-        drg_nodes.append(
-            {
-                "urn": f"directive:{directive_id}",
-                "kind": "directive",
-            }
-        )
     drg_snapshot: dict[str, Any] = {
         "nodes": drg_nodes,
         "edges": [],
