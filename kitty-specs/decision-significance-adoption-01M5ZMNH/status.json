@@ -2,10 +2,9 @@
   "event_count": 19,
   "last_event_id": "01M60J4TM5QXEYCSM989MFSQVZ",
   "materialized_at": "2026-10-28T06:11:18.789486+00:00",
-  "mission_number": "243",
+  "mission_number": "",
   "mission_slug": "decision-significance-adoption-01M5ZMNH",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -21,66 +20,34 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M60J4Q9F6TQZX5K8W6VK4J18",
       "last_transition_at": "2026-10-28T06:11:15.375794+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "spec-kitty-events floor raised to >=11.3.0,<12 in pyproject, uv.lock specifier (tool-generated, 1 line), shape test and compatibility manifest. Red-first shown (1 failed/8 passed), then 27/27 passed across the five gates; uv lock --check, ruff, ruff format, mypy clean.",
-        "Review passed (reviewer-renata): WP commit fcebaa69a touches only the 4 owned files; pyproject range spec-kitty-events>=11.3.0,<12; uv.lock diff is the single requires-dist specifier line, locked version 11.3.0 from PyPI registry, uv lock --check clean; no git pin or [tool.uv.sources] (C-001); compatibility manifest valid JSON, cli_range >=11.3.0,<12, locked 11.3.0, note accurate; retired-range probe contains('11.3.0') still flags pre-11 ranges, exact pin covers the old floor. 5 gate files: 27 passed. Anti-pattern checklist: all PASS/N-A. Non-blocking: stale '>=11.0.0,<12' prose in .github/workflows/ci-nightly.yml:1717 comment and docs/architecture/event-ledger-writers-and-readers.md (G-14, line 280) is outside WP01 owned files; follow-up. No shared-file overlap with WP02."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 3297,
-      "shell_pid_created_at": "1793139720.08",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done"
-      }
+      "shell_pid": 13034,
+      "shell_pid_created_at": "1793138875.0"
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M60J4TM5QXEYCSM989MFSQVZ",
       "last_transition_at": "2026-10-28T06:11:18.789486+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Package decision-significance models adopted; actor-id sentinels via bind_actor; 14 new tests red-first (12 failed) then green; blast radius 2565 passed/1 stale-install false red; fast tier 2784 passed",
-        "Cycle 2: F1 fixed - parametrized resolve_raci tests for blank template R/A ids (resolve from inputs; fail closed with MissionRuntimeError without inputs) and blank C/I ids (sentinel by type); red-first by dropping .strip() (4 R/A cases red); docstring says 'no or blank actor_id'; N1 comment added. New file 24 passed; tests/next tests/runtime tests/specify_cli/events 2137 passed, 1 env failure (installed spec-kitty points at root checkout, red on base too); ruff/format/C901 clean.",
-        "Review passed (reviewer-renata), cycle 2: F1 closed. resolve_raci blank-template-id tests added; removing .strip() in _given_or_input_id turns 4 R/A cases red (verified by reviewer, file restored, tree clean); C/I blank cases double-covered via bind_actor. Docstring updated, N1 comment added. Ruling verified: authoring/resolved split, package sentinels, input-first resolution, R/A fail-closed, no new write path, decisions/ untouched, public imports only; noqa count 14=14, C901 clean, mypy --strict 13 errors identical to base. Tests: adoption file 24 passed; tests/next+runtime+specify_cli/events 2137 passed/2 skipped/1 failed (known stale-install test_reassess_under_lock, environmental); 4 architectural gates 115 passed (cycle 1). Non-blocking: ruff format --force-exclude checks only non-ratchet files."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP02:20261028",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 7456,
-      "shell_pid_created_at": "1793167421.61",
-      "subtasks": {
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done",
-        "T008": "done"
-      }
+      "shell_pid": 21174,
+      "shell_pid_created_at": "1793166840.88"
     }
   }
 }
