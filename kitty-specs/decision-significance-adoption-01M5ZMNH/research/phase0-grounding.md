@@ -19,7 +19,7 @@ Grounded on `origin/main` `d4a1b0e4` (2026-10-27) and `spec-kitty-events` `v11.3
 | `cloudevents` (new, 11.3.0, #92) | envelope profiles, registry, upcaster | not imported by core |
 | producer registry | `run.decision.timeoutexpired.v1` row | relevant to #6446 only |
 
-Java read API: `StatusReducer.PORTED_EVENTS_VERSION = "11.0.0"` is coupled to the conformance manifest (`ManifestCouplingTest`), not the lock. The reducer is unchanged, so there is nothing to port (checklist step 6).
+Java read API: `StatusReducer.PORTED_EVENTS_VERSION` was `"11.0.0"`. **Correction (pre-PR squad, 2026-10-28):** the grounding first said it is coupled to the conformance manifest, not the lock. That is half true: `tests/contract/test_mission_status_conformance.py` holds the manifest equal to the installed version and `ManifestCouplingTest` holds the constant equal to the manifest, so a lock move forces both. The reducer is unchanged, so the port review is a no-op; the corpus was regenerated and the constant advanced to 11.3.0 with a port-review note (checklist step 6, now unconditional).
 
 ## 3. Code grounding (re-verified cited lines)
 

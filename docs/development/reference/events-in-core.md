@@ -2,7 +2,7 @@
 title: Events in core
 description: 'Contributor rules for writing and reading event logs in core today, what not to do, and how to adopt a new spec-kitty-events release without a red nightly.'
 doc_status: active
-updated: '2026-10-25'
+updated: '2026-10-28'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -158,14 +158,18 @@ Do these in one PR:
    `tests/contract/test_events_envelope_matches_resolved_version.py`.
 4. **Run the event consumers, including the ones a lock-only change does not select per PR**, and record
    the counts in the PR:
-   `tests/status tests/consolidation tests/migration tests/contract/spec_kitty_events_consumer tests/next tests/decisions tests/specify_cli/decisions tests/specify_cli/migration tests/upgrade/test_mission_corpus_recovery.py`.
+   `tests/status tests/consolidation tests/migration tests/contract/spec_kitty_events_consumer tests/contract/test_mission_status_conformance.py tests/next tests/decisions tests/specify_cli/decisions tests/specify_cli/migration tests/ci/test_reducer_lock_census.py tests/upgrade/test_mission_corpus_recovery.py`.
    This is the targeted blast radius of the bump, not a whole-repo run.
 5. **A/B any reducer change.** Run the reducer-pinning tests on the same tree with the
    old and new versions, and write the delta in the PR body. A changed verdict is a
    decision for the reviewer, never an `xfail` added after the PR lands.
-6. **Check the Java read API.** If the release touches `diary.reduce_parsed`, the service's
-   `StatusReducer.PORTED_EVENTS_VERSION` needs a port review, and a behaviour change needs
-   a conformance golden that exercises it.
+6. **Check the Java read API on every bump.** The conformance manifest records the installed
+   version, and `ManifestCouplingTest` holds the service's `StatusReducer.PORTED_EVENTS_VERSION`
+   equal to it, so every version move needs both: regenerate the corpus
+   (`.venv/bin/python -m tests.contract._mission_status_conformance --write`) and advance
+   `PORTED_EVENTS_VERSION` with a port-review paragraph in its Javadoc, even when nothing changed.
+   If the release touches `diary.reduce_parsed`, the review is a real port, and a behaviour change
+   needs a conformance golden that exercises it.
 7. **Never import a private symbol** (`spec_kitty_events._*` or `module._name`). If you
    need one, ask upstream for a public API first.
 

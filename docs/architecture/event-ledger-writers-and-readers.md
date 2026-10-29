@@ -20,8 +20,8 @@ This page maps **who writes and who reads every append-only event log and ledger
 core today**, states the target the event ADRs set, and lists the gaps between the two
 with evidence, the ADR clause each one misses, a remedy and a tracker item. It is a
 point-in-time grounding (core `main` at `fcb0ce13`, 2026-10-22; `spec-kitty-events`
-locked at 11.0.0 in `uv.lock`, upstream at 11.2.1). Line numbers drift; the symbol
-names are the stable part.
+locked at 11.0.0 in `uv.lock`, upstream at 11.2.1; the lock moved to 11.3.0 on 2026-10-28,
+see G-14). Line numbers drift; the symbol names are the stable part.
 
 For the lane state machine itself (lanes, guards, CLI commands) read the
 [status model](status-model.md). For contributor rules ("how do I write or read an
