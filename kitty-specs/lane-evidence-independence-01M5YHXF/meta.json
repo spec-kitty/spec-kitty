@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-29T11:46:57.124734+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "c78ac802de3b673e9f86bf9eec36e9f17685e48a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-29T11:46:57.124734+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "c78ac802de3b673e9f86bf9eec36e9f17685e48a",
   "coordination_branch": "kitty/mission-lane-evidence-independence-01M5YHXF",
   "created_at": "2026-10-27T11:28:50.572088+00:00",
   "flattened": false,
