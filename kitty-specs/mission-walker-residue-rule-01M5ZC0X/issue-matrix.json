@@ -37,7 +37,7 @@
       "wp": null
     },
     "#5875": {
-      "evidence_ref": "WP01 selection predicate (c46ad0f8), WP02 doctor residue state (f8ff78e2, 293bfe3e), WP03 parity test (5ec9d481)",
+      "evidence_ref": "fixed: selection cdac8d02, d6071f94; doctor residue d9f13087, fd8494dc, 6ef843f8; backfill-wp-status c551b5f1; notice 51cf5db4; parity 0d74a8b3",
       "fr": "FR-001",
       "nfr": null,
       "repo": null,
@@ -142,6 +142,54 @@
       "source_file": null,
       "title": null,
       "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6757": {
+      "evidence_ref": "Follow-up: #6757 filed from the pre-merge squad (status:triage)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "related",
+      "source_file": "research.md",
+      "title": "pre-merge squad follow-up",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6758": {
+      "evidence_ref": "Follow-up: #6758 filed from the pre-merge squad (status:triage)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "related",
+      "source_file": "research.md",
+      "title": "pre-merge squad follow-up",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6759": {
+      "evidence_ref": "Follow-up: #6759 filed from the pre-merge squad (status:triage)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "related",
+      "source_file": "research.md",
+      "title": "pre-merge squad follow-up",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6760": {
+      "evidence_ref": "Follow-up: #6760 filed from the pre-merge squad (status:triage)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "related",
+      "source_file": "research.md",
+      "title": "pre-merge squad follow-up",
+      "verdict": "deferred-with-followup",
       "wp": null
     }
   },

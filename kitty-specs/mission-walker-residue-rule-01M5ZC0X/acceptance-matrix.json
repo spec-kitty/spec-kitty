@@ -6,93 +6,123 @@
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "Selection lists a kitty-specs child only when meta.json exists on disk and is_mission_dir accepts it; spec.md-only folders are never listed.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/context/test_mission_selection.py (spec.md-only excluded, git cases, NFR-001 probe counts); 423 passed",
+      "evidence": "cdac8d02, d6071f94; tests/specify_cli/context/test_mission_selection.py (git cases, tracked/untracked, deleted meta)",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:05.530509+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "The agent candidate list (setup-plan auto-select, agent tasks status default) equals Mission selection.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/cli/commands/agent/test_mission_feature_resolution.py::test_git_candidates_match_selection_rule",
+      "evidence": "cdac8d02, 1dc87c5e; test_mission_feature_resolution.py::test_git_candidates_match_selection_rule",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:12.011838+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "doctor identity reports every child selection rejects as residue (count, section, JSON, --fail-on residue).",
       "proof_type": "automated_test",
-      "evidence": "tests/doctor/test_identity_audit.py + tests/specify_cli/cli/commands/test_identity_audit.py (residue state, JSON count, --fail-on residue)",
+      "evidence": "d9f13087, 6ef843f8; tests/doctor/test_identity_audit.py, tests/specify_cli/cli/commands/test_identity_audit.py",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:17.744898+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "Each residue row names its reason and gets one correct, existing-command remedy per reason, including corrupt meta.json (D5).",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/cli/commands/test_identity_audit.py::test_residue_remedy_is_the_planned_text (full-text match)",
+      "evidence": "6ef843f8; test_identity_audit.py remedy and corrupt-meta tests",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:23.705750+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "Residue never appears in duplicate-prefix or ambiguous-selector reports.",
       "proof_type": "automated_test",
-      "evidence": "tests/doctor/test_identity_audit.py residue excluded from duplicate prefixes and ambiguous selectors",
+      "evidence": "d9f13087; tests/doctor/test_identity_audit.py collision-exclusion tests",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:29.657119+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "doctor mission-type audits exactly the children selection lists; residue is never typeless.",
       "proof_type": "automated_test",
-      "evidence": "tests/specify_cli/cli/commands/test_doctor_mission_type.py residue skipped, never typeless",
+      "evidence": "d9f13087; tests/specify_cli/cli/commands/test_doctor_mission_type.py",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:35.430133+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "One parity test pins selection == agent candidates == doctor identity non-residue == doctor mission-type to an explicit set, git and non-git; red under the old rule.",
       "proof_type": "automated_test",
-      "evidence": "tests/context/test_is_mission_dir.py::test_walkers_agree_on_the_mission_set + non-git variant; red under the old rule",
+      "evidence": "0d74a8b3, 6ef843f8; tests/context/test_is_mission_dir.py",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:41.348356+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "Every walker that differs documents why; the audit engine's output is unchanged from main.",
       "proof_type": "automated_test",
-      "evidence": "Docstrings in mission_resolver.py / identity_audit.py / audit/engine.py; tests/audit/test_engine_keeps_its_mission_rule.py pins engine output to base",
+      "evidence": "fd8494dc; tests/audit/test_engine_keeps_its_mission_rule.py; docstrings in mission_resolver.py, identity_audit.py, audit/engine.py",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:47.364101+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
     },
     {
       "criterion_id": "FR-009",
-      "description": "Verify FR-009 is satisfied",
+      "description": "The [Unreleased] changelog entry records the behaviour change accurately.",
       "proof_type": "automated_test",
-      "evidence": "docs/changelog/CHANGELOG.md [Unreleased]; tests/docs/test_changelog_style.py passed",
+      "evidence": "c72b07dd, 9052a71d, 6e715e34; tests/docs/test_changelog_style.py",
       "pass_fail": "pass",
       "verified_by": "claude",
       "verified_at": "2026-10-27T22:17:53.300218+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Re-verified after the pre-merge squad fold (2026-10-29); SHAs are on the PR branch."
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "Selection makes no git call when every child carries a mission_id; at most one batch probe per walk otherwise.",
+      "proof_type": "automated_test",
+      "evidence": "cdac8d02, d6071f94; probe-count and git-boundary tests in test_mission_selection.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T22:17:05.530509+00:00",
+      "notes": "Added at closeout (squad finding: acceptance matrix lacked NFR rows)."
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "doctor identity over 200 children (residue-aware, git repo) stays under the 3 s budget.",
+      "proof_type": "automated_test",
+      "evidence": "6ef843f8; tests/doctor/test_identity_audit.py -k nfr_002 (SPEC_KITTY_RUN_PERFORMANCE=1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T22:17:05.530509+00:00",
+      "notes": "Added at closeout (squad finding: acceptance matrix lacked NFR rows)."
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "ruff, ruff format --check, mypy clean on touched files; complexity <= 15; no new suppressions.",
+      "proof_type": "automated_test",
+      "evidence": "whole-repo ruff check/format clean; mypy clean except pre-existing errors on untouched lines",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-27T22:17:05.530509+00:00",
+      "notes": "Added at closeout (squad finding: acceptance matrix lacked NFR rows)."
     }
   ],
   "negative_invariants": []

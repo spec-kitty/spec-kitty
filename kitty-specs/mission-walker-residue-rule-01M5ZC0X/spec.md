@@ -60,7 +60,9 @@ An operator runs `spec-kitty doctor identity`. Folders that selection does not l
 ### Edge Cases
 
 - A Mission whose tracked `meta.json` was deleted on disk (#6673): no `meta.json` on disk, so it is not listed. Doctor reports `residue`, and the remedy points to restoring from git.
-- A broken git index: selection and the mission-type walker use the hardened `probe_tracked_mission_paths` (it degrades to file presence with one warning). `doctor identity` is a read-only reporter and uses `tracked_mission_paths`, so a broken index surfaces as an error there, the same posture as the audit engine.
+- A `meta.json` that is present but unreadable or unparseable, in a git repository, with neither marker tracked: residue with reason `corrupt_meta`. The read error is shown and the remedy says the Mission content is corrupt (D5, 2026-10-29). A tracked corrupt `meta.json` stays a Mission (`orphan`).
+- `migrate backfill-wp-status`: its scope (`--mission`, evidence manifest) uses its own write-seam walker rule (D6).
+- A broken git index: selection and the mission-type walker use the hardened `probe_tracked_mission_paths` (it degrades to file presence with one warning). `doctor identity` is a read-only reporter and uses `tracked_mission_paths`, so a broken index surfaces as an error there, the same posture as the audit engine. It is rendered as a one-line error and, under `--json`, as a `GIT_INDEX_UNREADABLE` envelope (exit 1), never as a traceback.
 - Non-directory children (`README.md`) and unstattable entries are skipped as today (`safe_is_dir` and the `OSError` posture).
 - A nested project inside a larger repository: the tracked paths are prefix-stripped by `tracked_mission_paths` (#5856 behaviour, unchanged).
 
@@ -73,7 +75,7 @@ An operator runs `spec-kitty doctor identity`. Folders that selection does not l
 | FR-001 | One selection predicate | As an operator, I want selection to list a `kitty-specs/` child only when it has a `meta.json` on disk and `is_mission_dir` accepts it, so that residue is never offered as a Mission. | High | Open | build | no |
 | FR-002 | Agent candidates agree | As an agent harness, I want `_list_feature_spec_candidates` (setup-plan auto-select, `agent tasks status` default, the detection-error payload) to use the same predicate as FR-001, so that `next` and plan/tasks never disagree on the count. | High | Open | build | no |
 | FR-003 | Residue state in doctor identity | As an operator, I want `doctor identity` to classify every child that FR-001 rejects as `residue`, with its own count, path section, JSON value and `--fail-on` value, so that I can see what selection no longer lists. | High | Open | build | no |
-| FR-004 | Remedy text | As an operator, I want the residue section and the JSON payload to carry one remedy: delete residue; restore `meta.json` from git; or re-create the Mission with `spec-kitty agent mission create` and move the `spec.md` in. That gives me a way out with no new command. | High | Open | build | no |
+| FR-004 | Remedy text | As an operator, I want each residue row to name its reason (`no_meta`, `untracked_idless_meta`, `corrupt_meta`) and to get one remedy per reason, using existing commands only: delete residue; `git restore` or recover a deleted `meta.json` from history; commit it or run `migrate backfill-identity`; or repair a corrupt one (D5). That way I have a correct way out with no new command. | High | Open | build | no |
 | FR-005 | Residue excluded from collisions | As an operator, I want residue excluded from the duplicate-prefix and ambiguous-selector reports, so that a folder no selector can reach does not fake a collision. | Medium | Open | build | no |
 | FR-006 | Mission-type audit skips residue | As an operator, I want `doctor mission-type` to audit only the children FR-001 accepts, so that residue is not mislabelled `typeless`. | Medium | Open | build | no |
 | FR-007 | Parity test | As a maintainer, I want one parity case in `tests/context/test_is_mission_dir.py` that asserts selection, both doctor audits and the agent candidates agree on one fixture (Mission, spec.md-only folder tracked and untracked, tracked id-less legacy, untracked id-less meta, lock-only), so that the walkers cannot drift again. | High | Open | build | no |
@@ -93,8 +95,8 @@ An operator runs `spec-kitty doctor identity`. Folders that selection does not l
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
 | C-001 | No new command or migration | Reuse existing commands and `is_mission_dir`, `tracked_mission_paths` and `probe_tracked_mission_paths`. Adding any command or migration needs the operator first. | Business | High | Open |
-| C-002 | Write seams untouched | `is_kitty_specs_residue`, `RESIDUE_NOTICE`, `residue_notice_path` and the upgrade migrations do not change. | Technical | High | Open |
-| C-003 | Walker gate | The three audit modules stay raw corpus walks (`test_mission_resolver_walker_gate.py` allowlist). The selection change stays inside `mission_resolver.py`. | Technical | High | Open |
+| C-002 | Write seams untouched | `is_kitty_specs_residue`, `residue_notice_path` and the upgrade migrations do not change their logic. *Amended 2026-10-29 (D7):* the `RESIDUE_NOTICE` remedy text is reworded to "add a meta.json with a mission_id", and its parsing still round-trips. | Technical | High | Open |
+| C-003 | Walker gate | No new raw `kitty-specs` walk outside the allowlist. *Amended 2026-10-29:* the doctor walkers now delegate to `mission_resolver.iter_kitty_specs_children`, so `_mission_type_audit.py` and `status/identity_audit.py` left the allowlist. | Technical | High | Open |
 | C-004 | Existing states keep meaning | `assigned`, `pending`, `legacy` and `orphan` keep their FR-045 definitions for Missions. `classify_mission` (used by the audit engine's identity adapter) keeps its contract. | Technical | Medium | Open |
 | C-005 | Terminology | Say "Mission", never "feature", in all new user-facing text. | Business | Medium | Open |
 

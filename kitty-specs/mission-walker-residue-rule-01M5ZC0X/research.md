@@ -89,3 +89,42 @@ Nothing already done would be redone.
 Do first, behaviour-preserving: extract one shared kitty-specs child-walk helper for the
 two identity-audit walkers and the mission-type walker. It keeps the `safe_is_dir` and fail-soft
 `OSError` posture exactly. The residue filter then lands in one place.
+
+## 6. Pre-merge adversarial squad (2026-10-29)
+
+Three profile-loaded lenses, each read-only: architecture (`architect-alphonso`), failure modes (`debugger-debbie`) and spec fidelity (`analyst-annie`). All three returned **SHIP-WITH-FIXES**. The fold landed in `6ef843f8`, `c551b5f1`, `51cf5db4`, `1dc87c5e` and `6e715e34`, and was re-reviewed before push.
+
+### Operator decisions (2026-10-29), amending the spec
+
+| # | Decision | Ruling |
+|---|---|---|
+| D5 | `meta.json` present but unreadable or unparseable | It stays **residue** (not listed). `doctor identity` must say the Mission content is **corrupt** (reason `corrupt_meta`, read error kept), not "delete it". |
+| D6 | `backfill-wp-status` scope (`--mission`, evidence manifest) | Use the command's own write-seam walker rule, so the repair command agrees with itself. Mission selection is unchanged. |
+| D7 | `RESIDUE_NOTICE` wording | Reword it in this PR. C-002 is lifted for the notice text only; the `is_kitty_specs_residue` logic is unchanged. |
+| D8 | Follow-up issues | File four, labelled `status:triage` (operator rule for every follow-up): #6757, #6758, #6759, #6760. |
+
+### Finding dispositions
+
+| Finding (lens) | Disposition |
+|---|---|
+| SR-2 status-facade gate red; status↔context import cycle (architecture, MAJOR) | **Fixed** (`6ef843f8`): `iter_kitty_specs_children` moved to `mission_resolver.py`, one `TrackedMissionPaths` memo with an injectable probe, facade-only imports. |
+| Two near-identical memo classes; `classify_walk_entry` re-encoded the predicate (architecture) | **Fixed** (`6ef843f8`). |
+| `tracked=None` means different things in the two predicates (architecture) | **Changed**: documented in both docstrings. |
+| Broken-index posture differs between doctors (architecture) | **Accepted**, documented: `doctor identity` is a reporter (it errors); mission-type degrades. |
+| Engine reports a fake collision on a healthy Mission (architecture) | **Deferred** → #6757. |
+| "Residue" has three senses and no glossary entry (architecture) | **Deferred** → #6759. |
+| `doctor topology` and other walkers are out of scope (architecture) | **Deferred** → #6758. |
+| Corrupt or unreadable uncommitted `meta.json` shown as residue with a "delete" remedy (failure modes) | **Fixed** per D5 (`6ef843f8`). |
+| Untracked id-less legacy Mission given the wrong remedy (failure modes, spec) | **Fixed**: per-reason remedies, including `backfill-identity` (`6ef843f8`). |
+| Broken index gives a traceback and no JSON (failure modes, spec) | **Fixed**: one-line error and a `GIT_INDEX_UNREADABLE` envelope (`6ef843f8`). |
+| Git restore recipe fails for an uncommitted deletion; `^` breaks Windows cmd (spec, MAJOR) | **Fixed**: `git restore`, `~1` (`6ef843f8`). |
+| `backfill-wp-status` contradicts itself; the promised test was missing (spec, MAJOR) | **Fixed** per D6, with a red-first test (`c551b5f1`). |
+| A mutant ("only a tracked meta.json counts") survives the tests (spec) | **Fixed**: the parity corpus gained three children (`6ef843f8`). |
+| Header counts residue as Missions (spec) | **Fixed** (`6ef843f8`). |
+| NFR-002 timing test skipped the residue path (spec) | **Fixed** (`6ef843f8`). |
+| `RESIDUE_NOTICE` reuse deviation not confirmed by the operator (spec) | **Resolved** by D7 (`51cf5db4`). |
+| Changelog, help and docs wording too broad (spec) | **Fixed** (`6e715e34`). |
+| Leftover `feature` naming in `_list_feature_spec_candidates` (spec) | **Fixed**: renamed (`1dc87c5e`). |
+| Migration guide state list out of date (spec) | **Deferred** → #6760. |
+| Acceptance matrix was boilerplate, and its evidence SHAs predated the history rebuild (spec) | **Fixed** in the Mission record. |
+| Symlink outside the repo, case-insensitive filesystem, coordination-worktree root (failure modes, NIT) | **Accepted**: behaviour predates #5812 and does not reach the CLI. |
