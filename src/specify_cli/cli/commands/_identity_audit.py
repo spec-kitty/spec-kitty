@@ -56,9 +56,11 @@ RESIDUE_REMEDY_UNTRACKED_IDLESS_META = (
     "otherwise delete the folder."
 )
 RESIDUE_REMEDY_CORRUPT_META = (
-    "The Mission content is corrupt: meta.json could not be read (the error is on each row). Repair it: fix "
-    "its permissions or its JSON, or restore it with `git restore <path>/meta.json` or "
-    "`git checkout HEAD -- <path>/meta.json`. Do not delete the folder before checking."
+    "The Mission content is corrupt: meta.json could not be read (the error is on each row). Do not delete the "
+    "folder before checking. Repair it: fix its permissions or its JSON. If it was ever committed, find the commit "
+    "that removed it with `git log --format=%h -1 -- <path>/meta.json` and restore it with "
+    "`git checkout <sha>~1 -- <path>/meta.json`. Otherwise re-create the Mission with "
+    "`spec-kitty agent mission create` and move its content in."
 )
 #: ``residue_reason`` -> remedy, in report order (``status.RESIDUE_REASONS``).
 RESIDUE_REMEDIES: dict[str, str] = {
@@ -75,7 +77,10 @@ _RESIDUE_GROUP_HEADINGS: dict[str, str] = {
 
 #: ``--json`` ``error_code`` when git cannot list the tracked ``kitty-specs/`` paths (a broken index).
 GIT_INDEX_UNREADABLE = "GIT_INDEX_UNREADABLE"
-_GIT_INDEX_REMEDIATION = "Repair the git index: run `git reset`; if that fails too, run `rm .git/index && git reset`, then re-run."
+_GIT_INDEX_REMEDIATION = (
+    "Repair the git index: run `git reset`; if that fails too, delete the index file "
+    "(its path is printed by `git rev-parse --git-path index`) and run `git reset` again, then re-run."
+)
 
 
 # --- identity helpers --------------------------------------------------------
@@ -185,7 +190,9 @@ def _residue_groups(all_states: list[IdentityState]) -> dict[str, list[IdentityS
     groups: dict[str, list[IdentityState]] = {reason: [] for reason in RESIDUE_REASONS}
     for s in all_states:
         if s.state == "residue":
-            groups[s.residue_reason or "no_meta"].append(s)
+            if s.residue_reason is None:
+                raise ValueError(f"residue row {s.slug!r} carries no residue_reason")
+            groups[s.residue_reason].append(s)
     return {reason: rows for reason, rows in groups.items() if rows}
 
 

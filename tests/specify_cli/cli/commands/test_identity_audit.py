@@ -18,6 +18,7 @@ from specify_cli.cli.commands import _identity_audit as ia
 
 pytestmark = [pytest.mark.fast]
 from specify_cli.status import IdentityState
+from specify_cli.status.identity_audit import ResidueReason
 
 
 def _state(slug: str, state: str, mission_id: str | None = "01ABC") -> IdentityState:
@@ -157,12 +158,12 @@ def test_build_identity_json_shape() -> None:
     assert payload["ambiguous_selectors"] == {}
 
 
-def _residue(slug: str, reason: str, error: str | None = None) -> IdentityState:
-    return IdentityState(Path("/tmp") / slug, slug, None, None, "residue", error, reason)  # type: ignore[arg-type]
+def _residue(slug: str, reason: ResidueReason, error: str | None = None) -> IdentityState:
+    return IdentityState(Path("/tmp") / slug, slug, None, None, "residue", error, reason)
 
 
 def test_build_identity_json_adds_one_remedy_per_present_reason() -> None:
-    summary = {"counts": {"assigned": 1, "residue": 2}}
+    summary: dict[str, object] = {"counts": {"assigned": 1, "residue": 2}}
     states = [_state("083-a", "assigned"), _residue("old", "no_meta"), _residue("bad", "corrupt_meta", "Cannot read")]
     with_residue = ia._build_identity_json(states, summary, {}, {}, False)
     assert with_residue["residue_remedies"] == {"no_meta": ia.RESIDUE_REMEDY_NO_META, "corrupt_meta": ia.RESIDUE_REMEDY_CORRUPT_META}
@@ -195,8 +196,46 @@ def test_untracked_idless_remedy_offers_commit_or_backfill() -> None:
 def test_corrupt_remedy_says_corrupt_and_never_to_delete_first() -> None:
     text = ia.RESIDUE_REMEDY_CORRUPT_META
     assert text.startswith("The Mission content is corrupt: meta.json could not be read")
-    assert "`git checkout HEAD -- <path>/meta.json`" in text and "`git restore <path>/meta.json`" in text
     assert "Do not delete the folder before checking." in text
+    assert "`git log --format=%h -1 -- <path>/meta.json`" in text
+    assert "`git checkout <sha>~1 -- <path>/meta.json`" in text and "^" not in text
+    # A corrupt_meta row is residue only because git tracks nothing there, so index-based restores cannot work.
+    assert "git restore" not in text and "checkout HEAD" not in text
+
+
+def test_corrupt_remedy_recipe_restores_a_once_committed_meta(tmp_path: Path) -> None:
+    """The corrupt_meta recipe, run verbatim on a residue row (git tracks nothing there), restores the file."""
+    import subprocess
+
+    def git(*args: str) -> str:
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=tmp_path, check=True, capture_output=True, text=True).stdout
+
+    rel = "kitty-specs/004-x/meta.json"
+    meta = tmp_path / rel
+    meta.parent.mkdir(parents=True)
+    git("init", "-q")
+    meta.write_text('{"mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ00"}', encoding="utf-8")
+    git("add", ".")
+    git("commit", "-qm", "add")
+    git("rm", "-q", "--cached", rel)
+    git("commit", "-qm", "untrack")
+    meta.write_text("{bad", encoding="utf-8")
+
+    sha = git("log", "--format=%h", "-1", "--", rel).strip()
+    git("checkout", f"{sha}~1", "--", rel)
+
+    assert json.loads(meta.read_text(encoding="utf-8"))["mission_id"] == "01ABCDEFGHJKMNPQRSTVWXYZ00"
+
+
+def test_residue_groups_refuse_a_row_without_a_reason() -> None:
+    row = IdentityState(Path("/tmp") / "x", "x", None, None, "residue", None, None)
+    with pytest.raises(ValueError, match="carries no residue_reason"):
+        ia._residue_groups([row])
+
+
+def test_git_index_remediation_finds_the_index_in_any_worktree() -> None:
+    assert "`git rev-parse --git-path index`" in ia._GIT_INDEX_REMEDIATION
+    assert "rm .git/index" not in ia._GIT_INDEX_REMEDIATION
 
 
 def test_print_identity_summary_table_lists_residue() -> None:
@@ -212,7 +251,7 @@ def test_print_identity_summary_table_lists_residue() -> None:
 def test_print_identity_path_sections_groups_residue_by_reason() -> None:
     from specify_cli.cli.commands._doctor_shared import console
 
-    summary = {"legacy_paths": [], "orphan_paths": [], "residue_paths": ["/tmp/a", "/tmp/b", "/tmp/c"]}
+    summary: dict[str, object] = {"legacy_paths": [], "orphan_paths": [], "residue_paths": ["/tmp/a", "/tmp/b", "/tmp/c"]}
     states = [_residue("a", "no_meta"), _residue("b", "no_meta"), _residue("c", "corrupt_meta", "Cannot read /tmp/c/meta.json")]
     with console.capture() as capture:
         ia._print_identity_path_sections(summary, states)

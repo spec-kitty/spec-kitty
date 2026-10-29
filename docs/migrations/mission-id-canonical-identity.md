@@ -127,13 +127,17 @@ The command walks `kitty-specs/` and classifies every mission:
   - `untracked_idless_meta`: for a real Mission, commit its `meta.json` or
     run `spec-kitty migrate backfill-identity`; otherwise delete the folder.
   - `corrupt_meta`: the Mission content is corrupt (the row's `error` says
-    why). Repair or restore the `meta.json`; do not delete the folder before
-    checking.
+    why); do not delete the folder before checking. Fix its permissions or
+    JSON. If it was ever committed, find the commit that removed it with
+    `git log --format=%h -1 -- <path>/meta.json` and run
+    `git checkout <sha>~1 -- <path>/meta.json`; otherwise re-create the
+    Mission with `spec-kitty agent mission create`.
 
   `--fail-on residue` makes the audit exit 1 while any remain. A git index
   that cannot be read makes the audit exit 1 with one error line
-  (`GIT_INDEX_UNREADABLE` under `--json`); run `git reset`, or
-  `rm .git/index && git reset` if that fails too.
+  (`GIT_INDEX_UNREADABLE` under `--json`); run `git reset`, and if that
+  fails too, delete the index file (`git rev-parse --git-path index` prints
+  its path) and run `git reset` again.
 
 **Expected output** for a project with one legacy mission:
 
