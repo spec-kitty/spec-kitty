@@ -289,6 +289,17 @@ def _sidecar_adapters(root: Path, urn: str) -> set[str]:
     return {sidecar["adapter_id"] for sidecar in sidecars if sidecar["artifact_urn"] == urn}
 
 
+def _sidecar_path(root: Path, urn: str) -> Path:
+    """The synthesis (not direct-write) provenance sidecar the manifest lists for *urn*."""
+    manifest = yaml.safe_load((root / MANIFEST_PATH).read_text(encoding="utf-8"))
+    for entry in manifest["artifacts"]:
+        sidecar = root / entry["provenance_path"]
+        record = yaml.safe_load(sidecar.read_text(encoding="utf-8"))
+        if record["artifact_urn"] == urn and record["adapter_id"] != "project-direct-write":
+            return sidecar
+    raise AssertionError(f"no synthesis sidecar for {urn}")
+
+
 def _write_team_directive(root: Path) -> None:
     team = root / ".kittify" / "charter-packs" / "directive" / f"{_TEAM_STEM}.directive.yaml"
     team.write_text(
@@ -370,6 +381,24 @@ def test_unreadable_manifest_fails_closed_for_explicit_list(project: Path) -> No
 
     with pytest.raises(SynthesisError, match="synthesis-manifest.yaml"):
         _request(project)
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_built_in_only_list_never_reads_ownership(project: Path) -> None:
+    """D-3: a list with no project-layer directive needs no ownership, so a lost sidecar cannot refuse it.
+
+    Only the built-in directive is activated and one synthesis sidecar is gone.
+    Ownership only ever excludes project directives, so the run must not read
+    the record (and fail closed on it); it exits 0 as it did before #6510.
+    """
+    seed_activation_ledger(project, activated_directives=[_BUILT_IN_STEM])
+    _sidecar_path(project, "directive:PROJECT_002").unlink()
+
+    result = _invoke("synthesize", "--json")
+
+    assert "ownership record unreadable" not in result.output, result.output
+    assert result.exit_code == 0, result.output
 
 
 @pytest.mark.integration
