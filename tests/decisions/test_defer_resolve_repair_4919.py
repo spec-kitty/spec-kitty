@@ -114,14 +114,17 @@ def _swap_resolved_event_order(repo_root: Path, decision_id: str) -> None:
 
 
 def _duplicate_opened_event(repo_root: Path, decision_id: str) -> None:
-    """Append a second ``DecisionPointOpened`` envelope for *decision_id* --
-    an ``open -> open`` corruption the canonical fold cannot resolve
-    (mirrors ``test_repair_reports_malformed_fold_instead_of_crashing`` in
+    """Append a second ``DecisionPointOpened`` envelope for *decision_id* whose
+    payload differs (a changed ``question``) -- an ``open -> open`` corruption
+    the canonical fold cannot resolve. Identical duplicates fold since #4848,
+    so the copy must differ to stay malformed (mirrors
+    ``test_repair_reports_malformed_fold_instead_of_crashing`` in
     ``tests/decisions/test_decisions_reconciler.py``)."""
     lines = _read_events(repo_root)
     opened = [e for e in lines if e.get("event_type") == "DecisionPointOpened" and e.get("payload", {}).get("decision_point_id") == decision_id]
     assert len(opened) == 1, "test setup: expected exactly one DecisionPointOpened event to duplicate"
-    lines.append(dict(opened[0]))
+    original = opened[0]
+    lines.append({**original, "event_id": f"{original['event_id']}-dup", "payload": {**original["payload"], "question": "A different question?"}})
     path = _events_path(repo_root)
     path.write_text("\n".join(json.dumps(e) for e in lines) + "\n", encoding="utf-8")
 

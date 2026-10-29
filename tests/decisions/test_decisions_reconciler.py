@@ -169,8 +169,11 @@ def test_fold_events_rejects_duplicate_opened_events(tmp_path: Path) -> None:
         actor="alice",
     )
     events = _events_for_decision(tmp_path, resp.decision_id)
+    # Identical duplicate openings are tolerated (#4848); a second opening
+    # whose payload differs beyond ``recorded_at`` is still malformed.
+    differing = {**events[0], "event_id": f"{events[0]['event_id']}-dup", "payload": {**events[0]["payload"], "question": "A different question?"}}
     with pytest.raises(FoldError, match="more than one DecisionPointOpened"):
-        fold_events(events + events)
+        fold_events([*events, differing])
 
 
 def test_fold_events_rejects_unknown_event_type(tmp_path: Path) -> None:
@@ -553,8 +556,9 @@ def test_repair_reports_malformed_fold_instead_of_crashing(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A decision_id whose grouped events violate ``fold_events``'s
-    invariants (here: a duplicated ``DecisionPointOpened`` envelope for one
-    decision_id, mirroring ``test_fold_events_rejects_duplicate_opened_events``
+    invariants (here: a second ``DecisionPointOpened`` envelope for one
+    decision_id whose payload differs -- identical duplicates fold since
+    #4848 -- mirroring ``test_fold_events_rejects_duplicate_opened_events``
     -- the ``_read_decision_events`` grouper only filters by event *type*,
     not by cardinality, so a duplicate-OPENED corruption reaches
     ``fold_events`` intact and raises there) must not raise an uncaught
@@ -597,7 +601,10 @@ def test_repair_reports_malformed_fold_instead_of_crashing(
         event for event in lines if event.get("payload", {}).get("decision_point_id") == bad_resp.decision_id and event.get("event_type") == "DecisionPointOpened"
     ]
     assert len(duplicated_opened) == 1, "test setup: expected exactly one DecisionPointOpened event to duplicate"
-    lines.append(dict(duplicated_opened[0]))
+    original_opened = duplicated_opened[0]
+    lines.append(
+        {**original_opened, "event_id": f"{original_opened['event_id']}-dup", "payload": {**original_opened["payload"], "question": "A different question?"}}
+    )
     events_path.write_text("\n".join(json.dumps(e) for e in lines) + "\n", encoding="utf-8")
 
     original_bad_entry = next(e for e in _store.load_index(mission_dir).entries if e.decision_id == bad_resp.decision_id)
