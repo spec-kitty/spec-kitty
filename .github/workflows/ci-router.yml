@@ -1319,7 +1319,9 @@ jobs:
   tests-contract-tools:
     name: tests (contract tools)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # The corpus suite takes 10-14 minutes on main (pytest -n 4); 15 left no headroom once
+    # the mission-write contract tests landed (#6675). Budget, not a correctness gate.
+    timeout-minutes: 25
     needs: [changes]
     if: ${{ needs.changes.outputs.corpus == 'true' || needs.changes.outputs.contract_tools == 'true' }}
     steps:
