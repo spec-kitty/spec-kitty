@@ -35,7 +35,7 @@ _RUN_ID = "01BBBBBBBBBBBBBBBBBBBBBBBBB"
 
 @pytest.fixture(autouse=True)
 def _short_wait(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(lock_module, "SYNTHESIS_LOCK_TIMEOUT_S", 0.2)
+    monkeypatch.setattr(lock_module, "_SYNTHESIS_LOCK_TIMEOUT_S", 0.2)
 
 
 @contextmanager

@@ -37,9 +37,6 @@ from kernel.git_topology import GitTopologyUnavailableError, NotAGitRepositoryEr
 from kernel.locks import LOCK_DIRECTORY, LockAcquireTimeout, machine_file_lock
 
 __all__ = [
-    "NON_GIT_LOCK_PATH",
-    "SYNTHESIS_LOCK_SUBDIRECTORY",
-    "SYNTHESIS_LOCK_TIMEOUT_S",
     "SynthesisLockHeldError",
     "SynthesisLockUnavailableError",
     "synthesis_lock",
@@ -48,13 +45,13 @@ __all__ = [
 ]
 
 #: Directory under ``<git-common-dir>/spec-kitty-locks/`` that holds the per-worktree lock files.
-SYNTHESIS_LOCK_SUBDIRECTORY = "charter-synthesis"
+_SYNTHESIS_LOCK_SUBDIRECTORY = "charter-synthesis"
 
 #: Bounded wait for the lock, in seconds (operator ruling, #6453).
-SYNTHESIS_LOCK_TIMEOUT_S = 10.0
+_SYNTHESIS_LOCK_TIMEOUT_S = 10.0
 
 #: Lock file relative to the repository root when there is no git repository.
-NON_GIT_LOCK_PATH = Path(".kittify/runtime/locks/charter-synthesis.lock")
+_NON_GIT_LOCK_PATH = Path(".kittify/runtime/locks/charter-synthesis.lock")
 
 _DIGEST_LENGTH = 32
 _DIGEST_PREFIX = "sha256:"
@@ -92,11 +89,11 @@ def synthesis_lock_path(repo_root: Path) -> Path:
     try:
         common_dir = git_common_dir(resolved)
     except NotAGitRepositoryError:
-        return resolved / NON_GIT_LOCK_PATH
+        return resolved / _NON_GIT_LOCK_PATH
     except GitTopologyUnavailableError as exc:
         raise SynthesisLockUnavailableError(repo_root, exc) from exc
     digest = sha256_digest(os.path.normcase(str(resolved)).encode("utf-8")).removeprefix(_DIGEST_PREFIX)[:_DIGEST_LENGTH]
-    return common_dir / LOCK_DIRECTORY / SYNTHESIS_LOCK_SUBDIRECTORY / f"{digest}.lock"
+    return common_dir / LOCK_DIRECTORY / _SYNTHESIS_LOCK_SUBDIRECTORY / f"{digest}.lock"
 
 
 @contextmanager
@@ -104,13 +101,13 @@ def synthesis_lock(repo_root: Path, *, timeout_s: float | None = None) -> Iterat
     """Hold the run-wide synthesis lock for *repo_root*; yield the lock file path.
 
     Re-entrant on the same thread. The default wait is read from
-    :data:`SYNTHESIS_LOCK_TIMEOUT_S` at call time.
+    :data:`_SYNTHESIS_LOCK_TIMEOUT_S` at call time.
 
     Raises:
         SynthesisLockHeldError: the lock was not acquired within the wait.
         SynthesisLockUnavailableError: git could not be invoked.
     """
-    wait = SYNTHESIS_LOCK_TIMEOUT_S if timeout_s is None else timeout_s
+    wait = _SYNTHESIS_LOCK_TIMEOUT_S if timeout_s is None else timeout_s
     lock_path = synthesis_lock_path(repo_root)
     try:
         with machine_file_lock(lock_path, blocking=True, timeout_s=wait, reentrant=True):

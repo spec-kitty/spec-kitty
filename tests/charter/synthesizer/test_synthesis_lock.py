@@ -17,8 +17,6 @@ import charter.activation.synthesizer.synthesis_lock as lock_module
 from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.synthesizer.manifest import MANIFEST_PATH
 from charter.activation.synthesizer.synthesis_lock import (
-    NON_GIT_LOCK_PATH,
-    SYNTHESIS_LOCK_SUBDIRECTORY,
     SynthesisLockHeldError,
     SynthesisLockUnavailableError,
     synthesis_lock,
@@ -66,7 +64,7 @@ def hold_from_other_thread(repo_root: Path) -> Iterator[None]:
 
 @pytest.fixture
 def short_wait(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(lock_module, "SYNTHESIS_LOCK_TIMEOUT_S", _SHORT_WAIT_S)
+    monkeypatch.setattr(lock_module, "_SYNTHESIS_LOCK_TIMEOUT_S", _SHORT_WAIT_S)
 
 
 def test_lock_path_in_git_repo_is_under_common_dir(tmp_path: Path) -> None:
@@ -74,7 +72,7 @@ def test_lock_path_in_git_repo_is_under_common_dir(tmp_path: Path) -> None:
 
     path = synthesis_lock_path(repo)
 
-    assert path.parent == repo / ".git" / "spec-kitty-locks" / SYNTHESIS_LOCK_SUBDIRECTORY
+    assert path.parent == repo / ".git" / "spec-kitty-locks" / "charter-synthesis"
     assert path.suffix == ".lock"
     assert len(path.stem) == 32
     assert synthesis_lock_path(repo) == path
@@ -110,7 +108,7 @@ def test_non_git_root_uses_kittify_runtime_path(tmp_path: Path, monkeypatch: pyt
     root = tmp_path / "plain"
     root.mkdir()
 
-    assert synthesis_lock_path(root) == root.resolve() / NON_GIT_LOCK_PATH
+    assert synthesis_lock_path(root) == root.resolve() / ".kittify" / "runtime" / "locks" / "charter-synthesis.lock"
     with synthesis_lock(root) as path:
         assert path.is_file()
 

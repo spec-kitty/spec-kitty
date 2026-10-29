@@ -26,10 +26,10 @@ from charter.activation.synthesizer.synthesis_lock import (
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 from charter.bundle import compute_bundle_content_hash
 
-__all__ = ["RESTAMP_SKIPPED_WARNING", "restamp_bundle_hash"]
+__all__ = ["restamp_bundle_hash"]
 
 #: One stderr line when the restamp is skipped (``{reason}`` names why the lock was not taken).
-RESTAMP_SKIPPED_WARNING = (
+_RESTAMP_SKIPPED_WARNING = (
     "Warning: the change was saved, but the synthesis manifest's bundle hash was not refreshed: {reason}. "
     "The next activation change or synthesis run will restamp it."
 )
@@ -64,7 +64,7 @@ def restamp_bundle_hash(repo_root: Path) -> bool:
         reason = _HELD_REASON.format(lock_path=synthesis_lock_path(repo_root))
     except SynthesisLockUnavailableError:
         reason = _UNAVAILABLE_REASON
-    print(RESTAMP_SKIPPED_WARNING.format(reason=reason), file=sys.stderr)
+    print(_RESTAMP_SKIPPED_WARNING.format(reason=reason), file=sys.stderr)
     return False
 
 
