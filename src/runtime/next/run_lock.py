@@ -52,6 +52,7 @@ from kernel.locks import SyncMachineFileLock, machine_file_lock
 
 __all__ = [
     "run_cursor_lock",
+    "try_run_cursor_lock",
 ]
 
 _STATE_FILENAME = "state.json"
@@ -78,3 +79,14 @@ def run_cursor_lock(run_dir: Path) -> SyncMachineFileLock:
     ``blocked`` Decision.
     """
     return machine_file_lock(_run_cursor_lock_path(run_dir), blocking=True, timeout_s=_LOCK_TIMEOUT_S)
+
+
+def try_run_cursor_lock(run_dir: Path) -> SyncMachineFileLock:
+    """Non-blocking run-cursor lock: raises LockNotAcquired at once when another holder has it.
+
+    Used by local event-log retention cleanup (``doctor event-logs``) to delete a
+    run directory only while no advance is in flight: a single non-blocking
+    attempt on the same ``state.json.lock`` sidecar that :func:`run_cursor_lock`
+    takes, so a contended run is reported as kept instead of waited on.
+    """
+    return machine_file_lock(_run_cursor_lock_path(run_dir), blocking=False)

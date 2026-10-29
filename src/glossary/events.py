@@ -50,7 +50,13 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _sanitize_mission_id(mission_id: str) -> str:
+#: The per-Mission glossary log directory, relative to the repository root.
+GLOSSARY_EVENTS_DIR = Path(".kittify", "events", "glossary")
+#: The suffix of every glossary event log file (``<sanitized mission_id>.events.jsonl``).
+EVENT_LOG_SUFFIX = ".events.jsonl"
+
+
+def sanitize_mission_id(mission_id: str) -> str:
     """Sanitize mission ID for use as filename.
 
     Replaces path separators and special characters with hyphens.
@@ -79,11 +85,11 @@ def get_event_log_path(
     Returns:
         Path to mission's event log file
     """
-    events_dir = repo_root / ".kittify" / "events" / "glossary"
+    events_dir = repo_root / GLOSSARY_EVENTS_DIR
     events_dir.mkdir(parents=True, exist_ok=True)
 
-    safe_id = _sanitize_mission_id(mission_id)
-    return events_dir / f"{safe_id}.events.jsonl"
+    safe_id = sanitize_mission_id(mission_id)
+    return events_dir / f"{safe_id}{EVENT_LOG_SUFFIX}"
 
 
 # ---------------------------------------------------------------------------

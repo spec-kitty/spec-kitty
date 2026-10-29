@@ -50,7 +50,7 @@ from glossary.events import (
     emit_term_candidate_observed,
     get_event_log_path,
     read_events,
-    _sanitize_mission_id,
+    sanitize_mission_id,
 )
 from glossary.extraction import ExtractedTerm
 from glossary.models import (
@@ -159,15 +159,15 @@ class TestEventLogPath:
 
     def test_sanitize_mission_id_preserves_safe_chars(self):
         """Safe characters are preserved in sanitized mission ID."""
-        assert _sanitize_mission_id("simple-mission_42.v1") == "simple-mission_42.v1"
+        assert sanitize_mission_id("simple-mission_42.v1") == "simple-mission_42.v1"
 
     def test_sanitize_mission_id_replaces_slashes(self):
         """Slashes are replaced with hyphens."""
-        assert _sanitize_mission_id("path/to/mission") == "path-to-mission"
+        assert sanitize_mission_id("path/to/mission") == "path-to-mission"
 
     def test_sanitize_mission_id_replaces_spaces(self):
         """Spaces are replaced with hyphens."""
-        assert _sanitize_mission_id("my mission") == "my-mission"
+        assert sanitize_mission_id("my mission") == "my-mission"
 
     def test_idempotent_directory_creation(self, tmp_path):
         """Calling get_event_log_path twice does not fail."""

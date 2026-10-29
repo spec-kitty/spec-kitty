@@ -27,6 +27,8 @@ from .store import EVENTS_FILENAME, read_events
 logger = logging.getLogger(__name__)
 
 BOARD_SUMMARY_FILENAME = "board-summary.json"
+#: The derived-views root, relative to the repository root (``.kittify/derived/<mission_slug>/``).
+DERIVED_VIEWS_DIR = Path(".kittify", "derived")
 DERIVED_STATUS_FILENAME = "status.json"
 DERIVED_PROGRESS_FILENAME = "progress.json"
 
@@ -275,7 +277,7 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     # canonical mission slug, not the literal CWD-relative dir name, so the same
     # mission is not falsely stale across primary/lane/coord CWDs.
     mission_slug = _stale_check_slug(feature_dir)
-    derived_dir = repo_root / ".kittify" / "derived"
+    derived_dir = repo_root / DERIVED_VIEWS_DIR
     feature_derived = derived_dir / mission_slug
 
     events_path = feature_dir / EVENTS_FILENAME
@@ -343,7 +345,7 @@ def refresh_execution_projection(feature_dir: Path, repo_root: Path) -> bool:
     fan-out hook, so both the git-operation probe and the write path are
     guarded by the same ``try`` below.
     """
-    derived_dir = repo_root / ".kittify" / "derived"
+    derived_dir = repo_root / DERIVED_VIEWS_DIR
 
     try:
         if git_operation_in_progress(repo_root):
