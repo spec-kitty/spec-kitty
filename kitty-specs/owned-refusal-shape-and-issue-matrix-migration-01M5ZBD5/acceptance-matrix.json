@@ -1,7 +1,7 @@
 {
   "mission_slug": "owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5",
-  "mission_number": "",
-  "mission_type": "",
+  "mission_number": "243",
+  "mission_type": "software-dev",
   "overall_verdict": "pass",
   "criteria": [
     {
@@ -138,10 +138,10 @@
       "criterion_id": "FR-014",
       "description": "Verify FR-014 is satisfied",
       "proof_type": "manual_review",
-      "evidence": "docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md supersedes cli-owned-checkout-surface.md:21; reviewed by reviewer-renata in WP02 and WP04",
+      "evidence": "docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md (renumbered from -1 on rebase: main took 2026-10-27-1 for the write-service ADR) supersedes cli-owned-checkout-surface.md:21; reviewed in WP02, WP04 and the pre-merge squad",
       "pass_fail": "pass",
       "verified_by": "claude",
-      "verified_at": "2026-10-29T06:29:24.091465+00:00",
+      "verified_at": "2026-10-29T07:41:07.723519+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
