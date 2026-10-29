@@ -278,8 +278,6 @@
 - file: src/specify_cli/cli/commands/charter/interview.py
   module: charter.activation.interview
 - file: src/specify_cli/cli/commands/charter/interview.py
-  module: charter.activation.kind_vocabulary
-- file: src/specify_cli/cli/commands/charter/interview.py
   module: charter.activation.layer_roots
 - file: src/specify_cli/cli/commands/charter/interview.py
   module: charter.activation.org_charter

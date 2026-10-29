@@ -12,16 +12,18 @@ import pytest
 from charter.activation.activation_engine import (
     FROZEN_LIST_NOTE,
     ActivationPlan,
-    NARROW_UNRESOLVED_WARNING,
     narrow_unresolved_warning,
-    org_required_freeze_warning,
     plan_activation,
 )
 
 pytestmark = [pytest.mark.unit]
 
 _SKILLS = "activated_skills"
-_FREEZE = org_required_freeze_warning("skill", "skills")
+_FREEZE = (
+    "Kind 'skill' now has an explicit activation list, so the org packs' required skills are frozen at their current values: "
+    "a skill an org pack later adds to required_skills will not reach this project."
+)
+_UNRESOLVED = "What stopped being in force cannot be listed: the effective set could not be resolved."
 
 
 def _plan(
@@ -73,8 +75,8 @@ def test_all_kind_never_warns_and_keeps_the_only_advice() -> None:
 
 
 def test_narrow_unresolved_warning_names_the_reason_or_keeps_the_shared_text() -> None:
-    assert narrow_unresolved_warning(None) == NARROW_UNRESOLVED_WARNING
-    assert narrow_unresolved_warning("") == NARROW_UNRESOLVED_WARNING
+    assert narrow_unresolved_warning(None) == _UNRESOLVED
+    assert narrow_unresolved_warning("") == _UNRESOLVED
     assert narrow_unresolved_warning("a layer is unreadable") == (
         "What stopped being in force cannot be listed: the effective set could not be resolved because a layer is unreadable."
     )

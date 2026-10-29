@@ -56,9 +56,11 @@ def project(tmp_path: Path) -> Path:
 
 
 def test_the_engine_text_is_the_approved_text() -> None:
-    from charter.activation.activation_engine import org_required_freeze_warning
+    from charter.activation.activation_engine import plan_activation
 
-    assert org_required_freeze_warning("skill", "skills") == FREEZE
+    plan = plan_activation("skill", "x", yaml_key="activated_skills", available_ids=["x"], config_data={}, effective_when_absent="required")
+
+    assert FREEZE in plan.warnings
 
 
 def test_plain_activation_on_an_absent_key_warns_of_the_freeze_without_the_only_advice(project: Path) -> None:

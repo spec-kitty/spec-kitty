@@ -90,7 +90,6 @@ if TYPE_CHECKING:
     from charter.activation.org_pack_discovery import RequiringPack
 
 __all__ = [
-    "NARROW_UNRESOLVED_WARNING",
     "ActivationIdCollisionError",
     "ActivationPlan",
     "DeactivationRefused",
@@ -102,7 +101,6 @@ __all__ = [
     "commit_plan",
     "deny_delta",
     "narrow_unresolved_warning",
-    "org_required_freeze_warning",
     "plan_activation",
     "plan_deactivation",
     "promote_activations",
@@ -276,7 +274,7 @@ FROZEN_LIST_NOTE = (
 )
 
 
-def org_required_freeze_warning(kind: str, plural: str) -> str:
+def _org_required_freeze_warning(kind: str, plural: str) -> str:
     """Why writing a "required" kind's list freezes the org-required set (#6458).
 
     While the key of a kind with ``effective_when_absent == "required"`` is
@@ -293,7 +291,7 @@ def _freeze_warnings(kind: str, yaml_key: str, effective_when_absent: str) -> li
     """``[freeze warning]`` for a kind whose absent key puts only org-required ids in force, else ``[]``."""
     if effective_when_absent != "required":
         return []
-    return [org_required_freeze_warning(kind, yaml_key.removeprefix("activated_"))]
+    return [_org_required_freeze_warning(kind, yaml_key.removeprefix("activated_"))]
 
 
 def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | None:
@@ -380,14 +378,14 @@ def _materialise_absent(
 
 
 #: Warning shared by every narrowing caller when what was in force cannot be listed.
-NARROW_UNRESOLVED_WARNING = "What stopped being in force cannot be listed: the effective set could not be resolved."
+_NARROW_UNRESOLVED_WARNING = "What stopped being in force cannot be listed: the effective set could not be resolved."
 
 
 def narrow_unresolved_warning(reason: str | None) -> str:
-    """:data:`NARROW_UNRESOLVED_WARNING`, naming *reason* when one is known (#6457)."""
+    """:data:`_NARROW_UNRESOLVED_WARNING`, naming *reason* when one is known (#6457)."""
     if not reason:
-        return NARROW_UNRESOLVED_WARNING
-    return f"{NARROW_UNRESOLVED_WARNING.removesuffix('.')} because {reason}."
+        return _NARROW_UNRESOLVED_WARNING
+    return f"{_NARROW_UNRESOLVED_WARNING.removesuffix('.')} because {reason}."
 
 
 def plan_narrowed_list(yaml_key: str, selection: Iterable[str], base: Iterable[str], previous: Iterable[str]) -> ActivationPlan:

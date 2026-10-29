@@ -16,7 +16,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner, Result
 
-from charter.activation.activation_engine import NARROW_UNRESOLVED_WARNING
+from charter.activation.activation_engine import narrow_unresolved_warning
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from specify_cli.cli.commands.charter import charter_app
@@ -172,7 +172,7 @@ def test_only_with_an_unresolvable_effective_set_warns_once_with_the_reason_and_
     assert _list(root) == [_TARGET]
     unresolved = [warning for warning in result.warnings if "could not be resolved" in warning]
     assert len(unresolved) == 1, result.warnings  # one narrow warning, never also the preservation one (#6457)
-    assert unresolved[0].startswith(NARROW_UNRESOLVED_WARNING.removesuffix(".") + " because ") and "not fetched" in unresolved[0]
+    assert unresolved[0].startswith(narrow_unresolved_warning(None).removesuffix(".") + " because ") and "not fetched" in unresolved[0]
     assert not any("initialized from" in warning for warning in result.warnings), "no absent-key preservation warning under --only (#6457)"
     assert result.deactivated == [], "an unresolved effective set must not be replaced by a stand-in list of dropped ids"
 
