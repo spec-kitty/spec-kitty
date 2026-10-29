@@ -217,3 +217,88 @@ def test_text_output_does_not_render_the_block(tmp_path: Path) -> None:
     golden = (_SNAPSHOT_DIR / "ledger_text.txt").read_text(encoding="utf-8")
     # Whitespace-normalised: rich wraps at the terminal width the runner reports.
     assert result.output.split() == golden.split()
+
+
+# --------------------------------------------------------------------------- #
+# The required floor covers every org-requirable kind; a malformed org charter
+# is reported, not read as "no floor"; an unreadable ledger degrades the block.
+# --------------------------------------------------------------------------- #
+
+
+def _with_org_charter(root: Path, org_charter: str) -> Path:
+    """The org pack ``acme`` with *org_charter* as its ``org-charter.yaml`` text."""
+    _with_org_pack(root)
+    (root / "org-packs" / "acme" / "org-charter.yaml").write_text(org_charter, encoding="utf-8")
+    return root
+
+
+def test_required_lists_every_org_requirable_kind(tmp_path: Path) -> None:
+    """An org-required asset (requirable, not activatable) is reported and always in force."""
+    _with_org_charter(
+        tmp_path,
+        "schema_version: 1\n"
+        f"required_tactics: [{_DENIED_TACTIC}]\n"
+        "required_assets: [common-docs-structural-lint]\n"
+        "required_glossary_packs: [spec-kitty-core]\n",
+    )
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], activated_tactics=[], activated_glossary_packs=["spec-kitty-core"])
+
+    block = _block(tmp_path)
+
+    assert "required_error" not in block
+    assert block["required"] == [
+        {"kind": "asset", "id": "common-docs-structural-lint", "in_force": True, "packs": ["acme"]},
+        {"kind": "glossary-pack", "id": "spec-kitty-core", "in_force": True, "packs": ["acme"]},
+        {"kind": "tactic", "id": _DENIED_TACTIC, "in_force": False, "packs": ["acme"]},
+    ]
+
+
+@pytest.mark.parametrize(
+    "org_charter",
+    [
+        "schema_version: 1\nrequired_directives: [DIRECTIVE_001]\nrequired_tactics: 5\n",
+        "schema_version: 1\nrequired_tactics: [unclosed\n",
+        "- required_tactics\n- 5\n",
+    ],
+    ids=["not-a-list", "unparseable", "list-root"],
+)
+def test_a_malformed_org_charter_is_reported_beside_the_lenient_floor(tmp_path: Path, org_charter: str) -> None:
+    _with_org_charter(tmp_path, org_charter)
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"])
+
+    block = _block(tmp_path)
+
+    error = block["required_error"]
+    assert set(error) == {"code", "message"}
+    assert error["code"] == "ACTIVE_CHARTER_CONFIG_INVALID"
+    assert "acme" in error["message"] or "org-charter.yaml" in error["message"], error["message"]
+    # The lenient read is kept: what it could read is still reported.
+    expected = [{"kind": "directive", "id": _REQUIRED_STEM, "in_force": True, "packs": ["acme"]}] if "DIRECTIVE_001" in org_charter else []
+    assert block["required"] == expected
+    assert block["source"] == "ledger"
+
+
+def test_an_unreadable_ledger_file_degrades_the_block(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An OSError reading activation.yaml is this block's error, not an INTERNAL_ERROR of status."""
+    import os
+
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"])
+    ledger = tmp_path / _LEDGER_REL
+    ledger.chmod(0)
+    try:
+        readable = os.access(ledger, os.R_OK)
+        if readable:
+            # Running as root: the mode bits do not stop the read, so fail the
+            # lowest real read (the kernel's YAML load of the ledger file).
+            def unreadable(path: Path) -> object:
+                raise PermissionError(13, "Permission denied", str(path))
+
+            monkeypatch.setattr("kernel.activation_ledger_store._safe_load_mapping", unreadable)
+
+        block = _block(tmp_path)
+    finally:
+        ledger.chmod(0o644)
+
+    assert set(block) == {"schema_version", "error"}
+    assert block["error"]["code"] == "ACTIVATION_STATE_UNREADABLE"
+    assert "Permission denied" in block["error"]["message"]
