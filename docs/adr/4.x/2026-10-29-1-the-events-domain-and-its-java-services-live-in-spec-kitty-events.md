@@ -82,7 +82,7 @@ Chosen option: **2**.
 - Each `service-vX.Y.Z` release carries, per deployable:
   - `<deployable>-<ver>-<target>[.exe]` for linux-x64, linux-arm64, macos-arm64 and windows-x64, each with a `.sha256`;
   - `<deployable>-<ver>.jar` (the JVM fallback of 2026-10-22-1 D-5).
-- Each release also carries `contract-bundles-<ver>.tar.gz`, `conformance-fixtures-<ver>.tar.gz`, `SHA256SUMS` and an SLSA attestation.
+- Each release also carries `contract-bundles-<ver>.tar.gz`, `contract-tools-<ver>.tar.gz`, `conformance-fixtures-<ver>.tar.gz`, `SHA256SUMS` and an SLSA attestation. Asset names are stable across releases; only `<ver>` changes.
 - Core's `contract-<module>-v*` line and `contracts-release.yml` retire.
 
 ### D-3: core pins a release by tag and per-asset sha256 *(derived from the ruling)*

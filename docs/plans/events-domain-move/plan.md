@@ -13,7 +13,7 @@ Nothing below has been applied to `main`. No issue comments, no PRs.
 Proposed assets per `service-v<ver>` release (session A):
 - `mission-status-api-<ver>-{linux-x64,linux-arm64,macos-arm64,windows-x64.exe}`, each with a `.sha256`;
 - `mission-status-api-<ver>.jar` (the JVM fallback);
-- `contract-bundles-<ver>.tar.gz` and `conformance-fixtures-<ver>.tar.gz`, each with a `.sha256`;
+- `contract-bundles-<ver>.tar.gz`, `contract-tools-<ver>.tar.gz` and `conformance-fixtures-<ver>.tar.gz`, each with a `.sha256`;
 - `SHA256SUMS` and the SLSA attestation.
 
 `command-cli` follows later under the same scheme.
@@ -90,6 +90,7 @@ assets:
   jvm:           {name: <deployable>-<ver>.jar, sha256: <64-hex>}   # D-5 fallback
 contracts:       {name: contract-bundles-<ver>.tar.gz,            sha256: <64-hex>}   # oracle tests, write-protocol client
 fixtures:        {name: conformance-fixtures-<ver>.tar.gz,        sha256: <64-hex>}   # CI only
+tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-hex>}   # acceptance-jvm: install_tools.py, gradle_pin_check.py, pins.json
 ```
 
 ### 3.2 Fetch and verify (Python, `kernel` layer)
@@ -161,4 +162,4 @@ Session A owns the events-side list; this is the core-side cross-check.
 - **Q2 contracts:** move with the services; the bundles ride on `service-v*`.
 - **Q3 read service:** CI-only pin. The CLI never launches it; ADR 2026-10-01-2 D-7 holds.
 - **Q4 freeze gate:** a small standalone PR once the live mission sessions have merged.
-- **Q5 acceptance-jvm tools:** fetched from the pinned `service-v*` release, not copied. Ask session A to put `install_tools.py` and `gradle_pin_check.py` inside the contract-bundles asset, or into a separate `contract-tools-<ver>.tar.gz`.
+- **Q5 acceptance-jvm tools:** fetched from the pinned `service-v*` release, not copied. Session A publishes them as a separate `contract-tools-<ver>.tar.gz` (`contracts/tools/*.py`, `pins.json`, `enum_pins.json`; no fixtures), so `contract-bundles` stays pure contract data.
