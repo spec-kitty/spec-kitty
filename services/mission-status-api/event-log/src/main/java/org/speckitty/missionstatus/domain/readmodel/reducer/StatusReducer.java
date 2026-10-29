@@ -49,8 +49,14 @@ public final class StatusReducer {
    * line codec follows the CLI partition, not {@code parse_diary}), a docstring and a comment; the {@code status} module changes are on the
    * Lamport path ({@code status_event_sort_key}, unclocked envelopes), which this class does not port. All 88 conformance goldens are
    * byte-identical under 11.0.0. The 10.5.1 gap above is unchanged.
+   *
+   * <p>Advanced to 11.3.0 after a port review (spec-kitty#6602): {@code diary.py} and {@code status.py} are byte-identical between
+   * 11.0.0 and 11.3.0, so the ordering, precedence and fold of {@code diary.reduce_parsed} are unchanged. The releases add the
+   * {@code decision_significance} models, a producer-registry row and the {@code cloudevents} package, none of which this class reads.
+   * Every conformance golden is byte-identical under 11.3.0; only the manifest's {@code specKittyEventsVersion} moved. The 10.5.1 gap above
+   * is unchanged.
    */
-  public static final String PORTED_EVENTS_VERSION = "11.0.0";
+  public static final String PORTED_EVENTS_VERSION = "11.3.0";
 
   private static final String[] SYNTHETIC_PREFIXES = {"Force move to ", "move-task: "};
   private static final Set<Lane> ROLLBACK_TARGETS = Set.of(Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS);
