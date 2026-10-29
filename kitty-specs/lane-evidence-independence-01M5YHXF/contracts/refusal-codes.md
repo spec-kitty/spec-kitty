@@ -14,5 +14,5 @@ Every refusal line starts with the code followed by `: `.
 - `orchestrator-api consolidate-mission`: `PREFLIGHT_FAILED`, `data.preflight_error_code`,
   `data.preflight_error_codes`.
 - `orchestrator-api accept-mission`: `MISSION_NOT_READY`, `data.evidence_error_codes`.
-- single_branch keeps emitting the alias codes; `wp_evidence.canonical_code(code)` maps an alias to
-  its neutral code.
+- single_branch keeps emitting the alias codes; each alias means the same as its neutral code, and
+  the evidence axis treats the two as one when it chooses the recovery lines of a refusal.
