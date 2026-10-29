@@ -123,6 +123,16 @@ from charter.activation.pack_manager import ActivationResult as ActivationResult
 # charter.activation.bundle_restamp.__all__.
 from charter.activation.bundle_restamp import restamp_bundle_hash as restamp_bundle_hash
 
+# The run-wide charter synthesis lock (#6453): ``charter synthesize`` / ``resynthesize``
+# hold it for the whole writing run. Public per
+# charter.activation.synthesizer.synthesis_lock.__all__.
+from charter.activation.synthesizer.synthesis_lock import (
+    SynthesisLockHeldError as SynthesisLockHeldError,
+    SynthesisLockUnavailableError as SynthesisLockUnavailableError,
+    synthesis_lock as synthesis_lock,
+    synthesis_lock_unless as synthesis_lock_unless,
+)
+
 # The interview-selection promotion primitives the 4.0.0rc8 promote-interview-selections
 # upgrade step uses (#6629): the offering root, the selection-id resolver and its typed
 # refusal, the in-force set of an absent key, and the append-only promotion with its outcome. Public per
@@ -238,6 +248,8 @@ __all__ = [
     "RenameReport",
     "RequiredOmission",
     "RequiringPack",
+    "SynthesisLockHeldError",
+    "SynthesisLockUnavailableError",
     "UnrepresentableDirectiveIdError",
     "append_synthesized_activations",
     "apply_ledger_migration",
@@ -268,5 +280,7 @@ __all__ = [
     "restamp_bundle_hash",
     "settle_project_languages",
     "store_language_settlement",
+    "synthesis_lock",
+    "synthesis_lock_unless",
     "verify",
 ]

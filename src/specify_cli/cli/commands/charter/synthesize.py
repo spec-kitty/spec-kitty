@@ -9,10 +9,12 @@ trivially diffable against the legacy ``charter.py``.
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
 import typer
+from charter.activation.api import synthesis_lock_unless
 from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.bundle import CHARTER_YAML
 from kernel.errors import KittyInternalConsistencyError
@@ -202,6 +204,7 @@ def charter_synthesize(  # noqa: C901
     # evidence warning followed by a synthesis error still ships its
     # warning inside the envelope rather than losing it.
     warnings_collected: list[str] = []
+    lock_stack = ExitStack()
 
     try:
         # #4785 Finding 3 / FR-006 / NFR-004: fail closed BEFORE any root
@@ -221,6 +224,12 @@ def charter_synthesize(  # noqa: C901
         # destructive minimal-seed path and exited 0. Raises ActiveCharterConfigError,
         # rendered by the KittyInternalConsistencyError branch below (exit 1, --json envelope).
         assert_charter_yaml_sound(repo_root)
+
+        # #6453 / FR-002: a writing run holds the run-wide synthesis lock from here to the end of the
+        # command (closed in the ``finally``), before the convergence below can write. A run that
+        # cannot get it within the bounded wait raises SynthesisLockHeldError, rendered by the
+        # KittyInternalConsistencyError branch (exit 1, ``--json`` envelope with the code).
+        lock_stack.enter_context(synthesis_lock_unless(dry_run or dry_run_evidence, repo_root))
 
         # #6443 / FR-008: converge a legacy ``mission-type-scope-directive`` before anything
         # writes, so a run can never leave two files declaring the same PROJECT_00N id. The
@@ -750,3 +759,5 @@ def charter_synthesize(  # noqa: C901
         else:
             console.print(f"[red]Unexpected error:[/red] {e}")
         raise typer.Exit(code=1) from e
+    finally:
+        lock_stack.close()

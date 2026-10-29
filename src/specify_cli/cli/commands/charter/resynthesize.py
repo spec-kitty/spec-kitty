@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
 from pathlib import Path
 
 import typer
@@ -10,6 +11,7 @@ from specify_cli.cli.console import err_console
 from rich.panel import Panel
 from rich.text import Text
 
+from charter.activation.api import synthesis_lock_unless
 from charter.activation.evidence.orchestrator import ConfigShapeError
 from kernel.errors import KittyInternalConsistencyError
 from specify_cli.task_utils import TaskCliError
@@ -95,6 +97,7 @@ def charter_resynthesize(  # noqa: C901
         render_error_panel,
     )
 
+    lock_stack = ExitStack()
     try:
         # #4785 Finding 3 / FR-006 / NFR-004: fail closed BEFORE any root
         # resolution when invoked from a linked git worktree. Probed against
@@ -108,6 +111,9 @@ def charter_resynthesize(  # noqa: C901
         repo_root = _charter_pkg.find_repo_root()
         # #6415: refuse an unsound charter.yaml before the convergence below can write.
         assert_charter_yaml_sound(repo_root)
+        # #6453 / FR-002: a writing run holds the run-wide synthesis lock to the end of the command
+        # (closed in the ``finally``); ``--list-topics`` only reads and takes none.
+        lock_stack.enter_context(synthesis_lock_unless(list_topics, repo_root))
         # #6443 / FR-008: converge a legacy ``mission-type-scope-directive`` before anything writes.
         _converge_legacy_project_intent_directive(repo_root, dry_run=list_topics, console=console, json_output=json_output)
         charter_dir = repo_root / ".kittify" / "charter"
@@ -287,3 +293,5 @@ def charter_resynthesize(  # noqa: C901
     except Exception as e:
         _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
         raise typer.Exit(code=1) from e
+    finally:
+        lock_stack.close()
