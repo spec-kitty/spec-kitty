@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "source": "ledger",
+  "path": ".kittify/charter/activation.yaml",
+  "exists": true,
+  "selected": {
+    "directives": [
+      "003-decision-documentation-requirement"
+    ],
+    "tactics": null,
+    "styleguides": null,
+    "toolguides": null,
+    "paradigms": null,
+    "procedures": null,
+    "agent_profiles": null,
+    "mission_step_contracts": null,
+    "glossary_packs": null,
+    "anti_patterns": null,
+    "skills": null
+  },
+  "deactivated": {
+    "tactics": [
+      "premortem-risk-identification"
+    ]
+  },
+  "mission_types": [
+    "software-dev"
+  ],
+  "activated_kinds": null,
+  "required": [
+    {
+      "kind": "directive",
+      "id": "001-architectural-integrity-standard",
+      "in_force": false,
+      "packs": [
+        "acme"
+      ]
+    }
+  ]
+}

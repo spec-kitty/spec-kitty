@@ -1,0 +1,20 @@
+Charter sync
+Unavailable: no charter (test stub)
+
+Synthesis
+Generation state: NOT_STARTED
+Generated inputs: 0 directive, 0 tactic, 0 styleguide under 
+.kittify/charter/generated
+Manifest: MISSING (.kittify/charter/synthesis-manifest.yaml)
+Evidence: code signals unavailable
+  Configured URLs: 0  Corpus snapshot: (none)
+Provenance: 0 visible sidecar(s)
+
+Organisation Layer
+  built-in: present
+  org: (no packs configured)
+
+Freshness
+  Charter source : MISSING
+  Synced bundle  : MISSING
+  Synthesized DRG: MISSING

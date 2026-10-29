@@ -38,10 +38,18 @@ config file -- indistinguishable from a project with no configured URLs.
 The ledger's own SK-16 entry is explicit that the *pre-fix* behaviour "fails
 closed... this is *not* a silent success" -- only the leaked exception text
 was ever the defect. So the corrected contract this file now pins is: the
-command must still fail (exit 1, ``success: false``), and the ``"error"``
-field must carry a controlled diagnostic naming the real problem (the file
-and the non-mapping shape) instead of either a raw ``AttributeError`` or
-nothing at all.
+command must still fail (exit 1), and the error must carry a controlled
+diagnostic naming the real problem (the file and the non-mapping shape)
+instead of either a raw ``AttributeError`` or nothing at all.
+
+**Re-pinned for #6557 (operator decision 01M5ZCANVH16B2ANT1BJ115S8R).**
+``charter status`` errors moved from the legacy ``{result, success, error}``
+envelope to the canonical ``{"ok": false, "error": {"code", "message"}}``
+one, and the shared charter soundness gate now runs first. That gate reads
+``.kittify/config.yaml`` through the activation reader (it follows the
+``charter:`` pointer), so a non-mapping config is refused there as
+``ACTIVE_CHARTER_CONFIG_INVALID`` before the evidence orchestrator's
+``ConfigShapeError`` is reached. The fail-closed contract is unchanged.
 """
 
 from __future__ import annotations
@@ -115,18 +123,18 @@ def _invoke_status_json(repo_root: Path) -> object:
 
 class TestStatusJsonSurvivesNonMappingConfig:
     def test_status_json_does_not_leak_raw_attribute_error(self, corrupt_config_repo: Path) -> None:
-        """The envelope's ``error`` field (if any) must never be the bare
+        """The envelope's ``error.message`` must never be the bare
         Python exception text -- the observable symptom of SK-16."""
         result = _invoke_status_json(corrupt_config_repo)
 
         assert result.stdout.strip(), "expected JSON on stdout"
         payload = json.loads(result.stdout)
-        error_message = payload.get("error", "")
+        error_message = payload["error"]["message"]
         assert "has no attribute" not in error_message, f"charter status --json leaked a raw AttributeError through the error envelope (SK-16): {payload!r}"
 
     def test_status_json_fails_closed_with_structured_diagnostic_on_non_mapping_config(self, corrupt_config_repo: Path) -> None:
         """Post-fix: a non-mapping ``config.yaml`` top level must still FAIL
-        (exit != 0, ``success: false``) with a structured diagnostic naming
+        (exit != 0, ``ok: false``) with a structured diagnostic naming
         the real problem -- not a leaked ``AttributeError``, and not a
         success envelope either. Silent success on a corrupted config is
         this repository's dominant failure mode (charter, ledger SK-16)."""
@@ -138,8 +146,9 @@ class TestStatusJsonSurvivesNonMappingConfig:
             f"against); got exit {result.exit_code}:\n{result.stdout}"
         )
         payload = json.loads(result.stdout)
-        assert payload["result"] == "error", payload
-        assert payload["success"] is False, payload
-        error_message = payload["error"]
+        assert payload["ok"] is False, payload
+        assert payload["error"]["code"] == "ACTIVE_CHARTER_CONFIG_INVALID", payload
+        assert "Unexpected" not in payload["error"]["message"], payload
+        error_message = payload["error"]["message"]
         assert "has no attribute" not in error_message, f"leaked a raw AttributeError instead of a controlled diagnostic: {payload!r}"
         assert "config.yaml" in error_message, f"diagnostic should name the offending file: {payload!r}"
