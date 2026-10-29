@@ -32,11 +32,10 @@ from charter.activation.synthesizer.manifest import (
     finalize_manifest,
     load_yaml,
     synthesis_owned_directive_ids,
-    synthesized_urns,
     verify,
     verify_manifest_hash,
 )
-from charter.activation.synthesizer.manifest import _SynthesisOwnershipUnreadableError
+from charter.activation.synthesizer.manifest import _SynthesisOwnershipUnreadableError, _synthesized_urns
 from charter.activation.synthesizer.path_guard import PathGuard
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
@@ -704,7 +703,7 @@ def test_manifest_synthesizer_version_empty_raises() -> None:
 
 
 # ---------------------------------------------------------------------------
-# synthesized_urns -- the synthesis ownership read (#6510 / #4226)
+# _synthesized_urns -- the synthesis ownership read (#6510 / #4226)
 # ---------------------------------------------------------------------------
 
 _OwnedKind = Literal["directive", "tactic", "styleguide"]
@@ -764,7 +763,7 @@ def _write_ownership_record(
 
 
 def test_synthesized_urns_absent_manifest_is_empty(tmp_path: Path) -> None:
-    assert synthesized_urns(tmp_path, "directive") == frozenset()
+    assert _synthesized_urns(tmp_path, "directive") == frozenset()
 
 
 def test_synthesized_urns_returns_only_the_requested_kind(tmp_path: Path, guard: PathGuard) -> None:
@@ -778,9 +777,9 @@ def test_synthesized_urns_returns_only_the_requested_kind(tmp_path: Path, guard:
         ],
     )
 
-    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001", "directive:PROJECT_002"})
-    assert synthesized_urns(tmp_path, "tactic") == frozenset({"tactic:review-policy-tactic"})
-    assert synthesized_urns(tmp_path, "styleguide") == frozenset()
+    assert _synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001", "directive:PROJECT_002"})
+    assert _synthesized_urns(tmp_path, "tactic") == frozenset({"tactic:review-policy-tactic"})
+    assert _synthesized_urns(tmp_path, "styleguide") == frozenset()
 
 
 def test_synthesized_urns_direct_write_registration_is_not_ownership(tmp_path: Path, guard: PathGuard) -> None:
@@ -792,7 +791,7 @@ def test_synthesized_urns_direct_write_registration_is_not_ownership(tmp_path: P
         direct_write_slugs=frozenset({"team-001"}),
     )
 
-    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
+    assert _synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
 
 
 def test_synthesized_urns_reregistered_synthesized_directive_stays_owned(tmp_path: Path, guard: PathGuard) -> None:
@@ -804,7 +803,7 @@ def test_synthesized_urns_reregistered_synthesized_directive_stays_owned(tmp_pat
         direct_write_slugs=frozenset({"project-001"}),
     )
 
-    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
+    assert _synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
 
 
 def test_synthesized_urns_corrupt_manifest_raises(tmp_path: Path) -> None:
@@ -813,7 +812,7 @@ def test_synthesized_urns_corrupt_manifest_raises(tmp_path: Path) -> None:
     manifest_path.write_text("artifacts: [this is: not a manifest\n", encoding="utf-8")
 
     with pytest.raises(ManifestIntegrityError, match="synthesis-manifest.yaml"):
-        synthesized_urns(tmp_path, "directive")
+        _synthesized_urns(tmp_path, "directive")
 
 
 def test_synthesized_urns_schema_invalid_manifest_raises(tmp_path: Path) -> None:
@@ -822,14 +821,14 @@ def test_synthesized_urns_schema_invalid_manifest_raises(tmp_path: Path) -> None
     manifest_path.write_text("artifacts: []\n", encoding="utf-8")
 
     with pytest.raises(_SynthesisOwnershipUnreadableError, match="ValidationError"):
-        synthesized_urns(tmp_path, "directive")
+        _synthesized_urns(tmp_path, "directive")
 
 
 def test_synthesized_urns_missing_sidecar_raises(tmp_path: Path, guard: PathGuard) -> None:
     _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", None)])
 
     with pytest.raises(_SynthesisOwnershipUnreadableError, match="directive-project-intent-directive.yaml") as raised:
-        synthesized_urns(tmp_path, "directive")
+        _synthesized_urns(tmp_path, "directive")
     assert raised.value.offending_artifact == ".kittify/charter/provenance/directive-project-intent-directive.yaml"
 
 
@@ -840,7 +839,7 @@ def test_synthesized_urns_missing_sidecar_of_other_kind_is_not_read(tmp_path: Pa
         [("directive", "project-intent-directive", "directive:PROJECT_001"), ("tactic", "review-policy-tactic", None)],
     )
 
-    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
+    assert _synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
 
 
 def test_synthesized_urns_sidecar_without_artifact_urn_raises(tmp_path: Path, guard: PathGuard) -> None:
@@ -852,7 +851,7 @@ def test_synthesized_urns_sidecar_without_artifact_urn_raises(tmp_path: Path, gu
     )
 
     with pytest.raises(_SynthesisOwnershipUnreadableError, match="artifact_urn"):
-        synthesized_urns(tmp_path, "directive")
+        _synthesized_urns(tmp_path, "directive")
 
 
 @pytest.mark.parametrize("urn", ["tactic:PROJECT_001", "directive:", "PROJECT_001"])
@@ -860,7 +859,7 @@ def test_synthesized_urns_sidecar_urn_of_wrong_shape_raises(tmp_path: Path, guar
     _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", urn)])
 
     with pytest.raises(_SynthesisOwnershipUnreadableError, match="is not a directive URN"):
-        synthesized_urns(tmp_path, "directive")
+        _synthesized_urns(tmp_path, "directive")
 
 
 def test_synthesized_urns_sidecar_path_outside_provenance_root_raises(tmp_path: Path, guard: PathGuard) -> None:
@@ -870,7 +869,7 @@ def test_synthesized_urns_sidecar_path_outside_provenance_root_raises(tmp_path: 
     dump_yaml(_make_manifest_for_artifacts([entry]), manifest_path, guard)
 
     with pytest.raises(_SynthesisOwnershipUnreadableError, match="escape.yaml"):
-        synthesized_urns(tmp_path, "directive")
+        _synthesized_urns(tmp_path, "directive")
 
 
 def test_ownership_unreadable_is_a_manifest_integrity_error() -> None:

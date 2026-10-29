@@ -447,7 +447,7 @@ def _synthesized_sidecar_urn(repo_root: Path, entry: ManifestArtifactEntry) -> s
     return str(sidecar.artifact_urn)
 
 
-def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
+def _synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
     """URNs of the *kind* artifacts synthesis created, from the manifest and provenance sidecars.
 
     Ownership comes from the existing record only (no id-prefix heuristic): the
@@ -495,7 +495,7 @@ def synthesis_owned_directive_ids(repo_root: Path, directive_ids: Iterable[str])
     """The ids among *directive_ids* that name a directive synthesis created (#6510 / #4226).
 
     Synthesis only ever creates project-layer directives, so the ownership
-    record (:func:`synthesized_urns`) is read only when at least one of
+    record (:func:`_synthesized_urns`) is read only when at least one of
     *directive_ids* is declared by a file under the project pack's directive
     directory. A list of built-in or org directives returns an empty set with
     no manifest I/O, so a lost provenance sidecar cannot refuse a run that
@@ -510,7 +510,7 @@ def synthesis_owned_directive_ids(repo_root: Path, directive_ids: Iterable[str])
     candidates = requested if project_ids is None else requested & project_ids
     if not candidates:
         return frozenset()
-    owned_urns = synthesized_urns(repo_root, ArtifactKind.DIRECTIVE.value)
+    owned_urns = _synthesized_urns(repo_root, ArtifactKind.DIRECTIVE.value)
     return frozenset(directive_id for directive_id in candidates if f"{ArtifactKind.DIRECTIVE.value}:{directive_id}" in owned_urns)
 
 
@@ -572,5 +572,4 @@ __all__ = [
     "verify_manifest_hash",
     "absorb_synthesis_manifest",
     "synthesis_owned_directive_ids",
-    "synthesized_urns",
 ]
