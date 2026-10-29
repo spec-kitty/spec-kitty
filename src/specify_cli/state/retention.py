@@ -36,29 +36,27 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from spec_kitty_events.mission_next import MISSION_RUN_COMPLETED
+
 from glossary.events import EVENT_LOG_SUFFIX, GLOSSARY_EVENTS_DIR, sanitize_mission_id
-from kernel.clock import DEFAULT_CLOCK
+from kernel.clock import DEFAULT_CLOCK, datetime
 from kernel.event_log_append import event_log_lock_path
 from kernel.locks import LockAcquireTimeout, LockNotAcquired, SyncMachineFileLock, machine_file_lock
 from kernel.no_follow import NoFollowPathError
+from kernel.tree_removal import remove_tool_owned_tree
 from runtime.next import run_index
 from runtime.next.run_lock import try_run_cursor_lock
+from specify_cli.context.mission_resolver import FsMissionResolver
 from specify_cli.core.ledger_retention import RetentionLimits
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.mission_metadata import load_meta_or_empty
-from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.mission_metadata import META_FILENAME
 from specify_cli.state.contract import STATE_SURFACES, RetentionRule, get_surfaces_by_retention
-from specify_cli.status.views import DERIVED_VIEWS_DIR
-from spec_kitty_events.mission_next import MISSION_RUN_COMPLETED
-from specify_cli.status.lifecycle import is_mission_completed, is_mission_merged
+from specify_cli.status import is_mission_completed, is_mission_merged
 
 # Only what ``doctor event-logs`` imports is exported. The vocabulary constants,
 # item/failure types and the path-guard error stay public module names (the
@@ -106,13 +104,30 @@ _GLOSSARY_LOG_DIR = GLOSSARY_EVENTS_DIR
 _GLOSSARY_LOG_SUFFIX = EVENT_LOG_SUFFIX
 #: Glossary logs that name no Mission (``_cli``, ``_renderer``) start with this.
 _NON_MISSION_LOG_PREFIX = "_"
-_DERIVED_DIR = DERIVED_VIEWS_DIR
+
+
+def _registry_pattern(surface_name: str) -> Path:
+    """The registry ``path_pattern`` of *surface_name* (the owner when no module constant is importable)."""
+    return Path(next(s.path_pattern for s in STATE_SURFACES if s.name == surface_name))
 
 
 def _registry_file_name(surface_name: str) -> str:
     """The file name a registry surface's ``path_pattern`` ends in (the run store has no owner constant)."""
-    return Path(next(s.path_pattern for s in STATE_SURFACES if s.name == surface_name)).name
+    return _registry_pattern(surface_name).name
 
+
+def _registry_static_prefix(surface_name: str) -> Path:
+    """The leading path of a registry ``path_pattern`` up to its first ``<placeholder>`` segment.
+
+    Status submodules are imported only through ``specify_cli.status``
+    (``test_status_module_boundary``), so the derived-views root is read from
+    the registry rather than from ``status.views``.
+    """
+    parts = _registry_pattern(surface_name).parts
+    return Path(*parts[: next(i for i, p in enumerate(parts) if "<" in p)])
+
+
+_DERIVED_DIR = _registry_static_prefix(_SURFACE_DERIVED_VIEWS)
 
 _RUN_STATE_FILENAME = _registry_file_name("runtime_run_snapshot")
 _RUN_EVENTS_FILENAME = _registry_file_name("runtime_run_event_log")
@@ -274,8 +289,11 @@ class _Missions:
         self._by_id: dict[str, Path | None] = {}
         self._by_stem: dict[str, Path | None] = {}
         self._facts: dict[tuple[str, Path], bool] = {}
-        for meta_path in sorted((repo_root / KITTY_SPECS_DIR).glob(f"*/{META_FILENAME}")):
-            self._register(meta_path.parent)
+        # Through the sanctioned resolver (test_mission_resolver_walker_gate): a
+        # directory without a mission_id is not indexed, so its items read as
+        # ``Mission not found`` and are kept (fail safe).
+        for mission in FsMissionResolver(repo_root).all_missions():
+            self._register(mission.feature_dir)
 
     def _register(self, feature_dir: Path) -> None:
         meta = load_meta_or_empty(feature_dir)
@@ -718,7 +736,13 @@ def _assert_deletable(repo_root: Path, path: Path) -> None:
 
 
 def _remove_tree(path: Path) -> None:
-    shutil.rmtree(path)
+    """Remove a run or derived-view directory through the kernel's tool-owned tree door.
+
+    Its parent (the runs root or the derived-views root) is the tool-owned
+    root the kernel proves ownership against; a symlink resolving outside it,
+    or any ``.git`` entry, is refused.
+    """
+    remove_tool_owned_tree(path, tool_root=path.parent, reason="doctor event-logs retention")
 
 
 def _entry_points_at(entry: object, run_dir: Path, repo_root: Path) -> bool:
@@ -740,21 +764,23 @@ def _drop_index_entries(repo_root: Path, run_dir: Path) -> list[str]:
 
 
 def _unlink_run_files(run_dir: Path) -> None:
-    """Unlink the run's snapshot, then its journal; caller holds the run-cursor lock.
+    """Unlink the run's snapshot; caller holds the run-cursor lock.
 
-    Both are plain files no lock holds open, so Windows can unlink them under
-    the lock. The snapshot goes first: once it is gone no ``next`` can advance
-    the run, and an error here stops the deletion before the tree is touched.
+    It is a plain file no lock holds open, so Windows can unlink it under the
+    lock. Once it is gone no ``next`` can advance the run (its snapshot re-read
+    fails before any journal append), and an error here stops the deletion
+    before the tree is touched. The journal goes with the tree: only the status
+    log's own primitive may unlink an event log by name
+    (``test_mission_write_discipline``).
     """
     (run_dir / _RUN_STATE_FILENAME).unlink(missing_ok=True)
-    (run_dir / _RUN_EVENTS_FILENAME).unlink(missing_ok=True)
 
 
 def _delete_run(repo_root: Path, item: RetentionItem) -> list[str]:
     """Unlink a run from the index and drop its snapshot under its locks, then remove its directory unlocked.
 
     Lock order: run-cursor lock (non-blocking) -> run-index lock (bounded wait)
-    -> drop the index entries -> unlink ``state.json`` and ``run.events.jsonl``
+    -> drop the index entries -> unlink ``state.json``
     -> release both locks -> remove the rest of the directory.
     The nesting is one-way: no path holds the index lock while waiting on a
     run-cursor lock (``runtime.next.run_lock`` C-002), so it cannot deadlock.

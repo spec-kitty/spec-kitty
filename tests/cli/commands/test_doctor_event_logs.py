@@ -17,13 +17,13 @@ from __future__ import annotations
 import json
 import os
 import subprocess
-import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 from typer.testing import CliRunner
 
+from kernel.clock import now_epoch
 from runtime.next import run_index
 from runtime.next.run_lock import run_cursor_lock
 from specify_cli.cli.commands import _event_logs_doctor
@@ -51,7 +51,7 @@ def _write(path: Path, text: str) -> Path:
 
 
 def _set_age(path: Path, age_days: float) -> None:
-    stamp = time.time() - age_days * 86400
+    stamp = now_epoch() - age_days * 86400
     for target in [p for p in path.rglob("*") if p.is_file()]:
         os.utime(target, (stamp, stamp))
 

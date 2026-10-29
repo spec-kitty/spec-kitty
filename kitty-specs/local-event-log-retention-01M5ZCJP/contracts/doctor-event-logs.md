@@ -39,6 +39,7 @@ On exit 2 with `--json`, the payload is the doctor error envelope `{"ok": false,
 ## Config
 
 ```yaml
+# round-trip: skip: illustrative .kittify/config.yaml excerpt, not a Pydantic contract example
 ledger:
   retention:
     keep_runs: 20      # protect the newest N of each kind

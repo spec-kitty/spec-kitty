@@ -81,7 +81,6 @@ from specify_cli.ast_analysis.imports import (
 )
 from tests.architectural._ast_scan import parse_file
 
-
 pytestmark = [pytest.mark.architectural]
 
 
@@ -667,6 +666,7 @@ _CATEGORY_9_AUTO_DISCOVERED_DOCTOR_SIBLINGS: frozenset[str] = frozenset(
         "specify_cli.cli.commands._bytecode_doctor",
         "specify_cli.cli.commands._channel_doctor",
         "specify_cli.cli.commands._env_file_doctor",
+        "specify_cli.cli.commands._event_logs_doctor",
         "specify_cli.cli.commands._provenance_doctor",
         "specify_cli.cli.commands._run_index_doctor",
     }

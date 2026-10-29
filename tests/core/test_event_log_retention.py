@@ -15,11 +15,11 @@ import os
 import subprocess
 import time
 import uuid
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import UTC, datetime, now_epoch, timedelta
 from kernel.event_log_append import event_log_lock_path
 from kernel.locks import LockNotAcquired, machine_file_lock
 from runtime.next import run_index
@@ -44,7 +44,6 @@ from specify_cli.state.retention import (
     apply_retention,
     scan_retention,
 )
-
 
 NOW = datetime(2026, 10, 27, 12, 0, tzinfo=UTC)
 DONE_SLUG = "001-done-mission"
@@ -451,7 +450,7 @@ def test_an_empty_project_scans_to_an_empty_plan(tmp_path: Path) -> None:
 @pytest.mark.fast
 def test_scan_defaults_now_to_the_kernel_clock(project: Path) -> None:
     run_dir = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=0)
-    os.utime(run_dir / "state.json", (time.time(), time.time()))
+    os.utime(run_dir / "state.json", (now_epoch(), now_epoch()))
     item = _by_path(scan_retention(project, LIMITS_NO_KEEP).items, project)[_rel(run_dir, project)]
     assert item.reason == REASON_YOUNGER_THAN_MAX_AGE
 
@@ -825,11 +824,14 @@ def test_a_non_mapping_run_snapshot_names_no_mission(project: Path) -> None:
 
 @pytest.mark.unit
 @pytest.mark.fast
-def test_a_corrupt_mission_meta_reads_as_open(project: Path) -> None:
+def test_a_corrupt_mission_meta_reads_as_not_found_and_is_kept(project: Path) -> None:
+    # Missions are found through the sanctioned MissionResolver, which does not
+    # index a directory whose meta.json is unreadable: its run is kept, as
+    # ``Mission not found`` (operator-approved expectation change, 2026-10-28).
     run_dir = _run(project, slug=DONE_SLUG, mission_id=None, age_days=60)
     (project / "kitty-specs" / DONE_SLUG / "meta.json").write_text("{corrupt", encoding="utf-8")
     item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
-    assert (item.reason, item.mission) == (REASON_MISSION_OPEN, DONE_SLUG)
+    assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None)
 
 
 @pytest.mark.unit
@@ -1191,7 +1193,7 @@ def test_a_next_taking_the_run_lock_in_the_gap_finds_no_snapshot(project: Path, 
     monkeypatch.setattr(retention, "_remove_tree", _acquirer_in_the_gap)
     result = apply_retention(project, scan_retention(project, LIMITS_NO_KEEP, now=NOW))
 
-    assert seen == {"snapshot_present": False, "journal_present": False}
+    assert seen == {"snapshot_present": False, "journal_present": True}
     assert [i.path for i in result.deleted] == [run_dir]
     assert result.failed == []
     assert not run_dir.exists()
