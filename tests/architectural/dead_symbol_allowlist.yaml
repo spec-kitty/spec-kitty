@@ -979,6 +979,12 @@ entries:
   category: category_c_doctor_auto_discovery_seam
   rationale: Reached only via doctor.py's dynamic ``getattr(module, "register")`` auto-discovery, the
     same reach path as ``_provenance_doctor::register`` (#5390 ``doctor run-index``).
+- module: specify_cli.cli.commands._event_logs_doctor
+  name: register
+  category: category_c_doctor_auto_discovery_seam
+  rationale: Reached only via doctor.py's dynamic ``getattr(module, "register")`` auto-discovery, the
+    same reach path as ``_run_index_doctor::register`` (#6610 ``doctor event-logs``); doctor.py is
+    a closed shim (C-003), so no static importer can be added. Root fix tracked in #3508.
 - module: specify_cli.lanes.branch_naming
   name: LEGACY_FAILOVER_SUPPRESS_ENV
   category: category_c_branch_naming_failover_seam

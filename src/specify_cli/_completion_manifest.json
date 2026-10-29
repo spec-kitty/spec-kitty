@@ -650,6 +650,11 @@
      "hidden": false,
      "deprecated": false
     },
+    "event-logs": {
+     "help": "Preview, then prune, local run journals, event logs and caches past retention (#6610).\n\nReads ledger.retention (keep_runs, max_age_days) from .kittify/config.yaml;\nan item is removed only when it is outside the newest keep_runs of its kind\nAND older than max_age_days, and its work is over: a run once its Mission\nis merged or the run finished, a glossary log once its Mission is\ncompleted. Rebuildable caches are candidates whatever their age, unless\nlocked. Committed ledgers, the Op index, lock files, items of an open or\nunknown Mission and locked items are never removed.\n\nWithout --apply nothing changes. Exit codes: 0 preview or clean apply,\n1 a deletion failed, 2 config, usage or internal error.\n\nExamples:\n    spec-kitty doctor event-logs\n    spec-kitty doctor event-logs --json\n    spec-kitty doctor event-logs --apply",
+     "hidden": false,
+     "deprecated": false
+    },
     "provenance": {
      "help": "Flag committed absolute built-in-pack leaks and ambiguous template sources (C-PRV-5).\n\nScans .kittify/charter/charter.yaml's catalog and\n.kittify/agent_profiles_manifest.json for source_path values that\nshould be portable pack tokens. Read-only -- never mutates state;\nambiguous former-checkout paths are reported without a heal hint.\n\nExamples:\n    spec-kitty doctor provenance\n    spec-kitty doctor provenance --json",
      "hidden": false,

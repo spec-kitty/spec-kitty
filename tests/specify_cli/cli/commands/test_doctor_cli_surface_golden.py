@@ -68,7 +68,7 @@ _apply_short_help_options(app)
 # operator-config-ergonomics adds ``provenance`` (WP03), ``channel`` (WP05), and
 # ``env-file`` (WP06) on top of main's ``mission-type`` (mission-type-guard-registry
 # WP02), ``bytecode`` (#4130), and ``decisions`` (#4757, ``ed6d34e75``), and
-# ``run-index`` (PR #5487, ``ac4e8b84a8``): 24 total.
+# ``run-index`` (PR #5487, ``ac4e8b84a8``), and ``event-logs`` (#6610): 25 total.
 
 FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
     {
@@ -96,6 +96,7 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "bytecode",
         "decisions",
         "run-index",
+        "event-logs",
     }
 )
 
@@ -147,6 +148,7 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     "bytecode": {"--json": "flag"},
     "decisions": {"--mission": "value", "--json": "flag", "--repair": "flag"},
     "run-index": {"--json": "flag"},
+    "event-logs": {"--apply": "flag", "--json": "flag"},
 }
 
 # Golden ``--help`` snapshots (whitespace-normalized) per subcommand.
@@ -589,6 +591,27 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor run-index",
         "spec-kitty doctor run-index --json",
         "Options",
+        "--json Machine-readable JSON output",
+        "--help -h Show this message and exit.",
+    ],
+    "event-logs": [
+        "Usage: doctor event-logs [OPTIONS]",
+        "Preview, then prune, local run journals, event logs and caches past retention (#6610).",
+        "Reads ledger.retention (keep_runs, max_age_days) from .kittify/config.yaml;",
+        "an item is removed only when it is outside the newest keep_runs of its kind",
+        "AND older than max_age_days, and its work is over: a run once its Mission",
+        "is merged or the run finished, a glossary log once its Mission is",
+        "completed. Rebuildable caches are candidates whatever their age, unless",
+        "locked. Committed ledgers, the Op index, lock files, items of an open or",
+        "unknown Mission and locked items are never removed.",
+        "Without --apply nothing changes. Exit codes: 0 preview or clean apply,",
+        "1 a deletion failed, 2 config, usage or internal error.",
+        "Examples:",
+        "spec-kitty doctor event-logs",
+        "spec-kitty doctor event-logs --json",
+        "spec-kitty doctor event-logs --apply",
+        "Options",
+        "--apply Delete the listed candidates (default: preview only)",
         "--json Machine-readable JSON output",
         "--help -h Show this message and exit.",
     ],
