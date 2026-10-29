@@ -8,16 +8,25 @@
 # - Absorbs tests/integration/review/test_reject_from_in_review.py (the canonical rejection, the empty
 #   feedback refusal, the declared reviewer) and tests/integration/test_review_cycle_rejection_only.py
 #   (the counter and the two-rejection cases); see tests/scenarios/absorption-ledger.json.
+# - The approval rule restates the evidence check of #6715 (ADR 2026-10-04-5, Amendment 2026-10-29):
+#   an unforced move into review or approved refuses IMPLEMENTATION_MISSING when no commit in the work
+#   package's evidence window touches its owned files. Ticked subtasks are not committed work.
+#   Its positive control moves to for_review, not approved: the claimer approving its own committed
+#   work would refuse REVIEW_NOT_INDEPENDENT instead.
 
 @lifecycle
-Feature: Reject a work package in review
+Feature: Review a work package
   As a reviewer
-  I want my rejection and its feedback recorded as one review cycle
-  So that the implementer knows what to fix and the history counts only real rejections
+  I want my rejection and its feedback recorded as one review cycle, and only committed work approved
+  So that the implementer knows what to fix, the history counts only real rejections, and nothing hollow ships
 
   Background:
     Given a mission "demo" planned on a topic branch with the work packages "WP01"
-    And the work package "WP01" of mission "demo" has been moved to lane "in_review"
+
+Rule: A rejection and its feedback are recorded as one review cycle
+
+  Background:
+    Given the work package "WP01" of mission "demo" has been moved to lane "in_review"
 
   Scenario: Rejecting with written feedback sends the work package back and records the review cycle
     Given the review feedback file "../feedback.md" says "Please add a test for the greeting."
@@ -58,3 +67,22 @@ Feature: Reject a work package in review
     Then the command succeeds
     And the file "tasks/WP01-wp01/review-cycle-2.md" of mission "demo" on the coordination branch mentions "Second round: add a docstring."
     And the file "tasks/WP01-wp01/review-cycle-1.md" of mission "demo" on the coordination branch is unchanged
+
+@evidence
+Rule: A work package moves toward approval only with committed work
+
+  Background:
+    Given the work package "WP01" of mission "demo" has been moved to lane "in_progress"
+
+  Scenario: Approving a work package with no committed work is refused
+    Given the subtasks of the work package "WP01" of mission "demo" are marked done
+    When I run "spec-kitty agent tasks move-task WP01 --to approved --mission demo --agent claude --note approved"
+    Then the command fails
+    And the output mentions "IMPLEMENTATION_MISSING"
+    And the work package "WP01" of mission "demo" is in lane "in_progress"
+
+  Scenario: Sending a work package whose work is committed to review succeeds
+    Given the work package "WP01" of mission "demo" has committed its work
+    When I run "spec-kitty agent tasks move-task WP01 --to for_review --mission demo --agent claude"
+    Then the command succeeds
+    And the work package "WP01" of mission "demo" is in lane "for_review"
