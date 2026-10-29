@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6137": {
+      "evidence_ref": "Context citation only: the scenario fixture shape is production-shaped, so the #6137 fixture builders are not needed for this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6369": {
+      "evidence_ref": "Context citation: escalation umbrella for four @wip scenarios; this mission owes only PR-CHARTER-SHARING-004, tracked as #6418.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6418": {
+      "evidence_ref": "WP01 9b8f5e9c doctor containment check (approved, reviewer-renata); WP02 2c940687 binds PR-CHARTER-SHARING-004 (approved)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

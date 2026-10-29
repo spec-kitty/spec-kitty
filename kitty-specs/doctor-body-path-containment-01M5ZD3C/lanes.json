@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "doctor-body-path-containment-01M5ZD3C",
+  "mission_id": "01M5ZD3CFFQ845SSCAJ7SV05S0",
+  "mission_branch": "kitty/mission-doctor-body-path-containment-01M5ZD3C",
+  "target_branch": "issue-6418-doctor-body-path-containment",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/drg_activation.py",
+        "src/charter/offering/drg/org_pack_loader.py",
+        "src/specify_cli/cli/commands/_charter_pack_collect.py",
+        "src/specify_cli/cli/commands/_profile_health_render.py",
+        "tests/charter_offering/drg/test_org_body_path_escapes.py",
+        "tests/specify_cli/cli/commands/test_doctor_charter_packs_org_layer.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/scenarios/charter/PROMISES.md",
+        "tests/scenarios/charter/share-governance-safely/share-governance-safely.feature"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-27T19:31:30.686807+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "912acf0519fba0dff57386f0332059a9da70d959"
+}
