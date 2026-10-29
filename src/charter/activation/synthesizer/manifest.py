@@ -29,7 +29,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from . import provenance as _provenance
-from .errors import ManifestIntegrityError
+from .errors import ManifestIntegrityError, ProjectDirectiveScanError
 from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 from charter.offering.packs.hashing import hash_manifest_payload
 from charter.offering.packs.pack_manifest import (
@@ -477,8 +477,13 @@ def _synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
     return frozenset(urn for urn in urns if urn is not None)
 
 
-def _project_directive_ids(repo_root: Path) -> frozenset[str] | None:
-    """Ids the project pack's directive files declare, or ``None`` when they cannot be read."""
+def project_directive_ids(repo_root: Path) -> frozenset[str]:
+    """Ids the project pack's directive files declare (#6510): the one project-directive scan.
+
+    An absent directive directory, or one holding no directive file, yields an
+    empty set. A directory that cannot be listed, or a malformed directive
+    file, raises :class:`ProjectDirectiveScanError` (never a guess).
+    """
     from charter.offering.drg.project_scan import scan_project_artifacts
 
     directive = ArtifactKind.DIRECTIVE
@@ -486,12 +491,18 @@ def _project_directive_ids(repo_root: Path) -> frozenset[str] | None:
     try:
         paths = frozenset(folder.rglob(directive.glob_pattern)) if folder.is_dir() else frozenset()
         artifacts = scan_project_artifacts(repo_root, paths=paths) if paths else ()
-    except (OSError, ValueError):
-        return None
+    except (OSError, ValueError) as exc:
+        directory = f"{PROJECT_PACK_ROOT.as_posix()}/{PROJECT_KIND_DIRS[directive]}/"
+        raise ProjectDirectiveScanError(directory=directory, reason=str(exc)) from exc
     return frozenset(artifact.node.urn.partition(":")[2] for artifact in artifacts)
 
 
-def synthesis_owned_directive_ids(repo_root: Path, directive_ids: Iterable[str]) -> frozenset[str]:
+def synthesis_owned_directive_ids(
+    repo_root: Path,
+    directive_ids: Iterable[str],
+    *,
+    project_ids: frozenset[str] | None = None,
+) -> frozenset[str]:
     """The ids among *directive_ids* that name a directive synthesis created (#6510 / #4226).
 
     Synthesis only ever creates project-layer directives, so the ownership
@@ -502,12 +513,19 @@ def synthesis_owned_directive_ids(repo_root: Path, directive_ids: Iterable[str])
     never needs it. When the project directive files cannot be read, every id
     is a candidate and the record is read (never a guess). An unreadable record
     raises :class:`ManifestIntegrityError` (fail closed, never "nothing owned").
+
+    *project_ids* is a result of :func:`project_directive_ids` the caller already
+    holds; when given, the project pack is not scanned again.
     """
     requested = frozenset(directive_ids)
     if not requested:
         return frozenset()
-    project_ids = _project_directive_ids(repo_root)
-    candidates = requested if project_ids is None else requested & project_ids
+    if project_ids is None:
+        try:
+            project_ids = project_directive_ids(repo_root)
+        except ProjectDirectiveScanError:
+            project_ids = requested
+    candidates = requested & project_ids
     if not candidates:
         return frozenset()
     owned_urns = _synthesized_urns(repo_root, ArtifactKind.DIRECTIVE.value)
@@ -571,5 +589,6 @@ __all__ = [
     "verify",
     "verify_manifest_hash",
     "absorb_synthesis_manifest",
+    "project_directive_ids",
     "synthesis_owned_directive_ids",
 ]

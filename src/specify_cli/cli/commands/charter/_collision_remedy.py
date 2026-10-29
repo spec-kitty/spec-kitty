@@ -27,12 +27,14 @@ from charter.activation.api import (
     MANIFEST_PATH,
     PROJECT_KIND_DIRS,
     ManifestIntegrityError,
+    ProjectDirectiveScanError,
     ProjectDRGValidationError,
     SynthesisError,
+    project_directive_ids,
     synthesis_owned_directive_ids,
 )
-from charter.drg import ArtifactKind, scan_project_artifacts
-from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX, project_pack_path
+from charter.drg import ArtifactKind
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX
 
 __all__ = ["collision_remedy", "print_remedy_hint", "remedy_lines"]
 
@@ -46,32 +48,35 @@ def collision_remedy(repo_root: Path, error: SynthesisError) -> str | None:
     """Operator remedy for a synthesis URN collision, naming the colliding node's origin (FR-007).
 
     Returns ``None`` unless *error* is a :class:`ProjectDRGValidationError`
-    that carries a ``colliding_urn``.
+    that carries a ``colliding_urn``. The project pack is scanned at most once.
     """
     if not isinstance(error, ProjectDRGValidationError) or error.colliding_urn is None:
         return None
     urn = error.colliding_urn
-    try:
-        is_project = urn.startswith(f"{_DIRECTIVE.value}:") and urn in _project_directive_urns(repo_root)
-    except (OSError, ValueError) as exc:
-        # A scan failure (a malformed file, or an unlistable directory) must not
-        # mask the caller's SynthesisError: report it as unreadable instead.
-        return (
-            f"'{urn}' collided, and the project directives under {_PROJECT_DIRECTIVE_LABEL} "
-            f"could not be read to tell where it comes from ({exc}). Repair them or make them readable, then re-run."
-        )
-    if not is_project:
+    kind, _, directive_id = urn.partition(":")
+    project_ids: frozenset[str] = frozenset()
+    if kind == _DIRECTIVE.value:
+        try:
+            project_ids = project_directive_ids(repo_root)
+        except ProjectDirectiveScanError as exc:
+            # A scan failure (a malformed file, or an unlistable directory) must not
+            # mask the caller's SynthesisError: report it as unreadable instead.
+            return (
+                f"'{urn}' collided, and the project directives under {_PROJECT_DIRECTIVE_LABEL} "
+                f"could not be read to tell where it comes from ({exc.reason}). Repair them or make them readable, then re-run."
+            )
+    if directive_id not in project_ids:
         return (
             f"'{urn}' comes from the built-in or org doctrine layer. Synthesis never overwrites "
             "built-in or org doctrine; report the clash so the colliding synthesis id can change."
         )
-    return _project_directive_remedy(repo_root, urn)
+    return _project_directive_remedy(repo_root, urn, directive_id, project_ids)
 
 
-def _project_directive_remedy(repo_root: Path, urn: str) -> str:
+def _project_directive_remedy(repo_root: Path, urn: str, directive_id: str, project_ids: frozenset[str]) -> str:
     manifest = MANIFEST_PATH.as_posix()
     try:
-        owned = bool(synthesis_owned_directive_ids(repo_root, [urn.partition(":")[2]]))
+        owned = bool(synthesis_owned_directive_ids(repo_root, [directive_id], project_ids=project_ids))
     except ManifestIntegrityError as exc:
         return (
             f"'{urn}' is an activated project directive, and the synthesis ownership record is unreadable "
@@ -88,15 +93,6 @@ def _project_directive_remedy(repo_root: Path, urn: str) -> str:
         f"If synthesis created it, restore {manifest} and its provenance sidecar from version control and re-run. "
         f"If you authored it by hand, give it an id synthesis does not generate. {_KEEP_ACTIVE}"
     )
-
-
-def _project_directive_urns(repo_root: Path) -> frozenset[str]:
-    """URNs the project pack's directive files declare; ``ValueError`` names a malformed file, ``OSError`` an unreadable one."""
-    folder = project_pack_path(repo_root, _PROJECT_DIRECTIVE_DIR)
-    paths = frozenset(folder.rglob(_DIRECTIVE.glob_pattern)) if folder.is_dir() else frozenset()
-    if not paths:
-        return frozenset()
-    return frozenset(artifact.node.urn for artifact in scan_project_artifacts(repo_root, paths=paths))
 
 
 def remedy_lines(remedy: str | None) -> list[str]:

@@ -22,7 +22,7 @@ import pytest
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
-from charter.activation.synthesizer.errors import ManifestIntegrityError
+from charter.activation.synthesizer.errors import ManifestIntegrityError, ProjectDirectiveScanError
 from charter.activation.synthesizer.manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
@@ -31,6 +31,7 @@ from charter.activation.synthesizer.manifest import (
     dump_yaml,
     finalize_manifest,
     load_yaml,
+    project_directive_ids,
     synthesis_owned_directive_ids,
     verify,
     verify_manifest_hash,
@@ -897,6 +898,59 @@ def _corrupt_manifest(repo_root: Path) -> None:
     manifest_path = repo_root / MANIFEST_PATH
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
     manifest_path.write_text("artifacts: [this is: not a manifest\n", encoding="utf-8")
+
+
+def test_project_directive_ids_lists_declared_ids(tmp_path: Path) -> None:
+    _write_project_directive(tmp_path, "001-project-intent-directive", "PROJECT_001")
+    _write_project_directive(tmp_path, "050-team-directive", "TEAM_001")
+
+    assert project_directive_ids(tmp_path) == frozenset({"PROJECT_001", "TEAM_001"})
+
+
+def test_project_directive_ids_empty_project_pack(tmp_path: Path) -> None:
+    assert project_directive_ids(tmp_path) == frozenset()
+    (tmp_path / ".kittify/charter-packs/directive").mkdir(parents=True)
+    assert project_directive_ids(tmp_path) == frozenset()
+
+
+def test_project_directive_ids_malformed_file_raises(tmp_path: Path) -> None:
+    folder = tmp_path / ".kittify/charter-packs/directive"
+    folder.mkdir(parents=True)
+    (folder / "broken.directive.yaml").write_text("id: [unclosed\n", encoding="utf-8")
+
+    with pytest.raises(ProjectDirectiveScanError) as excinfo:
+        project_directive_ids(tmp_path)
+
+    assert excinfo.value.directory == ".kittify/charter-packs/directive/"
+    assert "could not be read" in str(excinfo.value)
+
+
+def test_project_directive_ids_unlistable_directory_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _write_project_directive(tmp_path, "001-project-intent-directive", "PROJECT_001")
+
+    def _denied(self: Path, pattern: str) -> object:
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(Path, "rglob", _denied)
+
+    with pytest.raises(ProjectDirectiveScanError, match="Permission denied"):
+        project_directive_ids(tmp_path)
+
+
+def test_owned_ids_uses_given_project_ids_without_rescanning(
+    tmp_path: Path, guard: PathGuard, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_project_directive(tmp_path, "001-project-intent-directive", "PROJECT_001")
+    _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", "directive:PROJECT_001")])
+
+    def _no_scan(self: Path, pattern: str) -> object:
+        raise AssertionError("the project pack must not be scanned again")
+
+    monkeypatch.setattr(Path, "rglob", _no_scan)
+
+    owned = synthesis_owned_directive_ids(tmp_path, ["PROJECT_001", "DIRECTIVE_003"], project_ids=frozenset({"PROJECT_001"}))
+
+    assert owned == frozenset({"PROJECT_001"})
 
 
 def test_owned_ids_empty_list_reads_nothing(tmp_path: Path) -> None:

@@ -30,6 +30,7 @@ __all__ = [
     "NeutralityGateViolation",
     "PathGuardViolation",
     "ProjectDRGValidationError",
+    "ProjectDirectiveScanError",
     "StagingPromoteError",
     "SynthesisError",
     "SynthesisSchemaError",
@@ -321,6 +322,23 @@ class ManifestIntegrityError(SynthesisError):
             f"listed in {self.manifest_path} does not match its on-disk content hash. "
             f"Re-run 'charter synthesize' to repair."
         )
+
+
+@dataclass(frozen=True)
+class ProjectDirectiveScanError(SynthesisError):
+    """The project pack's directive files cannot be read, so their ids are unknown (#6510).
+
+    Raised by :func:`charter.activation.synthesizer.manifest.project_directive_ids`
+    when the directive directory cannot be listed (``OSError``) or a directive
+    file is malformed (``ValueError``). ``directory`` is the repo-relative
+    directory scanned; ``reason`` is the underlying error's text.
+    """
+
+    directory: str
+    reason: str
+
+    def __str__(self) -> str:
+        return f"Project directives under {self.directory} could not be read: {self.reason}"
 
 
 # ---------------------------------------------------------------------------

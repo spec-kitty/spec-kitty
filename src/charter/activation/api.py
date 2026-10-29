@@ -75,9 +75,11 @@ from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS as PROJECT_KIND
 from charter.activation.synthesizer.errors import (
     ManifestIntegrityError as ManifestIntegrityError,
     ProjectDRGValidationError as ProjectDRGValidationError,
+    ProjectDirectiveScanError as ProjectDirectiveScanError,
     SynthesisError as SynthesisError,
 )
 from charter.activation.synthesizer.manifest import (
+    project_directive_ids as project_directive_ids,
     synthesis_owned_directive_ids as synthesis_owned_directive_ids,
 )
 
@@ -266,6 +268,7 @@ __all__ = [
     "LegacyRenameRefusedError",
     "ManifestIntegrityError",
     "ProjectDRGValidationError",
+    "ProjectDirectiveScanError",
     "PromotionOutcome",
     "RenameReport",
     "RequiredOmission",
@@ -288,6 +291,7 @@ __all__ = [
     "load_yaml",
     "org_required_stems",
     "plan_ledger_migration",
+    "project_directive_ids",
     "promote_activations",
     "read_org_required_provenance",
     "read_mission_type",

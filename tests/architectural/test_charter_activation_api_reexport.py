@@ -96,7 +96,9 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("PROJECT_KIND_DIRS", "charter.activation.kind_vocabulary"),
     ("ManifestIntegrityError", "charter.activation.synthesizer.errors"),
     ("ProjectDRGValidationError", "charter.activation.synthesizer.errors"),
+    ("ProjectDirectiveScanError", "charter.activation.synthesizer.errors"),
     ("SynthesisError", "charter.activation.synthesizer.errors"),
+    ("project_directive_ids", "charter.activation.synthesizer.manifest"),
     ("synthesis_owned_directive_ids", "charter.activation.synthesizer.manifest"),
 ]
 
