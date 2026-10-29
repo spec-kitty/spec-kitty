@@ -1174,7 +1174,7 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
     """Validate every ``--attest-no-implementation`` request, then record each (#6715).
 
     A refused request (a work package outside the approved claim, an unreadable status log, no
-    ``lanes.json``) exits 1 with nothing recorded. Recorded before the evidence preflight, so the
+    ``lanes.json``, a work package whose evidence cannot be read) exits 1 with nothing recorded. Recorded before the evidence preflight, so the
     preflight reads the attestation. Notices go to stderr so a ``--json`` stdout stays one payload.
     """
     if not wp_ids:
@@ -1188,6 +1188,7 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
             manifest,
             wp_ids,
             reason,
+            repo_root=run.repo_root,
             excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
         )
     except AttestationError as exc:

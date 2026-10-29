@@ -325,6 +325,45 @@ def actor_full_identity(actor: object) -> str | None:
     return identity if identity.strip(":") else None
 
 
+def actor_compact_identity(actor: object) -> str | None:
+    """The ``--agent`` form of a recorded actor: :func:`actor_full_identity` without its empty trailing segments.
+
+    ``{"tool": "claude", "model": "claude-opus", "profile": "reviewer-renata"}`` gives
+    ``claude:claude-opus:reviewer-renata`` and a bare tool gives the tool alone, so a value
+    handed back as ``--agent`` (or to :func:`~specify_cli.status.actor_from_option`) records the
+    same identity again (#6715). ``None`` when the actor is blank.
+    """
+    identity = actor_full_identity(actor)
+    if identity is None:
+        return None
+    return identity.rstrip(":") or None
+
+
+def _identity_segments(identity: str) -> tuple[str, str, str]:
+    tool, _, rest = identity.partition(":")
+    model, _, profile = rest.partition(":")
+    return tool.strip(), model.strip(), profile.strip()
+
+
+def actor_identities_independent(left: str | None, right: str | None) -> bool:
+    """True only when two recorded identities provably belong to different actors (#6715, operator ruling R1).
+
+    *left* and *right* are full identities as :func:`actor_full_identity` returns them
+    (``tool:model:profile``). They are independent when their tools differ, or when a segment
+    (model, profile) recorded on BOTH sides differs. A segment recorded on one side only never
+    proves independence (unknown counts as the same), and an unknown identity (``None`` or blank)
+    is independent of nothing. The role is not part of the identity, so it is never compared.
+    The one comparison the accept/consolidate evidence axis and ``move-task`` both apply.
+    """
+    if not (left and left.strip(":")) or not (right and right.strip(":")):
+        return False
+    left_tool, *left_rest = _identity_segments(left)
+    right_tool, *right_rest = _identity_segments(right)
+    if left_tool != right_tool:
+        return True
+    return any(mine and theirs and mine != theirs for mine, theirs in zip(left_rest, right_rest, strict=True))
+
+
 @dataclass(frozen=True)
 class CurrentWpState:
     """Current WP state resolved from a single in-transaction reduction.

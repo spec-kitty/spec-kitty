@@ -2177,9 +2177,12 @@ def resolve_review_completion_reviewer(*, main_repo_root: Path, mission_slug: st
     ``"user"`` -- the same default ``move-task``'s own event-log resolver
     (``_mt_resolve_active_reviewer_identity``) falls back to -- so a printed
     command's ``--agent`` value never diverges from what the CLI would
-    resolve on its own when no claim is on record.
+    resolve on its own when no claim is on record. The identity is the claim's
+    compact FULL identity (:func:`~specify_cli.status.actor_compact_identity`,
+    ``tool:model:profile``), so a reviewer who claimed with a profile is
+    recorded with that profile again when the printed command runs (#6715).
     """
-    from specify_cli.status import actor_identity_str
+    from specify_cli.status import actor_compact_identity
     from specify_cli.status import read_events as _rrc_read_events
 
     w = _wf()
@@ -2193,7 +2196,7 @@ def resolve_review_completion_reviewer(*, main_repo_root: Path, mission_slug: st
             # suppression (mirrors ``tasks_move_task.py``'s
             # ``_mt_resolve_pre_review_workspace``/``_mt_resolve_active_reviewer_identity``
             # idiom).
-            identity: str = actor_identity_str(existing_event.actor).strip()
+            identity: str | None = actor_compact_identity(existing_event.actor)
             if identity:
                 return identity
     return "user"

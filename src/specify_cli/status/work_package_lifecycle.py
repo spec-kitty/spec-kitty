@@ -24,7 +24,7 @@ from specify_cli.status.models import (
     StatusEvent,
     TransitionRequest,
     WPInnerStateDelta,
-    actor_full_identity,
+    actor_compact_identity,
     actor_identity_str,
 )
 from specify_cli.workspace import canonicalize_feature_dir
@@ -279,7 +279,7 @@ def _implementer_of_record_label(feature_dir: Path, mission_slug: str, wp_id: st
         if event is None:
             return _UNKNOWN_ACTOR
         if isinstance(event.actor, dict):
-            return (actor_full_identity(event.actor) or "").rstrip(":") or _UNKNOWN_ACTOR
+            return actor_compact_identity(event.actor) or _UNKNOWN_ACTOR
         return actor_identity_str(event.actor) or _UNKNOWN_ACTOR
     except Exception:  # a failed projection only degrades the message; the refusal stands
         return _UNKNOWN_ACTOR

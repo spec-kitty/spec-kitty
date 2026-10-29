@@ -214,10 +214,12 @@ def test_the_planner_maps_an_approved_work_package_to_its_lane_and_refuses_an_in
     mission = build_post_approval_lanes_mission(tmp_path)
     manifest = _manifest(mission)
 
-    assert nia.plan_no_implementation_attestations(mission.feature_dir, manifest, ["WP01"], _REASON, excluded_canceled_wp_ids=()) == {"WP01": "approved"}
-    assert nia.plan_no_implementation_attestations(mission.feature_dir, manifest, [], None, excluded_canceled_wp_ids=()) == {}
+    assert nia.plan_no_implementation_attestations(mission.feature_dir, manifest, ["WP01"], _REASON, repo_root=mission.repo, excluded_canceled_wp_ids=()) == {
+        "WP01": "approved"
+    }
+    assert nia.plan_no_implementation_attestations(mission.feature_dir, manifest, [], None, repo_root=mission.repo, excluded_canceled_wp_ids=()) == {}
     with pytest.raises(AttestationError, match=r"not approved: WP01\. Nothing was recorded\."):
-        nia.plan_no_implementation_attestations(mission.feature_dir, manifest, ["WP01"], _REASON, excluded_canceled_wp_ids=("WP01",))
+        nia.plan_no_implementation_attestations(mission.feature_dir, manifest, ["WP01"], _REASON, repo_root=mission.repo, excluded_canceled_wp_ids=("WP01",))
 
 
 @pytest.mark.integration

@@ -39,8 +39,8 @@ another reason (for example ``REVIEW_NOT_INDEPENDENT``) also stays, by design, a
 the next run while the work package stays approved. This matches the other operator attestations.
 
 The public functions here carry no CLI dependency, so ``consolidate`` and ``accept`` share them:
-:func:`plan_no_implementation_attestations` validates a request against the status log (nothing is
-recorded on a refusal) and :func:`record_no_implementation_attestation` records one.
+:func:`plan_no_implementation_attestations` validates a request against the status log and the
+evidence verdict (nothing is recorded on a refusal) and :func:`record_no_implementation_attestation` records one.
 """
 
 from __future__ import annotations
@@ -53,13 +53,24 @@ from specify_cli.status import Lane, StatusEvent, StoreError, TransitionRequest,
 from specify_cli.status_lanes import OPERATOR_REASON_SOURCE
 
 from .canceled_attestation import ATTEST_REASON_FLAG, ATTESTATION_KEY, AttestationError
-from .wp_evidence import ATTEST_NO_IMPLEMENTATION_FLAG, IMPLEMENTATION_MISSING, NO_IMPLEMENTATION, in_force_no_implementation_attestation
+from .wp_evidence import (
+    ATTEST_NO_IMPLEMENTATION_FLAG,
+    EVIDENCE_WINDOW_UNCOMPUTABLE,
+    IMPLEMENTATION_MISSING,
+    IMPLEMENTATION_UNREADABLE,
+    NO_IMPLEMENTATION,
+    EvidenceReport,
+    evaluate_evidence,
+    in_force_no_implementation_attestation,
+)
 
 #: Prefix of the recorded ``reason`` so the status log says what the operator attested.
 _REASON_PREFIX = "operator attests no implementation is owed: "
 #: Evidence ``review.reference`` prefix: the attestation, not a review, is the reference.
 _REFERENCE_PREFIX = "operator-attestation:"
 _NOTHING_RECORDED = "Nothing was recorded."
+#: Evidence verdicts an attestation cannot lift: the evidence itself cannot be read.
+_UNLIFTABLE_VERDICTS = frozenset({IMPLEMENTATION_UNREADABLE, EVIDENCE_WINDOW_UNCOMPUTABLE})
 
 
 def is_no_implementation_attestation(policy_metadata: Mapping[str, object] | None) -> bool:
@@ -86,31 +97,55 @@ def _validate_no_implementation_request(wp_ids: Iterable[str], reason: str | Non
     return requested
 
 
+def _refuse_unliftable(report: EvidenceReport, wp_ids: Sequence[str]) -> None:
+    """Raise :class:`AttestationError` when a requested work package's evidence verdict is one an attestation cannot lift.
+
+    The attestation lifts ``IMPLEMENTATION_MISSING`` only, so a work package whose evidence
+    cannot be read or windowed (``IMPLEMENTATION_UNREADABLE``, ``EVIDENCE_WINDOW_UNCOMPUTABLE``)
+    would be recorded and still refused (#6715 squad fold). A work package that already shows
+    evidence, or whose ``IMPLEMENTATION_MISSING`` an earlier attestation lifts, is accepted as
+    before (a repeat attestation is a fresh operator act).
+    """
+    blocked = [f"{wp_id} ({report.verdicts[wp_id]})" for wp_id in wp_ids if report.verdicts.get(wp_id) in _UNLIFTABLE_VERDICTS]
+    if blocked:
+        raise AttestationError(
+            f"{ATTEST_NO_IMPLEMENTATION_FLAG} lifts {IMPLEMENTATION_MISSING} only; the evidence of {', '.join(blocked)} cannot be read, "
+            f"so an attestation would not lift it. Fix that first (see the refusal's recovery line). {_NOTHING_RECORDED}"
+        )
+
+
 def plan_no_implementation_attestations(
     feature_dir: Path,
     lanes_manifest: LanesManifest,
     wp_ids: Iterable[str],
     reason: str | None,
     *,
+    repo_root: Path,
     excluded_canceled_wp_ids: Iterable[str],
 ) -> dict[str, str]:
-    """Validate the request against the status snapshot: work package id -> current lane, in request order.
+    """Validate the request against the status snapshot and the evidence verdict: work package id -> current lane, in request order.
 
-    *feature_dir* is the status-bearing mission dir. Raises :class:`AttestationError` (nothing
-    recorded) for an invalid request or an unreadable status log. An empty request returns an
-    empty mapping without reading.
+    *feature_dir* is the status-bearing mission dir; *repo_root* the repository the evidence windows
+    are diffed in. Raises :class:`AttestationError` (nothing recorded) for an invalid request, an
+    unreadable status log, or a work package whose evidence verdict an attestation cannot lift
+    (:func:`_refuse_unliftable`). An empty request returns an empty mapping without reading.
     """
+    from specify_cli.status import read_events
+
     from .approved_attestation import approved_claim_lanes
 
     requested = tuple(wp_ids)
     if not requested:
         return {}
+    excluded = frozenset(excluded_canceled_wp_ids)
     try:
         work_packages = materialize_snapshot(feature_dir).work_packages or {}
     except StoreError as exc:
         raise AttestationError(f"{ATTEST_NO_IMPLEMENTATION_FLAG} could not read the status log: {exc}. {_NOTHING_RECORDED}") from exc
-    claim_lanes = approved_claim_lanes(work_packages, lanes_manifest, excluded_canceled_wp_ids)
+    claim_lanes = approved_claim_lanes(work_packages, lanes_manifest, excluded)
     validated = _validate_no_implementation_request(requested, reason, claim_lanes=claim_lanes)
+    report = evaluate_evidence(repo_root, feature_dir, lanes_manifest, work_packages, excluded, events=lambda: read_events(feature_dir))
+    _refuse_unliftable(report, validated)
     return {wp_id: claim_lanes[wp_id] for wp_id in validated}
 
 
@@ -146,7 +181,8 @@ def record_no_implementation_attestation(
         evidence={"review": {"reviewer": actor, "verdict": "approved", "reference": f"{_REFERENCE_PREFIX}{wp_id}"}},
         policy_metadata={ATTESTATION_KEY: NO_IMPLEMENTATION},
     )
-    return emit_status_transition_transactional(request)
+    event: StatusEvent | None = emit_status_transition_transactional(request)
+    return event
 
 
 def _attested_reason(events: Sequence[StatusEvent], wp_id: str) -> str | None:

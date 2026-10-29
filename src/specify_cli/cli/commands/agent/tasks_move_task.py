@@ -132,7 +132,7 @@ from specify_cli.status import (
     StatusEvent,
     TransitionError,
     WPInnerStateDelta,
-    actor_identity_str,
+    actor_compact_identity,
     read_authored_wp_frontmatter,
     resolve_lane_alias,
 )
@@ -1107,23 +1107,22 @@ def _mt_implementer_identity(st: _MoveTaskState) -> str | None:
 _PLACEHOLDER_HOP_ACTOR = "user"
 
 
-def _mt_approval_actor(st: _MoveTaskState) -> object:
-    """The actor the approving hop will record, built as the executor builds it.
+def _mt_approval_actor(st: _MoveTaskState) -> dict[str, str | None]:
+    """The structured actor the approving hop will record, built by the executor's own hop helpers.
 
-    :func:`~specify_cli.cli.commands.agent.tasks_move_task_hops._mt_hop_actor`: ``--agent``; else,
-    for a hop out of ``in_review``, the review claimer of the event log; else the placeholder
-    ``user``. An auto-walk without ``--agent`` records its own ``in_review`` hop as ``user``, so its
-    approval is ``user`` too. With a resolved binding the actor goes through the self-asserting
-    actor seam (``--profile`` / ``--model`` or the dispatch-resolved one), as
-    ``tasks_move_task_executor._mt_emit_transitions`` does.
+    :func:`~specify_cli.cli.commands.agent.tasks_move_task_hops._mt_hop_actor` picks the identity
+    (``--agent``; else, for a move out of ``in_review``, the FULL identity of the review claim;
+    else the placeholder ``user``) and
+    :func:`~specify_cli.cli.commands.agent.tasks_move_task_hops._mt_hop_structured_actor` builds
+    the recorded actor from it, exactly as ``tasks_move_task_executor._mt_emit_transitions`` does
+    for the final hop. An auto-walk without ``--agent`` records its own ``in_review`` hop as
+    ``user`` before the approval reads it back, so its approval is predicted from the move's
+    starting lane, never from an earlier review claim of the log.
     """
-    from specify_cli.status import build_self_asserting_actor
+    from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_hop_actor, _mt_hop_structured_actor
 
-    claimer = _mt_resolve_active_reviewer_identity(st) if not st.agent and st.old_lane == Lane.IN_REVIEW else None
-    hop_actor = st.agent or claimer or _PLACEHOLDER_HOP_ACTOR
-    if st.resolved_binding is None:
-        return hop_actor
-    actor: object = build_self_asserting_actor(role="reviewer", agent=st.agent, fallback_tool=hop_actor, binding=st.resolved_binding)
+    hop_actor = _mt_hop_actor(st, None, str(st.old_lane), str(st.target_lane))
+    actor: dict[str, str | None] = _mt_hop_structured_actor(st, st.old_lane, st.target_lane, hop_actor)
     return actor
 
 
@@ -1143,16 +1142,18 @@ def _mt_require_independent_approval(st: _MoveTaskState) -> None:
       projects to one, or a bare approval out of a review nobody claimed by name): a placeholder
       names no reviewer, and accept / consolidate read it as unknown (operator ruling A,
       2026-10-29). The message asks for ``--agent``;
-    * the approver's ``tool:model:profile`` (the unchanged #5939 identity; the role is
-      lane-stamped, never compared) positively equals the implementer of record. The same agent
-      name with a different ``--profile`` or model is another identity, and an unknown implementer
-      passes here (accept and consolidate stay strict).
+    * the approver's ``tool:model:profile`` (the #5939 identity; the role is lane-stamped, never
+      compared) is not provably independent of the implementer of record
+      (:func:`~specify_cli.status.actor_identities_independent`, operator ruling R1): another tool,
+      or a model or profile recorded on both sides that differs, is independent; a segment
+      recorded on one side only is not. An unknown implementer passes here (accept and
+      consolidate stay strict).
 
     ``--force`` bypasses both (ruling 3).
     """
     if st.force or st.target_lane not in _APPROVAL_LANES:
         return
-    from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS, _actor_key, actor_full_identity
+    from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS, _actor_key, actor_full_identity, actor_identities_independent
 
     actor = _mt_approval_actor(st)
     key = _actor_key(actor)
@@ -1165,12 +1166,14 @@ def _mt_require_independent_approval(st: _MoveTaskState) -> None:
         )
     approver = actor_full_identity(actor)
     implementer = _mt_implementer_identity(st)
-    if implementer is None or implementer != approver:
+    if implementer is None or actor_identities_independent(implementer, approver):
         return
     code = _mt_review_code(st)
     raise ActionContextError(
         code,
-        f"{code}: {st.task_id} cannot be approved by its implementer ({implementer}). Have a reviewer with a different agent, model or profile approve it.",
+        f"{code}: {st.task_id} cannot be approved by its implementer ({implementer}): the approver ({approver}) is not provably "
+        "another identity (same agent, and no model or profile recorded on both sides that differs). Have a reviewer with a "
+        "different agent approve it, or pass the full --agent <tool>:<model>:<profile> of both implementer and reviewer.",
     )
 
 
@@ -1595,8 +1598,9 @@ def _mt_resolve_active_reviewer_identity(st: _MoveTaskState) -> str | None:
     from the event log, for an agent-driven completion that omits ``--agent``
     (#4670, FR-005).
 
-    Reads the WP's transition events and returns the projected identity
-    (:func:`~specify_cli.status.actor_identity_str`) of the MOST RECENT
+    Reads the WP's transition events and returns the compact full identity
+    (:func:`~specify_cli.status.actor_compact_identity`: ``tool:model:profile``,
+    empty trailing segments dropped, #6715) of the MOST RECENT
     ``* -> in_review`` hop -- the review claim (``action review --agent
     <identity>``, or its test-fixture equivalent) that is authoritative for
     "who is reviewing this WP right now". Returns ``None`` when no such
@@ -1623,8 +1627,8 @@ def _mt_resolve_active_reviewer_identity(st: _MoveTaskState) -> str | None:
     )
     for existing_event in reversed(events):
         if existing_event.wp_id == st.task_id and existing_event.to_lane == Lane.IN_REVIEW:
-            identity = actor_identity_str(existing_event.actor).strip()
-            return identity or None
+            identity: str | None = actor_compact_identity(existing_event.actor)
+            return identity
     return None
 
 

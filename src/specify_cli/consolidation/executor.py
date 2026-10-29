@@ -268,7 +268,7 @@ def _record_operator_attestations(
     if not (wp_ids or approved_wp_ids or no_implementation_wp_ids):
         return ()
     approved_plan = _plan_approved_attestations(main_repo, feature_dir, lanes_manifest, approved_wp_ids, reason, acceptably_canceled)
-    no_implementation_plan = _plan_no_implementation_attestations(feature_dir, lanes_manifest, no_implementation_wp_ids, reason, acceptably_canceled)
+    no_implementation_plan = _plan_no_implementation_attestations(main_repo, feature_dir, lanes_manifest, no_implementation_wp_ids, reason, acceptably_canceled)
     canceled = _record_canceled_attestations(main_repo, mission_slug, wp_ids=wp_ids, reason=reason, acceptably_canceled=acceptably_canceled)
     approved = _record_approved_attestations(main_repo, mission_slug, approved_plan, reason)
     return canceled + approved + _record_no_implementation_attestations(main_repo, mission_slug, no_implementation_plan, reason)
@@ -357,6 +357,7 @@ def _record_approved_attestations(main_repo: Path, mission_slug: str, plan: dict
 
 
 def _plan_no_implementation_attestations(
+    main_repo: Path,
     feature_dir: Path | None,
     lanes_manifest: LanesManifest | None,
     wp_ids: tuple[str, ...],
@@ -370,7 +371,9 @@ def _plan_no_implementation_attestations(
     from specify_cli.consolidation.no_implementation_attestation import plan_no_implementation_attestations
 
     try:
-        return plan_no_implementation_attestations(feature_dir, lanes_manifest, wp_ids, reason, excluded_canceled_wp_ids=excluded_canceled_wp_ids)
+        return plan_no_implementation_attestations(
+            feature_dir, lanes_manifest, wp_ids, reason, repo_root=main_repo, excluded_canceled_wp_ids=excluded_canceled_wp_ids
+        )
     except AttestationError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc

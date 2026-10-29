@@ -55,6 +55,7 @@ from specify_cli.status import (
     REVIEWER_SELF_APPROVAL,
     _actor_key,
     actor_full_identity,
+    actor_identities_independent,
     is_migration_actor,
     latest_implementer_event,
     read_events_lenient,
@@ -541,7 +542,9 @@ def _latest_actor_for_transition(feature_dir: Path, wp_id: str, to_lane: str) ->
     is not a review. A generic placeholder actor (``GENERIC_IMPLEMENTATION_ACTORS``
     through ``_actor_key``, the projection the implementer side uses, #6715) names
     nobody: when the latest matching transition carries one, the actor is unknown
-    (``None``), so a move recorded as ``user`` is never an independent review.
+    (``None``), so a move recorded as ``user`` is never an independent review. So is a
+    matching transition whose actor carries no identity at all (blank): the latest
+    approval decides, and an older reviewer never stands in for it (#6715 squad fold).
     """
     latest: str | None = None
     for event in read_events_lenient(feature_dir):
@@ -554,7 +557,7 @@ def _latest_actor_for_transition(feature_dir: Path, wp_id: str, to_lane: str) ->
             # latest such transition leaves the actor of record unknown, never an earlier one.
             latest = None
             continue
-        latest = actor_full_identity(event.actor) or latest
+        latest = actor_full_identity(event.actor)
     return latest
 
 
@@ -579,7 +582,7 @@ def _latest_implementer_identity(feature_dir: Path, wp_id: str) -> str | None:
 
 
 def _independent_reviewer_confirmed(feature_dir: Path, wp_id: str) -> bool:
-    """True when WP's latest approval actor positively differs from its
+    """True when WP's latest approval actor provably differs from its
     latest implementation actor (#2412-adjacent field report, item #9).
 
     ``force_count`` alone cannot distinguish "reviewer used --force to bypass
@@ -588,13 +591,15 @@ def _independent_reviewer_confirmed(feature_dir: Path, wp_id: str) -> bool:
     answers the question: did a different identity log the approving
     transition than the one that most recently claimed/implemented the WP?
     Returns False (never suppress) when either actor is missing/unknown --
-    absence of evidence is not evidence of an independent review.
+    absence of evidence is not evidence of an independent review. The two
+    identities compare segment-wise (:func:`~specify_cli.status.actor_identities_independent`,
+    operator ruling R1, #6715): a model or profile recorded on one side only
+    never proves they differ.
     """
     implementer = _latest_implementer_identity(feature_dir, wp_id)
     reviewer = _latest_actor_for_transition(feature_dir, wp_id, "approved")
-    if not implementer or not reviewer:
-        return False
-    return implementer != reviewer
+    independent: bool = actor_identities_independent(implementer, reviewer)
+    return independent
 
 
 def _review_force_counts(feature_dir: Path, wp_set: set[str]) -> dict[str, int]:

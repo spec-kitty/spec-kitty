@@ -119,18 +119,47 @@ def _resolve_lane(main_repo_root: Path, mission_slug: str, wp_id: str) -> tuple[
 # never count as implementation work. Only the mission's OWN ``meta.json`` is
 # excluded -- a planning_artifact WP's real work under ``kitty-specs/<slug>/``
 # (spec.md, research.md, ...) still qualifies.
+#
+# #6715 (operator ruling R2, 2026-10-29): every other Mission file the CLI itself
+# writes after planning is bookkeeping too, so only author-written content
+# (spec.md, plan.md, research.md, data-model.md, quickstart.md, tasks.md,
+# contracts/, checklists/, research/, ...) counts. Each entry names its writer:
+#
+# * ``tasks/``: ``move-task`` rewrites the WP prompt file it moves (phase F,
+#   ``commit_artifact``), and the review cycle writes ``review-cycle-<N>.md`` /
+#   ``review-feedback-<N>.md`` (``review/cycle.py``) and the stale-assertion
+#   ``baseline-tests.json`` (``review/baseline.py``) under ``tasks/<WP>/``;
+# * ``lanes.json``: ``agent mission finalize-tasks`` (``lanes/persistence.py``);
+# * ``acceptance-matrix.json``: ``agent acceptance-verdict`` / ``accept``
+#   (``acceptance/matrix.py``);
+# * ``analysis-report.md``: ``agent mission record-analysis``
+#   (``analysis_report.py``);
+# * ``decisions/``: the Decision Moment ledger (``decisions/store.py``);
+# * ``decisions.events.jsonl``: the decision-log stream (``events/decision_log.py``);
+# * ``traces/``: ``agent tracer-append`` (``retrospective/tracer_writer.py``).
 _STATUS_ONLY_PREFIX_TEMPLATES = (
     "kitty-specs/{slug}/status.",
     "kitty-specs/{slug}/issue-matrix.",
     "kitty-specs/{slug}/meta.json",
+    "kitty-specs/{slug}/tasks/",
+    "kitty-specs/{slug}/lanes.json",
+    "kitty-specs/{slug}/acceptance-matrix.json",
+    "kitty-specs/{slug}/analysis-report.md",
+    "kitty-specs/{slug}/decisions/",
+    "kitty-specs/{slug}/decisions.events.jsonl",
+    "kitty-specs/{slug}/traces/",
 )
 _KITTIFY_PREFIX = ".kittify/"
 
 
 def status_only_excluded_prefixes(mission_slug: str) -> tuple[str, ...]:
-    """The path prefixes that never count as implementation work: the ONE list (#6715).
+    """The path prefixes that never count as implementation work: the one evidence / for_review exclusion list (#6715).
 
-    The for_review gate and the evidence axis (``consolidation.wp_evidence``) both read it.
+    The for_review gate and the evidence axis (``consolidation.wp_evidence``) both read it. It is
+    deliberately narrower than the consolidation gate's bookkeeping definition
+    (``consolidation.reconciliation._is_bookkeeping``: ``.kittify/`` and any ``kitty-specs/<slug>/``
+    segment), which judges a different question (what a squash landing may carry unattributed),
+    so author-written Mission content still counts here.
     """
     return tuple(template.format(slug=mission_slug) for template in _STATUS_ONLY_PREFIX_TEMPLATES) + (_KITTIFY_PREFIX,)
 

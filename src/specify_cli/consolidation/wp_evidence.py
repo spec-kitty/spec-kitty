@@ -16,7 +16,8 @@ Per approved (or ``done``), non-canceled work package, first match wins (data-mo
    package's ``owned_files`` and no no-implementation attestation is in force for it (one recorded
    since the work package last left ``{approved, done}``).
 4. ``REVIEW_NOT_INDEPENDENT``: :func:`~specify_cli.consolidation.preflight._independent_reviewer_confirmed`
-   (the #5939 ``tool:model:profile`` comparison, unchanged) is False.
+   (the #5939 ``tool:model:profile`` identities, compared segment-wise by
+   :func:`~specify_cli.status.actor_identities_independent`, operator ruling R1) is False.
 
 The evidence window is ``planning_commit_sha..<tip>``: the lane branch for a code lane, the target
 branch for a planning lane, the Mission branch for a single_branch Mission
@@ -35,7 +36,7 @@ import fnmatch
 import logging
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -102,7 +103,12 @@ def owned_patterns(owned_files: Iterable[str]) -> tuple[str, ...]:
 
 
 def matches_owned(path: str, patterns: Sequence[str]) -> bool:
-    """Commit-guard-compatible glob match of a repo-relative *path* against ownership *patterns*."""
+    """Glob match of a repo-relative *path* against ownership *patterns*: the evidence axis' matcher.
+
+    ``move-task`` and the evidence axis share it. It mirrors the commit guard's own matcher
+    (``policy.commit_guard._matches_any_glob``), a separate, pre-existing authority for commit
+    scoping that this does not replace.
+    """
     normalized = path.replace("\\", "/").removeprefix("./")
     for pattern in patterns:
         if fnmatch.fnmatch(normalized, pattern):
@@ -114,13 +120,13 @@ def matches_owned(path: str, patterns: Sequence[str]) -> bool:
 
 
 def _bookkeeping_prefixes(mission_slug: str) -> tuple[str, ...]:
-    """Path prefixes that never count as implementation (the ``for_review`` gate's one list)."""
+    """Path prefixes that never count as implementation (the one evidence / ``for_review`` exclusion list)."""
     prefixes: tuple[str, ...] = status_only_excluded_prefixes(mission_slug)
     return prefixes
 
 
 def _is_evidence_path(path: str, mission_slug: str) -> bool:
-    """True when *path* is not Mission bookkeeping (status log, issue matrix, ``meta.json``, ``.kittify/``)."""
+    """True when *path* is not Mission bookkeeping (the status log, ``meta.json``, ``.kittify/`` and the other tool-written Mission files)."""
     return not path.replace("\\", "/").startswith(_bookkeeping_prefixes(mission_slug))
 
 
@@ -250,10 +256,13 @@ class EvidenceReport:
 
     ``lifted_wp_ids`` names every work package whose ``IMPLEMENTATION_MISSING`` an attestation
     lifted (it may still refuse for another reason), so callers can say so in their output.
+    ``verdicts`` maps each refused work package to its first (neutral) code; a work package
+    absent from it passed.
     """
 
     refusal: str | None = None
     lifted_wp_ids: frozenset[str] = frozenset()
+    verdicts: Mapping[str, str] = field(default_factory=dict)
 
     @property
     def codes(self) -> list[str]:
@@ -270,6 +279,7 @@ class _Scan:
     owned: dict[str, tuple[str, ...]]
     lines: list[tuple[str, str]]
     lifted: set[str]
+    verdicts: dict[str, str] = field(default_factory=dict)
     _attested: frozenset[str] | None = None
 
     def attested(self, wp_id: str) -> bool:
@@ -281,6 +291,12 @@ class _Scan:
 
     def add(self, wp_id: str, line: str) -> None:
         self.lines.append((wp_id, line))
+        self.mark((wp_id,), line.partition(": ")[0])
+
+    def mark(self, wp_ids: Iterable[str], code: str) -> None:
+        """Record *code* as the verdict of each of *wp_ids* that has none yet (first match wins)."""
+        for wp_id in wp_ids:
+            self.verdicts.setdefault(wp_id, _canonical_code(code))
 
 
 def _independent(feature_dir: Path, wp_id: str) -> bool:
@@ -327,12 +343,14 @@ def _single_branch_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _S
             f"(no recorded planning commit), {_CANNOT_VERIFY} "
             "Recovery: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run."
         )
+        scan.mark(approved, SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE)
         return _single_branch_refusal_text(lanes_manifest.mission_slug, [line])
     base, tip = window
     try:
         paths = evidence_paths(repo_root, window, lanes_manifest.mission_slug)
     except GitProbeError:
         line = f"{_SINGLE_BRANCH_EVIDENCE_UNREADABLE}: the implementation-evidence window {base}..{tip} could not be diffed, {_CANNOT_VERIFY}"
+        scan.mark(approved, _SINGLE_BRANCH_EVIDENCE_UNREADABLE)
         return _single_branch_refusal_text(lanes_manifest.mission_slug, [line])
 
     def missing(wp_id: str) -> str:
@@ -384,13 +402,12 @@ def _lane_approved(lane: ExecutionLane, work_packages: Mapping[str, Any], exclud
 
 
 def _merge_base(repo_root: Path, left: str, right: str) -> str:
-    """``git merge-base left right``; raises :class:`GitProbeError` when it cannot be read."""
-    from specify_cli.core.git_ops import run_command
+    """:func:`~specify_cli.core.vcs.git.git_merge_base`, failing closed: raises :class:`GitProbeError` when it cannot be read."""
+    from specify_cli.core.vcs.git import git_merge_base
 
-    ret, out, err = run_command(["git", "merge-base", left, right], capture=True, check_return=False, cwd=repo_root)
-    sha = (out or "").strip()
-    if ret != 0 or not sha:
-        raise GitProbeError(f"git merge-base {left} {right} failed (exit {ret}): {(err or '').strip()}")
+    sha: str | None = git_merge_base(repo_root, left, right)
+    if not sha:
+        raise GitProbeError(f"git merge-base {left} {right} could not be read")
     return sha
 
 
@@ -526,7 +543,7 @@ def evaluate_evidence(
         refusal = _single_branch_scan(repo_root, lanes_manifest, scan, approved, window)
     else:
         refusal = _lanes_scan(repo_root, lanes_manifest, scan, work_packages, excluded)
-    return EvidenceReport(refusal=refusal, lifted_wp_ids=frozenset(scan.lifted))
+    return EvidenceReport(refusal=refusal, lifted_wp_ids=frozenset(scan.lifted), verdicts=dict(scan.verdicts))
 
 
 def mission_evidence_report(
