@@ -1714,7 +1714,7 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # events-latest (#6605, operator ruling 2026-10-22): spec-kitty-events ships reducer
-  # changes in patch releases, and pyproject.toml keeps the bounded range (>=11.0.0,<12).
+  # changes in patch releases, and pyproject.toml keeps the bounded range (>=11.3.0,<12).
   # This lane resolves the NEWEST spec-kitty-events that range allows into the runner's
   # throwaway copy of uv.lock (`uv lock --upgrade-package`; the job has contents: read and
   # never commits or pushes), then runs the events-consumer tests against it: the paths
