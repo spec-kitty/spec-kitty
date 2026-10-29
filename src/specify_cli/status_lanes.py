@@ -1,21 +1,31 @@
-"""Shared status-lane constants without importing status orchestration."""
+"""Shared status-lane constants without importing status orchestration.
+
+The ``spec_kitty_events`` package is the lane authority: :data:`PACKAGE_LANES`
+mirrors its ``Lane`` enum in package order, so no lane list is typed by hand
+here (#6448). :data:`CANONICAL_LANES` is the authorable subset, the lanes a
+transition, a frontmatter value or an operator may name. It excludes
+:data:`NON_AUTHORABLE_LANES`, which holds only ``genesis``: the producer-side
+state of a work package before finalize, which is never authored and appears
+only as the ``from_lane`` of a WP's first transition.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 from typing import Any
 
-CANONICAL_LANES: tuple[str, ...] = (
-    "planned",
-    "claimed",
-    "in_progress",
-    "for_review",
-    "in_review",
-    "approved",
-    "done",
-    "blocked",
-    "canceled",
-)
+from spec_kitty_events.status import Lane as _PackageLane
+
+#: Every lane the events package declares, in package order.
+PACKAGE_LANES: tuple[str, ...] = tuple(lane.value for lane in _PackageLane)
+
+#: Package lanes nobody may author (see the module docstring).
+NON_AUTHORABLE_LANES: frozenset[str] = frozenset({_PackageLane.GENESIS.value})
+
+#: The authorable lanes: :data:`PACKAGE_LANES` minus :data:`NON_AUTHORABLE_LANES`,
+#: package order kept. Follows the installed 11.x package; a package lane change is
+#: caught by the literal ratchet in ``tests/status/test_status_lanes_derivation.py``.
+CANONICAL_LANES: tuple[str, ...] = tuple(lane for lane in PACKAGE_LANES if lane not in NON_AUTHORABLE_LANES)
 
 LANE_ALIASES: dict[str, str] = {
     "doing": "in_progress",

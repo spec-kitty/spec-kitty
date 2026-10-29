@@ -20,12 +20,14 @@ class EventLogMergeError(Exception):
 # ``canceled`` are non-linear and carry no forward rank; the two non-display
 # sentinels (``genesis``/``uninitialized``) never appear on a transition edge.
 #
-# The forward order is sourced from ``CANONICAL_LANES`` (the declared ordered
-# lane authority in ``status_lanes``), NOT from the ``Lane`` enum's member
-# declaration order. Keying the rank off enum order would make a silent,
-# load-bearing assumption: an enum reorder would misclassify a backward move as
-# forward, ``_is_decision_destination`` would return False, and the #5967 fork
-# this detector exists to catch would be silently merged (exit 0) again.
+# The forward order is sourced from ``CANONICAL_LANES``, which ``status_lanes``
+# derives from the declaration order of ``spec_kitty_events.status.Lane`` (#6448),
+# NOT from the CLI's own ``Lane`` enum. The package enum's order is therefore
+# load-bearing: a reorder would misclassify a backward move as forward,
+# ``_is_decision_destination`` would return False, and the #5967 fork this
+# detector exists to catch would be silently merged (exit 0) again. An upstream
+# reorder is caught by the literal ratchet and the forward-rank test in
+# ``tests/status/test_status_lanes_derivation.py``.
 _NON_LINEAR_LANES: frozenset[Lane] = NON_DISPLAY_LANES | {Lane.BLOCKED, Lane.CANCELED}
 _NON_LINEAR_LANE_VALUES: frozenset[str] = frozenset(lane.value for lane in _NON_LINEAR_LANES)
 _FORWARD_RANK: dict[str, int] = {
