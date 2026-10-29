@@ -1,7 +1,7 @@
 """Machine-readable state contract for spec-kitty CLI state surfaces."""
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
@@ -14,6 +14,9 @@ from specify_cli.core.constants import WORKTREES_DIR
 _NEXT_INTERNAL_RUNTIME_OWNER = "next/_internal_runtime"
 _CHARTER_SYNTHESIS_OWNER = "charter synthesizer write pipeline"
 _CHARTER_SYNTHESIS_TRIGGER = "spec-kitty charter synthesize"
+# The skills installer re-projects Spec Kitty skills and prunes the ones it
+# retired on every upgrade (skills/installer.py).
+_SKILLS_PROJECTION_OWNER_COMMAND = "spec-kitty upgrade"
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +78,48 @@ class StateFormat(StrEnum):
     SYMLINK = "symlink"
 
 
+class RetentionRule(StrEnum):
+    """How a state surface is retained and who removes it (#5212).
+
+    - ``NEVER``: never pruned by the CLI; git (or the owner) keeps it. All
+      tracked ledgers.
+    - ``LEDGER_RETENTION``: pruned by ``doctor event-logs`` under the
+      ``ledger.retention`` limits once the item's work is over (a run: its
+      Mission merged or the run finished; a per-Mission log: its Mission
+      completed). Ignored surfaces only.
+    - ``REBUILDABLE``: a cache rebuilt (or bypassed) on read;
+      ``doctor event-logs`` may delete it at any time unless locked. Ignored
+      surfaces only.
+    - ``OWNER_LIFECYCLE``: removed by the command that owns it (named in
+      ``CleanupPolicy.cleanup_command``).
+    - ``MANUAL``: no automated cleanup; an operator removes it by hand if ever.
+    - ``RETIRED``: a deprecated tombstone surface with no live writer.
+    """
+
+    NEVER = "never"
+    LEDGER_RETENTION = "ledger_retention"
+    REBUILDABLE = "rebuildable"
+    OWNER_LIFECYCLE = "owner_lifecycle"
+    MANUAL = "manual"
+    RETIRED = "retired"
+
+
+#: The one command that prunes ``LEDGER_RETENTION`` and ``REBUILDABLE`` surfaces.
+CLEANUP_EVENT_LOGS_COMMAND = "spec-kitty doctor event-logs --apply"
+
+
+@dataclass(frozen=True)
+class CleanupPolicy:
+    """The retention rule of a state surface and the command that cleans it."""
+
+    retention: RetentionRule
+    cleanup_command: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a JSON-serializable dictionary representation."""
+        return {"retention": self.retention.value, "cleanup_command": self.cleanup_command}
+
+
 # ---------------------------------------------------------------------------
 # T002 -- StateSurface frozen dataclass
 # ---------------------------------------------------------------------------
@@ -90,6 +135,10 @@ class StateSurface:
     resolves the conflict to a fixed side: the copy closer to the merge
     target branch, or between two lanes the receiving lane's own (#5457).
     Glossary: ``docs/context/orchestration.md#target-owned-bookkeeping``.
+
+    ``cleanup_policy`` is required and keyword-only (#5212): every surface
+    declares how it is retained and which command cleans it, so a new surface
+    cannot be registered without that decision.
     """
 
     name: str
@@ -108,6 +157,7 @@ class StateSurface:
     #: (``GitignoreManager.sync_agent_block``, #6474), narrowly, instead of as a
     #: whole runtime root: the folder is shared with files a team commits.
     ignored_via_agent_block: bool = False
+    cleanup_policy: CleanupPolicy = field(kw_only=True)
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dictionary representation."""
@@ -124,6 +174,7 @@ class StateSurface:
             "atomic_write": self.atomic_write,
             "notes": self.notes,
             "target_owned": self.target_owned,
+            "cleanup_policy": self.cleanup_policy.to_dict(),
         }
 
 
@@ -144,6 +195,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="init/config writers",
         creation_trigger="spec-kitty init",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="project_metadata",
@@ -160,6 +212,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "repository root checkout (#5457)."
         ),
         target_owned=True,
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="migration_ledger",
@@ -182,6 +235,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "get_runtime_gitignore_entries(), and the .kittify/migrations/ "
             "ignore does not match this file (git check-ignore verified)."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="workspace_context",
@@ -192,6 +246,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="workspace_context",
         creation_trigger="spec-kitty implement",
+        cleanup_policy=CleanupPolicy(RetentionRule.OWNER_LIFECYCLE, "spec-kitty context cleanup"),
     ),
     StateSurface(
         name="merge_resume_state",
@@ -202,6 +257,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="merge/state",
         creation_trigger="spec-kitty merge",
+        cleanup_policy=CleanupPolicy(RetentionRule.OWNER_LIFECYCLE, "spec-kitty consolidate --abort"),
     ),
     StateSurface(
         name="charter_lint_report",
@@ -219,6 +275,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "copy is a separate, intentionally-committed artifact, not this "
             "surface."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="sync_local_commit_state",
@@ -236,6 +293,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "transport (#114); not referenced by current 2.x source. Never "
             "commit if still present on disk."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="encoding_provenance_global_log",
@@ -247,6 +305,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="charter/_io",
         creation_trigger="charter file decoding outside kitty-specs/<mission>/",
         notes="Machine-local encoding audit log; never commit.",
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="runtime_feature_index",
@@ -257,7 +316,11 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="next/runtime_bridge",
         creation_trigger="spec-kitty next (runtime mode)",
-        notes="Legacy filename. Stores mission-slug to mission-run linkage until compatibility rename is completed.",
+        notes=(
+            "Legacy filename. Stores mission-slug to mission-run linkage until compatibility rename is completed. "
+            "Entries are pruned with their run by doctor event-logs --apply; the file itself is never deleted."
+        ),
+        cleanup_policy=CleanupPolicy(RetentionRule.OWNER_LIFECYCLE, CLEANUP_EVENT_LOGS_COMMAND),
     ),
     StateSurface(
         name="runtime_run_snapshot",
@@ -268,6 +331,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module=_NEXT_INTERNAL_RUNTIME_OWNER,
         creation_trigger="mission run start",
+        cleanup_policy=CleanupPolicy(RetentionRule.LEDGER_RETENTION, CLEANUP_EVENT_LOGS_COMMAND),
     ),
     StateSurface(
         name="runtime_run_event_log",
@@ -278,6 +342,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module=_NEXT_INTERNAL_RUNTIME_OWNER,
         creation_trigger="mission run events",
+        cleanup_policy=CleanupPolicy(RetentionRule.LEDGER_RETENTION, CLEANUP_EVENT_LOGS_COMMAND),
     ),
     StateSurface(
         name="runtime_frozen_template",
@@ -288,6 +353,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module=_NEXT_INTERNAL_RUNTIME_OWNER,
         creation_trigger="mission run start",
+        cleanup_policy=CleanupPolicy(RetentionRule.LEDGER_RETENTION, CLEANUP_EVENT_LOGS_COMMAND),
     ),
     StateSurface(
         name="derived_mission_views",
@@ -304,6 +370,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "Ignored: materialize output must not dirty the tree or gate accept "
             "(#2369). Collapses to the .kittify/derived/ gitignore entry."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.REBUILDABLE, CLEANUP_EVENT_LOGS_COMMAND),
     ),
     StateSurface(
         name="migration_state_ledger",
@@ -329,6 +396,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "the legacy .kittify/migrations/ ignore stays for back-compat with "
             "pre-#4928 trails."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="legacy_migration_scratch",
@@ -349,6 +417,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "get_runtime_gitignore_entries() and the m_3_2_4 backfill stays "
             "coherent. No new writer targets this path."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="runtime_agent_logs",
@@ -366,6 +435,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             ".kittify/ gitignore hygiene even though the orchestrator is the "
             "producer. Collapses to the .kittify/logs/ gitignore entry."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="glossary_fallback_events",
@@ -376,6 +446,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="glossary event adapter",
         creation_trigger="glossary event persistence",
+        cleanup_policy=CleanupPolicy(RetentionRule.LEDGER_RETENTION, CLEANUP_EVENT_LOGS_COMMAND),
     ),
     StateSurface(
         name="dossier_snapshot",
@@ -403,6 +474,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "git/ref_advance.py's merge-time dirty-worktree resync (#1826) on the "
             "coordination worktree."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="mission_pycache",
@@ -414,6 +486,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="python runtime",
         creation_trigger="Python bytecode compilation",
         notes="Python cache artifact, not architectural state",
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="dossier_parity_baseline",
@@ -431,6 +504,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "future feature reuses .kittify/dossiers/<feature>/"
             "parity-baseline.json; see #277."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="op_invocation_record",
@@ -452,6 +526,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "IGNORED surface under kitty-ops/ would rely on the mixed-git_class "
             "exclusion instead; see test_contract_runtime_entries_include_ops_index."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="op_invocation_index",
@@ -462,7 +537,12 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="invocation/writer",
         creation_trigger="profile-invocation start (index append)",
-        notes=("Machine-local reverse-scan performance cache; never commit. Durable records live in kitty-ops/<op_id>.jsonl."),
+        notes=(
+            "Machine-local reverse-scan performance cache; never commit. Durable records live in kitty-ops/<op_id>.jsonl. "
+            "Not pruned by doctor event-logs: invocations list trusts a partial index, so deleting it would hide "
+            "history; a real rebuild belongs to the invocations owner."
+        ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="worktrees_root",
@@ -485,6 +565,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "3.2.6rc3_worktrees_gitignore_backfill migration heals "
             "existing projects (#3689)."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.OWNER_LIFECYCLE, "spec-kitty consolidate"),
     ),
     StateSurface(
         name="shared_skills_projection",
@@ -507,6 +588,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "is no whole-root .agents/skills/ entry."
         ),
         ignored_via_agent_block=True,
+        cleanup_policy=CleanupPolicy(RetentionRule.OWNER_LIFECYCLE, _SKILLS_PROJECTION_OWNER_COMMAND),
     ),
     StateSurface(
         name="skills_install_manifest",
@@ -528,6 +610,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "a project decides for itself whether to commit it. This surface "
             "is the per-machine install ledger only; it is IGNORED."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.OWNER_LIFECYCLE, _SKILLS_PROJECTION_OWNER_COMMAND),
     ),
     # -----------------------------------------------------------------------
     # Section B -- Charter State (.kittify/charter/)
@@ -541,6 +624,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="charter compiler",
         creation_trigger="charter init or user edit",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="charter_interview_answers",
@@ -552,6 +636,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="charter interview",
         creation_trigger="charter interview flow",
         notes="Policy enforced in feature 054: commit answers + library, ignore references",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="charter_library",
@@ -563,6 +648,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="charter compiler",
         creation_trigger="charter compile",
         notes="Policy enforced in feature 054: commit answers + library, ignore references",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="charter_yaml",
@@ -585,6 +671,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "load->mutate-owned-section->round-trip-save helper "
             "(charter.activation.charter_yaml_io) so section-preservation is structural."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="charter_activation_ledger",
@@ -601,6 +688,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "and an optional member of its content hash (charter.bundle, FR-018). The path "
             "derives from kernel.activation_ledger_store.ACTIVATION_LEDGER."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="charter_context_state",
@@ -611,6 +699,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="charter context",
         creation_trigger="charter context bootstrap",
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="charter_synthesis_manifest",
@@ -623,6 +712,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger=_CHARTER_SYNTHESIS_TRIGGER,
         atomic_write=True,
         notes="KD-2 commit marker for synthesized charter/doctrine artifacts.",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="charter_synthesis_provenance",
@@ -635,6 +725,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger=_CHARTER_SYNTHESIS_TRIGGER,
         atomic_write=True,
         notes="Per-artifact provenance sidecars written by charter synthesize.",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="project_pack_graph",
@@ -647,6 +738,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger=_CHARTER_SYNTHESIS_TRIGGER,
         atomic_write=True,
         notes="Project charter pack DRG overlay generated by charter synthesize.",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     # -----------------------------------------------------------------------
     # Section C -- Feature State (kitty-specs/<feature>/)
@@ -661,6 +753,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="feature creation/acceptance",
         creation_trigger="spec-kitty specify",
         atomic_write=True,
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="canonical_status_log",
@@ -672,6 +765,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="status emit",
         creation_trigger="first status transition",
         atomic_write=True,
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="canonical_status_snapshot",
@@ -683,6 +777,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="status reducer",
         creation_trigger="status materialize",
         atomic_write=True,
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="wp_prompt_frontmatter",
@@ -694,6 +789,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="task creation/move-task/legacy bridge",
         creation_trigger="spec-kitty tasks",
         notes="YAML frontmatter in WP markdown files",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="wp_activity_log",
@@ -705,6 +801,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="move-task/manual edits",
         creation_trigger="status transitions and manual edits",
         notes="Markdown body section of WP files",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="tasks_status_block",
@@ -715,6 +812,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.TRACKED,
         owner_module="legacy bridge",
         creation_trigger="status materialize/legacy bridge",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     # -----------------------------------------------------------------------
     # Section D -- Git-Internal State
@@ -728,6 +826,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.GIT_INTERNAL,
         owner_module="agent tasks move-task",
         creation_trigger="move-task --review-feedback-file",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     # -----------------------------------------------------------------------
     # Section E -- User-Home Sync (~/.spec-kitty/) -- partly historical, see below
@@ -741,6 +840,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.OUTSIDE_REPO,
         owner_module="auth/server_target",
         creation_trigger="operator-authored; no command writes this file",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="sync_credentials",
@@ -751,6 +851,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.OUTSIDE_REPO,
         owner_module="tracker/credentials",
         creation_trigger="spec-kitty tracker bind",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     # -----------------------------------------------------------------------
     # The lamport_clock through scoped_queue and project_sync_store through
@@ -772,6 +873,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="historical",
         deprecated=True,
         notes="Historical residue: previously owned by sync/clock, deleted with the sync transport (#114); not referenced by current 2.x source.",
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="active_queue_scope",
@@ -784,6 +886,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="historical",
         deprecated=True,
         notes="Historical residue: previously owned by sync/queue, deleted with the sync transport (#114); not referenced by current 2.x source.",
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="sync_daemon_control",
@@ -800,6 +903,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "was machine-global sync daemon bootstrap), deleted with the "
             "sync transport (#114); not referenced by current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="legacy_queue",
@@ -816,6 +920,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "(unauthenticated offline queue), deleted with the sync "
             "transport (#114); not referenced by current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="scoped_queue",
@@ -832,6 +937,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "(authenticated-scope offline queue), deleted with the sync "
             "transport (#114); not referenced by current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="tracker_cache",
@@ -842,6 +948,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.OUTSIDE_REPO,
         owner_module="tracker/store",
         creation_trigger="tracker sync or cache init",
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     StateSurface(
         name="project_sync_store",
@@ -859,6 +966,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "canonical UUID), deleted with the sync transport (#114); not "
             "referenced by current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="project_sync_egress_lock",
@@ -875,6 +983,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "(transport/result barrier acquisition), deleted with the "
             "sync transport (#114); not referenced by current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="project_sync_layout_generation",
@@ -892,6 +1001,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "deleted with the sync transport (#114); not referenced by "
             "current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="project_sync_layout_generation_lock",
@@ -908,6 +1018,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "(machine layout authority acquisition), deleted with the sync "
             "transport (#114); not referenced by current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="project_sync_layout_generation_marker",
@@ -925,6 +1036,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "loss), deleted with the sync transport (#114); not referenced "
             "by current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="project_sync_migration_reports",
@@ -942,6 +1054,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "hashes, phases, and reason codes only), deleted with the sync "
             "transport (#114); not referenced by current 2.x source."
         ),
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     # -----------------------------------------------------------------------
     # Section F -- Global Runtime (~/.kittify/)
@@ -955,6 +1068,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.OUTSIDE_REPO,
         owner_module="runtime/bootstrap",
         creation_trigger="runtime bootstrap",
+        notes="Rewritten in place by runtime bootstrap, never deleted: its presence marks an initialised global runtime (charter.offering.resolver).",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="runtime_update_lock",
@@ -965,6 +1080,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.OUTSIDE_REPO,
         owner_module="runtime/bootstrap",
         creation_trigger="runtime asset update",
+        cleanup_policy=CleanupPolicy(RetentionRule.NEVER),
     ),
     StateSurface(
         name="runtime_staging_dirs",
@@ -975,7 +1091,12 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.OUTSIDE_REPO,
         owner_module="runtime/bootstrap",
         creation_trigger="runtime asset update",
-        notes="Transient staging area, removed after update completes",
+        notes=(
+            "Transient staging area, removed after update completes. An orphan "
+            "left by an interrupted update is preserved by runtime bootstrap, "
+            "never deleted, so it is removed by hand."
+        ),
+        cleanup_policy=CleanupPolicy(RetentionRule.MANUAL),
     ),
     # -----------------------------------------------------------------------
     # Section G -- Legacy
@@ -991,6 +1112,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="historical",
         deprecated=True,
         notes="Historical residue, not referenced by current 2.x source",
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="legacy_lamport_clock",
@@ -1003,6 +1125,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="historical",
         deprecated=True,
         notes="Historical residue, not referenced by current 2.x source",
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="legacy_mission_sessions",
@@ -1015,6 +1138,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="historical",
         deprecated=True,
         notes="Historical residue, not referenced by current 2.x source",
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
     StateSurface(
         name="legacy_reset_backups",
@@ -1027,6 +1151,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="historical",
         deprecated=True,
         notes="Historical residue, not referenced by current 2.x source",
+        cleanup_policy=CleanupPolicy(RetentionRule.RETIRED),
     ),
 )
 
@@ -1049,6 +1174,11 @@ def get_surfaces_by_git_class(git_class: GitClass) -> list[StateSurface]:
 def get_surfaces_by_authority(authority: AuthorityClass) -> list[StateSurface]:
     """Return all surfaces that have the given authority class."""
     return [s for s in STATE_SURFACES if s.authority == authority]
+
+
+def get_surfaces_by_retention(retention: RetentionRule) -> list[StateSurface]:
+    """Return all surfaces whose cleanup policy has the given retention rule."""
+    return [s for s in STATE_SURFACES if s.cleanup_policy.retention == retention]
 
 
 def target_owned_paths() -> frozenset[str]:
