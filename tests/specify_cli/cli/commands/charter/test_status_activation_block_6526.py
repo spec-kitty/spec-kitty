@@ -236,10 +236,7 @@ def test_required_lists_every_org_requirable_kind(tmp_path: Path) -> None:
     """An org-required asset (requirable, not activatable) is reported and always in force."""
     _with_org_charter(
         tmp_path,
-        "schema_version: 1\n"
-        f"required_tactics: [{_DENIED_TACTIC}]\n"
-        "required_assets: [common-docs-structural-lint]\n"
-        "required_glossary_packs: [spec-kitty-core]\n",
+        f"schema_version: 1\nrequired_tactics: [{_DENIED_TACTIC}]\nrequired_assets: [common-docs-structural-lint]\nrequired_glossary_packs: [spec-kitty-core]\n",
     )
     seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], activated_tactics=[], activated_glossary_packs=["spec-kitty-core"])
 
@@ -247,7 +244,8 @@ def test_required_lists_every_org_requirable_kind(tmp_path: Path) -> None:
 
     assert "required_error" not in block
     assert block["required"] == [
-        {"kind": "asset", "id": "common-docs-structural-lint", "in_force": True, "packs": ["acme"]},
+        # The declared asset id is normalised to its activation stem.
+        {"kind": "asset", "id": "docs_structural_lint", "in_force": True, "packs": ["acme"]},
         {"kind": "glossary-pack", "id": "spec-kitty-core", "in_force": True, "packs": ["acme"]},
         {"kind": "tactic", "id": _DENIED_TACTIC, "in_force": False, "packs": ["acme"]},
     ]

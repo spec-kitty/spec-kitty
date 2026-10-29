@@ -11,14 +11,16 @@ from kernel.charter_pack_paths import project_pack_root
 from kernel.clock import date
 from kernel.errors import KittyInternalConsistencyError
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from charter.activation.api import (
+    ActiveCharterConfigError,
     RequiringPack,
     load_activation_ledger,
     read_org_required_provenance,
     required_not_in_force,
 )
+from charter.drg import ArtifactKind
 
 from specify_cli.task_utils import TaskCliError
 
@@ -32,9 +34,6 @@ from specify_cli.cli.commands.charter._common import (
     _resolve_charter_path,
 )
 from specify_cli.cli.commands.charter._synthesis import _collect_evidence_result
-
-if TYPE_CHECKING:
-    from charter.drg import ArtifactKind
 
 
 def _normalize_last_sync(value: Any) -> str | None:
@@ -585,24 +584,58 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
 #: not the spec-kitty-charter contract revision, #6521 held).
 ACTIVATION_BLOCK_SCHEMA_VERSION = "1.0.0"
 
+#: Local code of the ``activation`` block's ``error`` when ``activation.yaml``
+#: (or the legacy surface it falls back to) cannot be read at all (an OSError).
+ACTIVATION_STATE_UNREADABLE = "ACTIVATION_STATE_UNREADABLE"
+
+Floors = dict[ArtifactKind, Mapping[str, tuple[RequiringPack, ...]]]
+
 
 def _optional_ids(ids: tuple[str, ...] | None) -> list[str] | None:
     return list(ids) if ids is not None else None
 
 
-def _required_entries(floors: Mapping[ArtifactKind, Mapping[str, tuple[RequiringPack, ...]]], not_in_force: set[tuple[ArtifactKind, str]]) -> list[dict[str, Any]]:
-    """The org-required floor as ``{kind, id, in_force, packs}`` rows, sorted by (kind token, id)."""
+def _required_entries(floors: Floors, not_in_force: set[tuple[ArtifactKind, str]]) -> list[dict[str, Any]]:
+    """The org-required floor as ``{kind, id, in_force, packs}`` rows, sorted by (kind token, id).
+
+    A kind that is org-requirable but not charter-activatable (``asset``) has no
+    allow list that could leave a required id out, so its ids are always in force.
+    """
     entries = [
         {
             "kind": kind.operator_token,
             "id": stem,
-            "in_force": (kind, stem) not in not_in_force,
+            "in_force": not kind.activatable or (kind, stem) not in not_in_force,
             "packs": list(dict.fromkeys(pack.pack for pack in packs)),
         }
         for kind, floor in floors.items()
         for stem, packs in floor.items()
     ]
     return sorted(entries, key=lambda entry: (entry["kind"], entry["id"]))
+
+
+def _read_required_floors(repo_root: Path) -> tuple[Floors, dict[str, str] | None]:
+    """Every org-requirable kind's required floor, read strictly, and the first strict-read error.
+
+    A malformed ``org-charter.yaml`` must not read as "no floor": the strict read
+    names the problem. On its error the kind's lenient read is kept, so what can
+    still be read is reported beside the error.
+    """
+    floors: Floors = {}
+    error: dict[str, str] | None = None
+    for kind in ArtifactKind:
+        if not kind.org_requirable:
+            continue
+        try:
+            floors[kind] = read_org_required_provenance(repo_root, kind, strict=True)
+        except ActiveCharterConfigError as exc:
+            error = error or {"code": exc.code, "message": exc.body or exc.code}
+            floors[kind] = read_org_required_provenance(repo_root, kind, strict=False)
+    return floors, error
+
+
+def _error_block(code: str, message: str) -> dict[str, Any]:
+    return {"schema_version": ACTIVATION_BLOCK_SCHEMA_VERSION, "error": {"code": code, "message": message}}
 
 
 def _collect_activation_status(repo_root: Path) -> dict[str, Any]:
@@ -614,17 +647,21 @@ def _collect_activation_status(repo_root: Path) -> dict[str, Any]:
     :func:`required_not_in_force`, the single authority for "in force".
     ``selected`` lists every activatable kind, ``null`` when its allow list is
     absent (unrestricted / the kind's default), so consumers see the full key
-    set. An activation read error degrades this block only; status still
-    reports its other sections (the broken-``charter.yaml`` case is refused
-    earlier by the soundness gate, FR-001).
+    set. An activation read error (a typed refusal, or an OSError reading the
+    file) degrades this block only; status still reports its other sections
+    (the broken-``charter.yaml`` case is refused earlier by the soundness gate,
+    FR-001). A malformed org charter is ``required_error`` beside the lenient
+    floor.
     """
     try:
         ledger = load_activation_ledger(repo_root, report_stray=False)
-        floors = {kind: read_org_required_provenance(repo_root, kind, strict=False) for kind, _ in ledger.allow if kind.org_requirable}
+        floors, required_error = _read_required_floors(repo_root)
         omitted = required_not_in_force(repo_root, ledger, strict=False, floors=floors)
     except KittyInternalConsistencyError as exc:
-        return {"schema_version": ACTIVATION_BLOCK_SCHEMA_VERSION, "error": {"code": exc.code, "message": exc.body or exc.code}}
-    return {
+        return _error_block(exc.code, exc.body or exc.code)
+    except OSError as exc:
+        return _error_block(ACTIVATION_STATE_UNREADABLE, f"The activation state could not be read: {exc}")
+    block: dict[str, Any] = {
         "schema_version": ACTIVATION_BLOCK_SCHEMA_VERSION,
         "source": ledger.source.value,
         "path": ledger.path.relative_to(repo_root).as_posix() if ledger.path.is_relative_to(repo_root) else str(ledger.path),
@@ -635,3 +672,6 @@ def _collect_activation_status(repo_root: Path) -> dict[str, Any]:
         "activated_kinds": _optional_ids(ledger.activated_kinds),
         "required": _required_entries(floors, {(item.kind, item.artifact_id) for item in omitted}),
     }
+    if required_error is not None:
+        block["required_error"] = required_error
+    return block
