@@ -525,6 +525,7 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
+    _tasks._refuse_unparseable_agent(st.json_output, st.agent)
     st.target_lane = Lane(ensure_lane(st.to))
     owned = st.owned
     if owned is not None:

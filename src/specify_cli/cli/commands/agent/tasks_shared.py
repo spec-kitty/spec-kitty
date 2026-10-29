@@ -56,6 +56,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review.dirty_classifier import status_entry_paths
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
+from specify_cli.status import parse_agent_boundary_string
 
 logger = logging.getLogger(__name__)
 
@@ -360,6 +361,22 @@ def _output_error(
         print(render.json_envelope(diagnostic if diagnostic is not None else {"error": error_message}))
     else:
         _tasks.console.print(f"[red]Error:[/red] {error_message}")
+
+
+def _refuse_unparseable_agent(json_output: bool, agent: str | None) -> None:
+    """Refuse an explicit operator ``--agent`` the compact parser rejects, before any write (#6400).
+
+    The message is the one ``mark-status`` prints. Only an explicit ``--agent`` is strict:
+    a recorded identity and a free-text ``--actor`` go through the lenient
+    :func:`~specify_cli.status.actor_from_option`.
+    """
+    if not agent:
+        return
+    try:
+        parse_agent_boundary_string(agent)
+    except ValueError as exc:
+        _output_error(json_output, f"Invalid --agent value: {exc}")
+        raise typer.Exit(1) from exc
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path, command: str, mission_slug: str | None = None) -> str | None:

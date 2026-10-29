@@ -299,6 +299,7 @@ from specify_cli.cli.commands.agent.tasks_shared import (
     _output_error as _output_error,
     _output_result as _output_result,
     _protected_branch_status_commit_error as _protected_branch_status_commit_error,
+    _refuse_unparseable_agent as _refuse_unparseable_agent,
     _resolve_git_common_dir as _resolve_git_common_dir,
     _review_currency_check_branch as _review_currency_check_branch,
     _skip_target_branch_commit as _skip_target_branch_commit,
@@ -1132,21 +1133,26 @@ def list_tasks(
         raise typer.Exit(1) from None
 
 
-def _add_history_actor(status_dir: Path, wp_id: str, agent_name: str) -> dict[str, str | None]:
+def _add_history_actor(status_dir: Path, wp_id: str, agent: str | None, recorded_agent: str) -> dict[str, str | None]:
     """The structured actor of an ``add-history`` note (#6400).
 
     ``role`` is ``reviewer`` while the WP is ``in_review``, else ``implementer``
-    (also when the Mission has no event log yet); ``tool`` is parsed from
-    *agent_name* (the compact ``--agent`` form is accepted).
+    (also when the Mission has no event log yet). An explicit ``--agent`` was already
+    checked upfront and is parsed strictly (compact form accepted); without it the WP's
+    recorded agent (or ``unknown``) goes through the lenient builder.
     """
-    from specify_cli.status import CanonicalStatusNotFoundError, build_self_asserting_actor, get_wp_lane
+    from specify_cli.status import CanonicalStatusNotFoundError, actor_from_option, build_self_asserting_actor, get_wp_lane
 
     try:
         under_review = get_wp_lane(status_dir, wp_id) == Lane.IN_REVIEW
     except CanonicalStatusNotFoundError:
         under_review = False
     role = "reviewer" if under_review else "implementer"
-    actor: dict[str, str | None] = build_self_asserting_actor(role=role, agent=agent_name, fallback_tool="user", binding=None)
+    actor: dict[str, str | None]
+    if agent:
+        actor = build_self_asserting_actor(role=role, agent=agent, fallback_tool="user", binding=None)
+    else:
+        actor = actor_from_option(recorded_agent, role)
     return actor
 
 
@@ -1166,6 +1172,8 @@ def add_history(
         spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
     """
     try:
+        # #6400: an explicit --agent that does not parse is refused before any write.
+        _refuse_unparseable_agent(json_output, agent)
         # Get repo root and feature slug
         repo_root = locate_project_root()
         if repo_root is None:
@@ -1237,7 +1245,7 @@ def add_history(
             status_feature_dir,
             task_id,
             WPInnerStateDelta(note=history_entry),
-            actor=_add_history_actor(status_feature_dir, task_id, agent_name),
+            actor=_add_history_actor(status_feature_dir, task_id, agent, agent_name),
             mission_slug=mission_slug,
             repo_root=_ah_main_repo_root,
         )
