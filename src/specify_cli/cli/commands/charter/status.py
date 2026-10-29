@@ -15,12 +15,15 @@ check, and every error renders through :func:`render_coded_error` --
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import typer
 from rich.table import Table
 
+from charter.activation.api import ActiveCharterConfigError
 from charter.activation.evidence.orchestrator import ConfigShapeError
+from kernel.activation_ledger_store import resolve_legacy_pointer
 from kernel.errors import KittyInternalConsistencyError
 from specify_cli.task_utils import TaskCliError
 
@@ -55,6 +58,47 @@ INTERNAL_ERROR = "INTERNAL_ERROR"
 
 _WARNING_LINE = "  [yellow]Warning:[/yellow] {}"
 
+#: The shared soundness gate's "wrote nothing" line: true, but noise for a read-only command.
+_NOTHING_WRITTEN = "Nothing was written."
+#: The ``.kittify/config.yaml`` key naming the active ``charter.yaml``.
+_CHARTER_POINTER_KEY = "charter"
+#: The remedy of a ``charter:`` pointer naming a missing file (the gate's own advice is to fix the YAML).
+_DANGLING_POINTER_REMEDY = (
+    "Remediation: point the `charter:` key in .kittify/config.yaml at an existing file or remove it, "
+    "or re-run `spec-kitty charter generate --from-interview`."
+)
+
+
+def _pointer_dangles(repo_root: Path) -> bool:
+    """``True`` when ``.kittify/config.yaml`` has a ``charter:`` pointer naming a file that does not exist."""
+    try:
+        pointer, exists = resolve_legacy_pointer(repo_root, pointer_key=_CHARTER_POINTER_KEY)
+    except KittyInternalConsistencyError:
+        # An unreadable config.yaml: the gate's own refusal already names it.
+        return False
+    return pointer is not None and not exists
+
+
+def _status_refusal_body(body: str, *, dangling_pointer: bool) -> str:
+    """The gate's refusal text as ``charter status`` shows it.
+
+    Status writes nothing, so the "Nothing was written." line is dropped; a
+    dangling pointer gets the remedy for a missing file in place of the gate's.
+    """
+    lines = [line for line in body.splitlines() if line != _NOTHING_WRITTEN]
+    if dangling_pointer:
+        lines = [line for line in lines if not line.startswith("Remediation:")] + [_DANGLING_POINTER_REMEDY]
+    return "\n".join(lines)
+
+
+def _assert_charter_sound_for_status(repo_root: Path) -> None:
+    """The shared ``charter.yaml`` soundness gate (#6415), with refusal text fit for a read-only command."""
+    try:
+        assert_charter_yaml_sound(repo_root)
+    except ActiveCharterConfigError as exc:
+        body = _status_refusal_body(exc.body or exc.code, dangling_pointer=_pointer_dangles(repo_root))
+        raise ActiveCharterConfigError(body) from exc
+
 
 def _status_error(exc: Exception) -> tuple[str, str]:
     """The ``(code, message)`` pair ``charter status`` renders for *exc* (contracts/cli-json.md)."""
@@ -72,7 +116,7 @@ def _build_payload(*, provenance: bool) -> dict[str, Any]:
     # #6557: refuse an unsound charter.yaml (unparseable, non-mapping, empty)
     # with ACTIVE_CHARTER_CONFIG_INVALID BEFORE the bundle check, so a
     # list-rooted file never reaches the bundle-schema "run upgrade" message.
-    assert_charter_yaml_sound(repo_root)
+    _assert_charter_sound_for_status(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
     # consolidate-charter-bundle (#2773): gate on the authoritative
     # charter.yaml, not the retired metadata.yaml (which the fold migration

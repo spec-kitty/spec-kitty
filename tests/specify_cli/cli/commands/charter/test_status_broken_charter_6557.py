@@ -250,3 +250,28 @@ def test_status_renders_every_error_with_the_coded_envelope(exc: Exception, code
     assert json.loads(as_json.stdout) == {"ok": False, "error": {"code": code, "message": message}}
     assert as_text.exit_code == 1, as_text.output
     assert f"Error ({code}): {message}" in " ".join(as_text.output.split())
+
+
+def test_status_refusal_body_drops_the_write_line_and_swaps_the_remedy_only_for_a_dangling_pointer() -> None:
+    from specify_cli.cli.commands.charter.status import _status_refusal_body
+
+    body = "X is broken.\nNothing was written.\nRemediation: fix the YAML."
+
+    assert _status_refusal_body(body, dangling_pointer=False) == "X is broken.\nRemediation: fix the YAML."
+    assert _status_refusal_body(body, dangling_pointer=True) == (
+        "X is broken.\nRemediation: point the `charter:` key in .kittify/config.yaml at an existing file or remove it, "
+        "or re-run `spec-kitty charter generate --from-interview`."
+    )
+
+
+def test_an_unreadable_config_is_not_read_as_a_dangling_pointer(tmp_path: Path) -> None:
+    import importlib
+
+    # The package re-exports the ``status`` command function under the module's name.
+    status_module = importlib.import_module("specify_cli.cli.commands.charter.status")
+
+    def unreadable(_root: Path, *, pointer_key: str) -> tuple[Path | None, bool]:
+        raise KittyInternalConsistencyError("SOME_CODE", f"cannot read the {pointer_key!r} pointer")
+
+    with patch.object(status_module, "resolve_legacy_pointer", unreadable):
+        assert status_module._pointer_dangles(tmp_path) is False
