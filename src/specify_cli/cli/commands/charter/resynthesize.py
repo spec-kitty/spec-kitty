@@ -26,6 +26,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
     resolve_charter_write_root,
 )
 from specify_cli.cli.commands.charter._charter_yaml_gate import assert_charter_yaml_sound
+from specify_cli.cli.commands.charter._collision_remedy import collision_remedy, print_remedy_hint, remedy_lines
 from specify_cli.cli.commands.charter._common import _emit_error
 from specify_cli.cli.commands.charter._synthesis import _converge_legacy_project_intent_directive
 
@@ -264,10 +265,13 @@ def charter_resynthesize(  # noqa: C901
             )
         raise typer.Exit(code=2) from e
     except SynthesisError as e:
+        # #6510 FR-007: a collision refusal names the colliding node's origin and the remedy.
+        remedy = collision_remedy(repo_root, e)
         if json_output:
-            _emit_error(console, json_output=True, message=str(e))
+            _emit_error(console, json_output=True, message=" ".join([str(e), *remedy_lines(remedy)]))
         else:
             render_error_panel(e, err_console)
+        print_remedy_hint(console, remedy, json_output=json_output)
         raise typer.Exit(code=1) from e
     except FileNotFoundError as e:
         _emit_error(console, json_output=json_output, message=str(e))

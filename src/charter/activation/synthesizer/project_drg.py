@@ -185,13 +185,14 @@ def _append_project_profile_nodes(
             raise ProjectDRGValidationError(
                 errors=(
                     f"Additive-only violation (INV-1): project agent_profile URN "
-                    f"'{urn}' already exists in the built-in DRG layer.  A "
+                    f"'{urn}' is already present in the synthesis input graph.  A "
                     f"hand-authored project profile must carry a new URN disjoint "
-                    f"from built-in nodes.",
+                    f"from the nodes it composes with.",
                 ),
                 merged_graph_summary=(
                     f"built_in_nodes={built_in_node_count}, colliding_urn={urn!r}"
                 ),
+                colliding_urn=urn,
             )
         if urn in seen_urns:
             continue  # INV-2 overlay dedupe: emit each agent_profile:<id> once.
@@ -336,13 +337,14 @@ def emit_project_layer(
             raise ProjectDRGValidationError(
                 errors=(
                     f"Additive-only violation (FR-020 / EC-6): URN '{urn}' "
-                    f"already exists in the built-in DRG layer.  Synthesized "
-                    f"artifacts must carry new URNs disjoint from built-in nodes.",
+                    f"is already present in the synthesis input graph. "
+                    f"Synthesis never overwrites an artifact it did not create.",
                 ),
                 merged_graph_summary=(
                     f"built_in_nodes={len(built_in_drg.nodes)}, "
                     f"colliding_urn={urn!r}"
                 ),
+                colliding_urn=urn,
             )
 
         # Overlay-internal duplicate guard.

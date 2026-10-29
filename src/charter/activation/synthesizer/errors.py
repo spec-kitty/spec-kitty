@@ -121,10 +121,15 @@ class ProjectDRGValidationError(SynthesisError):
     """validate_graph() returned ≥1 errors on the merged (built-in + project) graph (FR-008).
 
     Raised before promote; no files land in the live tree.
+
+    ``colliding_urn`` names the node of an additive-only collision (#6510); it is
+    ``None`` for every other validation failure. The CLI reads it to name the
+    colliding node's origin and the remedy.
     """
 
     errors: tuple[str, ...]
     merged_graph_summary: str
+    colliding_urn: str | None = None
 
     def __str__(self) -> str:
         errs = "; ".join(self.errors)

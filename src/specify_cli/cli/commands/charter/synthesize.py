@@ -25,6 +25,7 @@ from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._charter_yaml_gate import assert_charter_yaml_sound
+from specify_cli.cli.commands.charter._collision_remedy import collision_remedy, print_remedy_hint, remedy_lines
 from specify_cli.cli.commands.charter._charter_write_root import (
     CharterWriteRootError,
     resolve_charter_write_root,
@@ -636,6 +637,8 @@ def charter_synthesize(  # noqa: C901
         from charter.activation.synthesizer.errors import GeneratedArtifactMissingError as _GAME
 
         render_error_panel(e, err_console)
+        # #6510 FR-007: a collision refusal names the colliding node's origin and the remedy.
+        remedy = collision_remedy(repo_root, e)
         if isinstance(e, _GAME):
             # Actionable remediation: the adapter found no agent-authored
             # YAML, which usually means `charter generate` was never run.
@@ -668,12 +671,13 @@ def charter_synthesize(  # noqa: C901
                         "result": "failure",
                         "adapter": {"id": adapter, "version": "unknown"},
                         "written_artifacts": [],
-                        "warnings": warnings_collected + [f"SynthesisError: {e}"],
+                        "warnings": warnings_collected + [f"SynthesisError: {e}"] + remedy_lines(remedy),
                     },
                     indent=2,
                     sort_keys=True,
                 )
             )
+        print_remedy_hint(console, remedy, json_output=json_output)
         raise typer.Exit(code=1) from e
     except (TaskCliError, ConfigShapeError) as e:
         # ConfigShapeError (a corrupt/non-mapping .kittify/config.yaml, ledger
