@@ -71,6 +71,53 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T21:26:19.915569Z",
+      "decision_id": "01M5ZM3J0BKRXZ5W7F4MZPJN94",
+      "final_answer": "Extend doctor",
+      "input_key": "asset_sidecars",
+      "mission_id": "01M5ZD3CFFQ845SSCAJ7SV05S0",
+      "mission_slug": "doctor-body-path-containment-01M5ZD3C",
+      "opened_by": "cli",
+      "options": [
+        "Extend doctor",
+        "Narrow the promise",
+        "Keep + new @wip"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Squad MAJOR: SHARING-004 promises any shared asset escaping its pack is unsound; doctor misses asset sidecar path escapes. Extend doctor, narrow the promise, or keep + @wip?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T21:26:22.610182Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.asset-sidecars",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T21:26:25.488088Z",
+      "decision_id": "01M5ZM3QEGMEDXB449QP8GD3K2",
+      "final_answer": "Add code",
+      "input_key": "finding_code",
+      "mission_id": "01M5ZD3CFFQ845SSCAJ7SV05S0",
+      "mission_slug": "doctor-body-path-containment-01M5ZD3C",
+      "opened_by": "cli",
+      "options": [
+        "Add code",
+        "No code, document only"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Add a stable machine code to escape entries in doctor --json?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T21:26:27.989677Z",
+      "resolved_by": null,
+      "slot_key": "specify.output.finding-code",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M5ZD3CFFQ845SSCAJ7SV05S0",

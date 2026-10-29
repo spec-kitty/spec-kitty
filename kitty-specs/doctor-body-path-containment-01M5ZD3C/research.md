@@ -12,7 +12,7 @@ Grounding evidence and the red-first reproduction: [research/phase0-grounding.md
 
 - **Decision**: `fragment.authored_nodes` only (operator Decision Moment).
 - **Rationale**: an authored node's `body_path` is pack-root-relative by contract. A discovered node's `body_path` is relative to its own artifact file and owned by that kind's validator (pack skills: `pack_skills/validation.py`).
-- **Alternatives considered**: all nodes. Rejected: a skill at `skills/sub/a.skill.yaml` with `body_path: ../b.md` is valid relative to its own folder and would be misreported.
+- **Alternatives considered**: all nodes. Rejected: a discovered node's `body_path` is not pack-root-relative (a pack skill's is relative to its `.skill.yaml`), so judging it against the pack root would apply the wrong anchor; its kind's validator (`charter pack validate`) owns it. (Corrected at closeout: an earlier example here claimed `../b.md` from a nested skill is valid; pack-skill validation rejects any escape from the skill directory.)
 
 ## D3 — Output contract
 
@@ -32,3 +32,33 @@ Grounding evidence and the red-first reproduction: [research/phase0-grounding.md
 ## Adversarial evidence
 
 No dependency decision, so the DIRECTIVE_051 adversarial pass does not apply at plan time. The pre-PR adversarial squad runs at closeout.
+
+## D6 — Asset sidecars (closeout, pre-merge squad MAJOR)
+
+- **Decision**: the doctor also reports an org pack's asset sidecar whose `path` escapes its `assets/` root, by resolving every org-provenance asset through `AssetRepository.resolve_path` per pack and catching `AssetPathEscapeError`. It is reported as `org_drg.asset_path_escapes` (code `ORG_ASSET_PATH_ESCAPE`) plus messages on `errors`.
+- **Rationale**: promise PR-CHARTER-SHARING-004 ("a shared asset that reaches outside its own pack folder is not accepted as sound") cites `AssetPathEscapeError`. Without this, the promise would read as bound while an escaping sidecar exits 0. Reusing the repository's own resolve keeps one authority for asset anchoring (org `assets/` dir) and containment.
+- **Alternatives considered**: narrowing the promise (operator rejected); reusing `pack_validator._check_asset_path_containment` (private; it re-derives the anchor the repository already owns).
+
+## D7 — Stable finding codes (closeout)
+
+- **Decision**: each `body_path_escapes` entry carries `code: ORG_FRAGMENT_BODY_PATH_ESCAPE`, and each `asset_path_escapes` entry carries `code: ORG_ASSET_PATH_ESCAPE`.
+- **Rationale**: `reason` is free text and can embed the host path; the keys have no consumers yet, so adding codes now is free. This aligns with the charter service's `PackFindingCode` style.
+
+## Squad dispositions (pre-merge, 2026-10-27)
+
+| Finding | Lens | Disposition |
+|---|---|---|
+| SHARING-004 over-claims vs asset sidecars (MAJOR) | correctness | accepted → FR-007 / D6 |
+| NUL byte in one body_path aborts the whole check (MINOR) | correctness | accepted → per-node handling of resolve errors |
+| Symlink loop reported as "escapes" (NIT) | correctness | accepted → message says "is not contained in the pack root" |
+| "body_path escapes: none" reads as a whole-pack verdict (NIT) | correctness | accepted → human label names the fragment nodes |
+| Pack root resolved twice / registry re-read (MINOR) | architecture | deferred_with_rationale → follow-up issue (typed root on the fragment); not folded to keep the approved, reviewed seam stable at closeout |
+| Chain-authority gate detection hole (MINOR) | architecture | deferred_with_rationale → follow-up issue (gate change, own non-vacuity proof) |
+| New activation reach behind baselined rows (MINOR) | architecture | deferred_with_rationale → recorded in PR as priced debt; resolved by the typed-root follow-up |
+| `org_drg.body_path_escapes` undocumented, no code (MINOR) | architecture | accepted → D7 + docs/api/charter-commands.md |
+| Docstring overclaims "the one containment authority" (MINOR) | architecture | accepted → docstring softened; D2 example corrected |
+| `charter status` / `charter org validate` disagree with doctor (MINOR) | architecture | deferred_with_rationale → follow-up issue (C-002 scope) |
+| spec-kitty-charter PackPolicy drift (MINOR) | architecture | deferred_with_rationale → follow-up issue in spec-kitty-charter |
+| TYPE_CHECKING import bypasses `charter.drg` facade (NIT) | architecture | accepted |
+| Half-parity pinned only indirectly (NIT) | architecture | deferred_with_rationale → covered by the typed-root follow-up |
+| Pack-skill containment hand-roll (campsite) | architecture | deferred_with_rationale → follow-up issue |
