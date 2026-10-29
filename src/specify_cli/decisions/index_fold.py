@@ -49,6 +49,7 @@ from spec_kitty_events.decision_moment import TerminalOutcome
 from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
     DECISION_POINT_RESOLVED,
+    DECISION_POINT_TERMINAL_REOPEN,
 )
 
 from specify_cli.decisions.models import (
@@ -77,14 +78,18 @@ _OUTCOME_TO_STATUS: dict[TerminalOutcome, DecisionStatus] = {
 }
 
 
-#: The single transition-rule authority (#4919), shared by BOTH the
-#: write path (:func:`specify_cli.decisions.service._is_allowed_terminal_reopen`
+#: The legal terminal-to-terminal reopens as ``(current, target)`` status
+#: pairs: a status-level view of ``spec_kitty_events``'
+#: ``DECISION_POINT_TERMINAL_REOPEN`` outcome pairs (#6412), never a local copy
+#: of the rule. Shared by BOTH the write path
+#: (:func:`specify_cli.decisions.service._is_allowed_terminal_reopen`
 #: delegates here) and the read-side fold below (:func:`_select_terminal_event`)
-#: -- one canonical answer to "which terminal-to-terminal reopen is legal",
-#: never two independently-maintained copies. Today's only legal reopen is a
-#: deferred decision later being explicitly resolved; resolved/canceled stay
-#: terminal (the service's TERMINAL_CONFLICT refusal covers those, unchanged).
-ALLOWED_TERMINAL_REOPEN: frozenset[tuple[DecisionStatus, DecisionStatus]] = frozenset({(DecisionStatus.DEFERRED, DecisionStatus.RESOLVED)})
+#: (#4919). Today the only legal reopen is a deferred decision later being
+#: explicitly resolved; resolved/canceled stay terminal (the service's
+#: TERMINAL_CONFLICT refusal covers those, unchanged).
+_TERMINAL_REOPEN_STATUSES: frozenset[tuple[DecisionStatus, DecisionStatus]] = frozenset(
+    (_OUTCOME_TO_STATUS[current], _OUTCOME_TO_STATUS[target]) for current, target in DECISION_POINT_TERMINAL_REOPEN
+)
 
 
 def is_allowed_terminal_reopen(current: DecisionStatus, target: DecisionStatus) -> bool:
@@ -95,7 +100,7 @@ def is_allowed_terminal_reopen(current: DecisionStatus, target: DecisionStatus) 
     the fold below uses the identical rule to decide which
     ``DecisionPointResolved`` pair is foldable (see :func:`_select_terminal_event`).
     """
-    return (current, target) in ALLOWED_TERMINAL_REOPEN
+    return (current, target) in _TERMINAL_REOPEN_STATUSES
 
 
 # ---------------------------------------------------------------------------
@@ -253,10 +258,11 @@ def _select_terminal_event(
         first, second = resolved_events
         first_status = _OUTCOME_TO_STATUS[TerminalOutcome(first["payload"]["terminal_outcome"])]
         second_status = _OUTCOME_TO_STATUS[TerminalOutcome(second["payload"]["terminal_outcome"])]
-        # Single-authority check (#4919): derive
-        # foldability from the SAME ``ALLOWED_TERMINAL_REOPEN`` table the
-        # write path (`service._is_allowed_terminal_reopen`) enforces --
-        # never a second, independently-maintained outcome-set literal here.
+        # Single-authority check (#4919, #6412): derive foldability from the
+        # SAME reopen rule (``spec_kitty_events``'
+        # ``DECISION_POINT_TERMINAL_REOPEN``) the write path
+        # (`service._is_allowed_terminal_reopen`) enforces -- never a second,
+        # independently-maintained outcome-set literal here.
         # A pair the write path would accept as a reopen (current -> target)
         # folds to the envelope carrying the TARGET status, in either
         # position (order-independence, #4941 class).

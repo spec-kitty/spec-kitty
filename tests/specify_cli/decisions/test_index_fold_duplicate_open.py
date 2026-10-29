@@ -66,7 +66,7 @@ def _open(repo_root: Path) -> str:
         options=("1-5", "6-20"),
         actor="alice",
     )
-    return resp.decision_id
+    return str(resp.decision_id)
 
 
 def _opened_row(events: list[Envelope]) -> Envelope:
