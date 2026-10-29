@@ -43,6 +43,24 @@ from tests.integration.conftest import OwnedCheckouts
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 
+def _stdout_error_code(stdout: str) -> object:
+    """The refusal code a ``--json`` run printed, or ``None`` on success.
+
+    Parses the whole stdout first (the C2 owned refusal is an indented,
+    multi-line document, ADR 2026-10-27-2), falling back to the last line, and
+    reads ``error.code`` before a legacy top-level ``error_code`` / ``code``.
+    """
+    text = stdout.strip()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        payload = json.loads(text.splitlines()[-1])
+    error = payload.get("error")
+    if isinstance(error, dict):
+        return error.get("code")
+    return payload.get("error_code") or payload.get("code")
+
+
 def test_acceptance_verdict_from_owned_checkout_must_resolve_the_owned_mission(make_owned_checkouts: Callable[..., OwnedCheckouts], tmp_path: Path) -> None:
     co = make_owned_checkouts(topology="single_branch", wp_ids=("WP01",))
 
@@ -94,7 +112,7 @@ def test_acceptance_verdict_from_owned_checkout_must_resolve_the_owned_mission(m
 
     error_code = None
     try:
-        error_code = json.loads(proc.stdout.strip().splitlines()[-1]).get("error_code")
+        error_code = _stdout_error_code(proc.stdout)
     except Exception:
         error_code = f"<unparsed: {proc.stdout[-300:]!r}>"
 

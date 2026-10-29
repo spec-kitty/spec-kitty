@@ -171,10 +171,6 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   a first (non-idempotent) call: that opening could not be written, and nothing else
   was. A new `error_code` on existing verbs, so a minor bump; no field is removed or
   renamed.
-- `1.20.0` — host owned-checkout refusals embedded by `check-prerequisites` and `next`
-  now use the CLI's C2 error contract (`{ok: false, error: {code, message}}`, ADR
-  `2026-10-27-2`); `check-prerequisites` classifies the code and message from `error`.
-  Error codes are unchanged.
 - `1.18.0` — `consolidate-mission` now skips a fully-canceled-with-provenance lane at
   parity with host `consolidate` (#5814): a lane whose every work package is an acceptable
   canceled-with-provenance ending is no longer merged, so its committed content never lands
@@ -192,6 +188,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   null on an idempotent call). A newly reachable `error_code` on existing verbs and
   a non-null `event_lamport` on idempotent calls, so a minor bump; no field is
   removed or renamed.
+- `1.20.0` — host owned-checkout refusals embedded by `check-prerequisites`, `next`,
+  `plan`, `tasks` and `specify` now use the CLI's C2 error contract
+  (`{ok: false, error: {code, message}}`, ADR `2026-10-27-2`, #6353). Each verb reads
+  the code and the plain-text message from that `error` object, so the owned
+  `error_code` is the one it was before (`plan` still reports an unregistered code as
+  `PLAN_SETUP_FAILED` with the real code in `data.reason`). The embedded host payload
+  in `data` changes shape, so a minor bump; no `error_code` is added, removed or
+  renamed.
 
 ## Response Envelope
 

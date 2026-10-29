@@ -278,6 +278,22 @@ def _error_payload(
     return payload
 
 
+def _owned_error_payload(
+    completed: subprocess.CompletedProcess[str],
+    expected_code: str,
+) -> dict[str, object]:
+    """An owned refusal is the C2 owned refusal (ADR 2026-10-27-2): read ``error.code``."""
+    assert completed.returncode == 1, completed
+    payload = json.loads(completed.stdout)
+    assert isinstance(payload, dict)
+    assert payload.get("ok") is False, payload
+    error = payload.get("error")
+    assert isinstance(error, dict), payload
+    assert error.get("code") == expected_code, payload
+    assert "error_code" not in payload, payload
+    return payload
+
+
 def _run_cli(
     cli: _InstalledCLI,
     project: _WorktreeProject,
@@ -619,7 +635,7 @@ def test_installed_cli_preserves_owned_checkout_refusals(
         str(nested),
         "--json",
     )
-    _error_payload(nested_result, "OWNERSHIP_NESTED")
+    _owned_error_payload(nested_result, "OWNERSHIP_NESTED")
 
     foreign = tmp_path / "foreign"
     foreign.mkdir()
@@ -636,7 +652,7 @@ def test_installed_cli_preserves_owned_checkout_refusals(
         str(foreign),
         "--json",
     )
-    _error_payload(foreign_result, "OWNERSHIP_FOREIGN")
+    _owned_error_payload(foreign_result, "OWNERSHIP_FOREIGN")
 
     broken = tmp_path / "broken-worktree"
     _git(
@@ -664,7 +680,7 @@ def test_installed_cli_preserves_owned_checkout_refusals(
         str(broken),
         "--json",
     )
-    _error_payload(broken_result, "OWNERSHIP_BROKEN_POINTER")
+    _owned_error_payload(broken_result, "OWNERSHIP_BROKEN_POINTER")
 
     created = _payload(
         _run_concurrently(

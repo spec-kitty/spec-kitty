@@ -198,7 +198,7 @@ def test_mission_create_and_next_share_structured_ownership_refusals(
     assert create_result.exit_code == next_result.exit_code == 1
     create_payload = _json_object(create_result.stdout)
     next_payload = _json_object(next_result.stdout)
-    # ADR 2026-10-27-1: both surfaces render the C2 owned refusal.
+    # ADR 2026-10-27-2: both surfaces render the C2 owned refusal.
     assert create_payload["ok"] is next_payload["ok"] is False
     assert create_payload["error"]["code"] == next_payload["error"]["code"] == expected_code
     assert create_payload["error"]["message"]

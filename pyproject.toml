@@ -2438,7 +2438,7 @@ module = [
     "charter.offering.artifact_kinds",              # ArtifactKind enum facts (pack_paths)
     "specify_cli.decisions.index_fold",             # is_allowed_terminal_reopen() -> bool (decisions/service.py, #6002)
     "specify_cli.decisions.models",                 # decision models, imported by index_fold
-    "specify_cli.task_utils.support",               # TaskCliError, subclassed by accept.ResidualCommitError
+    "specify_cli.task_utils.support",               # TaskCliError, subclassed by accept.ResidualCommitError; its own imports (mission_metadata, status_lanes) stay skipped
     "specify_cli.invocation.errors",                # InvocationError, subclassed by op_custody.OpWriteRefused (#6564)
     "charter.offering.base",                        # BaseArtifactRepository, subclassed by MissionStepContractRepository (step_contracts)
     "specify_cli.cli.commands.charter._app",        # charter_app, whose .command() decorates charter interview
