@@ -77,7 +77,7 @@ _NEW_VERBS = (
 )
 
 
-def test_contract_version_response_reports_1_20_0() -> None:
+def test_contract_version_response_reports_the_current_contract_version() -> None:
     result = runner.invoke(app, ["contract-version"])
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])

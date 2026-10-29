@@ -35,6 +35,7 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
+from specify_cli.acceptance.gates_core import AcceptanceCheckDiagnostic
 from specify_cli.acceptance.ledger_dirt import mission_decision_ledger_files
 from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
 from specify_cli.config.path_conventions import PathConventionsConfigError
@@ -47,6 +48,13 @@ from specify_cli.consolidation.baseline import (
     PrMergeEvidenceError,
     verify_pr_merge_evidence,
 )
+from specify_cli.consolidation.canceled_attestation import ATTEST_REASON_FLAG, AttestationError
+from specify_cli.consolidation.done_bookkeeping import _resolve_merge_actor, acceptably_canceled_wp_ids
+from specify_cli.consolidation.no_implementation_attestation import plan_no_implementation_attestations, record_no_implementation_attestation
+from specify_cli.consolidation.wp_evidence import ATTEST_NO_IMPLEMENTATION_FLAG, EVIDENCE_WINDOW_UNCOMPUTABLE, EvidenceReport, mission_evidence_report
+from specify_cli.lanes.models import LanesManifest
+from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
+from specify_cli.status import StoreError
 from specify_cli.git.origin_freshness import (
     ORIGIN_CHECK_CHOICES,
     READ_ONLY_ORIGIN_CHECK,
@@ -1114,6 +1122,143 @@ def _check_origin_freshness(run: _AcceptRun, origin_check: str | None, *, read_o
     return replace(run, origin_warnings=tuple(warnings))
 
 
+def _validated_no_implementation_request(
+    json_output: bool, wp_ids: list[str] | None, reason: str | None, *, read_only_flag: str | None
+) -> tuple[tuple[str, ...], str]:
+    """CLI-boundary check of ``--attest-no-implementation`` (#6715): ``(work packages, reason)``.
+
+    Exit 2, nothing recorded, when a work package is named without a non-blank
+    ``--attest-reason`` or in a read-only mode (``--no-commit`` / ``--diagnose``: the request
+    would record an attestation). No work package named returns ``((), "")``.
+    """
+    requested = tuple(dict.fromkeys(wp.strip() for wp in (wp_ids or []) if wp.strip()))
+    if not requested:
+        return (), ""
+    if read_only_flag is not None:
+        _fail(
+            json_output,
+            f"{ATTEST_NO_IMPLEMENTATION_FLAG} would record a no-implementation attestation; {read_only_flag} is read-only. Nothing was recorded.",
+            code=2,
+        )
+    if not (reason and reason.strip()):
+        _fail(json_output, f'{ATTEST_NO_IMPLEMENTATION_FLAG} requires {ATTEST_REASON_FLAG} "<why no implementation is owed>". Nothing was recorded.', code=2)
+    return requested, reason.strip()
+
+
+def _evidence_status_dir(run: _AcceptRun) -> Path:
+    """The status-bearing Mission dir (the coordination worktree under coordination topology)."""
+    from mission_runtime import placement_seam
+
+    status_dir: Path = placement_seam(run.repo_root, run.mission_slug, owned=run.owned).read_dir(MissionArtifactKind.STATUS_STATE)
+    return status_dir
+
+
+def _attestation_primary_dir(run: _AcceptRun) -> Path:
+    """The PRIMARY, meta-bearing Mission dir the attestation recorder takes (it routes the write itself)."""
+    from mission_runtime import placement_seam
+
+    primary_dir: Path = placement_seam(run.repo_root, run.mission_slug, owned=run.owned).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    return primary_dir
+
+
+def _evidence_lanes_manifest(run: _AcceptRun) -> LanesManifest | None:
+    """``lanes.json`` (PRIMARY partition); ``None`` when absent; a corrupt manifest refuses (exit 1)."""
+    try:
+        return read_lanes_json(run.mission_dir)
+    except CorruptLanesError as exc:
+        message = f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: the implementation-evidence window cannot be computed ({exc})."
+        _fail(run.json_output, message, extra_json={"error_code": EVIDENCE_WINDOW_UNCOMPUTABLE, "error_codes": [EVIDENCE_WINDOW_UNCOMPUTABLE]})
+
+
+def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, ...], reason: str) -> None:
+    """Validate every ``--attest-no-implementation`` request, then record each (#6715).
+
+    A refused request (a work package outside the approved claim, an unreadable status log, no
+    ``lanes.json``) exits 1 with nothing recorded. Recorded before the evidence preflight, so the
+    preflight reads the attestation. Notices go to stderr so a ``--json`` stdout stays one payload.
+    """
+    if not wp_ids:
+        return
+    manifest = _evidence_lanes_manifest(run)
+    if manifest is None:
+        _fail(run.json_output, f"{ATTEST_NO_IMPLEMENTATION_FLAG} needs the Mission's lanes.json (run finalize-tasks first). Nothing was recorded.")
+    try:
+        plan = plan_no_implementation_attestations(
+            _evidence_status_dir(run),
+            manifest,
+            wp_ids,
+            reason,
+            excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
+        )
+    except AttestationError as exc:
+        _fail(run.json_output, str(exc))
+    primary_dir = _attestation_primary_dir(run)
+    actor = _resolve_merge_actor(run.repo_root)
+    for wp_id, current_lane in plan.items():
+        record_no_implementation_attestation(
+            repo_root=run.repo_root,
+            feature_dir=primary_dir,
+            mission_slug=run.mission_slug,
+            wp_id=wp_id,
+            current_lane=current_lane,
+            reason=reason,
+            actor=actor,
+        )
+        typer.echo(f"Operator attestation recorded for {wp_id} (no implementation owed) by {actor}: {reason}", err=True)
+
+
+def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False) -> EvidenceReport | None:
+    """Refuse (exit 1) an approved work package with no implementation evidence or no independent review (#6715).
+
+    The shared predicate consolidate and orchestrator-api read
+    (:func:`~specify_cli.consolidation.wp_evidence.mission_evidence_report`), on every topology,
+    whatever ``--lenient`` says and however the work package was approved (``move-task --force``
+    included). It runs before the acceptance summary is collected, so a refusal writes nothing;
+    ``--no-commit`` and ``--diagnose`` report it the same way. No ``lanes.json`` leaves the
+    acceptance readiness check in charge (it refuses on its own); a corrupt one or an unreadable
+    status surface refuses here. The ``--json`` envelope carries ``error_code`` (the first code)
+    and ``error_codes`` (every code), like the origin-freshness refusal. With *report_only*
+    (``--diagnose``) the refused report is returned instead, so the diagnosis can show it as a
+    blocked check beside the rest of the readiness report (:func:`_report_evidence_diagnosis`).
+    """
+    manifest = _evidence_lanes_manifest(run)
+    if manifest is None:
+        return None
+    try:
+        report = mission_evidence_report(
+            run.repo_root,
+            _evidence_status_dir(run),
+            manifest,
+            excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
+        )
+    except (StoreError, OSError) as exc:
+        _fail(run.json_output, f"The Mission could not be checked for implementation evidence ({exc}); nothing was accepted.")
+    if report.refusal is None:
+        return None
+    if report_only:
+        return report
+    codes = report.codes
+    _fail(run.json_output, report.refusal, extra_json={"error_code": codes[0] if codes else None, "error_codes": codes})
+
+
+#: The ``--diagnose`` blocked-check name of the evidence refusal (#6715).
+_EVIDENCE_CHECK = "implementation_evidence"
+
+
+def _report_evidence_diagnosis(run: _AcceptRun, summary: AcceptanceSummary, report: EvidenceReport) -> NoReturn:
+    """``--diagnose`` with an evidence refusal: the full diagnosis, the refusal as a blocked check, exit 1."""
+    refusal = report.refusal or ""
+    summary.blocked_checks.append(AcceptanceCheckDiagnostic(check=_EVIDENCE_CHECK, detail=refusal))
+    if run.json_output:
+        codes = report.codes
+        payload = _summary_payload(summary)
+        payload.update({"diagnose": True, "error": refusal, "error_code": codes[0] if codes else None, "error_codes": codes})
+        print(json.dumps(_with_advisories(payload, [run.provenance_note, *run.origin_warnings]), indent=2))
+    else:
+        _report_diagnosis(run, summary)
+    raise typer.Exit(1)
+
+
 def _collect_summary_or_exit(
     run: _AcceptRun,
     *,
@@ -1474,6 +1619,22 @@ def accept(
             ),
         ),
     ] = False,
+    attest_no_implementation: Annotated[
+        list[str] | None,
+        typer.Option(
+            ATTEST_NO_IMPLEMENTATION_FLAG,
+            help=(
+                "Operator attestation (repeatable, one WP id each): the named approved work package owes no "
+                "implementation (for example its deliverable already exists). Lifts IMPLEMENTATION_MISSING for that "
+                "work package only; never lifts REVIEW_NOT_INDEPENDENT and is never read as a review. "
+                "Requires --attest-reason; recorded durably in the status event log before the readiness checks."
+            ),
+        ),
+    ] = None,
+    attest_reason: Annotated[
+        str | None,
+        typer.Option(ATTEST_REASON_FLAG, help=f"Why no implementation is owed, recorded with {ATTEST_NO_IMPLEMENTATION_FLAG} (required with it)."),
+    ] = None,
 ) -> None:
     """Validate mission readiness before merging to main."""
 
@@ -1500,9 +1661,15 @@ def accept(
         no_commit=no_commit,
         diagnose=diagnose,
     )
+    read_only_flag = "--diagnose" if diagnose else ("--no-commit" if no_commit else None)
+    attested, reason = _validated_no_implementation_request(json_output, attest_no_implementation, attest_reason, read_only_flag=read_only_flag)
     pr_merge = _verify_merge_commit(run, merge_commit, target_branch, attest_first_landing)
     run = _check_origin_freshness(run, origin_check, read_only=no_commit or diagnose)
+    _record_no_implementation_attestations(run, attested, reason)
+    evidence_refusal = _refuse_unevidenced_work(run, report_only=diagnose)
     summary = _collect_summary_or_exit(run, lenient=lenient, diagnose=diagnose, normalize_encoding=normalize_encoding)
+    if evidence_refusal is not None:
+        _report_evidence_diagnosis(run, summary, evidence_refusal)
     _exit_early_for_report_modes(run, summary, diagnose=diagnose, allow_fail=allow_fail)
     outcome = _perform_and_finalize(run, summary, actor=actor, tests=test, pr_merge=pr_merge)
     result = _raise_on_finalize_errors(run, outcome)

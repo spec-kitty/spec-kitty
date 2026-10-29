@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -82,9 +84,19 @@ def write_single_lane_manifest(
     (pre-3.2.x) mission.
     """
     write_mission_meta(feature_dir)
+    # #6715: record the planning commit (the repository's current tip, the commit a lane would be
+    # cut from) when the fixture repository has one, so the evidence window every landing surface
+    # reads is computable — as ``finalize-tasks`` records it on a real Mission.
+    head = subprocess.run(
+        ["git", "-C", str(feature_dir.parents[1]), "rev-parse", "--verify", "--quiet", "HEAD^{commit}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     return write_lanes_json(
         feature_dir,
         LanesManifest(
+            planning_commit_sha=head.stdout.strip() or None,
             version=1,
             mission_slug=feature_dir.name,
             mission_id=mission_id or feature_dir.name,
@@ -161,3 +173,36 @@ def create_lane_branches(repo_root: Path, lanes_manifest: Any, *, start_point: s
         )
         created.append(branch)
     return created
+
+
+def commit_lane_implementation(repo_root: Path, feature_dir: Path, *, lane_id: str = "lane-a", path: str = "src/lane_impl.py") -> str:
+    """#6715: commit a real change to *path* on a lane's branch, as an implementer would.
+
+    ``move-task``, ``accept`` and ``consolidate`` refuse a work package whose evidence window
+    (``planning_commit_sha..<lane branch>``, ``consolidation/wp_evidence.py``) holds no change to
+    its ``owned_files``. A lanes fixture that moves a work package into review or approves it
+    therefore needs that commit. The lane branch is created at the recorded planning commit when
+    absent; the commit is written with git plumbing, so no checkout or index of *repo_root*
+    changes. *path* must match the work package's ``owned_files``. Returns the new lane tip.
+    """
+    from specify_cli.lanes.persistence import require_lanes_json
+
+    manifest = require_lanes_json(feature_dir)
+    assert manifest.planning_commit_sha, "lanes.json must record planning_commit_sha (write it once the repository has a commit)"
+    branch = lane_created_branch(manifest, lane_id)
+
+    def git(*args: str, env: dict[str, str] | None = None, stdin: str | None = None) -> str:
+        proc = subprocess.run(["git", "-C", str(repo_root), *args], check=True, capture_output=True, text=True, env=env, input=stdin)
+        return proc.stdout.strip()
+
+    exists = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], capture_output=True, text=True, check=False)
+    parent = exists.stdout.strip() if exists.returncode == 0 else manifest.planning_commit_sha
+    with tempfile.TemporaryDirectory() as scratch:
+        env = {**os.environ, "GIT_INDEX_FILE": str(Path(scratch) / "index")}
+        git("read-tree", parent, env=env)
+        blob = git("hash-object", "-w", "--stdin", stdin=f"# implementation of {path}\n")
+        git("update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=env)
+        tree = git("write-tree", env=env)
+    tip = git("commit-tree", tree, "-p", parent, "-m", f"feat: implement {path}")
+    git("update-ref", f"refs/heads/{branch}", tip)
+    return tip

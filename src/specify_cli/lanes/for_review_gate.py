@@ -127,7 +127,11 @@ _STATUS_ONLY_PREFIX_TEMPLATES = (
 _KITTIFY_PREFIX = ".kittify/"
 
 
-def _status_only_excluded_prefixes(mission_slug: str) -> tuple[str, ...]:
+def status_only_excluded_prefixes(mission_slug: str) -> tuple[str, ...]:
+    """The path prefixes that never count as implementation work: the ONE list (#6715).
+
+    The for_review gate and the evidence axis (``consolidation.wp_evidence``) both read it.
+    """
     return tuple(template.format(slug=mission_slug) for template in _STATUS_ONLY_PREFIX_TEMPLATES) + (_KITTIFY_PREFIX,)
 
 
@@ -154,7 +158,7 @@ def _has_qualifying_commit_since_claim_base(
     except GitCommandError:
         # Guard: an unreadable range must refuse, never pass vacuously.
         return False
-    excluded_prefixes = _status_only_excluded_prefixes(mission_slug)
+    excluded_prefixes = status_only_excluded_prefixes(mission_slug)
     return any(not str(path).startswith(excluded_prefixes) for path in touched)
 
 

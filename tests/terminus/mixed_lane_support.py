@@ -125,7 +125,7 @@ def ensure_wp01_subtasks_roster(mission: CoordMission) -> None:
     """
     wp01_file = mission.feature_dir / "tasks" / "WP01-work.md"
     wp01_file.write_text(
-        "---\nwork_package_id: WP01\ntitle: WP01 work\nagent: implementer-ivan\nsubtasks: []\n---\n# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: WP01 work\nagent: implementer-ivan\nsubtasks: []\nowned_files:\n  - src/**\n---\n# WP01\n",
         encoding="utf-8",
     )
     git(mission.repo, "add", str(wp01_file.relative_to(mission.repo)))

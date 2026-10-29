@@ -1,8 +1,8 @@
 """Unit coverage for the #5939 single_branch implementation-evidence + independence axis.
 
 The end-to-end guards live in ``tests/integration/test_5939_single_branch_autowalk_guards.py``;
-this file pins the consolidate-side axis (``reconciliation._single_branch_evidence_refusal``) and
-its pure helpers directly, over a tiny real git repo, so the fail-closed / refuse branches are
+this file pins the consolidate-side axis (now the single_branch voice of
+``consolidation.wp_evidence.evaluate_evidence``, #6715) and its pure helpers directly, over a tiny real git repo, so the fail-closed / refuse branches are
 cheap to exercise.
 """
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.consolidation import reconciliation
+from specify_cli.consolidation import wp_evidence
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -72,14 +72,33 @@ def _manifest() -> LanesManifest:
 _APPROVED = {"WP01": {"lane": "approved"}}
 
 
-def _refuse(repo: Path, fd: Path, window: tuple[str, str] | None, *, is_single_branch: bool = True) -> str | None:
-    return reconciliation._single_branch_evidence_refusal(repo, fd, _manifest(), _APPROVED, frozenset(), window, is_single_branch=is_single_branch)
+def _windowed(window: tuple[str, str] | None) -> LanesManifest:
+    """The manifest whose single_branch evidence window is *window* (``None``: no planning commit)."""
+    manifest = _manifest()
+    if window is not None:
+        manifest.planning_commit_sha, manifest.mission_branch = window
+    return manifest
 
 
-def test_not_single_branch_never_refuses(tmp_path: Path) -> None:
+def _refuse(
+    repo: Path,
+    fd: Path,
+    window: tuple[str, str] | None,
+    *,
+    is_single_branch: bool = True,
+    work_packages: dict[str, dict[str, str]] = _APPROVED,
+) -> str | None:
+    report = wp_evidence.evaluate_evidence(repo, fd, _windowed(window), work_packages, (), events=list, is_single_branch=is_single_branch)
+    return report.refusal
+
+
+def test_not_single_branch_speaks_the_neutral_codes(tmp_path: Path) -> None:
+    """#6715: a non-single_branch Mission is judged too, with the neutral codes, never the single_branch voice."""
     repo = _repo(tmp_path)
     fd = _feature_dir(repo)
-    assert _refuse(repo, fd, None, is_single_branch=False) is None
+    refusal = _refuse(repo, fd, None, is_single_branch=False)
+    assert refusal is not None
+    assert wp_evidence._refusal_codes(refusal) == [wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE]
 
 
 def test_single_branch_with_uncomputable_window_fails_closed(tmp_path: Path) -> None:
@@ -88,18 +107,15 @@ def test_single_branch_with_uncomputable_window_fails_closed(tmp_path: Path) -> 
     fd = _feature_dir(repo)
     refusal = _refuse(repo, fd, None, is_single_branch=True)
     assert refusal is not None
-    assert reconciliation._SB_WINDOW_UNCOMPUTABLE in refusal
-    assert reconciliation.single_branch_refusal_codes(refusal) == [reconciliation._SB_WINDOW_UNCOMPUTABLE]
+    assert wp_evidence.SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE in refusal
+    assert wp_evidence._refusal_codes(refusal) == [wp_evidence.SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE]
 
 
 def test_no_approved_wps_never_refuses(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     fd = _feature_dir(repo)
     base = _git(repo, "rev-parse", "HEAD")
-    result = reconciliation._single_branch_evidence_refusal(
-        repo, fd, _manifest(), {"WP01": {"lane": "in_progress"}}, frozenset(), (base, "main"), is_single_branch=True
-    )
-    assert result is None
+    assert _refuse(repo, fd, (base, "main"), work_packages={"WP01": {"lane": "in_progress"}}) is None
 
 
 def test_approved_wp_with_no_implementation_commit_refuses(tmp_path: Path) -> None:
@@ -112,9 +128,9 @@ def test_approved_wp_with_no_implementation_commit_refuses(tmp_path: Path) -> No
     _git(repo, "commit", "-qm", "docs only")
     refusal = _refuse(repo, fd, (base, "main"))
     assert refusal is not None
-    assert reconciliation._SB_IMPLEMENTATION_MISSING in refusal
+    assert wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_MISSING in refusal
     assert "WP01" in refusal
-    assert reconciliation.single_branch_refusal_codes(refusal) == [reconciliation._SB_IMPLEMENTATION_MISSING]
+    assert wp_evidence._refusal_codes(refusal) == [wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_MISSING]
 
 
 def _event(event_id: str, at: str, from_lane: str, to_lane: str, actor: str) -> dict[str, object]:
@@ -156,8 +172,8 @@ def test_implementation_present_but_unknown_implementer_refuses_strict(tmp_path:
     _impl_commit(repo)
     refusal = _refuse(repo, fd, (base, "main"))
     assert refusal is not None
-    assert reconciliation._SB_REVIEW_NOT_INDEPENDENT in refusal
-    assert reconciliation._SB_IMPLEMENTATION_MISSING not in refusal
+    assert wp_evidence.SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT in refusal
+    assert wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_MISSING not in refusal
 
 
 def test_implementation_present_but_same_actor_review_refuses(tmp_path: Path) -> None:
@@ -176,8 +192,8 @@ def test_implementation_present_but_same_actor_review_refuses(tmp_path: Path) ->
     )
     refusal = _refuse(repo, fd, (base, "main"))
     assert refusal is not None
-    assert reconciliation._SB_REVIEW_NOT_INDEPENDENT in refusal
-    assert reconciliation._SB_IMPLEMENTATION_MISSING not in refusal
+    assert wp_evidence.SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT in refusal
+    assert wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_MISSING not in refusal
 
 
 def test_implementation_present_with_independent_review_passes(tmp_path: Path) -> None:
@@ -201,15 +217,15 @@ def test_unreadable_window_fails_closed(tmp_path: Path) -> None:
     fd = _feature_dir(repo)
     refusal = _refuse(repo, fd, ("0" * 40, "main"))  # unresolvable base -> GitProbeError -> REFUSE
     assert refusal is not None
-    assert reconciliation._SB_EVIDENCE_UNREADABLE in refusal
+    assert wp_evidence._SINGLE_BRANCH_EVIDENCE_UNREADABLE in refusal
 
 
 def test_owned_pattern_helpers_normalize_and_match() -> None:
-    patterns = reconciliation._sb_owned_patterns(["./src/m1/**", "  ", "a\\b/*"])
+    patterns = wp_evidence.owned_patterns(["./src/m1/**", "  ", "a\\b/*"])
     assert patterns == ("src/m1/**", "a/b/*")
-    assert reconciliation._sb_matches_owned("src/m1/deep/x.py", ("src/m1/**",))
-    assert reconciliation._sb_matches_owned("src/m1/x.py", ("src/m1/**",))
-    assert not reconciliation._sb_matches_owned("src/m2/x.py", ("src/m1/**",))
+    assert wp_evidence.matches_owned("src/m1/deep/x.py", ("src/m1/**",))
+    assert wp_evidence.matches_owned("src/m1/x.py", ("src/m1/**",))
+    assert not wp_evidence.matches_owned("src/m2/x.py", ("src/m1/**",))
 
 
 def test_mirrored_owned_match_stays_in_lockstep_with_cli_layer() -> None:
@@ -224,20 +240,20 @@ def test_mirrored_owned_match_stays_in_lockstep_with_cli_layer() -> None:
         ("./src/m1/y.py", ("src/m1/**",)),
     ]
     for path, patterns in cases:
-        assert reconciliation._sb_matches_owned(path, patterns) == mt._mt_matches_owned_file(path, patterns)
+        assert wp_evidence.matches_owned(path, patterns) == mt._mt_matches_owned_file(path, patterns)
 
 
 def test_refusal_codes_reads_each_distinct_leading_code() -> None:
     text = (
         "Mission fx: ...\n"
-        f"{reconciliation._SB_IMPLEMENTATION_MISSING}: WP01 ...\n"
-        f"{reconciliation._SB_REVIEW_NOT_INDEPENDENT}: WP02 ...\n"
-        f"{reconciliation._SB_IMPLEMENTATION_MISSING}: WP03 ...\n"
+        f"{wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_MISSING}: WP01 ...\n"
+        f"{wp_evidence.SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT}: WP02 ...\n"
+        f"{wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_MISSING}: WP03 ...\n"
         "Recovery: ...\n"
     )
-    assert reconciliation.single_branch_refusal_codes(text) == [
-        reconciliation._SB_IMPLEMENTATION_MISSING,
-        reconciliation._SB_REVIEW_NOT_INDEPENDENT,
+    assert wp_evidence._refusal_codes(text) == [
+        wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_MISSING,
+        wp_evidence.SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT,
     ]
 
 

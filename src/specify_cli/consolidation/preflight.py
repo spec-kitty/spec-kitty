@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import shlex
 import zlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -40,6 +41,7 @@ from specify_cli.consolidation._constants import (
 )
 from specify_cli.git.ref_advance import reset_would_obstruct_untracked
 from specify_cli.consolidation.approved_bound import is_approved_reviewed_attestation
+from specify_cli.consolidation.no_implementation_attestation import is_no_implementation_attestation
 from specify_cli.consolidation.git_probes import _has_branch_ref, _lane_already_integrated, sha_reachable_from
 from specify_cli.consolidation.state import load_state
 from specify_cli.post_merge.review_artifact_consistency import (
@@ -49,7 +51,9 @@ from specify_cli.post_merge.review_artifact_consistency import (
 )
 from specify_cli.missions._read_path_resolver import mission_dir_aliases
 from specify_cli.status import (
+    GENERIC_IMPLEMENTATION_ACTORS,
     REVIEWER_SELF_APPROVAL,
+    _actor_key,
     actor_full_identity,
     is_migration_actor,
     latest_implementer_event,
@@ -529,19 +533,34 @@ def _latest_actor_for_transition(feature_dir: Path, wp_id: str, to_lane: str) ->
     Returns ``None`` when the log is absent/unreadable or no matching,
     actor-bearing transition exists for this WP. An operator attestation of an
     approval (``--attest-approved-reviewed``, #5668) is a forced ``approved ->
-    approved`` record, not a review, so it is never the approving transition.
+    approved`` record, not a review, so it is never the approving transition;
+    neither is a no-implementation attestation (``--attest-no-implementation``,
+    #6715), which only lifts ``IMPLEMENTATION_MISSING``.
     A migration seed (#6257) is never the actor of record either: a
     ``verdict_provenance_backfill`` seed into ``approved`` restates a verdict, it
-    is not a review.
+    is not a review. A generic placeholder actor (``GENERIC_IMPLEMENTATION_ACTORS``
+    through ``_actor_key``, the projection the implementer side uses, #6715) names
+    nobody: when the latest matching transition carries one, the actor is unknown
+    (``None``), so a move recorded as ``user`` is never an independent review.
     """
     latest: str | None = None
     for event in read_events_lenient(feature_dir):
         if event.wp_id != wp_id or str(event.to_lane) != to_lane:
             continue
-        if is_approved_reviewed_attestation(event.policy_metadata) or is_migration_actor(event.actor):
+        if _is_operator_attestation(event.policy_metadata) or is_migration_actor(event.actor):
+            continue
+        if _actor_key(event.actor) in GENERIC_IMPLEMENTATION_ACTORS:
+            # #6715: a generic placeholder (``user``, ``unknown``, ...) names no actor, so the
+            # latest such transition leaves the actor of record unknown, never an earlier one.
+            latest = None
             continue
         latest = actor_full_identity(event.actor) or latest
     return latest
+
+
+def _is_operator_attestation(policy_metadata: dict[str, Any] | None) -> bool:
+    """True for an operator attestation that is never a review (approved-reviewed, #5668; no-implementation, #6715)."""
+    return is_approved_reviewed_attestation(policy_metadata) or is_no_implementation_attestation(policy_metadata)
 
 
 def _latest_implementer_identity(feature_dir: Path, wp_id: str) -> str | None:
@@ -584,7 +603,9 @@ def _review_force_counts(feature_dir: Path, wp_set: set[str]) -> dict[str, int]:
     ``move-task --to planned --force --review-feedback-file`` is the standard
     rejection path and a review claim is a forced ``for_review -> in_progress``
     move, so both raise the reducer's ``force_count``. Those transitions are
-    evidence of review, not of its absence. Lines are deduped by ``event_id`` as the reducer dedupes them;
+    evidence of review, not of its absence. A no-implementation attestation
+    (#6715) is a forced operator self-transition that says nothing about the
+    review, so it is discounted too. Lines are deduped by ``event_id`` as the reducer dedupes them;
     an absent or unreadable log yields no discount (fail toward warning).
     """
     from specify_cli.review.rejection_signal import is_documented_review_rejection, is_review_claim
@@ -604,11 +625,19 @@ def _review_force_counts(feature_dir: Path, wp_set: set[str]) -> dict[str, int]:
         if not isinstance(event, dict) or not event.get("force") or event.get("wp_id") not in wp_set:
             continue
         event_id = str(event.get("event_id") or "")
-        if (event_id and event_id in seen) or not (is_documented_review_rejection(event) or is_review_claim(event)):
+        if (event_id and event_id in seen) or not _is_discounted_force(event, is_documented_review_rejection, is_review_claim):
             continue
         seen.add(event_id)
         counts[event["wp_id"]] = counts.get(event["wp_id"], 0) + 1
     return counts
+
+
+def _is_discounted_force(event: dict[str, Any], *predicates: Callable[[dict[str, Any]], bool]) -> bool:
+    """True when a forced event is a review signal (*predicates*) or a no-implementation attestation (#6715)."""
+    metadata = event.get("policy_metadata")
+    if is_no_implementation_attestation(metadata if isinstance(metadata, dict) else None):
+        return True
+    return any(predicate(event) for predicate in predicates)
 
 
 def _collect_force_count_warnings(

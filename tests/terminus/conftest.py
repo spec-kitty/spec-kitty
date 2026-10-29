@@ -101,6 +101,113 @@ def git_rev(repo: Path, ref: str) -> str:
     return result.stdout.strip() if result.returncode == 0 else ""
 
 
+def declare_owned_files(feature_dir: Path, wp_ids: Sequence[str], globs: Sequence[str] = ("src/**",)) -> None:
+    """Write (or complete) each work package's task file so it declares an owned surface (#6715).
+
+    The evidence axis asks whether an approved work package's ``owned_files`` changed in its lane
+    window; a work package that declares none cannot prove an implementation, so every landing
+    surface refuses it. A fixture whose subject is something else states the ownership its lanes
+    actually commit. Per-WP ownership precision is pinned by ``tests/consolidation/test_wp_evidence.py``.
+    """
+    tasks = feature_dir / "tasks"
+    tasks.mkdir(parents=True, exist_ok=True)
+    owned = "".join(f"  - {glob}\n" for glob in globs)
+    for wp_id in wp_ids:
+        existing = next((path for path in sorted(tasks.glob(f"{wp_id}*.md"))), None)
+        if existing is None:
+            (tasks / f"{wp_id}-work.md").write_text(
+                f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\ndependencies: []\nsubtasks: []\nowned_files:\n{owned}---\n# {wp_id}\n",
+                encoding="utf-8",
+            )
+            continue
+        text = existing.read_text(encoding="utf-8")
+        if "owned_files:" not in text:
+            head, _, rest = text.partition("---\n")
+            front, _, body = rest.partition("---\n")
+            existing.write_text(f"{head}---\n{front}owned_files:\n{owned}---\n{body}", encoding="utf-8")
+
+
+def pin_planning_commit(repo: Path, feature_dir: Path, ref: str = "HEAD", *, commit_message: str | None = None) -> str:
+    """Record *ref* as the manifest's ``planning_commit_sha``, as ``finalize-tasks`` records it.
+
+    The evidence axis (``consolidation/wp_evidence``, #6715) windows every lane from the recorded
+    planning commit, so a fixture manifest without one reads as ``EVIDENCE_WINDOW_UNCOMPUTABLE``
+    on every landing surface. Fixtures call this once their planning artifacts are committed; the
+    pin is the commit the lanes were cut from, exactly as a real Mission records it.
+    """
+    from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
+
+    manifest = read_lanes_json(feature_dir)
+    assert manifest is not None, f"no lanes.json under {feature_dir}"
+    manifest.planning_commit_sha = git_rev(repo, ref)
+    assert manifest.planning_commit_sha, f"{ref} does not resolve in {repo}"
+    write_lanes_json(feature_dir, manifest)
+    if commit_message is not None:
+        _git(repo, "add", "--", str((feature_dir / "lanes.json").relative_to(repo)))
+        _git(repo, "commit", "-qm", commit_message)
+    return manifest.planning_commit_sha
+
+
+def implementer_claim_events(approved_event: Mapping[str, object], *, actor: str = "implementer-ivan") -> list[dict[str, object]]:
+    """The lane hops an implementer records before *approved_event*, under a DIFFERENT identity (#6715).
+
+    Independence is read from the work package's latest implementer-of-record against its
+    approving actor: a log that holds only the approval records no implementer, which is not
+    evidence of an independent review, so every landing surface refuses it. These hops walk
+    ``planned`` up to the approval's own ``from_lane`` (so the reducer's from-lane continuity
+    holds) with timestamps before any fixture approval, and carry no review reference or stamp.
+    """
+    chain = [("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "for_review"), ("for_review", "in_review")]
+    target = str(approved_event.get("from_lane") or "in_review")
+    hops = chain[: next((idx + 1 for idx, (_frm, to) in enumerate(chain) if to == target), len(chain))]
+    # A ULID excludes I, L, O and U, and the store drops a line whose event_id is not one, so the
+    # claim ids stay inside the alphabet; the work package's own last character keeps two work
+    # packages' claim chains distinct (a repeated event_id makes the whole log unreadable).
+    event_id = str(approved_event.get("event_id", "01HXYZ0CA00000000000000000"))
+    tail = str(approved_event.get("wp_id", ""))[-1:].upper()
+    mark = tail if tail in "0123456789ABCDEFGHJKMNPQRSTVWXYZ" else "0"
+    stem = ("01HXYZ0CA" + event_id[9:]) if len(event_id) >= 10 else event_id
+    events: list[dict[str, object]] = []
+    for idx, (frm, to) in enumerate(hops):
+        event = dict(approved_event)
+        event.update(
+            actor=actor,
+            at=f"2020-01-01T00:0{idx}:00+00:00",
+            event_id=f"{stem[:-2]}{mark}{idx}",
+            from_lane=frm,
+            to_lane=to,
+            review_ref=None,
+            policy_metadata=None,
+        )
+        events.append(event)
+    return events
+
+
+def record_evidence_prerequisites(
+    repo: Path,
+    feature_dir: Path,
+    *,
+    globs: Sequence[str] = ("src/**",),
+    commit_message: str = "chore: record the planning commit and work-package ownership",
+) -> str:
+    """Give a fixture Mission what the evidence axis reads: a planning pin and declared ownership (#6715).
+
+    One call for a fixture whose subject is something other than implementation evidence: every
+    work package the manifest lists declares the surface its lane commits, and the manifest
+    records the planning commit the lanes are cut from. Both are committed, as a real Mission has
+    them committed. Returns the recorded planning commit.
+    """
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    manifest = read_lanes_json(feature_dir)
+    assert manifest is not None, f"no lanes.json under {feature_dir}"
+    declare_owned_files(feature_dir, [wp for lane in manifest.lanes for wp in lane.wp_ids], globs)
+    pin = pin_planning_commit(repo, feature_dir)
+    _git(repo, "add", "-A", "--", str(feature_dir.relative_to(repo)))
+    _git(repo, "commit", "-qm", commit_message)
+    return pin
+
+
 def commits_between(repo: Path, base: str, tip: str) -> list[str]:
     """Return the SHAs reachable from *tip* but not *base* (``git rev-list base..tip``)."""
     result = subprocess.run(
@@ -304,11 +411,15 @@ def _write_manifest(mission: CoordMission, wp_ids: Sequence[str]) -> None:
         computed_from="terminus-red-first-fixture",
     )
     write_lanes_json(mission.feature_dir, manifest)
+    pin_planning_commit(mission.repo, mission.feature_dir)
 
 
+# The code tree is each fixture WP's owned surface (#6715): the evidence axis asks whether an
+# approved WP's owned_files changed in its lane window, and these lanes carry only their own
+# commit. Per-WP ownership precision is pinned by tests/consolidation/test_wp_evidence.py.
 def _write_wp_file(mission: CoordMission, wp_id: str) -> None:
     (mission.feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
-        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nagent: implementer-ivan\n---\n# {wp_id}\n",
+        f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\nagent: implementer-ivan\nowned_files:\n  - src/**\n---\n# {wp_id}\n",
         encoding="utf-8",
     )
 
@@ -685,6 +796,7 @@ def build_coord_mission_mixed_lane(
         computed_from="terminus-red-first-fixture-mixed-lane",
     )
     write_lanes_json(mission.feature_dir, manifest)
+    pin_planning_commit(mission.repo, mission.feature_dir)
     _write_wp_file(mission, survivor_wp)
     _write_wp_file(mission, canceled_wp)
     _commit_planning_artifacts(mission, f"chore({slug}): bootstrap mixed-lane coord mission")
@@ -805,6 +917,7 @@ def build_coord_mission_shared_file(
         computed_from="terminus-shared-file-fixture",
     )
     write_lanes_json(mission.feature_dir, manifest)
+    pin_planning_commit(mission.repo, mission.feature_dir)
     for wp_id in wps:
         _write_wp_file(mission, wp_id)
     _commit_planning_artifacts(mission, f"chore({slug}): bootstrap shared-file coord mission")
@@ -1026,6 +1139,7 @@ def build_coord_mission_mixed_lane_canceled(
         computed_from="terminus-red-first-fixture-mixed-lane-canceled",
     )
     write_lanes_json(mission.feature_dir, manifest)
+    pin_planning_commit(mission.repo, mission.feature_dir)
     _write_wp_file(mission, survivor_wp)
     _write_wp_file(mission, canceled_wp)
     # No status.events.jsonl yet -- the lane doesn't exist, so no lane_head
@@ -1494,6 +1608,7 @@ def build_coord_mission_mixed_lane_with_dependency(
         computed_from="terminus-red-first-fixture-dependency-lane",
     )
     write_lanes_json(mission.feature_dir, manifest)
+    pin_planning_commit(mission.repo, mission.feature_dir)
     for wp in ("WP01", "WP02", "WP03"):
         _write_wp_file(mission, wp)
     _commit_planning_artifacts(mission, f"chore({slug}): bootstrap dependency-lane coord mission")

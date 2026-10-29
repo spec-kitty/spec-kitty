@@ -69,6 +69,7 @@ from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import load_state
 from specify_cli.status import Lane, StatusEvent
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import implementer_claim_events, record_evidence_prerequisites
 
 pytestmark = [
     pytest.mark.integration,
@@ -231,6 +232,7 @@ def _bootstrap_primary_tree_bake_mission(repo: Path) -> Path:
     _write_wp_file(feature_dir)
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap primary-tree mission")
+    record_evidence_prerequisites(repo, feature_dir)
 
     lane_branch = f"kitty/mission-{MISSION_SLUG}-{LANE_ID}"
     _git(repo, "branch", lane_branch, COORD_BRANCH)
@@ -249,7 +251,12 @@ def _bootstrap_primary_tree_bake_mission(repo: Path) -> Path:
     _git(repo, "checkout", COORD_BRANCH)
     coord_feature_dir = repo / "kitty-specs" / MISSION_SLUG
     coord_feature_dir.mkdir(parents=True, exist_ok=True)
-    (coord_feature_dir / "status.events.jsonl").write_text(json.dumps(with_lane_head(_approved_event(), lane_tip), sort_keys=True) + "\n", encoding="utf-8")
+    # #6715: the approval is preceded by the implementer's own lane hops, under a different
+    # identity, so the manufactured approved state reads as an independent review.
+    (coord_feature_dir / "status.events.jsonl").write_text(
+        "".join(json.dumps(event, sort_keys=True) + "\n" for event in [*implementer_claim_events(_approved_event()), with_lane_head(_approved_event(), lane_tip)]),
+        encoding="utf-8",
+    )
     _git(repo, "add", str(coord_feature_dir / "status.events.jsonl"))
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): coord status events")
     _git(repo, "checkout", "main")

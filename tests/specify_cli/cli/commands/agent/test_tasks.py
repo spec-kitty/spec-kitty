@@ -282,7 +282,10 @@ def test_move_task_approval_without_agent_does_not_use_assigned_actor(tmp_path: 
                 "move-task",
                 "WP01",
                 "--to",
-                "approved",
+                # #6715 ruling A: an unforced APPROVAL with no --agent is now refused at the move
+                # (pinned below); the review claim hop still runs without one, and is what this
+                # test reads: it must not impersonate the assigned implementer.
+                "in_review",
                 "--mission",
                 mission_slug,
                 "--no-auto-commit",
@@ -292,7 +295,7 @@ def test_move_task_approval_without_agent_does_not_use_assigned_actor(tmp_path: 
     assert result.exit_code == 0, result.output
     events = [json.loads(line) for line in (feature_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
     emitted = [event for event in events if event.get("kind") != "annotation"][1:]
-    assert [event["to_lane"] for event in emitted] == ["in_review", "approved"]
+    assert [event["to_lane"] for event in emitted] == ["in_review"]
     # Reviewer hops fall back to the operator, never the assigned implementer.
     emitted_actors = [actor_identity_str(event["actor"]) for event in emitted]
     assert set(emitted_actors) == {"user"}
@@ -305,6 +308,11 @@ def test_move_task_approval_without_agent_does_not_use_assigned_actor(tmp_path: 
     }
     # WP-file activity log retired (#2816): attribution lives in the event log only.
     _assert_no_wp_activity_log(wp_file)
+
+    with setup_mocked_env(tmp_path, mission_slug=mission_slug, extra_patches={"_validate_ready_for_review": (True, []), "_check_unchecked_subtasks": []}):
+        approval = runner.invoke(app, ["move-task", "WP01", "--to", "approved", "--mission", mission_slug, "--no-auto-commit"])
+    assert approval.exit_code != 0, approval.output
+    assert "REVIEW_NOT_INDEPENDENT" in approval.output
 
 
 def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_path: Path) -> None:
@@ -328,7 +336,9 @@ def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_pa
                 "move-task",
                 "WP01",
                 "--to",
-                "approved",
+                # #6715 ruling A: the composite walk now stops at the review claim (an unforced
+                # approval with no --agent is refused at the move, pinned below).
+                "in_review",
                 "--mission",
                 mission_slug,
                 "--no-auto-commit",
@@ -346,7 +356,6 @@ def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_pa
     ] == [
         ("for_review", "testbot"),
         ("in_review", "user"),
-        ("approved", "user"),
     ]
     assert emitted[1]["actor"] == {
         "model": None,
@@ -356,6 +365,11 @@ def test_move_task_direct_approval_without_agent_uses_hop_specific_actors(tmp_pa
     }
     # WP-file activity log retired (#2816): attribution lives in the event log only.
     _assert_no_wp_activity_log(wp_file)
+
+    with setup_mocked_env(tmp_path, mission_slug=mission_slug, extra_patches={"_validate_ready_for_review": (True, []), "_check_unchecked_subtasks": []}):
+        approval = runner.invoke(app, ["move-task", "WP01", "--to", "approved", "--mission", mission_slug, "--no-auto-commit"])
+    assert approval.exit_code != 0, approval.output
+    assert "REVIEW_NOT_INDEPENDENT" in approval.output
 
 
 def test_move_task_self_review_fallback_without_agent_records_operator(tmp_path: Path) -> None:
@@ -1779,6 +1793,10 @@ def test_move_task_to_approved_ignores_other_wp_uncommitted_review_cycle_dir(
                 "--mission",
                 mission_slug,
                 "--no-auto-commit",
+                # #6715 ruling A: the approving reviewer is asserted (the assigned agent, so the
+                # ownership guard is unchanged; the implementer of record is the seeding actor).
+                "--agent",
+                "testbot",
             ],
         )
 

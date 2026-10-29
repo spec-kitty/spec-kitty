@@ -34,7 +34,7 @@ from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
 from tests._support.status_seed import seed_status_event
-from tests.lane_test_utils import write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -73,6 +73,8 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
     _git(repo, "config", "user.email", "3243@example.invalid")
     _git(repo, "config", "user.name", "Reject Fix Approve")
     _git(repo, "config", "commit.gpgsign", "false")
+    # #6715: the planning commit lanes.json records, so the evidence window is computable.
+    _git(repo, "commit", "--allow-empty", "-m", "planning base")
     (repo / ".kittify").mkdir()
     # Unprotect "main" so the rejection write's real commit path can succeed —
     # mirrors ``tests/review/test_cycle.py``'s ``_unprotect_main`` idiom.
@@ -87,11 +89,13 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# Tasks\n\n## WP01 - Core\n\n(no subtasks)\n", encoding="utf-8")
     (tasks_dir / "WP01-core.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Core\nagent: reviewer\nsubtasks: []\ntracker_refs: []\ndependencies: []\n---\n\n# WP01\n\n## Activity Log\n",
+        "---\nwork_package_id: WP01\ntitle: Core\nowned_files:\n  - src/**\n"
+        "agent: reviewer\nsubtasks: []\ntracker_refs: []\ndependencies: []\n---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "seed reject-fix-approve fixture")
+    commit_lane_implementation(repo, feature_dir)  # #6715: WP01's implementation on its lane
     _seed_hops(
         feature_dir,
         [

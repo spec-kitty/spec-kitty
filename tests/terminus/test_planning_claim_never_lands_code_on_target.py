@@ -44,7 +44,10 @@ def _wire_planning_dependency(m: CoordMission) -> None:
     """Declare WP02's dependency on WP01 in frontmatter and commit it on the target."""
     wp_file = m.feature_dir / "tasks" / f"{_PLANNING_WP}-work.md"
     wp_file.write_text(
-        f"---\nwork_package_id: {_PLANNING_WP}\ntitle: {_PLANNING_WP} work\ndependencies:\n- WP01\nexecution_mode: planning_artifact\n---\n# {_PLANNING_WP}\n"
+        # #6715: the planning work package states its own surface (its mission dir), which the
+        # evidence axis reads; the rewrite below would otherwise drop the fixture's declaration.
+        f"---\nwork_package_id: {_PLANNING_WP}\ntitle: {_PLANNING_WP} work\ndependencies:\n- WP01\n"
+        f"execution_mode: planning_artifact\nowned_files:\n  - kitty-specs/**\n---\n# {_PLANNING_WP}\n"
     )
     # Canonical bootstrap seed (what finalize-tasks writes): the planning WP starts `planned`.
     with (m.feature_dir / "status.events.jsonl").open("a", encoding="utf-8") as fh:

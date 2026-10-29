@@ -66,7 +66,6 @@ this module, so a patch on that name keeps intercepting.
 
 from __future__ import annotations
 
-import fnmatch
 import json
 import logging
 from collections.abc import Iterable
@@ -79,6 +78,7 @@ from typing import TYPE_CHECKING, Any
 import typer
 
 if TYPE_CHECKING:
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.workspace.context import ResolvedWorkspace
 
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedRefusalCode, placement_seam
@@ -890,22 +890,21 @@ def _drop_lane_coord_residue(worktree_path: Path, paths: tuple[Path, ...]) -> tu
 
 
 def _mt_owned_file_patterns(st: _MoveTaskState) -> tuple[str, ...]:
-    """Return normalized authored ownership patterns for the selected WP."""
+    """Return normalized authored ownership patterns for the selected WP (``wp_evidence``'s normalisation)."""
+    from specify_cli.consolidation import wp_evidence
+
     assert st.wp is not None
     metadata, _body = read_authored_wp_frontmatter(st.wp.path)
-    return tuple(pattern.replace("\\", "/").removeprefix("./") for pattern in metadata.owned_files if pattern.strip())
+    patterns: tuple[str, ...] = wp_evidence.owned_patterns(metadata.owned_files)
+    return patterns
 
 
 def _mt_matches_owned_file(path: str, patterns: tuple[str, ...]) -> bool:
-    """Match a repository-relative path with commit-guard-compatible globs."""
-    normalized = path.replace("\\", "/").removeprefix("./")
-    for pattern in patterns:
-        if fnmatch.fnmatch(normalized, pattern):
-            return True
-        prefix = pattern.replace("/**", "").replace("/*", "").rstrip("/")
-        if prefix and normalized.startswith(prefix + "/"):
-            return True
-    return False
+    """Match a repository-relative path with commit-guard-compatible globs (the one ``wp_evidence`` matcher)."""
+    from specify_cli.consolidation import wp_evidence
+
+    matched: bool = wp_evidence.matches_owned(path, patterns)
+    return matched
 
 
 def _mt_require_owned_implementation(st: _MoveTaskState) -> None:
@@ -934,72 +933,245 @@ def _mt_require_owned_implementation(st: _MoveTaskState) -> None:
         )
 
 
-def _mt_require_single_branch_implementation(st: _MoveTaskState) -> None:
-    """#5939 Layer 2: refuse a review-ward move of a plain single_branch WP with no committed implementation.
+#: Lanes a move "crosses into" when it enters review territory from below (#5939, #6715).
+_REVIEW_WARD_LANES = (Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE)
+#: Lanes an approval lands in; the independence gate guards moves into them.
+_APPROVAL_LANES = (Lane.APPROVED, Lane.DONE)
+_NOT_SHIPPED_CODE = "ticked subtask checkboxes are not shipped code"
 
-    The owned sibling :func:`_mt_require_owned_implementation` covers owned checkouts; plain
-    ``single_branch`` has no lane worktree, so its moves into ``for_review``/``approved`` ran no
-    implementation-evidence gate at all, which let an unforced ``move-task --to approved`` auto-
-    walk a ``planned`` work package to ``approved`` with no commit (#5939, P0). This fires only
-    for a single_branch mission (``single_branch_evidence_window`` resolves on the STORED
-    topology -- a minted-branch and a commit-to-target single_branch both), only when the move
-    crosses into review territory from below, and never under ``--force`` or for an owned
-    checkout. It enforces ONLY implementation evidence; review independence is left to the
-    consolidate backstop so a legitimate implement-then-independently-review flow (a different
-    reviewer, who must use ``--force`` to take over an assigned WP) is not refused at the move.
-    The window matches the consolidate axis: ``git diff`` of
-    ``planning_commit..mission_branch``; an unreadable window refuses (fail-closed).
+
+def _mt_lanes_manifest(st: _MoveTaskState) -> LanesManifest | None:
+    """The Mission's ``lanes.json`` (PRIMARY partition), or ``None`` when it is missing or corrupt.
+
+    A missing or corrupt manifest keeps today's behaviour at the move: the lanes readiness
+    check and the accept/consolidate backstops own that case. A state with no resolved Mission
+    slug (a unit-built state) reads ``st.feature_dir``.
     """
-    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+    from specify_cli.lanes import persistence
 
-    review_ward = (Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE)
-    if st.force or st.owned is not None or st.target_lane not in review_ward or st.old_lane in review_ward:
-        return
+    lanes_dir = placement_seam(st.main_repo_root, st.mission_slug, owned=st.owned).read_dir(MissionArtifactKind.LANE_STATE) if st.mission_slug else st.feature_dir
     try:
-        manifest = require_lanes_json(st.feature_dir)
-    except (MissingLanesError, CorruptLanesError):
-        return
-    from specify_cli.core.vcs.git import git_diff_names_checked
-    from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
+        manifest: LanesManifest = persistence.require_lanes_json(lanes_dir)
+    except (persistence.MissingLanesError, persistence.CorruptLanesError):
+        return None
+    return manifest
 
-    if not is_single_branch_mission(st.main_repo_root, manifest):
-        return  # not a single_branch mission — the owned/lane gates own this move
-    window = single_branch_evidence_window(st.main_repo_root, manifest, assume_single_branch=True)
+
+def _mt_is_single_branch(st: _MoveTaskState) -> bool:
+    """True when the Mission's STORED topology is single_branch (it keeps its ``SINGLE_BRANCH_*`` codes)."""
+    from specify_cli.lanes import single_branch_landing
+
+    manifest = _mt_lanes_manifest(st)
+    return manifest is not None and single_branch_landing.is_single_branch_mission(st.main_repo_root, manifest)
+
+
+def _mt_require_implementation_evidence(st: _MoveTaskState) -> None:
+    """#5939 / #6715: refuse a review-ward move of a work package with no committed implementation.
+
+    The evidence is the one consolidate reads (``consolidation.wp_evidence``): the tree diff of
+    the work package's evidence window, without Mission bookkeeping, holds a change to its
+    ``owned_files``. The window is ``planning_commit..<lane branch>`` for a code lane,
+    ``planning_commit..<target branch>`` for a planning lane and ``planning_commit..mission_branch``
+    for a single_branch Mission, so a move that passes is not refused for evidence at
+    consolidate. A commit count is not evidence: under coordination topology a lane carries tool
+    bookkeeping commits, and any non-owned commit defeats a count (#6715).
+
+    Fires only when the move crosses into review territory from below, never under ``--force``
+    (ruling 3) and never for an owned checkout, which keeps
+    :func:`_mt_require_owned_implementation`. A missing or corrupt ``lanes.json`` keeps today's
+    behaviour. single_branch keeps its ``SINGLE_BRANCH_*`` codes and wording; every other
+    topology refuses with ``IMPLEMENTATION_MISSING`` / ``IMPLEMENTATION_UNREADABLE`` /
+    ``EVIDENCE_WINDOW_UNCOMPUTABLE``, the code leading the message (the non-owned ``--json``
+    envelope carries the message only). An unreadable window refuses (fail closed).
+    """
+    if st.force or st.owned is not None or st.target_lane not in _REVIEW_WARD_LANES or st.old_lane in _REVIEW_WARD_LANES:
+        return
+    manifest = _mt_lanes_manifest(st)
+    if manifest is None:
+        return
+    from specify_cli.lanes import single_branch_landing
+
+    if single_branch_landing.is_single_branch_mission(st.main_repo_root, manifest):
+        _mt_require_single_branch_evidence(st, manifest)
+    else:
+        _mt_require_lane_evidence(st, manifest)
+
+
+def _mt_require_single_branch_evidence(st: _MoveTaskState, manifest: LanesManifest) -> None:
+    """The single_branch leg of :func:`_mt_require_implementation_evidence` (#5939 codes and wording)."""
+    from specify_cli.consolidation import wp_evidence
+    from specify_cli.consolidation.git_probes import GitProbeError
+    from specify_cli.lanes import single_branch_landing
+
+    window = single_branch_landing.single_branch_evidence_window(st.main_repo_root, manifest, assume_single_branch=True)
     if window is None:
         # single_branch WITH no computable evidence window (legacy lanes.json, no
         # planning_commit_sha): fail CLOSED -- we cannot verify an implementation exists (#5939).
         raise ActionContextError(
-            "SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE",
+            wp_evidence.SINGLE_BRANCH_EVIDENCE_WINDOW_UNCOMPUTABLE,
             f"Cannot verify a committed implementation for {st.task_id}: this single_branch mission records no "
             "planning commit, so the implementation-evidence window cannot be computed. Run "
             "`spec-kitty agent mission finalize-tasks` to record the planning commit, then retry.",
         )
     base, tip = window
-    patterns = _mt_owned_file_patterns(st)
-    # Rename handling differs from the consolidate axis by design (#6324 review nit): this gate
-    # reuses the shared ``git_diff_names_checked`` (git's default rename detection), while the
-    # consolidate axis' ``changed_paths_in_range`` runs ``--no-renames``. Both report a touched
-    # owned file in the normal case; the only divergence is a bare rename of an owned file OUT to
-    # a non-owned path with no other edit, which is not real implementation and which the
-    # consolidate backstop catches regardless. The helper hardcodes rename detection and is
-    # shared with other callers, so it is not re-parameterized for this cosmetic difference.
-    changed = git_diff_names_checked(st.main_repo_root, base, tip, diff_filter="ACDMRTUXB")
-    if changed is None:
+    try:
+        changed = wp_evidence.evidence_paths(st.main_repo_root, window, manifest.mission_slug)
+    except GitProbeError as exc:
         raise ActionContextError(
-            "SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE",
+            wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_UNREADABLE,
             f"Could not read the single_branch implementation window {base}..{tip} in "
             f"{st.main_repo_root}; cannot verify {st.task_id} has a committed implementation. Make sure the "
             "mission branch is checked out and its planning commit is reachable, then retry.",
-        )
-    if not patterns or not any(_mt_matches_owned_file(path, patterns) for path in changed):
+        ) from exc
+    if not wp_evidence.has_owned_change(changed, _mt_owned_file_patterns(st)):
         raise ActionContextError(
-            "SINGLE_BRANCH_IMPLEMENTATION_MISSING",
+            wp_evidence.SINGLE_BRANCH_IMPLEMENTATION_MISSING,
             # "no implementation commit" is the phrase lanes/for_review_gate.py and the consolidate
             # axis use; this gate runs before for_review_gate, so its words are what operators read (#6369).
             f"{st.task_id} cannot move into review: no implementation commit touching its owned_files on the "
             "single_branch mission branch. Commit the work package's implementation to its owned_files, then "
-            "retry (ticked subtask checkboxes are not shipped code).",
+            f"retry ({_NOT_SHIPPED_CODE}).",
         )
+
+
+def _mt_lane_window_paths(st: _MoveTaskState, manifest: LanesManifest, lane: ExecutionLane, window: tuple[str, str]) -> frozenset[str]:
+    """The evidence paths of *lane*'s window, widened by its dependency windows by consolidate's one rule.
+
+    ``wp_evidence.widened_lane_paths`` decides when to widen (a lane with dependency lanes whose
+    planning window shows no owned change). Raises
+    :class:`~specify_cli.consolidation.git_probes.GitProbeError` when a window cannot be read.
+    """
+    from specify_cli.consolidation import wp_evidence
+
+    paths: frozenset[str] = wp_evidence.evidence_paths(st.main_repo_root, window, manifest.mission_slug)
+    widened: frozenset[str] = wp_evidence.widened_lane_paths(st.main_repo_root, manifest, lane, paths, [_mt_owned_file_patterns(st)])
+    return widened
+
+
+def _mt_require_lane_evidence(st: _MoveTaskState, manifest: LanesManifest) -> None:
+    """The lanes/coord leg of :func:`_mt_require_implementation_evidence` (neutral codes, #6715)."""
+    from specify_cli.consolidation import wp_evidence
+    from specify_cli.consolidation.git_probes import GitProbeError
+
+    lane = manifest.lane_for_wp(st.task_id)
+    window = wp_evidence.lane_evidence_window(manifest, lane) if lane is not None else None
+    if lane is None or window is None:
+        where = "it is in no lane of lanes.json" if lane is None else f"{lane.lane_id}: lanes.json records no planning commit"
+        code = wp_evidence.EVIDENCE_WINDOW_UNCOMPUTABLE
+        raise ActionContextError(
+            code,
+            f"{code}: {st.task_id} has no evidence window ({where}), so its implementation cannot be verified. "
+            "Run `spec-kitty agent mission finalize-tasks` to record the planning commit, then retry.",
+        )
+    base, tip = window
+    try:
+        paths = _mt_lane_window_paths(st, manifest, lane, window)
+    except GitProbeError as exc:
+        code = wp_evidence.IMPLEMENTATION_UNREADABLE
+        raise ActionContextError(
+            code,
+            f"{code}: {st.task_id}'s evidence window {base}..{tip} ({lane.lane_id}) could not be diffed ({exc}), so its "
+            "implementation cannot be verified. Make the lane branch and the recorded planning commit readable, then retry.",
+        ) from exc
+    if not wp_evidence.has_owned_change(paths, _mt_owned_file_patterns(st)):
+        code = wp_evidence.IMPLEMENTATION_MISSING
+        raise ActionContextError(
+            code,
+            f"{code}: {st.task_id} cannot move into review: no change to its owned_files in its evidence window "
+            f"{base}..{tip} ({lane.lane_id}). Commit the work package's implementation to its owned_files (on its lane "
+            f"branch, or on the target branch for a planning-artifact work package), then retry ({_NOT_SHIPPED_CODE}).",
+        )
+
+
+def _mt_implementer_identity(st: _MoveTaskState) -> str | None:
+    """Full ``tool:model:profile`` identity of the WP's implementer of record, or ``None`` (#5939 identity).
+
+    The projection ``consolidation.preflight._latest_implementer_identity`` reads
+    (``status.latest_implementer_event`` then ``actor_full_identity``), over the routed event log
+    the move itself reads. ``None`` without a resolved Mission slug.
+    """
+    if not st.mission_slug:
+        return None
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.status import actor_full_identity, latest_implementer_event
+
+    events = _tasks.read_events_transactional(feature_dir=st.feature_dir, mission_slug=st.mission_slug, repo_root=st.main_repo_root, owned=st.owned)
+    event = latest_implementer_event(events, st.task_id)
+    if event is None:
+        return None
+    identity: str | None = actor_full_identity(event.actor)
+    return identity
+
+
+#: The actor ``move-task`` records when nobody asserted one (``tasks_move_task_hops._mt_hop_actor``).
+_PLACEHOLDER_HOP_ACTOR = "user"
+
+
+def _mt_approval_actor(st: _MoveTaskState) -> object:
+    """The actor the approving hop will record, built as the executor builds it.
+
+    :func:`~specify_cli.cli.commands.agent.tasks_move_task_hops._mt_hop_actor`: ``--agent``; else,
+    for a hop out of ``in_review``, the review claimer of the event log; else the placeholder
+    ``user``. An auto-walk without ``--agent`` records its own ``in_review`` hop as ``user``, so its
+    approval is ``user`` too. With a resolved binding the actor goes through the self-asserting
+    actor seam (``--profile`` / ``--model`` or the dispatch-resolved one), as
+    ``tasks_move_task_executor._mt_emit_transitions`` does.
+    """
+    from specify_cli.status import build_self_asserting_actor
+
+    claimer = _mt_resolve_active_reviewer_identity(st) if not st.agent and st.old_lane == Lane.IN_REVIEW else None
+    hop_actor = st.agent or claimer or _PLACEHOLDER_HOP_ACTOR
+    if st.resolved_binding is None:
+        return hop_actor
+    actor: object = build_self_asserting_actor(role="reviewer", agent=st.agent, fallback_tool=hop_actor, binding=st.resolved_binding)
+    return actor
+
+
+def _mt_review_code(st: _MoveTaskState) -> str:
+    """``REVIEW_NOT_INDEPENDENT``, or its ``SINGLE_BRANCH_*`` alias on a single_branch Mission."""
+    from specify_cli.consolidation import wp_evidence
+
+    return wp_evidence.SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT if _mt_is_single_branch(st) else wp_evidence.REVIEW_NOT_INDEPENDENT
+
+
+def _mt_require_independent_approval(st: _MoveTaskState) -> None:
+    """#6715: refuse an unforced move into ``approved``/``done`` that is not an independent review.
+
+    Two cases refuse, both under ``REVIEW_NOT_INDEPENDENT`` (single_branch: its alias code):
+
+    * the approval would be recorded as a generic placeholder (no ``--agent``, an ``--agent`` that
+      projects to one, or a bare approval out of a review nobody claimed by name): a placeholder
+      names no reviewer, and accept / consolidate read it as unknown (operator ruling A,
+      2026-10-29). The message asks for ``--agent``;
+    * the approver's ``tool:model:profile`` (the unchanged #5939 identity; the role is
+      lane-stamped, never compared) positively equals the implementer of record. The same agent
+      name with a different ``--profile`` or model is another identity, and an unknown implementer
+      passes here (accept and consolidate stay strict).
+
+    ``--force`` bypasses both (ruling 3).
+    """
+    if st.force or st.target_lane not in _APPROVAL_LANES:
+        return
+    from specify_cli.status import GENERIC_IMPLEMENTATION_ACTORS, _actor_key, actor_full_identity
+
+    actor = _mt_approval_actor(st)
+    key = _actor_key(actor)
+    if key is None or key in GENERIC_IMPLEMENTATION_ACTORS:
+        code = _mt_review_code(st)
+        raise ActionContextError(
+            code,
+            f"{code}: {st.task_id} cannot be approved without a reviewer identity: the approval would be recorded as the "
+            f"placeholder '{key or _PLACEHOLDER_HOP_ACTOR}'. Pass --agent <your identity> (a reviewer other than the implementer).",
+        )
+    approver = actor_full_identity(actor)
+    implementer = _mt_implementer_identity(st)
+    if implementer is None or implementer != approver:
+        return
+    code = _mt_review_code(st)
+    raise ActionContextError(
+        code,
+        f"{code}: {st.task_id} cannot be approved by its implementer ({implementer}). Have a reviewer with a different agent, model or profile approve it.",
+    )
 
 
 def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
@@ -1141,7 +1313,7 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
         # every other read-only guard before that gate; readiness is refreshed
         # immediately after the deferred commit. Other lanes and explicit
         # no-auto-commit moves retain their original validation order.
-        defer_readiness = st.target_lane == Lane.FOR_REVIEW and st.resolved_auto_commit and not st.force
+        defer_readiness = _mt_defers_for_review_readiness(st)
         if not defer_readiness:
             validation_options: dict[str, Any] = {}
             if st.owned is not None:
@@ -1192,14 +1364,21 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     )
 
 
+def _mt_defers_for_review_readiness(st: _MoveTaskState) -> bool:
+    """True when the ``for_review`` readiness check waits for the deliverables auto-commit."""
+    return st.target_lane == Lane.FOR_REVIEW and st.resolved_auto_commit and not st.force
+
+
 def _mt_complete_deferred_for_review_readiness(st: _MoveTaskState) -> None:
     """Commit deliverables and refresh readiness only after the gate permits."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    if not (st.target_lane == Lane.FOR_REVIEW and st.resolved_auto_commit and not st.force):
+    if not _mt_defers_for_review_readiness(st):
         return
     assert st.request is not None
     _mt_commit_lane_deliverables(st)
+    # #6715: the auto-committed deliverables count as implementation evidence.
+    _mt_require_implementation_evidence(st)
     owned: OwnedCheckout | None = None
     workspace_override: object | None = None
     review_base_ref: str | None = None
@@ -1703,10 +1882,14 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         # prevented finalize-tasks from creating lanes.json; #1589).
         _mt_current_event_lane(st)
         _mt_gather_review_facts(st)
+        # #5939 / #6715: before the readiness decision, so its commit count never answers first; a
+        # deferred for_review auto-commit is judged right after that commit instead.
+        if not _mt_defers_for_review_readiness(st):
+            _mt_require_implementation_evidence(st)
         _mt_run_decision(st)
         _mt_run_pre_review_gate(st)
-        _mt_require_single_branch_implementation(st)
         _mt_complete_deferred_for_review_readiness(st)
+        _mt_require_independent_approval(st)
         _mt_finalize_plan(st, ports)
         try:
             _mt_execute(st, ports)

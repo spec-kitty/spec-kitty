@@ -160,6 +160,17 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   is present only when non-empty — a clean commit leaves the payload
   byte-identical — so this is a purely additive, optional field; no field is
   removed or renamed.
+- `1.20.0` — `consolidate-mission` and `accept-mission` now run the implementation-evidence and
+  review-independence axis on every topology (#6715; it covered `single_branch` only, #5939).
+  `consolidate-mission` fails with the existing `PREFLIGHT_FAILED` envelope — the codes in
+  `data.preflight_error_code` / `data.preflight_error_codes` — before it consolidates its first lane;
+  `accept-mission` fails with the existing `MISSION_NOT_READY` and a new optional
+  `data.evidence_error_codes`. The codes are `IMPLEMENTATION_MISSING`, `REVIEW_NOT_INDEPENDENT`,
+  `IMPLEMENTATION_UNREADABLE` and `EVIDENCE_WINDOW_UNCOMPUTABLE` (`single_branch` keeps emitting
+  its documented `SINGLE_BRANCH_*` aliases of the same meaning). A call that used to answer
+  `success: true` while landing a work package approved with no change to its owned files, or
+  approved by its own implementer, now refuses. A behaviour change on previously-`success` calls
+  plus one additive optional field, so a minor bump; no field or `error_code` is removed or renamed.
 - `1.19.0` — `resolve-decision`, `defer-decision` and `cancel-decision` can newly
   fail with `DECISION_LOCK_TIMEOUT` (#4848): the bounded wait on the decisions lock
   (`decisions/index.json.lock`) ran out. It used to escape as a traceback with an empty

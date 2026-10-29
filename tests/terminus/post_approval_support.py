@@ -55,7 +55,7 @@ from tests.terminus.canceled_dependency_support import (
     build_canceled_dependency_mission,
     strip_lane_head_stamps,
 )
-from tests.terminus.conftest import CoordMission, _git, _now_iso, _STATUS_EVENTS_FILENAME
+from tests.terminus.conftest import CoordMission, _git, _now_iso, pin_planning_commit, _STATUS_EVENTS_FILENAME
 from tests.terminus.mixed_lane_support import transition
 
 Topology = Literal["lanes", "coord"]
@@ -96,7 +96,7 @@ def _lane_manifest(slug: str, mission_id: str, mission_branch: str, target_branc
 
 
 def _wp_file(wp: str) -> str:
-    return f"---\nwork_package_id: {wp}\ntitle: {wp} work\ndependencies: []\nsubtasks: []\n---\n# {wp}\n"
+    return f"---\nwork_package_id: {wp}\ntitle: {wp} work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp}\n"
 
 
 def build_post_approval_coord_mission(tmp_path: Path, *, mid8: str = _COORD_MID8, target_branch: str = "main") -> CoordMission:
@@ -130,6 +130,7 @@ def build_post_approval_lanes_mission(tmp_path: Path, *, mid8: str = _LANES_MID8
     lanes_fixture._write_meta(mission, target_branch)
     manifest = _lane_manifest(slug, mission_id, mission_branch, target_branch)
     write_lanes_json(mission.feature_dir, manifest)
+    pin_planning_commit(mission.repo, mission.feature_dir)
     for wp in ("WP01", "WP02"):
         (mission.feature_dir / "tasks" / f"{wp}-work.md").write_text(_wp_file(wp), encoding="utf-8")
     (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text("", encoding="utf-8")

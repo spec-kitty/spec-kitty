@@ -32,7 +32,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from tests.terminus import conftest as _harness
-from tests.terminus.conftest import CoordMission, PlantedChange, git_rev
+from tests.terminus.conftest import CoordMission, PlantedChange, git_rev, pin_planning_commit
 
 # --- single adapter over the conftest private helpers (#5359 rename => one edit) ---
 _run = _harness._run
@@ -50,8 +50,14 @@ _PLANNING_LANE_ID = "lane-planning"
 _GIT_IDENTITY = (("user.email", "t@t.com"), ("user.name", "T"), ("commit.gpgsign", "false"))
 
 
-def _wp_file_text(wp: str) -> str:
-    text = f"---\nwork_package_id: {wp}\ntitle: {wp} work\n---\n# {wp}\n"
+# #6715: each fixture WP declares the surface its lane commits — the code tree for a code lane
+# (these lanes carry only their own commit under ``src/``), its research dir for the planning
+# lane. The evidence axis asks whether an approved WP's owned_files changed in its window, which
+# starts at the planning commit recorded AFTER the bootstrap commit (as ``finalize-tasks`` records
+# it), so the WP's own task files never count as its implementation.
+def _wp_file_text(wp: str, owned: Sequence[str] = ("src/**",)) -> str:
+    globs = "".join(f"  - {glob}\n" for glob in owned)
+    text = f"---\nwork_package_id: {wp}\ntitle: {wp} work\nowned_files:\n{globs}---\n# {wp}\n"
     assert "agent:" not in text, "WP frontmatter must not carry `agent:` (birth-cutover seeds claim events after done)"
     return text
 
@@ -187,12 +193,21 @@ def build_lanes_mission(
     )
 
     all_wps = [*wps, *([planning_wp] if with_planning_lane_wp else [])]
+    research = f"kitty-specs/{slug}/research"
     for wp in all_wps:
-        (m.feature_dir / "tasks" / f"{wp}-work.md").write_text(_wp_file_text(wp))
+        owned = (f"{research}/**",) if wp == planning_wp and with_planning_lane_wp else ("src/**",)
+        (m.feature_dir / "tasks" / f"{wp}-work.md").write_text(_wp_file_text(wp, owned))
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", f"chore({slug}): bootstrap lanes mission")
+    pin_planning_commit(repo, m.feature_dir, commit_message=f"chore({slug}): record the planning commit")
     _git(repo, "branch", mission_branch)
     heads = _cut_lane_branches(m, wps, target_branch)
+    if with_planning_lane_wp and approve_planning_wp:
+        # The planning WP's own deliverable, committed on the target where planning work lands.
+        (repo / research).mkdir(parents=True, exist_ok=True)
+        (repo / research / f"{planning_wp}.md").write_text(f"# {planning_wp} research\n")
+        _git(repo, "add", research)
+        _git(repo, "commit", "-qm", f"docs({slug}): {planning_wp} research")
 
     # The approved status log is written once the lane commits exist, every code-lane
     # event stamped with the real lane tip. The planning lane has no branch, so the
@@ -302,6 +317,8 @@ def build_lanes_mission_canceled_dependency(
         (m.feature_dir / "tasks" / f"{wp}-work.md").write_text(_wp_file_text(wp))
     _git(m.repo, "add", ".")
     _git(m.repo, "commit", "-qm", f"chore({slug}): bootstrap canceled-dependency mission")
+    # #6715: the planning commit is recorded AFTER the bootstrap commit, as finalize-tasks does.
+    manifest.planning_commit_sha = pin_planning_commit(m.repo, m.feature_dir, commit_message=f"chore({slug}): record the planning commit")
     _git(m.repo, "branch", mission_branch)
 
     if dependency_never_started:

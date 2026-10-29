@@ -54,6 +54,7 @@ _LEAKED_PATH = "src/pkg/wp02_new.py"
 _WP01_PATH = "src/pkg/wp01.py"
 _OPEN_WINDOW = "never closed"
 _ACTOR = "landing-recovery-test"
+_REVIEWER = "landing-recovery-reviewer"
 
 
 def _consolidate(mission: CoordMission, *extra: str) -> tuple[int, str]:
@@ -83,13 +84,15 @@ def _supersede_through_wp01_rework(mission: CoordMission) -> None:
     git(mission.repo, "commit", "-qm", "wp01 rework removes canceled wp02's file")
     git(mission.repo, "checkout", "-q", mission.target_branch)
     transition(mission, "WP01", "for_review", actor=_ACTOR, subtasks_complete=True)
-    transition(mission, "WP01", "in_review", actor=_ACTOR)
+    # #6715: the rework's review is recorded by an identity other than the implementer's, as an
+    # independent review is; a re-approval by the reworker itself is refused at every surface.
+    transition(mission, "WP01", "in_review", actor=_REVIEWER)
     transition(
         mission,
         "WP01",
         "approved",
-        actor=_ACTOR,
-        review_result=ReviewResult(reviewer=_ACTOR, verdict="approved", reference="review-wp01-recovery"),
+        actor=_REVIEWER,
+        review_result=ReviewResult(reviewer=_REVIEWER, verdict="approved", reference="review-wp01-recovery"),
     )
 
 

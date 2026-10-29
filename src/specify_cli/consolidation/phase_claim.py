@@ -530,6 +530,7 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     except GitProbeError as exc:
         _exit_on_claim_probe_error(exc)
 
+    _print_no_implementation_lifts(run.feature_dir, run.approved_wp_set.no_implementation_attested_wp_ids)
     run.validated_lane_tips = dict(run.approved_wp_set.bound_lane_tips)
     run.bound_anchor_shas = _bound_anchor_shas(run, coord_base)
 
@@ -544,6 +545,25 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # #5318 / #5332: snapshot every branch this attempt may move, strictly before
     # the first mutating phase, and fix this attempt's restore targets.
     _capture_snapshot_and_begin_attempt(run)
+
+
+def _print_no_implementation_lifts(feature_dir: Path, lifted_wp_ids: frozenset[str]) -> None:
+    """Name every work package whose ``IMPLEMENTATION_MISSING`` an operator attestation lifted (#6715), with its recorded reason.
+
+    *lifted_wp_ids* is the claim's own record of the lift, so an attestation recorded earlier
+    (for example by ``accept``) is named as well as one this run recorded. The log is read
+    strictly (the claim already read it strictly), so a read error here propagates into
+    consolidate's rollback instead of being skipped; the lenient reader is advisory only.
+    """
+    if not lifted_wp_ids:
+        return
+    from rich.markup import escape
+
+    from specify_cli.consolidation.no_implementation_attestation import lifted_notices
+    from specify_cli.status import read_events
+
+    for line in lifted_notices(read_events(feature_dir), lifted_wp_ids):
+        console.print(f"[yellow]{escape(line)}[/yellow]", soft_wrap=True)
 
 
 def _bound_anchor_shas(run: _MergeRunState, coord_base: str) -> tuple[str, ...]:

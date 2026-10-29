@@ -55,6 +55,7 @@ from specify_cli.consolidation.wp_attribution import (
     Unattributable,
     UnattributableReason,
 )
+from tests.terminus.conftest import record_evidence_prerequisites
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -818,9 +819,20 @@ def _build_mission(
 
     from specify_cli.lanes.persistence import write_lanes_json
 
+    # #6715: each WP declares the owned surface its lane commits below, and the manifest records
+    # the planning commit — the base of the evidence window every landing surface reads.
+    for wp in manifest_wps:
+        (feature_dir / "tasks" / f"{wp}-work.md").write_text(
+            f"---\nwork_package_id: {wp}\ntitle: {wp} work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp}\n",
+            encoding="utf-8",
+        )
     write_lanes_json(feature_dir, manifest)
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "bootstrap mission")
+    manifest.planning_commit_sha = _rev(repo, "HEAD")
+    write_lanes_json(feature_dir, manifest)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "record the planning commit")
     coord_base = _rev(repo, "HEAD")
 
     # one lane branch per manifest WP, each with a real approved commit.
@@ -1501,7 +1513,12 @@ def test_squash_authored_deletion_union_across_two_lanes_passes(tmp_path: Path) 
     # _build_mission already committed src/wp02.py on lane-b; WP02 now removes it.
     _git(repo, "checkout", "-q", lane_b)
     _git(repo, "rm", "-q", "src/wp02.py")
-    _git(repo, "commit", "-qm", "feat: wp02 removes its own file")
+    # #6715: the lane keeps a net change beside the deletion, so WP02's approval has committed
+    # evidence; a lane that only undid its own commit delivers nothing and is refused.
+    (repo / "src").mkdir(parents=True, exist_ok=True)
+    (repo / "src" / "wp02_new.py").write_text("# WP02 moved here\n", encoding="utf-8")
+    _git(repo, "add", "src/wp02_new.py")
+    _git(repo, "commit", "-qm", "feat: wp02 removes its own file and adds its replacement")
     _git(repo, "checkout", "-q", _TARGET)
     _restamp_approvals(repo)
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=coord_base, excluded_window_base=coord_base)
@@ -1573,6 +1590,10 @@ def _build_mixed_lane_mission(tmp_path: Path) -> tuple[Path, Path, LanesManifest
     write_lanes_json(feature_dir, manifest)
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "bootstrap mixed-lane mission")
+    # #6715: the evidence axis reads each approved WP's owned_files and the recorded planning
+    # commit; this fixture's subject is elsewhere, so it states both. The pin lands on the
+    # manifest the test passes to the claim builder, not only on the file.
+    manifest.planning_commit_sha = record_evidence_prerequisites(repo, feature_dir)
     coord_base = _rev(repo, "HEAD")
 
     branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
@@ -1764,6 +1785,10 @@ def _build_shared_file_lanes(
     write_lanes_json(feature_dir, manifest)
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "bootstrap mission with shared file")
+    # #6715: the evidence axis reads each approved WP's owned_files and the recorded planning
+    # commit; this fixture's subject is elsewhere, so it states both. The pin lands on the
+    # manifest the test passes to the claim builder, not only on the file.
+    manifest.planning_commit_sha = record_evidence_prerequisites(repo, feature_dir)
     coord_base = _rev(repo, "HEAD")
     events: list[dict[str, object]] = []
     seq = 0
@@ -2456,6 +2481,10 @@ def _build_mixed_lane_entered_mission(
     write_lanes_json(feature_dir, manifest)
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "bootstrap mixed-lane mission")
+    # #6715: the evidence axis reads each approved WP's owned_files and the recorded planning
+    # commit; this fixture's subject is elsewhere, so it states both. The pin lands on the
+    # manifest the test passes to the claim builder, not only on the file.
+    manifest.planning_commit_sha = record_evidence_prerequisites(repo, feature_dir)
     coord_base = _rev(repo, "HEAD")
 
     lane_branch = lane_branch_name(_MISSION_SLUG, "lane-a", target_branch=_TARGET)
@@ -2465,13 +2494,23 @@ def _build_mixed_lane_entered_mission(
     def head() -> str:
         return _rev(repo, "HEAD")
 
+    # #6715: the survivor's own reviewed deliverable on the lane, committed BEFORE its approval
+    # is stamped — an approved work package with nothing committed is what the evidence axis
+    # refuses, and this fixture's subject is the canceled work package's content.
+    survivor_file = repo / "src" / "wp01.py"
+    survivor_file.parent.mkdir(parents=True, exist_ok=True)
+    survivor_file.write_text("# WP01 survivor\n", encoding="utf-8")
+    _git(repo, "add", str(survivor_file))
+    _git(repo, "commit", "-qm", "feat: WP01 survivor content")
+    survivor_stamp = _rev(repo, "HEAD")
+
     events: list[dict[str, object]] = [
         _event(i, "WP01", frm, to, at=f"2026-01-01T00:0{i}:00+00:00", lamport=i) for i, (frm, to) in enumerate(_APPROVE_CHAIN, start=1)
     ]
     for e in events:
         # WP01's approval is always stamped: the stamp names the commit review approved, and
         # ``stamp_attribution`` is only the knob for the CANCELED work package's own events.
-        e["policy_metadata"] = {"lane_head": coord_base}
+        e["policy_metadata"] = {"lane_head": survivor_stamp}
 
     if not entered_implementation:
         events.append(_event(90, "WP02", "planned", "canceled", at="2026-01-02T00:00:00+00:00", lamport=6))

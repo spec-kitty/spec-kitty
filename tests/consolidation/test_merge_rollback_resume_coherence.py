@@ -68,6 +68,7 @@ from tests.consolidation.approval_stamps import with_lane_head
 from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.status import Lane, StatusEvent
+from tests.terminus.conftest import implementer_claim_events, record_evidence_prerequisites
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -344,9 +345,14 @@ def _rb_bootstrap_coord_mission(repo: Path) -> Path:
     _rb_write_meta(feature_dir)
     _rb_write_manifest(feature_dir)
     _rb_write_wp_file(feature_dir)
-    (feature_dir / "status.events.jsonl").write_text(json.dumps(_rb_approved_event(), sort_keys=True) + "\n", encoding="utf-8")
+    # #6715: a claim event by a different identity makes the manufactured approval independent.
+    (feature_dir / "status.events.jsonl").write_text(
+        "".join(json.dumps(event, sort_keys=True) + "\n" for event in [*implementer_claim_events(_rb_approved_event()), _rb_approved_event()]),
+        encoding="utf-8",
+    )
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({RB_MISSION_SLUG}): bootstrap coord mission")
+    record_evidence_prerequisites(repo, feature_dir)
     _git(repo, "branch", RB_COORD_BRANCH)
     lane_branch = f"kitty/mission-{RB_MISSION_SLUG}-{RB_LANE_ID}"
     _git(repo, "branch", lane_branch, RB_COORD_BRANCH)
@@ -608,6 +614,7 @@ def _f1_bootstrap_primary_tree_bake_mission(repo: Path) -> Path:
     _f1_write_wp_file(feature_dir)
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({F1_MISSION_SLUG}): bootstrap primary-tree mission")
+    record_evidence_prerequisites(repo, feature_dir)
 
     lane_branch = f"kitty/mission-{F1_MISSION_SLUG}-{F1_LANE_ID}"
     _git(repo, "branch", lane_branch, F1_COORD_BRANCH)
@@ -626,7 +633,12 @@ def _f1_bootstrap_primary_tree_bake_mission(repo: Path) -> Path:
     _git(repo, "checkout", F1_COORD_BRANCH)
     coord_feature_dir = repo / "kitty-specs" / F1_MISSION_SLUG
     coord_feature_dir.mkdir(parents=True, exist_ok=True)
-    (coord_feature_dir / "status.events.jsonl").write_text(json.dumps(with_lane_head(_f1_approved_event(), lane_tip), sort_keys=True) + "\n", encoding="utf-8")
+    (coord_feature_dir / "status.events.jsonl").write_text(
+        "".join(
+            json.dumps(event, sort_keys=True) + "\n" for event in [*implementer_claim_events(_f1_approved_event()), with_lane_head(_f1_approved_event(), lane_tip)]
+        ),
+        encoding="utf-8",
+    )
     _git(repo, "add", str(coord_feature_dir / "status.events.jsonl"))
     _git(repo, "commit", "-m", f"chore({F1_MISSION_SLUG}): coord status events")
     _git(repo, "checkout", "main")

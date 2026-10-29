@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, NoReturn
 if TYPE_CHECKING:
     from specify_cli.acceptance import AcceptanceSummary
     from specify_cli.core.paths import RetentionDecision
+    from specify_cli.consolidation.wp_evidence import EvidenceReport
     from specify_cli.lanes.models import LanesManifest
 
 import click
@@ -521,39 +522,55 @@ def _refuse_post_approval_lane_content(main_repo_root: Path, mission_dir: Path, 
         )
 
 
-def _refuse_single_branch_hollow_content(main_repo_root: Path, mission_dir: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
-    """#5939: refuse a single_branch mission whose approved WPs have no implementation or no independent review.
+def _no_implementation_attestation_note(refusal: str, command: str) -> str:
+    """*refusal*, plus a note that this *command* cannot record the no-implementation attestation it names (#6715)."""
+    from specify_cli.consolidation.wp_evidence import ATTEST_NO_IMPLEMENTATION_FLAG
 
-    The ``consolidate`` CLI runs this axis inside ``build_approved_wp_set``; this command's
-    single_branch path short-circuits to ``_execute_planning_only_merge`` and so never reaches
-    the claim builder, so the shared public entry
-    (:func:`~specify_cli.consolidation.reconciliation.single_branch_evidence_refusal`) runs
-    here, before any lane is merged. Non-single_branch and genuine planning-only missions
-    resolve a ``None`` authorship window and pass through untouched.
+    if ATTEST_NO_IMPLEMENTATION_FLAG not in refusal:
+        return refusal
+    return (
+        f"{refusal}\n{command} has no attestation flag: attestation is done with `spec-kitty accept` or `spec-kitty consolidate` (CLI only), not with this command."
+    )
+
+
+def _evidence_report(main_repo_root: Path, mission_dir: Path, mission_slug: str, lanes_manifest: LanesManifest) -> EvidenceReport:
+    """The #5939 / #6715 evidence + independence verdict for this Mission, every topology.
+
+    The excluded (acceptably canceled) work packages are the ones the executor resolves. A status
+    surface that cannot be read raises :class:`RuntimeError`, so the caller refuses.
     """
     from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
-    from specify_cli.consolidation.reconciliation import single_branch_evidence_refusal, single_branch_refusal_codes
-    from specify_cli.lanes.single_branch_landing import is_single_branch_meta
-    from specify_cli.mission_metadata import load_meta_or_empty
+    from specify_cli.consolidation.wp_evidence import mission_evidence_report
     from specify_cli.status import StoreError
 
-    # Topology gate FIRST, read slug-free from the real mission_dir: a non-single_branch mission
-    # (a planning-only merge included) no-ops WITHOUT computing the canceled-WP set or otherwise
-    # using the slug as a path segment, which the axis must not do on a path it does not apply to.
-    if not is_single_branch_meta(load_meta_or_empty(mission_dir)):
-        return
     try:
-        refusal = single_branch_evidence_refusal(
+        return mission_evidence_report(
             main_repo_root,
             mission_dir,
             lanes_manifest,
             excluded_canceled_wp_ids=acceptably_canceled_wp_ids(main_repo_root, mission_slug),
         )
     except (StoreError, OSError) as exc:
-        raise RuntimeError(f"The single_branch mission could not be checked for implementation evidence ({exc}); no work was merged.") from exc
-    if refusal is not None:
-        codes = single_branch_refusal_codes(refusal)
-        raise ApprovedBoundRefused(refusal, error_code=codes[0] if codes else None, error_codes=codes)
+        raise RuntimeError(f"The Mission could not be checked for implementation evidence ({exc}); no work was merged.") from exc
+
+
+def _refuse_hollow_or_self_reviewed_content(main_repo_root: Path, mission_dir: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
+    """#5939 / #6715: refuse, before any lane is merged, an approved WP with no implementation or no independent review.
+
+    The ``consolidate`` CLI runs this axis inside ``build_approved_wp_set``; this command merges
+    lanes with no claim builder behind it (and short-circuits single_branch and planning-only
+    Missions to ``_execute_planning_only_merge``), so the shared predicate
+    (:func:`~specify_cli.consolidation.wp_evidence.mission_evidence_report`) runs here on every
+    topology, before the first merge.
+    """
+    report = _evidence_report(main_repo_root, mission_dir, mission_slug, lanes_manifest)
+    if report.refusal is not None:
+        codes = report.codes
+        raise ApprovedBoundRefused(
+            _no_implementation_attestation_note(report.refusal, "consolidate-mission"),
+            error_code=codes[0] if codes else None,
+            error_codes=codes,
+        )
 
 
 def _execute_lane_merge(
@@ -586,9 +603,10 @@ def _execute_lane_merge(
     lanes_manifest.target_branch = target_branch
     merge_strategy = MergeStrategy(strategy)
     _refuse_protected_status_target(main_repo_root, mission_slug, lanes_manifest)
-    # #5939: fail-closed single_branch backstop, before the planning-only short-circuit below
-    # (a protected single_branch manifest reads planning-artifact-only but lands real code).
-    _refuse_single_branch_hollow_content(main_repo_root, mission_dir, mission_slug, lanes_manifest)
+    # #5939 / #6715: fail-closed evidence + independence backstop on every topology, before the
+    # planning-only short-circuit below (a protected single_branch manifest reads
+    # planning-artifact-only but lands real code, and a planning lane is judged too).
+    _refuse_hollow_or_self_reviewed_content(main_repo_root, mission_dir, mission_slug, lanes_manifest)
 
     if is_planning_artifact_only(lanes_manifest):
         _execute_planning_only_merge(
@@ -758,6 +776,41 @@ def _stamp_mission_acceptance_or_fail(cmd: str, mission_dir: Path, summary: Acce
     return str(meta["accepted_at"])
 
 
+def _refuse_unevidenced_acceptance(cmd: str, main_repo_root: Path, mission_dir: Path, mission_slug: str) -> None:
+    """#6715: ``MISSION_NOT_READY`` when an approved WP has no implementation evidence or no independent review.
+
+    The same predicate ``accept`` and ``consolidate`` run, on every topology; the codes ride in
+    ``data.evidence_error_codes``. A missing or unreadable ``lanes.json`` or status surface
+    refuses too (the evidence window cannot be computed).
+    """
+    from specify_cli.consolidation.wp_evidence import EVIDENCE_WINDOW_UNCOMPUTABLE
+    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
+
+    identity = _common._mission_identity_payload(mission_dir)
+    try:
+        lanes_manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission_slug))
+    except CorruptLanesError as exc:
+        lanes_manifest, unreadable, corrupt = None, str(exc), True
+    else:
+        unreadable, corrupt = "lanes.json could not be read", False
+    if lanes_manifest is None:
+        if not corrupt:
+            # No manifest at all: the acceptance-readiness verdict below owns that case and
+            # refuses with its own ``lanes_manifest`` blocked check, so this gate stays quiet.
+            return
+        message = f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: the implementation-evidence window cannot be computed ({unreadable})."
+        _fail(cmd, "MISSION_NOT_READY", message, {**identity, "evidence_error_codes": [EVIDENCE_WINDOW_UNCOMPUTABLE]})
+        return
+    try:
+        report = _evidence_report(main_repo_root, mission_dir, mission_slug, lanes_manifest)
+    except RuntimeError as exc:
+        _fail(cmd, "MISSION_NOT_READY", str(exc), identity)
+        return
+    if report.refusal is not None:
+        message = _no_implementation_attestation_note(report.refusal, cmd)
+        _fail(cmd, "MISSION_NOT_READY", message, {**identity, "evidence_error_codes": report.codes})
+
+
 def accept_mission(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
@@ -798,6 +851,7 @@ def accept_mission(
             },
         )
         return
+    _refuse_unevidenced_acceptance(cmd, main_repo_root, mission_dir, mission)
 
     from specify_cli.acceptance import ACCEPTANCE_CHECKS_FAILED_MESSAGE, AcceptanceError, collect_feature_summary
     from specify_cli.acceptance.matrix import AcceptanceMatrixParseError

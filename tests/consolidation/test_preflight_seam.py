@@ -84,7 +84,7 @@ def test_collect_force_count_warnings_no_status_file(tmp_path: Path) -> None:
     assert warnings == {}
 
 
-def _write_transition(tmp_path: Path, *, wp_id: str, to_lane: str, actor: str, event_id: str, at: str) -> None:
+def _write_transition(tmp_path: Path, *, wp_id: str, to_lane: str, actor: object, event_id: str, at: str) -> None:
     with (tmp_path / "status.events.jsonl").open("a", encoding="utf-8") as fh:
         fh.write(
             json.dumps(
@@ -196,6 +196,26 @@ def test_independent_reviewer_not_confirmed_when_actor_unknown(tmp_path: Path) -
         event_id="01B",
         at="2026-07-21T01:00:00Z",
     )
+    assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is False
+
+
+@pytest.mark.parametrize("placeholder", ["user", "unknown", "implement-command", '{"tool": "user", "role": "reviewer"}'])
+def test_a_placeholder_approver_is_not_an_independent_reviewer(tmp_path: Path, placeholder: str) -> None:
+    """#6715 review cycle 1: a generic placeholder approver is unknown, so the review is not confirmed independent."""
+    _write_transition(tmp_path, wp_id="WP01", to_lane="in_progress", actor="claude", event_id="01A", at="2026-07-21T00:00:00Z")
+    actor: object = json.loads(placeholder) if placeholder.startswith("{") else placeholder
+    _write_transition(tmp_path, wp_id="WP01", to_lane="approved", actor=actor, event_id="01B", at="2026-07-21T01:00:00Z")
+
+    assert preflight._latest_actor_for_transition(tmp_path, "WP01", "approved") is None
+    assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is False
+
+
+def test_a_placeholder_approval_after_a_real_one_is_unknown(tmp_path: Path) -> None:
+    """The latest approval decides: a later placeholder approval does not fall back to an earlier real reviewer."""
+    _write_transition(tmp_path, wp_id="WP01", to_lane="in_progress", actor="claude", event_id="01A", at="2026-07-21T00:00:00Z")
+    _write_transition(tmp_path, wp_id="WP01", to_lane="approved", actor="bob", event_id="01B", at="2026-07-21T01:00:00Z")
+    _write_transition(tmp_path, wp_id="WP01", to_lane="approved", actor="user", event_id="01C", at="2026-07-21T02:00:00Z")
+
     assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is False
 
 

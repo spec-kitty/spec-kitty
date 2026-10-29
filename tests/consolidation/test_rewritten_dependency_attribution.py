@@ -90,7 +90,8 @@ _CHAIN = (("planned", "claimed"), ("claimed", "in_progress"), ("in_progress", "f
 def _ev(events: list[dict[str, object]], wp: str, frm: str, to: str, *, stamp: str | None, force: bool = False) -> None:
     seq = len(events)
     row: dict[str, object] = {
-        "actor": "claude",
+        # #6715: the approving identity differs from the implementer's, as an independent review does.
+        "actor": "reviewer-renata" if to == "approved" else "claude",
         "at": f"2026-10-09T00:{seq // 60:02d}:{seq % 60:02d}+00:00",
         "event_id": f"01M5968{seq:019d}",
         "evidence": None,
@@ -146,9 +147,19 @@ def rewritten_dep(tmp_path: Path) -> tuple[Path, Path, LanesManifest, str, str]:
         computed_at="2026-10-09T00:00:00+00:00",
         computed_from="test-rewritten-dependency-attribution",
     )
+    # #6715: each WP declares the surface its lane commits (``u/``) and the manifest records the
+    # planning commit; this fixture's subject is dependency-lane attribution, so it states both.
+    for wp_id in ("WP01", "WP02"):
+        (feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\ndependencies: []\nsubtasks: []\nowned_files:\n  - u/**\n---\n# {wp_id}\n",
+            encoding="utf-8",
+        )
     write_lanes_json(feature_dir, manifest)
     _write(repo, "u/base.txt", "base\n")
     base = _commit(repo, "bootstrap")
+    manifest.planning_commit_sha = base
+    write_lanes_json(feature_dir, manifest)
+    base = _commit(repo, "record the planning commit")
 
     # lane-a: WP01 first attempt (own.txt + the rejected core.py / bad_only.py).
     _git(repo, "checkout", "-q", "-b", _branch("lane-a"), base)

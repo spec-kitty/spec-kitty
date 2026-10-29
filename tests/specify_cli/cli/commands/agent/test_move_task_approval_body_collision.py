@@ -49,6 +49,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status import TransitionRequest
 from specify_cli.status.models import Lane, StatusEvent
 from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import commit_lane_implementation
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeFsReader,
@@ -195,9 +196,15 @@ def _seed_lanes_json(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
             ],
             computed_at="2026-01-01T00:00:00+00:00",
             computed_from="dependency_graph+ownership",
-            planning_commit_sha="a" * 40,
+            # #6715: the real planning commit (the fixture repository's tip), so the evidence
+            # window the move into review reads is computable; WP01's implementation is
+            # committed on its lane branch below.
+            planning_commit_sha=subprocess.run(
+                ["git", "rev-parse", "HEAD"], cwd=feature_dir.parents[1], check=True, capture_output=True, text=True
+            ).stdout.strip(),
         ),
     )
+    commit_lane_implementation(feature_dir.parents[1], feature_dir, path=f"src/{wp_id.lower()}/impl.py")
 
 
 def _fake_ports(feature_dir: Path) -> TasksPorts:
@@ -272,7 +279,8 @@ def _run_move(
                 task_id=_WP_ID,
                 to=to,
                 mission=_MISSION,
-                agent=None,
+                # #6715 ruling A: an asserted reviewer (a placeholder approval is refused at the move).
+                agent="reviewer-renata",
                 assignee=None,
                 shell_pid=None,
                 note=note,

@@ -1,7 +1,7 @@
 """The single_branch move-side refusal names the missing implementation commit (#6369, scenario 6).
 
-``_mt_require_single_branch_implementation`` (#5939) refuses a review-ward move of a
-plain single_branch work package with no committed implementation. It runs before
+``_mt_require_implementation_evidence`` (#5939, generalised by #6715) refuses a review-ward
+move of a plain single_branch work package with no committed implementation. It runs before
 ``lanes/for_review_gate.py``, so its wording is what an operator (and the
 ``single-branch.feature`` scenario) reads; it says "no implementation commit" like
 ``for_review_gate`` and the consolidate axis. The code is pinned with the phrase because
@@ -11,12 +11,13 @@ the non-owned ``move-task --json`` envelope carries the message only.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from mission_runtime import ActionContextError
 from specify_cli.cli.commands.agent import tasks_move_task as move_task_module
-from specify_cli.core.vcs import git as vcs_git
+from specify_cli.consolidation import wp_evidence
 from specify_cli.lanes import persistence, single_branch_landing
 from specify_cli.status.models import Lane
 
@@ -57,10 +58,10 @@ def _state(target_lane: Lane) -> move_task_module._MoveTaskState:
 def single_branch_window(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     """A single_branch mission with a computable window; the returned list is the window's changed paths."""
     changed: list[str] = []
-    monkeypatch.setattr(persistence, "require_lanes_json", lambda _feature_dir: object())
+    monkeypatch.setattr(persistence, "require_lanes_json", lambda _feature_dir: SimpleNamespace(mission_slug="sb"))
     monkeypatch.setattr(single_branch_landing, "is_single_branch_mission", lambda _repo, _manifest: True)
     monkeypatch.setattr(single_branch_landing, "single_branch_evidence_window", lambda _repo, _manifest, **_kw: _WINDOW)
-    monkeypatch.setattr(vcs_git, "git_diff_names_checked", lambda _repo, _base, _tip, **_kw: list(changed))
+    monkeypatch.setattr(wp_evidence, "evidence_paths", lambda _repo, _window, _slug: frozenset(changed))
     monkeypatch.setattr(move_task_module, "_mt_owned_file_patterns", lambda _st: ("src/wp01/**",))
     return changed
 
@@ -70,7 +71,7 @@ def test_refusal_without_implementation_names_the_missing_commit(single_branch_w
     single_branch_window.append("kitty-specs/sb/tasks.md")  # planning edits are not implementation
 
     with pytest.raises(ActionContextError) as refused:
-        move_task_module._mt_require_single_branch_implementation(_state(target_lane))
+        move_task_module._mt_require_implementation_evidence(_state(target_lane))
 
     assert refused.value.code == "SINGLE_BRANCH_IMPLEMENTATION_MISSING"
     message = str(refused.value)
@@ -82,4 +83,4 @@ def test_refusal_without_implementation_names_the_missing_commit(single_branch_w
 def test_committed_owned_work_is_not_refused(single_branch_window: list[str]) -> None:
     single_branch_window.append("src/wp01/greeting.py")
 
-    move_task_module._mt_require_single_branch_implementation(_state(Lane.FOR_REVIEW))
+    move_task_module._mt_require_implementation_evidence(_state(Lane.FOR_REVIEW))
