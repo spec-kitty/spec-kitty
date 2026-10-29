@@ -390,7 +390,7 @@
    "deprecated": false,
    "commands": {
     "activate": {
-     "help": "Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.\n\nTwo forms:\n\n  spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE [--include-deactivated]]\n\n  spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]\n\nA preset replaces every activation key it governs: keys it lists are\nwritten (plus the org's required ids), keys it leaves out are removed.\nA change to a customised key is refused without --force. A deactivated\nid the preset lists stays deactivated (and is left out) unless --force,\nwhich also clears its exclusion.\n\nThe cascade stops at a deactivated artifact and reports it;\n--include-deactivated walks through and clears the exclusions.",
+     "help": "Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.\n\nTwo forms:\n\n  spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE [--include-deactivated]] [--only] [--json]\n\n  spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]\n\nA preset replaces every activation key it governs: keys it lists are\nwritten (plus the org's required ids), keys it leaves out are removed.\nA change to a customised key is refused without --force. A deactivated\nid the preset lists stays deactivated (and is left out) unless --force,\nwhich also clears its exclusion.\n\nThe cascade stops at a deactivated artifact and reports it;\n--include-deactivated walks through and clears the exclusions.",
      "hidden": false,
      "deprecated": false
     },

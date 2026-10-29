@@ -526,7 +526,6 @@ exclude = [
     "src/specify_cli/cli/commands/charter/_status_collectors.py",
     "src/specify_cli/cli/commands/charter/_widen.py",
     "src/specify_cli/cli/commands/charter/activate.py",
-    "src/specify_cli/cli/commands/charter/deactivate.py",
     "src/specify_cli/cli/commands/charter/lint.py",
     "src/specify_cli/cli/commands/charter/list_cmd.py",
     "src/specify_cli/cli/commands/charter/mission_type.py",
