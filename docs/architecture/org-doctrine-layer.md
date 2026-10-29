@@ -121,6 +121,27 @@ an org artifact for legitimate exceptions. When a project artifact has the same 
 a higher layer (org or built-in), `spec-kitty charter lint` surfaces an advisory so
 the team can confirm the override is intentional.
 
+#### Activation tokens: a file name beats a declared ID
+
+An activation token (an entry of an `activated_<kind>` list in
+`.kittify/charter/activation.yaml`) is matched against file names (stems) first,
+across every layer, and only then against declared IDs. So a file named `foo` in
+any layer wins over another artifact that declares `id: foo`, regardless of which
+layer is higher: a project file `DIRECTIVE_024.directive.yaml` that declares
+`id: DIRECTIVE_901` takes the token `DIRECTIVE_024`, and the built-in directive that
+declares `id: DIRECTIVE_024` is not admitted by it. The reverse holds too: a
+lower-layer file name beats a higher-layer declared ID. Layer order decides between
+two artifacts with the same ID, not between a file name and a declared ID.
+
+When two layers' files share a file name but declare different IDs, writers refuse
+the colliding ID (its file name would select the other artifact); rename the org or
+project file (a built-in file cannot be renamed).
+
+This behaviour is pinned by
+`tests/charter/activation/test_stem_first_gating_6459.py` and
+`tests/charter/activation/test_identity_index.py::test_lookup_is_stem_first_across_layers_then_declared_id`
+(#6459).
+
 #### Field-level merge, not artifact-level full replace
 
 When a higher layer declares an artifact ID that already exists in a lower layer,
