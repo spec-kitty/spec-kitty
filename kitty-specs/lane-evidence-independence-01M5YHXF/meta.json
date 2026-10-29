@@ -14,9 +14,8 @@
   "accepted_by": "system",
   "accepted_from_commit": "c78ac802de3b673e9f86bf9eec36e9f17685e48a",
   "baseline_merge_commit": "38d35b6f641c567ab4d54e595757055365087dc0",
-  "coordination_branch": "kitty/mission-lane-evidence-independence-01M5YHXF",
   "created_at": "2026-10-27T11:28:50.572088+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Lane evidence and review independence",
   "merged_at": "2026-10-29T11:50:35.934592+00:00",
   "merged_commit": "4d931f58ac8f13e4528c6022f1258e5747bdac5f",
@@ -31,7 +30,6 @@
   "slug": "lane-evidence-independence-01M5YHXF",
   "status_phase": "1",
   "target_branch": "issue-6715-lane-evidence-independence",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-27T12:11:30.242507+00:00"
 }
