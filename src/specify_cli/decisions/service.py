@@ -593,7 +593,9 @@ def _repair_opening_before_terminal(
     its opening; a resolve / defer / cancel would then write a terminal row
     that does not fold. Runs under the terminal call's decisions-lock hold,
     before the index save, so a failed repair leaves the index untouched.
-    Covers idempotent terminal retries too.
+    Covers idempotent terminal retries too. It runs before the conflict
+    check, so a call refused with ``TERMINAL_CONFLICT`` still records the
+    missing opening: that row heals the log and is never a second opening.
 
     Skipped when the decision is not in the index (the terminal call reports
     ``NOT_FOUND``) or when its opening actor was never persisted (a legacy

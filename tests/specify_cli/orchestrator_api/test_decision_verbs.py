@@ -1061,7 +1061,7 @@ def test_terminal_verb_lock_timeout_returns_lock_timeout_envelope(tmp_path: Path
     monkeypatch.setattr(service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
 
     with machine_file_lock(lock_path, blocking=True, timeout_s=5.0), contextlib.chdir(repo):
-        result = runner.invoke(app, _write_verb_args(verb, mission_slug, decision_id), catch_exceptions=True)
+        result = cast("Result", runner.invoke(app, _write_verb_args(verb, mission_slug, decision_id), catch_exceptions=True))
 
     assert result.exception is None or isinstance(result.exception, SystemExit), repr(result.exception)
     envelope = _envelope(result)

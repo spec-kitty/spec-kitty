@@ -296,6 +296,14 @@ def _select_opened_event(opened_events: list[Mapping[str, Any]]) -> Mapping[str,
     are equal after removing ``recorded_at`` therefore fold to the earliest,
     ordered by ``(payload recorded_at, event_id)`` -- deterministic and
     independent of row order (the event-log merge driver re-sorts the log).
+    That sort key is only a deterministic tie-break: the folded entry never
+    reads ``recorded_at`` (:func:`_fold_opened`), so which of the equal rows
+    wins does not change the result.
+
+    The CLI deliberately stays stricter than spec-kitty-events'
+    ``reduce_decision_point_events``, which treats any second opening as a
+    non-fatal anomaly: openings that differ beyond ``recorded_at`` still
+    refuse here, until #6194 adopts the package reducer.
 
     Raises:
         FoldError: *opened_events* is empty, or holds openings whose payloads

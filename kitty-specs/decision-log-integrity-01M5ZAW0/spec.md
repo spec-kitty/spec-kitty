@@ -96,7 +96,8 @@ returns the resolved state, with the rule read from the package.
 
 ### Edge Cases
 
-- A waiting second open whose lock wait times out fails closed and writes nothing.
+- A waiting second open waits for the decisions lock without a time bound (amended, NFR-002); a resolve, defer or cancel whose bounded wait times out reports `LOCK_TIMEOUT` and writes nothing.
+- A resolve, defer or cancel of a decision whose open was interrupted records the missing opening first (pre-PR squad fold S3).
 - An interrupted open whose opening actor was not persisted still refuses repair, as today.
 - An unreadable event log on the retry path still fails closed, as today.
 - Two openings for one decision where one carries different question text or options: refused.
@@ -118,7 +119,7 @@ returns the resolved state, with the rule read from the package.
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Deterministic, bounded interleaving tests | Each new interleaving test decides its interleaving by pausing a real write (no timing luck), joins every worker within 60 s, and is red on the base commit and green after the fix. | Reliability | High | Open |
-| NFR-002 | No added hold beyond one append | The decisions lock is held across at most one opening append per call; a waiting identical open keeps the existing bounded lock wait and fails closed on timeout. | Performance | Medium | Open |
+| NFR-002 | No added hold beyond one append | The decisions lock is held across at most one opening append per call. Amended 2026-10-27 (operator ruling on squad finding S1): an open waits on the decisions lock without a time bound, as it already waits on the Mission status lock, so a concurrent open of another decision waits and succeeds; resolve, defer and cancel keep the bounded wait and report a timeout as `LOCK_TIMEOUT`, writing nothing. | Performance | Medium | Open |
 
 ### Constraints
 

@@ -83,3 +83,20 @@ This matches Ivan-Melck's 2026-10-16 reproduction on #4848 (ARM A and ARM B, 2 r
   glossary ledger lock) is unrelated.
 - #6411 (events 11.0 umbrella), #6447/#6449 (parked for #92): untouched.
 - Avoided: #6715, #6675, #6193/PR #6716, events #92, sibling missions M1–M3, M5, M6.
+
+## R-7 Pre-PR adversarial squad (2026-10-27) — dispositions
+
+Lenses: architect-alphonso (architecture, canonical authority), python-pedro (adversarial
+concurrency). No blockers.
+
+| Finding | Disposition |
+|---------|-------------|
+| S1 regression: open holding the decisions lock across the unbounded status-lock wait made a concurrent open of another decision time out after 10 s (uncaught `LockAcquireTimeout`) | Folded per operator ruling: open waits unbounded on the decisions lock (lock order decisions → status verified, no inversion); bounded waits in resolve/defer/cancel raise `DecisionError` `LOCK_TIMEOUT` (`DECISION_LOCK_TIMEOUT`); orchestrator-api contract 1.18.0 → 1.19.0. Spec NFR-002 amended. |
+| S2 open retry repaired the row but not a missing `DM-<id>.md` | Folded (artifact rewritten, mirroring the terminal repair). |
+| S3 resolve/defer/cancel after an interrupted open wrote a terminal row with no opening | Folded per operator ruling: terminal verbs repair the missing opening under the same lock hold. |
+| N1 retry check read the read-side path, emit wrote the write side | Folded: check runs on the pre-resolved write-side path (as #6294 does). |
+| Doctor Fold C docstring stale; CLI stricter than the package reducer on differing duplicates | Folded (docstrings). |
+| Handover note: "one opening per decision" relies on Python holding `index.json.lock` before every Opened append | Recorded for the decisions handover (ADR 2026-10-22-1 step 5, see #6194): the write service must own `index.json.lock` or key Opened idempotency on `decision_id`; Python must not hold it across the bridge call. Stated in the PR body. |
+| Doctor silently tolerates identical duplicates (no informational finding) | Deferred: optional; no reader currently needs it. |
+| Other bounded decisions-lock waits (`_decisions_doctor.py`, `decision.py` runtime-lock repair, `next_cmd.py`) can still raise a raw `LockAcquireTimeout` | Out of scope; listed in the PR body as a residual. |
+| Lock is per ledger directory, so opens from two different checkouts with the same explicit `decision_id` are not serialized | Known limit, recorded; no caller does this today. |

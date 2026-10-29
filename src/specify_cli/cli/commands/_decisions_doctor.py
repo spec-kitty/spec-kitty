@@ -42,8 +42,9 @@ otherwise-approved substance above.
   (:mod:`specify_cli.decisions.index_fold`) raises
   :class:`~specify_cli.decisions.index_fold.FoldError` when a decision's
   grouped event envelopes violate the fold's invariants (no
-  ``DecisionPointOpened``, more than one ``DecisionPointOpened``/
-  ``DecisionPointResolved``, or an unrecognized event type) — a malformed
+  ``DecisionPointOpened``, several ``DecisionPointOpened`` whose payloads
+  differ beyond ``recorded_at``, a ``DecisionPointResolved`` combination the
+  reopen rule disallows, or an unrecognized event type) — a malformed
   on-disk event log, not a programmer error. Before this fold-in nothing in
   this module caught it, so one malformed decision_id's event group crashed
   the WHOLE ``--repair``/diagnose run with an uncaught exception, including
