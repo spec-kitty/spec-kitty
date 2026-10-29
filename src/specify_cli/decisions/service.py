@@ -484,30 +484,21 @@ def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str, *
     return False
 
 
-def _repair_missing_opened_event(
+def _append_missing_opened_event(
     repo_root: Path,
     mission_slug: str,
     *,
     entry: IndexEntry,
     owned: OwnedCheckout | None = None,
-) -> int | None:
-    """Re-emit a missing opened event for an already-persisted open decision.
+) -> int:
+    """Append the ``DecisionPointOpened`` row for *entry*; the caller checked it is missing.
 
-    Returns ``None`` (and writes nothing) when the decision's opened event is
-    already in the log; otherwise returns the repaired event's lamport. Must
-    run under the decisions lock (FR-002, the open half of #4848): every
-    ``DecisionPointOpened`` writer in the service holds it, so no opening row
-    can land between the check and the repair append. The check reads the
-    read-side log path; after ``open_decision``'s write-side pre-resolve both
-    sides name the same file.
+    Must run under the decisions lock (see :func:`_repair_missing_opened_event`).
 
     Raises:
         DecisionError(EVENT_REPAIR_FAILED): the opening actor was not
             persisted, or the event append failed.
-        DecisionEventLogReadError: the log is unreadable (not wrapped).
     """
-    if _opened_event_exists(repo_root, mission_slug, entry.decision_id, owned=owned):
-        return None
     if entry.opened_by is None:
         raise DecisionError(
             code=DecisionErrorCode.EVENT_REPAIR_FAILED,
@@ -522,6 +513,106 @@ def _repair_missing_opened_event(
             details={"decision_id": entry.decision_id, "mission_slug": mission_slug},
             message=f"Failed to repair opened event for decision {entry.decision_id!r}: {exc}",
         ) from exc
+
+
+def _repair_missing_opened_event(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    entry: IndexEntry,
+    owned: OwnedCheckout | None = None,
+) -> int | None:
+    """Re-emit a missing opened event for an already-persisted decision.
+
+    Returns ``None`` (and writes nothing) when the decision's opened event is
+    already in the log; otherwise returns the repaired event's lamport. Must
+    run under the decisions lock (FR-002, the open half of #4848): every
+    ``DecisionPointOpened`` writer in the service holds it, so no opening row
+    can land between the check and the repair append. The check reads the
+    read-side log path; after the write-side pre-resolve in ``open_decision``
+    and ``_terminal_command`` both sides name the same file.
+
+    Raises:
+        DecisionError(EVENT_REPAIR_FAILED): the opening actor was not
+            persisted, or the event append failed.
+        DecisionEventLogReadError: the log is unreadable (not wrapped).
+    """
+    if _opened_event_exists(repo_root, mission_slug, entry.decision_id, owned=owned):
+        return None
+    return _append_missing_opened_event(repo_root, mission_slug, entry=entry, owned=owned)
+
+
+def _finish_interrupted_open(
+    repo_root: Path,
+    mission_slug: str,
+    mission_dir: Path,
+    *,
+    entry: IndexEntry,
+    owned: OwnedCheckout | None = None,
+) -> tuple[int | None, Path]:
+    """Finish an interrupted open: re-write a missing artifact and the missing opening.
+
+    Mirrors :func:`_repair_missing_terminal_event` (#4848 squad fold S2). An
+    open cut off after its index append can lack ``DM-<id>.md``, the
+    ``DecisionPointOpened`` row, or both. When either is missing the artifact
+    is re-written from the index entry first, then the row is appended if it
+    is missing. Must run under the decisions lock.
+
+    Returns ``(repaired_lamport, artifact_path)``; the lamport is ``None``
+    when the row was already in the log.
+
+    Raises:
+        DecisionError(EVENT_REPAIR_FAILED): the artifact rewrite or the event
+            append failed; a later retry heals.
+        DecisionEventLogReadError: the log is unreadable (not wrapped).
+    """
+    artifact = _store.artifact_path(mission_dir, entry.decision_id)
+    opened = _opened_event_exists(repo_root, mission_slug, entry.decision_id, owned=owned)
+    if opened and artifact.exists():
+        return None, artifact
+    try:
+        artifact = _store.write_artifact(mission_dir, entry)
+    except Exception as exc:
+        raise DecisionError(
+            code=DecisionErrorCode.EVENT_REPAIR_FAILED,
+            details={"decision_id": entry.decision_id, "mission_slug": mission_slug},
+            message=f"Failed to re-write the artifact for decision {entry.decision_id!r}: {exc}",
+        ) from exc
+    if opened:
+        return None, artifact
+    return _append_missing_opened_event(repo_root, mission_slug, entry=entry, owned=owned), artifact
+
+
+def _repair_opening_before_terminal(
+    repo_root: Path,
+    mission_slug: str,
+    mission_dir: Path,
+    decision_id: str,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> None:
+    """Record a missing ``DecisionPointOpened`` row before a terminal row (#4848 squad fold S3).
+
+    An open interrupted after its index append leaves the decision without
+    its opening; a resolve / defer / cancel would then write a terminal row
+    that does not fold. Runs under the terminal call's decisions-lock hold,
+    before the index save, so a failed repair leaves the index untouched.
+    Covers idempotent terminal retries too.
+
+    Skipped when the decision is not in the index (the terminal call reports
+    ``NOT_FOUND``) or when its opening actor was never persisted (a legacy
+    entry the repair cannot reconstruct; the terminal call proceeds as
+    before).
+
+    Raises:
+        DecisionError(EVENT_REPAIR_FAILED): the event append failed.
+        DecisionEventLogReadError: the log is unreadable (not wrapped).
+    """
+    index = _store.load_index(mission_dir)
+    entry = next((e for e in index.entries if e.decision_id == decision_id), None)
+    if entry is None or entry.opened_by is None:
+        return
+    _repair_missing_opened_event(repo_root, mission_slug, entry=entry, owned=owned)
 
 
 def _terminal_event_exists(events_path: Path, decision_id: str, outcome: str) -> bool:
@@ -668,8 +759,8 @@ def _record_open_locked(
 
     A fresh open appends the index entry, writes the artifact and appends the
     ``DecisionPointOpened`` row; an identical open of a non-terminal entry
-    runs :func:`_repair_missing_opened_event`, which appends the row only when
-    an earlier call was interrupted before it. Both run inside the caller's
+    runs :func:`_finish_interrupted_open`, which re-writes the artifact and
+    appends the row only when an earlier call was interrupted before them. Both run inside the caller's
     single hold of ``decisions/index.json.lock`` (FR-001/FR-002, the open half
     of #4848), so a concurrent identical open waits and then finds the row.
 
@@ -678,7 +769,7 @@ def _record_open_locked(
     Raises:
         DecisionError(ALREADY_CLOSED): the matching entry is terminal.
         DecisionError(EVENT_REPAIR_FAILED): an idempotent retry could not
-            repair the missing opened event.
+            re-write the artifact or repair the missing opened event.
         DecisionEventLogReadError: an idempotent retry found the log unreadable.
     """
     existing, entry, is_new = _open_locked(
@@ -705,8 +796,8 @@ def _record_open_locked(
                 },
                 message=(f"Decision {existing.decision_id!r} is already in terminal state {existing.status.value!r}"),
             )
-        repaired_lamport = _repair_missing_opened_event(repo_root, mission_slug, entry=existing, owned=owned)
-        return existing, True, repaired_lamport, _store.artifact_path(mission_dir, existing.decision_id)
+        repaired_lamport, artifact_path = _finish_interrupted_open(repo_root, mission_slug, mission_dir, entry=existing, owned=owned)
+        return existing, True, repaired_lamport, artifact_path
 
     assert entry is not None  # narrows for mypy: is_new=True implies entry
     artifact = _store.write_artifact(mission_dir, entry)
@@ -949,6 +1040,11 @@ def _terminal_command(
     the lock within ``_LOCK_ACQUIRE_TIMEOUT_S`` fails closed with
     ``DecisionError(LOCK_TIMEOUT)`` and writes nothing.
 
+    Before the index save, a decision whose opening is missing from the log
+    (an interrupted open) gets its ``DecisionPointOpened`` row, under the
+    same lock hold (:func:`_repair_opening_before_terminal`), so the log
+    folds.
+
     An idempotent retry (index already holds this outcome and payload) checks
     the write-side log for this decision's terminal event of that outcome and,
     if it is missing (an earlier call was interrupted after the index save),
@@ -960,9 +1056,11 @@ def _terminal_command(
         DecisionError(TERMINAL_CONFLICT): if already terminal with different payload.
         DecisionError(LOCK_TIMEOUT): the decisions lock could not be acquired
             within ``_LOCK_ACQUIRE_TIMEOUT_S``; nothing was written.
-        DecisionError(EVENT_REPAIR_FAILED): an idempotent retry could not repair
-            the artifact or the missing terminal event.
-        DecisionEventLogReadError: an idempotent retry found the log unreadable.
+        DecisionError(EVENT_REPAIR_FAILED): the missing opening could not be
+            recorded, or an idempotent retry could not repair the artifact or
+            the missing terminal event.
+        DecisionEventLogReadError: the log is unreadable (opening check or
+            idempotent retry).
     """
     if dry_run:
         return _terminal_response(decision_id, target_status, terminal_outcome, idempotent=False, lamport=None)
@@ -978,6 +1076,7 @@ def _terminal_command(
     mission_dir = _ledger_dir(repo_root, mission_slug, owned=owned)
     lock_path = _decisions_lock_path(mission_dir)
     with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=decision_id):
+        _repair_opening_before_terminal(repo_root, mission_slug, mission_dir, decision_id, owned=owned)
         updated_entry, idempotent = _apply_terminal_locked(
             mission_dir,
             decision_id,

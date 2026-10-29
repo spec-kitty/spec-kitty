@@ -165,8 +165,12 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   (`decisions/index.json.lock`) ran out. It used to escape as a traceback with an empty
   stdout. Nothing is written, the call can be retried, and the failure `data` carries
   `decision_id`, `mission_slug`, `lock_path` and `timeout_seconds`. `open-decision` now
-  waits on that lock without a bound, so it does not return this code. A new
-  `error_code` on existing verbs, so a minor bump; no field is removed or renamed.
+  waits on that lock without a bound, so it does not return this code. The same three
+  verbs now record a decision's missing `DecisionPointOpened` event (an interrupted
+  open) before the terminal event, so `DECISION_EVENT_REPAIR_FAILED` gains a trigger on
+  a first (non-idempotent) call: that opening could not be written, and nothing else
+  was. A new `error_code` on existing verbs, so a minor bump; no field is removed or
+  renamed.
 - `1.18.0` — `consolidate-mission` now skips a fully-canceled-with-provenance lane at
   parity with host `consolidate` (#5814): a lane whose every work package is an acceptable
   canceled-with-provenance ending is no longer merged, so its committed content never lands

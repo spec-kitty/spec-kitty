@@ -709,7 +709,7 @@ spec-kitty orchestrator-api resolve-decision \
 | `POLICY_METADATA_REQUIRED` | `--policy` missing |
 | `DECISION_NOT_FOUND` | `--decision-id` is not present in the mission's ledger |
 | `DECISION_TERMINAL_CONFLICT` | The decision is already terminal with a DIFFERENT outcome/payload than requested |
-| `DECISION_EVENT_REPAIR_FAILED` | Idempotent terminal path (contract >= 1.17.0): the missing `DecisionPointResolved` event could not be re-written |
+| `DECISION_EVENT_REPAIR_FAILED` | Idempotent terminal path (contract >= 1.17.0): the missing `DecisionPointResolved` event could not be re-written; any call (contract >= 1.19.0): a missing `DecisionPointOpened` event (an interrupted open) could not be recorded before the terminal event |
 | `DECISION_LOCK_TIMEOUT` | Contract >= 1.19.0: the decisions lock stayed held past the bounded wait; nothing was written, retry the call |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | `decisions/index.json` or (contract >= 1.17.0, idempotent retry) `status.events.jsonl` could not be read cleanly |
 
@@ -746,7 +746,7 @@ spec-kitty orchestrator-api defer-decision \
 | `DECISION_MISSING_STEP_OR_SLOT` | `--rationale` is empty or whitespace-only |
 | `DECISION_NOT_FOUND` | `--decision-id` is not present in the mission's ledger |
 | `DECISION_TERMINAL_CONFLICT` | The decision is already terminal with a DIFFERENT outcome/payload than requested |
-| `DECISION_EVENT_REPAIR_FAILED` | Idempotent terminal path (contract >= 1.17.0): the missing terminal event could not be re-written |
+| `DECISION_EVENT_REPAIR_FAILED` | Idempotent terminal path (contract >= 1.17.0): the missing terminal event could not be re-written; any call (contract >= 1.19.0): a missing `DecisionPointOpened` event (an interrupted open) could not be recorded before the terminal event |
 | `DECISION_LOCK_TIMEOUT` | Contract >= 1.19.0: the decisions lock stayed held past the bounded wait; nothing was written, retry the call |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | `decisions/index.json` or (contract >= 1.17.0, idempotent retry) `status.events.jsonl` could not be read cleanly |
 

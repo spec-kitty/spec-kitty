@@ -152,7 +152,10 @@ from kernel.clock import now_utc_iso
 # escape as a traceback with an empty stdout. Nothing is written; the failure ``data`` carries
 # ``decision_id``, ``mission_slug``, ``lock_path`` and ``timeout_seconds``, and the call can be
 # retried. ``open-decision`` now waits on that lock without a bound, so it does not return this
-# code. A new ``error_code`` on existing verbs, so a minor bump; no field is removed or renamed.
+# code. The same three verbs now record a decision's missing ``DecisionPointOpened`` event (an
+# interrupted open) before the terminal event, so ``DECISION_EVENT_REPAIR_FAILED`` gains a trigger
+# on a first (non-idempotent) call: that opening could not be written, and nothing else was. A new
+# ``error_code`` on existing verbs, so a minor bump; no field is removed or renamed.
 CONTRACT_VERSION = "1.19.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 

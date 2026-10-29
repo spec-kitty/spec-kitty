@@ -133,14 +133,14 @@ def test_terminal_verb_after_interrupted_open_records_the_opening_first(tmp_path
 
 
 def test_terminal_retry_after_interrupted_open_and_terminal_repairs_both_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An interrupted open, then an interrupted resolve: the resolve retry writes both rows once."""
+    """An interrupted open, then a resolve interrupted after its index save: one row of each, once."""
     _setup(tmp_path)
     did = _interrupted_open(tmp_path, monkeypatch)
     with monkeypatch.context() as m:
-        m.setattr(_emit, "_append_raw_event", _raise_oserror)
+        m.setattr(_emit, "emit_decision_resolved", _raise_oserror)
         with pytest.raises(OSError, match="simulated interruption"):
             _resolve(tmp_path, did)
-    assert _events(tmp_path) == []
+    assert _event_types(tmp_path) == ["DecisionPointOpened"]
 
     retry = _resolve(tmp_path, did)
     again = _resolve(tmp_path, did)
@@ -148,6 +148,22 @@ def test_terminal_retry_after_interrupted_open_and_terminal_repairs_both_rows(tm
     assert retry.idempotent is True and retry.event_lamport is not None
     assert again.idempotent is True and again.event_lamport is None
     assert _event_types(tmp_path) == ["DecisionPointOpened", "DecisionPointResolved"]
+    assert fold_events(_events(tmp_path)).status == DecisionStatus.RESOLVED
+
+
+def test_idempotent_terminal_retry_records_an_opening_missing_before_the_fix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A log already holding only the terminal row (written before the fix) gets its opening on retry."""
+    _setup(tmp_path)
+    did = _interrupted_open(tmp_path, monkeypatch)
+    with monkeypatch.context() as m:
+        m.setattr(_service, "_repair_opening_before_terminal", lambda *_a, **_k: None)
+        _resolve(tmp_path, did)
+    assert _event_types(tmp_path) == ["DecisionPointResolved"]
+
+    retry = _resolve(tmp_path, did)
+
+    assert retry.idempotent is True
+    assert _event_types(tmp_path) == ["DecisionPointResolved", "DecisionPointOpened"]
     assert fold_events(_events(tmp_path)).status == DecisionStatus.RESOLVED
 
 
