@@ -97,8 +97,11 @@ def _wp_file(wp: str, subtask: str, owned: str, *, planning: bool = False, creat
     )
 
 
-def setup_mission(tmp_path: Path, topology: str) -> _Mission:
-    """A Mission with three code WPs (WP01 ``src/m1/**``, WP02 ``tools/check.sh``, WP03 ``src/m3/**``) and one planning WP04."""
+def setup_mission(tmp_path: Path, topology: str, *, planning_glob: str = "research/**") -> _Mission:
+    """A Mission with three code WPs (WP01 ``src/m1/**``, WP02 ``tools/check.sh``, WP03 ``src/m3/**``) and one planning WP04.
+
+    WP04 owns ``kitty-specs/<slug>/<planning_glob>`` (``"**"``: the whole Mission directory).
+    """
     env = _env(tmp_path)
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -131,7 +134,7 @@ def setup_mission(tmp_path: Path, topology: str) -> _Mission:
     (fd / "tasks" / "WP01-m1.md").write_text(_wp_file("WP01", "T1", "src/m1/**"), encoding="utf-8")
     (fd / "tasks" / "WP02-tools.md").write_text(_wp_file("WP02", "T2", "tools/check.sh", create=True), encoding="utf-8")
     (fd / "tasks" / "WP03-m3.md").write_text(_wp_file("WP03", "T3", "src/m3/**"), encoding="utf-8")
-    (fd / "tasks" / "WP04-research.md").write_text(_wp_file("WP04", "T4", f"kitty-specs/{slug}/research/**", planning=True), encoding="utf-8")
+    (fd / "tasks" / "WP04-research.md").write_text(_wp_file("WP04", "T4", f"kitty-specs/{slug}/{planning_glob}", planning=True), encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-qm", "planning")
     mission = _Mission(repo, env, slug, fd)

@@ -219,6 +219,34 @@ def test_a_placeholder_approval_after_a_real_one_is_unknown(tmp_path: Path) -> N
     assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is False
 
 
+@pytest.mark.parametrize("blank", ["", "   "])
+def test_a_blank_approval_after_a_real_one_is_unknown(tmp_path: Path, blank: object) -> None:
+    """#6715 squad fold: a newer approval whose actor carries no identity leaves the approver unknown, never the older reviewer."""
+    _write_transition(tmp_path, wp_id="WP01", to_lane="in_progress", actor="claude", event_id="01A", at="2026-07-21T00:00:00Z")
+    _write_transition(tmp_path, wp_id="WP01", to_lane="approved", actor="bob", event_id="01B", at="2026-07-21T01:00:00Z")
+    _write_transition(tmp_path, wp_id="WP01", to_lane="approved", actor=blank, event_id="01C", at="2026-07-21T02:00:00Z")
+
+    assert preflight._latest_actor_for_transition(tmp_path, "WP01", "approved") is None
+    assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is False
+
+
+@pytest.mark.parametrize(
+    ("implementer", "approver", "independent"),
+    [
+        pytest.param("claude:claude-opus:implementer-ivan", "claude", False, id="approver-bare-same-tool"),
+        pytest.param("claude", "claude:x", False, id="implementer-bare-same-tool"),
+        pytest.param("claude:claude-opus:implementer-ivan", "claude:claude-opus:reviewer-renata", True, id="same-tool-different-profile"),
+        pytest.param("claude", "codex", True, id="different-tools"),
+    ],
+)
+def test_independence_is_segment_wise(tmp_path: Path, implementer: str, approver: str, independent: bool) -> None:
+    """#6715 squad fold, operator ruling R1: a segment recorded on only one side never proves independence."""
+    _write_transition(tmp_path, wp_id="WP01", to_lane="in_progress", actor=implementer, event_id="01A", at="2026-07-21T00:00:00Z")
+    _write_transition(tmp_path, wp_id="WP01", to_lane="approved", actor=approver, event_id="01B", at="2026-07-21T01:00:00Z")
+
+    assert preflight._independent_reviewer_confirmed(tmp_path, "WP01") is independent
+
+
 def test_collect_force_count_warnings_suppressed_when_reviewer_differs(tmp_path: Path) -> None:
     """The field-reported false positive: force_count>=2 alone used to warn
     regardless of whether the review was genuinely independent."""

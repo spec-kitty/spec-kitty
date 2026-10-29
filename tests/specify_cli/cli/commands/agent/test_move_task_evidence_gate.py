@@ -288,7 +288,9 @@ def test_an_unforced_self_approval_refuses_review_not_independent(implementer: l
 
     assert refused.value.code == "REVIEW_NOT_INDEPENDENT"
     assert str(refused.value) == (
-        "REVIEW_NOT_INDEPENDENT: WP02 cannot be approved by its implementer (claude::). Have a reviewer with a different agent, model or profile approve it."
+        "REVIEW_NOT_INDEPENDENT: WP02 cannot be approved by its implementer (claude::): the approver (claude::) is not provably "
+        "another identity (same agent, and no model or profile recorded on both sides that differs). Have a reviewer with a "
+        "different agent approve it, or pass the full --agent <tool>:<model>:<profile> of both implementer and reviewer."
     )
 
 
@@ -303,6 +305,7 @@ def test_single_branch_self_approval_uses_its_alias_code(implementer: list[str |
 
 
 def test_the_same_agent_with_another_profile_is_independent(implementer: list[str | None]) -> None:
+    implementer[0] = "claude::implementer-ivan"
     st = _state(Lane.APPROVED)
     st.resolved_binding = ResolvedBinding(agent_profile="reviewer-renata")
 
@@ -310,7 +313,26 @@ def test_the_same_agent_with_another_profile_is_independent(implementer: list[st
 
 
 def test_the_compact_agent_profile_segment_counts(implementer: list[str | None]) -> None:
+    implementer[0] = "claude:opus:implementer-ivan"
     move_task_module._mt_require_independent_approval(_state(Lane.APPROVED, agent="claude:opus:reviewer-renata"))
+
+
+@pytest.mark.parametrize(
+    ("recorded", "agent"),
+    [
+        ("claude::", "claude:opus:reviewer-renata"),  # profile and model recorded on the approver's side only
+        ("claude:opus:implementer-ivan", "claude"),  # recorded on the implementer's side only
+        ("claude:opus:", "claude:opus:reviewer-renata"),  # same model, profile on one side only
+    ],
+)
+def test_a_one_sided_segment_never_proves_independence(implementer: list[str | None], recorded: str, agent: str) -> None:
+    """#6715 squad fold, operator ruling R1: the same tool with no segment recorded on both sides that differs refuses."""
+    implementer[0] = recorded
+
+    with pytest.raises(ActionContextError) as refused:
+        move_task_module._mt_require_independent_approval(_state(Lane.APPROVED, agent=agent))
+
+    assert refused.value.code == "REVIEW_NOT_INDEPENDENT"
 
 
 @pytest.mark.parametrize(

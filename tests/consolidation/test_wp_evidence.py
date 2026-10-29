@@ -159,6 +159,48 @@ def test_bookkeeping_paths_are_not_evidence() -> None:
     assert ev._is_evidence_path("src/m1/x.py", _SLUG)
 
 
+_TOOL_WRITTEN = (
+    "tasks/WP01-m1.md",
+    "tasks/WP01-m1/review-cycle-1.md",
+    "tasks/WP01-m1/review-feedback-1.md",
+    "tasks/WP01-m1/baseline-tests.json",
+    "lanes.json",
+    "acceptance-matrix.json",
+    "analysis-report.md",
+    "decisions/index.json",
+    "decisions/DM-01J0000000000000000000000A.md",
+    "decisions.events.jsonl",
+    "traces/friction.md",
+)
+_AUTHOR_WRITTEN = (
+    "spec.md",
+    "plan.md",
+    "tasks.md",
+    "research.md",
+    "data-model.md",
+    "quickstart.md",
+    "contracts/api.yaml",
+    "checklists/requirements.md",
+    "research/notes.md",
+)
+
+
+@pytest.mark.parametrize("relpath", _TOOL_WRITTEN)
+def test_tool_written_mission_files_are_not_evidence(relpath: str) -> None:
+    """#6715 squad fold, operator ruling R2: the Mission's own tool-written planning/lifecycle files never count."""
+    assert not ev._is_evidence_path(f"kitty-specs/{_SLUG}/{relpath}", _SLUG)
+
+
+@pytest.mark.parametrize("relpath", _AUTHOR_WRITTEN)
+def test_author_written_mission_files_are_evidence(relpath: str) -> None:
+    assert ev._is_evidence_path(f"kitty-specs/{_SLUG}/{relpath}", _SLUG)
+
+
+@pytest.mark.parametrize("relpath", _TOOL_WRITTEN)
+def test_another_missions_tool_written_files_are_not_this_missions_bookkeeping(relpath: str) -> None:
+    assert ev._is_evidence_path(f"kitty-specs/other-mission/{relpath}", _SLUG)
+
+
 def test_lane_window_is_lane_branch_for_code_and_target_for_planning() -> None:
     manifest = _manifest([_lane("lane-a", ["WP01"]), _lane("lane-planning", ["WP02"])], "abc123")
     assert ev.lane_evidence_window(manifest, manifest.lanes[0]) == ("abc123", _LANE_BRANCH)
@@ -417,6 +459,7 @@ def test_unreadable_window_is_unreadable(tmp_path: Path) -> None:
     repo, fd, _planning = _lane_fixture(tmp_path)
     report = _evaluate(repo, fd, _manifest([_lane("lane-a", ["WP01"])], "0" * 40), {"WP01": "approved"})
     assert report.codes == [ev.IMPLEMENTATION_UNREADABLE]
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE}
 
 
 def test_planning_lane_is_windowed_to_the_target(tmp_path: Path) -> None:
@@ -586,7 +629,22 @@ def test_single_branch_keeps_its_codes_and_text(tmp_path: Path) -> None:
     manifest.mission_branch = "main"
     report = _evaluate(repo, fd, manifest, {"WP01": "approved"}, single_branch=True)
     assert report.codes == [ev.SINGLE_BRANCH_IMPLEMENTATION_MISSING]
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_MISSING}, "verdicts carry the neutral code"
     assert str(report.refusal).startswith(f"Mission {_SLUG}: single_branch work packages cannot be landed as reviewed:")
+
+
+def test_single_branch_mission_wide_refusals_set_every_verdict(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    fd = _feature_dir(repo, {"WP01": "src/m1/**", "WP02": "src/m2/**"})
+    manifest = _manifest([_lane("lane-planning", ["WP01", "WP02"])], None)
+    manifest.mission_branch = "main"
+    report = _evaluate(repo, fd, manifest, {"WP01": "approved", "WP02": "done"}, single_branch=True)
+    assert report.verdicts == {"WP01": ev.EVIDENCE_WINDOW_UNCOMPUTABLE, "WP02": ev.EVIDENCE_WINDOW_UNCOMPUTABLE}
+
+    unreadable = _manifest([_lane("lane-planning", ["WP01", "WP02"])], "0" * 40)
+    unreadable.mission_branch = "main"
+    report = _evaluate(repo, fd, unreadable, {"WP01": "approved", "WP02": "done"}, single_branch=True)
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE, "WP02": ev.IMPLEMENTATION_UNREADABLE}
 
 
 def test_mission_evidence_report_reads_the_snapshot(tmp_path: Path) -> None:
