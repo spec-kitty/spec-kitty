@@ -10,6 +10,7 @@ All operations are local-only, offline, and deterministic.
 # public-API inventory.
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Literal, cast
 
 from spec_kitty_events import (
@@ -74,27 +75,34 @@ def _inferred_assignment(
 def infer_raci(
     step: PromptStep | AuditStep,
     mission_policy: MissionPolicySnapshot,
+    inputs: Mapping[str, Any] | None = None,
 ) -> ResolvedRaciSnapshot:
-    """Infer default RACI bindings from step type, with sentinel actor ids.
+    """Infer default RACI bindings from step type, resolving each role best-effort.
 
     The engine persists this when ``resolve_raci`` cannot resolve a required
-    role from the runtime inputs, so every role carries the sentinel for its
-    type (see :func:`bind_actor`).
+    role from the runtime inputs. Each role is still resolved on its own from
+    ``inputs`` (same keys as :func:`resolve_raci`: ``mission_owner_id``,
+    ``agent_id``, ``service_id``), so a known actor is recorded before any
+    sentinel applies (FR-005). Only a role that stays unresolved takes the
+    sentinel for its type (see :func:`bind_actor`). Unlike ``resolve_raci``
+    this never fails closed; with no inputs every role carries a sentinel.
 
     Args:
         step: The mission step to infer RACI for.
         mission_policy: Current mission policy snapshot.
+        inputs: Runtime inputs to resolve actor ids from; ``None`` means none.
 
     Returns:
         ResolvedRaciSnapshot with source="inferred" and the applicable rule name.
     """
     assignment, rule = _inferred_assignment(step, mission_policy)
+    given: Mapping[str, Any] = inputs if inputs is not None else {}
     return ResolvedRaciSnapshot(
         step_id=step.id,
-        responsible=bind_actor(assignment.responsible.actor_type, assignment.responsible.actor_id),
-        accountable=bind_actor(assignment.accountable.actor_type, assignment.accountable.actor_id),
-        consulted=[bind_actor(c.actor_type, c.actor_id) for c in assignment.consulted],
-        informed=[bind_actor(i.actor_type, i.actor_id) for i in assignment.informed],
+        responsible=_resolve_actor_optional(assignment.responsible, given),
+        accountable=_resolve_actor_optional(assignment.accountable, given),
+        consulted=[_resolve_actor_optional(c, given) for c in assignment.consulted],
+        informed=[_resolve_actor_optional(i, given) for i in assignment.informed],
         source="inferred",
         inferred_rule=rule,
     )
@@ -232,9 +240,9 @@ def _resolve_actor(
 
 def _resolve_actor_optional(
     binding: RACIRoleSpec,
-    inputs: dict[str, Any],
+    inputs: Mapping[str, Any],
 ) -> RaciRoleBinding:
-    """Resolve an optional actor binding (C/I roles).
+    """Resolve an actor binding without failing closed (C/I roles, inferred fallback).
 
     Non-blocking: an id that cannot be resolved from the inputs takes the
     sentinel for the actor type (:func:`bind_actor`).
@@ -242,14 +250,14 @@ def _resolve_actor_optional(
     return bind_actor(binding.actor_type, _given_or_input_id(binding, inputs))
 
 
-def _given_or_input_id(binding: RACIRoleSpec, inputs: dict[str, Any]) -> str | None:
+def _given_or_input_id(binding: RACIRoleSpec, inputs: Mapping[str, Any]) -> str | None:
     """The template's own non-blank actor id, else the one the inputs name."""
     if binding.actor_id is not None and binding.actor_id.strip():
         return binding.actor_id
     return _lookup_actor_id(binding.actor_type, inputs)
 
 
-def _lookup_actor_id(actor_type: str, inputs: dict[str, Any]) -> str | None:
+def _lookup_actor_id(actor_type: str, inputs: Mapping[str, Any]) -> str | None:
     """Look up actor ID from inputs based on actor type."""
     key = _actor_type_to_input_key(actor_type)
     value = inputs.get(key)

@@ -358,7 +358,7 @@ def _evaluate_audit_significance(
         resolved_raci = resolve_raci(sig_step, raci_inputs, policy)
         decisions[f"raci:{sig_step_id}"] = resolved_raci.model_dump(mode="json")
     except MissionRuntimeError:
-        decisions[f"raci:{sig_step_id}"] = infer_raci(sig_step, policy).model_dump(mode="json")
+        decisions[f"raci:{sig_step_id}"] = infer_raci(sig_step, policy, raci_inputs).model_dump(mode="json")
 
     payload = SignificanceEvaluatedPayload(
         run_id=snapshot.run_id,
@@ -416,8 +416,9 @@ def _record_step_raci(
     try:
         decisions[f"raci:{step_id}"] = resolve_raci(step_obj, raci_inputs, policy).model_dump(mode="json")
     except MissionRuntimeError:
-        # Inputs insufficient for full resolution -- record the inferred binding.
-        decisions[f"raci:{step_id}"] = infer_raci(step_obj, policy).model_dump(mode="json")
+        # Inputs insufficient for full resolution -- record the inferred binding,
+        # still resolving each role the inputs can (FR-005).
+        decisions[f"raci:{step_id}"] = infer_raci(step_obj, policy, raci_inputs).model_dump(mode="json")
     return snapshot.model_copy(update={"decisions": decisions})
 
 

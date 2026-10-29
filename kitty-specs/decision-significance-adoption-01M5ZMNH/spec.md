@@ -64,7 +64,8 @@ When the runtime records a step's RACI roles or a soft-gate decision and cannot 
 - An explicit template RACI that leaves `actor_id` out: still accepted at load time and resolved from inputs as today.
 - Consulted or informed roles that stay unresolved: recorded with the sentinel instead of a null id.
 - Run snapshots and event logs written before this change keep their null ids. Nothing re-validates them on read (`decisions` is an untyped map and the run event log has no reader), so no migration is needed.
-- The fail-closed escalation for an unresolvable responsible or accountable role inside `resolve_raci` is unchanged; the caller's existing fallback to the inferred binding now carries sentinels.
+- The fail-closed escalation for an unresolvable responsible or accountable role inside `resolve_raci` is unchanged. The caller's fallback to the inferred binding resolves each role from the runtime inputs on its own and uses the sentinel only for the roles that stay unresolved (a known agent is recorded even when the mission owner is missing).
+- A blank or whitespace-only template `actor_id` counts as missing and is resolved from the inputs; the package refuses an empty id.
 
 ## Requirements *(mandatory)*
 

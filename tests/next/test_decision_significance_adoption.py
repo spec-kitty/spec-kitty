@@ -108,6 +108,29 @@ def test_infer_raci_returns_package_snapshot_with_sentinels(step: PromptStep | A
         assert actor_id == _SENTINEL_BY_TYPE[actor_type]
 
 
+def test_infer_raci_resolves_known_agent_and_keeps_sentinel_for_unknown_owner() -> None:
+    """FR-005: the fallback records a known actor before any sentinel applies."""
+    snapshot = infer_raci(PromptStep(id="p1", title="P1"), MissionPolicySnapshot(), {"agent_id": "claude"})
+
+    assert (snapshot.responsible.actor_type, snapshot.responsible.actor_id) == ("llm", "claude")
+    assert (snapshot.accountable.actor_type, snapshot.accountable.actor_id) == ("human", HUMAN_IN_CHARGE_ACTOR_ID)
+
+
+def test_infer_raci_resolves_mission_owner_for_blocking_audit() -> None:
+    snapshot = infer_raci(_audit_step("blocking"), MissionPolicySnapshot(), {"mission_owner_id": "alice"})
+
+    assert (snapshot.responsible.actor_type, snapshot.responsible.actor_id) == ("human", "alice")
+    assert (snapshot.accountable.actor_type, snapshot.accountable.actor_id) == ("human", "alice")
+
+
+@pytest.mark.parametrize("inputs", [None, {}], ids=["none", "empty"])
+def test_infer_raci_without_inputs_records_sentinels(inputs: dict[str, Any] | None) -> None:
+    snapshot = infer_raci(PromptStep(id="p1", title="P1"), MissionPolicySnapshot(), inputs)
+
+    for actor_type, actor_id in _all_roles(snapshot):
+        assert actor_id == _SENTINEL_BY_TYPE[actor_type]
+
+
 # ---------------------------------------------------------------------------
 # (b) resolve_raci: inputs first, sentinels for unresolved C/I, R/A fail closed
 # ---------------------------------------------------------------------------
@@ -200,7 +223,13 @@ def test_resolve_raci_blank_template_ci_ids_get_sentinel(actor_type: str, blank_
 # ---------------------------------------------------------------------------
 
 
-def _start_audit_run(tmp_path: Path, *, dimensions: dict[str, int], inputs: dict[str, Any]) -> MissionRunRef:
+def _start_audit_run(
+    tmp_path: Path,
+    *,
+    dimensions: dict[str, int],
+    inputs: dict[str, Any],
+    agent_id: str = "agent-1",
+) -> MissionRunRef:
     """A run planned up to its ``audit:review_gate`` decision."""
     yaml_path = tmp_path / "missions" / "m" / "mission.yaml"
     yaml_path.parent.mkdir(parents=True)
@@ -227,8 +256,8 @@ def _start_audit_run(tmp_path: Path, *, dimensions: dict[str, int], inputs: dict
         run_store=tmp_path / "runs",
         emitter=NullEmitter(),
     )
-    next_step(run_ref, agent_id="agent-1", emitter=NullEmitter())
-    next_step(run_ref, agent_id="agent-1", emitter=NullEmitter())
+    next_step(run_ref, agent_id=agent_id, emitter=NullEmitter())
+    next_step(run_ref, agent_id=agent_id, emitter=NullEmitter())
     return run_ref
 
 
@@ -266,6 +295,18 @@ def test_audit_gate_fallback_raci_record_validates_with_package(tmp_path: Path) 
     assert snapshot.inferred_rule == "audit_blocking"
     for actor_type, actor_id in _all_roles(snapshot):
         assert actor_id == _SENTINEL_BY_TYPE[actor_type]
+
+
+def test_issued_step_fallback_raci_records_known_agent(tmp_path: Path) -> None:
+    """No ``mission_owner_id``: the engine's fallback still records the agent
+    the runtime knows and the sentinel only for the unresolved owner (FR-005)."""
+    run_ref = _start_audit_run(tmp_path, dimensions=_HIGH_DIMS, inputs={"topic": "x"}, agent_id="claude")
+
+    snapshot = ResolvedRaciSnapshot.model_validate(_decisions(run_ref)["raci:lead_in"])
+
+    assert snapshot.source == "inferred"
+    assert (snapshot.responsible.actor_type, snapshot.responsible.actor_id) == ("llm", "claude")
+    assert (snapshot.accountable.actor_type, snapshot.accountable.actor_id) == ("human", HUMAN_IN_CHARGE_ACTOR_ID)
 
 
 # ---------------------------------------------------------------------------
