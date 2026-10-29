@@ -2388,15 +2388,15 @@ dev = [
 
 [[package]]
 name = "spec-kitty-events"
-version = "11.0.0"
+version = "11.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-ulid" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/da/4d3475cc37468a1f1b38e31e03c1a0a52e06e5feac2e4f33773df97eef54/spec_kitty_events-11.0.0.tar.gz", hash = "sha256:33abc6c561f86e40cf921d739d26fffa6559204a06e6b51d11dd99c5bf7d5eca", size = 574210, upload-time = "2026-10-18T18:29:57.159Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b0/19/80eb0b6f2c4cfef0901f7d02a9d3a26f23923f1f5a1b99a3834fc2f2231c/spec_kitty_events-11.3.0.tar.gz", hash = "sha256:da28c9775562f2078747e55de137c11408f33c7d790a587a2b0aaae02ca0c458", size = 706219, upload-time = "2026-10-27T21:27:27.987Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/95/07/e91fcb79fe6cb66b608abaefa2d942a87605e483fc87883d640eb0ff723a/spec_kitty_events-11.0.0-py3-none-any.whl", hash = "sha256:9d667119882f64c0a19ac58ce458e14f267e28e1cd53d3e7bc294052cf896065", size = 966646, upload-time = "2026-10-18T18:29:55.116Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/25/66d2e90850b932e58604bef7ecd542de5ba8818fc942571f779fa855d520/spec_kitty_events-11.3.0-py3-none-any.whl", hash = "sha256:92e72cec8bdeb320621cb754bbc46a9f915d9a5179f9dc6f8c6046623eed1d25", size = 1508662, upload-time = "2026-10-27T21:27:26.21Z" },
 ]
 
 [[package]]
