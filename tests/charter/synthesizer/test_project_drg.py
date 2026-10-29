@@ -331,6 +331,25 @@ class TestAdditiveOnlyEnforcement:
         err = exc_info.value
         assert "tactic:how-we-apply-directive-003" in " ".join(err.errors)
 
+    def test_collision_carries_structured_urn_and_neutral_wording(self) -> None:
+        """#6510 FR-006 / FR-007: still refused, with ``colliding_urn``; the input graph is not all built-in."""
+        shipped = _make_shipped_graph(nodes=[("directive:PROJECT_002", NodeKind.DIRECTIVE)])
+        target = _make_target(kind="directive", artifact_id="PROJECT_002")
+        with pytest.raises(ProjectDRGValidationError) as exc_info:
+            emit_project_layer([target], "0.1.0", shipped)
+        err = exc_info.value
+        assert err.colliding_urn == "directive:PROJECT_002"
+        assert "already present in the synthesis input graph" in str(err)
+        assert "never overwrites an artifact it did not create" in str(err)
+        assert "built-in DRG layer" not in str(err)
+        assert "must carry new URNs" not in str(err)
+        assert "colliding_urn='directive:PROJECT_002'" in err.merged_graph_summary
+
+    def test_colliding_urn_defaults_to_none(self) -> None:
+        """The field is additive: existing constructors keep working."""
+        err = ProjectDRGValidationError(errors=("e",), merged_graph_summary="s")
+        assert err.colliding_urn is None
+
     def test_colliding_edge_triple_raises_validation_error(self) -> None:
         # Test the overlay-internal duplicate URN case:
         # Two targets with the same (kind, artifact_id) create the same URN.
@@ -622,8 +641,9 @@ class TestComposeProjectProfileNodes:
         shipped = _make_shipped_graph(
             nodes=[("agent_profile:researcher-ryan", NodeKind.AGENT_PROFILE)]
         )
-        with pytest.raises(ProjectDRGValidationError):
+        with pytest.raises(ProjectDRGValidationError) as exc_info:
             emit_project_layer([], "0.1.0", shipped, project_root=tmp_path)
+        assert exc_info.value.colliding_urn == "agent_profile:researcher-ryan"
 
     def test_duplicate_profile_id_across_files_fails_loud(self, tmp_path: Path) -> None:
         """NFR-002: the SAME profile-id in two authored files fails loud (naming
