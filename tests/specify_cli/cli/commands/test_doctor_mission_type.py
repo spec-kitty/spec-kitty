@@ -387,6 +387,85 @@ def test_audit_mission_types_skips_non_directories(tmp_path: Path) -> None:
     assert [s.slug for s in states] == ["001-resolved"]
 
 
+def _git(repo: Path, *args: str) -> None:
+    import subprocess
+
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+
+def _residue_repo(tmp_path: Path) -> Path:
+    """#5875: one committed Mission plus residue (spec.md-only, untracked id-less meta, lock-only)."""
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "config", "user.email", "t@example.com")
+    _git(tmp_path, "config", "user.name", "T")
+    (tmp_path / ".gitignore").write_text("*.lock\n", encoding="utf-8")
+    specs = tmp_path / "kitty-specs"
+    _write_meta(specs / "001-mission", {"mission_id": "01KNXQS9ATWWFXS3K5ZJ9E5008", "mission_type": "software-dev"})
+    _write_meta(specs / "004-tracked-noid", {"mission_type": "software-dev"})
+    (specs / "002-spec-tracked").mkdir(parents=True)
+    (specs / "002-spec-tracked" / "spec.md").write_text("# s\n", encoding="utf-8")
+    _write_config(tmp_path, ["software-dev"])
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "fixture")
+    (specs / "003-spec-untracked").mkdir()
+    (specs / "003-spec-untracked" / "spec.md").write_text("# s\n", encoding="utf-8")
+    _write_meta(specs / "005-noid-untracked", {"mission_type": "software-dev"})
+    (specs / "006-lock-only").mkdir()
+    (specs / "006-lock-only" / "index.json.lock").write_text("", encoding="utf-8")
+    return tmp_path
+
+
+@pytest.mark.git_repo
+def test_audit_mission_types_skips_residue(tmp_path: Path) -> None:
+    from specify_cli.cli.commands._mission_type_audit import audit_mission_types
+
+    repo = _residue_repo(tmp_path)
+
+    states = {s.slug: s.state for s in audit_mission_types(repo)}
+
+    assert states == {"001-mission": "resolved", "004-tracked-noid": "resolved"}
+
+
+@pytest.mark.git_repo
+def test_mission_type_cli_never_reports_spec_only_folder_as_typeless(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    repo = _residue_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo)
+
+    result = CliRunner().invoke(doctor_mod.app, ["mission-type", "--json", "--fail-on", "typeless"])
+
+    assert result.exit_code == 0, result.output
+    doc = json.loads(result.output)
+    assert {m["slug"] for m in doc["missions"]} == {"001-mission", "004-tracked-noid"}
+    assert doc["summary"]["typeless"] == 0
+
+
+@pytest.mark.git_repo
+def test_audit_mission_types_makes_no_git_call_when_every_child_has_an_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import specify_cli.context.mission_resolver as mr
+    from specify_cli.cli.commands._mission_type_audit import audit_mission_types
+
+    specs = tmp_path / "kitty-specs"
+    _write_meta(specs / "001-a", {"mission_id": "01KNXQS9ATWWFXS3K5ZJ9E5008", "mission_type": "software-dev"})
+    _write_meta(specs / "002-b", {"mission_id": "01KNS7C9AZP1MPCFZWM25KV6TM", "mission_type": "software-dev"})
+    _write_config(tmp_path, ["software-dev"])
+
+    def _no_git(*_a: object, **_kw: object) -> object:
+        raise AssertionError("git must not be probed when every child carries a mission_id")
+
+    monkeypatch.setattr(mr, "run_git", _no_git)
+    monkeypatch.setattr(mr, "tracked_paths", _no_git)
+    monkeypatch.setattr(mr, "is_tracked", _no_git)
+
+    assert [s.slug for s in audit_mission_types(tmp_path)] == ["001-a", "002-b"]
+
+
 def test_summarize_mission_types_zero_filled() -> None:
     from specify_cli.cli.commands._mission_type_audit import summarize_mission_types
 

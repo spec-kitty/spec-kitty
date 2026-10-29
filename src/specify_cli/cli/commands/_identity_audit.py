@@ -37,6 +37,16 @@ __all__ = [
     "run_topology_audit",
 ]
 
+#: The one remedy for a ``residue`` row of ``doctor identity`` (#5875, FR-004). It is separate from
+#: ``mission_resolver.RESIDUE_NOTICE`` (the write-seam text, whose wording a regex depends on).
+RESIDUE_REMEDY = (
+    "Not a Mission: no meta.json, or an untracked meta.json without a mission_id, so Mission selection "
+    "does not list it. If it is leftover residue, delete the folder. If it is a real Mission, restore its "
+    "meta.json from git history (`git log --diff-filter=D -- <path>/meta.json`, then "
+    "`git checkout <sha>^ -- <path>/meta.json`), or re-create it with `spec-kitty agent mission create` "
+    "and move its spec.md into the new folder."
+)
+
 
 # --- identity helpers --------------------------------------------------------
 
@@ -46,8 +56,8 @@ def _scope_to_mission(
     all_states: list[IdentityState],
     mission: str,
 ) -> list[IdentityState]:
-    """Filter states to a single mission slug (or classify it directly)."""
-    from specify_cli.status import classify_mission
+    """Filter states to a single mission slug (or classify it directly, residue rule included)."""
+    from specify_cli.status.identity_audit import ReporterTrackedPaths, classify_walk_entry
 
     filtered = [s for s in all_states if s.slug == mission]
     if filtered:
@@ -61,8 +71,9 @@ def _scope_to_mission(
     # ``classify_mission`` reads -- and is a PRIMARY-partition kind, so
     # ``read_dir`` resolves the topology-blind primary directory directly.
     target_dir = placement_seam(repo_root, mission).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    # #5875: the same read-side rule as the walk, so ``--mission <residue>`` reports ``residue``.
     if target_dir.is_dir():
-        return [classify_mission(target_dir)]
+        return [classify_walk_entry(target_dir, repo_root=repo_root, tracked=ReporterTrackedPaths(repo_root))]
     return []
 
 
@@ -115,8 +126,10 @@ def _print_identity_summary_table(all_states: list[IdentityState], summary: dict
     summary_table = Table(box=None, padding=(0, 2), show_edge=False)
     summary_table.add_column("State", style="cyan", min_width=10)
     summary_table.add_column("Count", justify="right", min_width=6)
-    _state_styles = {"assigned": "[green]", "pending": "[yellow]", "legacy": "[red]", "orphan": "[red]"}
-    for state_name in ("assigned", "pending", "legacy", "orphan"):
+    from specify_cli.status.identity_audit import IDENTITY_STATES
+
+    _state_styles = {"assigned": "[green]", "pending": "[yellow]", "legacy": "[red]", "orphan": "[red]", "residue": "[yellow]"}
+    for state_name in IDENTITY_STATES:
         count = counts_dict.get(state_name, 0)
         styled = f"{_state_styles.get(state_name, '')}{state_name}[/]"
         summary_table.add_row(styled, str(count))
@@ -124,19 +137,24 @@ def _print_identity_summary_table(all_states: list[IdentityState], summary: dict
     console.print()
 
 
+def _print_path_section(heading: str, paths: object) -> bool:
+    """Print *heading* and one indented line per path; ``False`` (nothing printed) when *paths* is empty."""
+    if not isinstance(paths, list) or not paths:
+        return False
+    console.print(heading)
+    for p in paths:
+        console.print(f"  {p}")
+    console.print()
+    return True
+
+
 def _print_identity_path_sections(summary: dict[str, object]) -> None:
-    """Print the legacy + orphan path sections (extracted helper)."""
-    legacy_paths: list[str] = summary["legacy_paths"]  # type: ignore[assignment]
-    orphan_paths: list[str] = summary["orphan_paths"]  # type: ignore[assignment]
-    if legacy_paths:
-        console.print("[bold red]Legacy missions (need backfill):[/bold red]")
-        for p in legacy_paths:
-            console.print(f"  {p}")
-        console.print()
-    if orphan_paths:
-        console.print("[bold red]Orphan missions (need triage):[/bold red]")
-        for p in orphan_paths:
-            console.print(f"  {p}")
+    """Print the legacy, orphan and residue path sections; the residue remedy prints once after its section."""
+    _print_path_section("[bold red]Legacy missions (need backfill):[/bold red]", summary.get("legacy_paths"))
+    _print_path_section("[bold red]Orphan missions (need triage):[/bold red]", summary.get("orphan_paths"))
+    residue_heading = "[bold yellow]Residue folders (not Missions; Mission selection does not list them):[/bold yellow]"
+    if _print_path_section(residue_heading, summary.get("residue_paths")):
+        console.print(f"[bold]Remedy:[/bold] {RESIDUE_REMEDY}", soft_wrap=True)
         console.print()
 
 
@@ -172,14 +190,20 @@ def _build_identity_json(
     ambig_selectors: dict[str, list[IdentityState]],
     fail_on_triggered: bool,
 ) -> dict[str, object]:
-    """Build the ``--json`` report payload for ``doctor identity``."""
-    return {
+    """Build the ``--json`` report payload for ``doctor identity``.
+
+    ``residue_remedy`` is added only when at least one row is ``residue`` (#5875).
+    """
+    report: dict[str, object] = {
         "summary": summary["counts"],
         "missions": [s.to_dict() for s in all_states],
         "duplicate_prefixes": {prefix: [s.to_dict() for s in items] for prefix, items in dup_prefixes.items()},
         "ambiguous_selectors": {handle: [s.to_dict() for s in items] for handle, items in ambig_selectors.items()},
         "fail_on_triggered": fail_on_triggered,
     }
+    if any(s.state == "residue" for s in all_states):
+        report["residue_remedy"] = RESIDUE_REMEDY
+    return report
 
 
 def run_identity_audit(repo_root: Path, json_output: bool, mission: str | None, fail_on: str | None) -> None:

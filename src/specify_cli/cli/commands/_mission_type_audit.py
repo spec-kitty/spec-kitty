@@ -78,6 +78,7 @@ from charter.activation.api import canonical_mission_type_key
 from charter.activation.mission_type_profiles import existing_mission_types
 from charter.missions import MissionTemplateRepository, resolve_layered_mission_types
 from specify_cli.core.paths import load_meta_fail_closed
+from specify_cli.context.mission_resolver import LazyTrackedMissionPaths, is_selectable_mission_dir
 from specify_cli.status.identity_audit import iter_kitty_specs_children
 
 from ._doctor_shared import console
@@ -296,13 +297,22 @@ def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
     ``registered`` and the layered mission-type roster are each resolved ONCE
     before the loop (NFR-004) rather than per mission.
 
+    It audits exactly what Mission selection lists (#5875): a child that
+    :func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir`
+    rejects (no ``meta.json``, or an untracked id-less one in a git
+    repository) is skipped, so a ``spec.md``-only folder is never ``typeless``.
+    ``doctor identity`` reports those folders as ``residue``. The git probe is
+    lazy (:class:`~specify_cli.context.mission_resolver.LazyTrackedMissionPaths`):
+    at most one per walk, none when every child carries a ``mission_id``.
+
     Args:
         repo_root: Path to the repository root (contains ``kitty-specs/``).
 
     Returns:
         List of :class:`MissionTypeState` objects, one per mission directory.
     """
-    entries = iter_kitty_specs_children(repo_root)
+    tracked = LazyTrackedMissionPaths(repo_root)
+    entries = [entry for entry in iter_kitty_specs_children(repo_root) if is_selectable_mission_dir(entry, repo_root=repo_root, tracked=tracked)]
     if not entries:
         return []
 

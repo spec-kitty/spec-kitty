@@ -101,6 +101,25 @@ def test_scope_to_mission_unmatched_missing_dir(tmp_path: Path, monkeypatch: pyt
     assert result == []
 
 
+def test_scope_to_mission_fallback_reports_a_non_mission_dir_as_residue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # #5875: a placement-seam dir outside the walk gets the same read-side rule.
+    target = tmp_path / "kitty-specs" / "085-spec-only"
+    target.mkdir(parents=True)
+    (target / "spec.md").write_text("# s\n", encoding="utf-8")
+    _stub_placement_seam(monkeypatch, target)
+    result = ia._scope_to_mission(tmp_path, [_state("083-a", "assigned")], "085-spec-only")
+    assert [(s.slug, s.state, s.error) for s in result] == [("085-spec-only", "residue", None)]
+
+
+def test_scope_to_mission_fallback_classifies_a_mission_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    target = tmp_path / "kitty-specs" / "086-m"
+    target.mkdir(parents=True)
+    (target / "meta.json").write_text(json.dumps({"mission_id": "01KNXQS9ATWWFXS3K5ZJ9E5008"}), encoding="utf-8")
+    _stub_placement_seam(monkeypatch, target)
+    result = ia._scope_to_mission(tmp_path, [], "086-m")
+    assert [(s.slug, s.state) for s in result] == [("086-m", "pending")]
+
+
 # --- _compute_fail_on --------------------------------------------------------
 
 
@@ -136,6 +155,49 @@ def test_build_identity_json_shape() -> None:
     assert payload["missions"][0]["slug"] == "083-a"
     assert payload["duplicate_prefixes"] == {}
     assert payload["ambiguous_selectors"] == {}
+
+
+def test_build_identity_json_adds_remedy_only_with_residue() -> None:
+    summary = {"counts": {"assigned": 1, "residue": 1}}
+    with_residue = ia._build_identity_json([_state("083-a", "assigned"), _state("old", "residue", None)], summary, {}, {}, False)
+    assert with_residue["residue_remedy"] == ia.RESIDUE_REMEDY
+    without = ia._build_identity_json([_state("083-a", "assigned")], summary, {}, {}, False)
+    assert "residue_remedy" not in without
+
+
+def test_residue_remedy_is_the_planned_text() -> None:
+    assert ia.RESIDUE_REMEDY.startswith("Not a Mission: no meta.json, or an untracked meta.json without a mission_id")
+    assert "git log --diff-filter=D -- <path>/meta.json" in ia.RESIDUE_REMEDY
+    assert ia.RESIDUE_REMEDY.endswith("and move its spec.md into the new folder.")
+
+
+def test_print_identity_summary_table_lists_residue() -> None:
+    from specify_cli.cli.commands._doctor_shared import console
+
+    with console.capture() as capture:
+        ia._print_identity_summary_table([_state("old", "residue", None)], {"counts": {"residue": 1}})
+    out = capture.get()
+    assert "residue" in out
+
+
+def test_print_identity_path_sections_prints_residue_then_one_remedy() -> None:
+    from specify_cli.cli.commands._doctor_shared import console
+
+    summary = {"legacy_paths": [], "orphan_paths": [], "residue_paths": ["kitty-specs/a", "kitty-specs/b"]}
+    with console.capture() as capture:
+        ia._print_identity_path_sections(summary)
+    flat = " ".join(capture.get().split())
+    assert "Residue folders (not Missions; Mission selection does not list them):" in flat
+    assert "kitty-specs/a" in flat and "kitty-specs/b" in flat
+    assert flat.count("Not a Mission:") == 1
+
+
+def test_print_identity_path_sections_no_residue_no_remedy() -> None:
+    from specify_cli.cli.commands._doctor_shared import console
+
+    with console.capture() as capture:
+        ia._print_identity_path_sections({"legacy_paths": [], "orphan_paths": [], "residue_paths": []})
+    assert "Not a Mission" not in capture.get()
 
 
 # --- render helpers (smoke: must not crash, cover branches) ------------------

@@ -654,3 +654,254 @@ def test_nfr_002_timing_200_missions() -> None:
 
         # NFR-002: must be under 3 seconds
         assert_timing_budget(elapsed, 3.0, name="elapsed")
+
+
+# ---------------------------------------------------------------------------
+# #5875: non-Mission kitty-specs/ folders are ``residue`` (FR-003..FR-006)
+# ---------------------------------------------------------------------------
+
+
+def _git(repo: Path, *args: str) -> None:
+    import subprocess
+
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+
+def _residue_repo(tmp_path: Path) -> Path:
+    """A git repo whose ``kitty-specs/`` mixes Missions and residue folders.
+
+    Missions: ``001-mission`` (committed, with id), ``004-legacy`` (tracked
+    id-less meta with a number), ``005-orphan`` (tracked id-less empty meta).
+    Residue: ``001-spec-only`` (untracked spec.md, shares prefix 001 with a
+    Mission), ``002-mission`` (tracked spec.md only, shares the human slug
+    ``mission`` with ``001-mission``), ``003-noid`` (untracked id-less meta),
+    ``006-lock-only`` (a gitignored lock and nothing else).
+    """
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "config", "user.email", "t@example.com")
+    _git(tmp_path, "config", "user.name", "T")
+    (tmp_path / ".gitignore").write_text("*.lock\n", encoding="utf-8")
+    specs = tmp_path / "kitty-specs"
+    _mission_dir(specs, "001-mission", _ULID_A, None)
+    _write_meta(specs / "004-legacy", {"mission_number": 4})
+    _write_meta(specs / "005-orphan", {})
+    (specs / "002-mission").mkdir(parents=True)
+    (specs / "002-mission" / "spec.md").write_text("# s\n", encoding="utf-8")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "fixture")
+    (specs / "001-spec-only").mkdir()
+    (specs / "001-spec-only" / "spec.md").write_text("# s\n", encoding="utf-8")
+    _write_meta(specs / "003-noid", {"mission_number": 3})
+    (specs / "006-lock-only").mkdir()
+    (specs / "006-lock-only" / "index.json.lock").write_text("", encoding="utf-8")
+    return tmp_path
+
+
+_RESIDUE_SLUGS = frozenset({"001-spec-only", "002-mission", "003-noid", "006-lock-only"})
+
+
+@pytest.mark.git_repo
+def test_audit_repo_classifies_non_missions_as_residue(tmp_path: Path) -> None:
+    repo = _residue_repo(tmp_path)
+
+    by_slug = {s.slug: s for s in audit_repo(repo)}
+
+    assert by_slug["001-mission"].state == "pending"
+    assert by_slug["004-legacy"].state == "legacy"
+    assert by_slug["005-orphan"].state == "orphan"
+    for slug in _RESIDUE_SLUGS:
+        residue = by_slug[slug]
+        assert residue.state == "residue", slug
+        assert residue.error is None
+        assert residue.mission_id is None
+        assert residue.mission_number is None
+
+
+@pytest.mark.git_repo
+def test_summarize_counts_and_lists_residue(tmp_path: Path) -> None:
+    repo = _residue_repo(tmp_path)
+
+    summary = summarize(audit_repo(repo))
+
+    counts: dict[str, int] = summary["counts"]  # type: ignore[assignment]
+    assert counts == {"assigned": 0, "pending": 1, "legacy": 1, "orphan": 1, "residue": 4}
+    residue_paths: list[str] = summary["residue_paths"]  # type: ignore[assignment]
+    assert {Path(p).name for p in residue_paths} == _RESIDUE_SLUGS
+    orphan_paths: list[str] = summary["orphan_paths"]  # type: ignore[assignment]
+    assert [Path(p).name for p in orphan_paths] == ["005-orphan"]
+
+
+def test_summarize_zero_fills_residue() -> None:
+    summary = summarize([])
+    assert summary["counts"] == {"assigned": 0, "pending": 0, "legacy": 0, "orphan": 0, "residue": 0}
+    assert summary["residue_paths"] == []
+
+
+@pytest.mark.git_repo
+def test_residue_is_excluded_from_duplicate_prefixes(tmp_path: Path) -> None:
+    repo = _residue_repo(tmp_path)
+    assert "001" not in find_duplicate_prefixes(repo)
+
+
+@pytest.mark.git_repo
+def test_residue_is_excluded_from_ambiguous_selectors(tmp_path: Path) -> None:
+    repo = _residue_repo(tmp_path)
+    ambiguous = find_ambiguous_selectors(audit_repo(repo))
+    assert "mission" not in ambiguous
+    assert all(s.state != "residue" for items in ambiguous.values() for s in items)
+
+
+def test_find_ambiguous_selectors_drops_residue_states() -> None:
+    mission = IdentityState(Path("/r/kitty-specs/001-x"), "001-x", _ULID_A, 1, "assigned")
+    residue = IdentityState(Path("/r/kitty-specs/002-x"), "002-x", None, None, "residue")
+    assert find_ambiguous_selectors([mission, residue]) == {}
+
+
+def test_id_less_meta_in_non_git_root_is_not_residue(tmp_path: Path) -> None:
+    """Outside git the existence fallback holds: an id-less meta.json stays a Mission state."""
+    specs = tmp_path / "kitty-specs"
+    _write_meta(specs / "001-legacy", {"mission_number": 1})
+    (specs / "002-spec-only").mkdir()
+    (specs / "002-spec-only" / "spec.md").write_text("# s\n", encoding="utf-8")
+
+    by_slug = {s.slug: s.state for s in audit_repo(tmp_path)}
+
+    assert by_slug == {"001-legacy": "legacy", "002-spec-only": "residue"}
+
+
+@pytest.mark.git_repo
+def test_audit_makes_no_git_call_when_every_child_has_an_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: a walk whose every child carries a mission_id never probes git."""
+    import specify_cli.context.mission_resolver as mr
+
+    specs = tmp_path / "kitty-specs"
+    _mission_dir(specs, "001-a", _ULID_A, 1)
+    _mission_dir(specs, "002-b", _ULID_B, None)
+
+    def _no_git(*_a: object, **_kw: object) -> object:
+        raise AssertionError("git must not be probed when every child carries a mission_id")
+
+    monkeypatch.setattr(mr, "run_git", _no_git)
+    monkeypatch.setattr(mr, "tracked_paths", _no_git)
+    monkeypatch.setattr(mr, "is_tracked", _no_git)
+
+    assert {s.state for s in audit_repo(tmp_path)} == {"assigned", "pending"}
+    assert find_duplicate_prefixes(tmp_path) == {}
+
+
+@pytest.mark.git_repo
+def test_audit_probes_git_at_most_once_per_walk(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-002: at most one batch ``git ls-files`` per walk, however many id-less children."""
+    import specify_cli.context.mission_resolver as mr
+
+    repo = _residue_repo(tmp_path)
+    calls: list[object] = []
+    real = mr.tracked_paths
+
+    def _counting(*args: Any, **kwargs: Any) -> Any:
+        calls.append(args)
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(mr, "tracked_paths", _counting)
+
+    audit_repo(repo)
+
+    assert len(calls) == 1
+
+
+@pytest.mark.git_repo
+def test_audit_repo_surfaces_a_broken_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``doctor identity`` is a read-only reporter: a broken index raises, never a weaker answer."""
+    import specify_cli.context.mission_resolver as mr
+    from kernel.git import GitCommandError
+
+    repo = _residue_repo(tmp_path)
+
+    def _broken(*_a: object, **_kw: object) -> object:
+        raise GitCommandError(argv=("ls-files",), cwd=repo, returncode=128, stderr="index file corrupt")
+
+    monkeypatch.setattr(mr, "tracked_paths", _broken)
+
+    with pytest.raises(GitCommandError):
+        audit_repo(repo)
+
+
+def _invoke_identity(repo: Path, monkeypatch: pytest.MonkeyPatch, *args: str) -> Any:
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo)
+    return CliRunner().invoke(doctor_mod.app, ["identity", *args])
+
+
+@pytest.mark.git_repo
+def test_identity_json_reports_residue_with_remedy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.cli.commands._identity_audit import RESIDUE_REMEDY
+
+    repo = _residue_repo(tmp_path)
+
+    result = _invoke_identity(repo, monkeypatch, "--json")
+
+    assert result.exit_code == 0, result.output
+    doc = json.loads(result.output)
+    assert doc["summary"]["residue"] == 4
+    rows = {m["slug"]: m for m in doc["missions"]}
+    assert rows["003-noid"] == {
+        "path": str(repo / "kitty-specs" / "003-noid"),
+        "slug": "003-noid",
+        "mission_id": None,
+        "mission_number": None,
+        "state": "residue",
+        "error": None,
+    }
+    assert doc["residue_remedy"] == RESIDUE_REMEDY
+    assert "001" not in doc["duplicate_prefixes"]
+    assert "mission" not in doc["ambiguous_selectors"]
+
+
+def test_identity_json_omits_remedy_without_residue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _mission_dir(tmp_path / "kitty-specs", "001-a", _ULID_A, 1)
+
+    result = _invoke_identity(tmp_path, monkeypatch, "--json")
+
+    assert result.exit_code == 0, result.output
+    doc = json.loads(result.output)
+    assert doc["summary"]["residue"] == 0
+    assert "residue_remedy" not in doc
+
+
+@pytest.mark.git_repo
+def test_identity_fail_on_residue_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _residue_repo(tmp_path)
+
+    result = _invoke_identity(repo, monkeypatch, "--json", "--fail-on", "residue")
+
+    assert result.exit_code == 1, result.output
+    assert json.loads(result.output)["fail_on_triggered"] is True
+
+
+@pytest.mark.git_repo
+def test_identity_human_output_shows_residue_section_and_remedy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _residue_repo(tmp_path)
+
+    result = _invoke_identity(repo, monkeypatch)
+
+    assert result.exit_code == 0, result.output
+    flat = " ".join(result.output.split())
+    assert "residue" in flat
+    assert "Residue folders (not Missions; Mission selection does not list them):" in flat
+    assert "006-lock-only" in flat
+    assert "Not a Mission: no meta.json, or an untracked meta.json without a mission_id" in flat
+    assert "spec-kitty agent mission create" in flat
+
+
+@pytest.mark.git_repo
+def test_identity_mission_scope_reports_residue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = _residue_repo(tmp_path)
+
+    result = _invoke_identity(repo, monkeypatch, "--json", "--mission", "001-spec-only")
+
+    assert result.exit_code == 0, result.output
+    doc = json.loads(result.output)
+    assert [(m["slug"], m["state"]) for m in doc["missions"]] == [("001-spec-only", "residue")]
+    assert doc["duplicate_prefixes"] == {}

@@ -1,10 +1,12 @@
 """Mission-identity health audit (FR-010, FR-011, FR-012, FR-045, NFR-002).
 
-Four-state classifier
----------------------
-Every mission in ``kitty-specs/`` is classified into one of four derived states
+Four Mission states plus ``residue``
+------------------------------------
+Every Mission in ``kitty-specs/`` is classified into one of four derived states
 based on the presence / absence of ``mission_id`` and ``mission_number`` in
-``meta.json`` (FR-045):
+``meta.json`` (FR-045). A ``kitty-specs/`` child that is not a Mission at all
+(:func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir`
+rejects it, so Mission selection does not list it) is ``residue`` (#5875):
 
 ``assigned``
     ``mission_id`` is present AND ``mission_number`` is non-null.
@@ -22,6 +24,12 @@ based on the presence / absence of ``mission_id`` and ``mission_number`` in
     Both fields missing (or meta.json unreadable).
     Requires manual triage.
 
+``residue``
+    Not a Mission: no ``meta.json`` on disk, or an untracked ``meta.json``
+    without a ``mission_id`` in a git repository. Set only by the walk
+    (:func:`audit_repo`), never by :func:`classify_mission`. Residue is left
+    out of the duplicate-prefix and selector-ambiguity reports.
+
 Duplicate-prefix report (FR-011)
 ---------------------------------
 :func:`find_duplicate_prefixes` walks ``kitty-specs/`` and groups mission
@@ -35,7 +43,11 @@ Selector-ambiguity report (FR-012)
 missions.
 
 Performance: the full audit over 200 missions must complete in < 3 s (NFR-002).
-All I/O is synchronous file reads; no subprocesses are spawned.
+All I/O is synchronous file reads plus at most one batch ``git ls-files`` per
+walk, and none when every child carries a ``mission_id``. The probe is
+:func:`~specify_cli.context.mission_resolver.tracked_mission_paths`, not the
+hardened one: this is a read-only reporter, so a broken git index raises
+rather than producing a silently weaker answer.
 """
 
 from __future__ import annotations
@@ -48,6 +60,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from specify_cli.context.mission_resolver import is_selectable_mission_dir, tracked_mission_paths
 from specify_cli.lanes.branch_naming import strip_numeric_prefix
 from specify_cli.mission_metadata import _coerce_mission_number
 
@@ -57,7 +70,10 @@ logger = logging.getLogger(__name__)
 # Public types
 # ---------------------------------------------------------------------------
 
-IdentityStateLabel = Literal["assigned", "pending", "legacy", "orphan"]
+IdentityStateLabel = Literal["assigned", "pending", "legacy", "orphan", "residue"]
+
+#: Every state label, in report order: the four Mission states, then ``residue``.
+IDENTITY_STATES: tuple[IdentityStateLabel, ...] = ("assigned", "pending", "legacy", "orphan", "residue")
 
 # Regex to extract exactly 3-digit leading prefix from a directory name.
 _PREFIX_RE = re.compile(r"^(\d{3})-")
@@ -72,7 +88,7 @@ class IdentityState:
         slug: Directory name used as the mission slug.
         mission_id: ULID string from ``meta.json``, or ``None`` if missing.
         mission_number: Integer from ``meta.json`` (after coercion), or ``None``.
-        state: Four-state label per FR-045.
+        state: Four-state label per FR-045, or ``residue`` for a non-Mission folder (#5875).
         error: Non-empty when ``meta.json`` could not be read / parsed.
     """
 
@@ -217,11 +233,67 @@ def iter_kitty_specs_children(repo_root: Path) -> list[Path]:
     return children
 
 
+class ReporterTrackedPaths:
+    """A per-walk memo of :func:`tracked_mission_paths` (the unhardened probe) for ``doctor identity``.
+
+    ``doctor identity`` is a read-only reporter: a broken git index raises
+    instead of degrading to file presence (the hardened
+    ``LazyTrackedMissionPaths`` would degrade). The probe runs on the first
+    :meth:`get` only, and :func:`classify_walk_entry` calls it only for a child
+    whose answer depends on git, so a walk whose every child carries a
+    ``mission_id`` makes no git call (NFR-001).
+    """
+
+    def __init__(self, repo_root: Path) -> None:
+        self._repo_root = repo_root
+        self._probed = False
+        self._tracked: frozenset[str] | None = None
+
+    def get(self) -> frozenset[str] | None:
+        """The tracked set (``None`` outside a git work tree), probed on the first call only."""
+        if not self._probed:
+            self._tracked = tracked_mission_paths(self._repo_root)
+            self._probed = True
+        return self._tracked
+
+
+_NO_TRACKED_PATHS: frozenset[str] = frozenset()
+
+
+def _residue_state(entry: Path) -> IdentityState:
+    """The ``residue`` row for a ``kitty-specs/`` child that is not a Mission (#5875)."""
+    return IdentityState(path=entry, slug=entry.name, mission_id=None, mission_number=None, state="residue", error=None)
+
+
+def _needs_git(entry: Path, repo_root: Path) -> bool:
+    """Whether the read-side answer for *entry* depends on git: a ``meta.json`` without a ``mission_id``.
+
+    With an empty tracked set, :func:`is_selectable_mission_dir` accepts
+    exactly a child whose ``meta.json`` carries a ``mission_id``, and makes no
+    git call.
+    """
+    return (entry / "meta.json").is_file() and not is_selectable_mission_dir(entry, repo_root=repo_root, tracked=_NO_TRACKED_PATHS)
+
+
+def classify_walk_entry(entry: Path, *, repo_root: Path, tracked: ReporterTrackedPaths) -> IdentityState:
+    """Classify one ``kitty-specs/`` child: ``residue`` when it is not a Mission, else :func:`classify_mission`.
+
+    The rule is :func:`is_selectable_mission_dir`. *tracked* is the walk's
+    memo, read only when the answer depends on git, so the probe runs at most
+    once per walk.
+    """
+    tracked_set = tracked.get() if _needs_git(entry, repo_root) else _NO_TRACKED_PATHS
+    if not is_selectable_mission_dir(entry, repo_root=repo_root, tracked=tracked_set):
+        return _residue_state(entry)
+    return classify_mission(entry)
+
+
 def audit_repo(repo_root: Path) -> list[IdentityState]:
     """Walk ``kitty-specs/`` and classify every mission directory.
 
-    Directories without a ``meta.json`` are classified as ``orphan``.
-    Entries that are not directories (e.g. ``README.md``) are silently skipped —
+    A child that is not a Mission (no ``meta.json``, or an untracked id-less
+    one in a git repository) is ``residue`` (#5875); every other directory is
+    classified by :func:`classify_mission`. Entries that are not directories (e.g. ``README.md``) are silently skipped —
     including entries that cannot be examined at all (`#3194`: an unreadable
     ancestor or an unstattable candidate, most commonly `EACCES` behind a
     symlink, is folded into the SAME "not a directory" skip rather than raising
@@ -236,7 +308,8 @@ def audit_repo(repo_root: Path) -> list[IdentityState]:
     Returns:
         Sorted list of :class:`IdentityState` objects, one per mission directory.
     """
-    return [classify_mission(entry) for entry in iter_kitty_specs_children(repo_root)]
+    tracked = ReporterTrackedPaths(repo_root)
+    return [classify_walk_entry(entry, repo_root=repo_root, tracked=tracked) for entry in iter_kitty_specs_children(repo_root)]
 
 
 # ---------------------------------------------------------------------------
@@ -248,28 +321,27 @@ def summarize(states: list[IdentityState]) -> dict[str, object]:
     """Aggregate a list of :class:`IdentityState` objects into a summary dict.
 
     Returns a dict with:
-    - ``counts``: ``{state: int}`` for all four states (zero-filled)
+    - ``counts``: ``{state: int}`` for all five states (zero-filled)
     - ``legacy_paths``: list of ``str`` paths for legacy missions
     - ``orphan_paths``: list of ``str`` paths for orphan missions
+    - ``residue_paths``: list of ``str`` paths for residue folders (#5875)
 
     Args:
         states: Flat list from :func:`audit_repo`.
     """
-    counts: dict[str, int] = {"assigned": 0, "pending": 0, "legacy": 0, "orphan": 0}
-    legacy_paths: list[str] = []
-    orphan_paths: list[str] = []
+    counts: dict[str, int] = dict.fromkeys(IDENTITY_STATES, 0)
+    paths: dict[str, list[str]] = {"legacy": [], "orphan": [], "residue": []}
 
     for s in states:
         counts[s.state] += 1
-        if s.state == "legacy":
-            legacy_paths.append(str(s.path))
-        elif s.state == "orphan":
-            orphan_paths.append(str(s.path))
+        if s.state in paths:
+            paths[s.state].append(str(s.path))
 
     return {
         "counts": counts,
-        "legacy_paths": legacy_paths,
-        "orphan_paths": orphan_paths,
+        "legacy_paths": paths["legacy"],
+        "orphan_paths": paths["orphan"],
+        "residue_paths": paths["residue"],
     }
 
 
@@ -286,7 +358,8 @@ def find_duplicate_prefixes(repo_root: Path) -> dict[str, list[IdentityState]]:
 
     Directories without a leading numeric prefix are silently skipped — as is,
     per `#3194`, an entry that cannot be examined at all (see the matching note
-    on :func:`audit_repo`).
+    on :func:`audit_repo`), and, per #5875, a ``residue`` folder: it is not a
+    Mission, so it cannot collide with one.
 
     Args:
         repo_root: Path to the repository root.
@@ -296,13 +369,14 @@ def find_duplicate_prefixes(repo_root: Path) -> dict[str, list[IdentityState]]:
         Empty dict when no duplicates exist.
     """
     groups: dict[str, list[IdentityState]] = {}
+    tracked = ReporterTrackedPaths(repo_root)
     for entry in iter_kitty_specs_children(repo_root):
         m = _PREFIX_RE.match(entry.name)
         if not m:
             continue
-        prefix = m.group(1)
-        state = classify_mission(entry)
-        groups.setdefault(prefix, []).append(state)
+        state = classify_walk_entry(entry, repo_root=repo_root, tracked=tracked)
+        if state.state != "residue":
+            groups.setdefault(m.group(1), []).append(state)
 
     return {prefix: items for prefix, items in groups.items() if len(items) >= 2}
 
@@ -322,7 +396,9 @@ def find_ambiguous_selectors(
     - **Numeric prefix** — the leading 3-digit token (e.g. ``"083"``)
     - **Human slug** — the slug with its numeric prefix stripped (e.g. ``"foo-bar"``)
 
-    Any handle that maps to ≥ 2 distinct missions is an ambiguity.
+    Any handle that maps to ≥ 2 distinct missions is an ambiguity. ``residue``
+    rows are skipped (#5875): Mission selection does not list them, so they
+    cannot make a handle ambiguous.
 
     A handle is an *exact* match — the handle ``"foo"`` does not ambiguate
     with ``"foobar"`` unless ``"foobar"`` is itself used as a full-slug
@@ -338,6 +414,8 @@ def find_ambiguous_selectors(
     handle_map: dict[str, list[IdentityState]] = {}
 
     for state in states:
+        if state.state == "residue":
+            continue
         slug = state.slug
         handles: set[str] = set()
 

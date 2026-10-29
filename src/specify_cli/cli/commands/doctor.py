@@ -476,22 +476,24 @@ def identity(
         str | None,
         typer.Option(
             "--fail-on",
-            help=("Exit non-zero if any mission is in the given state(s). Comma-separated list of: assigned, pending, legacy, orphan."),
+            help=("Exit non-zero if any mission is in the given state(s). Comma-separated list of: assigned, pending, legacy, orphan, residue."),
         ),
     ] = None,
 ) -> None:
     """Report mission-identity health across kitty-specs/.
 
-    Classifies every mission into one of four states (FR-045):
+    Classifies every mission into one of four states (FR-045), and every
+    kitty-specs/ folder that is not a Mission as residue (#5875):
 
     \\b
     - assigned: mission_id present AND mission_number non-null (fully migrated)
     - pending:  mission_id present AND mission_number null (pre-merge)
     - legacy:   mission_id missing AND mission_number present (needs backfill)
     - orphan:   both fields missing or meta.json unreadable (needs triage)
+    - residue:  not a Mission (no meta.json, or an untracked one with no mission_id); selection does not list it
 
     Also reports duplicate numeric prefixes (FR-011) and ambiguous selectors
-    that would resolve to multiple missions (FR-012).
+    that would resolve to multiple missions (FR-012); residue is in neither.
 
     Examples:
         spec-kitty doctor identity
