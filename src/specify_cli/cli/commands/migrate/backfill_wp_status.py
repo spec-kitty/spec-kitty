@@ -41,12 +41,13 @@ from ruamel.yaml.error import YAMLError
 
 from specify_cli.cli.console import console
 from specify_cli.cli.selector_resolution import resolve_mission_handle
-from specify_cli.context.mission_resolver import list_missions_for_selection, residue_notice
+from specify_cli.context.mission_resolver import residue_notice
 from specify_cli.migration.backfill_runtime_state import (
     MissionSelectorRejectedError,
     WpStatusBackfillResult,
     apply_wp_status_backfill_repo,
     residue_mission_dirs,
+    walked_mission_dirs,
 )
 from specify_cli.migration.wp_status_backfill import COORD_SURFACE_LIVE, COORD_SURFACE_LIVE_MESSAGE
 
@@ -170,8 +171,15 @@ def check_manifest_slugs(manifest: Mapping[str, str], known_slugs: Sequence[str]
 
 
 def known_mission_slugs(repo_root: Path) -> list[str]:
-    """Every ``kitty-specs/`` Mission directory name, legacy (no ``mission_id``) included."""
-    return [listing.mission_slug for listing in list_missions_for_selection(repo_root)]
+    """Every ``kitty-specs/`` directory name this command's walk visits, legacy (no ``mission_id``) included.
+
+    The scope uses the SAME write-seam rule as the walk itself
+    (:func:`~specify_cli.migration.backfill_runtime_state.walked_mission_dirs`,
+    ``is_kitty_specs_residue``), not Mission selection (#5875, D6): selection
+    skips a tracked ``spec.md``-only folder, yet the walk repairs it, so
+    ``--mission`` and the evidence manifest must accept it too.
+    """
+    return [folder.name for folder in walked_mission_dirs(repo_root)]
 
 
 def resolve_scope(handle: str, repo_root: Path, *, json_mode: bool) -> str:
@@ -185,7 +193,7 @@ def resolve_scope(handle: str, repo_root: Path, *, json_mode: bool) -> str:
 
     One short-circuit stays local, because the canonical resolver cannot serve it: a
     legacy Mission without a ``mission_id`` is invisible to the identity index, yet
-    ``list_missions_for_selection`` still lists it. An exact ``kitty-specs/`` directory
+    this command's walk still repairs it (:func:`known_mission_slugs`). An exact ``kitty-specs/`` directory
     name is unambiguous by construction (directory names are unique), so it resolves
     to itself; every other handle form goes through the canonical resolver.
 

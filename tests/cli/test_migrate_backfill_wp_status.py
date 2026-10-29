@@ -749,3 +749,56 @@ def test_refused_and_nothing_to_seed_missions_are_counted_apart(repo: Path) -> N
     assert "Refused (live coord surface)" in human and "Skipped (nothing to seed)" in human
     rows = {line.split(":")[0].strip(): line.split(":")[1].strip() for line in human.splitlines() if line.startswith("  ") and ":" in line}
     assert rows["Refused (live coord surface)"] == "1 mission(s)" and rows["Skipped (nothing to seed)"] == "1"
+
+
+# ---------------------------------------------------------------------------
+# #5875 / D6: the scope agrees with the command's own walker (the write-seam rule)
+# ---------------------------------------------------------------------------
+
+
+def _git_commit_all(repo: Path) -> None:
+    for args in (("init", "-q", "-b", "main"), ("add", "-A"), ("-c", "user.email=t@example.com", "-c", "user.name=T", "commit", "-q", "-m", "fixture")):
+        subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
+
+
+def _tracked_spec_only_mission(repo: Path, name: str = "legacy-spec-only") -> Path:
+    """A committed ``spec.md`` + ``tasks/WP01`` folder with no ``meta.json``: not selectable, yet walked."""
+    feature_dir = repo / "kitty-specs" / name
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# legacy\n", encoding="utf-8")
+    _write_wp_file(feature_dir / "tasks", "WP01")
+    return feature_dir
+
+
+@pytest.mark.git_repo
+def test_a_tracked_spec_only_folder_is_scanned_scoped_and_accepted_by_the_manifest(repo: Path, tmp_path: Path) -> None:
+    """``known_mission_slugs`` follows the walker's ``is_kitty_specs_residue`` rule, not Mission selection (D6)."""
+    _mission(repo, _SLUG_ONE, _ID_ONE)
+    _tracked_spec_only_mission(repo)
+    _git_commit_all(repo)
+
+    unscoped = _json(_invoke(repo, "--dry-run", "--json"))
+    assert "legacy-spec-only" in {row["slug"] for row in unscoped["missions"]}
+    assert unscoped["residue_directories"] == []
+
+    scoped = _invoke(repo, "--dry-run", "--json", "--mission", "legacy-spec-only")
+    assert scoped.exit_code == 0, scoped.output
+    assert [row["slug"] for row in _json(scoped)["missions"]] == ["legacy-spec-only"]
+
+    manifest = _write_manifest(tmp_path / "evidence.yaml", {"legacy-spec-only": {"reason": "PR #5875 merged; finished"}})
+    with_manifest = _invoke(repo, "--dry-run", "--json", "--evidence-manifest", str(manifest))
+    assert with_manifest.exit_code == 0, with_manifest.output
+    assert _json(with_manifest)["manifest"]["entries"] == 1
+
+
+@pytest.mark.git_repo
+def test_a_residue_folder_is_still_not_a_known_mission_slug(repo: Path) -> None:
+    """The write-seam rule still refuses residue: ``--mission <residue>`` is not found."""
+    _mission(repo, _SLUG_ONE, _ID_ONE)
+    _add_residue(repo, "ghost-folder")
+    _git_commit_all(repo)
+
+    result = _invoke(repo, "--dry-run", "--json", "--mission", "ghost-folder")
+
+    assert result.exit_code == 1, result.output
+    assert _json(result)["error_code"] == "MISSION_NOT_FOUND"

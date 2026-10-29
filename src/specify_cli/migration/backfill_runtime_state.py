@@ -1246,6 +1246,17 @@ def _mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
     return missions
 
 
+def walked_mission_dirs(repo_root: Path) -> list[Path]:
+    """Return the ``kitty-specs/`` Missions a corpus walk visits, without logging (#5875, D6).
+
+    The same containment and write-seam residue rule (:func:`is_kitty_specs_residue`)
+    as :func:`_mission_dirs`, so a CLI that validates a selector or a manifest
+    against it agrees with the walk: a tracked ``spec.md``-only folder that
+    Mission selection does not list is still a Mission here. Reads only.
+    """
+    return _partition_mission_dirs(repo_root, None)[0]
+
+
 def residue_mission_dirs(repo_root: Path, mission_slug: str | None) -> list[Path]:
     """Return the ``kitty-specs/`` residue folders a corpus walk leaves untouched (#6669).
 
