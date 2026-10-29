@@ -72,13 +72,6 @@ def _directive_synthesis_inputs(
     return selected, nodes
 
 
-def _synthesized_directive_ids(repo_root: Path) -> frozenset[str]:
-    """Ids (URN suffixes) of the directives synthesis created, from its ownership record."""
-    from charter.activation.api import synthesized_urns
-
-    return frozenset(urn.split(":", 1)[1] for urn in synthesized_urns(repo_root, "directive"))
-
-
 def _build_synthesis_request(
     repo_root: Path,
     adapter_name: str,
@@ -93,7 +86,7 @@ def _build_synthesis_request(
 
     from charter.activation.compiler import resolve_config_activated_roots
     from charter.activation.interview import read_interview_answers
-    from charter.activation.api import configured_languages
+    from charter.activation.api import configured_languages, synthesis_owned_directive_ids
     from charter.activation.pack_context import PackContext
     from charter.drg import ArtifactKind
     from charter.activation.synthesizer.fixture_adapter import FixtureAdapter
@@ -141,9 +134,10 @@ def _build_synthesis_request(
     # target under the additive-only check, and they would demand a companion
     # tactic for the project's own directive. Leave them out of both outputs;
     # they stay activated, so ``charter context`` still delivers them.
-    # Ownership is read only for a non-empty list (D-3): a first run or an
-    # absent key never touches the record nor its fail-closed path.
-    owned_ids = _synthesized_directive_ids(repo_root) if directives_for_synthesis else frozenset()
+    # The ownership rule lives in charter: the record is read only when the
+    # list names a project-layer directive (D-3), so a first run, an absent key
+    # or a built-in-only list never touches it nor its fail-closed path.
+    owned_ids = synthesis_owned_directive_ids(repo_root, directives_for_synthesis)
     selected_directives, drg_nodes = _directive_synthesis_inputs(directives_for_synthesis, owned_ids)
 
     # Build a minimal interview snapshot, config-activated selections + answers

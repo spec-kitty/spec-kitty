@@ -19,7 +19,7 @@ All filesystem writes go through ``PathGuard`` (FR-016).
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -30,7 +30,7 @@ from ruamel.yaml.error import YAMLError
 
 from . import provenance as _provenance
 from .errors import ManifestIntegrityError
-from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 from charter.offering.packs.hashing import hash_manifest_payload
 from charter.offering.packs.pack_manifest import (
     CharterProfile,
@@ -39,7 +39,7 @@ from charter.offering.packs.pack_manifest import (
     finalize_pack_manifest,
 )
 from .synthesize_pipeline import canonical_yaml
-from kernel.charter_pack_paths import PROJECT_PACK_ROOT
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT, project_pack_path
 from kernel.paths import to_posix
 
 if TYPE_CHECKING:
@@ -444,7 +444,7 @@ def _synthesized_sidecar_urn(repo_root: Path, entry: ManifestArtifactEntry) -> s
         )
     if sidecar.adapter_id == "project-direct-write":
         return None
-    return sidecar.artifact_urn
+    return str(sidecar.artifact_urn)
 
 
 def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
@@ -475,6 +475,43 @@ def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
         raise _ownership_unreadable(MANIFEST_PATH.as_posix(), exc) from exc
     urns = (_synthesized_sidecar_urn(repo_root, entry) for entry in manifest.artifacts if entry.kind == kind)
     return frozenset(urn for urn in urns if urn is not None)
+
+
+def _project_directive_ids(repo_root: Path) -> frozenset[str] | None:
+    """Ids the project pack's directive files declare, or ``None`` when they cannot be read."""
+    from charter.offering.drg.project_scan import scan_project_artifacts
+
+    directive = ArtifactKind.DIRECTIVE
+    folder = project_pack_path(repo_root, PROJECT_KIND_DIRS[directive])
+    try:
+        paths = frozenset(folder.rglob(directive.glob_pattern)) if folder.is_dir() else frozenset()
+        artifacts = scan_project_artifacts(repo_root, paths=paths) if paths else ()
+    except (OSError, ValueError):
+        return None
+    return frozenset(artifact.node.urn.partition(":")[2] for artifact in artifacts)
+
+
+def synthesis_owned_directive_ids(repo_root: Path, directive_ids: Iterable[str]) -> frozenset[str]:
+    """The ids among *directive_ids* that name a directive synthesis created (#6510 / #4226).
+
+    Synthesis only ever creates project-layer directives, so the ownership
+    record (:func:`synthesized_urns`) is read only when at least one of
+    *directive_ids* is declared by a file under the project pack's directive
+    directory. A list of built-in or org directives returns an empty set with
+    no manifest I/O, so a lost provenance sidecar cannot refuse a run that
+    never needs it. When the project directive files cannot be read, every id
+    is a candidate and the record is read (never a guess). An unreadable record
+    raises :class:`ManifestIntegrityError` (fail closed, never "nothing owned").
+    """
+    requested = frozenset(directive_ids)
+    if not requested:
+        return frozenset()
+    project_ids = _project_directive_ids(repo_root)
+    candidates = requested if project_ids is None else requested & project_ids
+    if not candidates:
+        return frozenset()
+    owned_urns = synthesized_urns(repo_root, ArtifactKind.DIRECTIVE.value)
+    return frozenset(directive_id for directive_id in candidates if f"{ArtifactKind.DIRECTIVE.value}:{directive_id}" in owned_urns)
 
 
 # ---------------------------------------------------------------------------
@@ -534,5 +571,6 @@ __all__ = [
     "verify",
     "verify_manifest_hash",
     "absorb_synthesis_manifest",
+    "synthesis_owned_directive_ids",
     "synthesized_urns",
 ]

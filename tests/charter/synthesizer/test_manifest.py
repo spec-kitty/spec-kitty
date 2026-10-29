@@ -31,6 +31,7 @@ from charter.activation.synthesizer.manifest import (
     dump_yaml,
     finalize_manifest,
     load_yaml,
+    synthesis_owned_directive_ids,
     synthesized_urns,
     verify,
     verify_manifest_hash,
@@ -877,3 +878,85 @@ def test_ownership_unreadable_is_a_manifest_integrity_error() -> None:
 
     assert isinstance(error, ManifestIntegrityError)
     assert str(error).startswith("Synthesis ownership record unreadable: 'p.yaml' (listed by m.yaml): gone.")
+
+
+# ---------------------------------------------------------------------------
+# synthesis_owned_directive_ids -- the ownership rule, read only when needed (#6510 D-3)
+# ---------------------------------------------------------------------------
+
+
+def _write_project_directive(repo_root: Path, stem: str, directive_id: str) -> None:
+    folder = repo_root / ".kittify/charter-packs/directive"
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{stem}.directive.yaml").write_text(
+        f"id: {directive_id}\nschema_version: '1.0'\ntitle: T\nintent: I\nenforcement: advisory\n",
+        encoding="utf-8",
+    )
+
+
+def _corrupt_manifest(repo_root: Path) -> None:
+    manifest_path = repo_root / MANIFEST_PATH
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text("artifacts: [this is: not a manifest\n", encoding="utf-8")
+
+
+def test_owned_ids_empty_list_reads_nothing(tmp_path: Path) -> None:
+    _corrupt_manifest(tmp_path)
+
+    assert synthesis_owned_directive_ids(tmp_path, []) == frozenset()
+
+
+def test_owned_ids_built_in_only_list_reads_no_record(tmp_path: Path) -> None:
+    """No requested id is a project directive: the (unreadable) record is never read."""
+    _write_project_directive(tmp_path, "001-project-intent-directive", "PROJECT_001")
+    _corrupt_manifest(tmp_path)
+
+    assert synthesis_owned_directive_ids(tmp_path, ["DIRECTIVE_003", "DIRECTIVE_010"]) == frozenset()
+
+
+def test_owned_ids_returns_synthesized_project_ids_only(tmp_path: Path, guard: PathGuard) -> None:
+    _write_project_directive(tmp_path, "001-project-intent-directive", "PROJECT_001")
+    _write_project_directive(tmp_path, "050-team-directive", "TEAM_001")
+    _write_ownership_record(
+        tmp_path,
+        guard,
+        [("directive", "project-intent-directive", "directive:PROJECT_001"), ("directive", "team-001", "directive:TEAM_001")],
+        direct_write_slugs=frozenset({"team-001"}),
+    )
+
+    owned = synthesis_owned_directive_ids(tmp_path, ["DIRECTIVE_003", "PROJECT_001", "TEAM_001"])
+
+    assert owned == frozenset({"PROJECT_001"})
+
+
+def test_owned_ids_project_id_with_unreadable_record_fails_closed(tmp_path: Path) -> None:
+    _write_project_directive(tmp_path, "001-project-intent-directive", "PROJECT_001")
+    _corrupt_manifest(tmp_path)
+
+    with pytest.raises(ManifestIntegrityError, match="synthesis-manifest.yaml"):
+        synthesis_owned_directive_ids(tmp_path, ["DIRECTIVE_003", "PROJECT_001"])
+
+
+def test_owned_ids_unreadable_project_directive_reads_the_record(tmp_path: Path) -> None:
+    """A malformed project directive file cannot tell the layers apart, so the record is read (never a guess)."""
+    folder = tmp_path / ".kittify/charter-packs/directive"
+    folder.mkdir(parents=True)
+    (folder / "broken.directive.yaml").write_text("id: [unclosed\n", encoding="utf-8")
+    _corrupt_manifest(tmp_path)
+
+    with pytest.raises(ManifestIntegrityError, match="synthesis-manifest.yaml"):
+        synthesis_owned_directive_ids(tmp_path, ["DIRECTIVE_003"])
+
+
+def test_owned_ids_unlistable_project_directory_reads_the_record(
+    tmp_path: Path, guard: PathGuard, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_project_directive(tmp_path, "001-project-intent-directive", "PROJECT_001")
+    _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", "directive:PROJECT_001")])
+
+    def _denied(self: Path, pattern: str) -> object:
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(Path, "rglob", _denied)
+
+    assert synthesis_owned_directive_ids(tmp_path, ["PROJECT_001", "DIRECTIVE_003"]) == frozenset({"PROJECT_001"})

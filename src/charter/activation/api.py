@@ -67,7 +67,7 @@ from charter.activation.synthesizer.synthesize_pipeline import (
     canonical_yaml as canonical_yaml,
 )
 
-# Synthesis ownership and its refusals (#6510 / #4226) -- the ownership read the
+# Synthesis ownership and its refusals (#6510 / #4226) -- the ownership rule the
 # ``charter synthesize`` request builder and the collision remedy consume, the
 # project-pack directory map the remedy scans, and the typed errors it
 # classifies. Public per the respective modules' ``__all__``.
@@ -77,7 +77,9 @@ from charter.activation.synthesizer.errors import (
     ProjectDRGValidationError as ProjectDRGValidationError,
     SynthesisError as SynthesisError,
 )
-from charter.activation.synthesizer.manifest import synthesized_urns as synthesized_urns
+from charter.activation.synthesizer.manifest import (
+    synthesis_owned_directive_ids as synthesis_owned_directive_ids,
+)
 
 # Legacy project-intent directive convergence (#6443, FR-008) — the one helper the
 # ``4.0.0rc8_project_intent_directive_rename`` migration and ``charter synthesize`` /
@@ -303,6 +305,6 @@ __all__ = [
     "store_language_settlement",
     "synthesis_lock",
     "synthesis_lock_unless",
-    "synthesized_urns",
+    "synthesis_owned_directive_ids",
     "verify",
 ]

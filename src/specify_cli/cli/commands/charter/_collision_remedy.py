@@ -29,7 +29,7 @@ from charter.activation.api import (
     ManifestIntegrityError,
     ProjectDRGValidationError,
     SynthesisError,
-    synthesized_urns,
+    synthesis_owned_directive_ids,
 )
 from charter.drg import ArtifactKind, scan_project_artifacts
 from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX, project_pack_path
@@ -69,7 +69,7 @@ def collision_remedy(repo_root: Path, error: SynthesisError) -> str | None:
 def _project_directive_remedy(repo_root: Path, urn: str) -> str:
     manifest = MANIFEST_PATH.as_posix()
     try:
-        owned = urn in synthesized_urns(repo_root, _DIRECTIVE.value)
+        owned = bool(synthesis_owned_directive_ids(repo_root, [urn.partition(":")[2]]))
     except ManifestIntegrityError as exc:
         return (
             f"'{urn}' is an activated project directive, and the synthesis ownership record is unreadable "
