@@ -147,6 +147,14 @@ from .wp_state import (
     annotate,
     wp_state_for,
 )
+from .actor import (
+    ActorRole,
+    actor_from_option,
+    build_status_actor,
+    compose_status_actor,
+    role_for_hop,
+    role_for_wp,
+)
 from .emit import (
     TransitionError,
     build_claim_policy_metadata,
@@ -555,6 +563,8 @@ __all__ = [
     "latest_implementer_actor",
     "latest_implementer_event",
     "WorkPackageClaimConflict",
+    # #6400: the structured actor for a free-text --actor option.
+    "actor_from_option",
     "WorkPackageStartRejected",
     "emit_artifact_phase",
     "emit_artifact_phase_local",
@@ -654,6 +664,12 @@ __all__ = [
     # primitives are not facade exports -- see ``status/_unsafe.py`` and the
     # provenance note on the ``.store`` import block above.
     "build_self_asserting_actor",
+    # #6400: the structured status actor and the role rule (``status.actor``).
+    "ActorRole",
+    "build_status_actor",
+    "compose_status_actor",
+    "role_for_wp",
+    "role_for_hop",
     "emit_status_transition",
     "generate_status_view",
     "get_all_wp_lanes",

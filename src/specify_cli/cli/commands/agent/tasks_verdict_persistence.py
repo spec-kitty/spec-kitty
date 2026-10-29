@@ -80,6 +80,7 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
     _persist_review_artifact_override,
     _resolve_wp_slug,
 )
+from specify_cli.cli.commands.agent.tasks_move_task_hops import _mt_structured_actor
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     override_persist_signal,
 )
@@ -95,6 +96,7 @@ from specify_cli.review.verdict_commit_queue import (
     acquire_verdict_save_queue,
 )
 from specify_cli.status import (
+    ActorRole,
     FeatureStatusLockTimeoutError,
     event_sourced_review_result,
     to_artifact_verdict,
@@ -733,6 +735,8 @@ def persist_review_override_before_guard(st: _MoveTaskState) -> None:
         wp_id=st.task_id,
         actor=st.agent or "operator",
         reason=override_reason,
+        # #6400 (FR-010): the annotation event records a reviewer actor; the override record keeps the string.
+        event_actor=_mt_structured_actor(st, ActorRole.REVIEWER, st.agent or "operator"),
     )
 
 

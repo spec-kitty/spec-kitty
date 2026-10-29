@@ -26,6 +26,7 @@ from specify_cli.status import wp_state_for
 from specify_cli.status import CHECKOUT_CLAIM_LOCK_TIMEOUT_SECONDS, FeatureStatusLockTimeoutError
 from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
+from specify_cli.status import ActorRole, actor_from_option, role_for_wp
 from specify_cli.status import parse_review_result_json
 
 from .envelope import (
@@ -588,7 +589,7 @@ def _start_implementation(mission: str, wp: str, actor: str, policy: str | None,
             feature_dir=mission_dir,
             mission_slug=mission,
             wp_id=wp,
-            actor=actor,
+            actor=actor_from_option(actor, ActorRole.IMPLEMENTER),
             workspace_context=workspace_path,
             execution_mode=status_execution_mode,
             repo_root=main_repo_root,
@@ -602,7 +603,7 @@ def _start_implementation(mission: str, wp: str, actor: str, policy: str | None,
             {
                 **_common._mission_identity_payload(mission_dir),
                 "claimed_by": exc.claimed_by,
-                "requesting_actor": exc.requesting_actor,
+                "requesting_actor": actor,
             },
         )
         return
@@ -682,7 +683,7 @@ def start_review(
             feature_dir=mission_dir,
             mission_slug=mission,
             wp_id=wp,
-            actor=actor,
+            actor=actor_from_option(actor, ActorRole.REVIEWER),
             review_ref=review_ref,
             workspace_context=f"orchestrator-api:{main_repo_root}",
             execution_mode=_status_execution_mode_for_start_workspace(review_ws),
@@ -697,7 +698,7 @@ def start_review(
             {
                 **_common._mission_identity_payload(mission_dir),
                 "claimed_by": exc.claimed_by,
-                "requesting_actor": exc.requesting_actor,
+                "requesting_actor": actor,
             },
         )
         return
@@ -854,7 +855,7 @@ def transition(
                 mission_slug=mission,
                 wp_id=wp,
                 to_lane=to_lane,
-                actor=actor,
+                actor=actor_from_option(actor, role_for_wp(mission_dir, wp, to_lane)),
                 reason=note,
                 force=force,
                 evidence=evidence,
@@ -957,7 +958,7 @@ def append_history(
             mission_dir,
             wp,
             WPInnerStateDelta(note=entry_text),
-            actor=actor,
+            actor=actor_from_option(actor, role_for_wp(mission_dir, wp)),
             mission_slug=mission,
             repo_root=main_repo_root,
         )

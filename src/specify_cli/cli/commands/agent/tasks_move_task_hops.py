@@ -32,8 +32,11 @@ from specify_cli.status import (
     ReviewResult,
     StatusEvent,
     _actor_key,
+    actor_from_option,
+    build_status_actor,
     emission_event_verdict,
     resolve_lane_alias,
+    role_for_hop,
 )
 
 
@@ -164,6 +167,43 @@ def _mt_hop_actor(st: _MoveTaskState, event: StatusEvent | None, current_event_l
     return "user"
 
 
+def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> dict[str, str | None]:
+    """The structured 4-key ``{tool, role, profile, model}`` actor a move-task write records (#6400).
+
+    An explicit ``--agent`` (already refused upfront when it does not parse) is parsed
+    strictly (:func:`~specify_cli.status.build_status_actor`), as on mark-status and
+    add-history: ``migration:x`` is tool ``migration``, never a seed. Without it,
+    ``tool_identity`` is the recorded identity the caller chose (the implementer
+    handoff, the recorded reviewer, ``"user"`` or ``"operator"``) and goes through the
+    lenient builder (:func:`~specify_cli.status.actor_from_option`): a compact string
+    keeps its ``tool:model:profile``; a value that does not parse, has more than four
+    segments or is a ``migration:`` seed is kept whole as ``tool``. A reviewer recorded
+    as a structured actor reaches here as its bare tool (``actor_identity_str``). The
+    dispatch binding (``--invocation-id`` / ``--profile``) wins for ``profile``/``model``.
+    No WP file is read: the frontmatter profile is never filled in (phase split, spec C-006).
+    """
+    # Bound explicitly: mypy widens ``specify_cli.*`` returns to ``Any`` through ``follow_imports=skip``.
+    actor: dict[str, str | None]
+    if st.agent:
+        actor = build_status_actor(role=role, agent=st.agent, fallback_tool=None, binding=st.resolved_binding)
+    else:
+        actor = actor_from_option(tool_identity, role, binding=st.resolved_binding)
+    return actor
+
+
+def _mt_hop_structured_actor(st: _MoveTaskState, from_lane: str | Lane | None, target: str | Lane, hop_actor: str) -> dict[str, str | None]:
+    """The structured actor of one ``from_lane -> target`` hop; ``role`` follows the hop (FR-006/FR-007)."""
+    return _mt_structured_actor(st, role_for_hop(from_lane, target), hop_actor)
+
+
+def _mt_annotation_actor(st: _MoveTaskState) -> dict[str, str | None]:
+    """The paired-note actor: the final hop's structured actor, or one built for an annotation-only move (FR-007)."""
+    recorded: dict[str, str | None] | None = st.final_hop_structured_actor
+    if recorded is not None:
+        return recorded
+    return _mt_hop_structured_actor(st, st.old_lane, st.target_lane, st.final_hop_actor or st.actor)
+
+
 def _mt_shell_pid_baseline(pid: int) -> str | None:
     """Best-effort PID-reuse identity baseline for a claim (D3b / #2580).
 
@@ -265,7 +305,7 @@ def _binding_role_for_lane(lane: Lane | str) -> str | None:
 
     FR-006 (IC-04): APPROVED/DONE are also reviewer-role decisions — the
     approving/completing actor, never the implementer — so the resolved
-    binding's structured actor (``build_self_asserting_actor``) and
+    binding's structured actor (``build_status_actor``) and
     annotation delta are stamped there too, symmetric with IN_REVIEW.
     """
     if lane == Lane.CLAIMED:

@@ -64,7 +64,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.mission import get_deliverables_path, get_mission_type
-from specify_cli.status import FORCE_NOTE_HINT, Lane, StoreError, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
+from specify_cli.status import FORCE_NOTE_HINT, ActorRole, Lane, StoreError, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
 from specify_cli.status import RollbackOutcome, RollbackPoint, RollbackRefusal, UNBOUNDED_LOCK_WAIT, appended_event_ids, capture_rollback_point, mission_write_lock
 from specify_cli import status as _status_facade
 from specify_cli.task_utils import extract_scalar
@@ -892,20 +892,10 @@ def _implement_start_claim(
 
     from runtime.next.runtime_bridge import build_operational_context_for_claim
     from specify_cli.status import start_implementation_status
-    from specify_cli.status import build_self_asserting_actor
 
     shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
     actor = agent or "unknown"
-    # FR-005: route the compact ``--agent`` value through the single self-
-    # asserting actor seam — only the parsed BARE tool reaches actor.tool, an
-    # absent segment stays None (no synthetic default), and the dispatch
-    # binding wins over the self-asserted parse.
-    transition_actor = build_self_asserting_actor(
-        role=_IMPLEMENT_CLAIM_ROLE,
-        agent=agent,
-        fallback_tool=wp_agent_assignment.tool,
-        binding=resolved_binding,
-    )
+    transition_actor = _implementer_actor(agent, wp_agent_assignment, resolved_binding)
 
     # FR-017 / NFR-004: build and validate the runtime OperationalContext
     # via the shared claim builder BEFORE emitting the claim status event
@@ -1023,12 +1013,36 @@ def _implement_write_claim_and_commit(
     )
 
 
+def _implementer_actor(
+    agent: str | None,
+    wp_agent_assignment: AgentAssignment,
+    resolved_binding: ResolvedBinding | None,
+) -> dict[str, str | None]:
+    """The implementer's structured actor for the claim and its annotations (#6400, FR-009).
+
+    FR-005: the compact ``--agent`` value goes through the single self-asserting
+    actor seam: only the parsed BARE tool reaches ``actor.tool``, an absent segment
+    stays None (no synthetic default), and the dispatch binding wins over the
+    self-asserted parse. Without ``--agent`` the recorded assignment's tool fills
+    the slot.
+    """
+    from specify_cli.status import build_status_actor
+
+    actor: dict[str, str | None] = build_status_actor(
+        role=_IMPLEMENT_CLAIM_ROLE,
+        agent=agent,
+        fallback_tool=wp_agent_assignment.tool,
+        binding=resolved_binding,
+    )
+    return actor
+
+
 def _implement_emit_resume_refresh(
     *,
     feature_dir: Path,
     wp_id: str,
     mission_slug: str,
-    actor: str,
+    actor: str | dict[str, str | None],  # ActorField (not on the status facade)
     repo_root: Path,
     resolved_binding: ResolvedBinding | None = None,
 ) -> None:
@@ -1072,8 +1086,8 @@ def _implement_emit_resume_refresh(
 
 #: The *actual* role that ran at each claim seam — the resolved-binding ``role``
 #: is the role that executed, NOT the authored frontmatter recommendation (INV-6).
-_IMPLEMENT_CLAIM_ROLE = "implementer"
-_REVIEW_CLAIM_ROLE = "reviewer"
+_IMPLEMENT_CLAIM_ROLE = str(ActorRole.IMPLEMENTER)
+_REVIEW_CLAIM_ROLE = str(ActorRole.REVIEWER)
 
 
 def implement_claim_transition(
@@ -1209,7 +1223,7 @@ def _implement_claim_transition_body(
                 feature_dir=wf_feature_dir,
                 wp_id=normalized_wp_id,
                 mission_slug=mission_slug,
-                actor=agent or wp_agent_assignment.tool or "unknown",
+                actor=_implementer_actor(agent, wp_agent_assignment, resolved_binding),
                 resolved_binding=resolved_binding,
                 repo_root=main_repo_root,
             )
@@ -1234,7 +1248,7 @@ def _implement_claim_transition_body(
             feature_dir=wf_feature_dir,
             wp_id=normalized_wp_id,
             mission_slug=mission_slug,
-            actor=agent or wp_agent_assignment.tool or "unknown",
+            actor=_implementer_actor(agent, wp_agent_assignment, resolved_binding),
             repo_root=main_repo_root,
             resolved_binding=resolved_binding,
         )
@@ -1901,7 +1915,7 @@ def review_claim_transition(
     from specify_cli.status import start_review_status
     from specify_cli.status import emit_inner_state_changed
     from specify_cli.status import WPInnerStateDelta
-    from specify_cli.status import build_self_asserting_actor
+    from specify_cli.status import build_status_actor
 
     w = _wf()
 
@@ -1937,7 +1951,7 @@ def review_claim_transition(
     # asserted parse (``agent`` is guaranteed truthy here — the ``--agent``
     # required guard above already raised otherwise, so ``fallback_tool`` is
     # unreachable).
-    transition_actor = build_self_asserting_actor(
+    transition_actor = build_status_actor(
         role=_REVIEW_CLAIM_ROLE,
         agent=agent,
         fallback_tool=None,
@@ -1982,7 +1996,7 @@ def review_claim_transition(
                 feature_dir,
                 normalized_wp_id,
                 claim_delta,
-                actor=agent,
+                actor=transition_actor,
                 mission_slug=mission_slug,
                 repo_root=main_repo_root,
             )

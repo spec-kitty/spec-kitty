@@ -163,6 +163,6 @@ def test_append_history_emits_note_annotation_wp_file_unchanged(coord_repo: Path
     assert len(stream.annotations) == 1
     annotation = stream.annotations[0]
     assert annotation.wp_id == "WP01"
-    assert annotation.actor == "claude"
+    assert annotation.actor == {"tool": "claude", "role": "implementer", "profile": None, "model": None}  # #6400: structured actor
     assert annotation.delta.note is not None
     assert "Starting implementation" in annotation.delta.note

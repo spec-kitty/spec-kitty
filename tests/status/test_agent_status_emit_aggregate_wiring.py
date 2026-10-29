@@ -28,6 +28,10 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 runner = CliRunner()
 
 
+#: The structured actor ``agent status emit --actor codex`` stores on a claim (#6400).
+_CODEX_IMPLEMENTER = {"tool": "codex", "role": "implementer", "profile": None, "model": None}
+
+
 @pytest.fixture(autouse=True)
 def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep these tests focused on local persistence + routing."""
@@ -224,7 +228,7 @@ def test_emit_persists_transition_event_to_status_events_log(tmp_path: Path) -> 
     assert persisted_event["wp_id"] == "WP01"
     assert persisted_event["from_lane"] == "planned"
     assert persisted_event["to_lane"] == "claimed"
-    assert persisted_event["actor"] == "codex"
+    assert persisted_event["actor"] == _CODEX_IMPLEMENTER
     assert persisted_event["event_id"]
 
 
@@ -262,7 +266,7 @@ def _emit_via_legacy_direct_path(repo: Path, slug: str) -> dict:
             mission_slug=slug,
             wp_id="WP01",
             to_lane="claimed",
-            actor="codex",
+            actor=_CODEX_IMPLEMENTER,  # #6400: emit stores the structured actor
             execution_mode="worktree",
             repo_root=repo,
         )
@@ -307,7 +311,7 @@ def test_emit_event_fields_match_prior_direct_path(tmp_path: Path) -> None:
     assert new_event["wp_id"] == "WP01"
     assert new_event["from_lane"] == "planned"
     assert new_event["to_lane"] == "claimed"
-    assert new_event["actor"] == "codex"
+    assert new_event["actor"] == _CODEX_IMPLEMENTER
 
 
 def test_emit_json_output_contract_is_preserved(tmp_path: Path) -> None:

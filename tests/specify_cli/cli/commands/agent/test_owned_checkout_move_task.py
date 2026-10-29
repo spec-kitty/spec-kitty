@@ -208,7 +208,7 @@ def test_move_task_starts_work_finalized_in_linked_checkout(finalized_checkouts,
     events = [json.loads(line) for line in (mission / "status.events.jsonl").read_text(encoding="utf-8").splitlines()]
     transitions = [row for row in events if row.get("wp_id") == "WP01" and "to_lane" in row]
     assert transitions[-1]["to_lane"] == "in_progress"
-    assert transitions[-1]["actor"] == "codex"
+    assert transitions[-1]["actor"] == {"tool": "codex", "role": "implementer", "profile": None, "model": None}
     assert git(owned, "branch", "--show-current") == TARGET
     assert git(owned, "rev-parse", "HEAD") != before[1][0]
     assert git(owned, "status", "--porcelain") == ""

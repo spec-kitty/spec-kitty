@@ -24,6 +24,7 @@ from specify_cli.status.models import (
     StatusEvent,
     TransitionRequest,
     WPInnerStateDelta,
+    actor_full_identity,
     actor_identity_str,
 )
 from specify_cli.workspace import canonicalize_feature_dir
@@ -263,14 +264,23 @@ def _review_lane_exit_reason(
 
 
 def _implementer_of_record_label(feature_dir: Path, mission_slug: str, wp_id: str, repo_root: Path | None) -> str:
-    """Name the implementer of record for a refusal message; ``"unknown"`` on any read failure."""
-    from specify_cli.status.review_roles import latest_implementer_actor
+    """Name the implementer of record for a refusal message; ``"unknown"`` on any read failure.
+
+    A structured actor (#6400) is named by its full ``tool:model:profile`` identity
+    (absent trailing parts dropped), as the compact string it replaces was.
+    """
+    from specify_cli.status.review_roles import latest_implementer_event
 
     events = _read_events_for_implementer(feature_dir=feature_dir, mission_slug=mission_slug, repo_root=repo_root)
     if events is None:
         return _UNKNOWN_ACTOR
     try:
-        return latest_implementer_actor(events, wp_id) or _UNKNOWN_ACTOR
+        event = latest_implementer_event(events, wp_id)
+        if event is None:
+            return _UNKNOWN_ACTOR
+        if isinstance(event.actor, dict):
+            return (actor_full_identity(event.actor) or "").rstrip(":") or _UNKNOWN_ACTOR
+        return actor_identity_str(event.actor) or _UNKNOWN_ACTOR
     except Exception:  # a failed projection only degrades the message; the refusal stands
         return _UNKNOWN_ACTOR
 

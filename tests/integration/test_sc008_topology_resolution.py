@@ -180,7 +180,7 @@ class TestAppendHistoryTopologyResolution:
         assert len(notes) == 1, "expected exactly one note annotation on the stored-topology surface"
         assert notes[0].delta.note is not None
         assert "off-axis note" in notes[0].delta.note
-        assert notes[0].actor == "claude"
+        assert notes[0].actor == {"tool": "claude", "role": "implementer", "profile": None, "model": None}  # #6400: structured actor
 
         # Negative control (proof-of-drive, not proof-of-absence, per the T032
         # edge case): kitty-specs/ is git-tracked, so the decoy worktree

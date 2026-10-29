@@ -62,7 +62,7 @@ from .wp_metadata import coerce_legacy_dependencies, read_wp_frontmatter
 
 from .models import (
     ActorField,
-    parse_agent_boundary_string,
+    parse_agent_boundary_string as parse_agent_boundary_string,  # re-exported: tests import the boundary parser from here
     DoneEvidence,
     EventStream,
     InnerStateChanged,
@@ -77,6 +77,7 @@ from .models import (
     WPInnerStateDelta,
 )
 from .dependency_verdict import readiness_from_snapshot, unresolvable_readiness
+from .actor import build_status_actor, compose_status_actor
 from .resolved_binding import ResolvedBinding
 from .wp_state import annotate
 from . import store as _store
@@ -1225,7 +1226,7 @@ def emit_inner_state_changed(
     wp_id: str,
     delta: WPInnerStateDelta,
     *,
-    actor: str,
+    actor: ActorField,
     mission_slug: str,
     at: str | None = None,
     repo_root: Path | None = None,
@@ -1250,7 +1251,7 @@ def emit_inner_state_changed(
         feature_dir: kitty-specs feature directory (canonicalized here).
         wp_id: Target work-package id (e.g. ``"WP01"``).
         delta: Typed partial runtime-state payload. An empty delta is refused.
-        actor: Identity of the actor causing the change.
+        actor: Identity of the actor causing the change (a string or the structured actor).
         mission_slug: Mission identifier used for resolved-binding fan-out.
         at: Optional ISO-8601 occurrence timestamp; defaults to now.
         repo_root: Optional repo root for status-lock resolution.
@@ -1373,35 +1374,24 @@ def build_resolved_actor(
 ) -> dict[str, str | None]:
     """Structured ``{role, profile, tool, model}`` actor for the IC-09 fan-out.
 
-    ``spec_kitty_events`` 6.1.0 ``StatusTransitionPayload.actor`` already accepts
-    ``Union[str, Dict]`` — so no shared-package change is needed to carry this
-    shape. The dict form lets the status fan-out ride the transition's *resolved*
-    identity rather than the bare ``--agent`` tool string.
+    A thin delegate to :func:`specify_cli.status.actor.compose_status_actor`, the one
+    actor-building authority (#6400). ``spec_kitty_events``
+    ``StatusTransitionPayload.actor`` accepts ``Union[str, Dict]``, so the dict rides
+    the transition to the status fan-out uncorrupted (``decode_actor`` guards the
+    ``from_dict`` round-trip).
 
-    The ``model``/``profile`` prefer the genuine dispatch-resolved binding; when
-    no binding is present (or the binding leaves a segment unresolved),
-    ``self_model``/``self_profile`` (FR-005) carry a **self-asserted** value
-    parsed from the ``--agent`` boundary string — never a synthetic default. An
-    absent value on both sides stays a plain ``None`` (the ``RESOLVED_MODEL_ABSENT``
-    delta sentinel is a reduced-slot concern, not an actor concern).
-
-    .. note:: WP12 (FR-015) landed the plumbing this seam waited on. The
-       ``emit_status_transition`` / ``build_status_event`` / ``StatusEvent.actor``
-       surfaces are now typed :data:`~specify_cli.status.models.ActorField`
-       (``str | dict``), and ``decode_actor`` guards the ``from_dict`` round-trip,
-       so a caller may pass this dict as the claim/review transition ``actor`` and
-       it reaches ``_status_fan_out`` (``fire_status_fanout(actor=event.actor, …)``)
-       uncorrupted. The ``emit_status_transition`` ``# NOSONAR`` hub was NOT
-       inflated — the guard reads a projected string via ``actor_identity_str``.
-       The off-transition binding change additionally bridges through the
-       version-gated :func:`_resolved_binding_fan_out` (``WPResolvedBindingChanged``).
+    The ``model``/``profile`` prefer the genuine dispatch-resolved binding; when the
+    binding leaves a segment unresolved, ``self_model``/``self_profile`` (FR-005) carry
+    a **self-asserted** value parsed from the ``--agent`` boundary string — never a
+    synthetic default. An absent value on both sides stays ``None``.
     """
-    return {
-        "role": role,
-        "profile": (binding.agent_profile if binding is not None else None) or self_profile,
-        "tool": tool,
-        "model": (binding.model if binding is not None else None) or self_model,
-    }
+    return compose_status_actor(
+        role=role,
+        tool=tool,
+        binding=binding,
+        agent_profile=self_profile,
+        agent_model=self_model,
+    )
 
 
 # Compatibility alias for the WP10 test/import surface.
@@ -1417,37 +1407,17 @@ def build_self_asserting_actor(
 ) -> dict[str, str | None]:
     """Build a claim/review transition actor from a compact ``--agent`` value.
 
-    THE single seam (FR-005) that every live claim/review call site routes
-    through. It composes the two thin primitives —
-    :func:`parse_agent_boundary_string` (parse the compact
-    ``tool:model:profile:role`` string into a **bare** tool plus self-asserted
-    profile/model, absent segments staying ``None``) and
-    :func:`build_resolved_actor` (a genuine dispatch-resolved ``binding`` always
-    wins; the self-asserted value only fills a gap the binding leaves open).
+    A thin delegate to :func:`specify_cli.status.actor.build_status_actor` (#6400):
+    the compact ``tool:model:profile:role`` string is parsed into a **bare** tool plus
+    self-asserted profile/model, and a genuine dispatch-resolved ``binding`` always
+    wins.
 
-    Crucially, only the **parsed bare tool** ever reaches ``actor["tool"]`` — the
-    whole compact ``--agent`` string must never land there (the #2861 leak this
-    seam closes). When ``agent`` is falsy no parse happens and ``fallback_tool``
-    carries the tool slot; a genuinely present ``agent`` always yields a
-    non-empty parsed tool (the parser raises on an empty tool segment), so the
-    fallback is only reached for a bindingless, agentless claim.
-
-    No synthetic default is ever fabricated and no :class:`ResolvedBinding` is
-    minted here (C-002/C-007): an identity segment absent on both the binding
-    and the self-asserted parse stays a plain ``None``.
+    Only the **parsed bare tool** ever reaches ``actor["tool"]`` — the whole compact
+    ``--agent`` string must never land there (#2861). When ``agent`` is falsy no parse
+    happens and ``fallback_tool`` carries the tool slot. No synthetic default is
+    fabricated and no :class:`ResolvedBinding` is minted here (C-002/C-007).
     """
-    parsed_tool: str | None = None
-    self_profile: str | None = None
-    self_model: str | None = None
-    if agent:
-        parsed_tool, self_model, self_profile, _self_role = parse_agent_boundary_string(agent)
-    return build_resolved_actor(
-        role=role,
-        tool=parsed_tool or fallback_tool,
-        binding=binding,
-        self_profile=self_profile,
-        self_model=self_model,
-    )
+    return build_status_actor(role=role, agent=agent, fallback_tool=fallback_tool, binding=binding)
 
 
 @dataclass(frozen=True)

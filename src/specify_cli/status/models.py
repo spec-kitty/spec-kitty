@@ -147,40 +147,86 @@ def resolve_subtask_status_alias(value: str) -> str:
     return _SUBTASK_STATUS_ALIASES.get(normalized, normalized)
 
 
+class ProfileSource(StrEnum):
+    """Where a structured actor's ``profile`` came from (#6400, FR-005).
+
+    The single authority for the ``profile_source`` vocabulary: :func:`decode_actor`
+    validates against it. No writer emits ``profile_source`` yet: the shared events
+    decoder accepts only the 4-key actor, so writers wait for #6721. A
+    ``wp_frontmatter`` profile is planned, not proven, so
+    :func:`actor_full_identity` ignores it (FR-013).
+    """
+
+    INVOCATION = "invocation"
+    FLAG = "flag"
+    AGENT_STRING = "agent_string"
+    WP_FRONTMATTER = "wp_frontmatter"
+
+
 #: The ``actor`` on a ``StatusEvent`` / ``InnerStateChanged`` is EITHER a plain
-#: ``str`` identity (the common case) OR a ``{role, profile, tool, model}``
-#: structured *resolved binding* (FR-015 / IC-09). The dict form is the delivery
-#: vehicle that lets the status fan-out ride the transition's *resolved* identity;
-#: ``spec_kitty_events`` 6.1.0 ``StatusTransitionPayload.actor`` already accepts
-#: ``Union[str, Dict]``, so no shared-package change is needed to carry it.
+#: ``str`` identity (legacy and system writers) OR a structured dict: the
+#: ``{role, profile, tool, model}`` resolved-binding actor (FR-015 / IC-09) that
+#: writers emit today, or the ``{tool, role, profile, profile_source, model}`` actor
+#: (#6400) that readers accept ahead of the events release whose diary decoder takes
+#: the fifth key (spec C-006). ``spec_kitty_events`` ``StatusTransitionPayload.actor``
+#: accepts ``Union[str, Dict]``.
 ActorField: TypeAlias = str | dict[str, str | None]
 
+#: Key set of the structured actor written today (``spec_kitty_events`` 11 diary accepts only these).
 _STRUCTURED_ACTOR_FIELDS = ("role", "profile", "tool", "model")
+#: Key set of the provenance-carrying actor: those keys plus ``profile_source`` (read-only until C-006 lifts).
+#: The package reducer (``spec_kitty_events`` 11.0.0 ``diary.decode_actor``) does NOT accept it yet, so no
+#: writer may emit the 5-key shape until #6721 raises the ``spec-kitty-events`` floor.
+_PROFILE_SOURCE_FIELD = "profile_source"
+_STATUS_ACTOR_FIELDS = (*_STRUCTURED_ACTOR_FIELDS, _PROFILE_SOURCE_FIELD)
+_ACCEPTED_ACTOR_KEY_SETS: tuple[frozenset[str], ...] = (
+    frozenset(_STRUCTURED_ACTOR_FIELDS),
+    frozenset(_STATUS_ACTOR_FIELDS),
+)
+_PROFILE_SOURCE_VALUES: frozenset[str] = frozenset(member.value for member in ProfileSource)
+
+
+def _validate_profile_source(decoded: Mapping[str, str | None]) -> None:
+    """Refuse an unknown ``profile_source`` or one that disagrees with ``profile`` on null-ness."""
+    source = decoded[_PROFILE_SOURCE_FIELD]
+    if source is not None and source not in _PROFILE_SOURCE_VALUES:
+        raise ValueError(f"structured actor profile_source must be one of {sorted(_PROFILE_SOURCE_VALUES)!r} or null; got {source!r}")
+    if (source is None) != (decoded["profile"] is None):
+        raise ValueError("structured actor profile_source must be null exactly when profile is null")
 
 
 def decode_actor(value: Any) -> ActorField:
     """Decode a wire ``actor`` value, preserving a structured (dict) actor.
 
-    A resolved-binding actor is a ``{role, profile, tool, model}`` dict that MUST
-    survive the ``status.events.jsonl`` round-trip uncorrupted. The legacy
-    ``from_dict`` decoders coerced *every* actor with ``str(...)`` — silently
-    flattening such a dict to its ``repr`` (``"{'role': …}"``) with **no**
-    exception (the load-bearing silent-corruption trap, FR-015). This decoder
-    validates and copies the dict so only those four keys with ``str | None``
-    values can cross the persistence/fan-out boundary. Every other value is
-    coerced to ``str`` (the legacy string-actor contract).
+    A structured actor MUST survive the ``status.events.jsonl`` round-trip
+    uncorrupted. The legacy ``from_dict`` decoders coerced *every* actor with
+    ``str(...)`` — silently flattening a dict to its ``repr`` (``"{'role': …}"``)
+    with **no** exception (the load-bearing silent-corruption trap, FR-015). This
+    decoder validates and copies the dict, accepting exactly two key sets: the
+    written ``{role, profile, tool, model}`` and the provenance-carrying
+    ``{tool, role, profile, profile_source, model}`` (FR-012). Every value must be
+    ``str | None``; ``profile_source`` must be a :class:`ProfileSource` value and
+    null exactly when ``profile`` is null. Every other dict raises; every non-dict
+    value is coerced to ``str`` (the legacy string-actor contract).
+
+    The 5-key shape is accepted here only: the package reducer (``spec_kitty_events``
+    11.0.0 ``diary.decode_actor``) refuses it, so no writer may emit it until #6721
+    raises the pin floor (pinned by ``tests/status/test_status_actor.py``).
     """
     if isinstance(value, dict):
-        expected = set(_STRUCTURED_ACTOR_FIELDS)
-        actual = set(value)
-        if actual != expected:
-            raise ValueError(f"structured actor must contain exactly {sorted(expected)!r}; got {sorted(actual)!r}")
+        actual = frozenset(value)
+        if actual not in _ACCEPTED_ACTOR_KEY_SETS:
+            raise ValueError(
+                f"structured actor must contain exactly {sorted(_STRUCTURED_ACTOR_FIELDS)!r} or {sorted(_STATUS_ACTOR_FIELDS)!r}; got {sorted(actual)!r}"
+            )
         decoded: dict[str, str | None] = {}
-        for field_name in _STRUCTURED_ACTOR_FIELDS:
+        for field_name in (key for key in _STATUS_ACTOR_FIELDS if key in actual):
             field_value = value[field_name]
             if field_value is not None and not isinstance(field_value, str):
                 raise ValueError(f"structured actor fields must be strings or null; {field_name!r} was {type(field_value).__name__}")
             decoded[field_name] = field_value
+        if _PROFILE_SOURCE_FIELD in decoded:
+            _validate_profile_source(decoded)
         return decoded
     return str(value)
 
@@ -260,10 +306,13 @@ def actor_full_identity(actor: object) -> str | None:
     (#5340). A structured (dict) actor and a compact ``tool:model:profile:role`` string
     reduce to the same text (the compact string through :func:`parse_agent_boundary_string`),
     so ``"claude"`` and ``{"tool": "claude", "role": "reviewer"}`` are one identity. A compact
-    string with no tool segment is compared as recorded.
+    string with no tool segment is compared as recorded. A profile whose ``profile_source`` is
+    ``wp_frontmatter`` is left out: per the #6400 operator decision a frontmatter fill is planned,
+    not proven, so it never asserts identity (FR-013) and every existing log compares as before.
     """
     if isinstance(actor, dict):
-        parts: tuple[object, ...] = tuple(actor.get(key) for key in _IDENTITY_PARTS)
+        planned_only = actor.get(_PROFILE_SOURCE_FIELD) == ProfileSource.WP_FRONTMATTER
+        parts: tuple[object, ...] = tuple(None if planned_only and key == "profile" else actor.get(key) for key in _IDENTITY_PARTS)
     else:
         text = str(actor).strip() if actor else ""
         if not text:

@@ -299,6 +299,7 @@ from specify_cli.cli.commands.agent.tasks_shared import (
     _output_error as _output_error,
     _output_result as _output_result,
     _protected_branch_status_commit_error as _protected_branch_status_commit_error,
+    _refuse_unparseable_agent as _refuse_unparseable_agent,
     _resolve_git_common_dir as _resolve_git_common_dir,
     _review_currency_check_branch as _review_currency_check_branch,
     _skip_target_branch_commit as _skip_target_branch_commit,
@@ -981,6 +982,7 @@ def mark_status(
     status: Annotated[str, typer.Option("--status", help="Status: done/pending/skipped/not_applicable")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
     wp: Annotated[str | None, typer.Option("--wp", help="Work package containing the subtasks (e.g., WP02)")] = None,
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (compact tool:model:profile accepted)")] = None,
 
     owned_checkout: Annotated[
         Path | None,
@@ -1012,6 +1014,9 @@ def mark_status(
 
         # When IDs repeat across work packages:
         spec-kitty agent tasks mark-status T001 --wp WP02 --status skipped
+
+        # Naming the agent that did the work (default tool: user):
+        spec-kitty agent tasks mark-status T001 --status done --agent claude
     """
     # WP08 (#2116): thin orchestrator. The Typer command declares the CLI surface
     # (WP01 golden byte-identity) and delegates to the CORELESS ``_do_mark_status``,
@@ -1023,6 +1028,7 @@ def mark_status(
         status=status,
         mission=mission,
         wp=wp,
+        agent=agent,
         auto_commit=auto_commit,
         json_output=json_output,
         owned=owned,
@@ -1127,6 +1133,25 @@ def list_tasks(
         raise typer.Exit(1) from None
 
 
+def _add_history_actor(status_dir: Path, wp_id: str, agent: str | None, recorded_agent: str) -> dict[str, str | None]:
+    """The structured actor of an ``add-history`` note (#6400).
+
+    ``role`` follows the WP's current lane (:func:`~specify_cli.status.role_for_wp`):
+    ``reviewer`` while it is ``in_review``, else ``implementer``. An explicit ``--agent``
+    was already checked upfront and is parsed strictly (compact form accepted); without
+    it the WP's recorded agent (or ``unknown``) goes through the lenient builder.
+    """
+    from specify_cli.status import actor_from_option, build_status_actor, role_for_wp
+
+    role = role_for_wp(status_dir, wp_id)
+    actor: dict[str, str | None]
+    if agent:
+        actor = build_status_actor(role=role, agent=agent, fallback_tool="user", binding=None)
+    else:
+        actor = actor_from_option(recorded_agent, role)
+    return actor
+
+
 @app.command(name="add-history")
 def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
@@ -1143,6 +1168,8 @@ def add_history(
         spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
     """
     try:
+        # #6400: an explicit --agent that does not parse is refused before any write.
+        _refuse_unparseable_agent(json_output, agent)
         # Get repo root and feature slug
         repo_root = locate_project_root()
         if repo_root is None:
@@ -1214,7 +1241,7 @@ def add_history(
             status_feature_dir,
             task_id,
             WPInnerStateDelta(note=history_entry),
-            actor=agent_name,
+            actor=_add_history_actor(status_feature_dir, task_id, agent, agent_name),
             mission_slug=mission_slug,
             repo_root=_ah_main_repo_root,
         )

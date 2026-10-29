@@ -92,7 +92,13 @@ from specify_cli.core.subtask_rows import (
 )
 from specify_cli.core.owned_mission import require_unstaged_index
 from specify_cli.status import Lane, SubtaskStatus, SubtaskValue, mission_lock_key, normalize_wp_id, resolve_subtask_status_alias, wp_snapshot_state
+from specify_cli.status import ActorRole, build_status_actor
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
+
+#: The tool slot of the mark-status actor when no ``--agent`` names one (FR-008).
+_OPERATOR_TOOL = "user"
+#: Marking subtasks is implementation work, whoever records it (FR-008).
+_IMPLEMENTER_ROLE = str(ActorRole.IMPLEMENTER)
 
 #: ``--status`` values; ``not_applicable`` is an input alias for ``skipped``.
 _VALID_MARK_STATUSES = ("done", "pending", "skipped", "not_applicable")
@@ -132,6 +138,9 @@ class _MarkStatusState:
     auto_commit: bool | None
     json_output: bool
     wp: str | None = None
+    agent: str | None = None
+    # --- phase A: the structured status actor (#6400) ---
+    actor: dict[str, str | None] = field(default_factory=dict)
     # --- phase A/B: resolved context ---
     repo_root: Path = field(default_factory=Path)
     main_repo_root: Path = field(default_factory=Path)
@@ -188,6 +197,24 @@ def _ms_validate_inputs(st: _MarkStatusState) -> None:
     # bare task IDs before validation. A garbage ID surfaces as "no task IDs found
     # in tasks.md" downstream — preserving the structured-error contract.
     st.task_ids = [_normalize_task_id_input(tid) for tid in st.task_ids]
+    st.actor = _ms_status_actor(st)
+
+
+def _ms_status_actor(st: _MarkStatusState) -> dict[str, str | None]:
+    """The structured actor of the subtask annotations (#6400, FR-008).
+
+    ``tool`` is the parsed ``--agent`` tool, else ``user``; ``role`` is always
+    ``implementer``. Built before any write, so a malformed ``--agent`` refuses
+    with nothing recorded.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    try:
+        actor: dict[str, str | None] = build_status_actor(role=_IMPLEMENTER_ROLE, agent=st.agent, fallback_tool=_OPERATOR_TOOL, binding=None)
+    except ValueError as exc:
+        _tasks._output_error(st.json_output, f"Invalid --agent value: {exc}")
+        raise typer.Exit(1) from exc
+    return actor
 
 
 def _ms_resolve_context(st: _MarkStatusState) -> None:
@@ -503,7 +530,7 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
             feature_dir=st.status_dir,
             wp_id=wp_id,
             delta=delta,
-            actor="user",
+            actor=st.actor,
             mission_slug=st.mission_slug,
             repo_root=st.main_repo_root,
         )
@@ -697,6 +724,7 @@ def _do_mark_status(
     owned: OwnedCheckout | None = None,
     *,
     wp: str | None = None,
+    agent: str | None = None,
     ports: TasksPorts | None = None,
 ) -> None:
     """Orchestrate ``mark-status`` over the WP02 ports (C-005 seam), CORELESS.
@@ -721,6 +749,7 @@ def _do_mark_status(
         auto_commit=auto_commit,
         json_output=json_output,
         wp=wp,
+        agent=agent,
         owned=owned,
     )
     try:
