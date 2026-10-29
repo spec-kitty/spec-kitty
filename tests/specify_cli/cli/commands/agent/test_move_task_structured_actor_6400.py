@@ -195,3 +195,18 @@ def test_building_the_hop_actor_reads_no_wp_file(tmp_path: Path, monkeypatch: py
 
     assert actor == {"tool": "claude", "role": "implementer", "profile": None, "model": None}
     assert [r for r in reads if r.startswith(str(feature_dir))] == []
+
+
+def test_explicit_agent_with_an_empty_tool_is_refused_before_any_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An explicit operator ``--agent`` the compact parser rejects refuses with nothing written (as on the base)."""
+    m = h.build_mission(tmp_path, monkeypatch)
+    before = h.events(m)
+
+    result = h.move(m, h.WP, "claimed", ":x")
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid --agent value" in result.output
+    assert "Empty agent tool in --agent value" in result.output
+    assert "Traceback" not in result.output
+    assert h.events(m) == before
+

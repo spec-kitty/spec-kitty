@@ -171,6 +171,23 @@ def test_add_history_records_the_structured_actor_with_the_lane_role(
     assert _note_actor(feature_dir, "NOTE-6400") == _actor("claude", role)
 
 
+def test_add_history_explicit_agent_with_an_empty_tool_is_refused_cleanly(lanes_mission: tuple[Path, str, Path]) -> None:
+    """An explicit ``--agent`` the compact parser rejects refuses before any write, with mark-status's message."""
+    _repo, slug, feature_dir = lanes_mission
+    _seed_lane(feature_dir, Lane.IN_PROGRESS)
+    before = _raw_events(feature_dir)
+
+    result = runner.invoke(
+        root_app,
+        ["agent", "tasks", "add-history", "WP01", "--note", "NOTE-6400", "--agent", ":x", "--mission", slug],
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid --agent value" in result.output
+    assert "Traceback" not in result.output
+    assert _raw_events(feature_dir) == before
+
+
 # ---------------------------------------------------------------------------
 # Claim harness (action implement / action review), git stubbed.
 # ---------------------------------------------------------------------------
