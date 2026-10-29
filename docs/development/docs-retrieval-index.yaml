@@ -3529,6 +3529,7 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "residuals", text: "Residuals", level: 3}
     - {slug: "follow-up-2026-10-07-a-forced-approval-is-a-review-only-when-a-review-claim-an-arbiter-override-or-an-attestation-backs-it-5721", text: "Follow-up 2026-10-07 — a forced approval is a review only when a review claim, an arbiter override or an attestation backs it (#5721)", level: 3}
+    - {slug: "amendment-2026-10-29-owned-file-evidence-and-review-independence-are-a-separate-axis-on-every-topology-6715", text: "Amendment 2026-10-29 — owned-file evidence and review independence are a separate axis on every topology (#6715)", level: 3}
   - path: "docs/adr/4.x/2026-10-05-1-bare-slug-coordination-directory-alias.md"
     title: "ADR: a bare-slug coordination Mission has one exact directory alias set, and one directory on the target"
     divio_type: "none"
