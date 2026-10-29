@@ -355,6 +355,19 @@ def test_no_probe_when_every_child_carries_identity(tmp_path: Path, monkeypatch:
     assert calls == []
 
 
+def test_no_git_subprocess_when_every_child_carries_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001, asserted at the git boundary: identity-bearing children never reach git."""
+    _stage_three_missions(tmp_path)
+
+    def _no_git(*_args: object, **_kwargs: object) -> object:
+        raise AssertionError("selection ran git although every listed child carries a mission_id")
+
+    for name in ("run_git", "is_tracked", "tracked_paths"):
+        monkeypatch.setattr(mission_resolver, name, _no_git)
+
+    assert [e.mission_slug for e in list_missions_for_selection(tmp_path)] == ["001-alpha", "002-beta"]
+
+
 def test_at_most_one_probe_for_several_idless_children(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     for slug in ("001-a", "002-b", "003-c"):
         _meta_without_id(tmp_path, slug)

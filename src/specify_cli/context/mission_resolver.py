@@ -359,8 +359,11 @@ def is_mission_dir(path: Path, *, repo_root: Path, tracked: frozenset[str] | Non
     git failure propagates. This is a per-directory test applied to what
     :func:`_iter_mission_dirs` yields, never a second scan.
     """
-    if _carries_identity(path):
-        return True
+    return _carries_identity(path) or _markers_tracked(path, repo_root=repo_root, tracked=tracked)
+
+
+def _markers_tracked(path: Path, *, repo_root: Path, tracked: frozenset[str] | None) -> bool:
+    """Rule 2 of :func:`is_mission_dir`: git tracks ``spec.md`` or ``meta.json`` (existence outside git)."""
     try:
         base = repo_root.resolve()
         rels = [(path.resolve() / name).relative_to(base).as_posix() for name in _MISSION_MARKER_FILES]
@@ -438,7 +441,7 @@ def is_selectable_mission_dir(
         tracked = probe_tracked_mission_paths(repo_root)
     if tracked is None:
         return True
-    return is_mission_dir(path, repo_root=repo_root, tracked=tracked)
+    return _markers_tracked(path, repo_root=repo_root, tracked=tracked)
 
 
 #: The one operator-facing text for a ``kitty-specs/`` residue directory (#6627, #6668); every

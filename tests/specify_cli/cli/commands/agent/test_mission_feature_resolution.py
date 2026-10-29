@@ -12,6 +12,7 @@ harness is the CLI-surface regression net, these are the seam-level net.
 
 from __future__ import annotations
 
+import itertools
 import json
 import subprocess
 from pathlib import Path
@@ -30,7 +31,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 
 
-_MISSION_ID = "01J8ALPHA000000000000000AA"
+_MISSION_IDS = itertools.count(1)
+
+
+def _next_mission_id() -> str:
+    """A distinct 26-character ULID-shaped ``mission_id`` per fixture Mission."""
+    return f"01J8ALPHA00000000000000{next(_MISSION_IDS):03d}"
 
 
 def _make_mission(specs: Path, slug: str, *, spec: bool = True, meta: bool = True, mission_id: bool = True) -> Path:
@@ -42,7 +48,7 @@ def _make_mission(specs: Path, slug: str, *, spec: bool = True, meta: bool = Tru
     if meta:
         payload: dict[str, object] = {"mission_slug": slug}
         if mission_id:
-            payload["mission_id"] = _MISSION_ID
+            payload["mission_id"] = _next_mission_id()
         (d / "meta.json").write_text(json.dumps(payload), encoding="utf-8")
     return d
 
