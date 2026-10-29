@@ -349,3 +349,14 @@ def test_directive_inputs_preserve_order_and_shape() -> None:
     assert selected == ["DIRECTIVE_010", "DIRECTIVE_003", "TEAM_001"]
     assert [node["urn"] for node in nodes] == ["directive:DIRECTIVE_010", "directive:DIRECTIVE_003", "directive:TEAM_001"]
     assert all(set(node) == {"urn", "kind"} and node["kind"] == "directive" for node in nodes)
+
+
+@pytest.mark.unit
+def test_directive_inputs_drop_owned_ids_from_both_outputs() -> None:
+    selected, nodes = _directive_synthesis_inputs(
+        ["DIRECTIVE_003", "PROJECT_001", "TEAM_001", "PROJECT_002"],
+        frozenset({"PROJECT_001", "PROJECT_002", "PROJECT_009"}),
+    )
+
+    assert selected == ["DIRECTIVE_003", "TEAM_001"]
+    assert [node["urn"] for node in nodes] == ["directive:DIRECTIVE_003", "directive:TEAM_001"]

@@ -49,21 +49,34 @@ BUNDLE_INCOMPLETE_MESSAGE = (
 )
 
 
-def _directive_synthesis_inputs(directive_ids: Sequence[str]) -> tuple[list[str], list[dict[str, str]]]:
+def _directive_synthesis_inputs(
+    directive_ids: Sequence[str],
+    owned_ids: frozenset[str] = frozenset(),
+) -> tuple[list[str], list[dict[str, str]]]:
     """Return ``(selected_directives, drg snapshot nodes)`` for the activated directive ids.
 
     Both outputs derive from the SAME list (rather than, say, the raw
     ``config_roots.directives`` fallback) so they never drift into an
     inconsistent state where nodes exist for directives no target references,
     or a companion-tactic target names a source URN the snapshot lacks.
+
+    Every id in *owned_ids* (a directive synthesis itself created) is left out
+    of both outputs, order otherwise preserved (#6510 / #4226).
     """
-    selected = list(directive_ids)
+    selected = [directive_id for directive_id in directive_ids if directive_id not in owned_ids]
     # Only fields ``DRGNode`` declares: the snapshot is validated as a
     # ``DRGGraph`` downstream. An ``id`` key rode along here for a while --
     # redundant with the URN suffix, read by nothing, and silently dropped
     # at validation until WP04 made ``DRGNode`` forbid extras (FR-004).
     nodes = [{"urn": f"directive:{directive_id}", "kind": "directive"} for directive_id in selected]
     return selected, nodes
+
+
+def _synthesized_directive_ids(repo_root: Path) -> frozenset[str]:
+    """Ids (URN suffixes) of the directives synthesis created, from its ownership record."""
+    from charter.activation.synthesizer.manifest import synthesized_urns
+
+    return frozenset(urn.split(":", 1)[1] for urn in synthesized_urns(repo_root, "directive"))
 
 
 def _build_synthesis_request(
@@ -122,7 +135,16 @@ def _build_synthesis_request(
     # `answers.selected_directives` and defaulted to `[]` on a fresh interview.
     pack_context = PackContext.from_config(repo_root)
     directives_for_synthesis: list[str] = [] if pack_context.allow_for(ArtifactKind.DIRECTIVE) is None else config_roots.directives
-    selected_directives, drg_nodes = _directive_synthesis_inputs(directives_for_synthesis)
+    # #6510 / #4226: an explicit activation list also names the directives
+    # synthesis promoted itself (e.g. ``PROJECT_001``). Those are synthesis
+    # OUTPUT, not upstream input: as snapshot nodes they collide with their own
+    # target under the additive-only check, and they would demand a companion
+    # tactic for the project's own directive. Leave them out of both outputs;
+    # they stay activated, so ``charter context`` still delivers them.
+    # Ownership is read only for a non-empty list (D-3): a first run or an
+    # absent key never touches the record nor its fail-closed path.
+    owned_ids = _synthesized_directive_ids(repo_root) if directives_for_synthesis else frozenset()
+    selected_directives, drg_nodes = _directive_synthesis_inputs(directives_for_synthesis, owned_ids)
 
     # Build a minimal interview snapshot, config-activated selections + answers
     interview_snapshot: dict[str, Any] = {
