@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -135,3 +136,25 @@ def test_status_facade_exports_each_name_once() -> None:
     duplicates = sorted(name for name, count in Counter(status_facade.__all__).items() if count > 1)
     assert duplicates == []
     assert "actor_from_option" in status_facade.__all__
+
+
+def _assert_reconstruction_seed(actor: object, raw_event: dict[str, object]) -> None:
+    """The stored actor is a migration seed for the CLI and for the package reducer alike."""
+    from spec_kitty_events import diary
+
+    from specify_cli.status import is_migration_actor
+    from specify_cli.status.models import ActorField
+
+    assert is_migration_actor(cast("ActorField", actor))
+    assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(raw_event)))
+
+
+def test_migration_actor_is_stored_whole_and_stays_a_reconstruction_seed(mission_repo: Path) -> None:
+    """A ``migration:`` ``--actor`` is stored whole as ``tool`` so it keeps its seed status (#6400 review F3)."""
+    from specify_cli.status.store import read_events_raw
+
+    _emit(mission_repo, "--to", "claimed", "--actor", "migration:backfill")
+
+    raw = [e for e in read_events_raw(_feature_dir(mission_repo)) if e.get("to_lane") == "claimed"][-1]
+    assert raw["actor"] == {"tool": "migration:backfill", "role": "implementer", "profile": None, "model": None}
+    _assert_reconstruction_seed(_last_actor(mission_repo), raw)

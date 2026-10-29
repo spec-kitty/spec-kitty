@@ -172,3 +172,22 @@ def test_empty_tool_actor_is_accepted_with_an_unchanged_envelope(tmp_path: Path)
     assert {k: v for k, v in odd["data"].items() if k not in path_keys} == {k: v for k, v in plain["data"].items() if k not in path_keys}
     assert odd["contract_version"] == plain["contract_version"] == CONTRACT_VERSION
     assert odd["command"] == plain["command"]
+
+
+def test_migration_actor_is_stored_whole_and_stays_a_reconstruction_seed(tmp_path: Path) -> None:
+    """A ``migration:`` ``--actor`` is stored whole as ``tool`` so it keeps its seed status (#6400 review F3)."""
+    from spec_kitty_events import diary
+
+    from specify_cli.status import is_migration_actor
+    from specify_cli.status.store import read_events_raw
+
+    repo_root, mission_dir = _make_mission(tmp_path, _SLUG)
+
+    _start_implementation(repo_root, "migration:backfill")
+
+    raws = [raw for raw in read_events_raw(mission_dir) if raw.get("wp_id") == "WP01" and raw.get("to_lane") in {"claimed", "in_progress"}]
+    assert [raw["actor"] for raw in raws] == [_implementer("migration:backfill"), _implementer("migration:backfill")]
+    for raw in raws:
+        assert is_migration_actor(raw["actor"])
+        assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(raw)))
+

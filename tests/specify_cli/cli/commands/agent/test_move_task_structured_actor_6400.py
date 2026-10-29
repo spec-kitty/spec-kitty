@@ -210,3 +210,42 @@ def test_explicit_agent_with_an_empty_tool_is_refused_before_any_write(tmp_path:
     assert "Traceback" not in result.output
     assert h.events(m) == before
 
+
+def test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A recorded ``migration:`` identity (no ``--agent``) is kept whole, so it stays a seed (#6400 review F3)."""
+    from spec_kitty_events import diary
+
+    from specify_cli.cli.commands.agent.tasks import app as tasks_app
+    from specify_cli.status import Lane, StatusEvent, is_migration_actor
+    from tests._support.status_seed import seed_status_event
+    from typer.testing import CliRunner
+
+    m = h.build_mission(tmp_path, monkeypatch)
+    h.drive_to_for_review(m)
+    seed_status_event(
+        m.feature_dir,
+        StatusEvent(
+            event_id="seed-migration-review-claim",
+            mission_slug=m.mission_slug,
+            wp_id=h.WP,
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_REVIEW,
+            at="2099-01-01T00:00:00+00:00",
+            actor="migration:backfill",
+            force=True,
+            execution_mode="worktree",
+        ),
+    )
+    before = len(h.events(m))
+
+    result = CliRunner().invoke(
+        tasks_app,
+        ["move-task", h.WP, "--to", "approved", "--mission", m.mission_slug, "--skip-review-artifact-check", "--note", "seeded"],
+    )
+
+    assert result.exit_code == 0, result.output
+    approvals = [e for e in _lane(_appended(m, before)) if e["to_lane"] == "approved"]
+    assert len(approvals) == 1, _appended(m, before)
+    assert approvals[0]["actor"] == {"tool": "migration:backfill", "role": "reviewer", "profile": None, "model": None}
+    assert is_migration_actor(approvals[0]["actor"])
+    assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(approvals[0])))
