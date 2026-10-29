@@ -1,10 +1,10 @@
 """Regression guard for the P0 #4941: a rejection minted on a slower clock is not lost to the gate.
 
 This began as the red-first reproduction (ADR 2026-07-17-1); it ran only in the
-nightly ``p0-repro`` lane until the fix landed. The fix (spec-kitty-events#101,
-consumed from ``spec-kitty-events>=10.5.1``) re-orders a non-seed departure from
-``approved`` after the approval it followed, so the ``p0_repro`` marker is removed
-and this is now an ordinary per-PR guard.
+nightly ``p0-repro`` lane until the fix landed. The fix (spec-kitty-events PR #102,
+fixing issue #101; consumed from ``spec-kitty-events>=10.5.1``) re-orders a
+non-seed departure from ``approved`` after the approval it followed, so the
+``p0_repro`` marker is removed and this is now an ordinary per-PR guard.
 
 The gate's claim reads WP membership through ``status.reducer.materialize_snapshot``
 → ``spec_kitty_events.status.reduce`` (the diary reducer). Before the fix it

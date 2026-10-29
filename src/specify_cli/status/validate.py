@@ -19,7 +19,7 @@ from kernel.errors import GuardedReadError
 from kernel.guarded_read import read_guarded
 from spec_kitty_events import normalize_event_id
 
-from .models import Lane
+from .models import Lane, is_migration_actor
 from .transitions import CANONICAL_LANES, resolve_lane_alias
 from .wp_state import wp_state_for
 
@@ -187,11 +187,21 @@ def validate_transition_legality(events: list[dict]) -> list[str]:
     return findings
 
 
-#: Actor-identity prefix marking a reconstruction seed (a migration/backfill
-#: restatement, not a live decision). Mirrors
-#: ``spec_kitty_events.diary._RECONSTRUCTION_SEED_ACTOR_PREFIX``; seeds are
-#: best-effort and are excluded from the timestamp-continuity check below.
-_RECONSTRUCTION_SEED_ACTOR_PREFIX = "migration:"
+def _is_reconstruction_seed(actor: object) -> bool:
+    """True when a raw event ``actor`` marks a reconstruction seed (#6271).
+
+    A seed is a migration/backfill restatement, not a live decision. The check
+    goes through the shared :func:`~specify_cli.status.models.is_migration_actor`
+    predicate, so a structured (dict) actor whose ``tool`` is ``migration:...`` is
+    recognised exactly like the plain-string form. A raw value that is neither a
+    ``str`` nor a ``dict`` is not a valid actor and is never treated as a seed.
+    """
+    if isinstance(actor, str):
+        return is_migration_actor(actor)
+    if isinstance(actor, dict):
+        fields = {str(key): None if value is None else str(value) for key, value in actor.items()}
+        return is_migration_actor(fields)
+    return False
 
 
 def validate_timestamp_continuity(events: list[dict]) -> list[str]:
@@ -206,12 +216,14 @@ def validate_timestamp_continuity(events: list[dict]) -> list[str]:
     rejection recorded after an approval whose ``at`` ran ahead.
 
     These are **warnings, not errors** (``spec-kitty agent status validate`` keeps
-    passing): the diary reducer (spec-kitty-events#101) re-orders a departure from
-    ``approved`` after the approval it followed, so the reduced lane is correct,
+    passing): the diary reducer (spec-kitty-events PR #102, fixing issue #101)
+    re-orders a departure from ``approved`` after the approval it followed, so
+    the reduced lane is correct,
     but the log itself carries out-of-causal-order timestamps the operator should
     know about and fix at the source (a drifting clock, an NTP step). Skipped:
     rows missing a lane or ``wp_id``; reconstruction seeds (best-effort
-    restatements judged by the reducer's arms); the first transition of a WP (no
+    restatements judged by the reducer's arms, recognised through the shared
+    ``is_migration_actor`` predicate); the first transition of a WP (no
     preceding lane); and ``force`` transitions (break-glass), which still advance
     the running lane but are never flagged. Aliases are resolved before comparing.
     """
@@ -225,7 +237,7 @@ def validate_timestamp_continuity(events: list[dict]) -> list[str]:
         wp_id = event.get("wp_id")
         if from_lane is None or to_lane is None or wp_id is None:
             continue
-        if str(event.get("actor", "")).startswith(_RECONSTRUCTION_SEED_ACTOR_PREFIX):
+        if _is_reconstruction_seed(event.get("actor")):
             continue  # a seed never sets the continuity baseline, nor is it flagged
 
         resolved_from = resolve_lane_alias(str(from_lane))

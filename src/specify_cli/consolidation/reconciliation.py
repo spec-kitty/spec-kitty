@@ -27,9 +27,9 @@ Claim integrity (D3+, non-negotiable):
   ``spec_kitty_events.status.reduce`` — the **wall-clock** diary reducer (it is
   NOT the Lamport ``reduce_status_events``; CLI lane rows carry no Lamport
   clock). A wall-clock-later approval cannot green-wash a committed rejection
-  *in the gate's own claim* because that reducer (spec-kitty-events#101,
-  ``spec-kitty-events>=10.5.1``) sorts a non-seed departure from ``approved``
-  after the approval it followed, so a real-time ``approved -> in_progress``
+  *in the gate's own claim* because that reducer (spec-kitty-events PR #102,
+  fixing issue #101; ``spec-kitty-events>=10.5.1``) sorts a non-seed departure
+  from ``approved`` after the approval it followed, so a real-time ``approved -> in_progress``
   rejection applies even when a clock-ahead approval carried a later ``at``
   (spec-kitty#4941 / #6213 corrected the earlier "Lamport wrapper" claim). The
   consolidation module reaches the reducer through the ``specify_cli.status``
@@ -1478,9 +1478,9 @@ def build_approved_wp_set(
       the **wall-clock** diary reducer ``spec_kitty_events.status.reduce`` (not
       the Lamport ``reduce_status_events`` — CLI lane rows carry no Lamport
       clock). A wall-clock-later approval cannot override a committed rejection in
-      the claim because that reducer (spec-kitty-events#101,
-      ``spec-kitty-events>=10.5.1``) sorts a non-seed departure from ``approved``
-      after the approval it followed (spec-kitty#4941 / #6213 corrected the
+      the claim because that reducer (spec-kitty-events PR #102, fixing issue
+      #101; ``spec-kitty-events>=10.5.1``) sorts a non-seed departure from
+      ``approved`` after the approval it followed (spec-kitty#4941 / #6213 corrected the
       earlier "Lamport wrapper" wording); the consolidation module reaches it
       through the ``specify_cli.status`` facade (C-002);
     * approved commit SHAs still come from **lane-branch git tips** relative to
