@@ -8,7 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.context.mission_resolver import is_mission_dir, tracked_mission_paths
+from specify_cli.cli.commands._mission_type_audit import audit_mission_types
+from specify_cli.cli.commands.agent.mission_feature_resolution import _list_feature_spec_candidates
+from specify_cli.context.mission_resolver import is_mission_dir, list_missions_for_selection, tracked_mission_paths
+from specify_cli.status.identity_audit import audit_repo
 
 pytestmark = [pytest.mark.git_repo]
 
@@ -84,3 +87,68 @@ def test_nested_project_legacy_mission_is_a_mission(repo: Path) -> None:
     assert tracked is not None and "kitty-specs/legacy-01EEEEEE/spec.md" in tracked
     assert is_mission_dir(path, repo_root=nested, tracked=tracked)
     assert is_mission_dir(path, repo_root=nested)
+
+
+# ---------------------------------------------------------------------------
+# FR-007 (#5875): every read-side Mission walker lists the same set.
+# ---------------------------------------------------------------------------
+
+_ID = "01HZZZZZZZZZZZZZZZZZZZZREA"
+
+
+def _write(path: Path, name: str, text: str) -> None:
+    (path / name).write_text(text, encoding="utf-8")
+
+
+def _build_walker_corpus(root: Path, *, git: bool) -> None:
+    """The FR-007 fixture: each kind of ``kitty-specs/`` child, committed first where it should be tracked."""
+    committed = _dir(root, "committed-01AAAAAA")
+    _write(committed, "meta.json", json.dumps({"mission_id": _ID, "mission_slug": "committed-01AAAAAA"}))
+    _write(committed, "spec.md", "# s\n")
+    legacy = _dir(root, "legacy-tracked")
+    _write(legacy, "meta.json", json.dumps({"mission_number": 7}))
+    tracked_spec = _dir(root, "spec-only-tracked")
+    _write(tracked_spec, "spec.md", "# s\n")
+    if git:
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "fixture")
+    fresh = _dir(root, "fresh-01BBBBBB")
+    _write(fresh, "meta.json", json.dumps({"mission_id": "01HYYYYYYYYYYYYYYYYYYYYREA"}))
+    noid = _dir(root, "noid-untracked")
+    _write(noid, "meta.json", json.dumps({"mission_id": ""}))
+    _write(_dir(root, "spec-only-untracked"), "spec.md", "# s\n")
+    lock_only = _dir(root, "lock-only")
+    (lock_only / "decisions").mkdir()
+    _write(lock_only / "decisions", "index.json.lock", "")
+    _write(root / "kitty-specs", "README.md", "not a Mission\n")
+
+
+def _walker_slug_sets(root: Path) -> dict[str, set[str]]:
+    return {
+        "selection": {listing.mission_slug for listing in list_missions_for_selection(root)},
+        "agent_candidates": {str(c["mission_slug"]) for c in _list_feature_spec_candidates(root)},
+        "doctor_identity": {s.slug for s in audit_repo(root, residue_aware=True) if s.state != "residue"},
+        "doctor_mission_type": {s.slug for s in audit_mission_types(root)},
+    }
+
+
+def test_walkers_agree_on_the_mission_set(repo: Path) -> None:
+    """Selection, agent candidates, ``doctor identity`` and ``doctor mission-type`` list one set (FR-007)."""
+    _build_walker_corpus(repo, git=True)
+
+    sets = _walker_slug_sets(repo)
+
+    expected = {"committed-01AAAAAA", "fresh-01BBBBBB", "legacy-tracked"}
+    assert sets == dict.fromkeys(sets, expected)
+    residue = {s.slug for s in audit_repo(repo, residue_aware=True) if s.state == "residue"}
+    assert residue == {"noid-untracked", "spec-only-tracked", "spec-only-untracked", "lock-only"}
+
+
+def test_walkers_agree_on_a_non_git_root(tmp_path: Path) -> None:
+    """Outside git an id-less ``meta.json`` is a Mission by existence; a ``spec.md`` alone still is not."""
+    _build_walker_corpus(tmp_path, git=False)
+
+    sets = _walker_slug_sets(tmp_path)
+
+    expected = {"committed-01AAAAAA", "fresh-01BBBBBB", "legacy-tracked", "noid-untracked"}
+    assert sets == dict.fromkeys(sets, expected)
