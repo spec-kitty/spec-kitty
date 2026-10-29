@@ -2,10 +2,9 @@
   "event_count": 53,
   "last_event_id": "01M63QXNHJPZRMD8MR6G7APM7C",
   "materialized_at": "2026-10-29T11:49:58.962918+00:00",
-  "mission_number": "243",
+  "mission_number": "",
   "mission_slug": "lane-evidence-independence-01M5YHXF",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -21,162 +20,66 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M63QXBEGHYK7QVAMNPAZ9819",
       "last_transition_at": "2026-10-29T11:49:48.624876+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T12:47:10Z – claude – shell_pid=8958 – Red-first fixtures committed. On the parent commit: tests/integration/test_6715_consolidate_lane_evidence.py::test_hollow_and_self_approved_work_packages_are_refused[coord,lanes] FAIL (consolidate rc 0, 'Reconciliation verified' printed, WPs done); the positive control passes (2 passed); tests/orchestrator_api/test_consolidate_mission_lane_evidence_6715.py hollow cases FAIL (accept-mission has no evidence_error_codes, consolidate-mission merges); tests/consolidation/test_wp_evidence.py errors on import (module absent).",
-        "- 2026-10-27T14:42:29Z – claude – shell_pid=8958 – Implementation landed in the worktree: new consolidation/wp_evidence.py (topology-neutral evidence+independence predicate, single_branch aliases, attestation reader, dependency-window widening), reconciliation claim axis generalised (single_branch _sb_* helpers removed), orchestrator-api consolidate-mission/accept-mission refusals + contract 1.19.0. Fixture re-pins under way across tests/terminus and tests/consolidation (planning_commit_sha pins, owned_files declarations, distinct reviewer identities).",
-        "- 2026-10-27T17:30:16Z – claude – shell_pid=8958 – All targeted suites green: tests/consolidation+tests/specify_cli/consolidation 2528 passed; tests/terminus+tests/orchestrator_api 291 passed; integration 5939+6715+1772 harness 14 passed; tests/lanes+test_merge_lane_planning_data_loss 1052+22 passed; architectural gates (layer_rules, no_worktree_name_guess, no_legacy_terminology, single_rollback_authority) 309 passed; make test-fast 2476 passed. ruff/format/mypy clean (mypy errors on reconciliation.py/orchestrator_api are pre-existing on the base, verified in a base worktree).",
-        "Ready for review: one topology-neutral evidence+independence predicate (consolidation/wp_evidence.py) refusing hollow or self-approved work packages at consolidate claim time and in orchestrator-api consolidate-mission/accept-mission; single_branch keeps its codes; ~25 fixtures re-pinned, contract 1.19.0.",
-        "- 2026-10-27T18:06:05Z – unknown – Cycle 2 started: addressing review-cycle-1 (lanes_fixture planning pin + ownership, dependency-window fail-open -> merge-base window, nits).",
-        "- 2026-10-27T18:09:48Z – unknown – Cycle 2 red-first committed: test_wp_evidence.py new cases FAIL on parent (out-of-map dependency advance passes hollow WP02: refusal None; coord-copy tasks read; no-lane WP unjudged).",
-        "- 2026-10-27T18:15:29Z – unknown – Cycle 2: merge-base dependency windows, fail-closed wp_task_dir, no-lane WPs judged, public status_only_excluded_prefixes, canonical_code caller, sorted __all__, lanes_fixture pin after bootstrap + src-only ownership; test_lane_evidence_axis 4/4 and test_wp_evidence 28/28 green. Running blast-radius suites.",
-        "- 2026-10-27T18:36:05Z – unknown – Cycle 2 progress: tests/consolidation + tests/specify_cli/consolidation 2533 passed / 0 failed. terminus+orchestrator_api and integration/lanes/architectural batches running.",
-        "- 2026-10-27T18:42:10Z – unknown – Cycle 2 done: aa8a42e3 red-first + 78f81e80 fix. tests/consolidation+specify_cli/consolidation 2533 passed; tests/terminus+orchestrator_api 291 passed; integration 5939/6715/1772/merge_lane_planning_data_loss + tests/lanes + contract_version + architectural (layer_rules, no_worktree_name_guess, no_legacy_terminology) 1259 passed 1 skipped; make test-fast 2476 passed; ruff/format clean; mypy clean on wp_evidence.py + for_review_gate.py.",
-        "Ready for review (cycle 2): merge-base dependency windows (probe now refuses), lanes_fixture pins after bootstrap with src-only ownership, fail-closed ownership read, no-lane WPs judged, nits folded.",
-        "Review passed (cycle 2): both cycle-1 blockers fixed (merge-base dependency window closes the post-cut fail-open; lanes fixture no longer vacuous), fail-closed paths verified, 262 targeted tests green, red-first confirmed. Non-blocking: planning window counts merged-in content (spec-accepted residual, record in WP04); _merge_base belongs in git_probes. Coordination: WP03 must delegate _mt_* matcher to wp_evidence."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP01:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 32466,
-      "shell_pid_created_at": "1793126813.36",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
-      }
+      "shell_pid": 29526,
+      "shell_pid_created_at": "1793124269.01"
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M63QXEX5WR9YE9N6Q1D911JW",
       "last_transition_at": "2026-10-29T11:49:52.165348+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T19:22:37Z – claude – shell_pid=27785 – Red-first tests committed: unit file errors at collection (no module no_implementation_attestation); CLI replay 2 failed (No such option: --attest-no-implementation; the hollow WP02 refuses IMPLEMENTATION_MISSING without it).",
-        "- 2026-10-27T19:29:02Z – claude – shell_pid=27785 – Implemented no_implementation_attestation.py, preflight exclusions, executor/consolidate wiring and lifted-notice output; unit file 17/17 green; CLI replay running.",
-        "Ready for review: consolidate --attest-no-implementation (repeatable, needs --attest-reason) records a forced operator self-transition (policy_metadata.attestation=no_implementation) before the claim; lifts IMPLEMENTATION_MISSING only; never the approver (#5939 comparison skips it), never an approval stamp, discounted from hollow-review force count; consolidate names lifted WPs; dry-run notice. Public API for accept: plan_no_implementation_attestations / record_no_implementation_attestation.",
-        "- 2026-10-27T21:33:43Z – unknown – Cycle 2: red-first commit 85c90cdc (stale attestation regressions; 4 red on current reader, 3 guard tests green). Fixing scope in wp_evidence reader next.",
-        "- 2026-10-27T21:37:15Z – unknown – Cycle 2: fix applied (scoped reader in wp_evidence, attested_reason scoped, docstring residuals, CLI landed test asserts WP02 content absent). Lint/format/mypy clean; running suites.",
-        "Ready for review (cycle 2): no-implementation attestation now counts only while the WP stayed in {approved, done} since it was recorded (append order, migration actors ignored); attested_reason scoped; regression tests red-first in 85c90cdc, fix 41ee28f2; atomicity residual documented; CLI landed test asserts WP02 content absent from main.",
-        "Review passed (cycle 2): attestation scope implemented exactly per operator ruling 2026-10-27 (voided only by a later non-migration move of the same WP outside {approved, done}; annotations, other WPs, self-transitions, approved->done and done->done keep it); notice reason follows the in-force attestation; red-first confirmed (4 failed on parent); 166 targeted tests green; ruff/format/C901/mypy clean."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP02:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 2455,
-      "shell_pid_created_at": "1793138236.13",
-      "subtasks": {
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done"
-      }
+      "shell_pid": 501,
+      "shell_pid_created_at": "1793136477.42"
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 2,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M63QXJ77S6S6B15PEW3MCCMB",
       "last_transition_at": "2026-10-29T11:49:55.559542+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-29T04:57:23Z – claude – shell_pid=2742 – Resuming after rate-limit stop: red-first tests drafted (integration autowalk guards, move-task gate unit tests); writing accept preflight unit tests next, then implementation.",
-        "- 2026-10-29T05:14:35Z – claude – shell_pid=2742 – Red-first tests committed. Base red: integration 7 failed/3 passed (coord hollow autowalk, non-owned lane commit coord+lanes, self-approval coord/lanes/single_branch, forced-hollow accept); unit seams missing. Implementation in progress (gates written, unit tests green).",
-        "- 2026-10-29T05:29:17Z – claude – shell_pid=2742 – Gates implemented; new tests green (integration 10/10). T014 in progress: 72 move-task/accept fixture tests newly red, all green on base; nearly all are fixtures with no recorded planning commit / no owned commit (EVIDENCE_WINDOW_UNCOMPUTABLE). Re-pinning fixtures with a planning commit + real owned lane commit.",
-        "- 2026-10-29T05:53:42Z – claude – shell_pid=2742 – T014: re-pinned 12 fixture builders (planning commit + real owned lane commit + distinct reviewer; new tests/lane_test_utils.commit_lane_implementation helper); all previously-red move-task/accept tests green. Final verification runs in progress.",
-        "Ready for review: move-task evidence gate on every topology via wp_evidence + independence gate (positively-same tool:model:profile, unforced); accept preflight + --attest-no-implementation; 12 fixture builders re-pinned with planning commit + owned lane commit + distinct reviewer",
-        "- 2026-10-29T07:11:56Z – unknown – Fix cycle 1 started: placeholder approver (no --agent / 'user') treated as unknown at preflight (B) and refused at the move (A); widening rule exposed from wp_evidence; lanes hollow assertion tightened.",
-        "- 2026-10-29T07:26:33Z – unknown – Fix cycle 1: red-first regressions committed (cdd73f5e, 17 failed/10 passed on unfixed code). Implementing preflight placeholder rule (B), move refusal (A), wp_evidence widening function.",
-        "- 2026-10-29T07:36:27Z – unknown – Fix cycle 1: implementation done (preflight placeholder=unknown; move refuses placeholder approver; evidence check now precedes the readiness decision; wp_evidence.widened_lane_paths; --diagnose folds the refusal as a blocked check; fixed my deep status imports flagged by test_status_module_boundary). Running verification.",
-        "- 2026-10-29T08:00:29Z – unknown – Fix cycle 1: 8 fixtures newly red under ruling A (no-agent approvals) re-pinned (asserted reviewer / review-claim hop / forced attribution); final verification runs in progress.",
-        "Ready for review (cycle 1 fix): placeholder approver read as unknown at preflight (B) and refused at the move (A); evidence check before the readiness decision; wp_evidence.widened_lane_paths; --diagnose blocked check",
-        "- 2026-10-29T08:41:58Z – claude – Added fix(WP03) commit: lift notice reads the status log strictly (status boundary gate green).",
-        "- 2026-10-29T08:45:22Z – claude – Privatising the 18 dead public evidence/attestation symbols (no allowlist); verification running.",
-        "- 2026-10-29T09:26:31Z – claude – Added refactor(WP03) commit: 18 dead public symbols privatised; dead-symbol gate green.",
-        "- 2026-10-29T10:08:33Z – unknown – Cycle 2 fix: red-first literal-code pin committed (2 failed/6 passed); restoring SINGLE_BRANCH_EVIDENCE_UNREADABLE value.",
-        "Ready for review (cycle 2 fix): SINGLE_BRANCH_EVIDENCE_UNREADABLE value restored; every refusal code, the attestation value and flag pinned by literal",
-        "Review passed (cycle 3): SINGLE_BRANCH_EVIDENCE_UNREADABLE literal restored; new literal-pin test is non-vacuous (2 failed on parent, 8/8 now); no other string value changed in d6422768..HEAD; cycle-2 checks unchanged (placeholder approver refused at move/accept/consolidate per ruling A/B, real reviews pass); 278 targeted tests green incl. dead-symbols and status-boundary gates."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP03:20261029",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 22033,
-      "shell_pid_created_at": "1793269412.64",
-      "subtasks": {
-        "T010": "done",
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done"
-      }
+      "shell_pid": 8238,
+      "shell_pid_created_at": "1793268214.42"
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M63QXNHJPZRMD8MR6G7APM7C",
       "last_transition_at": "2026-10-29T11:49:58.962918+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-29T10:48:04Z – claude – shell_pid=27515 – T017 red/green: review.feature gains Rule 'A work package moves toward approval only with committed work' (2 scenarios). Pre-fix CLI (planning commit e155b8a1): hollow approval exits 0 'Moved WP01 from in_progress to approved' -> FAILED; lane-d: both pass (JDK 25, gradle 8.14.5). CLAUDE.md is a symlink to AGENTS.md, so the T018 note edits AGENTS.md (out-of-map by path).",
-        "Ready for review: ADR 2026-10-04-5 Amendment 2026-10-29 (separate evidence+independence axis, 6 rulings, residuals, stale move-gate ref fixed); CHANGELOG Unreleased/Fixed entry; review.feature Rule with hollow-approval refusal + same-fixture positive control (red on pre-fix e155b8a1, green on lane, JDK 25); CLAUDE.md pointer paragraph (CLAUDE.md is a symlink to AGENTS.md, so AGENTS.md is the changed path).",
-        "Review cycle 1 fixed: ADR residual now names consolidation/wp_evidence.py (evaluate_evidence, mission_evidence_report); move-time independence stated exactly and folded into ruling 3; review.feature comment on the for_review positive control.",
-        "Review passed (cycle 2): ADR line 173 now names the current authority (wp_evidence.evaluate_evidence / mission_evidence_report) with the old names as pre-#6715 history; 'Where it runs' and ruling 3 state the move-time independence rule exactly as tasks_move_task._mt_require_independent_approval implements it; feature comment added; nothing else changed; scenario contract + terminology 139 passed."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP04:20261029",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 21980,
-      "shell_pid_created_at": "1793272445.04",
-      "subtasks": {
-        "T015": "done",
-        "T016": "done",
-        "T017": "done",
-        "T018": "done"
-      }
+      "shell_pid": 11864,
+      "shell_pid_created_at": "1793272196.42"
     }
   }
 }
