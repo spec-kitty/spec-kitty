@@ -237,7 +237,9 @@ def find_asset_path_escapes(pack: str, pack_root: Path) -> list[AssetPathEscape]
     :class:`AssetResolutionError` (a sidecar that cannot be anchored in this
     pack's ``assets/``, such as a symlinked sidecar living outside it) and a
     ``ValueError`` or ``OSError`` from resolving one path (a NUL byte, for
-    example), each recorded for that asset only so it never hides another. No blob is opened or read
+    example), each recorded for that asset only so it never hides another. When
+    the pack's ``assets/`` directory itself resolves outside the pack root, every
+    org asset of the pack is reported with that reason. No blob is opened or read
     (NFR-001). A malformed sidecar is skipped by the repository and is the pack
     validator's to report; its load warnings, like layer-collision warnings,
     are owned by other checks and are silenced here.
@@ -247,21 +249,41 @@ def find_asset_path_escapes(pack: str, pack_root: Path) -> list[AssetPathEscape]
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         repository = AssetRepository(org_dirs=[pack_root / "assets"])
+    assets_dir_fault = _assets_dir_escape_reason(pack_root)
     escapes: list[AssetPathEscape] = []
     for manifest in repository.list_all():
         if repository.get_provenance(manifest.id) != "org":
             continue
-        try:
-            repository.resolve_path(manifest.id)
-        except AssetPathEscapeError as exc:
-            reason = str(exc.__cause__ or exc)
-        except AssetResolutionError as exc:
-            # The sidecar itself cannot be anchored in this pack's assets/ (for
-            # example a symlinked sidecar that lives outside it): not contained.
-            reason = str(exc)
-        except (ValueError, OSError) as exc:
-            reason = str(exc)
-        else:
-            continue
-        escapes.append(AssetPathEscape(pack=pack, asset=manifest.id, path=manifest.path, reason=reason))
+        reason = assets_dir_fault or _asset_escape_reason(repository, manifest.id)
+        if reason is not None:
+            escapes.append(AssetPathEscape(pack=pack, asset=manifest.id, path=manifest.path, reason=reason))
     return escapes
+
+
+def _assets_dir_escape_reason(pack_root: Path) -> str | None:
+    """Return why the pack's ``assets/`` directory itself is not inside the pack, if it is not.
+
+    Asset paths are anchored at ``assets/``, so an ``assets/`` that is a symlink
+    to a directory outside the pack would let every sidecar pass its own check
+    while reaching outside the pack folder.
+    """
+    try:
+        resolve_relative_path_within_root(pack_root, "assets")
+    except OrgPackSubdirEscapeError as exc:
+        return f"the pack's assets/ directory is not inside the pack root: {exc}"
+    return None
+
+
+def _asset_escape_reason(repository: AssetRepository, asset_id: str) -> str | None:
+    """Return why one org asset is not contained, or ``None`` when it is."""
+    try:
+        repository.resolve_path(asset_id)
+    except AssetPathEscapeError as exc:
+        return str(exc.__cause__ or exc)
+    except AssetResolutionError:
+        # The sidecar itself cannot be anchored in this pack's assets/ (for
+        # example a symlinked sidecar that lives outside it): not contained.
+        return f"sidecar {repository.source_path(asset_id)} is not inside the pack's assets/ directory"
+    except (ValueError, OSError) as exc:
+        return str(exc)
+    return None

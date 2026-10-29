@@ -178,6 +178,32 @@ def test_symlinked_sidecar_outside_the_pack_is_reported_and_does_not_hide_anothe
     escapes = find_asset_path_escapes("acme", pack_root)
 
     assert sorted(e.asset for e in escapes) == ["a-linked", "b-escape"]
+    linked = next(e for e in escapes if e.asset == "a-linked")
+    assert "is not inside the pack's assets/ directory" in linked.reason
+    # Clause order: a genuine path escape keeps the primitive's own reason.
+    escaped = next(e for e in escapes if e.asset == "b-escape")
+    assert "must not contain '..' components" in escaped.reason
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="needs os.symlink")
+@pytest.mark.parametrize("outside", [True, False], ids=["assets-dir-outside-pack", "assets-dir-inside-pack"])
+def test_symlinked_assets_dir_is_judged_against_the_pack_root(tmp_path: Path, outside: bool) -> None:
+    """An ``assets/`` that is a symlink outside the pack reaches out of it; one inside does not."""
+    pack_root = _make_pack(tmp_path / "pack", {})
+    target = (tmp_path / "elsewhere") if outside else (pack_root / "real-assets")
+    _write_sidecar(target, "team-logo", "logo.png")
+    try:
+        (pack_root / "assets").symlink_to(target, target_is_directory=True)
+    except OSError:  # pragma: no cover - platform without symlink privilege
+        pytest.skip("symlink creation not permitted")
+
+    escapes = find_asset_path_escapes("acme", pack_root)
+
+    if outside:
+        assert [e.asset for e in escapes] == ["team-logo"]
+        assert "assets/ directory is not inside the pack root" in escapes[0].reason
+    else:
+        assert escapes == []
 
 
 def test_registry_aware_check_attributes_a_shadowed_asset_id_to_its_own_pack(tmp_path: Path) -> None:

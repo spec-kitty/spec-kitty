@@ -577,7 +577,9 @@ a check cannot run, `org_drg.errors` says so and its list stays empty. The human
 `fragment body_path escapes:` line and an `asset path escapes:` line in the organisation-layer
 section. Nodes found from artifact files (for example `directives/*.directive.yaml`) are not in
 these lists, and an asset sidecar that does not parse is skipped here;
-`spec-kitty charter pack validate` checks both.
+`spec-kitty charter pack validate` checks both. A sidecar file that lives outside the pack's
+`assets/` directory (for example through a symlink), and every asset of a pack whose `assets/`
+directory itself resolves outside the pack, are reported as `ORG_ASSET_PATH_ESCAPE`.
 
 ### `spec-kitty migrate activation-ledger`
 
