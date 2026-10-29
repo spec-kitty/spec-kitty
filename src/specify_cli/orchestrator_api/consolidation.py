@@ -795,7 +795,7 @@ def _refuse_unevidenced_acceptance(cmd: str, main_repo_root: Path, mission_dir: 
         unreadable, corrupt = "lanes.json could not be read", False
     if lanes_manifest is None:
         if not corrupt:
-            # No manifest at all: the acceptance-readiness verdict below owns that case and
+            # No manifest at all: the acceptance-readiness verdict before this gate owns that case and
             # refuses with its own ``lanes_manifest`` blocked check, so this gate stays quiet.
             return
         message = f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: the implementation-evidence window cannot be computed ({unreadable})."
@@ -851,7 +851,6 @@ def accept_mission(
             },
         )
         return
-    _refuse_unevidenced_acceptance(cmd, main_repo_root, mission_dir, mission)
 
     from specify_cli.acceptance import ACCEPTANCE_CHECKS_FAILED_MESSAGE, AcceptanceError, collect_feature_summary
     from specify_cli.acceptance.matrix import AcceptanceMatrixParseError
@@ -898,6 +897,9 @@ def accept_mission(
         # (C-002) rather than minting a new one.
         _fail(cmd, "MISSION_NOT_READY", ACCEPTANCE_CHECKS_FAILED_MESSAGE, _readiness_failure_payload(mission_dir, summary))
         return
+    # #6715: owned-file evidence and review independence, after the readiness verdict so a
+    # Mission that is not ready still reports what is outstanding (#4934).
+    _refuse_unevidenced_acceptance(cmd, main_repo_root, mission_dir, mission)
 
     accepted_at = _stamp_mission_acceptance_or_fail(cmd, mission_dir, summary, actor)
     approved_wps = list(summary.lanes.get("approved", []))

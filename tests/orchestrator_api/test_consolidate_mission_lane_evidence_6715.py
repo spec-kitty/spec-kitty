@@ -40,6 +40,14 @@ def _mission(tmp_path: Path, topology: str, *, hollow: bool):
     drive(mission, "WP03", "T3", implementer="claude", reviewer="bob", owned_path="src/m3/real.py")
     drive(mission, "WP04", "T4", implementer="alice", reviewer="bob", owned_path=research)
     _sk(mission, "agent", "acceptance-verdict", "--mission", mission.slug, "--criterion", "FR-001", "--result", "pass", "--actor", "operator", "--evidence", "qa")
+    # The software-dev path conventions ``accept-mission``'s readiness verdict checks before the
+    # evidence axis, so a refusal here is the evidence axis's own.
+    for convention_dir in ("tests", "docs", f"kitty-specs/{mission.slug}/contracts"):
+        keep = mission.repo / convention_dir / ".gitkeep"
+        keep.parent.mkdir(parents=True, exist_ok=True)
+        keep.write_text("", encoding="utf-8")
+        _git(mission.repo, "add", "-f", str(keep.relative_to(mission.repo)))
+    _git(mission.repo, "commit", "-qm", "path conventions")
     _commit_specs(mission.repo)
     return mission
 
@@ -77,19 +85,11 @@ def test_hollow_work_package_is_refused_by_accept_and_consolidate_mission(tmp_pa
 
 
 def test_real_work_accepts_and_consolidates_through_orchestrator_api(tmp_path: Path) -> None:
-    """Positive control: real owned commits and an independent reviewer pass the evidence axis on both commands.
-
-    ``accept-mission`` runs the full acceptance-readiness verdict, which this lean fixture does
-    not satisfy (it is what ``accept --lenient`` waives below) — so the control asserts that the
-    evidence axis is not what refuses, and that ``consolidate-mission`` then lands the work.
-    """
+    """Positive control: real owned commits and an independent reviewer pass the evidence axis on both commands."""
     mission = _mission(tmp_path, "coord", hollow=False)
 
     accept_env = _envelope(_sk(mission, "orchestrator-api", "accept-mission", "--mission", mission.slug, "--actor", "operator"))
-    accept_data = accept_env["data"]
-    assert isinstance(accept_data, dict)
-    assert "evidence_error_codes" not in accept_data, accept_env
-    _sk(mission, "accept", "--mission", mission.slug, "--json", "--lenient")
+    assert accept_env["success"] is True, accept_env
     _commit_specs(mission.repo)
 
     result = _sk(mission, "orchestrator-api", "consolidate-mission", "--mission", mission.slug, "--strategy", "squash")
