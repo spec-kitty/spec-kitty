@@ -540,6 +540,58 @@ def _repair_missing_terminal_event(
         ) from exc
 
 
+def _open_locked(
+    mission_dir: Path,
+    *,
+    origin_flow: OriginFlow,
+    step_id: str | None,
+    slot_key: str | None,
+    input_key: str,
+    question: str,
+    options: tuple[str, ...],
+    actor: str,
+    mission_id: str,
+    mission_slug: str,
+    decision_id: str | None,
+) -> tuple[IndexEntry | None, IndexEntry | None, bool]:
+    """Dedup lookup and, when nothing matches, mint + append. The CALLER holds the decisions lock.
+
+    Returns ``(existing_entry, new_entry, is_new)``: exactly one of
+    ``existing_entry``/``new_entry`` is non-``None``, selected by ``is_new``.
+    Entry construction routes through
+    :func:`specify_cli.decisions.index_fold.build_opened_entry` -- the same
+    assembler the reconciler's fold consumes (T008, "one canonical
+    constructor, no second interpretation").
+    """
+    index = _store.load_index(mission_dir)
+    existing = _store.find_by_logical_key(
+        index,
+        origin_flow,
+        step_id,
+        slot_key,
+        input_key,
+    )
+    if existing is not None:
+        return existing, None, False
+
+    minted_id = decision_id if decision_id is not None else _mint_decision_id()
+    entry = _index_fold.build_opened_entry(
+        decision_id=minted_id,
+        origin_flow=origin_flow,
+        step_id=step_id,
+        slot_key=slot_key,
+        input_key=input_key,
+        question=question,
+        options=options,
+        created_at=now_utc(),
+        opened_by=actor,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+    )
+    _store.append_entry(mission_dir, entry)
+    return None, entry, True
+
+
 def _locate_or_create_open_entry(
     mission_dir: Path,
     *,
@@ -556,47 +608,27 @@ def _locate_or_create_open_entry(
 ) -> tuple[IndexEntry | None, IndexEntry | None, bool]:
     """T010's service-level RMW critical section for ``open_decision``.
 
-    Runs the dedup lookup (check) and, when nothing matches, the mint +
-    append (act) under ONE lock acquisition on the dedicated sidecar
-    ``decisions/index.json.lock`` (D4/FR-004) -- closing the check-then-act
-    window a lock scoped to ``store.save_index`` alone would leave open.
-
-    Returns ``(existing_entry, new_entry, is_new)``: exactly one of
-    ``existing_entry``/``new_entry`` is non-``None``, selected by ``is_new``.
-    Entry construction routes through
-    :func:`specify_cli.decisions.index_fold.build_opened_entry` -- the same
-    assembler the reconciler's fold consumes (T008, "one canonical
-    constructor, no second interpretation").
+    Runs :func:`_open_locked` -- the dedup lookup (check) and, when nothing
+    matches, the mint + append (act) -- under ONE lock acquisition on the
+    dedicated sidecar ``decisions/index.json.lock`` (D4/FR-004), closing the
+    check-then-act window a lock scoped to ``store.save_index`` alone would
+    leave open.
     """
     lock_path = _decisions_lock_path(mission_dir)
     with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
-        index = _store.load_index(mission_dir)
-        existing = _store.find_by_logical_key(
-            index,
-            origin_flow,
-            step_id,
-            slot_key,
-            input_key,
-        )
-        if existing is not None:
-            return existing, None, False
-
-        minted_id = decision_id if decision_id is not None else _mint_decision_id()
-        entry = _index_fold.build_opened_entry(
-            decision_id=minted_id,
+        return _open_locked(
+            mission_dir,
             origin_flow=origin_flow,
             step_id=step_id,
             slot_key=slot_key,
             input_key=input_key,
             question=question,
             options=options,
-            created_at=now_utc(),
-            opened_by=actor,
+            actor=actor,
             mission_id=mission_id,
             mission_slug=mission_slug,
+            decision_id=decision_id,
         )
-        _store.append_entry(mission_dir, entry)
-        return None, entry, True
 
 
 # ---------------------------------------------------------------------------
