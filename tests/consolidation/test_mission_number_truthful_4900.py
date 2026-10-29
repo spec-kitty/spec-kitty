@@ -774,6 +774,9 @@ def _bootstrap_planning_only_mission(repo: Path, slug: str) -> None:
     _write_meta(feature_dir, slug)  # legacy: no mission_id, mission_number null
     _write_lanes_manifest(feature_dir, slug, code_wp_ids=[], planning_wp_ids=["WP01"])
     _write_wp_file(feature_dir, "WP01")
+    # #6715 (ruling R2): the planning WP's deliverable is author-written content; its own WP file
+    # and status log are tool-written and never count as evidence.
+    (feature_dir / "research.md").write_text("# planning output\n", encoding="utf-8")
     _seed_wp_approved(feature_dir, slug, "WP01")
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({slug}): bootstrap planning-only mission")
