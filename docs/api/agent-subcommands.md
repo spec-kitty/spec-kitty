@@ -2047,6 +2047,9 @@ _Task workflow commands for AI agents_
      # When IDs repeat across work packages:
      spec-kitty agent tasks mark-status T001 --wp WP02 --status skipped
 
+     # Naming the agent that did the work (default tool: user):
+     spec-kitty agent tasks mark-status T001 --status done --agent claude
+
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    task_ids      <str>  Task ID(s) - space-separated (e.g., T001 T002      │
 │                           T003)                                              │
@@ -2060,6 +2063,9 @@ _Task workflow commands for AI agents_
 │    --wp                                      <str>   Work package containing │
 │                                                      the subtasks (e.g.,     │
 │                                                      WP02)                   │
+│    --agent                                   <str>   Agent name (compact     │
+│                                                      tool:model:profile      │
+│                                                      accepted)               │
 │    --owned-checkout                          <path>  Explicit single-branch  │
 │                                                      checkout root.          │
 │    --auto-commit         --no-auto-commit            Automatically commit    │
