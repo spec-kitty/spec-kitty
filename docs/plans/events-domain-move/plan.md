@@ -5,6 +5,19 @@ Nothing below has been applied to `main`. No issue comments, no PRs.
 
 **Decision being executed:** operator and CEO, 2026-10-29. The Java event services (read: Mission Status Read API; write: Mission Write API / event-log write core) leave core for `spec-kitty/spec-kitty-events`, which becomes the canonical owner of the events domain. Binding: Gradle everywhere; history preserved (session A imports with filter-repo); a separate `service-vX.Y.Z` tag line in spec-kitty-events; core pins a service tag plus a sha256 per OS binary; `services/` is frozen in core from now on.
 
+**Further operator decisions (2026-10-29, relayed by session A):**
+- Layout in spec-kitty-events: `service/` (from `services/mission-status-api/`, via filter-repo `--path-rename`) plus `contracts/`, both imported with history in one pass.
+- Contract bundles ride on `service-v*`. There are two release lines in total: PyPI `v*` and `service-v*`. Core's `contract-<module>-v*` line and `contracts-release.yml` retire at the cut-over.
+- Events CI pins a core SHA for the lock-interop peer, the nightly corpus compare and golden regeneration.
+
+Proposed assets per `service-v<ver>` release (session A):
+- `mission-status-api-<ver>-{linux-x64,linux-arm64,macos-arm64,windows-x64.exe}`, each with a `.sha256`;
+- `mission-status-api-<ver>.jar` (the JVM fallback);
+- `contract-bundles-<ver>.tar.gz` and `conformance-fixtures-<ver>.tar.gz`, each with a `.sha256`;
+- `SHA256SUMS` and the SLSA attestation.
+
+`command-cli` follows later under the same scheme.
+
 ---
 
 ## 1. What core holds today (Phase 0 inventory)
@@ -31,8 +44,8 @@ Nothing below has been applied to `main`. No issue comments, no PRs.
 | Service pin tests | `tests/ci/test_mission_status_api_build.py` (~2,900 lines pinning the Gradle files and the workflow), `test_mission_status_gate_checks.py`, `test_mission_status_routing.py`, `test_lock_interop_peer.py`, `test_ci_module_wiring.py`, `test_fleet_verdict.py`, `test_fleet_main.py`, `test_contracts_workflows.py` | move to events (build pins) or rewrite against the lockfile (routing, fleet) |
 | Architectural gates | `test_gate_selection_authority.py:255-263` (a services-only diff selects `ci`), `test_module_shard_registry.py:744`, `test_no_dead_modules.py` plus `_baselines.yaml` and `dead_symbol_allowlist.yaml` (`write_service_protocol`, until #6195) | update the services case; the dead-symbol entry stays |
 | Goldens read from `services/` by Python tests | `tests/contract/_mission_status_conformance.py` (`conformance/`, `leak-patterns.json`), `_mission_status_artifact_goldens.py` and `test_mission_status_artifact_goldens.py` (`artifact-conformance/golden.json`), `tests/glossary/test_torn_tail_repair_goldens.py` (`torn-tail/repair-cases.json`) | fetch from the pinned fixtures asset (§3.4) |
-| Python oracle on `contracts/` | `tests/contract/_mission_status_*.py`, `test_mission_status_*.py`, `test_mission_write_contract.py`, `fixtures/mission_write_refusal_parity.yaml`, `tests/specify_cli/status/test_write_service_protocol.py` | stay; repoint at the pinned contract bundle if `contracts/` moves (Q2) |
-| Contracts | `contracts/{mission-status,mission-write,_shared,fixtures,lint,tools}` with its own Gradle build, `contracts.yml`, `contracts-release.yml` (tags `contract-<module>-v*`), plus contract-tool tests (`test_gradle_pin_check.py`, `test_tamper_check.py`, `test_bundle.py`, `test_client_smoke.py`) | Q2 |
+| Python oracle on `contracts/` | `tests/contract/_mission_status_*.py`, `test_mission_status_*.py`, `test_mission_write_contract.py`, `fixtures/mission_write_refusal_parity.yaml`, `tests/specify_cli/status/test_write_service_protocol.py` | stay; repoint at the pinned `contract-bundles-<ver>.tar.gz` |
+| Contracts | `contracts/{mission-status,mission-write,_shared,fixtures,lint,tools}` with its own Gradle build, `contracts.yml`, `contracts-release.yml` (tags `contract-<module>-v*`), plus contract-tool tests (`test_gradle_pin_check.py`, `test_tamper_check.py`, `test_bundle.py`, `test_client_smoke.py`) | **moves (decided)**: remove from core except `fixtures/fixture_0*.json`; retire `contracts.yml` and `contracts-release.yml`; move the contract-tool tests; acceptance-jvm keeps local copies of `install_tools.py` and `gradle_pin_check.py` (Q5) |
 | Packaging | `pyproject.toml` sdist excludes `services/**` and `contracts/**`; `also_copy` lists `contracts/`; `test_packaging_safety.py:240-254`; `NOTICE:19-25` (Gradle wrapper under `services/`); charter licence line 665 | drop the stale excludes and NOTICE entry; the guard keeps asserting that nothing is bundled |
 | Docs | ADRs 2026-10-01-2, 10-03-1, 10-12-2, 10-13-2, 10-14-1, 10-16-1, 10-22-1, 10-27-1; `docs/architecture/{event-ledger-writers-and-readers,status-model}.md` and the C4 `01_context`, `02_containers`, `00_landscape`, `04_implementation_mapping`; `docs/development/reference/{ci-gate-mechanics,lock-interop-spike,events-in-core}.md`; `docs/plans/4-0-0-milestone-roadmap.md`; CLAUDE.md and AGENTS.md (Team Kitty producer line); charter lines 22-25, 620, 665 | pointer edits to the spec-kitty-events docs; history stays |
 | Not coupled | `acceptance-jvm/` (its own Gradle build, no `services/` reference), `sonar.yml` and `sonar-project.properties` (scan only acceptance-jvm), the Makefile, `scripts/dev/cloud-session-setup.sh` (Java setup for acceptance-jvm only) | none |
@@ -70,12 +83,13 @@ commit: <40-hex>
 protocol_versions: [1]            # must intersect write_service_protocol.SUPPORTED_PROTOCOL_VERSIONS
 requires_core: '>=4.0.0rc9,<5'
 assets:
-  linux-x64:     {name: spec-kitty-write-service-linux-x64,       sha256: <64-hex>}
-  linux-arm64:   {name: spec-kitty-write-service-linux-arm64,     sha256: <64-hex>}
-  macos-arm64:   {name: spec-kitty-write-service-macos-arm64,     sha256: <64-hex>}
-  windows-x64:   {name: spec-kitty-write-service-windows-x64.exe, sha256: <64-hex>}
-  jvm:           {name: spec-kitty-write-service.jar,             sha256: <64-hex>}   # D-5 fallback
-fixtures:        {name: conformance-fixtures.tar.gz,              sha256: <64-hex>}   # CI only
+  linux-x64:     {name: <deployable>-<ver>-linux-x64, sha256: <64-hex>}
+  linux-arm64:   {name: <deployable>-<ver>-linux-arm64, sha256: <64-hex>}
+  macos-arm64:   {name: <deployable>-<ver>-macos-arm64, sha256: <64-hex>}
+  windows-x64:   {name: <deployable>-<ver>-windows-x64.exe, sha256: <64-hex>}
+  jvm:           {name: <deployable>-<ver>.jar, sha256: <64-hex>}   # D-5 fallback
+contracts:       {name: contract-bundles-<ver>.tar.gz,            sha256: <64-hex>}   # oracle tests, write-protocol client
+fixtures:        {name: conformance-fixtures-<ver>.tar.gz,        sha256: <64-hex>}   # CI only
 ```
 
 ### 3.2 Fetch and verify (Python, `kernel` layer)
@@ -109,13 +123,14 @@ fixtures:        {name: conformance-fixtures.tar.gz,              sha256: <64-he
 0. **Now (prep, this branch only):** this plan, the ADR draft, the charter/CLAUDE.md/AGENTS.md drafts, the pin schema. No `main` change.
 1. **Freeze, on a go signal:** a `tests/architectural/test_services_frozen.py` gate (fails on any diff under `services/` against a recorded tree digest, with a planted-violation non-vacuity test) plus a CODEOWNERS note. Announce on #6409, #6676 and #6117 (comment text drafted for approval).
 2. **All in-flight sessions merged** (§2); confirm that no live session holds unpushed `services/` or `contracts/` work.
-3. **Session A:** filter-repo import, Gradle unification, CI, the first `service-v*` pre-release with per-OS assets, sha256 files, the fixtures asset, and (if Q2 = move) the contract bundles.
+3. **Session A:** filter-repo import (`service/` plus `contracts/`), Gradle unification, CI (pinned to the frozen core SHA), and the first `service-v*` pre-release with per-OS assets, the jar, the contract-bundles and conformance-fixtures assets, `SHA256SUMS` and attestation.
 4. **Core PR 1 (pre-cut-over, can merge while `services/` still exists):** the pin mechanism (`kernel.service_artifacts`, `sync-services`, the composite action, `service vendor`), the launcher skeleton with fail-closed codes, and the ADR plus charter/CLAUDE.md amendments. The pins point at A's pre-release. CI fetches and verifies the pin.
 5. **Core PR 2 (cut-over):**
    - remove `services/` and `mission-status-api.yml`, plus the ci-router, module-registry, fleet-verdict, CODEOWNERS and `.gitattributes` entries;
    - move the build-pin tests (or delete them, since A re-homes them) and repoint the goldens tests at the fixtures asset;
    - repoint the nightly corpus compare at the pinned binary;
-   - drop the stale NOTICE, pyproject excludes and `also_copy` entries (and `contracts/` if Q2 = move);
+   - remove `contracts/` (except `fixtures/fixture_0*.json`), `contracts.yml` and `contracts-release.yml`; keep acceptance-jvm's tool copies;
+   - drop the stale NOTICE, pyproject excludes and `also_copy` entries;
    - add docs pointers;
    - run the packaging guards, `test_pyproject_shape.py`, `test_shared_package_boundary.py`, `test_gate_selection_authority.py`, `test_module_shard_registry.py` and `test_ci_module_wiring.py`.
 6. **Issue moves, on approval:** listed in §5.
@@ -127,7 +142,10 @@ fixtures:        {name: conformance-fixtures.tar.gz,              sha256: <64-he
 |---|---|
 | #6117 epic, #6159, #6194–#6199 | transfer to spec-kitty-events (Java write core); core keeps a tracking issue for the client bind (#6195's CLI half) |
 | #6676 | split: native build and per-OS release → events; CLI launcher plus fail-closed codes → core (implemented with §3.3) |
-| #6409, #957, #5528 | transfer to events (read-API routes); #5528 keeps a core child only if a CLI read surface remains |
+| #6409, #957, #5528 | transfer to events (read-API routes); #957 and #5528 split if a contract or Python oracle half remains in core |
+| #6268 | transfer to events (Java reducer port) |
+| #6609 | split: Java reducer → events; the CLI's Python reducer path stays in core |
+| #6185, #5533, #6193, #6675 | closed; nothing to move |
 | #6608 | stays in core as the event-native epic; its Java children move, while its Python children (#6610–#6613, #6438, #6412, #6446) stay |
 | #6692 | ADR on the Java writer: fold into the new ADR (§6) or close as superseded |
 | #6590 | stays in core; implemented by the same pin mechanism |
@@ -140,6 +158,7 @@ Session A owns the events-side list; this is the core-side cross-check.
 
 ## 7. Open questions for the operator
 - **Q1** binary shipping: A / B / C (§3.4).
-- **Q2** `contracts/mission-status` and `contracts/mission-write`: move with the services, or stay in core as the consumer's contract?
+- ~~Q2~~ decided: `contracts/` moves; bundles ride on `service-v*`.
 - **Q3** read service in core: pin it for CI conformance only (the CLI never launches it; consumers fetch it themselves), or also ship it to users?
 - **Q4** freeze gate timing: land it as soon as the in-flight sessions finish, or only together with core PR 1?
+- **Q5** acceptance-jvm's `install_tools.py` and `gradle_pin_check.py`: keep local copies in core (default), or fetch them from an events release?
