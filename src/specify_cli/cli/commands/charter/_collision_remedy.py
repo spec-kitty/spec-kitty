@@ -23,9 +23,14 @@ from typing import Any
 
 from rich.markup import escape
 
-from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
-from charter.activation.synthesizer.errors import ManifestIntegrityError, ProjectDRGValidationError, SynthesisError
-from charter.activation.synthesizer.manifest import MANIFEST_PATH, synthesized_urns
+from charter.activation.api import (
+    MANIFEST_PATH,
+    PROJECT_KIND_DIRS,
+    ManifestIntegrityError,
+    ProjectDRGValidationError,
+    SynthesisError,
+    synthesized_urns,
+)
 from charter.drg import ArtifactKind, scan_project_artifacts
 from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX, project_pack_path
 

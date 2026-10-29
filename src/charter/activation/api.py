@@ -67,6 +67,18 @@ from charter.activation.synthesizer.synthesize_pipeline import (
     canonical_yaml as canonical_yaml,
 )
 
+# Synthesis ownership and its refusals (#6510 / #4226) -- the ownership read the
+# ``charter synthesize`` request builder and the collision remedy consume, the
+# project-pack directory map the remedy scans, and the typed errors it
+# classifies. Public per the respective modules' ``__all__``.
+from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS as PROJECT_KIND_DIRS
+from charter.activation.synthesizer.errors import (
+    ManifestIntegrityError as ManifestIntegrityError,
+    ProjectDRGValidationError as ProjectDRGValidationError,
+    SynthesisError as SynthesisError,
+)
+from charter.activation.synthesizer.manifest import synthesized_urns as synthesized_urns
+
 # Legacy project-intent directive convergence (#6443, FR-008) — the one helper the
 # ``4.0.0rc8_project_intent_directive_rename`` migration and ``charter synthesize`` /
 # ``resynthesize`` both call. Public per charter.activation.synthesizer.legacy_rename.__all__.
@@ -230,6 +242,7 @@ __all__ = [
     "MANIFEST_PATH",
     "MAX_SKILL_DESCRIPTION_LENGTH",
     "MAX_SKILL_NAME_LENGTH",
+    "PROJECT_KIND_DIRS",
     "ActivationIdCollisionError",
     "ActivationLedger",
     "ActivationResult",
@@ -249,10 +262,13 @@ __all__ = [
     "LedgerMigrationRefused",
     "LedgerMove",
     "LegacyRenameRefusedError",
+    "ManifestIntegrityError",
+    "ProjectDRGValidationError",
     "PromotionOutcome",
     "RenameReport",
     "RequiredOmission",
     "RequiringPack",
+    "SynthesisError",
     "SynthesisLockHeldError",
     "SynthesisLockUnavailableError",
     "UnrepresentableDirectiveIdError",
@@ -287,5 +303,6 @@ __all__ = [
     "store_language_settlement",
     "synthesis_lock",
     "synthesis_lock_unless",
+    "synthesized_urns",
     "verify",
 ]

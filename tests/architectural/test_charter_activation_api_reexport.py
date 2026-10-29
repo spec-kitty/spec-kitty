@@ -93,6 +93,11 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("rename_legacy_project_intent_directive", "charter.activation.synthesizer.legacy_rename"),
     ("MAX_SKILL_DESCRIPTION_LENGTH", "charter.activation.skill_preparation"),
     ("MAX_SKILL_NAME_LENGTH", "charter.activation.skill_preparation"),
+    ("PROJECT_KIND_DIRS", "charter.activation.kind_vocabulary"),
+    ("ManifestIntegrityError", "charter.activation.synthesizer.errors"),
+    ("ProjectDRGValidationError", "charter.activation.synthesizer.errors"),
+    ("SynthesisError", "charter.activation.synthesizer.errors"),
+    ("synthesized_urns", "charter.activation.synthesizer.manifest"),
 ]
 
 

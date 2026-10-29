@@ -74,7 +74,7 @@ def _directive_synthesis_inputs(
 
 def _synthesized_directive_ids(repo_root: Path) -> frozenset[str]:
     """Ids (URN suffixes) of the directives synthesis created, from its ownership record."""
-    from charter.activation.synthesizer.manifest import synthesized_urns
+    from charter.activation.api import synthesized_urns
 
     return frozenset(urn.split(":", 1)[1] for urn in synthesized_urns(repo_root, "directive"))
 
