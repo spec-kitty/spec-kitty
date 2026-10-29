@@ -49,7 +49,8 @@ Invariant: every artifact the text renderer prints a cascade line for appears in
 | command | "activate" \| "deactivate" |
 | kind, id | str (as given) |
 | changed | list[str] (the manager's activated/deactivated entries) |
-| no_longer_in_force | list[str] (activate `--only`; `[]` otherwise) |
+| now_listed | list[str] (activate `--only`: the list as written; `[]` otherwise) |
+| no_longer_in_force | list[str] \| null (activate `--only`: what dropped; `null` when unknown, the effective set unresolved; `[]` without `--only`) |
 | warnings | list[str]: step-removal warnings, registration + manager warnings, tension findings, cascaded advisories, in that order |
 | notices | list[str]: non-empty, stripped, unstyled lines of the post-change tail (catalog refresh, pack-skill projection) |
 | referenced_not_cascaded | list[ArtifactRef] (no `--cascade`: skipped + deactivated references the warning lists) |

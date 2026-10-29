@@ -636,7 +636,8 @@ change report is built from the same value the text output prints, so the two ne
 | `kind` | string | The `KIND` argument as given (operator token) |
 | `id` | string | The `ARTIFACT_ID` argument as given |
 | `changed` | `[string]` | What the direct write activated or deactivated, as the `Activated:` / `Deactivated:` lines name it |
-| `no_longer_in_force` | `[string]` | `activate --only`: the ids the narrowed list dropped; `[]` otherwise |
+| `now_listed` | `[string]` | `activate --only`: the kind's list as written, as the `Now listed for <kind> (N): ...` line names it; `[]` otherwise |
+| `no_longer_in_force` | `[string]` \| `null` | `activate --only`: the ids the narrowed list dropped. `null` when that cannot be determined (the effective set could not be resolved; a warning says why and the text footer reads `No longer in force: unknown`). `[]` without `--only` |
 | `warnings` | `[string]` | Every warning the run printed, in print order (see below) |
 | `notices` | `[string]` | The lines the steps after the change printed (see [After the change](#after-the-change)), in print order |
 | `referenced_not_cascaded` | `[ArtifactRef]` | Without `--cascade`: the referenced artifacts the `Warning: referenced ...` lines name; `[]` with `--cascade` |
@@ -649,7 +650,8 @@ and `urn` the DRG URN (`<kind>:<declared id>`), or `null` when it does not resol
 
 `warnings` order: for `activate mission-type`, the in-flight step-removal warnings come first,
 because they print before the change; then the project registration and activation manager's
-warnings (for `deactivate`, also the mission-step default warning of a named agent profile);
+warnings, such as the warning that an explicit `skill` list freezes the org packs' required
+skills (for `deactivate`, also the mission-step default warning of a named agent profile);
 then the tension findings of `activate`; then the advisory warnings of cascaded artifacts.
 
 `referenced_not_cascaded` lists the artifacts that were skipped and those that are deactivated.
@@ -686,6 +688,7 @@ those of the test fixture project):
   "changed": [
     "p-dir"
   ],
+  "now_listed": [],
   "no_longer_in_force": [],
   "warnings": [],
   "notices": [
@@ -734,6 +737,7 @@ Example, `charter deactivate directive p1-dir --cascade all --no-compile --json`
   "changed": [
     "p1-dir"
   ],
+  "now_listed": [],
   "no_longer_in_force": [],
   "warnings": [],
   "notices": [

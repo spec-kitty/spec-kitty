@@ -43,6 +43,7 @@ errors, exit 2, not JSON.
   "kind": "directive",
   "id": "DIRECTIVE_010",
   "changed": ["..."],
+  "now_listed": [],
   "no_longer_in_force": [],
   "warnings": [],
   "notices": ["Catalog not recompiled (--no-compile): ..."],
@@ -62,6 +63,8 @@ errors, exit 2, not JSON.
 - `cascade` is `null` without `--cascade`; then `referenced_not_cascaded` lists what the `Warning: referenced ...`
   lines list and `referenced_kind_filtered` what the `Not cascaded: ...` lines list. Both are `[]` with
   `--cascade`, where `cascade.skipped_kind_filtered` carries the kind-filtered references.
+- `now_listed`: `--only`'s written list (`[]` otherwise). `no_longer_in_force`: `--only`'s dropped ids, `null` when
+  unknown (effective set unresolved; text footer "unknown (see the warning above)"), `[]` without `--only`.
 - `warnings` order: mission-type step-removal warnings, registration + manager warnings (deactivate: the named
   profile's mission-step default warning), tension findings (activate), cascaded artifacts' advisory warnings.
 - `notices`: the non-empty, whitespace-stripped, unstyled lines the post-change tail printed (catalog refresh:
@@ -113,7 +116,7 @@ See data-model.md for field semantics.
 | `unreached_behind_deactivated` | `unreachedBehindDeactivated` | |
 | `skipped_shared[].referenced_by` | `skippedShared[]` (referencing active artifact) | |
 | `skipped_required[].packs`, `error.requiring_packs` | `CharterRefusal.requiredBy` `[{packId, via}]` (D10) | local lists pack names only |
-| `cascaded`, `reinstated`, `failed`, `skipped_kind_filtered`, `still_active_unrestricted`, `notices`, `referenced_not_cascaded`, `referenced_kind_filtered` | not in contract | |
+| `cascaded`, `reinstated`, `failed`, `skipped_kind_filtered`, `still_active_unrestricted`, `notices`, `now_listed`, `no_longer_in_force`, `referenced_not_cascaded`, `referenced_kind_filtered` | not in contract | |
 | local error codes | `CharterRefusalCode` (#6524) | not mapped |
 
 The mapping is semantic (null vs omitted, per-key absent meaning), not a rename.
