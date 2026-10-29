@@ -1,0 +1,190 @@
+schema_version: 1
+mission_id: 01M5ZCJPQQ36KZ6BYGND2300SG
+mission_slug: local-event-log-retention-01M5ZCJP
+mission_number: 243
+friendly_name: Local event-log retention
+mission_type: software-dev
+target_branch: issue-6610-local-event-log-retention
+created_at: '2026-10-28T05:29:52.774763+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-28T05:29:52.774763+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-002
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-002
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-010
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP02 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-009
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-10-27][plan] Age is file mtime; lock order run → index for a run deletion.'
+  evidence_refs:
+  - e-012
+  details: "- **[2026-10-27][plan] Age is file mtime; lock order run → index for a run deletion.** See research.md §7. Disposition:
+    decided.\n\n2026-10-27 · claude · [implement] WP02 rewrites feature-runs.json with run_index.write_index_file, not save_index,
+    so unrelated entries stay byte-identical; test_no_dead_symbols stays red between WP02 and WP03 because the CLI is the
+    engine's only src caller. Disposition: decided; WP03 closes the gate.\n\n2026-10-28 · claude · [implement] Operator ruling
+    2026-10-28: keep the one dead-symbol allowlist entry for _event_logs_doctor::register (category_c_doctor_auto_discovery_seam,
+    same reach path as the other doctor siblings); recorded as priced debt owned by #3508 in the PR's Deferred section. Disposition:
+    decided."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-10-27][plan] Lock files are never cleanup-eligible.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-10-27][plan] Lock files are never cleanup-eligible.** kernel/locks.py G3: release truncates, never unlinks.
+    Disposition: decided.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-10-27][plan] New tests cannot live beside the module they test.'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-10-27][plan] New tests cannot live beside the module they test.** `tests/specify_cli/` and `tests/specify_cli/cli/commands/`
+    are `out_of_matrix_test_dirs` (nightly only), so per-PR diff coverage needs `tests/core/` and `tests/cli/commands/` instead.
+    Disposition: workaround; #4374/#4732 track promotion.\n\n2026-10-27 · claude · [implement] Issue-matrix guard counts every
+    #NNN in all planning artefacts, not just spec.md: approval of WP01 was refused until context-only citations (#3895, #6117,
+    #6185, #6608, #6675, #6715, events #92) got not-applicable rows. Disposition: workaround (record rows up front).\n\n2026-10-27
+    · claude · [implement] With agents.auto_commit=false, move-task --to approved leaves the review-cycle artifact and the
+    note event uncommitted on the coordination worktree. Disposition: workaround (orchestrator safe-commits after each verdict).\n\
+    \n2026-10-27 · claude · [implement] A fresh lane worktree venv lacks the optional extras and packs are untracked: the
+    first uv r"
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-10-27][plan] Reader/doctor-side only.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-10-27][plan] Reader/doctor-side only.** No event-log door is called; locks are probed with the kernel
+    primitive so ADR 2026-10-22-1's single-writer direction is not affected. Disposition: planned."
+- id: n-003
+  category: tooling
+  summary: 'Tracer: [2026-10-27][plan] Registry first, command second.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-10-27][plan] Registry first, command second.** #5212's per-surface `CleanupPolicy` lands first (WP01);
+    the engine (WP02) selects its scope only through that policy and the CLI (WP03) is a thin self-registering doctor sibling.
+    Disposition: planned."
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-10-27][setup] Charter sibling repo attach refused.'
+  evidence_refs:
+  - e-013
+  details: '- **[2026-10-27][setup] Charter sibling repo attach refused.** `add_repo spec-kitty/spec-kitty-charter` was denied
+    by the session permission classifier; grounding proceeded without it (no charter-service surface is touched). Disposition:
+    workaround.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-10-27][specify] Operator rulings.'
+  evidence_refs:
+  - e-012
+  details: '- **[2026-10-27][specify] Operator rulings.** `keep_runs=20`, `max_age_days=30`, both limits must be exceeded,
+    preview by default (2026-10-23, #6610); command `doctor event-logs --apply`, caches in scope, unknown Missions protected,
+    `CleanupPolicy(retention, cleanup_command)` shape (2026-10-27). Disposition: decided.'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-10-27][specify] spec-kitty helper commits carry no attribution trailer.'
+  evidence_refs:
+  - e-013
+  details: "- **[2026-10-27][specify] spec-kitty helper commits carry no attribution trailer.** `spec-commit`, `setup-plan`,
+    `finalize-tasks` and `record-analysis` author their own commits without the operator's `Co-Authored-By` trailer. Disposition:
+    fixed at closeout by history compaction."
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/tasks/WP01-per-surface-cleanup-policy.md
+- id: e-006
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/tasks/WP02-retention-limits-and-engine.md
+- id: e-007
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/tasks/WP03-doctor-event-logs-command.md
+- id: e-008
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/status.events.jsonl
+- id: e-009
+  kind: event_range
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/status.events.jsonl
+  range: 01M5ZJY5BTTDFKR4WT4QHFR7N4..01M5ZM7P7DCXNN9YCF864DR7T7
+- id: e-010
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/analysis-report.md
+- id: e-011
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/traces/approach.md
+- id: e-012
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/traces/design-decisions.md
+- id: e-013
+  kind: file
+  path: kitty-specs/local-event-log-retention-01M5ZCJP/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

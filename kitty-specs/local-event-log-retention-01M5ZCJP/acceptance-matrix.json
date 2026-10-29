@@ -1,0 +1,149 @@
+{
+  "mission_slug": "local-event-log-retention-01M5ZCJP",
+  "mission_number": "243",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_state_cleanup_policy.py::test_every_surface_declares_a_cleanup_policy, ::test_to_dict_emits_cleanup_policy",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:12.855825+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_state_cleanup_policy.py::test_policy_is_required (TypeError without cleanup_policy)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:18.588630+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_state_cleanup_policy.py::test_tracked_surfaces_are_never_prunable, ::test_prunable_surfaces_are_gitignored, ::test_invariant_rejects_a_prunable_tracked_surface (self-mutation)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:24.064168+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_state_cleanup_policy.py::test_local_tier_is_pinned, ::test_retention_surfaces_name_the_cleanup_command",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:29.714827+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_ledger_retention.py::test_defaults_are_twenty_runs_and_thirty_days, ::test_explicit_values_are_read_from_the_project_config, ::test_invalid_configuration_refuses; tests/cli/commands/test_doctor_event_logs.py::test_invalid_config_exits_2_and_deletes_nothing",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:35.124130+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_event_log_retention.py::test_preview_changes_nothing; tests/cli/commands/test_doctor_event_logs.py::test_preview_lists_candidates_and_kept_reasons_and_changes_nothing",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:40.869995+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_event_log_retention.py::test_newest_keep_runs_are_kept_and_the_rest_of_an_old_completed_mission_are_candidates, ::test_runs_beyond_keep_runs_but_younger_than_max_age_are_kept, ::test_old_run_of_an_open_mission_is_kept, ::test_held_run_cursor_lock_is_reported_in_preview, ::test_glossary_logs_are_ranked_within_their_own_kind",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:46.604221+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_event_log_retention.py::test_run_whose_mission_resolves_nowhere_is_kept, ::test_a_recorded_unknown_mission_id_never_falls_back_to_the_slug",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:52.486482+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_event_log_retention.py::test_apply_deletes_only_candidates_and_keeps_the_index_consistent; tests/cli/commands/test_doctor_event_logs.py::test_apply_json_deletes_the_candidates_and_their_index_entries",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:24:58.266242+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_event_log_retention.py::test_derived_views_and_ops_index_are_rebuildable_regardless_of_age, ::test_held_event_log_lock_keeps_the_ops_index_and_glossary_log",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:25:03.957839+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_event_log_retention.py::test_glossary_logs_follow_their_mission_and_non_mission_logs_are_never_listed, ::test_the_path_guard_refuses_anything_outside_the_local_tier, ::test_apply_deletes_only_candidates_and_keeps_the_index_consistent (tracked files byte-identical, lock files kept)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:25:09.674333+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/cli/commands/test_doctor_event_logs.py::test_json_preview_matches_the_contract_shape, ::test_a_failed_deletion_exits_1_and_is_reported, ::test_invalid_config_exits_2_and_deletes_nothing, ::test_not_in_a_project_exits_2, ::test_nothing_to_clean_exits_0_with_a_clear_line",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:25:15.154138+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "lane-c run 2026-10-28: 108 passed; tests/core/test_event_log_retention.py::test_scope_follows_the_registry_policy, ::test_a_pruning_rule_without_a_collector_is_registry_drift, ::test_a_partial_run_family_selection_is_registry_drift",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T05:25:20.817536+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "C-001: the retention cleanup calls no event-log write door (event_log_lock, append_event_log_lines, append_event)",
+      "verification_method": "grep_absence",
+      "verification_command": "event_log_lock(\\|append_event_log_lines(\\|append_event(",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/state/retention.py src/specify_cli/core/ledger_retention.py src/specify_cli/cli/commands/_event_logs_doctor.py"
+    }
+  ]
+}

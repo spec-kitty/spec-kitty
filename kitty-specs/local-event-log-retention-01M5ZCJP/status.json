@@ -1,0 +1,116 @@
+{
+  "event_count": 31,
+  "last_event_id": "01M60FPCVZ43RQNGAQFJY3BN9E",
+  "materialized_at": "2026-10-28T05:28:28.799764+00:00",
+  "mission_number": "243",
+  "mission_slug": "local-event-log-retention-01M5ZCJP",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M60FP6CJZECF7C6NM201XKTY",
+      "last_transition_at": "2026-10-28T05:28:22.162298+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "RetentionRule/CleanupPolicy/CLEANUP_EVENT_LOGS_COMMAND added; StateSurface.cleanup_policy required kw-only; all 62 surfaces classified (never 25, retired 15, manual 10, owner_lifecycle 6, ledger_retention 4, rebuildable 2); to_dict emits it; get_surfaces_by_retention selector; exported from specify_cli.state. Red commit ab47cffa (ImportError on base), green ba450b48. Tests: new file 10 passed; state contract/doctor/gitignore + doctor_spec_kitty_home + 3 architectural gates 151 passed; tests/core 862 passed 5 skipped. ruff check exit 0, ruff format --check exit 0, mypy: 0 errors in src/specify_cli/state (exit 1 from 95 pre-existing errors in 10 other imported files, identical on base).",
+        "Review passed (reviewer-renata): red→green verified (ab47cffa ImportError on base); required kw-only cleanup_policy, to_dict key, non-vacuous tracked-surface invariant, pinned local tier, command constant, deprecated⇔retired; all 62 classifications checked, owner commands verified; ruff/format/mypy exit 0; 170 targeted tests passed. Lows: commit message omits two classification departures; to_dict test partly circular."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7333,
+      "shell_pid_created_at": "1793131226.37",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M60FP9N7QPN46H665N4B7F8Z",
+      "last_transition_at": "2026-10-28T05:28:25.511233+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Retention engine done: kernel.event_log_append.event_log_lock_path exported; runtime.next.run_lock.try_run_cursor_lock; specify_cli.core.ledger_retention (RetentionLimits, RetentionConfigError, load_retention_limits, fail-closed); specify_cli.state.retention (scan_retention, apply_retention, RetentionItem/Plan/Result/Failure with to_dict(repo_root) in the contract JSON shape; registry-policy-only selection with RetentionPolicyDriftError; lock order run-cursor -> index_lock -> drop index entries -> rmtree; path guard). Red-first commit ec403a03. ruff/ruff format/mypy/C901 exit 0 on all touched files, no noqa/type-ignore. Tests: new files 69 passed (+1 timing passed, -m timing -p no:xdist); tests/core/test_state_cleanup_policy.py + tests/runtime + new files: 1435 passed, 1 skipped. Gates: test_event_log_writes_gate, test_lock_primitive_ban, test_layer_rules, test_run_index_single_reader green. KNOWN RED: test_no_dead_symbols::test_no_public_symbol_in_all_is_unimported lists the new ledger_retention and state.retention public names (no src caller until WP03's doctor event-logs CLI); no allowlist entry added by rule - WP03 must import them (or privatize the reason/kind constants).",
+        "Cycle 2: FR-008 fixed (recorded mission_id resolves by exact id only, unknown/malformed id => Mission not found, slug only when no id); non-mapping run index tolerated at apply; symlinked runs/glossary logs/derived views/ops-index not collected; vanished items skipped, lock-probe OSError => lock held; _delete_run order kept with trade-off comment, failed rmtree reported with path. Commits 4db1e460 (red) + f4a8a725 (fix). ruff/C901/format/mypy exit 0. Tests: 86 passed (not timing), timing 1 passed, gates 136 passed.",
+        "Cycle 3: NoFollowPathError (symlinked lock, existing or dangling target) now reads as 'lock held' in preview (os.path.lexists for the absent-lock shortcut) and at apply (unit kept, loop continues); docstring corrected. Red f58e6fd0, fix 3ef4b949. ruff/C901/format/mypy exit 0. Tests: 94 passed (not timing), 1 passed (timing), gates 136 passed; adv2.py: a kept lock held, b deleted, no traceback, both cases.",
+        "Review passed cycle 3 (reviewer-renata): cycle-2 item fixed - symlinked run/event-log/Op-index locks (existing or dangling) read as lock held in preview (NoFollowPathError caught, lexists) and are kept at apply while the loop continues; 8 new tests red on f58e6fd0 pre-fix, green now; 94+1 timing tests, 136 gate tests pass; ruff/C901/format/mypy clean; probes adv.py and adv2.py clean. Nit: a symlinked run-index lock would also report as lock held rather than failed (fail-closed)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 6711,
+      "shell_pid_created_at": "1793137179.17",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M60FPCVZ43RQNGAQFJY3BN9E",
+      "last_transition_at": "2026-10-28T05:28:28.799764+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "doctor event-logs (preview default, --apply, --json per contract; exit 0/1/2 incl. RetentionPolicyDriftError->2) via _event_logs_doctor.register; doctor.py untouched. Docs: CLI ref block, how-to docs/guides/how-to/monitoring/clean-up-local-event-logs.md (+index, toc, inventory, retrieval index), CHANGELOG Added. Dead-symbol gate green: engine __all__ narrowed to CLI-imported names; register allowlisted under existing category_c_doctor_auto_discovery_seam (same as run-index). ruff/format/C901/mypy exit 0. Tests: CLI 14 passed; engine suites 92+ passed; gates 272 passed + dead-symbols 37 passed; nightly golden+run-index 63 passed; tests/docs 1791 passed 8 skipped; make test-fast 2490 passed 6 skipped.",
+        "Review passed (reviewer-renata): red->green confirmed (cccd636f fails at collection on its parent); JSON keys/item fields/exit 0/1/2 match the contract incl. config_error, not_in_project, retention_policy_drift; preview hashed unchanged live; doctor.py untouched, event-logs self-registers; engine edits are __all__+comments only; one operator-approved allowlist entry; completion manifest, docs index and page inventory regenerate byte-identically; how-to accurate against code. Tests: 105 targeted, 370 gates+golden, 1791 docs passed. ruff/C901/format/mypy clean. Lows only (see report)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261028",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 615,
+      "shell_pid_created_at": "1793164241.87",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    }
+  }
+}

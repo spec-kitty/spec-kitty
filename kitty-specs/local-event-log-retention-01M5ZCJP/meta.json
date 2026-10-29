@@ -1,0 +1,35 @@
+{
+  "accept_commit": "f68a0618f713a5afca117dc14e953f91a65e76a7",
+  "acceptance_history": [
+    {
+      "accept_commit": "f68a0618f713a5afca117dc14e953f91a65e76a7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-28T05:30:56.850512+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "7fc484ac69f16038c856f2466c4dbe403df5abca"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-28T05:30:56.850512+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "7fc484ac69f16038c856f2466c4dbe403df5abca",
+  "baseline_merge_commit": "31aaf0d783d1d832c50012b7ebb23bf0d071eda7",
+  "created_at": "2026-10-27T19:14:48.919560+00:00",
+  "flattened": true,
+  "friendly_name": "Local event-log retention",
+  "merged_at": "2026-10-28T05:29:04.768323+00:00",
+  "merged_commit": "5b97a0639f216861a5ca1bb68cf684478bb41ff0",
+  "mid8": "01M5ZCJP",
+  "mission_id": "01M5ZCJPQQ36KZ6BYGND2300SG",
+  "mission_number": 243,
+  "mission_slug": "local-event-log-retention-01M5ZCJP",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Run journals, per-Mission glossary logs and local caches under .kittify/ grow without bound because nothing cleans them up (ADR 2026-10-13-2 D-3, gap G-9). This Mission first records, for every state surface, how it is retained and which command cleans it (#5212), then adds spec-kitty doctor event-logs, which previews by default and deletes only with --apply, reading which surfaces it may touch from that one policy (#6610). Committed ledgers are never pruned.",
+  "purpose_tldr": "Give every local state surface a declared cleanup policy and add a dry-run-first command that prunes old, gitignored run journals, event logs and caches.",
+  "slug": "local-event-log-retention-01M5ZCJP",
+  "status_phase": "1",
+  "target_branch": "issue-6610-local-event-log-retention",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T19:28:51.213777+00:00"
+}
