@@ -197,14 +197,16 @@ def test_corrupt_remedy_says_corrupt_and_never_to_delete_first() -> None:
     text = ia.RESIDUE_REMEDY_CORRUPT_META
     assert text.startswith("The Mission content is corrupt: meta.json could not be read")
     assert "Do not delete the folder before checking." in text
-    assert "`git log --format=%h -1 -- <path>/meta.json`" in text
+    assert "`git checkout HEAD -- <path>/meta.json`" in text  # the removal is staged, not committed
+    assert "`git log --diff-filter=D --format=%h -1 -- <path>/meta.json`" in text
     assert "`git checkout <sha>~1 -- <path>/meta.json`" in text and "^" not in text
-    # A corrupt_meta row is residue only because git tracks nothing there, so index-based restores cannot work.
-    assert "git restore" not in text and "checkout HEAD" not in text
+    # A corrupt_meta row is residue only because the index lacks the file, so `git restore` cannot recover it.
+    assert "git restore" not in text
 
 
-def test_corrupt_remedy_recipe_restores_a_once_committed_meta(tmp_path: Path) -> None:
-    """The corrupt_meta recipe, run verbatim on a residue row (git tracks nothing there), restores the file."""
+@pytest.mark.parametrize("removal_committed", [True, False], ids=["committed-removal", "staged-removal"])
+def test_corrupt_remedy_recipe_restores_the_latest_meta(tmp_path: Path, removal_committed: bool) -> None:
+    """The corrupt_meta recipe, run verbatim on a residue row (the index lacks the file), restores the latest version."""
     import subprocess
 
     def git(*args: str) -> str:
@@ -214,17 +216,24 @@ def test_corrupt_remedy_recipe_restores_a_once_committed_meta(tmp_path: Path) ->
     meta = tmp_path / rel
     meta.parent.mkdir(parents=True)
     git("init", "-q")
-    meta.write_text('{"mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ00"}', encoding="utf-8")
+    meta.write_text('{"mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ00", "v": 1}', encoding="utf-8")
     git("add", ".")
     git("commit", "-qm", "add")
+    meta.write_text('{"mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ00", "v": 2}', encoding="utf-8")
+    git("commit", "-qam", "modify")
     git("rm", "-q", "--cached", rel)
-    git("commit", "-qm", "untrack")
+    if removal_committed:
+        git("commit", "-qm", "untrack")
     meta.write_text("{bad", encoding="utf-8")
 
-    sha = git("log", "--format=%h", "-1", "--", rel).strip()
-    git("checkout", f"{sha}~1", "--", rel)
+    sha = git("log", "--diff-filter=D", "--format=%h", "-1", "--", rel).strip()
+    if sha:  # a commit removed it
+        git("checkout", f"{sha}~1", "--", rel)
+    else:  # `git status` shows it staged as deleted
+        git("checkout", "HEAD", "--", rel)
 
-    assert json.loads(meta.read_text(encoding="utf-8"))["mission_id"] == "01ABCDEFGHJKMNPQRSTVWXYZ00"
+    assert bool(sha) is removal_committed
+    assert json.loads(meta.read_text(encoding="utf-8"))["v"] == 2
 
 
 def test_residue_groups_refuse_a_row_without_a_reason() -> None:
@@ -262,11 +271,6 @@ def test_print_identity_path_sections_groups_residue_by_reason() -> None:
     assert ia.RESIDUE_REMEDY_UNTRACKED_IDLESS_META not in flat
     assert flat.index("No meta.json:") < flat.index("/tmp/a") < flat.index("Corrupt meta.json")
     assert "/tmp/c — Cannot read /tmp/c/meta.json" in flat
-
-
-def test_residue_row_without_a_reason_is_grouped_as_no_meta() -> None:
-    groups = ia._residue_groups([_state("old", "residue", None)])
-    assert list(groups) == ["no_meta"]
 
 
 def test_print_identity_path_sections_no_residue_no_remedy() -> None:

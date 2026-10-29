@@ -128,10 +128,11 @@ The command walks `kitty-specs/` and classifies every mission:
     run `spec-kitty migrate backfill-identity`; otherwise delete the folder.
   - `corrupt_meta`: the Mission content is corrupt (the row's `error` says
     why); do not delete the folder before checking. Fix its permissions or
-    JSON. If it was ever committed, find the commit that removed it with
-    `git log --format=%h -1 -- <path>/meta.json` and run
-    `git checkout <sha>~1 -- <path>/meta.json`; otherwise re-create the
-    Mission with `spec-kitty agent mission create`.
+    JSON. If `git status` shows it staged as deleted, run
+    `git checkout HEAD -- <path>/meta.json`. If a commit removed it, find
+    that commit with `git log --diff-filter=D --format=%h -1 -- <path>/meta.json`
+    and run `git checkout <sha>~1 -- <path>/meta.json`. Otherwise re-create
+    the Mission with `spec-kitty agent mission create`.
 
   `--fail-on residue` makes the audit exit 1 while any remain. A git index
   that cannot be read makes the audit exit 1 with one error line

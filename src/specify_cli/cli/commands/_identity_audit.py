@@ -57,8 +57,9 @@ RESIDUE_REMEDY_UNTRACKED_IDLESS_META = (
 )
 RESIDUE_REMEDY_CORRUPT_META = (
     "The Mission content is corrupt: meta.json could not be read (the error is on each row). Do not delete the "
-    "folder before checking. Repair it: fix its permissions or its JSON. If it was ever committed, find the commit "
-    "that removed it with `git log --format=%h -1 -- <path>/meta.json` and restore it with "
+    "folder before checking. Repair it: fix its permissions or its JSON. If `git status` shows it staged as "
+    "deleted, restore it with `git checkout HEAD -- <path>/meta.json`. If a commit removed it, find that commit "
+    "with `git log --diff-filter=D --format=%h -1 -- <path>/meta.json` and restore it with "
     "`git checkout <sha>~1 -- <path>/meta.json`. Otherwise re-create the Mission with "
     "`spec-kitty agent mission create` and move its content in."
 )
