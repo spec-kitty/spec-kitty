@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -156,13 +157,18 @@ def _terminal_rows(mission_dir: Path, decision_id: str) -> list[dict[str, Any]]:
 
 
 def _resolve_concurrently(repo_root: Path, slug: str, did: str, iteration: int) -> None:
+    _run_concurrently(lambda: resolve_decision(repo_root, slug, did, final_answer="a", actor="stress"), iteration)
+
+
+def _run_concurrently(call: Callable[[], object], iteration: int) -> None:
+    """Release ``_TERMINAL_WORKERS`` threads running *call* together through a barrier."""
     barrier = threading.Barrier(_TERMINAL_WORKERS)
     errors: list[BaseException] = []
 
     def worker() -> None:
         try:
             barrier.wait(timeout=10)
-            resolve_decision(repo_root, slug, did, final_answer="a", actor="stress")
+            call()
         except BaseException as exc:  # noqa: BLE001 - surfaced via `errors`
             errors.append(exc)
 
@@ -202,3 +208,43 @@ def test_concurrent_identical_terminal_calls_write_one_event(tmp_path_factory: p
         assert len(rows) == 1, f"iteration {iteration}: {len(rows)} resolved rows"
         all_rows = [json.loads(ln) for ln in (mission_dir / "status.events.jsonl").read_text(encoding="utf-8").splitlines() if ln.strip()]
         assert fold_events([r for r in all_rows if r["payload"].get("decision_point_id") == did]).final_answer == "a"
+
+
+def _opened_rows(mission_dir: Path, decision_id: str) -> list[dict[str, Any]]:
+    path = mission_dir / "status.events.jsonl"
+    rows = [json.loads(ln) for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    return [r for r in rows if r["event_type"] == DECISION_POINT_OPENED and r["payload"]["decision_point_id"] == decision_id]
+
+
+@pytest.mark.parametrize("start_state", ["fresh", "interrupted"])
+def test_concurrent_identical_opens_write_one_opening(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch, start_state: str) -> None:
+    """#4848 open-half stress supplement (NFR-001): identical opens released together write one opening.
+
+    ``fresh`` starts from an empty ledger; ``interrupted`` from index-open /
+    log-empty (the first opening append failed once).  Run with ``-n0 -m stress``.
+    """
+    from specify_cli.decisions.index_fold import fold_events
+
+    for iteration in range(_TERMINAL_ITERATIONS):
+        repo_root = tmp_path_factory.mktemp(f"open-stress-{start_state}-{iteration}")
+        slug = f"open-stress-{iteration}"
+        mission_dir = repo_root / "kitty-specs" / slug
+        _setup_meta(mission_dir, mission_id=f"01KTEST_{slug}", mission_slug=slug)
+
+        def open_once(repo_root: Path = repo_root, slug: str = slug) -> str:
+            return str(open_decision(repo_root, slug, origin_flow=OriginFlow.CHARTER, step_id="s", input_key="k", question="Q?", actor="stress").decision_id)
+
+        if start_state == "interrupted":
+            with monkeypatch.context() as m:
+                m.setattr(_emit, "_append_raw_event", lambda *_a, **_k: (_ for _ in ()).throw(OSError("simulated interruption")))
+                with pytest.raises(OSError, match="simulated interruption"):
+                    open_once()
+
+        _run_concurrently(open_once, iteration)
+
+        entries = _store.load_index(mission_dir).entries
+        assert len(entries) == 1, f"iteration {iteration}: {len(entries)} index entries"
+        did = entries[0].decision_id
+        rows = _opened_rows(mission_dir, did)
+        assert len(rows) == 1, f"iteration {iteration}: {len(rows)} opened rows"
+        assert fold_events(rows).decision_id == did
