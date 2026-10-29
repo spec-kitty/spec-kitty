@@ -77,9 +77,8 @@ from rich.table import Table
 from charter.activation.api import canonical_mission_type_key
 from charter.activation.mission_type_profiles import existing_mission_types
 from charter.missions import MissionTemplateRepository, resolve_layered_mission_types
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import load_meta_fail_closed
-from specify_cli.core.utils import safe_is_dir
+from specify_cli.status.identity_audit import iter_kitty_specs_children
 
 from ._doctor_shared import console
 
@@ -278,8 +277,8 @@ def classify_mission_type(
 def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
     """Walk ``kitty-specs/`` and classify every mission directory.
 
-    Mirrors :func:`specify_cli.status.identity_audit.audit_repo`'s walk
-    shape exactly (same ``safe_is_dir``/``KITTY_SPECS_DIR`` pattern) —
+    Shares :func:`specify_cli.status.identity_audit.audit_repo`'s walk
+    (:func:`~specify_cli.status.identity_audit.iter_kitty_specs_children`) —
     deliberately, not by omission. A raw walk (rather than routing through
     ``specify_cli.context.mission_resolver.FsMissionResolver.all_missions()``)
     is a **documented distinct corpus walk**
@@ -303,28 +302,13 @@ def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
     Returns:
         List of :class:`MissionTypeState` objects, one per mission directory.
     """
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    states: list[MissionTypeState] = []
-    try:
-        if not safe_is_dir(specs_dir):
-            return []
-        entries = sorted(specs_dir.iterdir())
-    except OSError:
+    entries = iter_kitty_specs_children(repo_root)
+    if not entries:
         return []
 
     registered = existing_mission_types(repo_root)
     roster = _resolve_layered_roster(repo_root)
-
-    for entry in entries:
-        try:
-            is_mission_dir = safe_is_dir(entry)
-        except OSError:
-            continue  # unstattable entry: same skip as "not a directory"
-        if not is_mission_dir:
-            continue  # skip README.md, templates, etc.
-        states.append(classify_mission_type(entry, registered=registered, roster=roster))
-
-    return states
+    return [classify_mission_type(entry, registered=registered, roster=roster) for entry in entries]
 
 
 # ---------------------------------------------------------------------------

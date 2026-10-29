@@ -182,6 +182,41 @@ def classify_mission(feature_dir: Path) -> IdentityState:
 # ---------------------------------------------------------------------------
 
 
+def iter_kitty_specs_children(repo_root: Path) -> list[Path]:
+    """Return the sorted directory children of ``kitty-specs/`` (the doctor audits' one raw walk).
+
+    Shared by :func:`audit_repo`, :func:`find_duplicate_prefixes` and
+    ``doctor mission-type``'s ``audit_mission_types``. An absent
+    ``kitty-specs/``, or an ``OSError`` while listing it (an unreadable
+    ancestor), yields ``[]``: a read-only, best-effort survey must not crash on
+    an unreadable ancestor any more than on an absent one, the same posture as
+    ``specify_cli.audit.engine._scan_missions``. Entries that are not
+    directories (``README.md``, templates) are skipped, and so, per `#3194`,
+    is an entry that cannot be examined at all (most commonly ``EACCES``
+    behind a symlink): it is folded into the SAME "not a directory" skip
+    rather than raising or silently vanishing depending on interpreter (see
+    ``safe_is_dir``'s docstring for why ``Path.is_dir()``/``Path.exists()``
+    cannot be used here unguarded).
+    """
+    specs_dir = repo_root / KITTY_SPECS_DIR
+    try:
+        if not safe_is_dir(specs_dir):
+            return []
+        entries = sorted(specs_dir.iterdir())
+    except OSError:
+        return []
+
+    children: list[Path] = []
+    for entry in entries:
+        try:
+            is_dir = safe_is_dir(entry)
+        except OSError:
+            continue  # unstattable entry: same skip as "not a directory"
+        if is_dir:
+            children.append(entry)
+    return children
+
+
 def audit_repo(repo_root: Path) -> list[IdentityState]:
     """Walk ``kitty-specs/`` and classify every mission directory.
 
@@ -201,29 +236,7 @@ def audit_repo(repo_root: Path) -> list[IdentityState]:
     Returns:
         Sorted list of :class:`IdentityState` objects, one per mission directory.
     """
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    states: list[IdentityState] = []
-    try:
-        if not safe_is_dir(specs_dir):
-            return []
-        entries = sorted(specs_dir.iterdir())
-    except OSError:
-        # Same fail-soft posture as `find_duplicate_prefixes` below and as
-        # `specify_cli.audit.engine._scan_missions`: this is a read-only,
-        # best-effort survey, and an unreadable ancestor of `kitty-specs/`
-        # must not crash it any more than an absent one does.
-        return []
-
-    for entry in entries:
-        try:
-            is_mission_dir = safe_is_dir(entry)
-        except OSError:
-            continue  # unstattable entry: same skip as "not a directory"
-        if not is_mission_dir:
-            continue  # skip README.md, templates, etc.
-        states.append(classify_mission(entry))
-
-    return states
+    return [classify_mission(entry) for entry in iter_kitty_specs_children(repo_root)]
 
 
 # ---------------------------------------------------------------------------
@@ -282,22 +295,8 @@ def find_duplicate_prefixes(repo_root: Path) -> dict[str, list[IdentityState]]:
         ``{"NNN": [<IdentityState>, ...]}`` for every duplicated prefix.
         Empty dict when no duplicates exist.
     """
-    specs_dir = repo_root / KITTY_SPECS_DIR
     groups: dict[str, list[IdentityState]] = {}
-    try:
-        if not safe_is_dir(specs_dir):
-            return {}
-        entries = sorted(specs_dir.iterdir())
-    except OSError:
-        return {}
-
-    for entry in entries:
-        try:
-            is_mission_dir = safe_is_dir(entry)
-        except OSError:
-            continue
-        if not is_mission_dir:
-            continue
+    for entry in iter_kitty_specs_children(repo_root):
         m = _PREFIX_RE.match(entry.name)
         if not m:
             continue
