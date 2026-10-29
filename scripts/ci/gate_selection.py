@@ -125,6 +125,10 @@ REDUCER_LOCK_UNOWNED_IMPORTERS: dict[str, tuple[frozenset[str], str]] = {
         frozenset({"core_misc"}),
         "no registry row roots src/specify_cli/decisions/**; its per-PR tests are tests/decisions (core_misc)",
     ),
+    "src/specify_cli/events/": (
+        frozenset({"execution_context"}),
+        "no registry row roots src/specify_cli/events/**; tests/runtime (execution_context) exercises decision_log through the runtime bridge",
+    ),
     "src/specify_cli/migration/mission_state.py": (
         frozenset({"status", "unit", "upgrade"}),
         "no registry row roots src/specify_cli/migration/**; tests/status, tests/unit/migration and tests/upgrade exercise it",
