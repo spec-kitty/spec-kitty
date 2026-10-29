@@ -233,9 +233,11 @@ def find_asset_path_escapes(pack: str, pack_root: Path) -> list[AssetPathEscape]
     items loaded beside the pack are never judged. One pack per repository, so
     a later pack cannot shadow an earlier pack's sidecar.
 
-    A :class:`AssetPathEscapeError` is a finding; so is a ``ValueError`` or
-    ``OSError`` from resolving one path (a NUL byte, for example), recorded for
-    that asset only so it never hides another. No blob is opened or read
+    A :class:`AssetPathEscapeError` is a finding; so is any other
+    :class:`AssetResolutionError` (a sidecar that cannot be anchored in this
+    pack's ``assets/``, such as a symlinked sidecar living outside it) and a
+    ``ValueError`` or ``OSError`` from resolving one path (a NUL byte, for
+    example), each recorded for that asset only so it never hides another. No blob is opened or read
     (NFR-001). A malformed sidecar is skipped by the repository and is the pack
     validator's to report; its load warnings, like layer-collision warnings,
     are owned by other checks and are silenced here.
@@ -253,6 +255,10 @@ def find_asset_path_escapes(pack: str, pack_root: Path) -> list[AssetPathEscape]
             repository.resolve_path(manifest.id)
         except AssetPathEscapeError as exc:
             reason = str(exc.__cause__ or exc)
+        except AssetResolutionError as exc:
+            # The sidecar itself cannot be anchored in this pack's assets/ (for
+            # example a symlinked sidecar that lives outside it): not contained.
+            reason = str(exc)
         except (ValueError, OSError) as exc:
             reason = str(exc)
         else:

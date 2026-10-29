@@ -576,7 +576,8 @@ and the path, and the report is unhealthy (exit 1). `reason` is free text; branc
 a check cannot run, `org_drg.errors` says so and its list stays empty. The human output has a
 `fragment body_path escapes:` line and an `asset path escapes:` line in the organisation-layer
 section. Nodes found from artifact files (for example `directives/*.directive.yaml`) are not in
-these lists; `spec-kitty charter pack validate` checks them.
+these lists, and an asset sidecar that does not parse is skipped here;
+`spec-kitty charter pack validate` checks both.
 
 ### `spec-kitty migrate activation-ledger`
 

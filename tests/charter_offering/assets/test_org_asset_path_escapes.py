@@ -162,3 +162,31 @@ def test_registry_aware_check_uses_the_subdir_effective_root(tmp_path: Path) -> 
     escapes = find_org_asset_path_escapes(repo, load_org_drg(repo))
 
     assert [(e.pack, e.asset) for e in escapes] == [("acme", "inner-bad")]
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="needs os.symlink")
+def test_symlinked_sidecar_outside_the_pack_is_reported_and_does_not_hide_another_escape(tmp_path: Path) -> None:
+    """A sidecar the repository cannot anchor inside the pack's assets/ is itself not contained."""
+    pack_root = _make_pack(tmp_path / "pack", {"b-escape": _ESCAPING, "c-fine": "img/c.png"})
+    outside = tmp_path / "outside"
+    _write_sidecar(outside, "a-linked", "img/a.png")
+    try:
+        (pack_root / "assets" / "a-linked.asset.yaml").symlink_to(outside / "a-linked.asset.yaml")
+    except OSError:  # pragma: no cover - platform without symlink privilege
+        pytest.skip("symlink creation not permitted")
+
+    escapes = find_asset_path_escapes("acme", pack_root)
+
+    assert sorted(e.asset for e in escapes) == ["a-linked", "b-escape"]
+
+
+def test_registry_aware_check_attributes_a_shadowed_asset_id_to_its_own_pack(tmp_path: Path) -> None:
+    """Two packs declaring the same asset id are judged separately; only the escaping one is named."""
+    repo = tmp_path / "repo"
+    alpha = _make_pack(tmp_path / "alpha", {"team-logo": "logo.png"}, name="alpha")
+    beta = _make_pack(tmp_path / "beta", {"team-logo": _ESCAPING}, name="beta")
+    _write_registry(repo, [{"name": "alpha", "local_path": str(alpha)}, {"name": "beta", "local_path": str(beta)}])
+
+    escapes = find_org_asset_path_escapes(repo, load_org_drg(repo))
+
+    assert [(e.pack, e.asset) for e in escapes] == [("beta", "team-logo")]
