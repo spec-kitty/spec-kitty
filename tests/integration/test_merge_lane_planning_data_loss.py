@@ -1416,6 +1416,10 @@ class TestPlanningArtifactReachesTarget:
         for wp_id in ("WP01", "WP02"):
             _write_wp_file(feature_dir, wp_id)
             _seed_wp_approved(feature_dir, slug, wp_id)
+        # #6715 (ruling R2): the planning WP's deliverable on main is author-written content; its
+        # own WP file is tool-written and never counts as evidence. The orphan on the phantom
+        # branch below is a different file, so the design-boundary assertion is unaffected.
+        (feature_dir / "plan.md").write_text("# Plan\n\nPlanning output on main.\n", encoding="utf-8")
         _git(tmp_path, "add", ".")
         _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap mission fixture")
 
