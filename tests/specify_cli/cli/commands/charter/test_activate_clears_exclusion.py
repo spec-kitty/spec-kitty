@@ -24,6 +24,7 @@ from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_manager import ActivationResult, ActiveCharterManager, resolve_activation_write_target
 from kernel.activation_ledger_store import activation_ledger_path
 from specify_cli.cli.commands.charter import charter_app
+from specify_cli.cli.commands.charter._activation_report import ArtifactRef
 from specify_cli.cli.commands.charter import deactivate as deactivate_module
 from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 
@@ -159,15 +160,15 @@ class _FakeManager:
 
 
 def _child(manager: _FakeManager, kind: str, config_id: str, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> str:
-    deactivate_module._cascade_child(
+    entry = deactivate_module._cascade_child_entry(
         cast(ActiveCharterManager, manager),  # a structural stand-in for ActiveCharterManager.deactivate
         ProjectContext(repo_root=tmp_path),
-        kind,
-        config_id,
+        ArtifactRef(kind, config_id),
         layer_roots=None,
-        source_id="parent",
         allow_absent=False,
     )
+    if entry is not None:
+        deactivate_module._render_cascade_entry(entry, "parent")
     return " ".join(capsys.readouterr().out.split())
 
 

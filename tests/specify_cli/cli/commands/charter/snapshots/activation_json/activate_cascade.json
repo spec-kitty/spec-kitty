@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0.0",
+  "command": "activate",
+  "kind": "directive",
+  "id": "p-dir",
+  "changed": [
+    "p-dir"
+  ],
+  "now_listed": [],
+  "no_longer_in_force": [],
+  "warnings": [],
+  "referenced_not_cascaded": [],
+  "cascade": {
+    "source_urn": "directive:DIRECTIVE_P",
+    "scope": "all",
+    "cascaded": [
+      {
+        "kind": "procedure",
+        "id": "g-proc",
+        "urn": "procedure:PROCEDURE_G"
+      },
+      {
+        "kind": "styleguide",
+        "id": "s-style",
+        "urn": "styleguide:STYLEGUIDE_S"
+      },
+      {
+        "kind": "tactic",
+        "id": "c-tac",
+        "urn": "tactic:TACTIC_C"
+      }
+    ],
+    "reinstated": [],
+    "failed": [],
+    "skipped_out_of_scope": [],
+    "skipped_deactivated": [],
+    "unreached_behind_deactivated": [],
+    "skipped_kind_filtered": [
+      {
+        "kind": "asset",
+        "id": "a-asset",
+        "urn": "asset:ASSET_A"
+      }
+    ],
+    "skipped_shared": [],
+    "skipped_required": [],
+    "still_active_unrestricted": []
+  }
+}

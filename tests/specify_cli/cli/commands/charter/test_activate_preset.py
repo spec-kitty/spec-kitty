@@ -215,9 +215,8 @@ def test_malformed_preset_file_fails_with_preset_invalid(project_root: Path) -> 
         (("--pack", "built-in"), "--pack"),
         (("--force",), "--force"),
         (("--json",), "--json"),
-        (("directive", "001-architectural-integrity-standard", "--json"), "--json"),
     ],
-    ids=["positional", "cascade", "explicit-default-pack", "force", "json", "json-on-positional-path"],
+    ids=["positional", "cascade", "explicit-default-pack", "force", "json"],
 )
 def test_flag_combination_is_a_usage_error(project_root: Path, args: tuple[str, ...], named: str) -> None:
     before = _config(project_root).read_bytes()

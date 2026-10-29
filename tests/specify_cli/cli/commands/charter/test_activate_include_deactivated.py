@@ -249,12 +249,14 @@ def test_the_resynthesis_preflight_walks_the_cascade_as_the_activation_does(tmp_
 def test_the_required_note_names_every_requiring_parent() -> None:
     from charter.activation.cascade import ReferencedArtifact
     from charter.offering.artifact_kinds import ArtifactKind
-    from specify_cli.cli.commands.charter.activate import _required_note
+    from specify_cli.cli.commands.charter.activate import _required_by, _required_by_note
 
     required = ReferencedArtifact(ArtifactKind.TACTIC, "c", "tactic:c", via_requires=True, required_by=("directive:A", "directive:B"))
+    suggested = ReferencedArtifact(ArtifactKind.TACTIC, "c", "tactic:c", via_requires=False, required_by=("directive:A",))
 
-    assert _required_note(required) == " (required by directive:A, directive:B — the parent no longer has this requirement)"
-    assert _required_note(ReferencedArtifact(ArtifactKind.TACTIC, "c", "tactic:c")) == ""
+    assert _required_by_note(_required_by(required)) == " (required by directive:A, directive:B — the parent no longer has this requirement)"
+    assert _required_by(suggested) == ()  # reached only through `suggests`: no requirement note
+    assert _required_by_note(_required_by(ReferencedArtifact(ArtifactKind.TACTIC, "c", "tactic:c"))) == ""
 
 
 def test_the_zero_target_summary_is_withheld_when_a_node_was_deactivated() -> None:

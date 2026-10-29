@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.0.0",
+  "command": "deactivate",
+  "kind": "directive",
+  "id": "p1-dir",
+  "changed": [
+    "p1-dir"
+  ],
+  "now_listed": [],
+  "no_longer_in_force": [],
+  "warnings": [],
+  "referenced_not_cascaded": [],
+  "cascade": {
+    "source_urn": "directive:DIRECTIVE_P1",
+    "scope": "all",
+    "cascaded": [
+      {
+        "kind": "tactic",
+        "id": "x-tac",
+        "urn": "tactic:TACTIC_X"
+      }
+    ],
+    "reinstated": [],
+    "failed": [],
+    "skipped_out_of_scope": [],
+    "skipped_deactivated": [],
+    "unreached_behind_deactivated": [],
+    "skipped_kind_filtered": [
+      {
+        "kind": "asset",
+        "id": "a-asset",
+        "urn": "asset:ASSET_A"
+      }
+    ],
+    "skipped_shared": [
+      {
+        "kind": "tactic",
+        "id": "t-tac",
+        "urn": "tactic:TACTIC_T",
+        "referenced_by": "directive:DIRECTIVE_P2"
+      }
+    ],
+    "skipped_required": [
+      {
+        "kind": "tactic",
+        "id": "r-tac",
+        "urn": "tactic:TACTIC_R",
+        "packs": [
+          "acme"
+        ]
+      }
+    ],
+    "still_active_unrestricted": [
+      {
+        "kind": "styleguide",
+        "id": "s-style",
+        "urn": "styleguide:STYLEGUIDE_S"
+      }
+    ]
+  }
+}

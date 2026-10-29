@@ -42,21 +42,37 @@ from charter.activation.kind_vocabulary import (
 )
 from charter.activation.api import refuse_unmigrated_deny_write
 from charter.activation.pack_context import ActiveCharterConfigError, load_denied
-from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager, DeactivationRefused
+from charter.activation.pack_manager import ActiveCharterManager, DeactivationRefused
 from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
+from charter.activation.api import ActivationResult
+from specify_cli.cli.commands.charter._activation_report import (
+    ActivationChangeReport,
+    ArtifactRef,
+    CascadeEntry,
+    CascadeOutcome,
+    CascadeReport,
+)
 from specify_cli.cli.commands.charter._cascade_shared import (
     drg_urn_to_config_id,
     render_kind_filtered_line,
 )
 from specify_cli.cli.commands.charter.activate import (
+    ACTIVATION_FAILED,
+    DEACTIVATION_REFUSED_REQUIRED,
     NO_COMPILE_HELP,
     RESYNTHESIZE_HELP,
+    CodedRefusal,
+    check_activation_kind,
+    config_refusal,
+    emit_change_report_json,
     mission_type_urn,
+    parse_cascade_scope,
     recompile_or_notify,
+    render_refusal,
     reproject_pack_skills,
-    render_pack_config_error,
-    resolve_write_root_or_exit,
+    resolve_write_root,
+    scope_label,
     validate_pack_config,
 )
 from charter.activation.layer_roots import (
@@ -68,21 +84,6 @@ from specify_cli.mission_step_contracts.profile_defaults import (
 )
 
 __all__ = ["deactivate_cmd"]
-
-
-def _warn_mission_default_binding(profile_id: str) -> None:
-    """#4115: warn when a deactivated agent profile is a built-in mission-step default.
-
-    ``charter deactivate agent-profile researcher-robbie`` used to succeed
-    silently while leaving every built-in mission step bound to that profile
-    one dispatch away from a blocked composition. The warning is advisory
-    (deactivation is legitimate); the executor's role-based fallback is the
-    behavioral half of the fix.
-    """
-    warning = mission_default_profile_warning(profile_id)
-    if warning is not None:
-        console.print(f"[yellow]Warning[/yellow]: {warning}")
-
 
 
 def _source_urn(
@@ -174,60 +175,71 @@ def _active_urns(
     return urns
 
 
-def _cascade_child(
+def _cascade_child_entry(
     manager: ActiveCharterManager,
     ctx_project: ProjectContext,
-    kind_token: str,
-    config_id: str,
+    ref: ArtifactRef,
     *,
     layer_roots: dict[str, Path] | None,
-    source_id: str,
     allow_absent: bool,
-) -> None:
-    """Drop one exclusive child's allow entry (no deny entry, D-11) and render the outcome."""
-    label = f"{kind_token}/{config_id}"
+) -> CascadeEntry | None:
+    """Drop one exclusive child's allow entry (no deny entry, D-11); return its outcome, or ``None`` when nothing changed."""
     if allow_absent:
-        console.print(f"[cyan]Cascade[/cyan]: {label}: still active (no allow-list; only {source_id} excluded)")
-        return
+        return CascadeEntry(CascadeOutcome.STILL_ACTIVE_UNRESTRICTED, ref)
     try:
-        result = manager.deactivate(ctx_project, kind_token, config_id, cascade=False, layer_roots=layer_roots, record_exclusion=False)
+        result = manager.deactivate(ctx_project, ref.kind, ref.id, cascade=False, layer_roots=layer_roots, record_exclusion=False)
     except DeactivationRefused as exc:
-        packs = ", ".join(entry.pack for entry in getattr(exc, "requiring", ()))
-        console.print(f"[yellow]Cascade[/yellow]: {label}: skipped (required by {packs})")
-        return
+        return CascadeEntry(CascadeOutcome.SKIPPED_REQUIRED, ref, packs=tuple(entry.pack for entry in getattr(exc, "requiring", ())))
     except ValueError as exc:
-        console.print(f"[yellow]Warning[/yellow]: could not cascade-deactivate {label}: {exc}")
-        return
+        return CascadeEntry(CascadeOutcome.FAILED, ref, message=str(exc))
     if not result.deactivated:
-        return
-    console.print(f"[cyan]Cascade-deactivated[/cyan]: {label}")
+        return None
     # #4115: a cascade can remove agent profiles bound by built-in
     # mission steps exactly like a direct deactivation can.
-    if kind_token == ArtifactKind.AGENT_PROFILE.operator_token:
-        _warn_mission_default_binding(config_id)
+    warning = mission_default_profile_warning(ref.id) if ref.kind == ArtifactKind.AGENT_PROFILE.operator_token else None
+    return CascadeEntry(CascadeOutcome.CASCADED, ref, message=warning)
 
 
-def _render_cascade_deactivation(
+def _render_cascade_entry(entry: CascadeEntry, source_id: str) -> None:
+    """Print one cascade-deactivation line (plus a cascaded profile's mission-step warning)."""
+    label = entry.ref.label
+    if entry.outcome is CascadeOutcome.STILL_ACTIVE_UNRESTRICTED:
+        console.print(f"[cyan]Cascade[/cyan]: {label}: still active (no allow-list; only {source_id} excluded)")
+    elif entry.outcome is CascadeOutcome.SKIPPED_REQUIRED:
+        console.print(f"[yellow]Cascade[/yellow]: {label}: skipped (required by {', '.join(entry.packs)})")
+    elif entry.outcome is CascadeOutcome.FAILED:
+        console.print(f"[yellow]Warning[/yellow]: could not cascade-deactivate {label}: {entry.message}")
+    elif entry.outcome is CascadeOutcome.SKIPPED_SHARED:
+        console.print(f"[yellow]Skipped (shared artifact)[/yellow]: {entry.ref.urn} (still referenced by {entry.referenced_by})")
+    elif entry.outcome is CascadeOutcome.SKIPPED_KIND_FILTERED:
+        render_kind_filtered_line(entry.ref.kind, entry.ref.id)
+    else:
+        console.print(f"[cyan]Cascade-deactivated[/cyan]: {label}")
+        if entry.message is not None:
+            console.print(f"[yellow]Warning[/yellow]: {entry.message}")
+
+
+def _cascade_deactivation_report(
     manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     target_urn: str,
     scope: CascadeScope,
     repo_root: Path,
     layer_roots: dict[str, Path] | None,
-    source_id: str,
-) -> None:
+) -> CascadeReport:
     """Cascade-deactivate exclusive referenced artifacts; keep shared ones (FR-015/016, C-007).
 
     Uses the WP11 :func:`charter.activation.cascade.deactivation_plan` over the merged DRG.
     Exclusive candidates lose only their allow-list entry (no exclusion is
     recorded for them, D-11); a child of a kind with no allow-list stays
-    active and is rendered so; a required child is skipped naming its pack.
+    active and is reported so; a required child is skipped naming its pack.
     Shared candidates are reported (never removed — Contract C3.4) with the
     still-referencing active source named.
 
     T010 (mission ``cascade-org-inert-01M07E9P``): threads the full org-pack
     chain into the DRG load, the active-URN resolution, and the ID mapping
-    below — same rationale as ``activate.py``'s ``_render_cascade_activation``.
+    below — same rationale as ``activate.py``'s ``_cascade_activation_report``.
+    The entries are in render order (:func:`render_cascade_deactivation`).
     """
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
@@ -243,55 +255,54 @@ def _render_cascade_deactivation(
     offering_root = resolve_offering_root()
     allow_state = manager.list_activated(ctx_project)
 
+    def ref_of(urn: str, resolution_pass: ResolutionPass | None = None) -> ArtifactRef:
+        kind_token = ArtifactKind(urn.partition(":")[0]).operator_token
+        return ArtifactRef(kind_token, drg_urn_to_config_id(urn, offering_root, layer_roots, org_roots, resolution_pass), urn)
+
+    entries: list[CascadeEntry] = []
     for urn in plan.deactivate:
-        kind_value, _, _ = urn.partition(":")
-        kind_token = ArtifactKind(kind_value).operator_token
-        _cascade_child(
-            manager,
-            ctx_project,
-            kind_token,
-            drg_urn_to_config_id(urn, offering_root, layer_roots, org_roots),
-            layer_roots=layer_roots,
-            source_id=source_id,
-            allow_absent=allow_state.get(kind_token, ()) is None,
-        )
+        ref = ref_of(urn)
+        entry = _cascade_child_entry(manager, ctx_project, ref, layer_roots=layer_roots, allow_absent=allow_state.get(ref.kind, ()) is None)
+        if entry is not None:
+            entries.append(entry)
 
+    # The deactivations above are done; everything below only reads (#5526).
+    render_pass = ResolutionPass()
     for skip in plan.skipped_shared:
-        kind_token = ArtifactKind(skip.urn.partition(":")[0]).operator_token
-        if allow_state.get(kind_token, ()) is None:
+        ref = ref_of(skip.urn, render_pass)
+        if allow_state.get(ref.kind, ()) is None:
             # No allow-list: the child stays active whoever references it.
-            config_id = drg_urn_to_config_id(skip.urn, offering_root, layer_roots, org_roots)
-            console.print(f"[cyan]Cascade[/cyan]: {kind_token}/{config_id}: still active (no allow-list; only {source_id} excluded)")
-            continue
-        console.print(
-            f"[yellow]Skipped (shared artifact)[/yellow]: {skip.urn} "
-            f"(still referenced by {skip.referencing_active_urn})"
-        )
-
+            entries.append(CascadeEntry(CascadeOutcome.STILL_ACTIVE_UNRESTRICTED, ref))
+        else:
+            entries.append(CascadeEntry(CascadeOutcome.SKIPPED_SHARED, ref, referenced_by=skip.referencing_active_urn))
 
     # FR-007 (issue #3705): the deactivation-side half of C-002's
-    # cross-command symmetry (ADR 2026-08-20-1 Symmetry section) -- render
+    # cross-command symmetry (ADR 2026-08-20-1 Symmetry section) -- report
     # the kind-filtered nodes `deactivation_plan` collected via the shared
-    # `_referenced_artifacts` seam instead of silently dropping them, via the
-    # SAME shared helper `activate.py`'s cascade-activation and no-cascade
-    # warning render paths already use (FR-009), so the wording is identical
-    # and never re-coined here. Resolves each URN's bare id to its
-    # config-stem id FIRST, the SAME `drg_urn_to_config_id` call (with the
-    # same fallback) the `plan.deactivate` loop above already makes -- never
-    # the raw bare id from `urn.partition(":")` alone. The plan's
-    # kind-filtered field is kind-bucketed (issue #3772), same
-    # kind -> sorted-bare-IDs shape as the activate-side siblings, so the
-    # render order (kinds sorted, then ids sorted within each kind) is
-    # byte-identical to the previous flat sorted-URN iteration.
-    # The deactivations above are done; this render only reads (#5526).
-    render_pass = ResolutionPass()
+    # `_referenced_artifacts` seam instead of silently dropping them,
+    # resolving each bare id to its config-stem id first (never the raw bare
+    # id). The plan's kind-filtered field is kind-bucketed (issue #3772):
+    # kinds sorted, then ids sorted within each kind.
     for kind_value in sorted(plan.not_cascaded_kind_filtered):
-        kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in plan.not_cascaded_kind_filtered[kind_value]:
-            config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
-            )
-            render_kind_filtered_line(kind_token, config_id)
+            entries.append(CascadeEntry(CascadeOutcome.SKIPPED_KIND_FILTERED, ref_of(f"{kind_value}:{filtered_id}", render_pass)))
+    return CascadeReport(target_urn, scope_label(scope), tuple(entries))
+
+
+def render_cascade_deactivation(report: CascadeReport, source_id: str) -> None:
+    """Print a cascade deactivation report, one line per entry, in order."""
+    for entry in report.entries:
+        _render_cascade_entry(entry, source_id)
+
+
+def render_deactivation_change(report: ActivationChangeReport, source_id: str) -> None:
+    """Print a positional deactivation's change report, in the order the command has always printed it."""
+    for msg in report.changed:
+        console.print(f"[green]Deactivated[/green]: {msg}")
+    for warn in report.warnings:
+        console.print(f"[yellow]Warning[/yellow]: {warn}")
+    if report.cascade is not None:
+        render_cascade_deactivation(report.cascade, source_id)
 
 
 def _refuse_unmigrated(kind: str, repo_root: Path) -> None:
@@ -307,8 +318,94 @@ def _refuse_unmigrated(kind: str, repo_root: Path) -> None:
     try:
         refuse_unmigrated_deny_write(repo_root)
     except ActiveCharterConfigError as exc:
-        render_pack_config_error(exc, console)
-        raise typer.Exit(1) from exc
+        raise config_refusal(exc) from exc
+
+
+def _deactivation_preflight(kind: str, cascade: str | None, repo_root: Path) -> tuple[Path, CascadeScope | None]:
+    """Every check before the first write: kind, write root, scope, unmigrated refusal, pack config.
+
+    Every refusal is a :class:`CodedRefusal`.
+    """
+    check_activation_kind(kind)
+    # FR-006/Contract C3: fail closed from a linked git worktree before any
+    # mutation, and resolve the ONE checkout root every downstream call in
+    # this command shares from here on (symmetric with activate_cmd; issue
+    # #4785 Finding 3).
+    repo_root = resolve_write_root(repo_root)
+
+    # FR-015/016: parse the scope value object — never collapsed to a bool (C3.3).
+    scope = parse_cascade_scope(cascade)
+
+    # FR-017, hole 2: an artifact deactivation records a deny entry, which an
+    # unmigrated project cannot hold. Refuse the direct and the cascade path
+    # alike, before any write and before the required-floor read (NFR-001).
+    _refuse_unmigrated(kind, repo_root)
+
+    # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
+    try:
+        validate_pack_config(repo_root)
+    except ActiveCharterConfigError as exc:
+        raise config_refusal(exc) from exc
+    return repo_root, scope
+
+
+def _deactivation_refusal(exc: DeactivationRefused) -> CodedRefusal:
+    """``DEACTIVATION_REFUSED_REQUIRED`` naming the requiring packs; any other policy reason is ``ACTIVATION_FAILED``."""
+    if exc.reason != "required":
+        return CodedRefusal(ACTIVATION_FAILED, str(exc))
+    packs = [entry.pack for entry in getattr(exc, "requiring", ())]
+    return CodedRefusal(DEACTIVATION_REFUSED_REQUIRED, str(exc), {"requiring_packs": packs})
+
+
+def _apply_direct_deactivation(
+    manager: ActiveCharterManager, ctx_project: ProjectContext, kind: str, artifact_id: str, *, cascade: bool, layer_roots: dict[str, Path] | None
+) -> ActivationResult:
+    """Deactivate the named artifact (the one direct write)."""
+    try:
+        return manager.deactivate(ctx_project, kind, artifact_id, cascade=cascade, layer_roots=layer_roots)
+    except DeactivationRefused as exc:
+        # FR-007 / US4.1: an org-required id; nothing was written (NFR-001).
+        raise _deactivation_refusal(exc) from exc
+    except ActiveCharterConfigError as exc:
+        # FR-013: the strict required floor (or the ledger) cannot be read.
+        raise config_refusal(exc) from exc
+    except ValueError as exc:
+        raise CodedRefusal(ACTIVATION_FAILED, str(exc)) from exc
+
+
+def _deactivation_change_report(kind: str, artifact_id: str, cascade: str | None, repo_root: Path) -> tuple[Path, ActivationChangeReport, str]:
+    """Run a positional deactivation (direct write, then cascade).
+
+    Returns the write root, the change report and the source id the cascade lines name.
+    """
+    repo_root, scope = _deactivation_preflight(kind, cascade, repo_root)
+    ctx_project = ProjectContext(repo_root=repo_root)
+    layer_roots = resolve_layer_roots(repo_root)
+    manager = ActiveCharterManager()
+    result = _apply_direct_deactivation(manager, ctx_project, kind, artifact_id, cascade=scope is not None, layer_roots=layer_roots)
+
+    # #4115: warn when the artifact just removed is a built-in mission-step
+    # default profile (direct-deactivation half; the cascade path warns per
+    # artifact through its cascaded entries).
+    warnings = list(result.warnings)
+    if result.deactivated and kind == ArtifactKind.AGENT_PROFILE.operator_token:
+        warning = mission_default_profile_warning(artifact_id.removeprefix(f"{ArtifactKind.AGENT_PROFILE.value}:"))
+        if warning is not None:
+            warnings.append(warning)
+
+    # FR-015/FR-016, D-11: shared-reference-safe cascade deactivation via the
+    # WP11 engine. It runs whenever a scope was supplied, also when the named
+    # id was only implicitly active ("absent = all"), and records no exclusion
+    # for the children.
+    cascade_report: CascadeReport | None = None
+    if scope is not None:
+        target_urn = _source_urn(kind, artifact_id, layer_roots, resolve_pack_chain(repo_root, strict=False))
+        if target_urn is not None:
+            cascade_report = _cascade_deactivation_report(manager, ctx_project, target_urn, scope, repo_root, layer_roots)
+    report = ActivationChangeReport(
+        command="deactivate", kind=kind, id=artifact_id, changed=tuple(result.deactivated), warnings=tuple(warnings), cascade=cascade_report
+    )
+    return repo_root, report, result.deactivated[0] if result.deactivated else artifact_id
 
 
 def deactivate_cmd(
@@ -334,6 +431,7 @@ def deactivate_cmd(
         "--compile/--no-compile",
         help=NO_COMPILE_HELP,
     ),
+    json_output: bool = typer.Option(False, "--json", help="Output the change report as JSON."),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
     """Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade."""
@@ -342,82 +440,20 @@ def deactivate_cmd(
     if kind is None or artifact_id is None:
         console.print(ctx.get_help())
         raise typer.Exit(0)
-    if kind not in YAML_KEY_MAP:
-        console.print(f"[red]Error:[/red] Unknown kind '{kind}'. Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
-        raise typer.Exit(1)
 
-    # FR-006/Contract C3: fail closed from a linked git worktree before any
-    # mutation, and resolve the ONE checkout root every downstream call in
-    # this command shares from here on (symmetric with activate_cmd; issue
-    # #4785 Finding 3).
-    repo_root = resolve_write_root_or_exit(repo_root)
-
-    # FR-015/016: parse the scope value object — never collapsed to a bool (C3.3).
-    try:
-        scope = CascadeScope.parse(cascade)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-    # FR-017, hole 2: an artifact deactivation records a deny entry, which an
-    # unmigrated project cannot hold. Refuse the direct and the cascade path
-    # alike, before any write and before the required-floor read (NFR-001).
-    _refuse_unmigrated(kind, repo_root)
-
-    # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
-    try:
-        validate_pack_config(repo_root)
-    except ActiveCharterConfigError as exc:
-        render_pack_config_error(exc, console)
-        raise typer.Exit(1) from exc
-
-    ctx_project = ProjectContext(repo_root=repo_root)
-    layer_roots = resolve_layer_roots(repo_root)
-    manager = ActiveCharterManager()
-
-    try:
-        result = manager.deactivate(
-            ctx_project,
-            kind,
-            artifact_id,
-            cascade=scope is not None,
-            layer_roots=layer_roots,
+    if json_output:
+        emit_change_report_json(
+            lambda: _deactivation_change_report(kind, artifact_id, cascade, repo_root)[:2],
+            kind=kind,
+            resynthesize=resynthesize,
+            compile_catalog=compile_catalog,
         )
-    except DeactivationRefused as exc:
-        # FR-007 / US4.1: an org-required id; nothing was written (NFR-001).
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-    except ActiveCharterConfigError as exc:
-        # FR-013: the strict required floor (or the ledger) cannot be read.
-        render_pack_config_error(exc, console)
-        raise typer.Exit(1) from exc
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-    for msg in result.deactivated:
-        console.print(f"[green]Deactivated[/green]: {msg}")
-    for warn in result.warnings:
-        console.print(f"[yellow]Warning[/yellow]: {warn}")
-
-    # #4115: warn when the artifact just removed is a built-in mission-step
-    # default profile (direct-deactivation half; the cascade path warns per
-    # artifact inside ``_render_cascade_deactivation``).
-    if result.deactivated and kind == ArtifactKind.AGENT_PROFILE.operator_token:
-        _warn_mission_default_binding(
-            artifact_id.removeprefix(f"{ArtifactKind.AGENT_PROFILE.value}:")
-        )
-
-    # FR-015/FR-016, D-11: shared-reference-safe cascade deactivation via the
-    # WP11 engine. It runs whenever a scope was supplied, also when the named
-    # id was only implicitly active ("absent = all"), and records no exclusion
-    # for the children.
-    if scope is not None:
-        target_urn = _source_urn(kind, artifact_id, layer_roots, resolve_pack_chain(repo_root, strict=False))
-        if target_urn is not None:
-            _render_cascade_deactivation(
-                manager, ctx_project, target_urn, scope, repo_root, layer_roots, result.deactivated[0] if result.deactivated else artifact_id
-            )
+        return
+    try:
+        repo_root, report, source_id = _deactivation_change_report(kind, artifact_id, cascade, repo_root)
+    except CodedRefusal as refusal:
+        render_refusal(refusal, json_output=False)
+    render_deactivation_change(report, source_id)
 
     # FR-002/FR-003/FR-007: default catalog recompile keeps deactivation
     # coherent-by-construction too (symmetric with activate_cmd; issue #4785

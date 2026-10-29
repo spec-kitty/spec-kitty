@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "command": "activate",
+  "kind": "directive",
+  "id": "p-dir",
+  "changed": [
+    "p-dir"
+  ],
+  "now_listed": [],
+  "no_longer_in_force": [],
+  "warnings": [],
+  "referenced_not_cascaded": [
+    {
+      "kind": "procedure",
+      "id": "g-proc",
+      "urn": "procedure:PROCEDURE_G"
+    },
+    {
+      "kind": "styleguide",
+      "id": "s-style",
+      "urn": "styleguide:STYLEGUIDE_S"
+    },
+    {
+      "kind": "tactic",
+      "id": "c-tac",
+      "urn": "tactic:TACTIC_C"
+    }
+  ],
+  "cascade": null
+}

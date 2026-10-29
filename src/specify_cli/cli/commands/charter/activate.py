@@ -29,6 +29,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
+from typing import TYPE_CHECKING, NoReturn
 
 import typer
 from rich.console import Console
@@ -72,11 +73,20 @@ from charter.activation.project_registration import (
     plan_project_registration,
 )
 
+from specify_cli.cli.commands.charter._activation_report import (
+    ActivationChangeReport,
+    ArtifactRef,
+    CascadeEntry,
+    CascadeOutcome,
+    CascadeReport,
+    NoCascadeReport,
+)
 from specify_cli.cli.commands.charter._cascade_shared import (
     drg_urn_to_config_id,
     render_kind_filtered_line,
 )
 from specify_cli.cli.commands.charter._coded_errors import render_coded_error, render_preset_format_error
+from specify_cli.cli.json_contract import json_output_guard
 from specify_cli.cli.commands.charter._charter_write_root import (
     CharterWriteRootError,
     resolve_charter_write_root,
@@ -86,7 +96,59 @@ from charter.activation.layer_roots import (
     resolve_pack_chain,
 )
 
+if TYPE_CHECKING:
+    from specify_cli.charter_activate import StepRemovalWarning
+
 __all__ = ["activate_cmd", "run_full_synthesize"]
+
+#: Local refusal codes of positional ``charter activate`` / ``charter deactivate``
+#: (contracts/cli-json.md). UPPER_SNAKE and local to core: never the
+#: spec-kitty-charter contract codes. ``ACTIVE_CHARTER_CONFIG_INVALID`` is the
+#: exception's own ``.code``.
+ACTIVATION_KIND_UNKNOWN = "ACTIVATION_KIND_UNKNOWN"
+CASCADE_SCOPE_INVALID = "CASCADE_SCOPE_INVALID"
+CHARTER_WRITE_ROOT_INVALID = "CHARTER_WRITE_ROOT_INVALID"
+DEACTIVATION_REFUSED_REQUIRED = "DEACTIVATION_REFUSED_REQUIRED"
+ACTIVATION_FAILED = "ACTIVATION_FAILED"
+
+
+class CodedRefusal(Exception):
+    """A refusal of positional activate/deactivate, carried out of the command's work to be rendered once.
+
+    Raised before (or instead of) any write; :func:`render_refusal` prints it as
+    ``Error (<CODE>): <message>`` or the canonical ``--json`` error envelope.
+    """
+
+    def __init__(self, code: str, message: str, payload: dict[str, object] | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.payload = payload
+
+
+def render_refusal(refusal: CodedRefusal, *, json_output: bool) -> NoReturn:
+    """Render *refusal* through the shared coded-error seam and exit 1."""
+    render_coded_error(refusal.code, refusal.message, payload=refusal.payload, json_output=json_output)
+    raise typer.Exit(1) from refusal
+
+
+def config_refusal(exc: ActiveCharterConfigError) -> CodedRefusal:
+    """An :class:`ActiveCharterConfigError` as a refusal under its own code (FR-035)."""
+    return CodedRefusal(exc.code, exc.body)
+
+
+def check_activation_kind(kind: str) -> None:
+    """Refuse a KIND that is not an activation kind (before any I/O)."""
+    if kind not in YAML_KEY_MAP:
+        raise CodedRefusal(ACTIVATION_KIND_UNKNOWN, f"Unknown kind '{kind}'. Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
+
+
+def parse_cascade_scope(cascade: str | None) -> CascadeScope | None:
+    """Parse ``--cascade`` into its scope value object (never a bool, Contract C3.3), or refuse."""
+    try:
+        return CascadeScope.parse(cascade)
+    except ValueError as exc:
+        raise CodedRefusal(CASCADE_SCOPE_INVALID, str(exc)) from exc
 
 RESYNTHESIZE_HELP = (
     "Eagerly refresh the FULL derived bundle/DRG (bundle content hash + "
@@ -122,7 +184,7 @@ NO_COMPILE_HELP = (
 #: least one referenced node was specifically kind-filtered (never for a
 #: source with zero referenced nodes at all, and never for a pure
 #: scope-narrowing case -- see the exact trigger condition in
-#: `_render_cascade_activation` below).
+#: `_zero_activatable_targets` below).
 CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE = (
     "[yellow]Cascade resolved zero activatable targets[/yellow] "
     "(every referenced node was kind-filtered; see the lines above)."
@@ -186,19 +248,19 @@ def _source_urn(
         return None
 
 
-def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) -> None:
-    """Emit in-flight step-removal warnings for the activation (FR-008).
+def _step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) -> list[StepRemovalWarning]:
+    """Collect the in-flight step-removal warnings of the activation (FR-008).
 
     Generalized out of the command body: the command no longer branches on
-    ``kind == "mission-type"`` inline — it always calls this collector, which is
-    a no-op for kinds that have no step-sequence semantics. Mission-type
-    activations still surface the in-flight warning, now via this single seam.
+    ``kind == "mission-type"`` inline — it always calls this collector, which
+    returns nothing for kinds that have no step-sequence semantics.
+    :func:`_render_step_removal_warnings` prints them; :func:`step_removal_text`
+    is their one-line report form.
     """
     if kind != "mission-type":
-        return
+        return []
 
     from specify_cli.charter_activate import (  # noqa: PLC0415
-        emit_step_removal_warnings,
         find_removed_steps,
         scan_inflight_missions,
     )
@@ -239,9 +301,25 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
     incoming_seq: list[str] = list(mt.action_sequence or []) if mt is not None else []
 
     removed = find_removed_steps(current_seq, incoming_seq)
-    if removed:
-        step_warnings = scan_inflight_missions(removed, repo_root / KITTY_SPECS_DIR)
-        emit_step_removal_warnings(step_warnings, console)
+    if not removed:
+        return []
+    found: list[StepRemovalWarning] = scan_inflight_missions(removed, repo_root / KITTY_SPECS_DIR)
+    return found
+
+
+def _render_step_removal_warnings(warnings: list[StepRemovalWarning]) -> None:
+    """Print the step-removal warnings in their FR-008 text form."""
+    from specify_cli.charter_activate import emit_step_removal_warnings  # noqa: PLC0415
+
+    emit_step_removal_warnings(warnings, console)
+
+
+def step_removal_text(warning: StepRemovalWarning) -> str | None:
+    """One report line per removed step naming its affected missions; ``None`` when none is affected (as the text form)."""
+    if not warning.affected_missions:
+        return None
+    missions = ", ".join(f"{mission.mission_slug} ({mission.wp_id}, currently in lane '{mission.current_lane}')" for mission in warning.affected_missions)
+    return f"Step '{warning.removed_step_id}' removed by mission-type override. Affected missions: {missions}"
 
 
 def _validate_mission_type_activatable(kind: str, artifact_id: str, repo_root: Path) -> None:
@@ -297,84 +375,77 @@ def _activate_cascade_targets(
     ids: _CascadeIds,
     *,
     reinstate: bool,
-) -> dict[str, str]:
-    """Activate every in-scope target; return activated URN -> ``kind/config-id`` label.
+) -> list[CascadeEntry]:
+    """Activate every in-scope target; return one ``cascaded`` or ``failed`` entry per target, in walk order.
 
     With *reinstate* (``--include-deactivated``) each activation carries
     :attr:`DenyListChoice.CASCADE_INCLUDE_DEACTIVATED`, so a denied target's
     exclusion is cleared; the caller reports what the deny delta shows.
     """
-    done: dict[str, str] = {}
+    entries: list[CascadeEntry] = []
     for kind_value in sorted(activated):
         kind_token = ArtifactKind(kind_value).operator_token
         for cascade_drg_id in activated[kind_value]:
             urn = f"{kind_value}:{cascade_drg_id}"
             # The cascade engine reports DRG bare IDs; activation lists use
             # config-stem IDs. Resolve back through the kind-vocabulary bridge.
-            config_id = ids.config_id(urn)
+            ref = ArtifactRef(kind_token, ids.config_id(urn), urn)
             try:
                 manager.activate(
                     ctx_project,
                     kind_token,
-                    config_id,
+                    ref.id,
                     layer_roots=ids.layer_roots,
                     org_root_chain=ids.org_roots,
                     reinstate=DenyListChoice.CASCADE_INCLUDE_DEACTIVATED if reinstate else DenyListChoice.ACTIVATE,
                 )
             except ValueError as exc:
-                console.print(f"[yellow]Warning[/yellow]: could not cascade-activate {kind_token}/{config_id}: {exc}")
+                entries.append(CascadeEntry(CascadeOutcome.FAILED, ref, message=str(exc)))
                 continue
-            console.print(f"[cyan]Cascade-activated[/cyan]: {kind_token}/{config_id}")
-            done[urn] = f"{kind_token}/{config_id}"
-    return done
+            entries.append(CascadeEntry(CascadeOutcome.CASCADED, ref))
+    return entries
 
 
-def _render_reinstated(before: frozenset[str], after: frozenset[str], activated: dict[str, str]) -> None:
-    """One "Reinstated" line per cascade target whose exclusion the walk cleared (from :func:`deny_delta`, R11)."""
+def _reinstated_entries(before: frozenset[str], after: frozenset[str], walked: list[CascadeEntry]) -> list[CascadeEntry]:
+    """One ``reinstated`` entry per cascade target whose exclusion the walk cleared (from :func:`deny_delta`, R11)."""
+    activated = {entry.ref.urn: entry.ref for entry in walked if entry.outcome is CascadeOutcome.CASCADED}
     _added, cleared = deny_delta(before, after)
-    for urn in cleared:
-        if urn in activated:
-            console.print(f"[green]Reinstated[/green]: {activated[urn]} (exclusion cleared)")
+    return [CascadeEntry(CascadeOutcome.REINSTATED, activated[urn]) for urn in cleared if urn in activated]
 
 
-def _render_out_of_scope(result: CascadeActivationResult, ids: _CascadeIds, deactivated: frozenset[str]) -> None:
-    """The "Skipped (out of scope)" lines; a deactivated one says it blocked the walk (its children may be unreached)."""
-    for kind_value in sorted(result.skipped_by_scope):
-        kind_token = ArtifactKind(kind_value).operator_token
-        for drg_id in result.skipped_by_scope[kind_value]:
-            urn = f"{kind_value}:{drg_id}"
-            note = f" {_OUT_OF_SCOPE_DEACTIVATED_NOTE}" if urn in deactivated else ""
-            console.print(f"[dim]{SKIPPED_OUT_OF_SCOPE}[/dim]: {kind_token}/{ids.config_id(urn)}{note}")
-
-
-def _required_note(ref: ReferencedArtifact) -> str:
-    """`` (required by <parents> — the parent no longer has this requirement)`` for a required child, else ``""``."""
-    if not ref.via_requires:
-        return ""
-    return f" (required by {', '.join(ref.required_by)} — {_REQUIREMENT_NOTE})"
-
-
-def _render_deactivated_skips(result: CascadeActivationResult, ids: _CascadeIds) -> None:
-    """The "Skipped, deactivated" and "Unreached" lines, plus the ``--include-deactivated`` hint (FR-010/FR-011)."""
-    for kind_value in sorted(result.skipped_deactivated):
-        kind_token = ArtifactKind(kind_value).operator_token
-        for ref in result.skipped_deactivated[kind_value]:
-            console.print(f"[yellow]{SKIPPED_DEACTIVATED}[/yellow]: {kind_token}/{ids.config_id(ref.urn)}{escape(_required_note(ref))}")
-    for kind_value in sorted(result.unreached_behind_deactivated):
-        kind_token = ArtifactKind(kind_value).operator_token
-        for unreached_id in result.unreached_behind_deactivated[kind_value]:
-            config_id = ids.config_id(f"{kind_value}:{unreached_id}")
-            console.print(f"[yellow]{UNREACHED_BEHIND_DEACTIVATED}[/yellow]: {kind_token}/{config_id}")
-    if result.skipped_deactivated or result.unreached_behind_deactivated:
-        console.print(f"[yellow]Hint[/yellow]: {INCLUDE_DEACTIVATED_HINT}")
-
-
-def _render_bucket(bucket: dict[str, list[str]], ids: _CascadeIds, render: Callable[[str, str], None]) -> None:
-    """Call *render(kind_token, config_id)* for every entry of a kind → bare-id bucket, sorted."""
+def _bucket_entries(bucket: dict[str, list[str]], ids: _CascadeIds, outcome: CascadeOutcome, deactivated: frozenset[str] = frozenset()) -> list[CascadeEntry]:
+    """One *outcome* entry for every entry of a kind → bare-id bucket, sorted; *deactivated* URNs are flagged."""
+    entries: list[CascadeEntry] = []
     for kind_value in sorted(bucket):
         kind_token = ArtifactKind(kind_value).operator_token
         for drg_id in bucket[kind_value]:
-            render(kind_token, ids.config_id(f"{kind_value}:{drg_id}"))
+            urn = f"{kind_value}:{drg_id}"
+            entries.append(CascadeEntry(outcome, ArtifactRef(kind_token, ids.config_id(urn), urn), deactivated=urn in deactivated))
+    return entries
+
+
+def _required_by(ref: ReferencedArtifact) -> tuple[str, ...]:
+    """The requiring parents of a deactivated child; ``()`` when it was reached only through ``suggests``."""
+    return ref.required_by if ref.via_requires else ()
+
+
+def _required_by_note(required_by: tuple[str, ...]) -> str:
+    """`` (required by <parents> — the parent no longer has this requirement)`` for a required child, else ``""``."""
+    if not required_by:
+        return ""
+    return f" (required by {', '.join(required_by)} — {_REQUIREMENT_NOTE})"
+
+
+def _deactivated_skip_entries(result: CascadeActivationResult, ids: _CascadeIds) -> list[CascadeEntry]:
+    """The "Skipped, deactivated" and "Unreached" entries (FR-010/FR-011)."""
+    entries: list[CascadeEntry] = []
+    for kind_value in sorted(result.skipped_deactivated):
+        kind_token = ArtifactKind(kind_value).operator_token
+        for ref in result.skipped_deactivated[kind_value]:
+            skipped = ArtifactRef(kind_token, ids.config_id(ref.urn), ref.urn)
+            entries.append(CascadeEntry(CascadeOutcome.SKIPPED_DEACTIVATED, skipped, required_by=_required_by(ref)))
+    entries += _bucket_entries(result.unreached_behind_deactivated, ids, CascadeOutcome.UNREACHED_BEHIND_DEACTIVATED)
+    return entries
 
 
 def _zero_activatable_targets(result: CascadeActivationResult) -> bool:
@@ -390,7 +461,14 @@ def _zero_activatable_targets(result: CascadeActivationResult) -> bool:
     return not others and bool(result.not_cascaded_kind_filtered)
 
 
-def _render_cascade_activation(
+def scope_label(scope: CascadeScope) -> str | tuple[str, ...]:
+    """The report spelling of a parsed ``--cascade`` value: ``"all"`` or the sorted kind tokens."""
+    if scope.is_all:
+        return str(CascadeScope.ALL_TOKEN)
+    return tuple(sorted(kind.operator_token for kind in scope.kinds))
+
+
+def _cascade_activation_report(
     manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     source_urn: str,
@@ -400,8 +478,8 @@ def _render_cascade_activation(
     *,
     include_deactivated: bool = False,
     deactivated: frozenset[str] = frozenset(),
-) -> None:
-    """Activate scoped cascade targets and render the outcome (FR-014).
+) -> CascadeReport:
+    """Activate scoped cascade targets and report the outcome (FR-014).
 
     Walks the merged DRG from ``source_urn`` via the WP11 cascade engine, keeps
     only the kinds the scope selects, and activates each in-scope target through
@@ -425,8 +503,9 @@ def _render_cascade_activation(
     ``requires``/``suggests`` edges into/out of ANY configured org pack are
     visible to the cascade walk, not just none) and the DRG-ID-to-config-ID
     mapping below (so an org-pack-2..N target resolves to its real config-stem
-    ID, not the raw DRG ID as a lossy fallback). Previously this call carried
-    NO org roots at all.
+    ID, not the raw DRG ID as a lossy fallback).
+
+    The entries are in render order (:func:`render_cascade_activation`).
     """
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
@@ -438,28 +517,62 @@ def _render_cascade_activation(
     )
     result = cascade_activation_targets(graph, source_urn, scope, deactivated_urns=deactivated, include_deactivated=include_deactivated)
     ids = _CascadeIds(resolve_offering_root(), layer_roots, org_roots)
-    activated = _activate_cascade_targets(manager, ctx_project, result.activated, ids, reinstate=include_deactivated)
+    entries = _activate_cascade_targets(manager, ctx_project, result.activated, ids, reinstate=include_deactivated)
     if include_deactivated and deactivated:
-        _render_reinstated(deactivated, _deactivated_urns(repo_root, org_roots), activated)
+        entries += _reinstated_entries(deactivated, _deactivated_urns(repo_root, org_roots), entries)
 
     # The activations above are done; everything below only reads, so one
-    # resolution pass parses each artifact file once for all remaining lines.
+    # resolution pass parses each artifact file once for all remaining entries.
     ids = dataclasses.replace(ids, render_pass=ResolutionPass())
-    _render_out_of_scope(result, ids, frozenset() if include_deactivated else deactivated)
-    _render_deactivated_skips(result, ids)
+    entries += _bucket_entries(result.skipped_by_scope, ids, CascadeOutcome.SKIPPED_OUT_OF_SCOPE, frozenset() if include_deactivated else deactivated)
+    entries += _deactivated_skip_entries(result, ids)
+    # FR-003/FR-008 (issue #3705): the kind-filtered nodes the shared
+    # `_referenced_artifacts` seam collected, by config-stem id (an
+    # org-pack-2..N node's bare id and config-stem id can differ).
+    entries += _bucket_entries(result.not_cascaded_kind_filtered, ids, CascadeOutcome.SKIPPED_KIND_FILTERED)
+    return CascadeReport(source_urn, scope_label(scope), tuple(entries), zero_activatable=_zero_activatable_targets(result))
 
-    # FR-003/FR-008 (issue #3705): render the kind-filtered nodes the shared
-    # `_referenced_artifacts` seam collected instead of silently dropping
-    # them, by config-stem id (an org-pack-2..N node's bare id and
-    # config-stem id can differ).
-    _render_bucket(result.not_cascaded_kind_filtered, ids, render_kind_filtered_line)
 
-    if _zero_activatable_targets(result):
+def _cascade_activation_line(entry: CascadeEntry) -> str:
+    """The text line of one cascade-activation entry (a kind-filtered one renders through the shared helper)."""
+    label = entry.ref.label
+    if entry.outcome is CascadeOutcome.CASCADED:
+        return f"[cyan]Cascade-activated[/cyan]: {label}"
+    if entry.outcome is CascadeOutcome.FAILED:
+        return f"[yellow]Warning[/yellow]: could not cascade-activate {label}: {entry.message}"
+    if entry.outcome is CascadeOutcome.REINSTATED:
+        return f"[green]Reinstated[/green]: {label} (exclusion cleared)"
+    if entry.outcome is CascadeOutcome.SKIPPED_OUT_OF_SCOPE:
+        note = f" {_OUT_OF_SCOPE_DEACTIVATED_NOTE}" if entry.deactivated else ""
+        return f"[dim]{SKIPPED_OUT_OF_SCOPE}[/dim]: {label}{note}"
+    if entry.outcome is CascadeOutcome.SKIPPED_DEACTIVATED:
+        return f"[yellow]{SKIPPED_DEACTIVATED}[/yellow]: {label}{escape(_required_by_note(entry.required_by))}"
+    return f"[yellow]{UNREACHED_BEHIND_DEACTIVATED}[/yellow]: {label}"
+
+
+_DEACTIVATED_OUTCOMES = frozenset({CascadeOutcome.SKIPPED_DEACTIVATED, CascadeOutcome.UNREACHED_BEHIND_DEACTIVATED})
+
+
+def render_cascade_activation(report: CascadeReport) -> None:
+    """Print a cascade activation report: one line per entry, in order.
+
+    The ``--include-deactivated`` hint follows the last deactivated/unreached
+    line; the zero-activatable-targets summary closes the report (FR-004).
+    """
+    last_deactivated = max((index for index, entry in enumerate(report.entries) if entry.outcome in _DEACTIVATED_OUTCOMES), default=-1)
+    for index, entry in enumerate(report.entries):
+        if entry.outcome is CascadeOutcome.SKIPPED_KIND_FILTERED:
+            render_kind_filtered_line(entry.ref.kind, entry.ref.id)
+        else:
+            console.print(_cascade_activation_line(entry))
+        if index == last_deactivated:
+            console.print(f"[yellow]Hint[/yellow]: {INCLUDE_DEACTIVATED_HINT}")
+    if report.zero_activatable:
         console.print(CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE)
 
 
-def _render_tension_warnings(repo_root: Path) -> None:
-    """Surface unreconciled tension findings as activate-time warnings (FR-010).
+def _tension_warnings(repo_root: Path) -> list[str]:
+    """Unreconciled tension findings, as the activate-time warning texts (FR-010).
 
     Calls the SAME scan :func:`charter.activation.consistency_check.scan_unreconciled_tensions`
     that ``spec-kitty charter consistency-check`` uses (single canonical
@@ -476,9 +589,9 @@ def _render_tension_warnings(repo_root: Path) -> None:
     exactly the NFR-001 trap this finding exists to avoid).
 
     Best-effort, matching the existing DRG-load handling in this module (see
-    ``_render_no_cascade_warning`` / ``_render_cascade_activation``, which
-    already load the validated graph without a bespoke fail-closed path of
-    their own): a DRG load failure here does not abort activation -- the
+    ``_no_cascade_report`` / ``_cascade_activation_report``, which already
+    load the validated graph without a bespoke fail-closed path of their
+    own): a DRG load failure here does not abort activation -- the
     fail-closed guarantee for this finding lives on the consistency-check
     surface (``ConsistencyReport.verification_errors``), which every project
     can run explicitly on demand.
@@ -489,27 +602,27 @@ def _render_tension_warnings(repo_root: Path) -> None:
         scan_ctx = ProjectContext.from_repo(repo_root)
         findings = scan_unreconciled_tensions(scan_ctx)
     except Exception:  # noqa: BLE001 -- best-effort warning surface, not fail-closed here.
-        return
+        return []
 
+    warnings: list[str] = []
     for finding in findings:
         side_a, side_b = finding.pair
-        console.print(
-            f"[yellow]Warning[/yellow]: {side_a} is in tension with "
-            f"{side_b}. Resolve by: (1) deactivating one side, or "
-            f"(2) activating a reconciler that bridges both."
+        warnings.append(
+            f"{side_a} is in tension with {side_b}. Resolve by: (1) deactivating one side, or (2) activating a reconciler that bridges both."
         )
+    return warnings
 
 
-def _render_no_cascade_warning(
+def _no_cascade_report(
     source_urn: str,
     repo_root: Path,
     layer_roots: dict[str, Path] | None,
     deactivated: frozenset[str] = frozenset(),
-) -> None:
-    """Warn about referenced-but-not-cascaded artifacts (FR-013, Contract C3.2).
+) -> NoCascadeReport:
+    """Collect referenced-but-not-cascaded artifacts (FR-013, Contract C3.2).
 
     T009: threads the full org-pack chain into the DRG load and the ID
-    mapping below, same rationale as ``_render_cascade_activation`` — an
+    mapping below, same rationale as ``_cascade_activation_report`` — an
     org-pack ``requires``/``suggests`` edge is invisible to this warning
     unless the DRG it walks actually contains org-pack nodes (FR-001 AC5).
     """
@@ -523,56 +636,41 @@ def _render_no_cascade_warning(
     )
     report = referenced_but_not_cascaded(graph, source_urn, deactivated_urns=deactivated)
     if not report.has_skipped:
-        return
-    offering_root = resolve_offering_root()
-    # A read-only render: one resolution pass parses each artifact file once
-    # for every warning line, not once per referenced artifact (#5526).
-    render_pass = ResolutionPass()
-    for kind_value in sorted(report.skipped):
-        kind_token = ArtifactKind(kind_value).operator_token
-        for skipped_drg_id in report.skipped[kind_value]:
-            config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_drg_id}", offering_root, layer_roots, org_roots, render_pass
-            )
-            console.print(
-                f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
-                f"was not activated (no --cascade)."
-            )
-    ids = _CascadeIds(offering_root, layer_roots, org_roots, render_pass)
-    _render_bucket(
-        report.deactivated,
-        ids,
-        lambda kind, config_id: console.print(f"[yellow]Warning[/yellow]: referenced {kind}/{config_id} is deactivated and was not activated."),
-    )
-    # FR-005a: gated on `report.skipped` specifically (not the broader
-    # `has_skipped`) -- `recovery_hint` literally says "to activate the
-    # referenced artifacts", which is only true of `skipped` entries.
-    # Printing it for a source whose ONLY referenced nodes are kind-filtered
-    # would be exactly the misleading "--cascade would fix this" recovery
-    # hint FR-005's FAILS-if condition forbids for the per-node line -- this
-    # extends the same guarantee to the summary Hint line. Pre-existing
-    # behavior for every previously-reachable case (skipped non-empty) is
-    # unchanged: this branch was unreachable before this WP (has_skipped was
-    # `any(self.skipped.values())` alone, so reaching here already implied
-    # `report.skipped` was non-empty).
-    if report.skipped:
-        console.print(f"[yellow]Hint[/yellow]: {report.recovery_hint}")
+        return NoCascadeReport()
+    # A read-only collection: one resolution pass parses each artifact file
+    # once for every referenced artifact, not once per artifact (#5526).
+    ids = _CascadeIds(resolve_offering_root(), layer_roots, org_roots, ResolutionPass())
 
-    # FR-005 (issue #3705): render the kind-filtered nodes WP01's shared
-    # `_referenced_artifacts` seam collected instead of silently dropping
-    # them, one render path over from `_render_cascade_activation` above --
-    # via the SAME shared helper (FR-009) so the wording is identical and
-    # never re-coined here. Never suggests `--cascade` as a recovery path:
-    # re-running with `--cascade` would NOT activate an asset/template.
-    # Resolves each bare DRG id to its config-stem id first, the same call
-    # the `report.skipped` loop above already makes.
-    for kind_value in sorted(report.not_cascaded_kind_filtered):
-        kind_token = ArtifactKind(kind_value).operator_token
-        for filtered_id in report.not_cascaded_kind_filtered[kind_value]:
-            config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
-            )
-            render_kind_filtered_line(kind_token, config_id)
+    def refs(bucket: dict[str, list[str]]) -> tuple[ArtifactRef, ...]:
+        return tuple(entry.ref for entry in _bucket_entries(bucket, ids, CascadeOutcome.SKIPPED_KIND_FILTERED))
+
+    skipped = refs(report.skipped)
+    return NoCascadeReport(
+        skipped=skipped,
+        deactivated=refs(report.deactivated),
+        kind_filtered=refs(report.not_cascaded_kind_filtered),
+        # FR-005a: gated on `report.skipped` specifically (not the broader
+        # `has_skipped`) -- `recovery_hint` literally says "to activate the
+        # referenced artifacts", which is only true of `skipped` entries.
+        hint=report.recovery_hint if report.skipped else None,
+    )
+
+
+def render_no_cascade_warning(report: NoCascadeReport) -> None:
+    """Print the referenced-but-not-cascaded warning (FR-013/FR-005).
+
+    The kind-filtered lines use the SAME shared helper as the cascade render
+    (FR-009) and never suggest ``--cascade``: re-running with ``--cascade``
+    would NOT activate an asset/template.
+    """
+    for ref in report.skipped:
+        console.print(f"[yellow]Warning[/yellow]: referenced {ref.label} was not activated (no --cascade).")
+    for ref in report.deactivated:
+        console.print(f"[yellow]Warning[/yellow]: referenced {ref.label} is deactivated and was not activated.")
+    if report.hint is not None:
+        console.print(f"[yellow]Hint[/yellow]: {report.hint}")
+    for ref in report.kind_filtered:
+        render_kind_filtered_line(ref.kind, ref.id)
 
 
 def recompile_catalog(repo_root: Path) -> list[str]:
@@ -740,8 +838,8 @@ def run_full_synthesize(repo_root: Path) -> None:
         )
 
 
-def resolve_write_root_or_exit(repo_root: Path) -> Path:
-    """Resolve the WP02-safe charter-write root, or exit(1) (FR-006, Contract C3).
+def resolve_write_root(repo_root: Path) -> Path:
+    """Resolve the WP02-safe charter-write root, or raise a ``CHARTER_WRITE_ROOT_INVALID`` refusal (FR-006, Contract C3).
 
     Shared by ``activate_cmd``/``deactivate_cmd`` (T014 campsite): both
     otherwise carry an identical try/except around
@@ -758,8 +856,15 @@ def resolve_write_root_or_exit(repo_root: Path) -> Path:
         # only subclass raised today is the linked-worktree case, so this is
         # behaviourally identical, and any future write-root failure mode fails
         # closed here the same way rather than escaping as an uncaught traceback.
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
+        raise CodedRefusal(CHARTER_WRITE_ROOT_INVALID, str(exc)) from exc
+
+
+def resolve_write_root_or_exit(repo_root: Path, *, json_output: bool = False) -> Path:
+    """:func:`resolve_write_root`, rendering its refusal (text or ``--json``) and exiting 1."""
+    try:
+        return resolve_write_root(repo_root)
+    except CodedRefusal as refusal:
+        render_refusal(refusal, json_output=json_output)
 
 
 def _recompile_catalog_best_effort(repo_root: Path) -> None:
@@ -884,7 +989,7 @@ DEFAULT_PRESET_PACK = "built-in"
 #: post-write resynthesis failed.
 _RESYNTHESIS_FAILED = "RESYNTHESIS_FAILED"
 
-_PRESET_ONLY_OPTIONS: tuple[tuple[str, str], ...] = (("pack", "--pack"), ("force", "--force"), ("json_output", "--json"))
+_PRESET_ONLY_OPTIONS: tuple[tuple[str, str], ...] = (("pack", "--pack"), ("force", "--force"))
 
 #: Compared by ``.name``, never against ``click.core.ParameterSource``: typer
 #: 0.26+ vendors its own click (``typer._click``) whose enum shares no identity
@@ -911,6 +1016,8 @@ def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: b
     given = [flag for name, flag in _PRESET_ONLY_OPTIONS if parameter_source_name(ctx, name) != _DEFAULT_SOURCE]
     if given:
         ctx.fail(f"{', '.join(given)} only {'applies' if len(given) == 1 else 'apply'} with --preset.")
+    if not positional and parameter_source_name(ctx, "json_output") != _DEFAULT_SOURCE:
+        ctx.fail("--json applies with --preset or a positional KIND ARTIFACT_ID.")
 
 
 def _render_preset_exclusions(outcome: PresetOutcome) -> None:
@@ -982,7 +1089,7 @@ def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, js
     resynthesis after the write only: the positional path's read-only
     preflight is per ``(kind, id)`` and has no whole-preset form.
     """
-    repo_root = resolve_write_root_or_exit(repo_root)
+    repo_root = resolve_write_root_or_exit(repo_root, json_output=json_output)
     plan, outcome = _plan_and_apply_preset(repo_root, pack, preset, force=force, json_output=json_output)
     if not json_output:
         _render_preset_plan(plan, outcome)
@@ -1003,24 +1110,253 @@ def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, js
     console.emit_json(_preset_payload(plan, outcome))
 
 
-def _dropped_footer(result: ActivationResult) -> str:
+def _captured_tail(step: Callable[[], None], code: str, what: str, payload: dict[str, object]) -> None:
+    """Run a post-change *step* with its human output captured; a non-zero exit becomes coded error *code*.
+
+    Mirrors ``--preset --json``: the change is already recorded, so the error
+    carries the change report as its payload.
+    """
+    try:
+        with json_output_guard(True), console.capture():
+            step()
+    except typer.Exit as exc:
+        if exc.exit_code == 0:
+            raise
+        render_coded_error(code, f"{what} (exit {exc.exit_code}).", payload=payload, json_output=True)
+        raise typer.Exit(1) from exc
+
+
+def emit_change_report_json(
+    build: Callable[[], tuple[Path, ActivationChangeReport]], *, kind: str, resynthesize: bool, compile_catalog: bool
+) -> None:
+    """The ``--json`` form of positional activate/deactivate: exactly one JSON document on stdout.
+
+    *build* runs the preflights, the write and the cascade with its human output
+    captured; a :class:`CodedRefusal` is rendered after the capture closed, as
+    the canonical error envelope. The catalog refresh and the pack-skill
+    projection run captured too; the change report is emitted last.
+    """
+    try:
+        with json_output_guard(True), console.capture():
+            repo_root, report = build()
+    except CodedRefusal as refusal:
+        render_refusal(refusal, json_output=True)
+    payload = report.to_json()
+    recorded = f"the {report.command} of {report.kind} {report.id!r} is recorded, but"
+    _captured_tail(
+        lambda: recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog),
+        _RESYNTHESIS_FAILED,
+        f"{recorded} the catalog refresh failed; re-run `spec-kitty charter synthesize`",
+        payload,
+    )
+    _captured_tail(
+        lambda: reproject_pack_skills(repo_root, kind),
+        ACTIVATION_FAILED,
+        f"{recorded} the pack skills were not projected; fix the cause and re-run this command",
+        payload,
+    )
+    console.emit_json(payload)
+
+
+def _dropped_footer(report: ActivationChangeReport) -> str:
     """The ``--only`` footer: what stopped being in force, or that it is unknown (Decision ``only_unknown_footer``)."""
-    if not result.dropped_known:
+    if report.no_longer_in_force is None:
         return "[yellow]No longer in force[/yellow]: unknown (see the warning above)"
-    return f"[yellow]No longer in force ({len(result.deactivated)})[/yellow]: {escape(', '.join(result.deactivated)) or '(none)'}"
+    dropped = report.no_longer_in_force
+    return f"[yellow]No longer in force ({len(dropped)})[/yellow]: {escape(', '.join(dropped)) or '(none)'}"
+
+
+def _direct_activation_report(
+    result: ActivationResult, registration: ProjectRegistrationPlan, *, only: bool, kind: str, artifact_id: str = ""
+) -> ActivationChangeReport:
+    """The direct-write part of a positional activation's change report (what ``manager.activate`` did)."""
+    return ActivationChangeReport(
+        command="activate",
+        kind=kind,
+        id=artifact_id,
+        changed=tuple(result.activated),
+        no_longer_in_force=tuple(result.deactivated) if only and result.dropped_known else None,
+        now_listed=tuple(result.listed) if only else None,
+        warnings=tuple(registration.warnings),
+        result_warnings=tuple(result.warnings),
+    )
 
 
 def _render_activation_result(result: ActivationResult, registration: ProjectRegistrationPlan, *, only: bool, kind: str) -> None:
     """Print what ``manager.activate`` did: activated ids, warnings and, for ``--only``, the written list and what dropped."""
-    for msg in result.activated:
+    _render_direct_activation(_direct_activation_report(result, registration, only=only, kind=kind))
+
+
+def _render_direct_activation(report: ActivationChangeReport) -> None:
+    """Print the direct-write lines of a change report (:func:`_render_activation_result`'s text)."""
+    for msg in report.changed:
         console.print(f"[green]Activated[/green]: {msg}")
-    for warn in registration.warnings:
+    for warn in report.warnings:
         console.print(f"[yellow]Warning[/yellow]: {warn}")
-    for warn in result.warnings:
+    for warn in report.result_warnings:
         console.print(f"[yellow]Warning[/yellow]: {escape(warn)}")
-    if only:
-        console.print(f"Now listed for {escape(kind)} ({len(result.listed)}): {escape(', '.join(result.listed)) or '(none)'}")
-        console.print(_dropped_footer(result))
+    if report.now_listed is not None:
+        listed = report.now_listed
+        console.print(f"Now listed for {escape(report.kind)} ({len(listed)}): {escape(', '.join(listed)) or '(none)'}")
+        console.print(_dropped_footer(report))
+
+
+def render_activation_change(report: ActivationChangeReport) -> None:
+    """Print a positional activation's change report, in the order the command has always printed it."""
+    _render_direct_activation(report)
+    # FR-010: co-activated, unreconciled in_tension_with pairs, right after
+    # the activation-result warnings and before the cascade.
+    for warning in report.tension_warnings:
+        console.print(f"[yellow]Warning[/yellow]: {warning}")
+    if report.referenced is not None:
+        render_no_cascade_warning(report.referenced)
+    if report.cascade is not None:
+        render_cascade_activation(report.cascade)
+
+
+@dataclass(frozen=True)
+class _ActivationRequest:
+    """The positional ``charter activate`` arguments the change report is built from."""
+
+    kind: str
+    artifact_id: str
+    cascade: str | None
+    include_deactivated: bool
+    resynthesize: bool
+    only: bool
+
+
+@dataclass(frozen=True)
+class _Preflight:
+    """What the checks before the first write resolved.
+
+    ``repo_root``: the write root; ``scope``: the parsed ``--cascade``;
+    ``deactivated``: the deny set the cascade walks with; ``step_warnings``: the
+    report lines of the in-flight step-removal warnings already printed.
+    """
+
+    repo_root: Path
+    scope: CascadeScope | None
+    deactivated: frozenset[str]
+    step_warnings: tuple[str, ...]
+
+
+def _activation_preflight(request: _ActivationRequest, repo_root: Path) -> _Preflight:
+    """Every check before the first write: write root, scope, pack config, mission-type preflights.
+
+    Every refusal is a :class:`CodedRefusal`.
+    """
+    check_activation_kind(request.kind)
+    # FR-006/Contract C3: fail closed from a linked git worktree before any
+    # mutation, and resolve the ONE checkout root every downstream call in
+    # this command (ctx_project, cascade rendering, the catalog recompile,
+    # and run_full_synthesize's chdir) shares from here on -- closing the
+    # split-brain where the activation flag landed in one checkout and the
+    # recompile landed in another (issue #4785 Finding 3).
+    repo_root = resolve_write_root(repo_root)
+
+    # FR-013/014: parse the scope value object — never collapsed to a bool
+    # (Contract C3.3). A bad kind token is a CASCADE_SCOPE_INVALID refusal.
+    scope = parse_cascade_scope(request.cascade)
+
+    # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
+    try:
+        # Its deny set is the cascade's: the direct activation below can only clear
+        # the source's own entry, which the cascade engine never treats as denied.
+        deactivated = validate_pack_config(repo_root).deactivated_urns
+    except ActiveCharterConfigError as exc:
+        raise config_refusal(exc) from exc
+
+    # FR-008: in-flight step-removal warnings (generalized — no inline
+    # `kind == "mission-type"` branch in the command flow).
+    #
+    # CL-006/NFR-002 (post-fix verification sweep, mission
+    # up-mission-type-seam-01KZY1JB): this reaches the layered mission-type
+    # roster (``resolve_layered_roster`` -> ``resolve_layered_mission_types``
+    # -> ``scan_mission_types_dir``), which loud-fails BY DESIGN (WP03,
+    # PR-CONTRACT-002) on a malformed/unreadable YAML file anywhere in the
+    # built-in, org, or project ``mission_types/`` layer. A bare
+    # ``except ValueError`` also catches ``pydantic.ValidationError`` (the
+    # schema-validation failure mode the same resolver chain documents as a
+    # separate ``Raises`` entry) because ``pydantic.ValidationError``
+    # subclasses ``ValueError`` in the pinned pydantic version.
+    try:
+        step_warnings = _step_removal_warnings(request.kind, request.artifact_id, repo_root)
+        _render_step_removal_warnings(step_warnings)
+        _validate_mission_type_activatable(request.kind, request.artifact_id, repo_root)
+    except ValueError as exc:
+        raise CodedRefusal(ACTIVATION_FAILED, str(exc)) from exc
+    texts = tuple(text for text in map(step_removal_text, step_warnings) if text is not None)
+    return _Preflight(repo_root, scope, deactivated, texts)
+
+
+def _apply_direct_activation(
+    request: _ActivationRequest,
+    manager: ActiveCharterManager,
+    ctx_project: ProjectContext,
+    scope: CascadeScope | None,
+    layer_roots: dict[str, Path] | None,
+) -> tuple[ActivationResult, ProjectRegistrationPlan]:
+    """Plan the project registration and activate the named artifact (the one direct write)."""
+    repo_root = ctx_project.require_repo_root()
+    try:
+        registration = plan_project_registration(repo_root)
+        if request.resynthesize:
+            from specify_cli.cli.commands.charter._resynthesis_preflight import preflight_resynthesis
+
+            preflight_resynthesis(
+                repo_root, request.kind, request.artifact_id, scope, registration.graph, include_deactivated=request.include_deactivated
+            )
+        # #5779/#6006: one availability scan across the whole org-pack chain
+        # (fail-closed on a declared-but-unfetched pack, #4984).
+        result = manager.activate(
+            ctx_project,
+            request.kind,
+            request.artifact_id,
+            cascade=scope is not None,
+            layer_roots=layer_roots,
+            org_root_chain=resolve_pack_chain(repo_root, strict=True),
+            only=request.only,
+        )
+    except ActiveCharterConfigError as exc:
+        # FR-013: the strict required floor (read when a deny list exists) or the ledger cannot be read; nothing written.
+        raise config_refusal(exc) from exc
+    except (ValueError, DRGLoadError) as exc:
+        raise CodedRefusal(ACTIVATION_FAILED, str(exc)) from exc
+    return result, registration
+
+
+def _activation_change_report(request: _ActivationRequest, repo_root: Path) -> tuple[Path, ActivationChangeReport]:
+    """Run a positional activation (direct write, then cascade) and return its write root and change report."""
+    preflight = _activation_preflight(request, repo_root)
+    repo_root, scope, deactivated = preflight.repo_root, preflight.scope, preflight.deactivated
+    ctx_project = ProjectContext(repo_root=repo_root)
+    layer_roots = resolve_layer_roots(repo_root)
+    manager = ActiveCharterManager()
+    result, registration = _apply_direct_activation(request, manager, ctx_project, scope, layer_roots)
+    commit_project_registration(registration)
+
+    # FR-013/014: cascade is driven from the CLI via the WP11 engine over the
+    # merged DRG (pack_manager's own cascade is deferred — the live wiring is
+    # here). Resolve the source URN; mission-type / non-DRG kinds short-circuit.
+    tension = _tension_warnings(repo_root)
+    source_urn = _source_urn(request.kind, request.artifact_id, layer_roots, resolve_pack_chain(repo_root, strict=False))
+    referenced: NoCascadeReport | None = None
+    cascade: CascadeReport | None = None
+    if source_urn is not None and scope is None:
+        referenced = _no_cascade_report(source_urn, repo_root, layer_roots, deactivated - {source_urn})
+    elif source_urn is not None and scope is not None:
+        cascade = _cascade_activation_report(
+            manager, ctx_project, source_urn, scope, repo_root, layer_roots, include_deactivated=request.include_deactivated, deactivated=deactivated
+        )
+    report = dataclasses.replace(
+        _direct_activation_report(result, registration, only=request.only, kind=request.kind, artifact_id=request.artifact_id),
+        preflight_warnings=preflight.step_warnings,
+        tension_warnings=tuple(tension),
+        referenced=referenced,
+        cascade=cascade,
+    )
+    return repo_root, report
 
 
 def activate_cmd(
@@ -1069,7 +1405,7 @@ def activate_cmd(
         "--force",
         help=PRESET_FORCE_HELP,
     ),
-    json_output: bool = typer.Option(False, "--json", help="Output the applied preset as JSON. Only with --preset."),
+    json_output: bool = typer.Option(False, "--json", help="Output JSON (positional form: change report; --preset: applied preset)."),
     only: bool = typer.Option(
         False,
         "--only",
@@ -1081,7 +1417,7 @@ def activate_cmd(
 
     Two forms:
 
-      spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE [--include-deactivated]]
+      spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE [--include-deactivated]] [--only] [--json]
 
       spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
 
@@ -1105,114 +1441,16 @@ def activate_cmd(
     if kind is None or artifact_id is None:
         console.print(ctx.get_help())
         raise typer.Exit(0)
-    if kind not in YAML_KEY_MAP:
-        console.print(f"[red]Error:[/red] Unknown kind '{kind}'. Valid kinds: {', '.join(sorted(YAML_KEY_MAP))}.")
-        raise typer.Exit(1)
 
-    # FR-006/Contract C3: fail closed from a linked git worktree before any
-    # mutation, and resolve the ONE checkout root every downstream call in
-    # this command (ctx_project, cascade rendering, the catalog recompile,
-    # and run_full_synthesize's chdir) shares from here on -- closing the
-    # split-brain where the activation flag landed in one checkout and the
-    # recompile landed in another (issue #4785 Finding 3).
-    repo_root = resolve_write_root_or_exit(repo_root)
-
-    # FR-013/014: parse the scope value object — never collapsed to a bool
-    # (Contract C3.3). A bad kind token raises a structured ValueError.
+    request = _ActivationRequest(kind, artifact_id, cascade, include_deactivated, resynthesize, only)
+    if json_output:
+        emit_change_report_json(lambda: _activation_change_report(request, repo_root), kind=kind, resynthesize=resynthesize, compile_catalog=compile_catalog)
+        return
     try:
-        scope = CascadeScope.parse(cascade)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-    # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
-    try:
-        # Its deny set is the cascade's: the direct activation below can only clear
-        # the source's own entry, which the cascade engine never treats as denied.
-        deactivated = validate_pack_config(repo_root).deactivated_urns
-    except ActiveCharterConfigError as exc:
-        render_pack_config_error(exc, console)
-        raise typer.Exit(1) from exc
-
-    ctx_project = ProjectContext(repo_root=repo_root)
-    layer_roots = resolve_layer_roots(repo_root)
-
-    # FR-008: in-flight step-removal warnings (generalized — no inline
-    # `kind == "mission-type"` branch in the command flow).
-    #
-    # CL-006/NFR-002 (post-fix verification sweep, mission
-    # up-mission-type-seam-01KZY1JB): this reaches the layered mission-type
-    # roster (``resolve_layered_roster`` -> ``resolve_layered_mission_types``
-    # -> ``scan_mission_types_dir``), which loud-fails BY DESIGN (WP03,
-    # PR-CONTRACT-002) on a malformed/unreadable YAML file anywhere in the
-    # built-in, org, or project ``mission_types/`` layer. Pre-fix this call
-    # had no exception boundary at all, so that loud-fail surfaced as a raw,
-    # uncaught traceback instead of the clean, operator-readable
-    # ``typer.Exit(1)`` every other failure mode in this command already
-    # gets. Same catch shape as ``manager.activate()`` below: a bare
-    # ``except ValueError`` also catches ``pydantic.ValidationError`` (the
-    # schema-validation failure mode the same resolver chain documents as a
-    # separate ``Raises`` entry) because ``pydantic.ValidationError``
-    # subclasses ``ValueError`` in the pinned pydantic version — no second
-    # import, no second error-handling style.
-    try:
-        _emit_step_removal_warnings(kind, artifact_id, repo_root)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-    try:
-        _validate_mission_type_activatable(kind, artifact_id, repo_root)
-    except ValueError as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-    manager = ActiveCharterManager()
-    try:
-        registration = plan_project_registration(repo_root)
-        if resynthesize:
-            from specify_cli.cli.commands.charter._resynthesis_preflight import preflight_resynthesis
-
-            preflight_resynthesis(repo_root, kind, artifact_id, scope, registration.graph, include_deactivated=include_deactivated)
-        # #5779/#6006: one availability scan across the whole org-pack chain
-        # (fail-closed on a declared-but-unfetched pack, #4984).
-        result = manager.activate(
-            ctx_project,
-            kind,
-            artifact_id,
-            cascade=scope is not None,
-            layer_roots=layer_roots,
-            org_root_chain=resolve_pack_chain(repo_root, strict=True),
-            only=only,
-        )
-    except ActiveCharterConfigError as exc:
-        # FR-013: the strict required floor (read when a deny list exists) or the ledger cannot be read; nothing written.
-        render_pack_config_error(exc, console)
-        raise typer.Exit(1) from exc
-    except (ValueError, DRGLoadError) as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-    commit_project_registration(registration)
-    _render_activation_result(result, registration, only=only, kind=kind)
-
-    # FR-010: co-activated, unreconciled in_tension_with pairs (contracts/
-    # tension-finding.md). Rendered right after the activation-result
-    # warnings above, before cascade, so it reflects the direct target's
-    # activation regardless of cascade outcome.
-    _render_tension_warnings(repo_root)
-
-    # FR-013/014: cascade is driven from the CLI via the WP11 engine over the
-    # merged DRG (pack_manager's own cascade is deferred — the live wiring is
-    # here). Resolve the source URN; mission-type / non-DRG kinds short-circuit.
-    source_urn = _source_urn(kind, artifact_id, layer_roots, resolve_pack_chain(repo_root, strict=False))
-    if source_urn is not None:
-        if scope is None:
-            _render_no_cascade_warning(source_urn, repo_root, layer_roots, deactivated - {source_urn})
-        else:
-            _render_cascade_activation(
-                manager, ctx_project, source_urn, scope, repo_root, layer_roots, include_deactivated=include_deactivated, deactivated=deactivated
-            )
+        repo_root, report = _activation_change_report(request, repo_root)
+    except CodedRefusal as refusal:
+        render_refusal(refusal, json_output=False)
+    render_activation_change(report)
 
     # FR-001/FR-003/FR-007: default catalog recompile keeps activation
     # coherent-by-construction (issue #4785 Finding 1) -- runs AFTER cascade
