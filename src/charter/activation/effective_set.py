@@ -17,11 +17,15 @@ The answer spans the whole offering:
   back-compat contract of that map; this module scans once per declared root);
 * the project pack root;
 * for every kind except ``directive``, the keys of the activation-aware
-  service's own mapping, so an artifact whose declared ``id:`` differs from its
-  file stem is emitted in the spelling the activation filter compares against.
-  Directives stay in config-stem spelling: the directive getter resolves stems
-  through the shared vocabulary, and emitting ``DIRECTIVE_NNN`` would rewrite a
-  project's ``activated_directives`` into a second spelling.
+  service's own mapping, mapped to their activation stem through
+  :class:`~charter.activation.identity_index.IdentityIndex` (a key the index
+  does not know is kept, so a service-only artifact cannot vanish).
+
+Every id is emitted as an **activation stem** (#6435, #6527): an artifact whose
+declared ``id:`` differs from its file stem is listed once, by its stem, so a
+writer that seeds an absent key from this set never stores both spellings. The
+runtime gate maps every stored token through the identity index, so a stem
+gates exactly as its declared id did (``resolver._gated``).
 
 It **fails closed**: when the org-pack registry is malformed, a declared org
 pack root is missing or cannot be scanned, or the service cannot be built, the
@@ -58,6 +62,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.activation.activation_engine import EffectiveSet
+from charter.activation.identity_index import IdentityIndex
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
@@ -131,12 +136,22 @@ def _scanned_ids(offering: _Offering, ctx: ProjectContext, token: str) -> set[st
     return ids
 
 
-def _service_ids(offering: _Offering, yaml_key: str) -> set[str]:
-    """The keys of the service mapping for *yaml_key* (the filter's own spelling)."""
-    mapping = getattr(offering.service, yaml_key.removeprefix("activated_"), None)
+def _service_keys(service: object, yaml_key: str) -> set[str]:
+    """The keys of the service mapping for *yaml_key* (declared ids)."""
+    mapping = getattr(service, yaml_key.removeprefix("activated_"), None)
     if not isinstance(mapping, Mapping):
         return set()
     return {str(key) for key in mapping}
+
+
+def _service_ids(offering: _Offering, yaml_key: str) -> set[str]:
+    """The keys of the loaded offering's service mapping for *yaml_key* (declared ids)."""
+    return _service_keys(offering.service, yaml_key)
+
+
+def _as_stems(ids: Iterable[str], kind: ArtifactKind, identity: IdentityIndex) -> set[str]:
+    """*ids* spelled as activation stems; an id the index cannot map is kept as given."""
+    return {identity.stem(kind, item) or item for item in ids}
 
 
 def _built_in_ships(kind: ArtifactKind) -> bool:
@@ -147,16 +162,16 @@ def _built_in_ships(kind: ArtifactKind) -> bool:
     return directory.is_dir() and any(path.is_file() for path in directory.rglob("*.yaml"))
 
 
-def _resolve_one(offering: _Offering, ctx: ProjectContext, token: str, yaml_key: str) -> EffectiveSet:
-    """Resolve one key against an already loaded offering."""
+def _resolve_one(offering: _Offering, ctx: ProjectContext, token: str, yaml_key: str, identity: IdentityIndex) -> EffectiveSet:
+    """Resolve one key against an already loaded offering, in activation-stem spelling."""
+    kind = ArtifactKind.from_operator_token(token)
     try:
         ids = _scanned_ids(offering, ctx, token)
         if token != _DIRECTIVE:
-            ids.update(_service_ids(offering, yaml_key))
+            ids.update(_as_stems(_service_ids(offering, yaml_key), kind, identity))
     except Exception as exc:
         logger.debug("effective set for %r unresolved: %s", yaml_key, exc)
         return EffectiveSet(kind=token, yaml_key=yaml_key, resolved=False, reason=f"an artifact layer cannot be scanned: {exc}")
-    kind = ArtifactKind.from_operator_token(token)
     if not ids and _built_in_ships(kind):
         return EffectiveSet(kind=token, yaml_key=yaml_key, resolved=False, reason=f"empty effective set while built-in artifacts of {token} ship")
     return EffectiveSet(kind=token, yaml_key=yaml_key, ids=frozenset(ids))
@@ -192,8 +207,8 @@ def _fallback_service(repo_root: Path) -> Any:  # noqa: ANN401 — the doctrine 
         return None
 
 
-def _fallback_ids(roots: list[dict[str, Path]], ctx: ProjectContext, token: str, service: Any) -> frozenset[str]:  # noqa: ANN401
-    """The union of ids available across every readable layer (``EffectiveSet.fallback_ids``)."""
+def _fallback_ids(roots: list[dict[str, Path]], ctx: ProjectContext, token: str, service: Any, identity: IdentityIndex) -> frozenset[str]:  # noqa: ANN401
+    """The union of ids available across every readable layer (``EffectiveSet.fallback_ids``), as activation stems."""
     manager = ActiveCharterManager()
     ids: set[str] = set()
     for layer_roots in roots:
@@ -202,9 +217,7 @@ def _fallback_ids(roots: list[dict[str, Path]], ctx: ProjectContext, token: str,
         except Exception as exc:  # noqa: BLE001 — one unreadable pack must not drop the rest
             logger.debug("layer roots %s unreadable for %r: %s", layer_roots, token, exc)
     if service is not None and token not in (_DIRECTIVE, MISSION_TYPE_TOKEN):
-        mapping = getattr(service, YAML_KEY_MAP[token].removeprefix("activated_"), None)
-        if isinstance(mapping, Mapping):
-            ids.update(str(key) for key in mapping)
+        ids.update(_as_stems(_service_keys(service, YAML_KEY_MAP[token]), ArtifactKind.from_operator_token(token), identity))
     return frozenset(ids)
 
 
@@ -217,9 +230,10 @@ def _with_fallbacks(repo_root: Path, results: dict[str, EffectiveSet], service: 
     if service is None and any(results[key].kind not in (_DIRECTIVE, MISSION_TYPE_TOKEN) for key in needing):
         service = _fallback_service(repo_root)
     ctx = ProjectContext(repo_root=repo_root)
+    identity = IdentityIndex.build(repo_root, org_roots=[root["org"] for root in roots if "org" in root])
     for key in needing:
         entry = results[key]
-        results[key] = replace(entry, fallback_ids=_fallback_ids(roots, ctx, entry.kind, service))
+        results[key] = replace(entry, fallback_ids=_fallback_ids(roots, ctx, entry.kind, service, identity))
     return results
 
 
@@ -269,6 +283,7 @@ def resolve_effective_sets(repo_root: Path, yaml_keys: Iterable[str]) -> dict[st
         else:
             service = offering.service
             ctx = ProjectContext(repo_root=repo_root)
-            results.update({key: _resolve_one(offering, ctx, token, key) for key, token in pending.items()})
+            identity = IdentityIndex.build(repo_root, org_roots=list(offering.org_roots))
+            results.update({key: _resolve_one(offering, ctx, token, key, identity) for key, token in pending.items()})
     ordered = {key: results[key] for key in tokens}
     return _with_fallbacks(repo_root, ordered, service)

@@ -1,8 +1,9 @@
 """#6406 blast radius: ``charter activate`` of a stem != declared id artifact writes the stem (#2529).
 
 Activation by stem writes the stem (the producer contract, now that
-``resolve_artifact_urn`` accepts declared ids). Activation by *declared id* is
-refused today and pinned as a strict xfail against #6423.
+``resolve_artifact_urn`` accepts declared ids). Activation by *declared id*
+writes the stem too (#6423), and the materialised list never holds the declared
+id beside it (#6435, #6527).
 """
 
 from __future__ import annotations
@@ -49,8 +50,8 @@ def test_activate_tactic_by_stem_writes_stem(tactic_pack_project: Path) -> None:
     assert result.exit_code == 0, result.output
     activated = _activated(tactic_pack_project)
     assert "qa-tactic-seven" in activated
-    # Pre-existing: the materialised effective set may also list the org tactic
-    # by declared id (narrowed by WP06); the contract here is the stem is written.
+    # Re-pin (#6435): the materialised effective set lists the org tactic once, by its stem.
+    assert "qa-seven" not in activated
 
 
 def test_activate_tactic_by_declared_id_writes_stem(tactic_pack_project: Path) -> None:

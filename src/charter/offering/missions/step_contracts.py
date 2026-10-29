@@ -186,6 +186,11 @@ class MissionStepContractRepository(BaseArtifactRepository[MissionStepContract])
             project_dir=project_dir,
         )
 
+    @classmethod
+    def built_in_dir(cls) -> Path:
+        """The built-in step-contract directory (public; the identity scan reads it, FR-015)."""
+        return cls._default_built_in_dir()
+
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Locate the built-in step-contract directory packaged with the charter offering.

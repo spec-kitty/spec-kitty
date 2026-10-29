@@ -44,10 +44,6 @@ from ruamel.yaml.error import YAMLError
 from charter.activation.activation_engine import EffectiveSet
 from charter.activation.activations import ActivationEntry, _activation_identity_key
 from charter.activation.org_pack_discovery import last_non_empty_token, union_required_tokens
-from charter.activation.kind_vocabulary import (
-    UnrepresentableDirectiveIdError,
-    resolve_selected_id_to_stem,
-)
 from charter.offering.artifact_kinds import ORG_REQUIRABLE_KIND_FIELDS, ArtifactKind
 from charter.offering.drg.org_pack_config import load_pack_registry
 from charter.offering.packs.pack_assembler import AssemblyResult, assemble_pack
@@ -311,33 +307,27 @@ def _normalize_required_ids(
     historically crashing the compiled reference set (#2529). Declared
     directive IDs remain readable for recovery, but producers always write
     stems. An unavailable *offering_root* or unknown ID preserves the raw
-    input for existing downstream validation. A known identity whose filenames
-    select another directive raises instead; promotion callers may collect
-    warnings and skip only that ambiguous identity. With *warn_unresolved* (and
-    *warnings*), an id that resolves in no readable layer is also named in *warnings*.
+    input for existing downstream validation. A known identity whose file name
+    another layer uses for a different ID raises
+    :class:`~charter.activation.activation_engine.ActivationIdCollisionError`
+    (Decision ``file_name_collision``): every writer refuses it. With
+    *warn_unresolved* (and *warnings*), an id that resolves in no readable
+    layer is named in *warnings*.
     """
     if offering_root is None:
         return list(raw_ids)
+    from charter.activation.identity_index import IdentityIndex
+
     kind = ArtifactKind.from_plural(kind_plural)
-    normalized: list[str] = []
-    for raw_id in raw_ids:
-        try:
-            stem = resolve_selected_id_to_stem(
-                kind,
-                raw_id,
-                offering_root=offering_root,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-            )
-        except UnrepresentableDirectiveIdError as exc:
-            if warnings is None:
-                raise
-            warnings.append(f"Could not promote org-required directive {raw_id!r}; skipped. {exc}")
-            continue
-        if stem is None and warn_unresolved and warnings is not None:
-            warnings.append(f"Org-required {kind.operator_token} {raw_id!r} was not found in any readable layer; kept as written.")
-        normalized.append(stem if stem is not None else raw_id)
-    return normalized
+    index = IdentityIndex.from_roots(offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
+    if warn_unresolved and warnings is not None:
+        warnings.extend(
+            f"Org-required {kind.operator_token} {raw_id!r} was not found in any readable layer; kept as written."
+            for raw_id in raw_ids
+            if not index.knows(kind, raw_id)
+        )
+    # An unknown id is kept as written; a known id with no stem raises the collision refusal.
+    return [index.stored_spelling(kind, raw_id) for raw_id in raw_ids]
 
 
 def _best_effort_offering_root() -> Path | None:
@@ -357,8 +347,9 @@ def org_required_stems(repo_root: Path, kind_plural: str, warnings: list[str]) -
     ``required_<kind>`` lists hold declared ids; activation lists hold stems, so
     each id is mapped through the same resolver the promotion path uses. An id
     that resolves nowhere is kept raw (existing downstream validation owns it)
-    and named in *warnings*; a directive identity with no safe stem is skipped
-    with a warning. Kinds outside :data:`REQUIRED_KIND_FIELDS` yield ``[]``.
+    and named in *warnings*; a declared id whose file name another layer uses
+    for a different id raises :class:`~charter.activation.activation_engine.ActivationIdCollisionError`
+    (Decision ``file_name_collision``). Kinds outside :data:`REQUIRED_KIND_FIELDS` yield ``[]``.
     """
     if kind_plural not in REQUIRED_KIND_FIELDS:
         return []

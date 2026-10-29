@@ -1,8 +1,10 @@
 """Per-invocation, layer-aware identity index (FR-006, NFR-003).
 
 An activation token or selection may spell an artifact two ways: its file stem
-(``qa-tactic-seven``) or its declared id (``qa-seven``). :class:`IdentityIndex`
-maps either spelling to the artifact's declared id, and back to a stem, for every
+(``qa-tactic-seven``) or its declared id (``qa-seven``); either may also be given
+as a ``<kind>:<id>`` URN (``tactic:qa-seven``, FR-011), which resolves like the
+bare token. :class:`IdentityIndex` maps any spelling to the artifact's declared
+id, and back to a stem, for every
 activatable kind. Entries are ordered by layer precedence (project, then org packs
 from last to first declaration, then built-in). A lookup is stem-first across ALL
 layers, then declared id across all layers, each first-match in that order -- the
@@ -20,6 +22,7 @@ Import rule: this module must not import ``charter.activation.resolver`` or
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -27,6 +30,7 @@ from typing import TYPE_CHECKING
 from ruamel.yaml import YAML
 
 from charter.activation import kind_vocabulary
+from charter.activation.activation_engine import ActivationIdCollisionError
 from charter.activation.catalog import resolve_offering_root
 from charter.activation.layer_roots import resolve_pack_chain
 from charter.offering.artifact_kinds import ArtifactKind
@@ -45,12 +49,13 @@ _LAYER_BUILT_IN = "built-in"
 
 @dataclass(frozen=True)
 class IdentityEntry:
-    """One artifact file: its stem, declared id and the layer it comes from."""
+    """One artifact file: its stem, declared id, the layer it comes from and its path."""
 
     kind: ArtifactKind
     stem: str
     declared_id: str
     layer: str
+    path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -155,6 +160,11 @@ def _declared_id_of(
     return fast
 
 
+def _describe_file(entry: IdentityEntry) -> str:
+    """``"<layer> file <path>"`` for a collision message (the path when it is known)."""
+    return f"{entry.layer} file {entry.path}" if entry.path is not None else f"{entry.layer} file"
+
+
 def _layer_of(scan_dir: Path, project_root: Path | None, org_roots: list[Path]) -> str:
     """Name the layer a scanned directory belongs to."""
     if project_root is not None and scan_dir.is_relative_to(project_root):
@@ -170,7 +180,7 @@ class IdentityIndex:
 
     org_roots: list[Path]
     project_root: Path | None = None
-    _offering_root: Path = field(default_factory=resolve_offering_root)
+    offering_root: Path = field(default_factory=resolve_offering_root)
     _tables: dict[ArtifactKind, _KindTable] = field(default_factory=dict, init=False, repr=False)
     _pass: kind_vocabulary.ResolutionPass = field(default_factory=kind_vocabulary.ResolutionPass, init=False, repr=False)
     _fast_ids: dict[tuple[Path, str], str] = field(default_factory=dict, init=False, repr=False)
@@ -184,29 +194,43 @@ class IdentityIndex:
         *,
         org_roots: list[Path] | None = None,
         resolution_pass: kind_vocabulary.ResolutionPass | None = None,
+        offering_root: Path | None = None,
     ) -> IdentityIndex:
         """Index *repo_root*'s layers; *org_roots* defaults to the existing configured chain.
 
         A caller that already resolved the roots passes *org_roots* and its shared
-        *resolution_pass* so each file is read once per plan (NFR-003).
+        *resolution_pass* so each file is read once per plan (NFR-003), and its
+        *offering_root* (the built-in layer) so the index scans the roots it does.
         """
         chain = resolve_pack_chain(repo_root, strict=False, quiet=True) if org_roots is None else org_roots
         project = project_pack_root(repo_root)
         index = cls(
             org_roots=[root for root in chain if root.is_dir()],
             project_root=project if project.is_dir() else None,
+            offering_root=offering_root or resolve_offering_root(),
         )
         if resolution_pass is not None:
             index._pass = resolution_pass
         return index
 
     @classmethod
-    def from_pack_context(cls, ctx: PackContext, *, repo_root: Path | None = None) -> IdentityIndex:
-        """Index the org roots of *ctx* (existing directories only)."""
+    def from_pack_context(cls, ctx: PackContext, *, repo_root: Path | None = None, offering_root: Path | None = None) -> IdentityIndex:
+        """Index the org roots of *ctx* (existing directories only), the project layer of *repo_root* and *offering_root*."""
         project = project_pack_root(repo_root) if repo_root is not None else None
         return cls(
             org_roots=[root for root in ctx.org_roots if root.is_dir()],
             project_root=project if project is not None and project.is_dir() else None,
+            offering_root=offering_root or resolve_offering_root(),
+        )
+
+    @classmethod
+    def from_roots(cls, *, offering_root: Path, org_roots: Sequence[Path] | None, layer_roots: Mapping[str, Path] | None) -> IdentityIndex:
+        """Index exactly the roots a filesystem resolver is given: *offering_root*, *org_roots* and ``layer_roots["project"]``."""
+        project = (layer_roots or {}).get("project")
+        return cls(
+            org_roots=[root for root in org_roots or () if root.is_dir()],
+            project_root=project if project is not None and project.is_dir() else None,
+            offering_root=offering_root,
         )
 
     # --------------------------------------------------------------- scan ---
@@ -228,7 +252,7 @@ class IdentityIndex:
         entries: list[IdentityEntry] = []
         for scan_dir, recursive in kind_vocabulary._scan_roots(
             kind,
-            _offering_root=self._offering_root,
+            _offering_root=self.offering_root,
             org_roots=self.org_roots,
             layer_roots=layer_roots,
         ):
@@ -236,13 +260,19 @@ class IdentityIndex:
             for path in sorted(kind_vocabulary._scan_dir_matches(scan_dir, pattern, recursive=recursive)):
                 declared = _declared_id_of(path, id_field, yaml, self._pass, self._fast_ids)
                 if declared:
-                    entries.append(IdentityEntry(kind, kind_vocabulary._config_stem(path), declared, layer))
+                    entries.append(IdentityEntry(kind, kind_vocabulary._config_stem(path), declared, layer, path))
         return entries
 
     # ------------------------------------------------------------- lookups --
 
+    @staticmethod
+    def _bare(kind: ArtifactKind, token: str) -> str:
+        """*token* without a ``<kind>:`` URN prefix of *kind* (FR-011): a URN names the same artifact."""
+        return token.removeprefix(f"{kind.value}:")
+
     def _lookup(self, kind: ArtifactKind, token: str) -> IdentityEntry | None:
-        """Stem first, then exact declared id, then (directives) the normalised id."""
+        """Stem first, then exact declared id, then (directives) the normalised id; a ``<kind>:`` URN is accepted."""
+        token = self._bare(kind, token)
         table = self._table(kind)
         entry = table.by_stem.get(token) or table.by_id.get(token)
         if entry is None and kind is ArtifactKind.DIRECTIVE:
@@ -280,6 +310,7 @@ class IdentityIndex:
         Mirrors :func:`charter.activation.kind_vocabulary.resolve_selected_id_to_stem`
         (directive identities beat a coincidentally equal filename).
         """
+        token = self._bare(kind, token)
         if kind is ArtifactKind.DIRECTIVE and token in self._table(kind).by_id:
             return token
         return self.declared_id(kind, token)
@@ -289,7 +320,9 @@ class IdentityIndex:
 
         Directives are id-first (as selections are); other kinds are stem-first. A
         directive stem that two layers bind to different ids cannot stand for either.
+        A ``<kind>:<id>`` URN resolves like its bare id; the stem, never the URN, is returned.
         """
+        token = self._bare(kind, token)
         table = self._table(kind)
         if kind is ArtifactKind.DIRECTIVE and token in table.by_id:
             return self._representable_stem(kind, token)
@@ -308,6 +341,40 @@ class IdentityIndex:
             if table.by_stem[entry.stem].declared_id == declared and len(table.ids_by_stem[entry.stem]) <= 1:
                 return entry.stem
         return None
+
+    def stored_spelling(self, kind: ArtifactKind, token: str) -> str:
+        """The spelling a writer stores for *token*: its activation stem (#6527).
+
+        A known token with no stem (a declared id whose file name another layer's
+        file uses for a different id) raises :class:`ActivationIdCollisionError`
+        (Decision ``file_name_collision``); an unknown token is returned as given,
+        its own validation belongs to the caller. A URN is never returned for a known token.
+        """
+        stem = self.stem(kind, token)
+        if stem is not None:
+            return stem
+        if self.knows(kind, token):
+            raise self.collision_error(kind, token)
+        return token
+
+    def collision_error(self, kind: ArtifactKind, token: str) -> ActivationIdCollisionError:
+        """The refusal for *token*, naming its file name and which layer's file declares which id.
+
+        *token* is read as a declared id first (a colliding token is one; a file
+        named like it may declare another id). The file name is the first
+        (highest-precedence) file declaring that id; every file of any layer with
+        that name is listed in precedence order.
+        """
+        bare = self._bare(kind, token)
+        table = self._table(kind)
+        entry = table.by_id.get(bare) or self._lookup(kind, bare)
+        declared = entry.declared_id if entry is not None else bare
+        file_name = next((item.stem for item in table.entries if item.declared_id == declared), bare)
+        sharing = [item for item in table.entries if item.stem == file_name]
+        declarations = [(_describe_file(item), item.declared_id) for item in sharing]
+        # A built-in file cannot be renamed: name the others; with no built-in file, any one of them will do.
+        rename = [_describe_file(item) for item in sharing if item.layer != _LAYER_BUILT_IN] if any(item.layer == _LAYER_BUILT_IN for item in sharing) else []
+        return ActivationIdCollisionError(kind.operator_token, bare, file_name, declarations, rename)
 
     @staticmethod
     def unindexed_key(kind: ArtifactKind | None, token: str) -> str:

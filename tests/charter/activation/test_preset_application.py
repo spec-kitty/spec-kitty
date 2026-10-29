@@ -337,7 +337,8 @@ def test_ids_resolve_across_built_in_org_and_declared_spellings(tmp_path: Path) 
 
     plan = _apply(root, ORG, "team")
 
-    assert plan.written["activated_directives"] == ["001-architectural-integrity-standard", ORG_DIRECTIVE_ID, "DIRECTIVE_010"]
+    # Re-pin (#6527, FR-013): listed declared ids are stored as their activation stems.
+    assert plan.written["activated_directives"] == ["001-architectural-integrity-standard", ORG_DIRECTIVE_STEM, "010-specification-fidelity-requirement"]
     assert plan.written["activated_anti_patterns"] == [KNOWN_ANTI_PATTERN]
     assert plan.written["activated_paradigms"] == []
 
@@ -372,7 +373,8 @@ def test_org_required_ids_union_into_listed_keys_only(tmp_path: Path) -> None:
 
     plan = _apply(root, ORG, "team")
 
-    assert plan.written["activated_directives"] == ["001-architectural-integrity-standard", ORG_DIRECTIVE_ID]
+    # Re-pin (#6527, FR-013): the unioned org-required declared id is stored as its stem.
+    assert plan.written["activated_directives"] == ["001-architectural-integrity-standard", ORG_DIRECTIVE_STEM]
     assert plan.written["activated_kinds"] == ["directives", "tactics"]
     assert "activated_tactics" not in _load(root / ".kittify" / "config.yaml"), "an unrestricted key already admits org-required ids"
 
@@ -594,4 +596,5 @@ def test_org_required_declared_id_counts_as_present_for_a_stem_listing(tmp_path:
 
     plan = _apply(root, ORG, "team")
 
-    assert plan.written["activated_tactics"] == [listed], "the same artifact in two spellings is listed once"
+    # Re-pin (#6527, FR-013): listed once, and by its stem whichever spelling the preset used.
+    assert plan.written["activated_tactics"] == [STEM_TACTIC_STEM], "the same artifact in two spellings is listed once"

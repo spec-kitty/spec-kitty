@@ -34,7 +34,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from charter.offering.api import ArtifactKind
 from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
@@ -53,15 +52,9 @@ from charter.offering.drg.org_pack_loader import (
 )
 
 from .catalog import resolve_offering_root
-from .kind_vocabulary import (
-    MissionTypeNotAnArtifactKind,
-    UnknownArtifactIdError,
-    resolve_artifact_urn,
-)
+from .identity_index import IdentityIndex
+from .kind_vocabulary import MissionTypeNotAnArtifactKind
 from .pack_context import PackContext
-
-if TYPE_CHECKING:
-    from .identity_index import IdentityIndex
 
 logger = logging.getLogger(__name__)
 
@@ -307,9 +300,8 @@ _MISSION_STEP_SINGULAR_KINDS: frozenset[str] = frozenset({"mission_step_contract
 #: entry, which is declared for enum completeness but never matches a real
 #: file). ``PackContext.activated_anti_patterns`` therefore already holds
 #: the canonical/direct artifact id, not a config stem needing resolution —
-#: routing it through :func:`charter.activation.kind_vocabulary.resolve_artifact_urn`
-#: would always raise :class:`UnknownArtifactIdError` and silently drop
-#: every anti-pattern node. This mirrors the reference tension-scan's
+#: routing it through the identity index would find no file and silently
+#: drop every anti-pattern node. This mirrors the reference tension-scan's
 #: ``_CLI_KIND_TO_DRG_SINGULAR`` (``consistency_check.py:89-99``), which
 #: likewise omits ``anti_pattern`` from stem-resolution treatment.
 _NO_STEM_RESOLUTION_KINDS: frozenset[str] = frozenset({"anti_pattern"})
@@ -370,13 +362,16 @@ def _resolve_activated_urns_for_kind(
     Lifted (WP01, per ``contracts/activation-gate-contract.md``) from the
     soon-to-be-deleted tension-scan's ``_resolve_activated_urns_for_kind``
     (``consistency_check.py:874-905``): unknown/unresolvable stems are
-    skipped, never raised (:class:`UnknownArtifactIdError`) -- they are
+    skipped, never raised -- they are
     already surfaced separately by ``_check_unknown_references``, and this
     gate must never raise (it is consumed by five callers, including the
     fail-closed-**report** ``_check_graph_kind_parity``).
 
+    Tokens resolve through *identity*, or an index built once for this call over
+    *offering_root*, *org_roots* and ``layer_roots["project"]`` (Decision ``urn_split``).
+
     ``node_kind`` values in :data:`_NO_STEM_RESOLUTION_KINDS` (currently only
-    ``anti_pattern``) bypass filesystem resolution entirely: their
+    ``anti_pattern``) bypass identity resolution entirely: their
     ``PackContext`` field already holds canonical/direct ids, not config
     stems, so each id is wrapped into a URN directly.
     """
@@ -392,18 +387,13 @@ def _resolve_activated_urns_for_kind(
         # "mission-type"), kept for symmetry should that domain ever grow.
         return frozenset()
 
+    if identity is None:
+        identity = IdentityIndex.from_roots(offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
     urns: set[str] = set()
-    for stem in activated_ids:
-        # Identity index first (stem or declared id, #6406); the filesystem
-        # resolver stays as the fallback for anything the index misses.
-        declared = identity.declared_id(kind_enum, stem) if identity is not None else None
-        if declared is not None:
+    for token in activated_ids:
+        declared = identity.declared_id(kind_enum, token)
+        if declared is not None:  # an unknown token is skipped: _check_unknown_references reports it
             urns.add(f"{kind_enum.value}:{declared}")
-            continue
-        try:
-            urns.add(resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots))
-        except UnknownArtifactIdError:
-            continue  # Skip-with-report (contract): _check_unknown_references reports it.
     return frozenset(urns)
 
 
@@ -422,13 +412,16 @@ def _resolve_activated_urns_by_kind(
     """
     offering_root = resolve_offering_root()
     org_roots = list(pack_context.org_roots)
+    layer_roots = {"project": project_pack_root(pack_context.repo_root)}
+    if identity is None:  # one index per filter call (NFR-003), the authority every caller resolves through
+        identity = IdentityIndex.from_pack_context(pack_context, repo_root=pack_context.repo_root, offering_root=offering_root)
     return {
         node_kind: _resolve_activated_urns_for_kind(
             node_kind,
             pack_context.allow_for(ArtifactKind(node_kind)),
             offering_root=offering_root,
             org_roots=org_roots,
-            layer_roots={"project": project_pack_root(pack_context.repo_root)},
+            layer_roots=layer_roots,
             identity=identity,
         )
         for node_kind in _SINGULAR_TO_PER_KIND_FIELD
@@ -536,8 +529,7 @@ def filter_graph_by_activation(
       :attr:`PackContext.activated_kinds`.
     * Per-kind activated-ID sets (e.g. :attr:`PackContext.activated_directives`)
       hold config **stems**; WP01 resolves them to canonical URNs once per
-      call (:func:`_resolve_activated_urns_by_kind`) via
-      :func:`charter.activation.kind_vocabulary.resolve_artifact_urn` and compares on
+      call (:func:`_resolve_activated_urns_by_kind`) through the identity index and compares on
       the node's full URN -- see ``contracts/activation-gate-contract.md``.
     * Edges are kept only when both endpoints survive node filtering. This
       preserves the graph invariant that an edge always points to a node in
@@ -545,8 +537,10 @@ def filter_graph_by_activation(
       case dangling edges.
 
     *identity*, when supplied, is the caller's per-invocation
-    :class:`~charter.activation.identity_index.IdentityIndex`; activation tokens
-    (stem or declared id) resolve through it before the filesystem fallback.
+    :class:`~charter.activation.identity_index.IdentityIndex`; without it one is
+    built for this call over the pack context's layers. Either way activation
+    tokens (stem, declared id or URN) resolve through the index alone, the one
+    identity authority (Decision ``urn_split``; there is no filesystem fallback).
 
     The function never mutates *graph*; it builds a fresh :class:`DRGGraph`.
 

@@ -10,6 +10,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.activation import kind_vocabulary
+from charter.activation.activation_engine import ActivationIdCollisionError
 from charter.activation.identity_index import IdentityIndex
 from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 
@@ -294,7 +295,7 @@ def test_index_returns_full_parse_identity(tmp_path: Path, name: str) -> None:
     path = root / "tactics" / "edge.tactic.yaml"
     path.write_bytes(_EDGE_BODIES[name])
     expected = kind_vocabulary._parse_id(path, "id", YAML(typ="safe"))
-    index = IdentityIndex(org_roots=[root], _offering_root=tmp_path / "none")
+    index = IdentityIndex(org_roots=[root], offering_root=tmp_path / "none")
     assert index.declared_id(T, "edge") == expected
 
 
@@ -357,3 +358,95 @@ def test_lookup_key_selection_flag_switches_directive_precedence(tmp_path: Path)
 
     assert index.lookup_key(D, "clash") == "A_ID"
     assert index.lookup_key(D, "clash", selection=True) == "clash"
+
+
+# ------------------------------------------------- #6527: URNs, step contracts --
+
+
+@pytest.mark.parametrize("kind", _KINDS)
+def test_urn_resolves_like_its_bare_token_and_never_comes_back_as_the_stem(project: Path, kind: ArtifactKind) -> None:
+    """FR-011: ``<kind>:<id>`` / ``<kind>:<stem>`` name the same artifact; the stem is returned, never the URN."""
+    org_stem, org_id, proj_stem, proj_id = _STEM_NE_ID[kind]
+    index = IdentityIndex.build(project)
+    for stem, declared in ((org_stem, org_id), (proj_stem, proj_id)):
+        for urn in (f"{kind.value}:{declared}", f"{kind.value}:{stem}"):
+            assert index.stem(kind, urn) == stem
+            assert index.declared_id(kind, urn) == declared
+            assert index.knows(kind, urn)
+            assert index.lookup_key(kind, urn) == declared
+
+
+def test_urn_of_another_kind_is_not_stripped(project: Path) -> None:
+    index = IdentityIndex.build(project)
+    assert index.knows(T, "tactic:qa-seven")  # positive control
+    assert index.knows(T, "directive:qa-seven") is False
+    assert index.stem(T, "directive:qa-seven") is None
+
+
+def test_directive_urn_uses_the_id_first_rule(project: Path) -> None:
+    index = IdentityIndex.build(project)
+    assert index.stem(D, "directive:DIRECTIVE_024") == "024-locality-of-change"
+    assert index.selection_id(D, "directive:DIRECTIVE_024") == "DIRECTIVE_024"
+
+
+def test_built_in_step_contracts_are_indexed() -> None:
+    """FR-015: the one identity authority covers the built-in ``missions/built_in_step_contracts`` files."""
+    kind = ArtifactKind.MISSION_STEP_CONTRACT
+    directory = kind_vocabulary._built_in_scan_dir(kind)
+    assert directory is not None and directory[1] is False
+    stems = sorted(kind_vocabulary._config_stem(path) for path in directory[0].glob(kind.glob_pattern))
+    assert stems, "fixture invalid: the built-in pack ships step contracts"
+    index = IdentityIndex.build(Path("/nonexistent-project-root"))
+    for stem in stems:
+        assert index.knows(kind, stem), stem
+        assert index.source_layer(kind, stem) == "built-in"
+        assert index.stem(kind, f"{kind.value}:{stem}") == stem
+
+
+def test_step_contract_scan_dir_is_none_when_the_missions_root_is_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    from charter.offering.missions.repository import MissionsRootNotFound
+    from charter.offering.missions.step_contracts import MissionStepContractRepository
+
+    def _missing() -> Path:
+        raise MissionsRootNotFound("gone")
+
+    monkeypatch.setattr(MissionStepContractRepository, "built_in_dir", staticmethod(_missing))
+    assert kind_vocabulary._built_in_scan_dir(ArtifactKind.MISSION_STEP_CONTRACT) is None
+
+
+def test_step_contract_scan_dir_is_none_when_the_directory_is_absent(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    from charter.offering.missions.step_contracts import MissionStepContractRepository
+
+    monkeypatch.setattr(MissionStepContractRepository, "built_in_dir", staticmethod(lambda: tmp_path / "absent"))
+    assert kind_vocabulary._built_in_scan_dir(ArtifactKind.MISSION_STEP_CONTRACT) is None
+
+
+def test_stored_spelling_is_the_stem_for_every_known_spelling(project: Path) -> None:
+    index = IdentityIndex.build(project)
+    for token in ("qa-tactic-seven", "qa-seven", "tactic:qa-seven"):
+        assert index.stored_spelling(T, token) == "qa-tactic-seven"
+    assert index.stored_spelling(D, "DIRECTIVE_024") == "024-locality-of-change"
+    assert index.stored_spelling(T, "ghost") == "ghost"  # unknown: kept, the caller validates
+
+
+def test_stored_spelling_refuses_a_declared_id_whose_file_name_another_layer_uses(project: Path) -> None:
+    """Decision ``file_name_collision``: an org file reuses the built-in file name for another id."""
+    org_file = project / "acme" / "directives" / "024-locality-of-change.directive.yaml"
+    _write(org_file.parent, D, "024-locality-of-change", "ACME_024")
+    index = IdentityIndex.build(project)
+    assert index.knows(D, "DIRECTIVE_024") and index.stem(D, "DIRECTIVE_024") is None
+    built_in_scan = kind_vocabulary._built_in_scan_dir(D)
+    assert built_in_scan is not None
+    built_in_file = next(built_in_scan[0].rglob("024-locality-of-change.directive.yaml"))
+
+    for token in ("DIRECTIVE_024", "directive:DIRECTIVE_024"):
+        with pytest.raises(ActivationIdCollisionError) as excinfo:
+            index.stored_spelling(D, token)
+
+        assert str(excinfo.value) == (
+            "Cannot store directive 'DIRECTIVE_024': its file name '024-locality-of-change' is used by files in more than one layer "
+            f"that declare different IDs (the org file {org_file} declares 'ACME_024'; the built-in file {built_in_file} declares 'DIRECTIVE_024'), "
+            f"so the file name cannot stand for 'DIRECTIVE_024'. Rename the org file {org_file} so each ID has its own file name."
+        )
+        assert excinfo.value.kind == "directive" and excinfo.value.artifact_id == "DIRECTIVE_024"
+    assert index.stored_spelling(D, "024-locality-of-change") == "024-locality-of-change"  # the file name itself is a stem

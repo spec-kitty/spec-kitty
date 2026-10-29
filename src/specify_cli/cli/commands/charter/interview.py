@@ -18,6 +18,7 @@ import typer
 from rich.markup import escape
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.api import ActivationIdCollisionError
 from specify_cli.core.env import is_interactive
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
@@ -43,7 +44,6 @@ from specify_cli.cli.commands.charter._widen import (
 import specify_cli.cli.commands.charter as _charter_pkg
 
 if TYPE_CHECKING:
-    from charter.activation.api import EffectiveSet
     from charter.activation.api import LanguageSettlement
     from charter.drg import ArtifactKind
 
@@ -59,26 +59,6 @@ def _narrow_bases(repo_root: Path, promotions: dict[str, list[str]], warnings: l
         plural = yaml_key.removeprefix("activated_")
         bases[yaml_key] = list(dict.fromkeys([*stems, *org_required_stems(repo_root, plural, warnings)]))
     return bases
-
-
-def _stem_spelled_effective(repo_root: Path, effective: dict[str, EffectiveSet], kinds: dict[str, ArtifactKind]) -> dict[str, EffectiveSet]:
-    """*effective* with every id spelled as an activation stem.
-
-    The effective set lists org non-directive artifacts by declared id while
-    activation lists hold stems, so a kept artifact whose stem differs from its id
-    would otherwise be reported as no longer in force (#6408).
-    """
-    from charter.activation.api import IdentityIndex
-
-    index = IdentityIndex.build(repo_root)
-    mapped: dict[str, EffectiveSet] = {}
-    for yaml_key, found in effective.items():
-        kind = kinds.get(yaml_key)
-        if kind is None or not found.resolved:
-            mapped[yaml_key] = found
-            continue
-        mapped[yaml_key] = dataclasses.replace(found, ids=frozenset(index.stem(kind, item) or item for item in found.ids))
-    return mapped
 
 
 def _stem_spelled_config(repo_root: Path, config_data: dict[str, Any], kinds: dict[str, ArtifactKind], promotions: dict[str, list[str]]) -> dict[str, Any]:
@@ -148,7 +128,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     from charter.activation.activation_engine import promote_activations
     from charter.activation.catalog import resolve_offering_root
     from charter.activation.effective_set import resolve_effective_sets
-    from charter.activation.kind_vocabulary import UnrepresentableDirectiveIdError, resolve_selected_id_to_stem
+    from charter.activation.api import IdentityIndex
     from charter.activation.pack_manager import resolve_activation_write_target
     from charter.drg import ArtifactKind
 
@@ -166,22 +146,14 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     offering_root = resolve_offering_root()
     org_roots = resolve_pack_chain(repo_root, strict=False)
     layer_roots = resolve_layer_roots(repo_root)
+    index = IdentityIndex.from_roots(offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
     promotions: dict[str, list[str]] = {}
     warnings: list[str] = []
     for kind, raw_ids in kind_to_selection.items():
         stems: list[str] = []
         for raw_id in raw_ids:
-            try:
-                stem = resolve_selected_id_to_stem(
-                    kind,
-                    raw_id,
-                    offering_root=offering_root,
-                    org_roots=org_roots,
-                    layer_roots=layer_roots,
-                )
-            except UnrepresentableDirectiveIdError as exc:
-                warnings.append(f"Could not promote selected directive id {raw_id!r}; skipped. {exc}")
-                continue
+            # Decision ``file_name_collision``: a known id with no stem raises the one collision refusal.
+            stem = index.stored_spelling(kind, raw_id) if index.knows(kind, raw_id) else None
             if stem is None:
                 warnings.append(f"Could not resolve selected {kind.operator_token} id {raw_id!r}; skipped.")
             elif stem not in stems:
@@ -197,8 +169,8 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     absent = [key for key in promotions if config_data.get(key) is None]
     effective_sets = resolve_effective_sets(repo_root, absent) if absent else {}
     if narrow:
+        # The effective set is already in stem spelling (#6435); a present list may still hold a legacy declared id.
         config_data = _stem_spelled_config(repo_root, config_data, {f"activated_{kind.plural}": kind for kind in kind_to_selection}, promotions)
-        effective_sets = _stem_spelled_effective(repo_root, effective_sets, {f"activated_{kind.plural}": kind for kind in kind_to_selection})
     outcome = promote_activations(
         promotions,
         config_path=target_path,
@@ -320,6 +292,8 @@ def interview(  # noqa: C901
             if not json_output:
                 for msg in org_prefill_messages:
                     console.print(f"[cyan]Org charter:[/cyan] {msg}")
+        except ActivationIdCollisionError:
+            raise  # a pack-content error the operator must fix, never a skipped pre-fill (Decision ``file_name_collision``)
         except Exception as exc:  # noqa: BLE001 — org-charter is best-effort, never blocks interview
             org_prefill_warning = str(exc)
             if not json_output:
@@ -464,6 +438,9 @@ def interview(  # noqa: C901
         narrowed: dict[str, list[str]] = {}
         try:
             promotion_warnings, narrowed = _promote_interview_selections(repo_root, interview_data, narrow=narrow_activation)
+        except ActivationIdCollisionError as exc:
+            # Refused like every writer (Decision ``file_name_collision``); the promotion writes all lists or none.
+            raise TaskCliError(f"{exc} The interview answers were saved; no activation list was written.") from exc
         except Exception as exc:  # noqa: BLE001 — promotion is best-effort, never blocks the interview
             if narrow_activation:
                 # An explicit --narrow-activation that cannot be applied is a failure, not a warning (#6408).

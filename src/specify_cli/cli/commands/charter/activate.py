@@ -1003,14 +1003,24 @@ def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, js
     console.emit_json(_preset_payload(plan, outcome))
 
 
-def _render_activation_result(result: ActivationResult, registration: ProjectRegistrationPlan, *, only: bool) -> None:
-    """Print what ``manager.activate`` did: activated ids, warnings and, for ``--only``, what dropped."""
+def _dropped_footer(result: ActivationResult) -> str:
+    """The ``--only`` footer: what stopped being in force, or that it is unknown (Decision ``only_unknown_footer``)."""
+    if not result.dropped_known:
+        return "[yellow]No longer in force[/yellow]: unknown (see the warning above)"
+    return f"[yellow]No longer in force ({len(result.deactivated)})[/yellow]: {escape(', '.join(result.deactivated)) or '(none)'}"
+
+
+def _render_activation_result(result: ActivationResult, registration: ProjectRegistrationPlan, *, only: bool, kind: str) -> None:
+    """Print what ``manager.activate`` did: activated ids, warnings and, for ``--only``, the written list and what dropped."""
     for msg in result.activated:
         console.print(f"[green]Activated[/green]: {msg}")
-    for warn in (*registration.warnings, *result.warnings):
+    for warn in registration.warnings:
         console.print(f"[yellow]Warning[/yellow]: {warn}")
+    for warn in result.warnings:
+        console.print(f"[yellow]Warning[/yellow]: {escape(warn)}")
     if only:
-        console.print(f"[yellow]No longer in force ({len(result.deactivated)})[/yellow]: {escape(', '.join(result.deactivated)) or '(none)'}")
+        console.print(f"Now listed for {escape(kind)} ({len(result.listed)}): {escape(', '.join(result.listed)) or '(none)'}")
+        console.print(_dropped_footer(result))
 
 
 def activate_cmd(
@@ -1184,7 +1194,7 @@ def activate_cmd(
         raise typer.Exit(1) from exc
 
     commit_project_registration(registration)
-    _render_activation_result(result, registration, only=only)
+    _render_activation_result(result, registration, only=only, kind=kind)
 
     # FR-010: co-activated, unreconciled in_tension_with pairs (contracts/
     # tension-finding.md). Rendered right after the activation-result

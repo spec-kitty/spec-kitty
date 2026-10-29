@@ -14,16 +14,12 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.bundle import CHARTER_YAML
-from charter.activation.catalog import resolve_offering_root
 from charter.activation.activation_ledger import load_activation_ledger
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.kind_vocabulary import (
-    ArtifactKind,
-    MissionTypeNotAnArtifactKind,
-    UnknownArtifactIdError,
-    resolve_artifact_urn,
-)
+from charter.activation.identity_index import IdentityIndex
+from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext, load_denied, resolve_charter_yaml_pointer
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 
@@ -419,20 +415,46 @@ def _split_urn(urn: str) -> tuple[str, str]:
     return (head, tail)
 
 
+def _artifact_kind(cli_kind: str) -> ArtifactKind | None:
+    """The :class:`ArtifactKind` of a CLI kind token; ``None`` for ``mission-type``."""
+    try:
+        return ArtifactKind.from_operator_token(cli_kind)
+    except MissionTypeNotAnArtifactKind:
+        return None
+
+
+def _is_known(cli_kind: str, token: str, identity: IdentityIndex, all_offering_ids: dict[str, frozenset[str]]) -> bool:
+    """Whether *token* (stem, declared id or URN) names a known artifact of *cli_kind* (FR-017, #6433).
+
+    For an artifact kind the identity index (built-in, org and project layers)
+    alone decides. The ``list_available`` ids are read only for mission types,
+    which have no :class:`ArtifactKind` and so no index entries.
+    """
+    kind = _artifact_kind(cli_kind)
+    if kind is not None:
+        return identity.knows(kind, token)
+    return token in all_offering_ids.get(cli_kind, frozenset())
+
+
 def _check_unknown_references(
     activated_by_kind: dict[str, frozenset[str] | None],
     all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     suggestions: list[str],
+    *,
+    identity: IdentityIndex,
 ) -> None:
-    """Populate *unknown_references* and *suggestions* for unknown IDs (FR-011)."""
+    """Populate *unknown_references* and *suggestions* for unknown IDs (FR-011).
+
+    This is the one report of an unknown token (warn and keep, #6433): the parity
+    checks below skip a token the index does not know instead of reporting it again.
+    """
     for kind in YAML_KEY_MAP:
         activated = _get_activation_set(activated_by_kind, kind)
         if activated is None:
             continue
-        known_ids = all_offering_ids.get(kind, frozenset())
         for activated_id in sorted(activated):
-            if activated_id not in known_ids:
+            if not _is_known(kind, activated_id, identity, all_offering_ids):
                 unknown_references.append(f"{kind}/{activated_id}")
                 suggestions.append(f"{kind}/{activated_id}: Not found in doctrine. Run 'charter deactivate {kind} {activated_id}' to remove.")
 
@@ -544,18 +566,19 @@ def _check_kind_violations(
     all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     kind_violations: list[str],
+    *,
+    identity: IdentityIndex,
 ) -> None:
     """Detect IDs that belong to the wrong kind's activation set."""
     for kind in YAML_KEY_MAP:
         activated = _get_activation_set(activated_by_kind, kind)
         if activated is None:
             continue
-        own_ids = all_offering_ids.get(kind, frozenset())
         for artifact_id in sorted(activated):
             _check_kind_violation_for_artifact(
                 kind,
                 artifact_id,
-                own_ids,
+                identity,
                 all_offering_ids,
                 unknown_references,
                 kind_violations,
@@ -565,7 +588,7 @@ def _check_kind_violations(
 def _check_kind_violation_for_artifact(
     kind: str,
     artifact_id: str,
-    own_ids: frozenset[str],
+    identity: IdentityIndex,
     all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     kind_violations: list[str],
@@ -573,9 +596,9 @@ def _check_kind_violation_for_artifact(
     """Record a kind-mismatch violation for one activated *artifact_id*, if any."""
     if f"{kind}/{artifact_id}" in unknown_references:
         return  # Already flagged; avoid double-reporting.
-    if artifact_id in own_ids:
+    if _is_known(kind, artifact_id, identity, all_offering_ids):
         return  # Correct kind.
-    other_kind = _find_owning_kind(artifact_id, kind, all_offering_ids)
+    other_kind = _find_owning_kind(artifact_id, kind, identity, all_offering_ids)
     if other_kind is not None:
         kind_violations.append(f"{kind}/{artifact_id}: ID belongs to kind '{other_kind}', not '{kind}'.")
 
@@ -583,13 +606,15 @@ def _check_kind_violation_for_artifact(
 def _find_owning_kind(
     artifact_id: str,
     exclude_kind: str,
+    identity: IdentityIndex,
     all_offering_ids: dict[str, frozenset[str]],
 ) -> str | None:
-    """Return the first kind (other than *exclude_kind*) whose id set contains *artifact_id*."""
-    for other_kind, other_ids in all_offering_ids.items():
+    """Return the first kind (other than *exclude_kind*) that knows *artifact_id*."""
+    other_kind: str
+    for other_kind in YAML_KEY_MAP:
         if other_kind == exclude_kind:
             continue
-        if artifact_id in other_ids:
+        if _is_known(other_kind, artifact_id, identity, all_offering_ids):
             return other_kind  # Report once per misplaced ID.
     return None
 
@@ -676,13 +701,15 @@ def _check_reference_id_parity(
     reference_id_divergences: list[str],
     verification_errors: list[str],
     suggestions: list[str],
+    *,
+    identity: IdentityIndex,
 ) -> None:
     """FR-005/T017: config.activated_* <-> references.yaml, at ID level.
 
-    Forward direction (every kind): every explicitly-activated config stem
+    Forward direction (every kind): every explicitly-activated config token
     MUST resolve to a canonical id in the compiled reference set, using the
-    same ``resolve_artifact_urn`` canonicalization ``compiler.py`` itself
-    uses to build ``references.yaml``. A config-activated stem that does not
+    same identity-index canonicalization ``compiler.py`` itself uses to build
+    ``references.yaml`` (#6433). A config-activated token that does not
     resolve is the exact #2524 dangler class (an artefact live in config but
     missing from the derived output).
 
@@ -698,17 +725,11 @@ def _check_reference_id_parity(
     expected, not a divergence -- flagging them would be a false-positive
     machine, not a regression guard.
 
-    Org/project overlay resolution (#2529): ``resolve_artifact_urn`` must be
-    given the SAME ``org_roots`` that ``compiler.py``'s equivalent resolver
-    call threads through (``list(pack_context.pack_roots[1:])`` --
-    ``pack_roots`` is ``(builtin_root, *org_pack_roots)``, so slicing off
-    index 0 leaves only the configured org/project overlay roots; empty for
-    a project with no org packs, so behaviour is unchanged there). Without
-    this, a config-activated ORG-only artefact raises
-    ``UnknownArtifactIdError`` here, is swallowed by the ``except`` below,
-    and the guard silently skips it -- while the compiler's un-caught
-    resolver call crashes on the exact same stem. That is a false negative,
-    not a best-effort skip.
+    Org/project overlay resolution (#2529, #6433): *identity* covers the
+    built-in, org and project layers, the same layers ``compiler.py``
+    resolves against. Without that, a config-activated org- or project-only
+    artefact would be skipped here as unknown while compile resolves it --
+    a false negative, not a best-effort skip.
 
     Fail-closed on corrupt input (#2530, re-homed onto charter.yaml by
     IC-04): a ``charter.yaml`` that exists but cannot be parsed/trusted
@@ -740,21 +761,17 @@ def _check_reference_id_parity(
     if references_by_kind is None:
         return  # No compiled reference set yet -- nothing to check against.
 
-    offering_root = resolve_offering_root()
-    pack_context = ctx.require_pack_context()
-    org_roots = list(pack_context.pack_roots[1:])
-
     _check_reference_id_forward_parity(
         raw_activated_by_kind,
         references_by_kind,
-        offering_root=offering_root,
-        org_roots=org_roots,
+        identity=identity,
         reference_id_divergences=reference_id_divergences,
         suggestions=suggestions,
     )
     _check_reference_id_reverse_parity(
         raw_activated_by_kind,
         references_by_kind,
+        identity=identity,
         reference_id_divergences=reference_id_divergences,
         suggestions=suggestions,
     )
@@ -764,21 +781,21 @@ def _check_reference_id_forward_parity(
     raw_activated_by_kind: dict[str, list[str] | None],
     references_by_kind: dict[str, frozenset[str]],
     *,
-    offering_root: Path,
-    org_roots: list[Path],
+    identity: IdentityIndex,
     reference_id_divergences: list[str],
     suggestions: list[str],
 ) -> None:
     """Forward direction (every kind): config.activated_* -> references.yaml.
 
-    Every explicitly-activated config stem MUST resolve to a canonical id in
+    Every explicitly-activated config token MUST resolve to a canonical id in
     the compiled reference set (the #2524 dangler class). See
-    :func:`_check_reference_id_parity` for the full contract.
+    :func:`_check_reference_id_parity` for the full contract. Tokens resolve
+    through *identity*, as compile resolves them (FR-017); a token it does not
+    know is reported once, by :func:`_check_unknown_references`.
     """
     for cli_kind in YAML_KEY_MAP:
-        try:
-            kind_enum = ArtifactKind.from_operator_token(cli_kind)
-        except MissionTypeNotAnArtifactKind:
+        kind_enum = _artifact_kind(cli_kind)
+        if kind_enum is None:
             continue  # "mission-type" has no ArtifactKind / DRG representation.
 
         raw_list = raw_activated_by_kind.get(cli_kind)
@@ -787,11 +804,9 @@ def _check_reference_id_forward_parity(
 
         known_ref_ids = references_by_kind.get(kind_enum.value, frozenset())
         for stem in sorted(set(raw_list)):
-            try:
-                urn = resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots)
-            except UnknownArtifactIdError:
+            canonical_id = identity.declared_id(kind_enum, stem)
+            if canonical_id is None:
                 continue  # Already reported by _check_unknown_references.
-            _, _, canonical_id = urn.partition(":")
             if canonical_id not in known_ref_ids:
                 reference_id_divergences.append(f"{cli_kind}/{stem}")
                 suggestions.append(
@@ -806,6 +821,7 @@ def _check_reference_id_reverse_parity(
     raw_activated_by_kind: dict[str, list[str] | None],
     references_by_kind: dict[str, frozenset[str]],
     *,
+    identity: IdentityIndex,
     reference_id_divergences: list[str],
     suggestions: list[str],
 ) -> None:
@@ -814,14 +830,15 @@ def _check_reference_id_reverse_parity(
     Paradigms are rendered 1:1 with no DRG-transitive expansion, so a
     compiled paradigm reference with no matching config activation is
     unambiguously stale. See :func:`_check_reference_id_parity` for why this
-    is scoped to paradigms only.
+    is scoped to paradigms only. A compiled reference is a declared id and an
+    activation token may be a stem, so both sides are compared as stems (#6433).
     """
     paradigm_list = raw_activated_by_kind.get("paradigm")
     if paradigm_list is None:
         return
-    known_paradigm_stems = frozenset(paradigm_list)
+    known_paradigm_stems = frozenset(_paradigm_stem(identity, token) for token in paradigm_list)
     for ref_id in references_by_kind.get("paradigm", frozenset()):
-        if ref_id not in known_paradigm_stems:
+        if _paradigm_stem(identity, ref_id) not in known_paradigm_stems:
             reference_id_divergences.append(f"paradigm/{ref_id}")
             suggestions.append(
                 f"paradigm/{ref_id}: Resolves in "
@@ -831,42 +848,31 @@ def _check_reference_id_reverse_parity(
             )
 
 
+def _paradigm_stem(identity: IdentityIndex, token: str) -> str:
+    """The activation stem of a paradigm *token*; an unknown or stemless token stands for itself."""
+    return identity.stem(ArtifactKind.PARADIGM, token) or token
+
+
 def _resolve_graph_kind_parity_stem(
     cli_kind: str,
     kind_enum: ArtifactKind,
     stem: str,
     surviving_urns: frozenset[str],
     *,
-    offering_root: Path,
-    org_roots: list[Path],
+    identity: IdentityIndex,
     graph_kind_gaps: list[str],
-    verification_errors: list[str],
     suggestions: list[str],
 ) -> None:
-    """Resolve one activated stem and check its per-ID DRG-graph survival (T007).
+    """Resolve one activated token and check its per-ID DRG-graph survival (T007).
 
-    Narrow catch (``except UnknownArtifactIdError``, never broad ``except
-    Exception``): this check's contract is "config<->graph parity", so a stem
-    it cannot resolve is itself a "could not verify parity for this id"
-    condition and is reported by name into *verification_errors* -- in
-    addition to (not instead of) the separate "unknown to doctrine at all"
-    report :func:`_check_unknown_references` already produces for the same
-    stem. A non-``UnknownArtifactIdError`` failure here (a genuine
-    programming bug, not a config-drift condition) is deliberately left
-    uncaught and propagates -- collapsing this into a broad ``except
-    Exception`` would silently misreport a real bug as ordinary drift.
+    The token resolves through *identity* (stem, declared id or URN, any layer;
+    FR-017). A token the index does not know is skipped: it is reported once, by
+    :func:`_check_unknown_references`, never again here (#6433).
     """
-    try:
-        urn = resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots)
-    except UnknownArtifactIdError as exc:
-        verification_errors.append(f"{cli_kind}/{stem}: {exc}")
-        suggestions.append(
-            f"{cli_kind}/{stem}: Could not resolve to a canonical doctrine "
-            f"id while checking config<->graph parity ({exc}). Run "
-            f"'charter deactivate {cli_kind} {stem}' to remove, or fix the "
-            f"stem."
-        )
+    declared = identity.declared_id(kind_enum, stem)
+    if declared is None:
         return
+    urn = f"{kind_enum.value}:{declared}"
     if urn not in surviving_urns:
         graph_kind_gaps.append(f"{cli_kind}/{stem}")
         suggestions.append(
@@ -883,6 +889,8 @@ def _check_graph_kind_parity(
     graph_kind_gaps: list[str],
     verification_errors: list[str],
     suggestions: list[str],
+    *,
+    identity: IdentityIndex,
 ) -> None:
     """FR-005/T018: config.activated_* <-> DRG graph, at per-ID level (T007).
 
@@ -901,12 +909,12 @@ def _check_graph_kind_parity(
     {stem}``), not merely by "some id of this kind is missing" (the old
     whole-kind-dangler granularity).
 
-    For each explicitly-activated stem this resolves it to a canonical URN
-    via :func:`charter.activation.kind_vocabulary.resolve_artifact_urn` (the same
-    resolver :func:`_check_reference_id_parity` uses for the identical
-    stem<->canonical bridge) and checks membership in the activation-filtered
-    graph's surviving node URNs -- see
-    :func:`_resolve_graph_kind_parity_stem`.
+    For each explicitly-activated token this resolves it to a canonical URN
+    through *identity*, the run's one
+    :class:`~charter.activation.identity_index.IdentityIndex` (the same index
+    :func:`_check_reference_id_parity` and the activation-filtered graph use;
+    #6433), and checks membership in the activation-filtered graph's surviving
+    node URNs -- see :func:`_resolve_graph_kind_parity_stem`.
 
     NOTE: this function deliberately does NOT import
     ``specify_cli.*freshness*`` (layer rule -- ``freshness/computer.py`` is a
@@ -923,9 +931,8 @@ def _check_graph_kind_parity(
     A failure here is therefore surfaced as a *verification_errors* entry
     instead of a silent early return. This catch stays broad (``except
     Exception``) -- it guards graph load/validate, a structurally different
-    failure mode from the narrow per-stem resolution catch in
-    :func:`_resolve_graph_kind_parity_stem`; collapsing the two would let a
-    genuine per-stem programming bug masquerade as a DRG-load failure.
+    failure mode from the per-token resolution in
+    :func:`_resolve_graph_kind_parity_stem`, which raises nothing.
     """
     try:
         from charter.activation.drg_activation import filter_graph_by_activation  # noqa: PLC0415
@@ -933,7 +940,7 @@ def _check_graph_kind_parity(
         repo_root = ctx.require_repo_root()
         pack_context = ctx.require_pack_context()
         full_drg = _load_full_drg_org_aware(repo_root)
-        activated_drg = filter_graph_by_activation(full_drg, pack_context)
+        activated_drg = filter_graph_by_activation(full_drg, pack_context, identity=identity)
     except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
         verification_errors.append(f"drg: Could not verify config<->graph kind parity ({type(exc).__name__}: {exc}).")
         suggestions.append(
@@ -944,8 +951,6 @@ def _check_graph_kind_parity(
         return
 
     surviving_urns = frozenset(node.urn for node in activated_drg.nodes)
-    offering_root = resolve_offering_root()
-    org_roots = list(pack_context.org_roots)
 
     for cli_kind in _CLI_KIND_TO_DRG_SINGULAR:
         raw_list = raw_activated_by_kind.get(cli_kind)
@@ -958,10 +963,8 @@ def _check_graph_kind_parity(
                 kind_enum,
                 stem,
                 surviving_urns,
-                offering_root=offering_root,
-                org_roots=org_roots,
+                identity=identity,
                 graph_kind_gaps=graph_kind_gaps,
-                verification_errors=verification_errors,
                 suggestions=suggestions,
             )
 
@@ -1658,19 +1661,23 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         )
 
     all_offering_ids = _collect_all_offering_ids(ctx, manager)
+    # One identity index per run (#6433, FR-017), over the roots compile uses: the
+    # offering root, the pack context's org roots and the project layer.
+    identity = IdentityIndex.from_pack_context(ctx.require_pack_context(), repo_root=ctx.require_repo_root(), offering_root=resolve_offering_root())
 
-    _check_unknown_references(activated_by_kind, all_offering_ids, unknown_references, suggestions)
+    _check_unknown_references(activated_by_kind, all_offering_ids, unknown_references, suggestions, identity=identity)
     _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_offering, suggestions)
     _check_duplicates(raw_activated_by_kind, kind_violations)
-    _check_kind_violations(activated_by_kind, all_offering_ids, unknown_references, kind_violations)
+    _check_kind_violations(activated_by_kind, all_offering_ids, unknown_references, kind_violations, identity=identity)
     _check_reference_id_parity(
         ctx,
         raw_activated_by_kind,
         reference_id_divergences,
         verification_errors,
         suggestions,
+        identity=identity,
     )
-    _check_graph_kind_parity(ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions)
+    _check_graph_kind_parity(ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions, identity=identity)
     # T009 (#3808): as in the implicit-all-active branch above, these three
     # calls share ONE DRG load (and one ActiveCharterService build) via the
     # ``_gate_resources_scope`` cache.

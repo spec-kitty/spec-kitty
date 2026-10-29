@@ -42,7 +42,8 @@ from charter.activation.interview import (
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )
-from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
+from charter.activation.identity_index import IdentityIndex
+from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, unknown_artifact_id_error
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.pack_context import PackContext
 from charter.activation.resolver import DEFAULT_TOOL_REGISTRY
@@ -137,23 +138,23 @@ class ConfigActivatedRoots:
 #: :class:`ConfigActivatedRoots` field, derived from :class:`ArtifactKind`
 #: (C-004). Used to decide whether a project is "configured" (activates at
 #: least one kind) for the FR-018 absence-is-empty delivery rule in
-#: :func:`_resolve_config_activated_roots`.
-_CONFIG_ACTIVATION_KINDS: tuple[ArtifactKind, ...] = tuple(
-    kind for kind in ArtifactKind if kind.activatable and kind.plural in ConfigActivatedRoots.__dataclass_fields__
-)
+#: :func:`_resolve_config_activated_roots`. Kept in field order, so the first
+#: unknown token reported is the one in the earliest field.
+_CONFIG_ACTIVATION_KINDS: tuple[ArtifactKind, ...] = tuple(ArtifactKind.from_plural(field) for field in ConfigActivatedRoots.__dataclass_fields__)
 
 
 def _resolve_config_activated_ids(
     kind: ArtifactKind,
     activated_stems: frozenset[str] | None,
     *,
+    identity: IdentityIndex,
     offering_root: Path,
     fallback_ids: frozenset[str],
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
     deny: DenySet = DenySet.EMPTY,
 ) -> list[str]:
-    """Resolve ``config.activated_<kind>`` stems to bare canonical DRG ids.
+    """Resolve ``config.activated_<kind>`` tokens to bare canonical DRG ids.
 
     ``activated_stems is None`` mirrors the three-state semantics documented
     on :class:`charter.activation.pack_context.PackContext`: the key is absent from
@@ -162,20 +163,20 @@ def _resolve_config_activated_ids(
     applied by ``charter.activation.resolver`` when filtering paradigms/procedures/agent
     profiles.
 
-    *org_roots* extends the artefact scan to org/project-overlay pack roots
-    (:attr:`charter.activation.pack_context.PackContext.pack_roots`, sans the built-in
-    root at index 0) so a config-activated ORG artefact resolves instead of
-    raising -- an activated stem that only exists in an org pack is not an
-    unknown id (#2529).
+    Every token (a file stem, a declared id or a ``<kind>:<id>`` URN, #6433 /
+    FR-016) resolves through *identity*, the one
+    :class:`~charter.activation.identity_index.IdentityIndex` of this compile, which
+    covers the built-in, org (*org_roots*, #2529) and project (*layer_roots*) layers
+    -- the same tokens the runtime gate accepts. A hand-written declared id whose
+    file name another layer uses for a different id resolves too: writers refuse
+    it (Decision ``file_name_collision``), compile does not.
 
-    ``layer_roots`` adds the project doctrine overlay, using the same
-    project-first precedence as runtime profile loading.
-
-    A stem that cannot be resolved to a canonical id in any searched layer raises
-    :class:`~charter.activation.kind_vocabulary.UnknownArtifactIdError` (propagated from
-    :func:`~charter.activation.kind_vocabulary.resolve_artifact_urn`) rather than being
-    silently dropped -- this closes the C-006 silent-drop vector that
-    ``_sanitize_catalog_selection`` left open for the answers-sourced path.
+    A token no searched layer knows raises
+    :class:`~charter.activation.kind_vocabulary.UnknownArtifactIdError` (built by
+    :func:`~charter.activation.kind_vocabulary.unknown_artifact_id_error`, which names
+    the searched layers) rather than being silently dropped -- this closes the
+    C-006 silent-drop vector that ``_sanitize_catalog_selection`` left open for the
+    answers-sourced path.
 
     *deny* (the kind's effective deny) is subtracted last, so the all-built-ins
     fallback never delivers a deactivated id (FR-006).
@@ -184,9 +185,28 @@ def _resolve_config_activated_ids(
         return sorted(item for item in fallback_ids if deny.admits(item))
 
     resolved = {
-        resolve_artifact_urn(kind, stem, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots).split(":", 1)[1] for stem in activated_stems
+        _resolve_config_activated_id(kind, token, identity=identity, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
+        for token in activated_stems
     }
     return sorted(item for item in resolved if deny.admits(item))
+
+
+def _resolve_config_activated_id(
+    kind: ArtifactKind,
+    token: str,
+    *,
+    identity: IdentityIndex,
+    offering_root: Path,
+    org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
+) -> str:
+    """The declared id of one activation *token*; an unknown token raises :class:`UnknownArtifactIdError`."""
+    # Annotated: the ``charter.*`` mypy override skips intra-package imports (return types are Any).
+    declared: str | None = identity.declared_id(kind, token)
+    if declared is not None:
+        return declared
+    # Unknown to the index, the one identity authority: refuse, naming the searched layers.
+    raise unknown_artifact_id_error(kind, token, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
 
 
 def _resolve_config_activated_roots(
@@ -229,71 +249,24 @@ def _resolve_config_activated_roots(
 
     layer_roots = {"project": project_pack_root(pack_context.repo_root)} if pack_context is not None else None
 
+    # One identity index per compile (NFR-003), over the same layers as the roots above.
+    identity = IdentityIndex.from_roots(offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
+
     try:
         return ConfigActivatedRoots(
-            directives=_resolve_config_activated_ids(
-                ArtifactKind.DIRECTIVE,
-                _stems(ArtifactKind.DIRECTIVE),
-                offering_root=offering_root,
-                fallback_ids=catalog.directives,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-                deny=_deny(ArtifactKind.DIRECTIVE),
-            ),
-            paradigms=_resolve_config_activated_ids(
-                ArtifactKind.PARADIGM,
-                _stems(ArtifactKind.PARADIGM),
-                offering_root=offering_root,
-                fallback_ids=catalog.paradigms,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-                deny=_deny(ArtifactKind.PARADIGM),
-            ),
-            tactics=_resolve_config_activated_ids(
-                ArtifactKind.TACTIC,
-                _stems(ArtifactKind.TACTIC),
-                offering_root=offering_root,
-                fallback_ids=catalog.tactics,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-                deny=_deny(ArtifactKind.TACTIC),
-            ),
-            styleguides=_resolve_config_activated_ids(
-                ArtifactKind.STYLEGUIDE,
-                _stems(ArtifactKind.STYLEGUIDE),
-                offering_root=offering_root,
-                fallback_ids=catalog.styleguides,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-                deny=_deny(ArtifactKind.STYLEGUIDE),
-            ),
-            toolguides=_resolve_config_activated_ids(
-                ArtifactKind.TOOLGUIDE,
-                _stems(ArtifactKind.TOOLGUIDE),
-                offering_root=offering_root,
-                fallback_ids=catalog.toolguides,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-                deny=_deny(ArtifactKind.TOOLGUIDE),
-            ),
-            procedures=_resolve_config_activated_ids(
-                ArtifactKind.PROCEDURE,
-                _stems(ArtifactKind.PROCEDURE),
-                offering_root=offering_root,
-                fallback_ids=catalog.procedures,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-                deny=_deny(ArtifactKind.PROCEDURE),
-            ),
-            agent_profiles=_resolve_config_activated_ids(
-                ArtifactKind.AGENT_PROFILE,
-                _stems(ArtifactKind.AGENT_PROFILE),
-                offering_root=offering_root,
-                fallback_ids=catalog.agent_profiles,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-                deny=_deny(ArtifactKind.AGENT_PROFILE),
-            ),
+            **{
+                kind.plural: _resolve_config_activated_ids(
+                    kind,
+                    _stems(kind),
+                    identity=identity,
+                    offering_root=offering_root,
+                    fallback_ids=getattr(catalog, kind.plural),
+                    org_roots=org_roots,
+                    layer_roots=layer_roots,
+                    deny=_deny(kind),
+                )
+                for kind in _CONFIG_ACTIVATION_KINDS
+            }
         )
     except UnknownArtifactIdError as exc:
         if pack_context is None:

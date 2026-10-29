@@ -66,7 +66,7 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable, Iterable, Mapping, MutableMapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -75,13 +75,13 @@ from ruamel.yaml.error import YAMLError
 
 from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.activation_engine import (
-    NARROW_UNRESOLVED_WARNING,
     DeactivationRefused,
     RequiredArtifactDeactivationError,
     UnknownActivationIdError,
     check_deactivation_permitted,
     commit_plan,
     deny_delta,
+    narrow_unresolved_warning,
     plan_activation,
     plan_deactivation,
 )
@@ -447,6 +447,22 @@ def _declared_id(path: Path, kind: ArtifactKind | None, yaml: YAML) -> str | Non
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class _Preservation:
+    """What an absent key materialises (see :func:`_preservation_set`).
+
+    ``in_force`` is ``True`` when *ids* is what was in force while the key was
+    absent; ``False`` when *ids* is a substitute and *warnings* already says what
+    was used. ``unresolved_reason`` is why the effective set could not be
+    resolved (``None`` when it was, or when no resolution was needed).
+    """
+
+    ids: list[str]
+    warnings: list[str]
+    in_force: bool
+    unresolved_reason: str | None = None
+
+
 def _preservation_set(
     repo_root: Path,
     kind: str,
@@ -455,10 +471,10 @@ def _preservation_set(
     available: frozenset[str],
     when_absent: str,
     deny: _DenyInputs | None = None,
-) -> tuple[list[str], list[str], bool]:
+) -> _Preservation:
     """What ``activate`` materializes for an absent key (#4253, #4399, #4400).
 
-    Returns ``(ids, warnings, in_force)``. ``in_force`` is ``True`` when *ids*
+    Returns a :class:`_Preservation`. ``in_force`` is ``True`` when *ids*
     is what was in force while the key was absent, so the engine may say that
     nothing in force was deactivated; ``False`` when *ids* is a substitute and
     *warnings* already says what was used.
@@ -474,9 +490,28 @@ def _preservation_set(
     ledger whose absent key puts nothing in force; it is seeded from the same
     chain-wide ``fallback_ids``, so every org pack is treated alike.
     """
-    ids, warnings, in_force = _preservation_ids(repo_root, kind, yaml_key, data, available, when_absent)
+    preservation = _preservation_ids(repo_root, kind, yaml_key, data, available, when_absent)
+    if deny is None:
+        return preservation
     # The effective deny (``D*``) is subtracted in stem space: materialising never re-adds an exclusion (FR-009).
-    return (_without_denied(ids, deny) if deny is not None else ids), warnings, in_force
+    return replace(preservation, ids=_without_denied(preservation.ids, deny))
+
+
+def _refuse_required_collisions(repo_root: Path, kind: str) -> None:
+    """Refuse to materialise an absent key while an org-required id of *kind* collides (Decision ``file_name_collision``).
+
+    The materialised list (the effective set, in stem spelling) cannot carry that
+    id: its file name stands for the other artifact, so the id is simply absent
+    and writing the list would drop the required id silently. The required ids
+    are therefore passed through :meth:`IdentityIndex.stored_spelling` (by
+    :func:`~charter.activation.org_charter.org_required_stems`), which raises
+    :class:`ActivationIdCollisionError`.
+    """
+    if kind == MISSION_TYPE_TOKEN:
+        return
+    from charter.activation.org_charter import org_required_stems
+
+    org_required_stems(repo_root, ArtifactKind.from_operator_token(kind).plural, [])
 
 
 def _preservation_ids(
@@ -486,30 +521,31 @@ def _preservation_ids(
     data: Mapping[str, Any],
     available: frozenset[str],
     when_absent: str,
-) -> tuple[list[str], list[str], bool]:
+) -> _Preservation:
     """The in-force set an absent key materialises, before the deny subtraction (see :func:`_preservation_set`)."""
     if data.get(yaml_key) is not None:
-        return [], [], True
+        return _Preservation([], [], True)
+    _refuse_required_collisions(repo_root, kind)
     if when_absent != "all":
         in_force = PackContext.from_config(repo_root).allow_for(ArtifactKind.from_plural(yaml_key.removeprefix("activated_")))
-        return sorted(str(item) for item in in_force or ()), [], True
+        return _Preservation(sorted(str(item) for item in in_force or ()), [], True)
     from charter.activation.effective_set import resolve_effective_sets
 
     effective = resolve_effective_sets(repo_root, [yaml_key])[yaml_key]
     if effective.resolved:
-        return sorted(effective.ids), [], True
+        return _Preservation(sorted(effective.ids), [], True)
     seeded = sorted(effective.fallback_ids | available)
     if kind == MISSION_TYPE_TOKEN:
         note = (
             f"Kind {kind!r} had no explicit activation set, so no mission type was in force; "
             f"initialized from the {len(seeded)} mission types available across all readable layers."
         )
-        return seeded, [note], False
+        return _Preservation(seeded, [note], False, effective.reason)
     logger.debug("effective set for %r unresolved: %s", yaml_key, effective.reason)
     warning = (
         f"The effective {kind} set could not be resolved because {effective.reason}; initialized from the {len(seeded)} ids available across all readable layers."
     )
-    return seeded, [warning], False
+    return _Preservation(seeded, [warning], False, effective.reason)
 
 
 @dataclass(frozen=True)
@@ -557,7 +593,7 @@ def _deny_inputs(repo_root: Path, kind: ArtifactKind | None, artifact_id: str) -
     def stem_of(token: str) -> str:
         return index.stem(kind, token) or token
 
-    stem = stem_of(artifact_id)
+    stem = index.stored_spelling(kind, artifact_id)
     return _DenyInputs(key, effective, stem if stem in deny else artifact_id, stem_of, tuple(deny))
 
 
@@ -576,6 +612,8 @@ class _NarrowInputs:
     previous: list[str]
     artifact_id: str
     warnings: list[str]
+    #: ``False`` when the effective set could not be resolved, so what stops being in force is unknown (#6457).
+    previous_known: bool = True
 
 
 def _narrow_inputs(
@@ -584,39 +622,44 @@ def _narrow_inputs(
     artifact_id: str,
     yaml_key: str,
     data: Mapping[str, Any],
-    preserved: list[str],
-    in_force: bool,
+    preservation: _Preservation,
 ) -> _NarrowInputs:
     """Org-required base, previous in-force ids and written id, all in activation-stem spelling.
 
-    The effective set lists org non-directive artifacts by declared id while a
-    present activation list holds stems, so *previous* and *artifact_id* are mapped
-    through the identity index first: a stem != id artifact that is kept is then
-    never reported as dropped.
+    The effective set is in stem spelling (#6435), but a present activation list
+    may still hold a legacy declared id (no normalising migration, #6527), so
+    *previous* and *artifact_id* are mapped through the identity index first: a
+    stem != id artifact that is kept is then never reported as dropped.
 
-    *previous* only ever holds ids that were in force: the present list, or *preserved*
-    when it is the in-force set. When the effective set could not be resolved,
-    *preserved* is a stand-in (ids available across the chain), so *previous* is
-    empty and a warning says the dropped list cannot be computed.
+    *previous* only ever holds ids that were in force: the present list, or the
+    preserved ids when they are the in-force set. A mission-type key that was
+    absent put nothing in force, so *previous* is empty and nothing is warned.
+    When the effective set of another kind could not be resolved, the preserved
+    ids are a stand-in (ids available across the chain), so *previous* is empty
+    and one warning says, with the reason, that the dropped list cannot be
+    computed (#6457).
     """
     from charter.activation.identity_index import IdentityIndex
     from charter.activation.org_charter import org_required_stems
 
     warnings: list[str] = []
     present = data.get(yaml_key)
+    previous_known = True
     if present is not None:
         previous = [str(item) for item in present]
-    elif in_force:
-        previous = list(preserved)
+    elif preservation.in_force:
+        previous = list(preservation.ids)
     else:
         previous = []
-        warnings.append(NARROW_UNRESOLVED_WARNING)
+        if kind is not None:  # an absent mission-type key put nothing in force: nothing to list
+            warnings.append(narrow_unresolved_warning(preservation.unresolved_reason))
+            previous_known = False
     if kind is None:  # mission-type: no ArtifactKind, no org-required base
         return _NarrowInputs([], previous, artifact_id, warnings)
     index = IdentityIndex.build(repo_root)
     base = org_required_stems(repo_root, kind.plural, warnings)
-    stems = [index.stem(kind, item) or item for item in previous]
-    return _NarrowInputs(base, list(dict.fromkeys(stems)), index.stem(kind, artifact_id) or artifact_id, warnings)
+    stems = [index.stem(kind, item) or item for item in previous]  # reported, never stored
+    return _NarrowInputs(base, list(dict.fromkeys(stems)), index.stored_spelling(kind, artifact_id), warnings, previous_known)
 
 
 @dataclass(frozen=True)
@@ -647,6 +690,11 @@ class ActivationResult:
     cascade_deactivated: dict[str, list[str]] = field(default_factory=dict)
     skipped_shared: dict[str, list[str]] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    #: The kind's list as written, in written order (reported by ``--only``, #6457).
+    listed: list[str] = field(default_factory=list)
+    #: ``False`` when ``--only`` could not tell what stopped being in force (the effective set
+    #: was unresolved), so :attr:`deactivated` is empty without meaning "nothing" (#6457).
+    dropped_known: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -933,7 +981,8 @@ def _deactivation_inputs(repo_root: Path, kind: ArtifactKind | None, artifact_id
 
     required_by = read_org_required_provenance(repo_root, kind, strict=True)
     index = IdentityIndex.build(repo_root)
-    stem = index.stem(kind, artifact_id) or artifact_id
+    # A required id, as the floor names it, is refused as required by the caller; any other id is written in stored spelling.
+    stem = artifact_id if artifact_id in required_by else index.stored_spelling(kind, artifact_id)
     declared = index.declared_id(kind, artifact_id)
     spellings = tuple(dict.fromkeys(item for item in (artifact_id, declared) if item))
     if not kind.activatable:
@@ -953,7 +1002,10 @@ def _identity_normalised(
 
     A declared id (``DIRECTIVE_024``, an org ``EVD_003``) is not a stem, so it is
     not in *available*; it becomes its stem before the availability check. The
-    identity index is built only when a token is not a known stem (NFR-003).
+    identity index is built only when a token is not a known stem (NFR-003). A
+    declared id whose file name another layer uses for a different id, given or
+    already listed, raises :class:`ActivationIdCollisionError` before any write
+    (Decision ``file_name_collision``).
     """
     present = data.get(yaml_key)
     present_list = [str(item) for item in present] if isinstance(present, list) else []
@@ -964,7 +1016,7 @@ def _identity_normalised(
     index = IdentityIndex.build(repo_root)
 
     def stem_of(token: str) -> str:
-        return index.stem(kind, token) or token
+        return index.stored_spelling(kind, token)
 
     collapsed = _collapse_spellings(present_list, stem_of)
     if present_list and collapsed != present_list:
@@ -1086,15 +1138,17 @@ class ActiveCharterManager:
         artifact_id = _identity_normalised(repo_root, self._require_kind(kind), artifact_id, yaml_key, data, available)
         deny = _deny_inputs(repo_root, self._require_kind(kind), artifact_id)
         artifact_id = deny.artifact_id
-        preserved, preservation_warnings, in_force = _preservation_set(repo_root, kind, yaml_key, data, available, when_absent, deny)
+        preservation = _preservation_set(repo_root, kind, yaml_key, data, available, when_absent, deny)
+        preserved, preservation_warnings, in_force = preservation.ids, preservation.warnings, preservation.in_force
 
         narrow: _NarrowInputs | None = None
         available_ids: Iterable[str] = available
         if only and artifact_id in available:
-            narrow = _narrow_inputs(repo_root, self._require_kind(kind), artifact_id, yaml_key, data, preserved, in_force)
+            narrow = _narrow_inputs(repo_root, self._require_kind(kind), artifact_id, yaml_key, data, preservation)
             available_ids = {*available, narrow.artifact_id}
             artifact_id = narrow.artifact_id
-            preservation_warnings = [*preservation_warnings, *narrow.warnings]
+            # The absent-key preservation warnings describe a list --only never writes (#6457).
+            preservation_warnings = list(narrow.warnings)
 
         # plan_activation validates BEFORE computing any post-state (NFR-003);
         # on an unknown ID it raises UnknownActivationIdError and no write
@@ -1121,6 +1175,8 @@ class ActiveCharterManager:
             activated=list(plan.activated),
             deactivated=list(plan.deactivated),
             warnings=preservation_warnings + list(plan.warnings) + [f"Cleared the exclusion of {item!r} ({deny.key})." for item in reinstated],
+            listed=list(plan.new_list or []),
+            dropped_known=narrow.previous_known if narrow is not None else True,
         )
 
         commit_plan(target_path, data, plan, save=save)

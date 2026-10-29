@@ -52,6 +52,8 @@ from charter.offering.artifact_kinds import (
     MissionTypeNotAnArtifactKind,
 )
 from charter.offering.discovery_recursion import overlay_scan_is_recursive
+from charter.offering.missions.repository import MissionsRootNotFound
+from charter.offering.missions.step_contracts import MissionStepContractRepository
 from charter.offering.pack_paths import (
     BuiltInContentDirNotAvailable,
     PackRootNotFound,
@@ -85,6 +87,7 @@ __all__ = [
     "resolve_artifact_urn",
     "resolve_config_id",
     "resolve_selected_id_to_stem",
+    "unknown_artifact_id_error",
 ]
 
 
@@ -221,7 +224,14 @@ def _built_in_scan_dir(kind: ArtifactKind) -> tuple[Path, bool] | None:
     ``None`` covers both the fail-soft ``built_in_dir`` errors (see the
     ``_scan_roots`` docstring) and the case where the resolved directory does
     not exist on disk.
+
+    ``mission_step_contract`` has no ``packs/built-in/<plural>/`` content dir;
+    its built-in files live in the flat ``missions/built_in_step_contracts``
+    directory, the one :class:`MissionStepContractRepository` loads (FR-015,
+    #6527), so every resolver over this scan sees them as the runtime does.
     """
+    if kind is ArtifactKind.MISSION_STEP_CONTRACT:
+        return _built_in_step_contract_dir()
     try:
         flattened_built_in = built_in_dir(kind)
     except (PackRootNotFound, BuiltInContentDirNotAvailable):
@@ -229,6 +239,15 @@ def _built_in_scan_dir(kind: ArtifactKind) -> tuple[Path, bool] | None:
     if flattened_built_in is not None and flattened_built_in.is_dir():
         return (flattened_built_in, True)
     return None
+
+
+def _built_in_step_contract_dir() -> tuple[Path, bool] | None:
+    """The flat built-in step-contract directory (non-recursive), or ``None`` when it cannot be located."""
+    try:
+        directory = MissionStepContractRepository.built_in_dir()
+    except (PackRootNotFound, MissionsRootNotFound):
+        return None
+    return (directory, False) if directory.is_dir() else None
 
 
 def _org_scan_dirs(kind: ArtifactKind, org_roots: list[Path] | None) -> list[tuple[Path, bool]]:
@@ -485,7 +504,19 @@ def resolve_artifact_urn(
             pass
     elif _declares_id(paths, config_id, id_field, yaml, resolution_pass):
         return f"{kind.value}:{config_id}"
-    raise UnknownArtifactIdError(
+    raise unknown_artifact_id_error(kind, config_id, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
+
+
+def unknown_artifact_id_error(
+    kind: ArtifactKind,
+    config_id: str,
+    *,
+    offering_root: Path,
+    org_roots: list[Path] | None = None,
+    layer_roots: dict[str, Path] | None = None,
+) -> UnknownArtifactIdError:
+    """The refusal for a token no searched layer knows; it names the searched layers (C-006)."""
+    return UnknownArtifactIdError(
         f"No {kind.value} artifact with config ID {config_id!r} found under "
         f"doctrine root {offering_root}{_org_roots_clause(org_roots)}. "
         f"Searched layers: {_searched_layers(kind, org_roots, layer_roots)}. "

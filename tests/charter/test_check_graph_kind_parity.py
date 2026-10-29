@@ -16,16 +16,16 @@ Covers:
   kind. Distinct from the whole-kind exclusion already covered by
   ``tests/charter_offering/test_activation_parity_guard.py::
   test_config_kind_absent_from_graph_bites``.
-- ``test_unresolvable_stem_names_the_id_in_verification_errors``: an unknown
-  stem yields a **specific** ``verification_errors`` entry naming the
-  unresolvable id -- not merely "an entry was appended" / "no exception
-  raised".
+- ``test_unresolvable_stem_is_reported_once_as_unknown_reference``: an unknown
+  stem is reported exactly once, by name, in ``unknown_references`` -- and no
+  longer a second time in ``verification_errors`` (#6433 / FR-017, operator
+  decision: warn and keep, report once).
 - ``test_non_drift_error_propagates_not_swallowed_as_drift``: the hardened
-  DoD guard -- a genuine non-``UnknownArtifactIdError`` failure during
-  per-stem resolution (a programming bug, not config drift) is NOT silently
-  converted into a ``verification_errors``/``graph_kind_gaps`` entry; it
-  propagates, proving the catch is narrow (``except UnknownArtifactIdError``),
-  never a broad ``except Exception``.
+  DoD guard -- a genuine failure during per-stem resolution (a programming
+  bug, not config drift) is NOT silently converted into a
+  ``verification_errors``/``graph_kind_gaps`` entry; it propagates. Since
+  #6433 the per-stem resolution goes through the identity index and catches
+  nothing at all.
 - ``test_drg_load_failure_still_fails_closed``: the pre-existing DRG-load
   fail-closed contract (#2530) survives the re-point unchanged -- this catch
   stays broad because it guards a structurally different failure mode
@@ -35,11 +35,14 @@ Covers:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 import charter.activation._drg_helpers as drg_helpers
-from charter.activation import consistency_check
+from charter.activation import drg_activation
+from charter.activation.identity_index import IdentityIndex
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.activation.consistency_check import run_consistency_check
 from charter.drg import DRGGraph
 from charter.activation.invocation_context import ProjectContext
@@ -144,19 +147,19 @@ def test_per_id_gap_named_when_node_absent_from_graph(
 
 
 # ---------------------------------------------------------------------------
-# Unresolvable stem: named verification_errors entry (T007 hardened DoD)
+# Unresolvable stem: reported once, in unknown_references (#6433)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.doctrine
-def test_unresolvable_stem_names_the_id_in_verification_errors(
+def test_unresolvable_stem_is_reported_once_as_unknown_reference(
     tmp_path: Path,
 ) -> None:
-    """An unknown stem yields a SPECIFIC verification_errors entry naming it.
+    """An unknown stem is named exactly once, in ``unknown_references``.
 
-    Not merely "an entry was appended" or "no exception raised" -- the entry
-    must name the exact unresolvable id, distinguishing "could not verify
-    graph parity for this id" from a generic failure.
+    Re-pinned for #6433 (FR-017): it used to be reported twice, as an unknown
+    reference and again as a graph-parity ``verification_errors`` entry. The
+    graph-parity check now skips a token the identity index does not know.
     """
     fake_stem = "totally-fake-directive-zzz"
     ctx = _ctx_with_config(tmp_path, f"activated_directives:\n  - {fake_stem}\n")
@@ -164,10 +167,8 @@ def test_unresolvable_stem_names_the_id_in_verification_errors(
     report = run_consistency_check(ctx)
 
     assert report.coherent is False
-    assert any(
-        entry.startswith(f"directive/{fake_stem}:")
-        for entry in report.verification_errors
-    ), f"Expected a 'directive/{fake_stem}:...' entry, got: {report.verification_errors}"
+    assert report.unknown_references == [f"directive/{fake_stem}"]
+    assert [entry for entry in report.verification_errors if fake_stem in entry] == []
 
 
 # ---------------------------------------------------------------------------
@@ -181,21 +182,34 @@ def test_non_drift_error_propagates_not_swallowed_as_drift(
     """A genuine programming-bug exception during per-stem resolution must
     propagate, never be silently reported as an ordinary drift finding.
 
-    Proves the per-stem catch is narrow (``except UnknownArtifactIdError``),
-    never a broad ``except Exception`` -- a broad catch here would let this
-    exact scenario masquerade as "just another divergence" in
-    ``verification_errors``/``graph_kind_gaps``, defeating the whole point of
-    a fail-closed *report* contract (silence would hide a real bug, not
-    surface a config problem).
+    A catch here would let this exact scenario masquerade as "just another
+    divergence" in ``verification_errors``/``graph_kind_gaps``, defeating the
+    whole point of a fail-closed *report* contract (silence would hide a real
+    bug, not surface a config problem). Since #6433 the per-stem resolution is
+    the identity index's ``declared_id``; the bug is armed only once the
+    graph-kind parity check has loaded and filtered the DRG, so the DRG-load
+    catch (a different failure mode, see below) cannot be the one that sees it.
     """
     ctx = _ctx_with_config(
         tmp_path, f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n"
     )
+    armed: list[bool] = []
+    real_filter = drg_activation.filter_graph_by_activation
+    real_declared_id = IdentityIndex.declared_id
 
-    def _boom(*_args: object, **_kwargs: object) -> str:
-        raise TypeError("simulated programming bug, not a config-drift condition")
+    def _filter_then_arm(*args: Any, **kwargs: Any) -> DRGGraph:
+        graph = real_filter(*args, **kwargs)
+        if kwargs.get("identity") is not None:  # the graph-kind parity filter, not the cross-kind one
+            armed.append(True)
+        return graph
 
-    monkeypatch.setattr(consistency_check, "resolve_artifact_urn", _boom)
+    def _boom(self: IdentityIndex, kind: ArtifactKind, token: str) -> str | None:
+        if armed:
+            raise TypeError("simulated programming bug, not a config-drift condition")
+        return real_declared_id(self, kind, token)
+
+    monkeypatch.setattr(drg_activation, "filter_graph_by_activation", _filter_then_arm)
+    monkeypatch.setattr(IdentityIndex, "declared_id", _boom)
 
     with pytest.raises(TypeError, match="simulated programming bug"):
         run_consistency_check(ctx)

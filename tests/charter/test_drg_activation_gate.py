@@ -229,9 +229,10 @@ def test_root_divergence_follows_resolve_offering_root() -> None:
 
 
 def test_resolution_is_batched_once_not_per_node(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``resolve_artifact_urn`` must be called a bounded number of times per
-    filter call -- proportional to the number of activated stems across
-    kinds, never to the number of graph nodes.
+    """Token resolution (``IdentityIndex.declared_id``, the one identity
+    authority since Decision ``urn_split``) must run a bounded number of times
+    per filter call -- proportional to the number of activated stems across
+    kinds, never to the number of graph nodes -- and one index is built per call.
 
     A per-node implementation (resolving inside ``_node_is_activated``,
     called once per node at ``drg.py:351``) would make the call count scale
@@ -240,14 +241,22 @@ def test_resolution_is_batched_once_not_per_node(monkeypatch: pytest.MonkeyPatch
     nodes of that kind exist in the graph.
     """
     call_count = 0
-    real_resolve = drg_module.resolve_artifact_urn
+    built: list[object] = []
+    real_declared_id = IdentityIndex.declared_id
+    real_from_pack_context = IdentityIndex.from_pack_context
 
-    def _counting_resolve(*args: object, **kwargs: object) -> str:
+    def _counting_declared_id(self: IdentityIndex, kind: ArtifactKind, token: str) -> str | None:
         nonlocal call_count
         call_count += 1
-        return real_resolve(*args, **kwargs)  # type: ignore[arg-type]
+        return real_declared_id(self, kind, token)
 
-    monkeypatch.setattr(drg_module, "resolve_artifact_urn", _counting_resolve)
+    def _counting_from_pack_context(ctx: PackContext, **kwargs: Path | None) -> IdentityIndex:
+        index = real_from_pack_context(ctx, **kwargs)
+        built.append(index)
+        return index
+
+    monkeypatch.setattr(IdentityIndex, "declared_id", _counting_declared_id)
+    monkeypatch.setattr(IdentityIndex, "from_pack_context", staticmethod(_counting_from_pack_context))
 
     ctx = _pack_context(activated_directives=frozenset({_REAL_DIRECTIVE_STEM}))
     small_graph = load_built_in_graph()
@@ -276,6 +285,7 @@ def test_resolution_is_batched_once_not_per_node(monkeypatch: pytest.MonkeyPatch
 
     assert small_graph_call_count > 0
     assert large_graph_call_count == small_graph_call_count
+    assert len(built) == 2  # one index per filter call
 
 
 # ---------------------------------------------------------------------------
@@ -313,32 +323,24 @@ def test_unresolvable_kind_token_yields_empty_resolution(
 
 
 # ---------------------------------------------------------------------------
-# Cross-layer-ambiguous directive id -- fail closed, not silently admitted
-# (#4194 landing remediation: the layer-precedence fix in
-# ``kind_vocabulary.resolve_config_id`` now rejects a stem two org packs
-# disagree on; this pins that the gate observes the rejection as "no URN",
-# never as a spuriously-admitted node).
+# Cross-layer-ambiguous directive file name -- the declared id still names one
+# artifact. Re-pinned by Decision ``urn_split``: the filter resolves tokens
+# through the identity index alone, like the runtime gate and compile.
 # ---------------------------------------------------------------------------
 
 
-def test_cross_layer_ambiguous_directive_id_resolves_to_no_urn(tmp_path: Path) -> None:
-    """A persisted ``activated_directives`` entry naming a declared identity
-    that is genuinely cross-layer-ambiguous -- two org packs both ship a
-    ``shared.directive.yaml`` stem, disagreeing on which id it names -- must
-    resolve to **no** canonical URN, never to ``f"directive:{token}"``
-    admitted verbatim.
+def test_cross_layer_ambiguous_directive_id_resolves_to_its_declared_urn(tmp_path: Path) -> None:
+    """Two org packs ship a ``shared.directive.yaml`` that declare different ids.
 
-    Before the fix, ``resolve_config_id`` swallowed the collision (the stale
-    reordering happened to return *some* stem without ever raising
-    ``UnrepresentableDirectiveIdError``), so ``resolve_artifact_urn``'s
-    declared-id fallback returned the unexamined token as a URN and this
-    gate would have folded a URN naming no single, unambiguous artifact into
-    the resolved set (fail **open**). After the fix, ``resolve_config_id``
-    raises, the fallback's ``except ValueError`` re-raises
-    ``UnknownArtifactIdError``, and this function's own
-    ``except UnknownArtifactIdError: continue`` (skip-with-report) drops the
-    token -- the resolved set for the whole kind is the empty frozenset
-    (block-all for this kind), never a set containing a bogus entry.
+    The file name ``shared`` cannot stand for either id (writers refuse to store
+    one, Decision ``file_name_collision``), but a hand-written declared id still
+    names exactly one artifact: ``CHOSEN-POLICY`` resolves to
+    ``directive:CHOSEN-POLICY``, the URN of the team pack's own node, as it does
+    for the runtime gate (``resolver._gated``) and compile, which already resolve
+    through the index. Before ``urn_split`` this gate used the filesystem
+    resolver, which dropped the token: the roots compile reported and the graph
+    this filter kept disagreed. The URN never names another artifact, and an id
+    no layer declares still resolves to nothing (positive control below).
     """
     company = tmp_path / "company"
     team = tmp_path / "team"
@@ -353,12 +355,12 @@ def test_cross_layer_ambiguous_directive_id_resolves_to_no_urn(tmp_path: Path) -
 
     resolved = drg_module._resolve_activated_urns_for_kind(
         "directive",
-        frozenset({"CHOSEN-POLICY"}),
+        frozenset({"CHOSEN-POLICY", "NO-SUCH-POLICY"}),
         offering_root=resolve_offering_root(),
         org_roots=[company, team],
     )
 
-    assert resolved == frozenset()
+    assert resolved == frozenset({"directive:CHOSEN-POLICY"})
 
 
 # ---------------------------------------------------------------------------

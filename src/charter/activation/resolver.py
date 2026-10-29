@@ -222,6 +222,9 @@ class ActiveCharterService:
         ``None`` admits everything (key absent). Tokens resolve to declared ids once per
         kind per service; a token no layer knows but that names a delivered item is kept
         verbatim, and any other unknown token is logged (#4240) and kept best-effort.
+        Tokens are matched stem first, regardless of layer (see
+        docs/architecture/org-doctrine-layer.md, "Activation tokens: a file name beats a
+        declared id"; #6459).
         """
         pack_ctx: PackContext | None = object.__getattribute__(self, "_pack_context")
         deny = pack_ctx.denied_for(kind) if pack_ctx is not None else DenySet.EMPTY

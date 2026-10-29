@@ -323,24 +323,16 @@ def test_interview_narrow_with_org_pack_keeps_org_required_stem_spelled_tactic(t
     assert not any("could not be listed" in warning for warning in warnings)
 
 
-def test_stem_spelled_effective_maps_declared_ids_to_stems(tmp_path: Path) -> None:
-    """A declared-id spelling in the effective set becomes the activation stem; unknown ids pass through."""
-    from charter.activation.activation_engine import EffectiveSet
-    from charter.drg import ArtifactKind
-    from specify_cli.cli.commands.charter.interview import _stem_spelled_effective
+def test_effective_set_the_narrow_promotion_reads_is_already_in_stem_spelling(tmp_path: Path) -> None:
+    """Re-pin (#6435): the seam emits stems, so the interview's former declared-id -> stem mapping is gone."""
     from tests.charter.org_pack_identity_support import write_identity_org_pack
 
     write_identity_org_pack(tmp_path)
-    key = "activated_tactics"
-    effective = {
-        key: EffectiveSet(kind="tactic", yaml_key=key, ids=frozenset({"qa-seven", "qa-tactic-seven", "ghost"})),
-        "activated_paradigms": EffectiveSet(kind="paradigm", yaml_key="activated_paradigms", resolved=False, reason="x"),
-    }
 
-    mapped = _stem_spelled_effective(tmp_path, effective, {key: ArtifactKind.TACTIC})
+    effective = resolve_effective_sets(tmp_path, ["activated_tactics"])["activated_tactics"].ids
 
-    assert mapped[key].ids == frozenset({"qa-tactic-seven", "ghost"})
-    assert mapped["activated_paradigms"] is effective["activated_paradigms"]
+    assert "qa-tactic-seven" in effective
+    assert "qa-seven" not in effective
 
 
 def test_interview_narrow_activation_failure_exits_nonzero(

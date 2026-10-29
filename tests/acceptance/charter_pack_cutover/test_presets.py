@@ -19,6 +19,7 @@ from ._support import active_charter, activation_store, covers, describe, load_y
 from .conftest import build_migrated_project
 from .legacy_fixtures import (
     ORG_DIRECTIVE_ID,
+    ORG_DIRECTIVE_STEM,
     ORG_PACK_DIR,
     ORG_PACK_NAME,
     ORG_TACTIC_ID,
@@ -149,7 +150,8 @@ def test_fr001_org_pack_preset_unioned_with_required(tmp_path: Path) -> None:
     result = activate_preset(project, "--pack", ORG_PACK_NAME, "--preset", "team")
     assert result.exit_code == 0, describe(result)
     charter: dict[str, Any] = active_charter(project)
-    assert sorted(charter["activated_directives"]) == sorted(["001-architectural-integrity-standard", ORG_DIRECTIVE_ID])
+    # Re-pin (#6527, FR-013): the preset's declared id is stored as its activation stem.
+    assert sorted(charter["activated_directives"]) == sorted(["001-architectural-integrity-standard", ORG_DIRECTIVE_STEM])
     assert sorted(charter["activated_tactics"]) == sorted(["acceptance-test-first", ORG_TACTIC_ID])
     assert_list_agrees(project, {"activated_tactics": charter["activated_tactics"]})
 

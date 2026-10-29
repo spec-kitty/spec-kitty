@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from charter.activation.activation_engine import ActivationIdCollisionError
 from charter.activation.catalog import resolve_offering_root
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
 from charter.activation.org_charter import _normalize_required_ids
@@ -114,5 +115,10 @@ def test_unrepresentable_directive_stem_is_rejected(tmp_path: Path, identity_als
         resolve_config_id("directive:CHOSEN-POLICY", **kwargs)
     with pytest.raises(ValueError, match="cannot represent"):
         resolve_selected_id_to_stem(ArtifactKind.DIRECTIVE, "CHOSEN-POLICY", **kwargs)
-    with pytest.raises(ValueError, match="cannot represent"):
+    # Writers refuse with the one collision message (Decision ``file_name_collision``).
+    with pytest.raises(ActivationIdCollisionError, match="its file name 'shared' is used by files in more than one layer") as excinfo:
         _normalize_required_ids("directives", ["CHOSEN-POLICY"], layer_roots={}, **kwargs)
+    assert excinfo.value.artifact_id == "CHOSEN-POLICY"
+    assert [declared for _where, declared in excinfo.value.declarations] == ["CHOSEN-POLICY", "OTHER-POLICY"]
+    # No built-in file is involved, so either org file may be renamed.
+    assert str(excinfo.value).endswith("Rename one of them so each ID has its own file name.")

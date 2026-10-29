@@ -53,6 +53,7 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("RequiringPack", "charter.activation.org_pack_discovery"),
     ("read_org_required_provenance", "charter.activation.org_pack_discovery"),
     ("EffectiveSet", "charter.activation.activation_engine"),
+    ("ActivationIdCollisionError", "charter.activation.activation_engine"),
     ("deny_delta", "charter.activation.activation_engine"),
     ("restamp_bundle_hash", "charter.activation.bundle_restamp"),
     ("synthesis_lock", "charter.activation.synthesizer.synthesis_lock"),

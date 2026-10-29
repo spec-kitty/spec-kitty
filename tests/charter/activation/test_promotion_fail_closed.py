@@ -162,16 +162,19 @@ def test_narrow_bases_default_none_keeps_the_append_behaviour() -> None:
     assert config[_KEY] == ["old-a", "new"]
 
 
-def test_narrow_bases_with_unresolved_effective_set_warns_like_activate_only() -> None:
-    from charter.activation.activation_engine import NARROW_UNRESOLVED_WARNING
+@pytest.mark.parametrize(("effective", "expected"), [("boom", "because boom."), (None, "could not be resolved.")], ids=["reason", "no-effective-set"])
+def test_narrow_bases_with_unresolved_effective_set_warns_like_activate_only(effective: str | None, expected: str) -> None:
+    """The interview's ``--narrow-activation`` names the reason, as ``activate --only`` does (#6457)."""
+    from charter.activation.activation_engine import narrow_unresolved_warning
 
-    effective = {_KEY: EffectiveSet(kind="procedure", yaml_key=_KEY, resolved=False, reason="boom")}
+    effective_sets = {} if effective is None else {_KEY: EffectiveSet(kind="procedure", yaml_key=_KEY, resolved=False, reason=effective)}
     config: dict[str, Any] = {}
 
-    outcome, _ = _promote(config, {_KEY: ["new"]}, effective, narrow_bases={_KEY: ["base"]})
+    outcome, _ = _promote(config, {_KEY: ["new"]}, effective_sets, narrow_bases={_KEY: ["base"]})
 
     assert config[_KEY] == ["base", "new"]
-    assert outcome.committed[0].warnings == [NARROW_UNRESOLVED_WARNING]
+    assert outcome.committed[0].warnings == [narrow_unresolved_warning(effective)]
+    assert outcome.committed[0].warnings[0].endswith(expected)
     assert outcome.committed[0].deactivated == []
 
 

@@ -115,6 +115,10 @@ from charter.activation.language_settlement import (
 # primitives the ``charter activate`` / ``interview`` commands and the runtime
 # doctor consume (#6099). Public per the respective modules' ``__all__``.
 from charter.activation.activation_engine import EffectiveSet as EffectiveSet, deny_delta as deny_delta
+
+# The one refusal every activation writer raises for a declared id whose file name
+# another layer uses for a different id (Decision ``file_name_collision``).
+from charter.activation.activation_engine import ActivationIdCollisionError as ActivationIdCollisionError
 from charter.activation.org_charter import org_required_stems as org_required_stems
 from charter.activation.pack_manager import ActivationResult as ActivationResult
 
@@ -226,6 +230,7 @@ __all__ = [
     "MANIFEST_PATH",
     "MAX_SKILL_DESCRIPTION_LENGTH",
     "MAX_SKILL_NAME_LENGTH",
+    "ActivationIdCollisionError",
     "ActivationLedger",
     "ActivationResult",
     "ActiveCharterConfigError",

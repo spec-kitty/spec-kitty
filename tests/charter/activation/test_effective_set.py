@@ -4,9 +4,9 @@ Fixture: a project declaring **two** org packs under ``charter_packs.org.packs``
 (each a flat pack with a directive, a tactic and a procedure; pack 2's procedure
 and directive declare an ``id:`` that differs from the file stem) plus one
 project-layer tactic. The seam must union built-in, both org packs and the
-project layer, emit id≠stem artifacts in their ``id:`` spelling, keep directives
-in stem spelling, and fail closed (``resolved=False`` + reason) whenever the
-offering cannot be determined.
+project layer, emit every artifact (id≠stem ones included) in stem spelling
+(#6435), and fail closed (``resolved=False`` + reason) whenever the offering
+cannot be determined.
 """
 
 from __future__ import annotations
@@ -116,12 +116,14 @@ def test_tactics_union_builtin_org_packs_and_project(project: Path) -> None:
     assert result.fallback_ids == frozenset(), "a resolved set carries no fallback"
 
 
-def test_procedure_whose_id_differs_from_its_stem_appears_in_id_spelling(project: Path) -> None:
+def test_procedure_whose_id_differs_from_its_stem_appears_in_stem_spelling(project: Path) -> None:
+    """Re-pin (#6435): the declared id is not listed beside the stem (one entry per artifact)."""
     result = _resolve(project, ["activated_procedures"])["activated_procedures"]
 
     assert result.resolved
     assert _builtin_ids("procedure") <= result.ids
-    assert {"acme-intake", ORG2_PROCEDURE_ID} <= result.ids
+    assert {"acme-intake", ORG2_PROCEDURE_STEM} <= result.ids
+    assert ORG2_PROCEDURE_ID not in result.ids
 
 
 def test_agent_profiles_cover_the_builtin_catalogue(project: Path) -> None:

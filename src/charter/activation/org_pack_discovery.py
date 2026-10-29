@@ -325,13 +325,21 @@ def _stem_normaliser(repo_root: Path, kind: ArtifactKind) -> Callable[[list[str]
     """Map raw ``required_<plural>`` ids to activation stems (the promotion path's normaliser)."""
     from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain  # noqa: PLC0415 — lazy: only needed once a required id must be normalised
     from charter.activation.org_charter import _best_effort_offering_root, _normalize_required_ids  # noqa: PLC0415 — lazy: org_charter imports this module (cycle)
+    from charter.activation.activation_engine import ActivationIdCollisionError  # lazy, like its siblings: only once a required id must be normalised
 
     offering_root = _best_effort_offering_root()
     org_roots = resolve_pack_chain(repo_root, strict=False)
     layer_roots = resolve_layer_roots(repo_root)
 
     def normalise(raw_ids: list[str]) -> list[str]:
-        stems: list[str] = _normalize_required_ids(kind.plural, raw_ids, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots, warnings=[])
+        stems: list[str] = []
+        for raw_id in raw_ids:
+            try:
+                stems.extend(_normalize_required_ids(kind.plural, [raw_id], offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots, warnings=[]))
+            except ActivationIdCollisionError:
+                # A reader, not a writer: the floor names the colliding id as the pack declares it,
+                # so a deny can never remove it; every writer refuses it (Decision ``file_name_collision``).
+                stems.append(raw_id)
         return stems
 
     return normalise

@@ -16,6 +16,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner, Result
 
+from charter.activation.activation_engine import NARROW_UNRESOLVED_WARNING
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from specify_cli.cli.commands.charter import charter_app
@@ -90,7 +91,8 @@ def test_fresh_project_only_writes_id_plus_org_required_stem_and_names_every_dro
     assert _ORG_STEM not in dropped and _ORG_ID not in dropped, "a kept stem != id artifact must not be reported dropped"
     assert _TARGET not in dropped
     # every formerly effective toolguide other than the kept ones is named (positive control: `available`)
-    assert dropped == {a for a in available if a not in stems_kept and a != _ORG_ID}
+    assert dropped == {a for a in available if a not in stems_kept}
+    assert _ORG_ID not in (_list(root) or [])
 
 
 def test_only_replaces_a_present_list_and_a_following_plain_activate_appends(tmp_path: Path) -> None:
@@ -125,7 +127,8 @@ def test_without_only_the_list_is_unchanged_and_the_warning_says_it_is_frozen(tm
 
     assert result.exit_code == 0, result.output
     written = _list(root) or []
-    assert _TARGET in written and set(available) <= set(written) | {_ORG_ID}
+    assert _TARGET in written and set(available) <= set(written)
+    assert _ORG_ID not in written, "the org artifact is written once, by its stem (#6435)"
     out = " ".join(result.output.split())
     assert "had no explicit activation set. Initialized from the" in out
     assert "This list is now explicit" in out and "--only" in out
@@ -154,10 +157,11 @@ def test_only_with_cascade_narrows_only_the_named_kind(tmp_path: Path) -> None:
         listed_other = data[YAML_KEY_MAP[kind]]
         available_other = set(ActiveCharterManager().list_available(ProjectContext.from_repo(root), kind))
         assert item in listed_other
-        assert available_other - {_ORG_ID} <= set(listed_other), f"{kind} was narrowed instead of appended"
+        assert available_other <= set(listed_other), f"{kind} was narrowed instead of appended"
+        assert _ORG_ID not in listed_other, "no declared id is written beside its stem (#6435)"
 
 
-def test_only_with_an_unresolvable_effective_set_keeps_the_warnings_and_names_no_stand_in_dropped_ids(tmp_path: Path) -> None:
+def test_only_with_an_unresolvable_effective_set_warns_once_with_the_reason_and_names_no_stand_in_dropped_ids(tmp_path: Path) -> None:
     gone = tmp_path / "does-not-exist"
     root = _project(tmp_path, required=False, extra="")
     config = root / ".kittify" / "config.yaml"
@@ -166,7 +170,10 @@ def test_only_with_an_unresolvable_effective_set_keeps_the_warnings_and_names_no
     result = ActiveCharterManager().activate(ProjectContext.from_repo(root), "toolguide", _TARGET, only=True)
 
     assert _list(root) == [_TARGET]
-    assert any("could not be resolved" in warning for warning in result.warnings), result.warnings
+    unresolved = [warning for warning in result.warnings if "could not be resolved" in warning]
+    assert len(unresolved) == 1, result.warnings  # one narrow warning, never also the preservation one (#6457)
+    assert unresolved[0].startswith(NARROW_UNRESOLVED_WARNING.removesuffix(".") + " because ") and "not fetched" in unresolved[0]
+    assert not any("initialized from" in warning for warning in result.warnings), "no absent-key preservation warning under --only (#6457)"
     assert result.deactivated == [], "an unresolved effective set must not be replaced by a stand-in list of dropped ids"
 
 

@@ -91,6 +91,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "NARROW_UNRESOLVED_WARNING",
+    "ActivationIdCollisionError",
     "ActivationPlan",
     "DeactivationRefused",
     "EffectiveSet",
@@ -100,6 +101,8 @@ __all__ = [
     "check_deactivation_permitted",
     "commit_plan",
     "deny_delta",
+    "narrow_unresolved_warning",
+    "org_required_freeze_warning",
     "plan_activation",
     "plan_deactivation",
     "promote_activations",
@@ -128,6 +131,36 @@ class UnknownActivationIdError(ValueError):
             f"No artifact with that ID is available for kind {kind!r}. "
             f"Run `charter list --show-available` to inspect available IDs, "
             f"or `doctor charter-packs` to verify the doctrine corpus is intact."
+        )
+
+
+class ActivationIdCollisionError(ValueError):
+    """A declared ID whose file name another layer's file uses for a different ID (Decision ``file_name_collision``).
+
+    The file name is the activation stem, and stem-first lookup gives it to the
+    other file's ID, so no stored spelling can name this ID: a pack-content
+    error. Every writer that would store the ID raises this before any write.
+    A plain :class:`ValueError`, not an :class:`UnknownActivationIdError`: the ID
+    is known, and callers that skip unknown IDs must not skip this one.
+
+    *declarations* are ``(file description, declared ID)`` pairs in layer
+    precedence order, e.g. ``("org file /acme/directives/024-x.directive.yaml", "ACME_024")``.
+    *rename* names the files to rename when a built-in file (which cannot be
+    renamed) takes part; empty means any one of the files may be renamed.
+    Callers say what they did not write.
+    """
+
+    def __init__(self, kind: str, artifact_id: str, file_name: str, declarations: Sequence[tuple[str, str]], rename: Sequence[str] = ()) -> None:
+        self.kind = kind
+        self.artifact_id = artifact_id
+        self.file_name = file_name
+        self.declarations = tuple(declarations)
+        owners = "; ".join(f"the {where} declares {declared!r}" for where, declared in self.declarations)
+        target = " and the ".join(rename) if rename else ""
+        advice = f"Rename the {target}" if target else "Rename one of them"
+        super().__init__(
+            f"Cannot store {kind} {artifact_id!r}: its file name {file_name!r} is used by files in more than one layer that declare different IDs ({owners}), "
+            f"so the file name cannot stand for {artifact_id!r}. {advice} so each ID has its own file name."
         )
 
 
@@ -243,6 +276,26 @@ FROZEN_LIST_NOTE = (
 )
 
 
+def org_required_freeze_warning(kind: str, plural: str) -> str:
+    """Why writing a "required" kind's list freezes the org-required set (#6458).
+
+    While the key of a kind with ``effective_when_absent == "required"`` is
+    absent, the org packs' ``required_<plural>`` are in force as they change;
+    an explicit list holds them at their current values.
+    """
+    return (
+        f"Kind {kind!r} now has an explicit activation list, so the org packs' required {plural} are frozen at their current values: "
+        f"a {kind} an org pack later adds to required_{plural} will not reach this project."
+    )
+
+
+def _freeze_warnings(kind: str, yaml_key: str, effective_when_absent: str) -> list[str]:
+    """``[freeze warning]`` for a kind whose absent key puts only org-required ids in force, else ``[]``."""
+    if effective_when_absent != "required":
+        return []
+    return [org_required_freeze_warning(kind, yaml_key.removeprefix("activated_"))]
+
+
 def _current_list(config_data: Mapping[str, Any], yaml_key: str) -> list[str] | None:
     """Return the current activation list for *yaml_key*, or ``None`` if absent.
 
@@ -311,10 +364,12 @@ def _materialise_absent(
         materialized = [item for item in dict.fromkeys(available_ids) if item not in exclude]
     warnings: list[str] = []
     if in_force:
+        # A "required" kind gets the freeze warning instead: --only writes a list too, so it does not avoid the freeze (#6458).
+        note = "" if effective_when_absent == "required" else FROZEN_LIST_NOTE
         warnings.append(
             f"Kind {kind!r} had no explicit activation set. "
             f"Initialized from the {len(materialized)} artifact(s) already effective, "
-            "so nothing in force was deactivated." + FROZEN_LIST_NOTE
+            "so nothing in force was deactivated." + note
         )
     return materialized, warnings
 
@@ -326,6 +381,13 @@ def _materialise_absent(
 
 #: Warning shared by every narrowing caller when what was in force cannot be listed.
 NARROW_UNRESOLVED_WARNING = "What stopped being in force cannot be listed: the effective set could not be resolved."
+
+
+def narrow_unresolved_warning(reason: str | None) -> str:
+    """:data:`NARROW_UNRESOLVED_WARNING`, naming *reason* when one is known (#6457)."""
+    if not reason:
+        return NARROW_UNRESOLVED_WARNING
+    return f"{NARROW_UNRESOLVED_WARNING.removesuffix('.')} because {reason}."
 
 
 def plan_narrowed_list(yaml_key: str, selection: Iterable[str], base: Iterable[str], previous: Iterable[str]) -> ActivationPlan:
@@ -471,7 +533,10 @@ def plan_activation(
     deny = _deny_list(deny_key, current_deny)
 
     if narrow_base is not None:
-        return _with_deny(plan_narrowed_list(yaml_key, [artifact_id], narrow_base, previous_ids), deny_key, deny, artifact_id, deny_change)
+        # --only writes the list on every run, so a "required" kind is frozen every run (#6458).
+        narrowed = plan_narrowed_list(yaml_key, [artifact_id], narrow_base, previous_ids)
+        narrowed = dataclasses.replace(narrowed, warnings=[*narrowed.warnings, *_freeze_warnings(kind, yaml_key, effective_when_absent)])
+        return _with_deny(narrowed, deny_key, deny, artifact_id, deny_change)
 
     if current is None and effective_when_absent == "all" and artifact_id in deny:
         # D-09: clearing the exclusion is enough; materialising would freeze the list.
@@ -492,6 +557,7 @@ def plan_activation(
         new_list, warnings = _materialise_absent(
             kind, effective_ids, available_ids, effective_when_absent=effective_when_absent, in_force=effective_ids_in_force, exclude=effective_deny - {artifact_id}
         )
+        warnings.extend(_freeze_warnings(kind, yaml_key, effective_when_absent))
     else:
         new_list = list(current)
 
@@ -647,8 +713,8 @@ class EffectiveSet:
     yaml_key:
         The activation key (e.g. ``"activated_procedures"``).
     ids:
-        The effective ids, in the spelling the activation filter compares
-        against. Empty when :attr:`resolved` is ``False``.
+        The effective ids, as activation stems (one entry per artifact; #6435).
+        Empty when :attr:`resolved` is ``False``.
     resolved:
         ``False`` when the set could not be determined; the caller must then
         leave the key absent and report :attr:`reason` (never write a bare list).
@@ -746,7 +812,7 @@ def _plan_promotion(
         previous = current if current is not None else sorted(effective.ids) if effective is not None and resolved else []
         plan = plan_narrowed_list(yaml_key, [item for item in ids if denied.admits(item)], narrow_base, previous)
         if current is None and not resolved:
-            plan.warnings.append(NARROW_UNRESOLVED_WARNING)
+            plan.warnings.append(narrow_unresolved_warning(effective.reason if effective is not None else None))
         return plan
 
     if current is None:

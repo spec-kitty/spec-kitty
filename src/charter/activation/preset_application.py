@@ -57,21 +57,21 @@ activatable check as the positional path. The preset name is never persisted.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
 from ruamel.yaml.error import YAMLError
 
-from charter.activation.activation_engine import deny_delta
+from charter.activation.activation_engine import ActivationIdCollisionError, deny_delta
 from charter.activation.activation_ledger import DenyListChoice, deny_key
 from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.charter_yaml_io import apply_yaml_write
 from charter.activation.catalog import resolve_offering_root
 from charter.activation.identity_index import IdentityIndex
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
+from charter.activation.kind_vocabulary import ResolutionPass
 from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 from charter.activation.org_charter import REQUIRED_KIND_FIELDS, load_org_charter_policies
 from charter.activation.pack_context import ActiveCharterConfigError, load_denied
@@ -179,12 +179,15 @@ class PresetIdUnresolvedError(PresetApplicationError):
         self.preset_file = preset_file
         self.unresolved = {key: list(ids) for key, ids in unresolved.items()}
         self.reasons = dict(reasons or {})
-        named = sorted({*(f"{key}: {', '.join(ids)}" for key, ids in self.unresolved.items() if ids), *(f"{key}: {why}" for key, why in self.reasons.items())})
-        headline = "lists ids that resolve nowhere in the offering" if self.unresolved else "lists ids that cannot be checked against the offering"
+        # A key with a reason is explained by it; only the others resolve nowhere.
+        nowhere = {key: ids for key, ids in self.unresolved.items() if ids and key not in self.reasons}
+        listed = (f"{key}: {', '.join(ids)}" for key, ids in nowhere.items())
+        named = sorted({*listed, *(f"{key}: {why}" for key, why in self.reasons.items())})
+        headline = "lists ids that resolve nowhere in the offering" if nowhere else "lists ids that cannot be checked against the offering"
         super().__init__(f"{preset_file} {headline} ({'; '.join(named)})")
 
     def detail_lines(self) -> list[str]:
-        lines = [f"  {key}: {item}" for key, ids in self.unresolved.items() for item in ids]
+        lines = [f"  {key}: {item}" for key, ids in self.unresolved.items() if key not in self.reasons for item in ids]
         lines.extend(f"  {key}: {why}" for key, why in self.reasons.items())
         return lines
 
@@ -353,33 +356,11 @@ class _Roots:
 
     offering_root: Path
     org_roots: list[Path]
-    layer_roots: dict[str, Path]
     resolution_pass: ResolutionPass
 
     @classmethod
-    def of(cls, repo_root: Path, org_roots: Sequence[Path], resolution_pass: ResolutionPass | None = None) -> _Roots:
-        layer_roots = {layer: root for layer, root in resolve_layer_roots(repo_root).items() if layer != "org"}
-        return cls(resolve_offering_root(), list(org_roots), layer_roots, resolution_pass or ResolutionPass())
-
-
-def _artifact_id_resolves(kind: ArtifactKind, raw_id: str, roots: _Roots) -> bool:
-    """Whether *raw_id* (a config stem or a declared ``id:``) names an artifact of *kind* in the offering."""
-    scope: dict[str, Any] = {
-        "offering_root": roots.offering_root,
-        "org_roots": roots.org_roots,
-        "layer_roots": roots.layer_roots,
-        "resolution_pass": roots.resolution_pass,
-    }
-    try:
-        resolve_artifact_urn(kind, raw_id, **scope)
-        return True
-    except UnknownArtifactIdError:
-        pass
-    try:
-        resolve_config_id(f"{kind.value}:{raw_id}", **scope)
-        return True
-    except ValueError:
-        return False
+    def of(cls, org_roots: Sequence[Path], resolution_pass: ResolutionPass | None = None) -> _Roots:
+        return cls(resolve_offering_root(), list(org_roots), resolution_pass or ResolutionPass())
 
 
 def _check_anti_patterns(repo_root: Path, ids: Sequence[str], unresolved: dict[str, list[str]], reasons: dict[str, str]) -> None:
@@ -394,18 +375,15 @@ def _check_anti_patterns(repo_root: Path, ids: Sequence[str], unresolved: dict[s
     unresolved[key] = _missing(key, ids, known)
 
 
-def _check_artifact_ids(
-    roots_of: Callable[[], _Roots], repo_root: Path, preset: ActivationPreset, unresolved: dict[str, list[str]], reasons: dict[str, str]
-) -> None:
-    """Resolve every listed per-kind id, one targeted lookup per id (only listed kinds are read)."""
+def _check_artifact_ids(identity: IdentityIndex, repo_root: Path, preset: ActivationPreset, unresolved: dict[str, list[str]], reasons: dict[str, str]) -> None:
+    """Resolve every listed per-kind id (a stem, a declared id or a ``<kind>:<id>`` URN, FR-011) through the index (only listed kinds are read)."""
     for kind in preset.listed_kinds():
         key = preset_activation_key(kind)
         ids = preset.activations[key]
         if kind is ArtifactKind.ANTI_PATTERN:
             _check_anti_patterns(repo_root, ids, unresolved, reasons)
             continue
-        roots = roots_of()
-        unresolved[key] = [item for item in ids if not _artifact_id_resolves(kind, item, roots)]
+        unresolved[key] = [item for item in ids if not identity.knows(kind, item)]
 
 
 def _check_mission_types(repo_root: Path, preset: ActivationPreset, org_roots: Sequence[Path], unresolved: dict[str, list[str]], reasons: dict[str, str]) -> None:
@@ -456,18 +434,19 @@ def _org_roots_or_refuse(repo_root: Path, preset: ActivationPreset) -> list[Path
         raise PresetIdUnresolvedError(preset.source, {}, {_ORG_PACKS_KEY: str(exc)}) from exc
 
 
-def _resolve_preset_ids(repo_root: Path, preset: ActivationPreset) -> _Roots:
-    """Raise :class:`PresetIdUnresolvedError` unless every listed id resolves; return the roots it resolved against."""
+def _resolve_preset_ids(repo_root: Path, preset: ActivationPreset) -> tuple[_Roots, IdentityIndex]:
+    """Raise :class:`PresetIdUnresolvedError` unless every listed id resolves; return the roots and the index it resolved against."""
     org_roots = _org_roots_or_refuse(repo_root, preset)
-    shared = _Roots.of(repo_root, org_roots)
+    shared = _Roots.of(org_roots)
+    identity = IdentityIndex.build(repo_root, org_roots=shared.org_roots, resolution_pass=shared.resolution_pass, offering_root=shared.offering_root)
     unresolved: dict[str, list[str]] = {}
     reasons: dict[str, str] = {}
-    _check_artifact_ids(lambda: shared, repo_root, preset, unresolved, reasons)
+    _check_artifact_ids(identity, repo_root, preset, unresolved, reasons)
     _check_mission_types(repo_root, preset, org_roots, unresolved, reasons)
     unresolved = {key: ids for key, ids in unresolved.items() if ids}
     if unresolved or reasons:
         raise PresetIdUnresolvedError(preset.source, unresolved, reasons)
-    return shared
+    return shared, identity
 
 
 # ---------------------------------------------------------------------------
@@ -502,12 +481,24 @@ def _union(yaml_key: str, listed: Iterable[str], extra: Iterable[str], identity:
     return result
 
 
+def _stored_spelling(yaml_key: str, ids: Iterable[str], identity: IdentityIndex | None) -> list[str]:
+    """*ids* as activation stems, first occurrence kept (#6527, FR-013); without an index, as given.
+
+    A colliding declared id raises :class:`ActivationIdCollisionError` (Decision ``file_name_collision``).
+    """
+    kind = _KIND_BY_KEY.get(yaml_key)
+    if identity is None or kind is None:
+        return list(ids)
+    return list(dict.fromkeys(identity.stored_spelling(kind, item) for item in ids))
+
+
 def _target_state(preset: ActivationPreset, required: Mapping[str, list[str]], identity: IdentityIndex | None = None) -> dict[str, _Value]:
-    """The value every key this preset governs takes (``None`` = absent)."""
+    """The value every key this preset governs takes (``None`` = absent); listed and org-required ids are stored as stems."""
     target: dict[str, _Value] = {}
     for key in preset_activation_keys():
         listed = preset.activations.get(key)
-        target[key] = None if listed is None else _union(key, listed, required.get(key.removeprefix("activated_"), ()), identity)
+        union = None if listed is None else _union(key, listed, required.get(key.removeprefix("activated_"), ()), identity)
+        target[key] = None if union is None else _stored_spelling(key, union, identity)
     gate = preset.activated_kinds
     target[ACTIVATED_KINDS_KEY] = None if gate is None else _union(ACTIVATED_KINDS_KEY, gate, required)
     if preset.mission_type_activations is not None:
@@ -539,7 +530,11 @@ def _same(left: object, right: object) -> bool:
     return left == right
 
 
-def _customised(key: str, before: object, after: object, defaults: Mapping[str, _Value]) -> bool:
+def _customised(key: str, before: object, after: object, defaults: Mapping[str, _Value], identity: IdentityIndex | None = None) -> bool:
+    """Whether *before* is a hand-made list; a stored list that only spells *after* differently is not (#6527)."""
+    kind = _KIND_BY_KEY.get(key)
+    if isinstance(before, list) and identity is not None and kind is not None:
+        before = list(dict.fromkeys(identity.stem(kind, str(item)) or str(item) for item in before))  # a comparison, never stored
     return before is not None and not _same(before, after) and not _same(before, defaults.get(key))
 
 
@@ -622,9 +617,13 @@ def plan_preset_application(repo_root: Path, pack_name: str, preset_name: str) -
     """
     pack = find_offering_pack(repo_root, pack_name)
     preset = load_pack_preset(pack, preset_name)
-    roots = _resolve_preset_ids(repo_root, preset)
-    identity = IdentityIndex.build(repo_root, org_roots=roots.org_roots, resolution_pass=roots.resolution_pass) if _lists_ids(preset) else None
-    target = _target_state(preset, _org_required(repo_root, preset), identity)
+    roots, index = _resolve_preset_ids(repo_root, preset)
+    identity = index if _lists_ids(preset) else None
+    try:
+        target = _target_state(preset, _org_required(repo_root, preset), identity)
+    except ActivationIdCollisionError as exc:  # a listed or org-required id collides (Decision ``file_name_collision``)
+        key = preset_activation_key(ArtifactKind.from_operator_token(exc.kind))
+        raise PresetIdUnresolvedError(preset.source, {key: [exc.artifact_id]}, {key: str(exc)}) from exc
     target_file, document = _read_target(repo_root)
     deny = _deny_partition(repo_root, target, document, roots, identity)
     defaults = _default_values()
@@ -642,7 +641,7 @@ def plan_preset_application(repo_root: Path, pack_name: str, preset_name: str) -
             removed.append(key)
         else:
             written[key] = after
-        if _customised(key, before, after, defaults):
+        if _customised(key, before, after, defaults, identity):
             customised.append(key)
     return PresetPlan(
         pack=pack.name,
