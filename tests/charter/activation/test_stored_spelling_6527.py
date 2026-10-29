@@ -204,7 +204,17 @@ WRITERS: dict[str, Callable[[Path], None]] = {
 }
 
 
-@pytest.mark.parametrize("writer", list(WRITERS))
+# The cascade writer walks a full built-in cascade: ~96 s locally, 134.5 s on a
+# per-PR CI runner (run 40834277976), and over the 240 s pytest.ini default on a
+# ~2.2x slower runner (#6777). Headroom: 600 s, about 2x that slow-runner estimate
+# (134.5 s * 2.2 = ~296 s). Drop this override once #6777 shrinks the walk.
+_CASCADE_TIMEOUT_S = 600
+
+
+@pytest.mark.parametrize(
+    "writer",
+    [pytest.param(name, marks=pytest.mark.timeout(_CASCADE_TIMEOUT_S)) if name == "cascade" else name for name in WRITERS],
+)
 def test_writer_stores_stems_only(tmp_path: Path, writer: str) -> None:
     root = _project(tmp_path)
 
