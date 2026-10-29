@@ -41,7 +41,9 @@ _NOTE = "unrelated dirty file(s) ignored (not owned by WP01)"
 
 
 def _claim_wp01_and_dirty_bookkeeping(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mission_slug: str) -> tuple[Path, str]:
-    repo_root, mission_dirname = _build_flat_two_lane_mission(tmp_path, monkeypatch, mission_slug=mission_slug)
+    # WP01 owns ``src/**``, so the lane commit below is the implementation evidence the #6715
+    # move-into-review gate reads (the fixture's intent, the #6651 stdout contract, is unchanged).
+    repo_root, mission_dirname = _build_flat_two_lane_mission(tmp_path, monkeypatch, mission_slug=mission_slug, own_src=True)
     claim = _run_implement(mission_dirname, "WP01")
     assert claim.exit_code == 0, claim.output
 

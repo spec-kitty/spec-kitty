@@ -291,11 +291,14 @@ def _build_flat_two_lane_mission(
     monkeypatch: pytest.MonkeyPatch,
     *,
     mission_slug: str,
+    own_src: bool = False,
 ) -> tuple[Path, str]:
     """Build a ``lanes``-topology (no coordination_branch) control mission.
 
     Everything -- planning artifacts, WP files, and status -- lives on the
     single target/primary branch; there is no coordination branch to pollute.
+    With *own_src*, WP01/WP02 own ``src/**`` (planned with the WP files), so a
+    lane commit there is the evidence the #6715 move-into-review gate reads.
     """
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -352,6 +355,8 @@ def _build_flat_two_lane_mission(
 
     write_wp(repo_root, mission_dirname, "planned", "WP01")
     write_wp(repo_root, mission_dirname, "planned", "WP02")
+    if own_src:
+        _own_src(feature_dir)
 
     write_analysis_report(
         feature_dir=feature_dir,

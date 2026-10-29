@@ -100,6 +100,7 @@ from tests.specify_cli.charter_preflight._fixtures import (
     seed_manifest,
     write_metadata,
 )
+from tests.specify_cli.cli.commands.agent.test_issue_4905_coord_staging import _commit_wp01_implementation, _own_src
 from tests.utils import _seed_canonical_wp_state, write_wp
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
@@ -165,6 +166,7 @@ def _build_coord_mission(
     monkeypatch: pytest.MonkeyPatch,
     *,
     mission_slug: str,
+    own_src: bool = False,
 ) -> tuple[Path, str, str]:
     """Build a 2-lane coord-topology mission (WP01 -> lane-a, WP02 -> lane-b).
 
@@ -252,6 +254,10 @@ def _build_coord_mission(
 
     write_wp(repo_root, mission_dirname, "planned", "WP01", seed_canonical=False)
     write_wp(repo_root, mission_dirname, "planned", "WP02", seed_canonical=False)
+    if own_src:
+        # #6715: WP01/WP02 own ``src/**`` (planned with the WP files), so a lane commit there is
+        # the implementation evidence the move-into-review gate reads.
+        _own_src(target_feature_dir)
 
     write_analysis_report(
         feature_dir=target_feature_dir,
@@ -478,11 +484,13 @@ def test_coord_second_wp_starts_e2e(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     leave the coordination branch tree with zero ``tasks/WP*.md`` blobs, and
     WP02 must start without ``PlanningCommitMergeConflictError``.
     """
-    repo_root, mission_dirname, coord_branch = _build_coord_mission(tmp_path, monkeypatch, mission_slug="wp03-4905-e2e")
+    repo_root, mission_dirname, coord_branch = _build_coord_mission(tmp_path, monkeypatch, mission_slug="wp03-4905-e2e", own_src=True)
 
     claim_wp01 = _run_agent_action_implement(mission_dirname, "WP01")
     assert claim_wp01.exit_code == 0, claim_wp01.output
     assert _wp_task_blobs_on_coord(repo_root, coord_branch, mission_dirname) == []
+    # #6715: the implementation the review hand-off requires, committed on WP01's lane.
+    _commit_wp01_implementation(repo_root, mission_dirname)
 
     move = _run_move_task(mission_dirname, "WP01", "for_review")
     assert move.exit_code == 0, move.output
