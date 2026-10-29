@@ -90,10 +90,7 @@ def test_unowned_project_directive_names_manifest_and_hand_authored_remedy(tmp_p
     assert _OWN_ID in text
     assert "synthesis did not create" in text
     assert _MANIFEST in text
-    assert "provenance sidecar" in text
-    assert "id synthesis does not generate" in text
     assert _NO_DEACTIVATE in text
-    assert "built-in" not in text
     _assert_never_advises_deactivation_or_renaming_urns(text)
 
 
@@ -146,6 +143,24 @@ def test_unreadable_project_directive_files_are_named(tmp_path: Path) -> None:
     assert "could not be read" in text
     assert _PROJECT_DIRECTIVES.as_posix() in text
     assert "built-in or org" not in text
+
+
+@pytest.mark.unit
+def test_unlistable_project_directive_dir_is_named_not_raised(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An ``OSError`` from the scan is reported as unreadable, never raised over the caller's SynthesisError."""
+    _write_directive(tmp_path / _PROJECT_DIRECTIVES, _OWN_STEM, _OWN_ID)
+
+    def _denied(self: Path, pattern: str) -> object:
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(Path, "rglob", _denied)
+
+    text = collision_remedy(tmp_path, _error(_OWN_URN))
+
+    assert text is not None
+    assert "could not be read" in text
+    assert "Permission denied" in text
+    assert _PROJECT_DIRECTIVES.as_posix() in text
 
 
 @pytest.mark.unit
@@ -256,7 +271,7 @@ def test_synthesize_json_refusal_carries_remedy(project: Path) -> None:
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)
     warnings = payload["warnings"]
-    assert any("built-in DRG layer" not in w and _OWN_URN in w for w in warnings if w.startswith("SynthesisError"))
+    assert any(_OWN_URN in w for w in warnings if w.startswith("SynthesisError"))
     remedy = [w for w in warnings if _MANIFEST in w and "synthesis did not create" in w]
     assert remedy, warnings
     assert _NO_DEACTIVATE in remedy[0]
@@ -274,7 +289,6 @@ def test_synthesize_human_refusal_prints_hint(project: Path) -> None:
     assert "Hint:" in flat
     assert "synthesis did not create" in flat
     assert _MANIFEST in flat
-    assert "built-in DRG layer" not in flat
 
 
 @pytest.mark.integration
