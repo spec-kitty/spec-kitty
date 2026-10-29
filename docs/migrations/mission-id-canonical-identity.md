@@ -2,7 +2,7 @@
 title: 'Migration: Mission ID as Canonical Identity'
 description: "Migration to mission_id (ULID) as a mission's canonical identity, shipped with mission 083: the new identity model, the backfill, and the ADR behind it."
 doc_status: active
-updated: '2026-09-26'
+updated: '2026-10-27'
 related:
 - docs/migrations/feature-flag-deprecation.md
 ---
@@ -112,6 +112,12 @@ The command walks `kitty-specs/` and classifies every mission:
 - `legacy` — mission has no `mission_id`; backfill required.
 - `conflict` — two or more legacy missions share a `mission_slug` or
   `mission_number`; they need human disambiguation before backfill.
+- `residue` — the folder is not a Mission: it has no `meta.json`, or an
+  untracked one with no `mission_id`. Selection does not list it. Delete it
+  if it is leftover. If it is a real Mission, restore its `meta.json` from
+  git history, or re-create it with `spec-kitty agent mission create` and
+  move its `spec.md` in.
+  `--fail-on residue` makes the audit exit 1 while any remain.
 
 **Expected output** for a project with one legacy mission:
 
