@@ -936,3 +936,56 @@ def test_repair_keeps_primary_event_backed_entry_when_coord_log_is_absent(tmp_pa
 
     after_ids = {item.decision_id for item in _store.load_index(mission_dir).entries}
     assert decision_id in after_ids
+
+
+# ---------------------------------------------------------------------------
+# #4848 -- a log that already holds identical duplicate openings reads again
+# ---------------------------------------------------------------------------
+
+
+def test_doctor_and_repair_accept_identical_duplicate_openings(tmp_path: Path) -> None:
+    """Concurrent identical opens (#4848) left two ``DecisionPointOpened`` rows
+    whose payloads differ only in ``recorded_at``. ``doctor decisions`` reports
+    no malformed fold for them, ``--repair`` rebuilds the missing index entry
+    equal to the original, and the event log is never rewritten."""
+    _setup_meta(tmp_path)
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    resp = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="dup-open-step",
+        input_key="dup-open-key",
+        question="Q?",
+        options=("a", "b"),
+        actor="alice",
+    )
+    mission_dir = _mission_dir(tmp_path)
+    events_path = mission_dir / "status.events.jsonl"
+    (opened,) = [e for e in _events_for_decision(tmp_path, resp.decision_id) if e["event_type"] == DECISION_POINT_OPENED]
+    duplicate = {
+        **opened,
+        "event_id": f"{opened['event_id']}-dup",
+        "at": "2099-01-01T00:00:00+00:00",
+        "payload": {**opened["payload"], "recorded_at": "2099-01-01T00:00:00+00:00"},
+    }
+    with events_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(duplicate) + "\n")
+
+    original = next(e for e in _store.load_index(mission_dir).entries if e.decision_id == resp.decision_id)
+    index = _store.load_index(mission_dir)
+    _store.save_index(mission_dir, index.model_copy(update={"entries": tuple(e for e in index.entries if e.decision_id != resp.decision_id)}))
+    log_before = events_path.read_bytes()
+
+    exit_code, payload = _invoke_doctor_decisions_json(tmp_path, MISSION_SLUG, repair=False)
+    assert exit_code == 0, payload
+    assert payload["malformed_folds"] == [], payload
+    assert resp.decision_id in payload["missing_from_index"], payload
+
+    exit_code, payload = _invoke_doctor_decisions_json(tmp_path, MISSION_SLUG, repair=True)
+    assert exit_code == 0, payload
+    assert payload["malformed_folds"] == [], payload
+
+    rebuilt = next(e for e in _store.load_index(mission_dir).entries if e.decision_id == resp.decision_id)
+    assert rebuilt == original
+    assert events_path.read_bytes() == log_before, "doctor --repair must never rewrite the event log"
