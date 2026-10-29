@@ -41,6 +41,9 @@ _REMEDY = "spec-kitty charter generate --from-interview"
 _BROKEN_YAML = "this: is not: a valid charter\n\t- broken\n:::\n"
 _LIST_ROOT_YAML = "- a\n- b\n"
 _COMMENT_ONLY_YAML = "# nothing here\n"
+_NOTHING_WRITTEN = "Nothing was written."
+_MISSING_REL = ".kittify/charter/missing.yaml"
+_POINTER_REMEDY = "point the `charter:` key in .kittify/config.yaml at an existing file or remove it"
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -105,6 +108,8 @@ def _assert_text_refusal(text: str) -> None:
     assert "Unexpected" not in text, text
     assert "Bundle schema version" not in text, text
     assert "spec-kitty upgrade" not in text, text
+    # status is read-only: its refusals never say "Nothing was written."
+    assert _NOTHING_WRITTEN not in text, text
 
 
 def _assert_json_refusal(result: object) -> str:
@@ -120,6 +125,7 @@ def _assert_json_refusal(result: object) -> str:
     assert "Unexpected" not in message, message
     assert "Bundle schema version" not in message, message
     assert "spec-kitty upgrade" not in message, message
+    assert _NOTHING_WRITTEN not in message, message
     return message
 
 
@@ -142,6 +148,49 @@ def test_status_json_refuses_unsound_charter_with_canonical_envelope(project: Pa
 
     _assert_refused(result, before, project)
     _assert_json_refusal(result)
+
+
+def _point_charter_at_missing_file(repo: Path) -> None:
+    """Set the ``.kittify/config.yaml`` ``charter:`` pointer to a file that does not exist."""
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    config_path = repo / ".kittify" / "config.yaml"
+    config = yaml.load(config_path.read_text(encoding="utf-8")) if config_path.is_file() else None
+    config = config if config is not None else {}
+    config["charter"] = _MISSING_REL
+    with config_path.open("w", encoding="utf-8") as handle:
+        yaml.dump(config, handle)
+
+
+def test_status_text_refuses_a_dangling_charter_pointer_with_a_fitting_remedy(project: Path) -> None:
+    _point_charter_at_missing_file(project)
+    before = _snapshot(project)
+
+    text = _assert_refused(_invoke(project, "status"), before, project)
+
+    assert f"Error ({_CODE}):" in text, text
+    assert f"'charter:' pointer names {_MISSING_REL}, which does not exist." in text, text
+    assert _POINTER_REMEDY in text, text
+    assert _REMEDY in text, text
+    assert "fix the YAML" not in text, text
+    assert _NOTHING_WRITTEN not in text, text
+
+
+def test_status_json_refuses_a_dangling_charter_pointer_with_a_fitting_remedy(project: Path) -> None:
+    _point_charter_at_missing_file(project)
+    before = _snapshot(project)
+
+    result = _invoke(project, "status", "--json")
+
+    _assert_refused(result, before, project)
+    payload = json.loads(getattr(result, "stdout", ""))
+    assert payload == {"ok": False, "error": {"code": _CODE, "message": payload["error"]["message"]}}
+    message = payload["error"]["message"]
+    assert f"'charter:' pointer names {_MISSING_REL}, which does not exist." in message, message
+    assert _POINTER_REMEDY in message, message
+    assert "fix the YAML" not in message, message
+    assert _NOTHING_WRITTEN not in message, message
 
 
 def test_status_empty_charter_names_no_content(project: Path) -> None:
