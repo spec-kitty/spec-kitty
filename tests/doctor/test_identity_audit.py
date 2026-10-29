@@ -704,7 +704,7 @@ _RESIDUE_SLUGS = frozenset({"001-spec-only", "002-mission", "003-noid", "006-loc
 def test_audit_repo_classifies_non_missions_as_residue(tmp_path: Path) -> None:
     repo = _residue_repo(tmp_path)
 
-    by_slug = {s.slug: s for s in audit_repo(repo)}
+    by_slug = {s.slug: s for s in audit_repo(repo, residue_aware=True)}
 
     assert by_slug["001-mission"].state == "pending"
     assert by_slug["004-legacy"].state == "legacy"
@@ -721,14 +721,29 @@ def test_audit_repo_classifies_non_missions_as_residue(tmp_path: Path) -> None:
 def test_summarize_counts_and_lists_residue(tmp_path: Path) -> None:
     repo = _residue_repo(tmp_path)
 
-    summary = summarize(audit_repo(repo))
+    summary = summarize(audit_repo(repo, residue_aware=True))
 
-    counts: dict[str, int] = summary["counts"]  # type: ignore[assignment]
-    assert counts == {"assigned": 0, "pending": 1, "legacy": 1, "orphan": 1, "residue": 4}
-    residue_paths: list[str] = summary["residue_paths"]  # type: ignore[assignment]
+    assert summary["counts"] == {"assigned": 0, "pending": 1, "legacy": 1, "orphan": 1, "residue": 4}
+    residue_paths = summary["residue_paths"]
+    assert isinstance(residue_paths, list)
     assert {Path(p).name for p in residue_paths} == _RESIDUE_SLUGS
-    orphan_paths: list[str] = summary["orphan_paths"]  # type: ignore[assignment]
+    orphan_paths = summary["orphan_paths"]
+    assert isinstance(orphan_paths, list)
     assert [Path(p).name for p in orphan_paths] == ["005-orphan"]
+
+
+@pytest.mark.git_repo
+def test_default_walk_keeps_the_pre_residue_contract(tmp_path: Path) -> None:
+    """FR-008 / C-004: without ``residue_aware`` (the audit engine's call) nothing is ``residue``."""
+    repo = _residue_repo(tmp_path)
+
+    by_slug = {s.slug: s.state for s in audit_repo(repo)}
+
+    assert "residue" not in by_slug.values()
+    assert by_slug["001-spec-only"] == "orphan"
+    assert by_slug["003-noid"] == "legacy"
+    dupes = find_duplicate_prefixes(repo)
+    assert {s.slug for s in dupes["001"]} == {"001-mission", "001-spec-only"}
 
 
 def test_summarize_zero_fills_residue() -> None:
@@ -740,13 +755,13 @@ def test_summarize_zero_fills_residue() -> None:
 @pytest.mark.git_repo
 def test_residue_is_excluded_from_duplicate_prefixes(tmp_path: Path) -> None:
     repo = _residue_repo(tmp_path)
-    assert "001" not in find_duplicate_prefixes(repo)
+    assert "001" not in find_duplicate_prefixes(repo, residue_aware=True)
 
 
 @pytest.mark.git_repo
 def test_residue_is_excluded_from_ambiguous_selectors(tmp_path: Path) -> None:
     repo = _residue_repo(tmp_path)
-    ambiguous = find_ambiguous_selectors(audit_repo(repo))
+    ambiguous = find_ambiguous_selectors(audit_repo(repo, residue_aware=True))
     assert "mission" not in ambiguous
     assert all(s.state != "residue" for items in ambiguous.values() for s in items)
 
@@ -764,7 +779,7 @@ def test_id_less_meta_in_non_git_root_is_not_residue(tmp_path: Path) -> None:
     (specs / "002-spec-only").mkdir()
     (specs / "002-spec-only" / "spec.md").write_text("# s\n", encoding="utf-8")
 
-    by_slug = {s.slug: s.state for s in audit_repo(tmp_path)}
+    by_slug = {s.slug: s.state for s in audit_repo(tmp_path, residue_aware=True)}
 
     assert by_slug == {"001-legacy": "legacy", "002-spec-only": "residue"}
 
@@ -785,8 +800,8 @@ def test_audit_makes_no_git_call_when_every_child_has_an_identity(tmp_path: Path
     monkeypatch.setattr(mr, "tracked_paths", _no_git)
     monkeypatch.setattr(mr, "is_tracked", _no_git)
 
-    assert {s.state for s in audit_repo(tmp_path)} == {"assigned", "pending"}
-    assert find_duplicate_prefixes(tmp_path) == {}
+    assert {s.state for s in audit_repo(tmp_path, residue_aware=True)} == {"assigned", "pending"}
+    assert find_duplicate_prefixes(tmp_path, residue_aware=True) == {}
 
 
 @pytest.mark.git_repo
@@ -804,7 +819,7 @@ def test_audit_probes_git_at_most_once_per_walk(tmp_path: Path, monkeypatch: pyt
 
     monkeypatch.setattr(mr, "tracked_paths", _counting)
 
-    audit_repo(repo)
+    audit_repo(repo, residue_aware=True)
 
     assert len(calls) == 1
 
@@ -823,7 +838,7 @@ def test_audit_repo_surfaces_a_broken_index(tmp_path: Path, monkeypatch: pytest.
     monkeypatch.setattr(mr, "tracked_paths", _broken)
 
     with pytest.raises(GitCommandError):
-        audit_repo(repo)
+        audit_repo(repo, residue_aware=True)
 
 
 def _invoke_identity(repo: Path, monkeypatch: pytest.MonkeyPatch, *args: str) -> Any:

@@ -26,9 +26,15 @@ rejects it, so Mission selection does not list it) is ``residue`` (#5875):
 
 ``residue``
     Not a Mission: no ``meta.json`` on disk, or an untracked ``meta.json``
-    without a ``mission_id`` in a git repository. Set only by the walk
-    (:func:`audit_repo`), never by :func:`classify_mission`. Residue is left
-    out of the duplicate-prefix and selector-ambiguity reports.
+    without a ``mission_id`` in a git repository. Set only by the walk, and
+    only on request (``residue_aware=True``, ``doctor identity``), never by
+    :func:`classify_mission`. Residue is left out of the duplicate-prefix and
+    selector-ambiguity reports. The default walk keeps the pre-#5875 contract
+    because the audit engine (``specify_cli.audit.engine``) consumes it and
+    keeps its own, looser Mission rule, ``is_mission_dir`` (FR-008): there a
+    tracked ``spec.md``, or any marker on a non-git root, makes a Mission, so
+    its ``IDENTITY_MISSING`` / ``DUPLICATE_PREFIX`` / ``AMBIGUOUS_SELECTOR``
+    findings must not disappear.
 
 Duplicate-prefix report (FR-011)
 ---------------------------------
@@ -43,8 +49,8 @@ Selector-ambiguity report (FR-012)
 missions.
 
 Performance: the full audit over 200 missions must complete in < 3 s (NFR-002).
-All I/O is synchronous file reads plus at most one batch ``git ls-files`` per
-walk, and none when every child carries a ``mission_id``. The probe is
+All I/O is synchronous file reads; a residue-aware walk adds at most one
+batch ``git ls-files``, and none when every child carries a ``mission_id``. The probe is
 :func:`~specify_cli.context.mission_resolver.tracked_mission_paths`, not the
 hardened one: this is a read-only reporter, so a broken git index raises
 rather than producing a silently weaker answer.
@@ -55,6 +61,7 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.utils import safe_is_dir
 import logging
+from collections.abc import Callable
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -265,35 +272,44 @@ def _residue_state(entry: Path) -> IdentityState:
     return IdentityState(path=entry, slug=entry.name, mission_id=None, mission_number=None, state="residue", error=None)
 
 
-def _needs_git(entry: Path, repo_root: Path) -> bool:
-    """Whether the read-side answer for *entry* depends on git: a ``meta.json`` without a ``mission_id``.
-
-    With an empty tracked set, :func:`is_selectable_mission_dir` accepts
-    exactly a child whose ``meta.json`` carries a ``mission_id``, and makes no
-    git call.
-    """
-    return (entry / "meta.json").is_file() and not is_selectable_mission_dir(entry, repo_root=repo_root, tracked=_NO_TRACKED_PATHS)
-
-
 def classify_walk_entry(entry: Path, *, repo_root: Path, tracked: ReporterTrackedPaths) -> IdentityState:
     """Classify one ``kitty-specs/`` child: ``residue`` when it is not a Mission, else :func:`classify_mission`.
 
     The rule is :func:`is_selectable_mission_dir`. *tracked* is the walk's
     memo, read only when the answer depends on git, so the probe runs at most
-    once per walk.
+    once per walk. The first predicate call passes an empty tracked set: it
+    makes no git call and accepts exactly a child whose ``meta.json`` carries a
+    ``mission_id``, so the common case reads ``meta.json`` once there and once
+    in :func:`classify_mission`. Only a child with an id-less ``meta.json``
+    reaches the second call, the one that consults git.
     """
-    tracked_set = tracked.get() if _needs_git(entry, repo_root) else _NO_TRACKED_PATHS
-    if not is_selectable_mission_dir(entry, repo_root=repo_root, tracked=tracked_set):
+    if is_selectable_mission_dir(entry, repo_root=repo_root, tracked=_NO_TRACKED_PATHS):
+        return classify_mission(entry)
+    if not (entry / "meta.json").is_file():
         return _residue_state(entry)
-    return classify_mission(entry)
+    if is_selectable_mission_dir(entry, repo_root=repo_root, tracked=tracked.get()):
+        return classify_mission(entry)
+    return _residue_state(entry)
 
 
-def audit_repo(repo_root: Path) -> list[IdentityState]:
+def _walk_classifier(repo_root: Path, *, residue_aware: bool) -> Callable[[Path], IdentityState]:
+    """The per-child classifier of one walk: residue-aware (``doctor identity``) or plain :func:`classify_mission`."""
+    if not residue_aware:
+        return classify_mission
+    tracked = ReporterTrackedPaths(repo_root)
+    return lambda entry: classify_walk_entry(entry, repo_root=repo_root, tracked=tracked)
+
+
+def audit_repo(repo_root: Path, *, residue_aware: bool = False) -> list[IdentityState]:
     """Walk ``kitty-specs/`` and classify every mission directory.
 
-    A child that is not a Mission (no ``meta.json``, or an untracked id-less
-    one in a git repository) is ``residue`` (#5875); every other directory is
-    classified by :func:`classify_mission`. Entries that are not directories (e.g. ``README.md``) are silently skipped —
+    By default every directory is classified by :func:`classify_mission`
+    (one without a ``meta.json`` is ``orphan``): the audit engine consumes this
+    and keeps its own, looser Mission rule (``is_mission_dir``, FR-008), so its
+    findings must not change. With ``residue_aware=True`` (``doctor identity``
+    only, #5875) a child that is not a Mission (no ``meta.json``, or an
+    untracked id-less one in a git repository) is ``residue`` instead.
+    Entries that are not directories (e.g. ``README.md``) are silently skipped —
     including entries that cannot be examined at all (`#3194`: an unreadable
     ancestor or an unstattable candidate, most commonly `EACCES` behind a
     symlink, is folded into the SAME "not a directory" skip rather than raising
@@ -304,12 +320,13 @@ def audit_repo(repo_root: Path) -> list[IdentityState]:
 
     Args:
         repo_root: Path to the repository root (contains ``kitty-specs/``).
+        residue_aware: Classify non-Missions as ``residue`` (``doctor identity``).
 
     Returns:
         Sorted list of :class:`IdentityState` objects, one per mission directory.
     """
-    tracked = ReporterTrackedPaths(repo_root)
-    return [classify_walk_entry(entry, repo_root=repo_root, tracked=tracked) for entry in iter_kitty_specs_children(repo_root)]
+    classify = _walk_classifier(repo_root, residue_aware=residue_aware)
+    return [classify(entry) for entry in iter_kitty_specs_children(repo_root)]
 
 
 # ---------------------------------------------------------------------------
@@ -350,7 +367,7 @@ def summarize(states: list[IdentityState]) -> dict[str, object]:
 # ---------------------------------------------------------------------------
 
 
-def find_duplicate_prefixes(repo_root: Path) -> dict[str, list[IdentityState]]:
+def find_duplicate_prefixes(repo_root: Path, *, residue_aware: bool = False) -> dict[str, list[IdentityState]]:
     """Report every 3-digit numeric prefix shared by ≥ 2 mission directories.
 
     Walks ``kitty-specs/`` and groups directories by their leading ``NNN-``
@@ -358,23 +375,26 @@ def find_duplicate_prefixes(repo_root: Path) -> dict[str, list[IdentityState]]:
 
     Directories without a leading numeric prefix are silently skipped — as is,
     per `#3194`, an entry that cannot be examined at all (see the matching note
-    on :func:`audit_repo`), and, per #5875, a ``residue`` folder: it is not a
-    Mission, so it cannot collide with one.
+    on :func:`audit_repo`). With ``residue_aware=True`` (``doctor identity``
+    only, #5875) a ``residue`` folder is skipped too: it is not a Mission, so
+    it cannot collide with one. The default keeps the audit engine's findings
+    unchanged (FR-008).
 
     Args:
         repo_root: Path to the repository root.
+        residue_aware: Leave ``residue`` folders out (``doctor identity``).
 
     Returns:
         ``{"NNN": [<IdentityState>, ...]}`` for every duplicated prefix.
         Empty dict when no duplicates exist.
     """
     groups: dict[str, list[IdentityState]] = {}
-    tracked = ReporterTrackedPaths(repo_root)
+    classify = _walk_classifier(repo_root, residue_aware=residue_aware)
     for entry in iter_kitty_specs_children(repo_root):
         m = _PREFIX_RE.match(entry.name)
         if not m:
             continue
-        state = classify_walk_entry(entry, repo_root=repo_root, tracked=tracked)
+        state = classify(entry)
         if state.state != "residue":
             groups.setdefault(m.group(1), []).append(state)
 
@@ -398,7 +418,8 @@ def find_ambiguous_selectors(
 
     Any handle that maps to ≥ 2 distinct missions is an ambiguity. ``residue``
     rows are skipped (#5875): Mission selection does not list them, so they
-    cannot make a handle ambiguous.
+    cannot make a handle ambiguous. Only ``audit_repo(..., residue_aware=True)``
+    produces them, so the audit engine's input, and its findings, are unchanged.
 
     A handle is an *exact* match — the handle ``"foo"`` does not ambiguate
     with ``"foobar"`` unless ``"foobar"`` is itself used as a full-slug

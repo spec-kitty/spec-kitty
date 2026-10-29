@@ -477,6 +477,11 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
     # repo_root and internally append /kitty-specs.  They must NOT receive
     # scan_root, which would cause them to look for scan_root/kitty-specs —
     # a path that does not exist — and silently return zero identity states.
+    # #5875 / FR-008: the default (not residue-aware) walk on purpose. The engine
+    # keeps its own, looser Mission rule (``is_mission_dir`` in ``_scan_missions``):
+    # a tracked spec.md, or any marker on a non-git root, makes a Mission here, so
+    # its IDENTITY_MISSING / DUPLICATE_PREFIX / AMBIGUOUS_SELECTOR findings must
+    # stay. Only ``doctor identity`` opts in to the ``residue`` state.
     identity_states = audit_repo(options.repo_root)
     identity_index: dict[str, Any] = {s.slug: s for s in identity_states}
 

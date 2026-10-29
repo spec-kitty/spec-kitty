@@ -166,9 +166,14 @@ def test_build_identity_json_adds_remedy_only_with_residue() -> None:
 
 
 def test_residue_remedy_is_the_planned_text() -> None:
-    assert ia.RESIDUE_REMEDY.startswith("Not a Mission: no meta.json, or an untracked meta.json without a mission_id")
-    assert "git log --diff-filter=D -- <path>/meta.json" in ia.RESIDUE_REMEDY
-    assert ia.RESIDUE_REMEDY.endswith("and move its spec.md into the new folder.")
+    # Copied word for word from plan.md, "Remedy text" (FR-004).
+    assert ia.RESIDUE_REMEDY == (
+        "Not a Mission: no meta.json, or an untracked meta.json without a mission_id, so Mission selection does "
+        "not list it. If it is leftover residue, delete the folder. If it is a real Mission, restore its meta.json "
+        "from git history (`git log --diff-filter=D -- <path>/meta.json`, then `git checkout <sha>^ -- "
+        "<path>/meta.json`), or re-create it with `spec-kitty agent mission create` and move its spec.md into the "
+        "new folder."
+    )
 
 
 def test_print_identity_summary_table_lists_residue() -> None:
@@ -426,7 +431,7 @@ def test_print_topology_human_smoke() -> None:
 def test_run_identity_audit_mission_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status as status_mod
 
-    monkeypatch.setattr(status_mod, "audit_repo", lambda *_a: [])
+    monkeypatch.setattr(status_mod, "audit_repo", lambda *_a, **_kw: [])
     # Resolver yields a non-existent dir → scoped is empty → exit(1).
     _stub_placement_seam(monkeypatch, tmp_path / "nope")
     with pytest.raises(typer.Exit) as exc:
@@ -438,8 +443,8 @@ def test_run_identity_audit_json_fail_on_exits_1(tmp_path: Path, monkeypatch: py
     import specify_cli.status as status_mod
 
     states = [_state("083-a", "legacy")]
-    monkeypatch.setattr(status_mod, "audit_repo", lambda *_a: states)
-    monkeypatch.setattr(status_mod, "find_duplicate_prefixes", lambda *_a: {})
+    monkeypatch.setattr(status_mod, "audit_repo", lambda *_a, **_kw: states)
+    monkeypatch.setattr(status_mod, "find_duplicate_prefixes", lambda *_a, **_kw: {})
     monkeypatch.setattr(status_mod, "find_ambiguous_selectors", lambda *_a: {})
     monkeypatch.setattr(status_mod, "summarize", lambda *_a: {"counts": {"legacy": 1}})
     with pytest.raises(typer.Exit) as exc:
@@ -451,8 +456,8 @@ def test_run_identity_audit_human_clean_exits_0(tmp_path: Path, monkeypatch: pyt
     import specify_cli.status as status_mod
 
     states = [_state("083-a", "assigned")]
-    monkeypatch.setattr(status_mod, "audit_repo", lambda *_a: states)
-    monkeypatch.setattr(status_mod, "find_duplicate_prefixes", lambda *_a: {})
+    monkeypatch.setattr(status_mod, "audit_repo", lambda *_a, **_kw: states)
+    monkeypatch.setattr(status_mod, "find_duplicate_prefixes", lambda *_a, **_kw: {})
     monkeypatch.setattr(status_mod, "find_ambiguous_selectors", lambda *_a: {})
     monkeypatch.setattr(
         status_mod,

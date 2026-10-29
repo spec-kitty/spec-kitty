@@ -220,7 +220,7 @@ def run_identity_audit(repo_root: Path, json_output: bool, mission: str | None, 
         summarize,
     )
 
-    all_states = audit_repo(repo_root)
+    all_states = audit_repo(repo_root, residue_aware=True)
 
     if mission is not None:
         scoped = _scope_to_mission(repo_root, all_states, mission)
@@ -230,7 +230,7 @@ def run_identity_audit(repo_root: Path, json_output: bool, mission: str | None, 
         all_states = scoped
 
     summary = summarize(all_states)
-    dup_prefixes = find_duplicate_prefixes(repo_root)
+    dup_prefixes = find_duplicate_prefixes(repo_root, residue_aware=True)
     if mission is not None:
         dup_prefixes = _scope_prefixes(dup_prefixes, mission)
     ambig_selectors = find_ambiguous_selectors(all_states)

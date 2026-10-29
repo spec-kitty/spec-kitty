@@ -31,16 +31,9 @@ _LEGACY_WALKER_ALLOWLIST = frozenset(
         "src/specify_cli/cli/commands/_coordination_doctor.py",
         "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
         "src/specify_cli/cli/commands/_identity_audit.py",
-        # A fourth C-001 anti-fold carve-out (mission
-        # mission-type-guard-registry-01KZY2FG): the FR-008 six-state
-        # classifier must see every kitty-specs/ mission directory, including
-        # ones whose meta.json lacks mission_id (typeless/unknown/error
-        # states). FsMissionResolver.all_missions() silently skips those
-        # (see its docstring), which would make `doctor mission-type` blind
-        # to the exact missions it exists to audit — the same rationale the
-        # ADR already grants status/identity_audit.py above. See
-        # audit_mission_types()'s docstring for the full explanation.
-        "src/specify_cli/cli/commands/_mission_type_audit.py",
+        # `doctor mission-type` (cli/commands/_mission_type_audit.py) no longer
+        # walks kitty-specs/ itself (#5875): it shares status/identity_audit.py's
+        # iter_kitty_specs_children walk, allowlisted above, so it has no entry.
         "src/specify_cli/cli/commands/agent/mission_feature_resolution.py",
         # #3619 / PR #3660: the pre-create collision probe must see partial
         # and legacy numbered directories that MissionResolver intentionally
