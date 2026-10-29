@@ -27,6 +27,7 @@ import contextlib
 import dataclasses
 from collections.abc import Callable
 from dataclasses import dataclass
+from specify_cli.charter_activate import emit_step_removal_warnings
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
@@ -309,8 +310,6 @@ def _step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) -> list
 
 def _render_step_removal_warnings(warnings: list[StepRemovalWarning]) -> None:
     """Print the step-removal warnings in their FR-008 text form."""
-    from specify_cli.charter_activate import emit_step_removal_warnings  # noqa: PLC0415
-
     emit_step_removal_warnings(warnings, console)
 
 
