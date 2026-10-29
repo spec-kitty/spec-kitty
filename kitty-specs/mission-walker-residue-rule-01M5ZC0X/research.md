@@ -92,7 +92,7 @@ two identity-audit walkers and the mission-type walker. It keeps the `safe_is_di
 
 ## 6. Pre-merge adversarial squad (2026-10-29)
 
-Three profile-loaded lenses, each read-only: architecture (`architect-alphonso`), failure modes (`debugger-debbie`) and spec fidelity (`analyst-annie`). All three returned **SHIP-WITH-FIXES**. The fold landed in `6ef843f8`, `c551b5f1`, `51cf5db4`, `1dc87c5e` and `6e715e34`, and was re-reviewed before push.
+Three profile-loaded lenses, each read-only: architecture (`architect-alphonso`), failure modes (`debugger-debbie`) and spec fidelity (`analyst-annie`). All three returned **SHIP-WITH-FIXES**. The fold landed in `bfb22883`, `71cc0503`, `1bec824d`, `31320eb9` and `43f13acf`, and was re-reviewed before push.
 
 ### Operator decisions (2026-10-29), amending the spec
 
@@ -107,24 +107,24 @@ Three profile-loaded lenses, each read-only: architecture (`architect-alphonso`)
 
 | Finding (lens) | Disposition |
 |---|---|
-| SR-2 status-facade gate red; status↔context import cycle (architecture, MAJOR) | **Fixed** (`6ef843f8`): `iter_kitty_specs_children` moved to `mission_resolver.py`, one `TrackedMissionPaths` memo with an injectable probe, facade-only imports. |
-| Two near-identical memo classes; `classify_walk_entry` re-encoded the predicate (architecture) | **Fixed** (`6ef843f8`). |
+| SR-2 status-facade gate red; status↔context import cycle (architecture, MAJOR) | **Fixed** (`bfb22883`): `iter_kitty_specs_children` moved to `mission_resolver.py`, one `TrackedMissionPaths` memo with an injectable probe, facade-only imports. |
+| Two near-identical memo classes; `classify_walk_entry` re-encoded the predicate (architecture) | **Fixed** (`bfb22883`). |
 | `tracked=None` means different things in the two predicates (architecture) | **Changed**: documented in both docstrings. |
 | Broken-index posture differs between doctors (architecture) | **Accepted**, documented: `doctor identity` is a reporter (it errors); mission-type degrades. |
 | Engine reports a fake collision on a healthy Mission (architecture) | **Deferred** → #6757. |
 | "Residue" has three senses and no glossary entry (architecture) | **Deferred** → #6759. |
 | `doctor topology` and other walkers are out of scope (architecture) | **Deferred** → #6758. |
-| Corrupt or unreadable uncommitted `meta.json` shown as residue with a "delete" remedy (failure modes) | **Fixed** per D5 (`6ef843f8`). |
-| Untracked id-less legacy Mission given the wrong remedy (failure modes, spec) | **Fixed**: per-reason remedies, including `backfill-identity` (`6ef843f8`). |
-| Broken index gives a traceback and no JSON (failure modes, spec) | **Fixed**: one-line error and a `GIT_INDEX_UNREADABLE` envelope (`6ef843f8`). |
-| Git restore recipe fails for an uncommitted deletion; `^` breaks Windows cmd (spec, MAJOR) | **Fixed**: `git restore`, `~1` (`6ef843f8`). |
-| `backfill-wp-status` contradicts itself; the promised test was missing (spec, MAJOR) | **Fixed** per D6, with a red-first test (`c551b5f1`). |
-| A mutant ("only a tracked meta.json counts") survives the tests (spec) | **Fixed**: the parity corpus gained three children (`6ef843f8`). |
-| Header counts residue as Missions (spec) | **Fixed** (`6ef843f8`). |
-| NFR-002 timing test skipped the residue path (spec) | **Fixed** (`6ef843f8`). |
-| `RESIDUE_NOTICE` reuse deviation not confirmed by the operator (spec) | **Resolved** by D7 (`51cf5db4`). |
-| Changelog, help and docs wording too broad (spec) | **Fixed** (`6e715e34`). |
-| Leftover `feature` naming in `_list_feature_spec_candidates` (spec) | **Fixed**: renamed (`1dc87c5e`). |
+| Corrupt or unreadable uncommitted `meta.json` shown as residue with a "delete" remedy (failure modes) | **Fixed** per D5 (`bfb22883`). Re-review: the remedy's git recipe now works when git tracks nothing there, including a staged removal (`7b876fd3`, `c27d2021`). |
+| Untracked id-less legacy Mission given the wrong remedy (failure modes, spec) | **Fixed**: per-reason remedies, including `backfill-identity` (`bfb22883`). |
+| Broken index gives a traceback and no JSON (failure modes, spec) | **Fixed**: one-line error and a `GIT_INDEX_UNREADABLE` envelope (`bfb22883`). |
+| Git restore recipe fails for an uncommitted deletion; `^` breaks Windows cmd (spec, MAJOR) | **Fixed**: `git restore`, `~1` (`bfb22883`). |
+| `backfill-wp-status` contradicts itself; the promised test was missing (spec, MAJOR) | **Fixed** per D6, with a red-first test (`71cc0503`). |
+| A mutant ("only a tracked meta.json counts") survives the tests (spec) | **Fixed**: the parity corpus gained three children (`bfb22883`). |
+| Header counts residue as Missions (spec) | **Fixed** (`bfb22883`). |
+| NFR-002 timing test skipped the residue path (spec) | **Fixed** (`bfb22883`). |
+| `RESIDUE_NOTICE` reuse deviation not confirmed by the operator (spec) | **Resolved** by D7 (`1bec824d`). |
+| Changelog, help and docs wording too broad (spec) | **Fixed** (`43f13acf`). |
+| Leftover `feature` naming in `_list_feature_spec_candidates` (spec) | **Fixed**: renamed (`31320eb9`). |
 | Migration guide state list out of date (spec) | **Deferred** → #6760. |
 | Acceptance matrix was boilerplate, and its evidence SHAs predated the history rebuild (spec) | **Fixed** in the Mission record. |
 | Symlink outside the repo, case-insensitive filesystem, coordination-worktree root (failure modes, NIT) | **Accepted**: behaviour predates #5812 and does not reach the CLI. |
