@@ -31,6 +31,8 @@ from typing import TYPE_CHECKING, Any
 from specify_cli.mission_metadata import load_meta_or_empty
 
 if TYPE_CHECKING:
+    from spec_kitty_events import DecisionTimeoutExpiredPayload, SignificanceEvaluatedPayload
+
     from specify_cli.retrospective.schema import ProvenanceKind
 
 logger = logging.getLogger(__name__)
@@ -110,10 +112,10 @@ class _BufferingRuntimeEmitter:
     def emit_mission_run_completed(self, payload: Any) -> None:
         self._record("emit_mission_run_completed", payload)
 
-    def emit_significance_evaluated(self, payload: Any) -> None:
+    def emit_significance_evaluated(self, payload: SignificanceEvaluatedPayload) -> None:
         self._record("emit_significance_evaluated", payload)
 
-    def emit_decision_timeout_expired(self, payload: Any) -> None:
+    def emit_decision_timeout_expired(self, payload: DecisionTimeoutExpiredPayload) -> None:
         self._record("emit_decision_timeout_expired", payload)
 
     def seed_from_snapshot(self, snapshot: Any) -> None:

@@ -19,12 +19,12 @@ All registries are fixed in V1 (no custom dimensions or triggers).
 # public-API inventory.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from spec_kitty_events import RaciRoleBinding
 
 from kernel.clock import datetime
-from runtime.next._internal_runtime.schema import RACIRoleBinding
 
 if TYPE_CHECKING:
     from runtime.next._internal_runtime.schema import MissionPolicySnapshot
@@ -479,49 +479,6 @@ def parse_band_cutoffs_from_policy(
 
 
 # ---------------------------------------------------------------------------
-# T011: SignificanceEvaluatedPayload
-# ---------------------------------------------------------------------------
-
-class SignificanceEvaluatedPayload(BaseModel):
-    """Event payload emitted when a decision's significance is scored and routed.
-
-    Persisted in JSONL event log. Field names align with
-    contracts/significance-evaluation.yaml.
-    """
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    run_id: str = Field(..., min_length=1)
-    decision_id: str = Field(..., min_length=1)
-    step_id: str = Field(..., min_length=1)
-    significance_score: dict[str, Any]  # Serialized SignificanceScore
-    hard_trigger_classes: tuple[str, ...] = Field(default_factory=tuple)
-    effective_band: Literal["low", "medium", "high"]
-    actor: RACIRoleBinding  # System actor (service/runtime)
-
-
-# ---------------------------------------------------------------------------
-# T012: TimeoutExpiredPayload
-# ---------------------------------------------------------------------------
-
-class TimeoutExpiredPayload(BaseModel):
-    """Event payload emitted when a decision exceeds its configured timeout window.
-
-    Field names align with contracts/timeout-expired-event.yaml.
-    """
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    run_id: str = Field(..., min_length=1)
-    decision_id: str = Field(..., min_length=1)
-    step_id: str = Field(..., min_length=1)
-    significance_score: dict[str, Any]  # Serialized SignificanceScore
-    effective_band: Literal["medium", "high"]  # Never "low" — low auto-proceeds
-    timeout_configured_seconds: int = Field(..., gt=0)
-    escalation_targets: tuple[RACIRoleBinding, ...] = Field(default_factory=tuple)
-    raci_snapshot: dict[str, Any]  # Serialized ResolvedRACIBinding
-    actor: RACIRoleBinding  # System actor (service/runtime)
-
-
-# ---------------------------------------------------------------------------
 # T013: SoftGateDecision model
 # ---------------------------------------------------------------------------
 
@@ -535,10 +492,10 @@ class SoftGateDecision(BaseModel):
 
     decision_id: str = Field(..., min_length=1)
     action: Literal["decide_solo", "open_stand_up", "defer"]
-    actor: RACIRoleBinding  # Must be human
+    actor: RaciRoleBinding  # Must be human
     timestamp: datetime  # UTC
     significance_score: SignificanceScore
-    participants: tuple[RACIRoleBinding, ...] = Field(default_factory=tuple)
+    participants: tuple[RaciRoleBinding, ...] = Field(default_factory=tuple)
     outcome: str | None = None  # approve/reject/defer — None until resolved
     rationale: str | None = None
 
@@ -564,7 +521,7 @@ class DimensionScoreOverride(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     decision_id: str = Field(..., min_length=1)
-    overridden_by: RACIRoleBinding  # Must be human (FR-018)
+    overridden_by: RaciRoleBinding  # Must be human (FR-018)
     override_reason: str = Field(..., min_length=1)  # Mandatory justification
     original_scores: dict[str, int]  # dimension_name → before value
     new_scores: dict[str, int]  # dimension_name → after value
@@ -597,8 +554,8 @@ __all__ = [
     "SignificanceScore",
     # TimeoutPolicy: demoted — no cross-module src/ from-import callers (WP01).
     # Models (WP03)
-    "SignificanceEvaluatedPayload",
-    "TimeoutExpiredPayload",
+    # SignificanceEvaluatedPayload / TimeoutExpiredPayload: retired in favour of
+    # spec_kitty_events.SignificanceEvaluatedPayload / DecisionTimeoutExpiredPayload (#6445).
     "SoftGateDecision",
     # DimensionScoreOverride: demoted — no cross-module src/ from-import callers (WP01).
     # Functions (WP01)

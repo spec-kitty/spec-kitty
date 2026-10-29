@@ -31,6 +31,7 @@ from mission_runtime import (
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.sanitizer import sanitize_event_for_log
 from specify_cli.git.commit_helpers import SafeCommitError, safe_commit
+from spec_kitty_events import DecisionTimeoutExpiredPayload, SignificanceEvaluatedPayload
 from runtime.next._internal_runtime.events import (
     DECISION_INPUT_ANSWERED,
     DECISION_INPUT_REQUESTED,
@@ -42,10 +43,6 @@ from runtime.next._internal_runtime.events import (
     NextStepIssuedPayload,
     RuntimeEventEmitter,
     seed_runtime_emitter,
-)
-from runtime.next._internal_runtime.significance import (
-    SignificanceEvaluatedPayload,
-    TimeoutExpiredPayload,
 )
 
 __all__ = ["DecisionGitLog", "capture_commit_warnings"]
@@ -213,7 +210,7 @@ class DecisionGitLog:
         self._inner.emit_significance_evaluated(payload)
 
     def emit_decision_timeout_expired(
-        self, payload: TimeoutExpiredPayload
+        self, payload: DecisionTimeoutExpiredPayload
     ) -> None:
         self._inner.emit_decision_timeout_expired(payload)
 

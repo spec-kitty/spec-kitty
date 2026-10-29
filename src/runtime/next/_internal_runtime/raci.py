@@ -12,6 +12,13 @@ from __future__ import annotations
 
 from typing import Any, Literal, cast
 
+from spec_kitty_events import (
+    HUMAN_IN_CHARGE_ACTOR_ID,
+    UNKNOWN_ACTOR_ID,
+    RaciRoleBinding,
+    ResolvedRaciSnapshot,
+)
+
 from runtime.next._internal_runtime.schema import (
     AuditStep,
     MissionPolicySnapshot,
@@ -19,56 +26,78 @@ from runtime.next._internal_runtime.schema import (
     PromptStep,
     RACIAssignment,
     RACIEscalationPayload,
-    RACIRoleBinding,
-    ResolvedRACIBinding,
+    RACIRoleSpec,
 )
+
+ActorType = Literal["human", "llm", "service"]
+
+
+def bind_actor(actor_type: ActorType, actor_id: str | None) -> RaciRoleBinding:
+    """Build a resolved RACI binding, filling a missing id with the sentinel.
+
+    A ``None`` or blank ``actor_id`` maps to ``HUMAN_IN_CHARGE_ACTOR_ID`` for a
+    human and to ``UNKNOWN_ACTOR_ID`` for an llm or service (operator ruling
+    on #6445, 2026-10-19). A present id is kept as given.
+    """
+    if actor_id is not None and actor_id.strip():
+        return RaciRoleBinding(actor_type=actor_type, actor_id=actor_id)
+    sentinel = HUMAN_IN_CHARGE_ACTOR_ID if actor_type == "human" else UNKNOWN_ACTOR_ID
+    return RaciRoleBinding(actor_type=actor_type, actor_id=sentinel)
+
+
+def _inferred_assignment(
+    step: PromptStep | AuditStep,
+    mission_policy: MissionPolicySnapshot,  # noqa: ARG001
+) -> tuple[RACIAssignment, str]:
+    """The default RACI assignment for a step type and the rule that chose it.
+
+    - PromptStep → R:llm, A:human — rule ``prompt_default``
+    - AuditStep (blocking) → R:human, A:human — rule ``audit_blocking``
+    - AuditStep (advisory) → R:llm, A:human — rule ``audit_advisory``
+    """
+    if isinstance(step, AuditStep) and step.audit.enforcement == "blocking":
+        responsible: ActorType = "human"
+        rule = "audit_blocking"
+    elif isinstance(step, AuditStep):
+        responsible = "llm"
+        rule = "audit_advisory"
+    else:
+        responsible = "llm"
+        rule = "prompt_default"
+    assignment = RACIAssignment(
+        responsible=RACIRoleSpec(actor_type=responsible),
+        accountable=RACIRoleSpec(actor_type="human"),
+    )
+    return assignment, rule
 
 
 def infer_raci(
     step: PromptStep | AuditStep,
-    mission_policy: MissionPolicySnapshot,  # noqa: ARG001
-) -> ResolvedRACIBinding:
-    """Infer default RACI bindings from step type.
+    mission_policy: MissionPolicySnapshot,
+) -> ResolvedRaciSnapshot:
+    """Infer default RACI bindings from step type, with sentinel actor ids.
 
-    Deterministic rules:
-    - PromptStep → R:llm, A:human (mission_owner) — rule: "prompt_default"
-    - AuditStep (blocking) → R:human, A:human — rule: "audit_blocking"
-    - AuditStep (advisory) → R:llm, A:human — rule: "audit_advisory"
+    The engine persists this when ``resolve_raci`` cannot resolve a required
+    role from the runtime inputs, so every role carries the sentinel for its
+    type (see :func:`bind_actor`).
 
     Args:
         step: The mission step to infer RACI for.
         mission_policy: Current mission policy snapshot.
 
     Returns:
-        ResolvedRACIBinding with source="inferred" and the applicable rule name.
+        ResolvedRaciSnapshot with source="inferred" and the applicable rule name.
     """
-    if isinstance(step, AuditStep):
-        if step.audit.enforcement == "blocking":
-            return ResolvedRACIBinding(
-                step_id=step.id,
-                responsible=RACIRoleBinding(actor_type="human"),
-                accountable=RACIRoleBinding(actor_type="human"),
-                source="inferred",
-                inferred_rule="audit_blocking",
-            )
-        else:
-            # advisory
-            return ResolvedRACIBinding(
-                step_id=step.id,
-                responsible=RACIRoleBinding(actor_type="llm"),
-                accountable=RACIRoleBinding(actor_type="human"),
-                source="inferred",
-                inferred_rule="audit_advisory",
-            )
-    else:
-        # PromptStep
-        return ResolvedRACIBinding(
-            step_id=step.id,
-            responsible=RACIRoleBinding(actor_type="llm"),
-            accountable=RACIRoleBinding(actor_type="human"),
-            source="inferred",
-            inferred_rule="prompt_default",
-        )
+    assignment, rule = _inferred_assignment(step, mission_policy)
+    return ResolvedRaciSnapshot(
+        step_id=step.id,
+        responsible=bind_actor(assignment.responsible.actor_type, assignment.responsible.actor_id),
+        accountable=bind_actor(assignment.accountable.actor_type, assignment.accountable.actor_id),
+        consulted=[bind_actor(c.actor_type, c.actor_id) for c in assignment.consulted],
+        informed=[bind_actor(i.actor_type, i.actor_id) for i in assignment.informed],
+        source="inferred",
+        inferred_rule=rule,
+    )
 
 
 def validate_raci_assignment(
@@ -116,7 +145,7 @@ def resolve_raci(
     step: PromptStep | AuditStep,
     inputs: dict[str, Any],
     mission_policy: MissionPolicySnapshot,
-) -> ResolvedRACIBinding:
+) -> ResolvedRaciSnapshot:
     """Resolve RACI to concrete actors using runtime inputs.
 
     Resolution order:
@@ -124,12 +153,13 @@ def resolve_raci(
     2. Otherwise → infer defaults (source="inferred")
 
     Actor ID resolution:
-    - actor_type="human" with no actor_id → resolved from inputs["mission_owner_id"]
-    - actor_type="llm" with no actor_id → resolved from inputs.get("agent_id")
-    - actor_type="service" with no actor_id → resolved from inputs.get("service_id")
+    - actor_type="human" with no or blank actor_id → resolved from inputs["mission_owner_id"]
+    - actor_type="llm" with no or blank actor_id → resolved from inputs.get("agent_id")
+    - actor_type="service" with no or blank actor_id → resolved from inputs.get("service_id")
 
     Fail-closed: unresolvable R/A roles raise MissionRuntimeError with
-    RACIEscalationPayload.
+    RACIEscalationPayload. Unresolvable C/I roles take the sentinel for their
+    type (:func:`bind_actor`).
 
     Args:
         step: The mission step to resolve RACI for.
@@ -137,79 +167,49 @@ def resolve_raci(
         mission_policy: Current mission policy snapshot.
 
     Returns:
-        ResolvedRACIBinding with concrete actor IDs where possible.
+        ResolvedRaciSnapshot whose every role carries an actor id.
 
     Raises:
         MissionRuntimeError: When a required role (R/A) cannot be resolved.
     """
+    inferred_rule: str | None = None
+    override_reason: str | None = None
     if step.raci is not None:
         # Explicit override path
         assignment = step.raci
         override_reason = step.raci_override_reason  # guaranteed non-None by schema validator
 
-        # Validate the explicit assignment
         is_valid, errors = validate_raci_assignment(assignment, step)
         if not is_valid:
             raise MissionRuntimeError(
                 f"Invalid explicit RACI for step '{step.id}': {'; '.join(errors)}"
             )
-
-        responsible = _resolve_actor(
-            assignment.responsible, "responsible", step.id, inputs
-        )
-        accountable = _resolve_actor(
-            assignment.accountable, "accountable", step.id, inputs
-        )
-        consulted = [_resolve_actor_optional(c, inputs) for c in assignment.consulted]
-        informed = [_resolve_actor_optional(i, inputs) for i in assignment.informed]
-
-        return ResolvedRACIBinding(
-            step_id=step.id,
-            responsible=responsible,
-            accountable=accountable,
-            consulted=consulted,
-            informed=informed,
-            source="explicit",
-            override_reason=override_reason,
-        )
     else:
-        # Inferred path
-        inferred = infer_raci(step, mission_policy)
+        assignment, inferred_rule = _inferred_assignment(step, mission_policy)
 
-        responsible = _resolve_actor(
-            inferred.responsible, "responsible", step.id, inputs
-        )
-        accountable = _resolve_actor(
-            inferred.accountable, "accountable", step.id, inputs
-        )
-        consulted = [_resolve_actor_optional(c, inputs) for c in inferred.consulted]
-        informed = [_resolve_actor_optional(i, inputs) for i in inferred.informed]
-
-        return ResolvedRACIBinding(
-            step_id=step.id,
-            responsible=responsible,
-            accountable=accountable,
-            consulted=consulted,
-            informed=informed,
-            source="inferred",
-            inferred_rule=inferred.inferred_rule,
-        )
+    return ResolvedRaciSnapshot(
+        step_id=step.id,
+        responsible=_resolve_actor(assignment.responsible, "responsible", step.id, inputs),
+        accountable=_resolve_actor(assignment.accountable, "accountable", step.id, inputs),
+        consulted=[_resolve_actor_optional(c, inputs) for c in assignment.consulted],
+        informed=[_resolve_actor_optional(i, inputs) for i in assignment.informed],
+        source="explicit" if step.raci is not None else "inferred",
+        inferred_rule=inferred_rule,
+        override_reason=override_reason,
+    )
 
 
 def _resolve_actor(
-    binding: RACIRoleBinding,
+    binding: RACIRoleSpec,
     role_name: str,
     step_id: str,
     inputs: dict[str, Any],
-) -> RACIRoleBinding:
+) -> RaciRoleBinding:
     """Resolve a required actor binding to a concrete actor ID.
 
     Fail-closed: raises MissionRuntimeError if the actor cannot be resolved.
     """
-    if binding.actor_id is not None:
-        return binding
-
-    resolved_id = _lookup_actor_id(binding.actor_type, inputs)
+    resolved_id = _given_or_input_id(binding, inputs)
     if resolved_id is None:
         input_key = _actor_type_to_input_key(binding.actor_type)
         escalation = RACIEscalationPayload(
@@ -227,24 +227,26 @@ def _resolve_actor(
             f"RACI escalation for step '{step_id}': {escalation.reason}"
         )
 
-    return RACIRoleBinding(actor_type=binding.actor_type, actor_id=resolved_id)
+    return RaciRoleBinding(actor_type=binding.actor_type, actor_id=resolved_id)
 
 
 def _resolve_actor_optional(
-    binding: RACIRoleBinding,
+    binding: RACIRoleSpec,
     inputs: dict[str, Any],
-) -> RACIRoleBinding:
+) -> RaciRoleBinding:
     """Resolve an optional actor binding (C/I roles).
 
-    Non-blocking: returns the binding as-is if actor_id cannot be resolved.
+    Non-blocking: an id that cannot be resolved from the inputs takes the
+    sentinel for the actor type (:func:`bind_actor`).
     """
-    if binding.actor_id is not None:
-        return binding
+    return bind_actor(binding.actor_type, _given_or_input_id(binding, inputs))
 
-    resolved_id = _lookup_actor_id(binding.actor_type, inputs)
-    if resolved_id is not None:
-        return RACIRoleBinding(actor_type=binding.actor_type, actor_id=resolved_id)
-    return binding
+
+def _given_or_input_id(binding: RACIRoleSpec, inputs: dict[str, Any]) -> str | None:
+    """The template's own non-blank actor id, else the one the inputs name."""
+    if binding.actor_id is not None and binding.actor_id.strip():
+        return binding.actor_id
+    return _lookup_actor_id(binding.actor_type, inputs)
 
 
 def _lookup_actor_id(actor_type: str, inputs: dict[str, Any]) -> str | None:

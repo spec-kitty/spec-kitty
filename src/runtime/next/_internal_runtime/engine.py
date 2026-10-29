@@ -24,6 +24,7 @@ from kernel.event_log_append import append_event_log_lines
 from kernel.clock import now_utc, now_utc_iso
 from runtime.next.run_lock import run_cursor_lock
 from runtime.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
+from spec_kitty_events import RaciRoleBinding, SignificanceEvaluatedPayload
 from spec_kitty_events.mission_next import (
     DecisionInputAnsweredPayload,
     DecisionInputRequestedPayload,
@@ -44,7 +45,7 @@ from runtime.next._internal_runtime.events import (
     RuntimeEventEmitter,
 )
 from runtime.next._internal_runtime.planner import plan_next
-from runtime.next._internal_runtime.raci import infer_raci, resolve_raci
+from runtime.next._internal_runtime.raci import bind_actor, infer_raci, resolve_raci
 from runtime.next._internal_runtime.schema import (
     ActorIdentity,
     AuditStep,
@@ -57,11 +58,9 @@ from runtime.next._internal_runtime.schema import (
     MissionTemplate,
     NextDecision,
     PromptStep,
-    RACIRoleBinding,
     load_mission_template_file,
 )
 from runtime.next._internal_runtime.significance import (
-    SignificanceEvaluatedPayload,
     SignificanceScore,
     SoftGateDecision,
     evaluate_significance,
@@ -368,7 +367,7 @@ def _evaluate_audit_significance(
         significance_score=score.model_dump(mode="json"),
         hard_trigger_classes=tuple(ht.class_id for ht in score.hard_trigger_classes),
         effective_band=score.effective_band.name,
-        actor=RACIRoleBinding(actor_type="service", actor_id="runtime"),
+        actor=RaciRoleBinding(actor_type="service", actor_id="runtime"),
     )
     snapshot = snapshot.model_copy(update={"decisions": decisions})
 
@@ -821,7 +820,7 @@ def _record_soft_gate(
     soft_gate = SoftGateDecision(
         decision_id=decision_id,
         action=soft_gate_action,
-        actor=RACIRoleBinding(actor_type=actor_type, actor_id=actor.actor_id),
+        actor=bind_actor(actor_type, actor.actor_id),
         timestamp=now_utc(),
         significance_score=SignificanceScore.model_validate(decisions[f"significance:{decision_id}"]),
         outcome=soft_gate_action if answer == "decide_solo" else None,

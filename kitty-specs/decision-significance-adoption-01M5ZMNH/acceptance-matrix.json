@@ -1,0 +1,69 @@
+{
+  "mission_slug": "decision-significance-adoption-01M5ZMNH",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_events_envelope_matches_resolved_version.py + tests/release/test_check_shared_package_drift.py green at 11.3.0 (WP01 review: 27 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:08:13.198373+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_pyproject_shape.py pins spec-kitty-events>=11.3.0,<12 (red-first, WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:08:19.073014+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_decision_significance_adoption.py deletion checks + SignificanceEvaluated row validates via spec_kitty_events.conformance.validate_event (WP02 review: 24 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:08:24.892111+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_decision_significance_adoption.py infer_raci sentinel cases (prompt/advisory/blocking) + C/I sentinel cases",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:08:31.054645+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_decision_significance_adoption.py resolve_raci with mission_owner_id/agent_id inputs records concrete ids; blank template R/A ids resolve from inputs; R/A without inputs still raise MissionRuntimeError",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:08:37.279819+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/next/test_decision_significance_adoption.py soft-gate sentinel cases (empty and whitespace actor ids)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-28T06:08:43.143189+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

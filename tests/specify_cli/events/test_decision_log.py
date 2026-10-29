@@ -32,10 +32,7 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.decision_log import DecisionGitLog
 from mission_runtime import CommitTarget
 from runtime.next._internal_runtime.events import NullEmitter
-from runtime.next._internal_runtime.significance import (
-    SignificanceEvaluatedPayload,
-    TimeoutExpiredPayload,
-)
+from spec_kitty_events import DecisionTimeoutExpiredPayload, SignificanceEvaluatedPayload
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
@@ -412,7 +409,7 @@ class TestDelegation:
     def test_decision_timeout_expired_delegated(self, tmp_path: Path) -> None:
         inner = self._make_tracking_inner()
         log = _make_log(tmp_path, inner=inner)
-        payload = MagicMock(spec=TimeoutExpiredPayload)
+        payload = MagicMock(spec=DecisionTimeoutExpiredPayload)
         log.emit_decision_timeout_expired(payload)
         inner.emit_decision_timeout_expired.assert_called_once_with(payload)
 

@@ -19,6 +19,7 @@ from typing import Any, cast
 import pytest
 import yaml
 from pydantic import ValidationError
+from spec_kitty_events import RaciRoleBinding, ResolvedRaciSnapshot
 
 from kernel.clock import now_utc, now_utc_iso
 from runtime.next._internal_runtime import (
@@ -66,8 +67,7 @@ from runtime.next._internal_runtime.schema import (
     MissionTemplate,
     PromptStep,
     RACIAssignment,
-    RACIRoleBinding,
-    ResolvedRACIBinding,
+    RACIRoleSpec,
     StepContextContract,
     load_mission_template_file,
 )
@@ -1027,8 +1027,8 @@ def test_infer_raci_for_audit_advisory() -> None:
 
 def test_validate_raci_assignment_passes_for_valid_prompt() -> None:
     assignment = RACIAssignment(
-        responsible=RACIRoleBinding(actor_type="llm"),
-        accountable=RACIRoleBinding(actor_type="human"),
+        responsible=RACIRoleSpec(actor_type="llm"),
+        accountable=RACIRoleSpec(actor_type="human"),
     )
     step = PromptStep(id="p1", title="P1")
     ok, errors = validate_raci_assignment(assignment, step)
@@ -1038,8 +1038,8 @@ def test_validate_raci_assignment_passes_for_valid_prompt() -> None:
 
 def test_validate_raci_assignment_blocks_audit_with_llm_responsible() -> None:
     assignment = RACIAssignment(
-        responsible=RACIRoleBinding(actor_type="llm"),
-        accountable=RACIRoleBinding(actor_type="human"),
+        responsible=RACIRoleSpec(actor_type="llm"),
+        accountable=RACIRoleSpec(actor_type="human"),
     )
     audit_step = AuditStep(
         id="a1", title="A1", audit=AuditConfig(trigger_mode="manual", enforcement="blocking")
@@ -1060,8 +1060,8 @@ def test_resolve_raci_inferred_path_with_inputs() -> None:
 
 def test_resolve_raci_explicit_path() -> None:
     explicit = RACIAssignment(
-        responsible=RACIRoleBinding(actor_type="llm", actor_id="claude"),
-        accountable=RACIRoleBinding(actor_type="human", actor_id="owner-42"),
+        responsible=RACIRoleSpec(actor_type="llm", actor_id="claude"),
+        accountable=RACIRoleSpec(actor_type="human", actor_id="owner-42"),
     )
     step = PromptStep(
         id="p1",
@@ -1082,9 +1082,9 @@ def test_resolve_raci_raises_when_owner_missing() -> None:
 
 def test_resolve_raci_optional_consulted_passthrough() -> None:
     explicit = RACIAssignment(
-        responsible=RACIRoleBinding(actor_type="llm", actor_id="claude"),
-        accountable=RACIRoleBinding(actor_type="human", actor_id="o"),
-        consulted=[RACIRoleBinding(actor_type="service")],
+        responsible=RACIRoleSpec(actor_type="llm", actor_id="claude"),
+        accountable=RACIRoleSpec(actor_type="human", actor_id="o"),
+        consulted=[RACIRoleSpec(actor_type="service")],
     )
     step = PromptStep(
         id="p1",
@@ -1231,7 +1231,7 @@ def test_evaluate_significance_custom_band_cutoffs() -> None:
 def test_dimension_score_override_records_audit() -> None:
     override = DimensionScoreOverride(
         decision_id="audit:s1",
-        overridden_by=RACIRoleBinding(actor_type="human", actor_id="owner"),
+        overridden_by=RaciRoleBinding(actor_type="human", actor_id="owner"),
         override_reason="manual review forced this",
         original_scores={"user_customer_impact": 0},
         new_scores={"user_customer_impact": 3},
@@ -1244,7 +1244,7 @@ def test_dimension_score_override_rejects_non_human_actor() -> None:
     with pytest.raises(ValidationError):
         DimensionScoreOverride(
             decision_id="audit:s1",
-            overridden_by=RACIRoleBinding(actor_type="llm", actor_id="claude"),
+            overridden_by=RaciRoleBinding(actor_type="llm", actor_id="claude"),
             override_reason="bot override",
             original_scores={"user_customer_impact": 0},
             new_scores={"user_customer_impact": 1},
@@ -1350,21 +1350,21 @@ def test_load_mission_template_file_normalizes_shorthand(tmp_path: Path) -> None
 
 
 def test_resolved_raci_binding_explicit_requires_override_reason() -> None:
-    with pytest.raises(ValidationError):
-        ResolvedRACIBinding(
+    with pytest.raises(ValidationError, match="source='explicit' requires non-empty override_reason"):
+        ResolvedRaciSnapshot(
             step_id="s",
-            responsible=RACIRoleBinding(actor_type="llm"),
-            accountable=RACIRoleBinding(actor_type="human"),
+            responsible=RaciRoleBinding(actor_type="llm", actor_id="claude"),
+            accountable=RaciRoleBinding(actor_type="human", actor_id="owner"),
             source="explicit",
         )
 
 
 def test_resolved_raci_binding_inferred_requires_rule() -> None:
-    with pytest.raises(ValidationError):
-        ResolvedRACIBinding(
+    with pytest.raises(ValidationError, match="source='inferred' requires non-empty inferred_rule"):
+        ResolvedRaciSnapshot(
             step_id="s",
-            responsible=RACIRoleBinding(actor_type="llm"),
-            accountable=RACIRoleBinding(actor_type="human"),
+            responsible=RaciRoleBinding(actor_type="llm", actor_id="claude"),
+            accountable=RaciRoleBinding(actor_type="human", actor_id="owner"),
             source="inferred",
         )
 
@@ -1372,15 +1372,15 @@ def test_resolved_raci_binding_inferred_requires_rule() -> None:
 def test_raci_assignment_p0_invariant() -> None:
     with pytest.raises(ValidationError):
         RACIAssignment(
-            responsible=RACIRoleBinding(actor_type="llm"),
-            accountable=RACIRoleBinding(actor_type="llm"),  # not human
+            responsible=RACIRoleSpec(actor_type="llm"),
+            accountable=RACIRoleSpec(actor_type="llm"),  # not human
         )
 
 
 def test_prompt_step_raci_override_reason_required() -> None:
     explicit = RACIAssignment(
-        responsible=RACIRoleBinding(actor_type="llm", actor_id="x"),
-        accountable=RACIRoleBinding(actor_type="human", actor_id="y"),
+        responsible=RACIRoleSpec(actor_type="llm", actor_id="x"),
+        accountable=RACIRoleSpec(actor_type="human", actor_id="y"),
     )
     with pytest.raises(ValidationError):
         PromptStep(id="p", title="P", raci=explicit)

@@ -76,8 +76,13 @@ class DecisionAnswer(BaseModel):
 # RACI role model types (WP06)
 # ---------------------------------------------------------------------------
 
-class RACIRoleBinding(BaseModel):
-    """Single actor-role binding in a RACI assignment."""
+class RACIRoleSpec(BaseModel):
+    """Authoring-side actor-role binding in a mission template RACI assignment.
+
+    ``actor_id`` is optional here: resolution fills it from the runtime inputs
+    (``raci.resolve_raci``). Resolved and persisted roles use the package
+    ``spec_kitty_events.RaciRoleBinding``, whose ``actor_id`` is required.
+    """
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     actor_type: Literal["human", "llm", "service"]
@@ -91,10 +96,10 @@ class RACIAssignment(BaseModel):
     """
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    responsible: RACIRoleBinding
-    accountable: RACIRoleBinding
-    consulted: list[RACIRoleBinding] = Field(default_factory=list)
-    informed: list[RACIRoleBinding] = Field(default_factory=list)
+    responsible: RACIRoleSpec
+    accountable: RACIRoleSpec
+    consulted: list[RACIRoleSpec] = Field(default_factory=list)
+    informed: list[RACIRoleSpec] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _enforce_p0_accountable_human(self) -> RACIAssignment:
@@ -102,36 +107,6 @@ class RACIAssignment(BaseModel):
             raise ValueError(
                 f"P0 invariant violation: accountable must be human, "
                 f"got '{self.accountable.actor_type}'"
-            )
-        return self
-
-
-class ResolvedRACIBinding(BaseModel):
-    """Fully resolved RACI binding with provenance metadata."""
-    model_config = ConfigDict(frozen=True, extra="forbid")
-
-    step_id: str
-    responsible: RACIRoleBinding
-    accountable: RACIRoleBinding
-    consulted: list[RACIRoleBinding] = Field(default_factory=list)
-    informed: list[RACIRoleBinding] = Field(default_factory=list)
-    source: Literal["inferred", "explicit"]
-    inferred_rule: str | None = None
-    override_reason: str | None = None
-
-    @model_validator(mode="after")
-    def _validate_provenance(self) -> ResolvedRACIBinding:
-        if self.source == "explicit" and not self.override_reason:
-            raise ValueError(
-                "ResolvedRACIBinding with source='explicit' requires non-empty override_reason"
-            )
-        if self.source == "inferred" and not self.inferred_rule:
-            raise ValueError(
-                "ResolvedRACIBinding with source='inferred' requires non-empty inferred_rule"
-            )
-        if self.source == "inferred" and self.override_reason is not None:
-            raise ValueError(
-                "ResolvedRACIBinding with source='inferred' must not have override_reason"
             )
         return self
 

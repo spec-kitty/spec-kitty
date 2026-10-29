@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#4848": {
+      "evidence_ref": "Cited as a boundary (C-004, mission M4); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6445": {
+      "evidence_ref": "Local models deleted; package models + actor-id sentinels (WP02 8ba2ebf2, 83b97a46); 24 adoption tests",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#6446": {
+      "evidence_ref": "Follow-up: #6446 stays open, blocked on an EventBridge port door for run-log decision events and a timeout trigger (operator ruling 2026-10-27)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6602": {
+      "evidence_ref": "Lock 11.3.0 (cc993d31), floor >=11.3.0,<12 (WP01 fcebaa69), envelope snapshot + compatibility manifest refreshed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

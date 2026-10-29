@@ -14,6 +14,10 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol
 
+# The significance and timeout payloads are the package contracts (#6445). They
+# annotate the emitter Protocol/impl below and are intentionally NOT re-exported
+# in ``__all__``: consumers import them from ``spec_kitty_events`` directly.
+from spec_kitty_events import DecisionTimeoutExpiredPayload, SignificanceEvaluatedPayload
 from spec_kitty_events.mission_next import (
     DECISION_INPUT_ANSWERED,
     DECISION_INPUT_REQUESTED,
@@ -27,17 +31,6 @@ from spec_kitty_events.mission_next import (
     MissionRunStartedPayload,
     NextStepAutoCompletedPayload,
     NextStepIssuedPayload,
-)
-# WP04 (org-doctrine-profile-integrity-closeout, T014): these two payloads
-# are imported for use as annotations on the emitter Protocol/impl below
-# (``emit_significance_evaluated`` / ``emit_decision_timeout_expired``).
-# They are intentionally NOT re-exported in ``__all__`` — consumers resolve
-# the canonical payloads from ``significance.py`` directly. Keeping these
-# imports (annotation-only) while dropping them from ``__all__`` clears the
-# dead-symbol gate without breaking any annotation.
-from runtime.next._internal_runtime.significance import (
-    SignificanceEvaluatedPayload,
-    TimeoutExpiredPayload,
 )
 # Layer note (dead-port-disposition-01M1VRA2, research R-5): ``runtime`` may import
 # ``specify_cli.*`` except ``specify_cli.cli`` / ``specify_cli.next``; both ``core``
@@ -94,7 +87,7 @@ class RuntimeEventEmitter(Protocol):
 
     def emit_significance_evaluated(self, payload: SignificanceEvaluatedPayload) -> None: ...
 
-    def emit_decision_timeout_expired(self, payload: TimeoutExpiredPayload) -> None: ...
+    def emit_decision_timeout_expired(self, payload: DecisionTimeoutExpiredPayload) -> None: ...
 
 
 class _EventBridgePort(RuntimeEventEmitter, WorkPackageTransitionPort, Protocol):
@@ -191,7 +184,7 @@ class NullEmitter:
     def emit_significance_evaluated(self, payload: SignificanceEvaluatedPayload) -> None:
         pass
 
-    def emit_decision_timeout_expired(self, payload: TimeoutExpiredPayload) -> None:
+    def emit_decision_timeout_expired(self, payload: DecisionTimeoutExpiredPayload) -> None:
         pass
 
 
