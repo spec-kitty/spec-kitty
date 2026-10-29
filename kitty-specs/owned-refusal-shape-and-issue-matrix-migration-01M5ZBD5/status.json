@@ -2,10 +2,9 @@
   "event_count": 43,
   "last_event_id": "01M635QEZ89V9PCSZRXX3YDXZB",
   "materialized_at": "2026-10-29T06:32:01.256821+00:00",
-  "mission_number": "243",
+  "mission_number": "",
   "mission_slug": "owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -21,147 +20,66 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M635Q7GJYVESCZHRKRXXZVJQ",
       "last_transition_at": "2026-10-29T06:31:53.618047+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T19:20:14Z – claude – shell_pid=6721 – T001 red (commit 6efb39cc): uv run --frozen pytest tests/integration/test_owned_issue_verdict_legacy_migration_6354.py -> 3 failed (exit_code 1, <Result FileNotFoundError(2, 'No such file or directory')>) for --owned-checkout and flagless adoption; migration resolves the write against the repository root checkout.",
-        "Ready for review. Commits: 6efb39cc (red test, 3 failed exit 1 FileNotFoundError), cb166837 (fix: owned forwarded migrate_issue_matrix_to_json -> write_issue_matrix; _migrate_if_needed passes owned=owned). Tests: pytest legacy_migration_6354 + authority_6320 + p0_repro_6320 + coord_legacy_md_preservation + tests/specify_cli/tasks/ -> 130 passed; issue-matrix terminality/gate set (policy/test_merge_gates_issue_matrix, mission_runtime/test_issue_matrix_ref_read, agent/test_tasks_parsing_validation, test_move_task_done_issue_matrix[_orchestrator], architectural/test_issue_matrix_partition_guard, test_issue_matrix_not_applicable, consolidation/test_gate_artifact_merge_drivers_2804) -> 202 passed. ruff check exit 0; ruff format --check --force-exclude exit 0; mypy on the 2 src files exits 1 with 2 PRE-EXISTING no-any-return errors (issue_matrix_migration.py:254 base / issue_verdict.py:175), identical on base, from follow_imports=skip; none on changed lines. T002.3: non-owned control is the existing test_issue_verdict_coord_legacy_md_preservation.py (no second slow fixture); owned malformed-.md assertion not added (each test costs a fresh function-scoped fixture).",
-        "- 2026-10-27T20:02:10Z – unknown – Review cycle 1 fix (52d62ac6). Earlier '202 passed' = uv run --frozen pytest tests/policy/test_merge_gates_issue_matrix.py tests/mission_runtime/test_issue_matrix_ref_read.py tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py tests/specify_cli/cli/commands/agent/test_move_task_done_issue_matrix.py tests/specify_cli/cli/commands/agent/test_move_task_done_issue_matrix_orchestrator.py tests/architectural/test_issue_matrix_partition_guard.py tests/specify_cli/cli/commands/test_issue_matrix_not_applicable.py tests/consolidation/test_gate_artifact_merge_drivers_2804.py -q -n 4 --dist loadfile (8 files; the reviewer's 5-file subset gives 143, reproduced).",
-        "Cycle 1 feedback addressed in 52d62ac6: typed locals fix no-any-return at issue_matrix_migration.py (content arm of load_issue_matrix, list[IssueMatrixRow]) and issue_verdict.py _load_raw_rows (dict[str, IssueMatrixEntry], the declared return type); new 6354 test annotated (_verdict -> typer.testing.Result, checkouts: tuple[Path, Path, Path]); stray blank line removed. No cast/suppression. mypy src/specify_cli/tasks/issue_matrix_migration.py src/specify_cli/cli/commands/agent/issue_verdict.py tests/specify_cli/tasks/test_issue_matrix_structured.py: exit 0 (no issues, 3 files). Adding tests/integration/test_owned_issue_verdict_legacy_migration_6354.py: exit 1 with 55 errors, all inside the untouched imported tests/integration/test_explicit_checkout_commands.py (out of scope), 0 in touched files. ruff check exit 0; ruff format --check --force-exclude exit 0. Tests: blast radius (6354, 6320 authority, 6320 p0 repro, coord legacy-md preservation, tests/specify_cli/tasks/) 130 passed; reviewer's 5-file terminality set 143 passed; my 8-file set (that plus partition_guard, issue_matrix_not_applicable, gate_artifact_merge_drivers_2804) 202 passed.",
-        "Review passed (cycle 2, reviewer-renata): 52d62ac6 resolves all 3 required mypy changes with typed locals and annotations, no cast/ignore. Red-first verified in cycle 1 (6efb39cc: 3 failed, FileNotFoundError). Whole-WP diff vs 5223857c touches only the 4 owned files plus mission artifacts. Ran: blast-radius set 130 passed; issue-matrix terminality/gate set 143 passed; ruff check clean; ruff format --check --force-exclude clean; mypy on 2 source files + test_issue_matrix_structured.py: 0 issues; mypy --follow-imports=silent on the new 6354 module: 0 issues. The 55 errors in a 4-file mypy run are all in the imported, untouched tests/integration/test_explicit_checkout_commands.py, so they do not count against NFR-002 (not touched files)."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP01:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 21730,
-      "shell_pid_created_at": "1793131451.14",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
-      }
+      "shell_pid": 5104,
+      "shell_pid_created_at": "1793131089.17"
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M635QA148SA76XBM15S3749S",
       "last_transition_at": "2026-10-29T06:31:56.196153+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T20:13:31Z – claude – shell_pid=30621 – T006 red committed (beb63bc1): 5 TestOwnedRefusalPayloadC2 unit tests fail (ImportError owned_refusal_payload x3; TypeError emit_owned_refusal missing envelope x2); integration test_owned_fact_resolving_no_mission_still_refuses fails (payload keys {success,error_code,error} != {ok,error}). 6 failed, 2 passed (positive same-fixture controls).",
-        "- 2026-10-27T21:09:52Z – claude – shell_pid=30621 – out-of-map: issue_verdict.py renderer call (signature change) -- dropped envelope=success_false_envelope and its import (55ea540e).",
-        "- 2026-10-27T21:09:55Z – claude – shell_pid=30621 – out-of-map (mypy NFR-002 on touched files): pyproject.toml adds specify_cli.task_utils.support to the follow_imports=normal list and accept.py imports TaskCliError from it, so ResidualCommitError no longer subclasses Any; also out-of-map tests re-pinned: test_agent_git_paths.py, test_owned_checkout_move_task.py (edge-refusal cases only; catch-all cases left for WP04), test_owned_protected_single_branch.py, test_owned_pr_bound_finalization.py; docs/adr/4.x/index.md + docs/development/page-inventory.yaml via freshen_adr_inventory.",
-        "- 2026-10-27T21:09:58Z – claude – shell_pid=30621 – spec-commit except ActionContextError arm: it mixed owned refusals (OWNED_MISSION_PATH_REFUSED / OWNED_INDEX_REFUSED from _resolve_commit_inputs) with non-owned commit_for_mission errors. Wrapped only _resolve_commit_inputs and routed it through emit_owned_refusal(context={committed:false}); the generic arm is left byte-identical for non-owned failures (FR-011). Same treatment for finalize-tasks' require_unstaged_index (0996eb4d). WP03 depends on this change: orchestrator_api/design_phase.py reads the check-prerequisites host payload, which is now C2 + spec_kitty_version (not edited here).",
-        "C2 owned refusal via one renderer (#6353). Commits: beb63bc1 red tests; 55ea540e renderer+callers (owned_refusal_payload single builder, four envelope builders deleted, no envelope= param, context/stamp_version per data-model; decision verbs' owned refusal on stdout); 0996eb4d finalize OWNED_INDEX_REFUSED through renderer; 73de91ee T012 re-pins; a9e43c5b + 28293aa3 ADR 2026-10-27-1. Tests: unit tier (helper, unified, agent/, next_owned_fact, accept_decomposition, decision_owned_checkout, decision_command_shape_consistency, op_owned_checkout) 2941 passed/0 failed; owned integration (test_owned_*.py, explicit_checkout, p0 repros 6320/6023) 566 passed/0 failed; arch gates single_authority+json_contract_enumeration+no_legacy_terminology+pyproject_shape 237 passed; make test-fast 2476 passed; broad tests/specify_cli/cli tests/agent tests/specify_cli/{next,orchestrator_api,invocation} + e2e owned concurrency 8781 passed/4 failed (unrelated: 3 test_doctrine_asset internal-pack path resolves to repo root from a lane worktree; test_activate_only_6408 passes in isolation, parallel flake). Lint: ruff check + ruff format --check --force-exclude on all changed .py exit 0; mypy on 18 changed src files exit 0. Out-of-map: issue_verdict.py, pyproject.toml mypy follow list, 4 test files, ADR index/inventory (see history).",
-        "Review passed (reviewer-renata, independent). Red-first verified: T006 at beb63bc1 in a detached worktree = 6 failed / 2 passed (same-fixture controls); green at HEAD. Contract: renderer builds only via owned_refusal_payload(json_error core + optional context + optional spec_kitty_version); no envelope= left in src; four builders deleted; per-command context/stamp match data-model (setup-plan phase_complete+stamp; finalize/check-prereq/record-analysis stamp; mark-status edge+in-command context; spec-commit committed:false; others bare). FR-011: context.py _emit_context_error inline dict byte-identical; accept ordinary errors and spec-commit generic ActionContextError arm unchanged; decision verbs non-owned stay stderr. Rulings: (a) accept - spec-commit OWNED_MISSION_PATH_REFUSED/OWNED_INDEX_REFUSED are registered OwnedRefusalCode members, WP T011 directed it, human line converges to Error:[CODE] on stderr (ADR Negative names it); (b) accept - same code, same renderer, validate_only gate preserved, exits via the existing typer.Exit handler; (c) WORK_PACKAGE_UNRESOLVED from resolve_action_context is a WP-lookup error raised identically for owned and non-owned runs, not a claim/adoption refusal - non-owned residual, correctly kept and named in ADR; (d) ledger symlink OWNED_MISSION_PATH_REFUSED in decision verbs is a write-containment check after resolution, outside FR-009 as scoped (research row 25, WP T011), covered by ADR Decision 7 - non-blocking follow-up suggested (also repair-runtime-lock in-command {status,code,message}). Out-of-map: issue_verdict.py one-liner minimal; pyproject follow_imports adds task_utils.support (light imports; mypy on its 11 importers = 5 errors/3 files with and without the line, no ripple); ADR index + page-inventory entries required by docs gates. Shared file: test_owned_checkout_move_task.py is WP04-owned; WP02 re-pinned only edge-refusal cases, catch-all left for WP04 (recorded). Commands: unit tier 2989 passed/5 skipped/2 xfailed; owned integration 566 passed; orchestrator WP03 tests 40 passed/1 skipped (no intermediate red); other touched-module tests 907 passed/1 xfailed; arch gates (single_authority, json_contract_enumeration, no_legacy_terminology) 228 passed; docs gates + pyproject_shape 74 passed, structural lint 35 passed; make test-fast 2476 passed; mypy 0 on 18 src files; ruff check/format/C901 clean on 39 files. Unrelated: test_doctrine_asset 3 reds are a worktree-path artefact (red on pre-WP02 code in a worktree, 3 passed at repository root checkout); test_activate_only_6408 green serially."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261027",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 20910,
-      "shell_pid_created_at": "1793136183.19",
-      "subtasks": {
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T010": "done",
-        "T011": "done",
-        "T012": "done"
-      }
+      "shell_pid": 30621,
+      "shell_pid_created_at": "1793131694.32"
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M635QCG1A4MG1DQ6D9Y0RFV0",
       "last_transition_at": "2026-10-29T06:31:58.721647+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-27T21:59:50Z – claude – shell_pid=15439 – runtime_next.py: no change needed. _fail_native_refusal detects the C2 shape via 'error' in payload; error is a dict so the design-authoring branch (str error) is skipped and the generic RUNTIME_NEXT_FAILED message is kept with the raw C2 payload in data. test_runtime_next.py pins no owned-refusal keys, so no re-pin. T013 optional end-to-end owned-checkout run skipped: no cheap fixture; unit classifier tests plus WP04's cross-command test are the pin.",
-        "Ready for review: check-prerequisites classifier reads C2 error.code/error.message (helper _host_error_code_and_message), forbidden MISSION_CONTEXT_UNRESOLVED still sanitized whole-payload, string-error payloads unchanged; CONTRACT_VERSION 1.19.0 with tests re-pinned and doc change note; runtime_next.py unchanged (detection still works). Tests: pytest tests/specify_cli/orchestrator_api/ tests/orchestrator_api/ -> 269 passed, 1 skipped; pytest tests/agent/test_envelope_unit.py tests/agent/test_orchestrator_commands_integration.py tests/contract/test_orchestrator_api.py tests/architectural/test_no_legacy_terminology.py -> 204 passed. Red run: 3 failed, 1 passed (positive control). ruff check exit 0; ruff format --check --force-exclude exit 0; mypy design_phase.py envelope.py exit 0.",
-        "- 2026-10-29T05:06:52Z – unknown – Correction to the cycle-0 note: the claim that the T013 end-to-end test was skipped for lack of a cheap fixture was wrong, because this module's _init_repo/_build_mission/_run helpers are that fixture. Cycle 1 adds the e2e test test_check_prerequisites_classifies_real_rendered_c2_owned_refusal. It is parametrized over OWNED_CHECKOUT_IS_REPOSITORY_ROOT and MISSION_CONTEXT_UNRESOLVED->MISSION_NOT_FOUND, and its host renders through the real emit_owned_refusal (indent=2). It was committed red (1cf2e099), then fixed in 483eb6de: _extract_json_payload now parses the whole capture first, and the payload-None branch scrubs the forbidden code. The runtime_next.py note stands: no change needed.",
-        "Cycle 1 fixes: (1) red e2e test 1cf2e099 drives orchestrator-api check-prerequisites with the host rendering through the real emit_owned_refusal (indent=2 C2), parametrized over OWNED_CHECKOUT_IS_REPOSITORY_ROOT and MISSION_CONTEXT_UNRESOLVED->MISSION_NOT_FOUND. It asserts error_code, the plain-text data.message, data.error, and no forbidden token in the whole envelope. (2) 483eb6de: _extract_json_payload parses the whole capture as one JSON object first, then falls back to the unchanged single-line scan, pinned by a parser unit test. (3) The payload-None branch scrubs MISSION_CONTEXT_UNRESOLVED from raw_output and the message. (4) History note corrected. Red run: 3 failed, 4 passed. Tests: pytest tests/specify_cli/orchestrator_api/ tests/orchestrator_api/ -> 273 passed, 1 skipped; pytest tests/agent/test_envelope_unit.py tests/agent/test_orchestrator_commands_integration.py tests/contract/test_orchestrator_api.py tests/architectural/test_no_legacy_terminology.py -> 204 passed. ruff check 0, ruff format --check --force-exclude 0, mypy design_phase.py envelope.py 0.",
-        "Review passed (cycle 2, reviewer-renata): cycle-1 blocker fixed. _extract_json_payload parses a whole-capture JSON object first (design_phase.py:99-129), so the host's indent=2 C2 owned refusal reaches the classifier; the None branch scrubs MISSION_CONTEXT_UNRESOLVED (design_phase.py:504-509). Red-first verified at 1cf2e099 in a temp worktree: 3 failed, 4 passed. Reviewer e2e repro (CliRunner, host prints C2 with indent=2) now 2 passed. Extractor matrix unchanged for single-line, noise+single, trailing, two-docs, empty, array; multi-line now returns the whole object instead of a nested line (an improvement); noise+indented is still None, as before (a residual, no regression). Callers specify/plan/tasks/record-analysis delegates emit single-line JSON (mission_parsing._emit_json). runtime_next needs no change. Version is 1.19.0, with historical 1.18.0 lines kept. orchestrator suites: 273 passed, 1 skipped; ruff, format and mypy clean; C901 at most 4."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP03:20261029",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 32344,
-      "shell_pid_created_at": "1793250508.94",
-      "subtasks": {
-        "T013": "done",
-        "T014": "done",
-        "T015": "done",
-        "T016": "done"
-      }
+      "shell_pid": 964,
+      "shell_pid_created_at": "1793249935.87"
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M635QEZ89V9PCSZRXX3YDXZB",
       "last_transition_at": "2026-10-29T06:32:01.256821+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-29T05:38:11Z – claude – shell_pid=22973 – Sanctioned out-of-map edits (coordinator/operator ruling): src/specify_cli/cli/commands/decision.py (WP02-owned; _handle_action_context_error now takes the owned fact and renders a registered OwnedRefusalCode via emit_owned_refusal on stdout, used at the six post-resolution except arms of open/resolve/defer/cancel/verify/list); tests/specify_cli/cli/commands/test_decision_owned_checkout.py (WP02-owned; re-pinned test_owned_escaped_ledger_refuses to C2 stdout + FR-011 stderr control); tests/specify_cli/cli/commands/test_owned_refusal_format_unified.py (WP02-owned; move-task catch-all re-pin); tests/specify_cli/cli/commands/agent/test_mission_create_phases.py (owned glob) plus tests/specify_cli/cli/commands/agent/golden/mission_create_cli.json and the golden harness _envelope_error_code reader (out of map: golden cell owned_not_a_worktree_refusal). Decision-ledger path pinned by its own test (test_owned_escaped_ledger_refuses), not added to the T019 module: it needs an opened decision plus a symlinked ledger, which would mutate the shared module fixture. T019 runtime: 26 tests in ~90s serial (one module-scoped R/P/S fixture, ~3s per CLI invocation). T020: option B (gate is per command; docstring note, no ADOPTED promotion, no assertion loosened). CHANGELOG #6353 entry placed under Breaking (the section this file uses for breaking JSON changes), split in two to meet the 1200-char style limit.",
-        "WP04 done. Commits: 064adc85 red tests; 76620461 fix (mission_create + move-task catch-all via owned_refusal_payload; decision verbs route registered OwnedRefusalCode after resolution to emit_owned_refusal on stdout, other codes stay stderr); 478c86ed T019 cross-command C2 pin (23 command params + 3 same-fixture success controls, 26 passed ~90s) + T020 docstring note (option B); 2ec41c89 CHANGELOG (#6353 Breaking x2, #6354 Fixed, orchestrator-api 1.19.0, decision verbs). Tests: WP04 strategy + decision/runtime-lock/shape-consistency/single-authority/json-enumeration/no-legacy-terminology/changelog-style/spelling: 697 passed; owned blast radius (task_command_owned_conversion, owned_lifecycle_acceptance_*, explicit_checkout_commands, orchestrator specify verbs, golden contract, owned_checkout_helper, e2e owned-root concurrency): 348 passed 21 skipped; decision suites: 274 passed 1 failed under -n4 (test_service_terminal_concurrency deadlock test, passes 5/5 serially twice, no decisions/ module touched: co-scheduling flake, not ours); make test-fast: 2476 passed 6 skipped. ruff check 0, ruff format --check --force-exclude 0, mypy (3 src files + new test) 0. Out-of-map: decision.py, test_decision_owned_checkout.py, test_owned_refusal_format_unified.py, golden mission_create_cli.json + golden harness (see history).",
-        "- 2026-10-29T06:14:26Z – unknown – Review cycle 1 fix (16de53aa): sanctioned out-of-map edit of WP02's ADR docs/adr/4.x/2026-10-27-1-owned-refusals-use-the-c2-error-contract.md, edited in place with updated: 2026-10-29. Decision 7 rewritten (decision verbs print every registered OwnedRefusalCode on an owned run as C2 on stdout, incl. ledger OWNED_MISSION_PATH_REFUSED; others stderr until #4664); context definition widened to post-resolution owned guards (write containment, staged index); negative consequence added for the ledger refusal's stderr->stdout move; neutral residual added for the finalize-tasks generic error arm (TOCTOU only). Description trimmed 201->173 chars: test_description_length_gate (180 limit) was already red on the lane base for this ADR. Golden note acknowledged: the hand-edited cell was byte-identical to the SPEC_KITTY_REGEN_GOLDEN=1 output per reviewer; use the regen tool next time.",
-        "Cycle 1 fix: 16de53aa amends ADR 2026-10-27-1 (Decision 7 for post-resolution owned refusals in decision verbs; widened context; ledger stdout move in negative consequences; finalize-tasks TOCTOU residual; updated 2026-10-29; description trimmed to the 180-char gate, which was red on the base for this ADR). Gates: tests/docs/{test_docs_structural_lint,test_description_length_gate,test_adr_content_invariance,test_published_pages,test_docs_index,test_adr_readme_prose,test_rulers_blocking,test_architecture_docs_consistency,test_freshen_adr_inventory,test_check_docs_freshness,test_check_spelling,test_changelog_style}.py + tests/architectural/test_no_legacy_terminology.py: 586 passed. Out-of-map: the ADR (WP02-owned, sanctioned), recorded in history.",
-        "Review cycle 2 passed (reviewer-renata). 16de53aa touches only the ADR (later commits are status only). Decision 7 now matches decision.py:248-265 (owned fact + OwnedRefusalCode -> emit_owned_refusal on stdout; other codes and non-owned runs stay {error, code} on stderr, #4664) and CHANGELOG:35; Context widened; Negative bullet for the ledger stream move; Neutral residual for the finalize TOCTOU arm. Description trim confirmed necessary: test_description_length_gate::test_live_tree_is_clean is RED at WP02 tip 28293aa3 and lane base b9c45e10 (TOO_LONG length=201), green at HEAD (38 passed). Nit (non-blocking): Decision 7 says every registered OwnedRefusalCode, but the resolution refusal can also carry MISSION_CONTEXT_UNRESOLVED/CONFLICT or WORKTREE_REGISTRY_UNAVAILABLE (registry codes, not OwnedRefusalCode members); those go to stdout via _resolve_decision_context too. Pre-existing (not WP04): tests/docs/test_committed_docs_index_fresh.py is red at HEAD and at the lane base b9c45e10. The ADR added by WP02 (a9e43c5b) was never folded into docs/development/docs-retrieval-index.yaml. Needs 'PYTHONPATH=. uv run python scripts/docs/docs_index.py --write' plus a commit before consolidation (coordinator follow-up). Commands: tests/docs + terminology gate + T019 + decision owned tests: 1927 passed, 8 skipped, 1 failed (the pre-existing index gate); description gate 38 passed at HEAD; cycle-1 evidence unchanged (495 targeted, make test-fast 2476, mypy/ruff clean)."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "auto-approval:WP04:20261029",
         "reviewer": "Claude",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 7912,
-      "shell_pid_created_at": "1793254542.49",
-      "subtasks": {
-        "T017": "done",
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done"
-      }
+      "shell_pid": 26919,
+      "shell_pid_created_at": "1793254265.93"
     }
   }
 }

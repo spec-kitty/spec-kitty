@@ -1,0 +1,131 @@
+schema_version: 1
+mission_id: 01M5ZBD5VCWGSQKRJ34AT655MX
+mission_slug: owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5
+mission_number: 243
+friendly_name: Owned-checkout issue-verdict cleanup
+mission_type: software-dev
+target_branch: issue-6354-owned-issue-verdict-cleanup
+created_at: '2026-10-29T06:33:20.254626+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-29T06:33:20.254626+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-009
+not_helpful:
+- id: n-004
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-013
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-010
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-011
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP04 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-012
+  details: WP WP04 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/tasks.md
+- id: e-005
+  kind: file
+  path:
+    kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/tasks/WP01-owned-legacy-issue-matrix-migration.md
+- id: e-006
+  kind: file
+  path:
+    kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/tasks/WP02-c2-owned-refusal-renderer-and-callers.md
+- id: e-007
+  kind: file
+  path:
+    kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/tasks/WP03-orchestrator-api-c2-host-refusal.md
+- id: e-008
+  kind: file
+  path:
+    kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/tasks/WP04-off-renderer-refusals-and-cross-command-pin.md
+- id: e-009
+  kind: file
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/status.events.jsonl
+- id: e-010
+  kind: event_range
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/status.events.jsonl
+  range: 01M5ZF178A0QJ8P05JT790ZC8H
+- id: e-011
+  kind: event_range
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/status.events.jsonl
+  range: 01M630C15H7F8SEG07PGZZB9CN
+- id: e-012
+  kind: event_range
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/status.events.jsonl
+  range: 01M634FF7FQV2CPFS01EQGHR02
+- id: e-013
+  kind: file
+  path: kitty-specs/owned-refusal-shape-and-issue-matrix-migration-01M5ZBD5/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
