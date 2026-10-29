@@ -34,6 +34,7 @@ from ruamel.yaml.error import YAMLError
 from charter.activation.org_pack_discovery import read_org_required_ids
 from charter.activation.synthesizer.manifest import MANIFEST_PATH, SynthesisManifest, load_yaml
 from charter.activation.synthesizer.reconcile import REACH_ONLY_KINDS, ReconciliationDelta, is_synthesized_source_edge, synthesized_node_urns
+from charter.activation.synthesizer.synthesis_lock import synthesis_lock
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.loader import DRGLoadError, has_graph_files, load_graph_or_dir
 from charter.offering.drg.models import NodeKind
@@ -54,7 +55,11 @@ _CREATED_ARTIFACTS_HEADER = (
     "# it, so an artifact you remove stays removed. Written by spec-kitty; do not edit.\n"
 )
 _UNREADABLE_RECORD_WARNING = (
-    "{path} is unreadable; no synthesized artifact was added to an activation list. Activate one with `spec-kitty charter activate <kind> <id>`."
+    "{path} is unreadable; no synthesized artifact was added to an activation list. "
+    "Restore it from version control (`git checkout -- {path}`, or from an earlier commit) "
+    "or fix its YAML by hand, keeping every listed id. "
+    "Do not delete it: synthesis would forget which artifacts it created and add back ones you removed. "
+    "To activate one artifact now, run `spec-kitty charter activate <kind> <id>`."
 )
 
 
@@ -252,10 +257,21 @@ def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str
     unreadable record appends nothing for any kind and warns. The synthesis
     manifest's bundle hash is restamped once after a config write.
 
+    The whole read-merge-write of the record runs under the run-wide synthesis
+    lock (:func:`~charter.activation.synthesizer.synthesis_lock.synthesis_lock`),
+    so concurrent synthesis runs never lose a recorded id or re-add a removed
+    artifact (#6453). The lock is re-entrant, so a caller already holding it is fine.
+
     A deactivated artifact is never appended, not even on its first creation
     (FR-009): it is recorded as created and reported as ``kept deactivated:
     <kind> <id>``; only ``spec-kitty charter activate <kind> <id>`` reinstates it.
     """
+    with synthesis_lock(repo_root):
+        return _append_synthesized_activations_locked(repo_root, created_by_kind)
+
+
+def _append_synthesized_activations_locked(repo_root: Path, created_by_kind: Mapping[str, Iterable[str]]) -> list[str]:
+    """Body of :func:`append_synthesized_activations`; the caller holds the synthesis lock."""
     slugs_by_kind = {kind: list(dict.fromkeys(created_by_kind.get(kind, ()))) for kind in REACH_ONLY_KINDS}
     slugs_by_kind = {kind: _eligible(repo_root, kind, slugs) for kind, slugs in slugs_by_kind.items()}
     slugs_by_kind = {kind: slugs for kind, slugs in slugs_by_kind.items() if slugs}

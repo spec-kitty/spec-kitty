@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from types import SimpleNamespace
@@ -323,3 +324,150 @@ def test_failed_config_write_leaves_tactic_unrecorded_and_a_rerun_appends_it(tmp
 
     assert _activated(charter_yaml) == [_EXISTING, "brand-new"]
     assert "brand-new" in yaml.safe_load(record.read_text(encoding="utf-8"))["created_tactics"]
+
+
+# ---------------------------------------------------------------------------
+# #6453: the created-artifacts record's read-merge-write is serialized
+# ---------------------------------------------------------------------------
+
+_WAIT_S = 5.0
+
+
+def _record_ids(repo: Path, key: str = "created_tactics") -> set[str]:
+    return set((yaml.safe_load((repo / CREATED_ARTIFACTS_PATH).read_text(encoding="utf-8")) or {})[key])
+
+
+def _run_concurrently(first: Callable[[], Any], second: Callable[[], Any]) -> list[Exception]:
+    errors: list[Exception] = []
+
+    def _guard(job: Callable[[], Any]) -> Callable[[], None]:
+        def _run() -> None:
+            try:
+                job()
+            except Exception as exc:
+                errors.append(exc)
+
+        return _run
+
+    threads = [threading.Thread(target=_guard(first)), threading.Thread(target=_guard(second))]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=_WAIT_S * 3)
+        assert not thread.is_alive(), "a writer hung"
+    return errors
+
+
+class _Handshake:
+    """Deterministic two-writer interleaving for the record's read-merge-write (#6453).
+
+    Writer A (whichever first reaches ``_write_record``) pauses there until writer B has been
+    seen failing a non-blocking lock attempt, i.e. B is provably waiting on the synthesis lock.
+    Without the lock B never blocks, so A times out and the race shows as a lost id.
+    """
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from charter.activation.synthesizer import reach_only
+        from kernel.locks import _LockCore
+
+        self.b_blocked = threading.Event()
+        self.a_timed_out = False
+        self._first = threading.Lock()
+        real_write = reach_only._write_record
+        real_try = _LockCore.try_lock_once
+
+        def _write(*args: Any, **kwargs: Any) -> None:
+            if self._first.acquire(blocking=False):  # only the first writer pauses
+                self.a_timed_out = not self.b_blocked.wait(timeout=_WAIT_S)
+            real_write(*args, **kwargs)
+
+        def _try(core: Any, fd: int) -> bool:
+            acquired = real_try(core, fd)
+            if not acquired:
+                self.b_blocked.set()
+            return acquired
+
+        monkeypatch.setattr(reach_only, "_write_record", _write)
+        monkeypatch.setattr(_LockCore, "try_lock_once", _try)
+
+    def assert_lock_was_contended(self) -> None:
+        assert self.b_blocked.is_set(), "writer B never waited on the synthesis lock; the race was not exercised"
+        assert not self.a_timed_out
+
+
+def _append(repo: Path, created: list[str]) -> Any:
+    from charter.activation.synthesizer.reach_only import append_synthesized_activations
+
+    return append_synthesized_activations(repo, {"tactic": created})
+
+
+def test_concurrent_appends_lose_no_recorded_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two writers that both start from ``{t1}`` must not overwrite each other's id (#6453, FR-001)."""
+    from charter.activation.synthesizer import reach_only
+
+    (tmp_path / ".kittify" / "charter").mkdir(parents=True)
+    (tmp_path / CREATED_ARTIFACTS_PATH).write_text("created_tactics:\n- t1\n", encoding="utf-8")
+    # Only the record is under test: neutralize the config write and the manifest read.
+    monkeypatch.setattr(reach_only, "_activation_write_target", lambda _root: None)
+    monkeypatch.setattr(reach_only, "_manifest_slugs", lambda _root, _kind: frozenset())
+    handshake = _Handshake(monkeypatch)
+
+    errors = _run_concurrently(lambda: _append(tmp_path, ["t2"]), lambda: _append(tmp_path, ["t3"]))
+
+    assert not errors
+    handshake.assert_lock_was_contended()
+    assert _record_ids(tmp_path) == {"t1", "t2", "t3"}
+
+
+def test_concurrent_regeneration_keeps_an_operator_removal_removed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A recorded-then-removed ``t2`` stays out of ``activated_tactics`` under concurrent runs (#6453, FR-004).
+
+    Real explicit ``activated_tactics`` config (no stub), so a re-append would be observable.
+    ``t4``/``t5`` were never recorded: they are appended (positive control).
+    """
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    (tmp_path / CREATED_ARTIFACTS_PATH).write_text("created_tactics:\n- t2\n", encoding="utf-8")  # created earlier, removed by the operator
+    handshake = _Handshake(monkeypatch)
+
+    errors = _run_concurrently(lambda: _append(tmp_path, ["t2", "t4"]), lambda: _append(tmp_path, ["t2", "t5"]))
+
+    assert not errors
+    handshake.assert_lock_was_contended()
+    assert "t2" not in _activated(charter_yaml)
+    assert {"t4", "t5", _EXISTING} <= set(_activated(charter_yaml))  # positive control
+    assert _record_ids(tmp_path) == {"t2", "t4", "t5"}
+
+
+# ---------------------------------------------------------------------------
+# #6455: the unreadable-record warning says how to restore or repair the file
+# ---------------------------------------------------------------------------
+
+_LEGACY_RECORD_PATH = Path(".kittify/charter/synthesized-tactics.yaml")
+
+
+@pytest.mark.parametrize(
+    ("record_path", "content"),
+    [
+        pytest.param(CREATED_ARTIFACTS_PATH, "created_tactics: [unterminated\n", id="current-record-malformed-yaml"),
+        pytest.param(CREATED_ARTIFACTS_PATH, "- just\n- a list\n", id="current-record-not-a-mapping"),
+        pytest.param(_LEGACY_RECORD_PATH, "created_tactics: [unterminated\n", id="legacy-record-malformed-yaml"),
+    ],
+)
+def test_unreadable_record_warning_says_how_to_restore_or_repair(tmp_path: Path, record_path: Path, content: str) -> None:
+    charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    record = tmp_path / record_path
+    record.write_text(content, encoding="utf-8")
+    config_before = charter_yaml.read_bytes()
+
+    warnings = _append(tmp_path, ["t2"])
+
+    assert len(warnings) == 1
+    warning = warnings[0]
+    assert f"{record.as_posix()} is unreadable" in warning  # prefix kept; names the offending file
+    assert "no synthesized artifact was added" in warning
+    assert f"git checkout -- {record.as_posix()}" in warning  # restore
+    assert "keeping every listed id" in warning  # repair
+    assert "Do not delete it" in warning  # caution ...
+    assert "add back ones you removed" in warning  # ... and why
+    assert charter_yaml.read_bytes() == config_before  # fail-closed (#6454/C-004): nothing appended
+    assert record.read_text(encoding="utf-8") == content  # never overwritten
