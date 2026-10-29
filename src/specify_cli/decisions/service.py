@@ -449,7 +449,21 @@ def _repair_missing_opened_event(
     entry: IndexEntry,
     owned: OwnedCheckout | None = None,
 ) -> int | None:
-    """Re-emit a missing opened event for an already-persisted open decision."""
+    """Re-emit a missing opened event for an already-persisted open decision.
+
+    Returns ``None`` (and writes nothing) when the decision's opened event is
+    already in the log; otherwise returns the repaired event's lamport. Must
+    run under the decisions lock (FR-002, the open half of #4848): every
+    ``DecisionPointOpened`` writer in the service holds it, so no opening row
+    can land between the check and the repair append. The check reads the
+    read-side log path; after ``open_decision``'s write-side pre-resolve both
+    sides name the same file.
+
+    Raises:
+        DecisionError(EVENT_REPAIR_FAILED): the opening actor was not
+            persisted, or the event append failed.
+        DecisionEventLogReadError: the log is unreadable (not wrapped).
+    """
     if _opened_event_exists(repo_root, mission_slug, entry.decision_id, owned=owned):
         return None
     if entry.opened_by is None:
@@ -592,7 +606,9 @@ def _open_locked(
     return None, entry, True
 
 
-def _locate_or_create_open_entry(
+def _record_open_locked(
+    repo_root: Path,
+    mission_slug: str,
     mission_dir: Path,
     *,
     origin_flow: OriginFlow,
@@ -603,32 +619,57 @@ def _locate_or_create_open_entry(
     options: tuple[str, ...],
     actor: str,
     mission_id: str,
-    mission_slug: str,
     decision_id: str | None,
-) -> tuple[IndexEntry | None, IndexEntry | None, bool]:
-    """T010's service-level RMW critical section for ``open_decision``.
+    owned: OwnedCheckout | None,
+) -> tuple[IndexEntry, bool, int | None, Path]:
+    """Record an open, or finish an interrupted one. The CALLER holds the decisions lock.
 
-    Runs :func:`_open_locked` -- the dedup lookup (check) and, when nothing
-    matches, the mint + append (act) -- under ONE lock acquisition on the
-    dedicated sidecar ``decisions/index.json.lock`` (D4/FR-004), closing the
-    check-then-act window a lock scoped to ``store.save_index`` alone would
-    leave open.
+    A fresh open appends the index entry, writes the artifact and appends the
+    ``DecisionPointOpened`` row; an identical open of a non-terminal entry
+    runs :func:`_repair_missing_opened_event`, which appends the row only when
+    an earlier call was interrupted before it. Both run inside the caller's
+    single hold of ``decisions/index.json.lock`` (FR-001/FR-002, the open half
+    of #4848), so a concurrent identical open waits and then finds the row.
+
+    Returns ``(entry, idempotent, event_lamport, artifact_path)``.
+
+    Raises:
+        DecisionError(ALREADY_CLOSED): the matching entry is terminal.
+        DecisionError(EVENT_REPAIR_FAILED): an idempotent retry could not
+            repair the missing opened event.
+        DecisionEventLogReadError: an idempotent retry found the log unreadable.
     """
-    lock_path = _decisions_lock_path(mission_dir)
-    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
-        return _open_locked(
-            mission_dir,
-            origin_flow=origin_flow,
-            step_id=step_id,
-            slot_key=slot_key,
-            input_key=input_key,
-            question=question,
-            options=options,
-            actor=actor,
-            mission_id=mission_id,
-            mission_slug=mission_slug,
-            decision_id=decision_id,
-        )
+    existing, entry, is_new = _open_locked(
+        mission_dir,
+        origin_flow=origin_flow,
+        step_id=step_id,
+        slot_key=slot_key,
+        input_key=input_key,
+        question=question,
+        options=options,
+        actor=actor,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        decision_id=decision_id,
+    )
+    if not is_new:
+        assert existing is not None  # narrows for mypy: is_new=False implies existing
+        if _is_terminal(existing.status):
+            raise DecisionError(
+                code=DecisionErrorCode.ALREADY_CLOSED,
+                details={
+                    "decision_id": existing.decision_id,
+                    "status": existing.status.value,
+                },
+                message=(f"Decision {existing.decision_id!r} is already in terminal state {existing.status.value!r}"),
+            )
+        repaired_lamport = _repair_missing_opened_event(repo_root, mission_slug, entry=existing, owned=owned)
+        return existing, True, repaired_lamport, _store.artifact_path(mission_dir, existing.decision_id)
+
+    assert entry is not None  # narrows for mypy: is_new=True implies entry
+    artifact = _store.write_artifact(mission_dir, entry)
+    lamport = _emit.emit_decision_opened(repo_root, mission_slug, decision_id=entry.decision_id, entry=entry, actor=actor, owned=owned)
+    return entry, False, lamport, artifact
 
 
 # ---------------------------------------------------------------------------
@@ -715,61 +756,38 @@ def open_decision(
     # NFR-002).
     _write_events_path(repo_root, mission_slug, owned=owned)  # pre-resolve: any placement failure fails before write
 
-    # T010 (D4/FR-004): the dedup lookup (check) and the mint-and-append
-    # (act) run under ONE lock acquisition -- the service-level
-    # check-then-act window this WP closes. ``store.append_entry`` still
-    # does its own internal load->save, but that redundant internal read is
-    # harmless here: it happens while THIS lock is held, so no other
-    # open/resolve call can interleave between the dedup check and the
-    # write that follows it.
-    existing, entry, is_new = _locate_or_create_open_entry(
-        mission_dir,
-        origin_flow=origin_flow,
-        step_id=step_id,
-        slot_key=slot_key,
-        input_key=input_key,
-        question=question,
-        options=options,
-        actor=actor,
-        mission_id=mission_id,
-        mission_slug=mission_slug,
-        decision_id=decision_id,
-    )
+    # T010 (D4/FR-004) and #4848 (open half, FR-001/FR-002): ONE hold of
+    # the decisions lock covers the dedup lookup, the index append, the
+    # artifact write and the opening event -- or, for an identical open, the
+    # "is the opening in the log?" check and its repair. A concurrent
+    # identical open waits here and then finds the row, so a decision gets
+    # exactly one ``DecisionPointOpened``. Lock order: decisions lock first,
+    # then the mission status lock the emit takes inside it (as in
+    # ``_terminal_command``). ``on_minted`` runs after the lock is released.
+    lock_path = _decisions_lock_path(mission_dir)
+    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+        entry, idempotent, lamport, artifact = _record_open_locked(
+            repo_root,
+            mission_slug,
+            mission_dir,
+            origin_flow=origin_flow,
+            step_id=step_id,
+            slot_key=slot_key,
+            input_key=input_key,
+            question=question,
+            options=options,
+            actor=actor,
+            mission_id=mission_id,
+            decision_id=decision_id,
+            owned=owned,
+        )
 
-    if not is_new:
-        assert existing is not None  # narrows for mypy: is_new=False implies existing
-        if not _is_terminal(existing.status):
-            # Idempotent return — already open
-            repaired_lamport = _repair_missing_opened_event(repo_root, mission_slug, entry=existing, owned=owned)
-            if on_minted is not None:
-                on_minted(existing.decision_id)
-            return DecisionOpenResponse(
-                decision_id=existing.decision_id,
-                idempotent=True,
-                mission_id=mission_id,
-                artifact_path=str(_store.artifact_path(mission_dir, existing.decision_id)),
-                event_lamport=repaired_lamport,
-            )
-        else:
-            # Already closed — reject
-            raise DecisionError(
-                code=DecisionErrorCode.ALREADY_CLOSED,
-                details={
-                    "decision_id": existing.decision_id,
-                    "status": existing.status.value,
-                },
-                message=(f"Decision {existing.decision_id!r} is already in terminal state {existing.status.value!r}"),
-            )
-
-    assert entry is not None  # narrows for mypy: is_new=True implies entry
-    artifact = _store.write_artifact(mission_dir, entry)
-    lamport = _emit.emit_decision_opened(repo_root, mission_slug, decision_id=entry.decision_id, entry=entry, actor=actor, owned=owned)
     if on_minted is not None:
         on_minted(entry.decision_id)
 
     return DecisionOpenResponse(
         decision_id=entry.decision_id,
-        idempotent=False,
+        idempotent=idempotent,
         mission_id=mission_id,
         artifact_path=str(artifact),
         event_lamport=lamport,
@@ -878,7 +896,8 @@ def _terminal_command(
 
     One hold of the decisions lock (``decisions/index.json.lock``) covers the
     index save, the artifact write and the terminal event (FR-007, #5681 and
-    the terminal half of #4848). Lock order: decisions lock first, then the
+    the terminal half of #4848; ``open_decision`` holds the same lock the
+    same way for the open half). Lock order: decisions lock first, then the
     mission status lock the emit takes inside it; no code path takes them in
     the reverse order. The write-side pre-resolve below runs BEFORE the lock
     (it may materialize the coordination surface). A waiter that cannot get
