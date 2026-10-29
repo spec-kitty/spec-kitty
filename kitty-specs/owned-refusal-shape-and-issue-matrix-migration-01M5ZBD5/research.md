@@ -172,3 +172,25 @@ states the "command-faithful" rule, so the C2 ruling needs an ADR to supersede i
 (c) `resolve_mission_handle` emits `success_false` for non-owned handle errors. That is
 out of scope: it is not an owned refusal, and FR-011 leaves non-owned errors unchanged.
 No contested finding was dropped.
+
+## 7. Pre-merge adversarial squad (2026-10-29)
+
+Lenses: `reviewer-renata` (aggregate correctness) and `architect-alphonso`
+(contract/boundary), both profile-loaded and read-only, on `origin/main...HEAD`
+after consolidation and rebase. Both returned FIX-FIRST and converged on the
+same HIGH finding.
+
+| # | Severity | Finding | Disposition | Evidence |
+|---|---|---|---|---|
+| S1 | HIGH | orchestrator-api `plan`/`tasks` lost the owned code: the shared `_classify_delegate_error` still read a top-level `error_code` (missed by research §1.4) | accepted | `7d2cb355` (red), `7a1dbbdd` (fix): `design_phase.py::_classify_delegate_error` reads through `_host_error_code_and_message` |
+| S2 | MEDIUM | 1.19.0 note named only `check-prerequisites`/`next` and claimed codes unchanged | accepted | `8087faeb`: `docs/api/orchestrator-api.md`, `envelope.py` comment, mission contract Consumers |
+| S3 | MEDIUM | repair-runtime-lock lost an owned code inside `{status, code, message}` | accepted | `7a1dbbdd`: owned codes routed through `emit_owned_refusal`; positive control keeps the status shape |
+| S4 | MEDIUM | CHANGELOG said human mode unchanged (spec-commit / finalize owned-batch refusals now print `Error: [CODE]`) | accepted | `8087faeb`: CHANGELOG Breaking entries |
+| S5 | MEDIUM | silent collision risk with see #6715 (deleted `envelope=` / `accept._refusal_envelope`) | deferred_with_rationale | no textual conflict to fix here; called out in the PR description so whichever PR lands second greps for `envelope=` / `_refusal_envelope` |
+| S6 | LOW | `decision._OWNED_REFUSAL_CODES` narrower than the registry, undocumented | accepted | `7a1dbbdd`: comment explains the post-resolution scope |
+| S7 | LOW | no structural gate for "one builder of the shape" | deferred_with_rationale | the renderer takes no envelope argument (by construction) and `tests/integration/test_owned_refusal_c2_shape.py` pins every `--json` owned refusal; an AST gate is optional hardening |
+| S8 | LOW | `pyproject.toml` follow-imports comment not truthful for `task_utils.support` | accepted | `8087faeb`: comment reworded, list unchanged |
+| S9 | LOW | dangling ADR `2026-10-27-1` references (test comment, FR-014 evidence) | accepted | `8087faeb`; `6a407423` re-records FR-014 evidence |
+| S10 | LOW | ADR Decision 6 "later work package" wording; contract "Status: proposed" | accepted | `8087faeb` |
+| S11 | LOW | skipped e2e `_error_payload` and the p0 6023 repro read the old key (the 6023 one passed vacuously) | accepted | `8087faeb`: `_owned_error_payload`, whole-stdout `_stdout_error_code` |
+| S12 | LOW | finalize / spec-commit generic arms can render an owned code in the old shape | deferred_with_rationale | traced unreachable today except the finalize TOCTOU race, recorded as an ADR residual |
