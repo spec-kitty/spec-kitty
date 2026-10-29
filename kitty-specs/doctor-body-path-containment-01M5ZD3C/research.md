@@ -52,13 +52,14 @@ No dependency decision, so the DIRECTIVE_051 adversarial pass does not apply at 
 | NUL byte in one body_path aborts the whole check (MINOR) | correctness | accepted → per-node handling of resolve errors |
 | Symlink loop reported as "escapes" (NIT) | correctness | accepted → message says "is not contained in the pack root" |
 | "body_path escapes: none" reads as a whole-pack verdict (NIT) | correctness | accepted → human label names the fragment nodes |
-| Pack root resolved twice / registry re-read (MINOR) | architecture | deferred_with_rationale → follow-up issue (typed root on the fragment); not folded to keep the approved, reviewed seam stable at closeout |
-| Chain-authority gate detection hole (MINOR) | architecture | deferred_with_rationale → follow-up issue (gate change, own non-vacuity proof) |
-| New activation reach behind baselined rows (MINOR) | architecture | deferred_with_rationale → recorded in PR as priced debt; resolved by the typed-root follow-up |
+| Pack root resolved twice / registry re-read (MINOR) | architecture | deferred_with_rationale → Follow-up: #6731 (typed root on the fragment); not folded to keep the approved, reviewed seam stable at closeout |
+| Chain-authority gate detection hole (MINOR) | architecture | deferred_with_rationale → Follow-up: #6732 (gate change, own non-vacuity proof) |
+| New activation reach behind baselined rows (MINOR) | architecture | deferred_with_rationale → recorded in PR as priced debt; resolved by Follow-up: #6731 |
 | `org_drg.body_path_escapes` undocumented, no code (MINOR) | architecture | accepted → D7 + docs/api/charter-commands.md |
 | Docstring overclaims "the one containment authority" (MINOR) | architecture | accepted → docstring softened; D2 example corrected |
-| `charter status` / `charter org validate` disagree with doctor (MINOR) | architecture | deferred_with_rationale → follow-up issue (C-002 scope) |
-| spec-kitty-charter PackPolicy drift (MINOR) | architecture | deferred_with_rationale → follow-up issue in spec-kitty-charter |
+| `charter status` / `charter org validate` disagree with doctor (MINOR) | architecture | deferred_with_rationale → Follow-up: #6733 (C-002 scope) |
+| spec-kitty-charter PackPolicy drift (MINOR) | architecture | deferred_with_rationale → Follow-up: spec-kitty/spec-kitty-charter#254 |
 | TYPE_CHECKING import bypasses `charter.drg` facade (NIT) | architecture | accepted |
-| Half-parity pinned only indirectly (NIT) | architecture | deferred_with_rationale → covered by the typed-root follow-up |
-| Pack-skill containment hand-roll (campsite) | architecture | deferred_with_rationale → follow-up issue |
+| Half-parity pinned only indirectly (NIT) | architecture | deferred_with_rationale → covered by Follow-up: #6731 |
+| Pack-skill containment hand-roll (campsite) | architecture | deferred_with_rationale → Follow-up: #6734 |
+| Symlinked / non-mapping sidecar aborts the asset check (MINOR, fold review) | correctness | accepted (symlinked sidecar → reported per asset, commit 446877af); non-mapping crash predates the mission → Follow-up: #6735 |
