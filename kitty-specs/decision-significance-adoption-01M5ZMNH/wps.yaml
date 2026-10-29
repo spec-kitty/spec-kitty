@@ -1,0 +1,60 @@
+work_packages:
+  - id: WP01
+    title: "Raise the spec-kitty-events floor to 11.3.0"
+    dependencies: []
+    owned_files:
+      - "pyproject.toml"
+      - "uv.lock"
+      - "tests/architectural/test_pyproject_shape.py"
+      - ".kittify/release/shared-package-compatibility.json"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - C-001
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+    prompt_file: "tasks/WP01-raise-events-floor.md"
+
+  - id: WP02
+    title: "Adopt the package decision-significance models and actor-id sentinels"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/runtime/next/_internal_runtime/schema.py"
+      - "src/runtime/next/_internal_runtime/significance.py"
+      - "src/runtime/next/_internal_runtime/raci.py"
+      - "src/runtime/next/_internal_runtime/engine.py"
+      - "src/runtime/next/_internal_runtime/events.py"
+      - "src/runtime/next/runtime_bridge_retrospective.py"
+      - "src/specify_cli/events/decision_log.py"
+      - "tests/next/test_internal_runtime_coverage.py"
+      - "tests/next/test_decision_significance_adoption.py"
+      - "tests/runtime/test_bridge_engine.py"
+      - "tests/specify_cli/events/test_decision_log.py"
+    requirement_refs:
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - C-002
+      - C-003
+      - C-004
+      - SC-001
+      - SC-002
+      - SC-003
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T004
+      - T005
+      - T006
+      - T007
+      - T008
+    prompt_file: "tasks/WP02-adopt-package-significance-models.md"

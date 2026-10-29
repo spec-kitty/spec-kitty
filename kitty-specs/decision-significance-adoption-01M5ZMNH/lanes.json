@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "mission_slug": "decision-significance-adoption-01M5ZMNH",
+  "mission_id": "01M5ZMNHWJ60GQJHPSP3GM9B0M",
+  "mission_branch": "kitty/mission-decision-significance-adoption-01M5ZMNH",
+  "target_branch": "issue-6445-decision-significance-adoption",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".kittify/release/shared-package-compatibility.json",
+        "pyproject.toml",
+        "tests/architectural/test_pyproject_shape.py",
+        "uv.lock"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/_internal_runtime/engine.py",
+        "src/runtime/next/_internal_runtime/events.py",
+        "src/runtime/next/_internal_runtime/raci.py",
+        "src/runtime/next/_internal_runtime/schema.py",
+        "src/runtime/next/_internal_runtime/significance.py",
+        "src/runtime/next/runtime_bridge_retrospective.py",
+        "src/specify_cli/events/decision_log.py",
+        "tests/next/test_decision_significance_adoption.py",
+        "tests/next/test_internal_runtime_coverage.py",
+        "tests/runtime/test_bridge_engine.py",
+        "tests/specify_cli/events/test_decision_log.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-27T21:41:24.986088+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2617089558891f2d1b853e6e512541412ebf34f2"
+}

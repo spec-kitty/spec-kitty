@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T21:36:34.472782Z",
+      "decision_id": "01M5ZMPA58JS7K7S4S40CH7H1M",
+      "final_answer": "Split authoring/resolved",
+      "input_key": "raci_binding_split",
+      "mission_id": "01M5ZMNHWJ60GQJHPSP3GM9B0M",
+      "mission_slug": "decision-significance-adoption-01M5ZMNH",
+      "opened_by": "cli",
+      "options": [
+        "Split authoring/resolved",
+        "Replace globally",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should RACI binding types split, given the package RaciRoleBinding requires actor_id while templates omit it for resolve_raci?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T21:36:37.151597Z",
+      "resolved_by": null,
+      "slot_key": "specify.raci.binding-split",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-27T21:36:39.829883Z",
+      "decision_id": "01M5ZMPFCN3BFSEQ8VTN6MT3HF",
+      "final_answer": "Leave blocked, note it",
+      "input_key": "timeout_persistence_scope",
+      "mission_id": "01M5ZMNHWJ60GQJHPSP3GM9B0M",
+      "mission_slug": "decision-significance-adoption-01M5ZMNH",
+      "opened_by": "cli",
+      "options": [
+        "Leave blocked, note it",
+        "Spec the port extension too",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Is #6446 (persist DecisionTimeoutExpired) in scope, given the EventBridge port carries only WP transitions and no timeout trigger exists?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T21:36:42.824447Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.timeout-persistence",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5ZMNHWJ60GQJHPSP3GM9B0M",
+  "version": 1
+}
