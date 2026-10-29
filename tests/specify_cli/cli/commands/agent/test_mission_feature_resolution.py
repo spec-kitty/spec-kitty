@@ -13,6 +13,7 @@ harness is the CLI-surface regression net, these are the seam-level net.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -29,13 +30,20 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 
 
-def _make_mission(specs: Path, slug: str, *, spec: bool = True, meta: bool = False) -> Path:
+_MISSION_ID = "01J8ALPHA000000000000000AA"
+
+
+def _make_mission(specs: Path, slug: str, *, spec: bool = True, meta: bool = True, mission_id: bool = True) -> Path:
+    """A ``kitty-specs/`` child; by default a real Mission (spec.md + meta.json with a ``mission_id``)."""
     d = specs / slug
     d.mkdir(parents=True, exist_ok=True)
     if spec:
         (d / "spec.md").write_text("# Spec\n", encoding="utf-8")
     if meta:
-        (d / "meta.json").write_text(json.dumps({"mission_slug": slug}), encoding="utf-8")
+        payload: dict[str, object] = {"mission_slug": slug}
+        if mission_id:
+            payload["mission_id"] = _MISSION_ID
+        (d / "meta.json").write_text(json.dumps(payload), encoding="utf-8")
     return d
 
 
@@ -65,13 +73,90 @@ def test_list_candidates_skips_dirs_without_spec_or_meta(repo: Path) -> None:
     assert slugs == {"002-real"}
 
 
+def test_list_candidates_excludes_spec_only_folder(repo: Path) -> None:
+    """A folder with only spec.md is residue, not a candidate (#5875); selection agrees."""
+    from specify_cli.context.mission_resolver import list_missions_for_selection
+
+    _make_mission(repo / "kitty-specs", "001-spec-only", meta=False)
+    _make_mission(repo / "kitty-specs", "002-real")
+    candidates = seam._list_feature_spec_candidates(repo)
+    assert [c["mission_slug"] for c in candidates] == ["002-real"]
+    assert [m.mission_slug for m in list_missions_for_selection(repo)] == ["002-real"]
+
+
+def test_sole_mission_ignores_spec_only_folder(repo: Path) -> None:
+    _make_mission(repo / "kitty-specs", "001-spec-only", meta=False)
+    assert seam._sole_mission_slug_or_none(repo) is None
+    _make_mission(repo / "kitty-specs", "002-real")
+    assert seam._sole_mission_slug_or_none(repo) == "002-real"
+
+
 def test_list_candidates_includes_meta_only_mission(repo: Path) -> None:
-    """A mission with only meta.json (no spec.md) is still a candidate."""
-    _make_mission(repo / "kitty-specs", "003-meta-only", spec=False, meta=True)
+    """A mission with only meta.json (no spec.md, no mission_id) is a candidate on a non-git root."""
+    _make_mission(repo / "kitty-specs", "003-meta-only", spec=False, meta=True, mission_id=False)
     candidates = seam._list_feature_spec_candidates(repo)
     assert len(candidates) == 1
     assert candidates[0]["mission_slug"] == "003-meta-only"
     assert candidates[0]["spec_exists"] is False
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+
+@pytest.fixture()
+def git_repo(tmp_path: Path) -> Path:
+    _git(tmp_path, "init", "-q", "-b", "main")
+    (tmp_path / "kitty-specs").mkdir()
+    (tmp_path / "README.md").write_text("root\n", encoding="utf-8")
+    _git(tmp_path, "add", "README.md")
+    _git(tmp_path, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "init")
+    return tmp_path
+
+
+def _commit_all(repo: Path) -> None:
+    _git(repo, "add", "-A")
+    _git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "c")
+
+
+@pytest.mark.git_repo
+def test_git_candidates_match_selection_rule(git_repo: Path) -> None:
+    """In a git repo: tracked spec-only and untracked id-less meta are excluded; the rest agree with selection."""
+    from specify_cli.context.mission_resolver import list_missions_for_selection
+
+    specs = git_repo / "kitty-specs"
+    _make_mission(specs, "001-tracked-spec-only", meta=False)
+    _make_mission(specs, "002-tracked-legacy", mission_id=False)
+    _commit_all(git_repo)
+    _make_mission(specs, "003-untracked-spec-only", meta=False)
+    _make_mission(specs, "004-untracked-noid", mission_id=False)
+    _make_mission(specs, "005-untracked-fresh")
+
+    expected = ["002-tracked-legacy", "005-untracked-fresh"]
+    assert [c["mission_slug"] for c in seam._list_feature_spec_candidates(git_repo)] == expected
+    assert [m.mission_slug for m in list_missions_for_selection(git_repo)] == expected
+
+
+def test_candidates_probe_git_at_most_once(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: no probe when every child carries an identity; one probe for several id-less children."""
+    from specify_cli.context import mission_resolver
+
+    calls: list[Path] = []
+
+    def _probe(repo_root: Path) -> frozenset[str] | None:
+        calls.append(repo_root)
+        return None
+
+    monkeypatch.setattr(mission_resolver, "probe_tracked_mission_paths", _probe)
+    monkeypatch.setattr(mission_resolver, "tracked_mission_paths", _probe)
+    _make_mission(repo / "kitty-specs", "001-a")
+    _make_mission(repo / "kitty-specs", "002-b")
+    assert len(seam._list_feature_spec_candidates(repo)) == 2
+    assert calls == []
+    _make_mission(repo / "kitty-specs", "003-c", mission_id=False)
+    _make_mission(repo / "kitty-specs", "004-d", mission_id=False)
+    assert len(seam._list_feature_spec_candidates(repo)) == 4
+    assert len(calls) == 1
 
 
 # ---------------------------------------------------------------------------
