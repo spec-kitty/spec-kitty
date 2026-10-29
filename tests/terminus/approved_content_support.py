@@ -35,6 +35,7 @@ from tests.terminus.conftest import (
     build_coord_mission,
     run_terminus,
     sha_reachable,
+    pin_planning_commit,
 )
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests.terminus.mixed_lane_support import collapse, transition
@@ -99,6 +100,7 @@ def build_dependent_edit_mission(
     _write_meta(mission)
     manifest = _manifest(mission, depends=True)
     write_lanes_json(mission.feature_dir, manifest)
+    pin_planning_commit(mission.repo, mission.feature_dir)
     (mission.feature_dir / "tasks" / "WP01-work.md").write_text(_wp_file("WP01", dependencies=()), encoding="utf-8")
     (mission.feature_dir / "tasks" / "WP02-work.md").write_text(_wp_file("WP02", dependencies=("WP01",)), encoding="utf-8")
     (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text("", encoding="utf-8")

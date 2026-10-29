@@ -717,6 +717,10 @@ def test_owned_review_and_approval_write_only_selected_checkout(finalized_checko
             "WP01",
             "--to",
             "in_review",
+            # #6715 ruling A: the reviewer asserts an identity, so the review claim and the
+            # approval are recorded as 'reviewer', not the placeholder 'user'.
+            "--agent",
+            "reviewer",
             "--reviewer",
             "reviewer",
             "--mission",
@@ -734,6 +738,8 @@ def test_owned_review_and_approval_write_only_selected_checkout(finalized_checko
             "WP01",
             "--to",
             "approved",
+            "--agent",
+            "reviewer",
             "--reviewer",
             "reviewer",
             "--approval-ref",
@@ -758,7 +764,8 @@ def test_owned_review_and_approval_write_only_selected_checkout(finalized_checko
     assert [row["to_lane"] for row in transitions] == ["planned", "claimed", "in_progress", "for_review", "in_review", "approved"]
     state = json.loads((mission / "status.json").read_text(encoding="utf-8"))["work_packages"]["WP01"]
     assert state["lane"] == "approved"
-    assert state["agent"] == "implementer"
+    # #6715 ruling A: the review claim asserts --agent reviewer, so the runtime slot holds the reviewer.
+    assert state["agent"] == "reviewer"
     assert state["role"] == "reviewer"
     assert git(owned, "status", "--porcelain") == ""
     assert (snapshot(primary), snapshot(sibling)) == other_before
@@ -835,6 +842,10 @@ def test_owned_failed_compensation_reports_durable_selected_verdict(finalized_ch
             "WP01",
             "--to",
             "in_review",
+            # #6715 ruling A: the reviewer asserts an identity, so the review claim and the
+            # approval are recorded as 'reviewer', not the placeholder 'user'.
+            "--agent",
+            "reviewer",
             "--reviewer",
             "reviewer",
             "--mission",
@@ -861,6 +872,8 @@ def test_owned_failed_compensation_reports_durable_selected_verdict(finalized_ch
             "WP01",
             "--to",
             "approved",
+            "--agent",
+            "reviewer",
             "--reviewer",
             "reviewer",
             "--approval-ref",
@@ -887,7 +900,8 @@ def test_owned_failed_compensation_reports_durable_selected_verdict(finalized_ch
     assert payload["destination_ref"] == TARGET
     state = json.loads((mission / "status.json").read_text(encoding="utf-8"))["work_packages"]["WP01"]
     assert state["lane"] == "in_review"
-    assert state["agent"] == "implementer"
+    # #6715 ruling A: the review claim asserts --agent reviewer, so the runtime slot holds the reviewer.
+    assert state["agent"] == "reviewer"
     assert git(owned, "status", "--porcelain") == ""
     assert (snapshot(primary), snapshot(sibling)) == other_before
 

@@ -103,6 +103,22 @@ def _write_acceptance_matrix_for(feature_dir: Path, mission_dirname: str) -> Non
     )
 
 
+def _own_src(feature_dir: Path) -> None:
+    """#6715: give WP01/WP02 the ``owned_files`` the move-into-review evidence check reads."""
+    for wp_file in sorted((feature_dir / "tasks").glob("WP*.md")):
+        text = wp_file.read_text(encoding="utf-8")
+        wp_file.write_text(text.replace("subtasks: []", "owned_files:\n- src/**\nsubtasks: []", 1), encoding="utf-8")
+
+
+def _commit_wp01_implementation(repo_root: Path, mission_dirname: str) -> None:
+    """#6715: commit WP01's implementation on its lane, as the implementer would before review."""
+    lane_worktree = repo_root / ".worktrees" / f"{mission_dirname}-lane-a"
+    (lane_worktree / "src").mkdir(exist_ok=True)
+    (lane_worktree / "src" / "wp01.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _git(lane_worktree, "add", "src/wp01.py")
+    _git(lane_worktree, "commit", "-q", "-m", "feat(WP01): implement")
+
+
 def _build_two_lane_coord_mission(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -214,6 +230,7 @@ def _build_two_lane_coord_mission(
     # copy would be harmless but is not representative).
     write_wp(repo_root, mission_dirname, "planned", "WP01", seed_canonical=False)
     write_wp(repo_root, mission_dirname, "planned", "WP02", seed_canonical=False)
+    _own_src(target_feature_dir)
 
     write_analysis_report(
         feature_dir=target_feature_dir,
@@ -703,6 +720,7 @@ def test_review_claim_does_not_stage_wp_file_on_coord(tmp_path: Path, monkeypatc
 
     claim = _run_implement(mission_dirname, "WP01")
     assert claim.exit_code == 0, claim.output
+    _commit_wp01_implementation(repo_root, mission_dirname)
 
     move = runner.invoke(
         root_app,
@@ -741,6 +759,7 @@ def test_second_review_claim_advertises_cycle_two_with_no_primary_residue(tmp_pa
 
     claim = _run_implement(mission_dirname, "WP01")
     assert claim.exit_code == 0, claim.output
+    _commit_wp01_implementation(repo_root, mission_dirname)
 
     to_for_review = runner.invoke(root_app, ["agent", "tasks", "move-task", "WP01", "--to", "for_review", "--mission", mission_dirname])
     assert to_for_review.exit_code == 0, to_for_review.output

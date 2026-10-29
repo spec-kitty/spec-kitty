@@ -89,6 +89,15 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
         computed_at=now_utc_iso(),
         computed_from="test-fixture",
     )
+    # #6715: record the planning commit (the repository tip the lane is cut from) so the evidence
+    # window the claim reads is computable.
+    head = subprocess.run(
+        ["git", "-C", str(feature_dir.parents[1]), "rev-parse", "--verify", "--quiet", "HEAD^{commit}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    manifest.planning_commit_sha = head.stdout.strip() or None
     write_lanes_json(feature_dir, manifest)
     return manifest
 

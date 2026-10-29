@@ -225,6 +225,8 @@ def _build_single_branch_mission_with_in_progress_wp(
         "title: Issue 2684 repro WP\n"
         "execution_mode: code_change\n"
         "agent: claude\n"
+        "owned_files:\n"
+        "- src/**\n"
         "subtasks:\n"
         "- T001\n"
         "- T002\n"
@@ -252,6 +254,9 @@ def _build_single_branch_mission_with_in_progress_wp(
                 ],
                 "computed_at": "2026-07-08T00:00:00+00:00",
                 "computed_from": "issue-2684-repro",
+                # #6715: the planning commit finalize-tasks records; the evidence window
+                # (planning commit..lane branch) the move into review reads starts here.
+                "planning_commit_sha": subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip(),
             },
             indent=2,
         ),

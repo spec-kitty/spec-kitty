@@ -247,11 +247,15 @@ def _record_operator_attestations(
     approved_wp_ids: tuple[str, ...] = (),
     feature_dir: Path | None = None,
     lanes_manifest: LanesManifest | None = None,
+    no_implementation_wp_ids: tuple[str, ...] = (),
 ) -> tuple[str, ...]:
-    """Validate and record ``--attest-canceled-superseded`` (FR-012) and ``--attest-approved-reviewed`` (#5668), before any mutation.
+    """Validate and record the operator attestations of the run, before any mutation.
+
+    ``--attest-canceled-superseded`` (FR-012), ``--attest-approved-reviewed`` (#5668) and
+    ``--attest-no-implementation`` (#6715).
 
     Returns the WP ids whose attestation was recorded (``()`` when none was requested).
-    Both requests are validated before either is recorded, so a refusal records nothing.
+    Every request is validated before any is recorded, so a refusal records nothing.
 
     Refuses (exit 1, nothing recorded) a WP that is not canceled with operator
     provenance. Every explicit ``--attest-canceled-superseded`` records a FRESH
@@ -261,11 +265,13 @@ def _record_operator_attestations(
     attestation is covered only once the operator attests again). Written through the canonical transactional status seam
     (``canceled_attestation.record_canceled_superseded_attestation``).
     """
-    if not (wp_ids or approved_wp_ids):
+    if not (wp_ids or approved_wp_ids or no_implementation_wp_ids):
         return ()
     approved_plan = _plan_approved_attestations(main_repo, feature_dir, lanes_manifest, approved_wp_ids, reason, acceptably_canceled)
+    no_implementation_plan = _plan_no_implementation_attestations(feature_dir, lanes_manifest, no_implementation_wp_ids, reason, acceptably_canceled)
     canceled = _record_canceled_attestations(main_repo, mission_slug, wp_ids=wp_ids, reason=reason, acceptably_canceled=acceptably_canceled)
-    return canceled + _record_approved_attestations(main_repo, mission_slug, approved_plan, reason)
+    approved = _record_approved_attestations(main_repo, mission_slug, approved_plan, reason)
+    return canceled + approved + _record_no_implementation_attestations(main_repo, mission_slug, no_implementation_plan, reason)
 
 
 def _record_canceled_attestations(
@@ -350,6 +356,49 @@ def _record_approved_attestations(main_repo: Path, mission_slug: str, plan: dict
     return tuple(plan)
 
 
+def _plan_no_implementation_attestations(
+    feature_dir: Path | None,
+    lanes_manifest: LanesManifest | None,
+    wp_ids: tuple[str, ...],
+    reason: str | None,
+    excluded_canceled_wp_ids: frozenset[str],
+) -> dict[str, str]:
+    """Validate ``--attest-no-implementation`` against the status log: WP id -> current lane (exit 1, nothing recorded, when refused)."""
+    if not wp_ids or feature_dir is None or lanes_manifest is None:
+        return {}
+    from specify_cli.consolidation.canceled_attestation import AttestationError
+    from specify_cli.consolidation.no_implementation_attestation import plan_no_implementation_attestations
+
+    try:
+        return plan_no_implementation_attestations(feature_dir, lanes_manifest, wp_ids, reason, excluded_canceled_wp_ids=excluded_canceled_wp_ids)
+    except AttestationError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+
+def _record_no_implementation_attestations(main_repo: Path, mission_slug: str, plan: dict[str, str], reason: str | None) -> tuple[str, ...]:
+    """Record the validated ``--attest-no-implementation`` requests (#6715); ``()`` when there are none."""
+    if not plan:
+        return ()
+    from specify_cli.consolidation.done_bookkeeping import _resolve_merge_actor
+    from specify_cli.consolidation.no_implementation_attestation import record_no_implementation_attestation
+
+    primary_feature_dir = placement_seam(main_repo, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+    actor = _resolve_merge_actor(main_repo)
+    for wp_id, current_lane in plan.items():
+        record_no_implementation_attestation(
+            repo_root=main_repo,
+            feature_dir=primary_feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            current_lane=current_lane,
+            reason=reason or "",
+            actor=actor,
+        )
+        console.print(f"[yellow]⚠️  Operator attestation recorded for {wp_id} (no implementation owed) by {actor}:[/yellow] {(reason or '').strip()}")
+    return tuple(plan)
+
+
 def _run_lane_based_consolidation_locked(
     main_repo: Path,
     mission_slug: str,
@@ -370,6 +419,7 @@ def _run_lane_based_consolidation_locked(
     attest_canceled_superseded: tuple[str, ...] = (),
     attest_reason: str | None = None,
     attest_approved_reviewed: tuple[str, ...] = (),
+    attest_no_implementation: tuple[str, ...] = (),
 ) -> None:
     """Inner merge flow, called with the global merge lock held.
 
@@ -412,6 +462,7 @@ def _run_lane_based_consolidation_locked(
         approved_wp_ids=attest_approved_reviewed,
         feature_dir=feature_dir,
         lanes_manifest=lanes_manifest,
+        no_implementation_wp_ids=attest_no_implementation,
     )
     # P1: only the status-surface branch the attestations write, and only when its tip changed across them, is this process's own move.
     own_pre_claim_moves = _own_moves_after_step(main_repo, {}, start_tips if recorded_attestations else {}, writes=(_status_surface_ref(main_repo, mission_slug),))
@@ -720,6 +771,7 @@ def _run_lane_based_consolidation(
     attest_canceled_superseded: tuple[str, ...] = (),
     attest_reason: str | None = None,
     attest_approved_reviewed: tuple[str, ...] = (),
+    attest_no_implementation: tuple[str, ...] = (),
     origin_check: str | None = None,
     origin_gated: bool = False,
 ) -> None:
@@ -934,6 +986,7 @@ def _run_lane_based_consolidation(
             attest_canceled_superseded=attest_canceled_superseded,
             attest_reason=attest_reason,
             attest_approved_reviewed=attest_approved_reviewed,
+            attest_no_implementation=attest_no_implementation,
         )
     finally:
         release_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo)

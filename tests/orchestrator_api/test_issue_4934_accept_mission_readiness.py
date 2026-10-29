@@ -56,6 +56,8 @@ from specify_cli.orchestrator_api.commands import app
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.locking import FeatureStatusLockTimeoutError
 from specify_cli.status.models import TransitionRequest
+from specify_cli.lanes.compute import lane_created_branch
+from specify_cli.lanes.persistence import read_lanes_json
 from tests.lane_test_utils import derive_mission_id, write_single_lane_manifest
 from tests.specify_cli.test_acceptance_regressions import _create_test_feature
 from tests.status.conftest import seed_wp_to_planned
@@ -100,6 +102,67 @@ def _pending_matrix(mission_slug: str) -> AcceptanceMatrix:
     )
 
 
+def _seed_independent_review_history(repo_root: Path, feature_dir: Path) -> None:
+    """Record WP01's implementation claim and its approval by a different identity, before its ``done``.
+
+    #6715: independence is read from the implementer of record against the approving actor, and
+    this fixture's own history is one forced hop straight to ``done`` under a single actor. The
+    hops are dated before that event, so the reduced lane stays ``done`` and only the identities
+    are added.
+    """
+    from tests.terminus.conftest import implementer_claim_events
+
+    log = feature_dir / "status.events.jsonl"
+    lines = [line for line in log.read_text(encoding="utf-8").splitlines() if line.strip()] if log.exists() else []
+    if not lines:
+        return
+    done_event = json.loads(lines[0])
+    approved = {
+        **done_event,
+        "event_id": "01HXYZAPPR0000000000000001",
+        "at": "2020-01-01T00:04:00+00:00",
+        "actor": "reviewer-renata",
+        "from_lane": "in_review",
+        "to_lane": "approved",
+        "force": False,
+    }
+    history = [*implementer_claim_events(approved), approved]
+    log.write_text("".join(json.dumps(event) + "\n" for event in history) + "\n".join(lines) + "\n", encoding="utf-8")
+    from specify_cli.status.reducer import materialize
+
+    materialize(feature_dir)
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-m", "record WP01's claim and its independent approval")
+
+
+def _seed_lane_implementation(repo_root: Path, feature_dir: Path) -> None:
+    """Create the work package's lane branch with its own committed change and declared ownership.
+
+    #6715: ``accept-mission`` now reads implementation evidence from the lane's evidence window,
+    so a fixture whose subject is readiness states the implementation it claims to have.
+    """
+    from tests.lane_test_utils import create_lane_branches
+
+    (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
+    (feature_dir / "tasks" / "WP01-work.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: WP01 work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# WP01\n",
+        encoding="utf-8",
+    )
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-m", "declare WP01's owned files")
+    manifest = read_lanes_json(feature_dir)
+    assert manifest is not None
+    create_lane_branches(repo_root, manifest)
+    branch = lane_created_branch(manifest, manifest.lanes[0].lane_id)
+    _git(repo_root, "checkout", "-q", branch)
+    (repo_root / "src").mkdir(parents=True, exist_ok=True)
+    (repo_root / "src" / "wp01.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-m", "feat(WP01): implement")
+    _git(repo_root, "checkout", "-q", manifest.target_branch)
+    _seed_independent_review_history(repo_root, feature_dir)
+
+
 def _seed_acceptable_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, Path]:
     """A real-git mission with WP01 ``done``, ``lanes.json``, and a passing
     matrix, committed clean -- the positive control."""
@@ -118,6 +181,9 @@ def _seed_acceptable_mission(tmp_path: Path, mission_slug: str) -> tuple[Path, P
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "seed lanes manifest + passing matrix")
+    # #6715: the lane's own branch with its committed deliverable, as ``implement`` leaves it —
+    # an approved work package whose lane holds nothing is what the evidence axis refuses.
+    _seed_lane_implementation(repo_root, feature_dir)
     return repo_root, feature_dir
 
 
@@ -181,6 +247,7 @@ def _seed_mission_with_never_claimed_done_wp(tmp_path: Path, mission_slug: str) 
 
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "seed WP01 done with no claim metadata")
+    _seed_lane_implementation(repo_root, feature_dir)
     return repo_root, feature_dir
 
 

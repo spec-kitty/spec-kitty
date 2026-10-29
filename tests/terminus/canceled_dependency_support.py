@@ -35,10 +35,14 @@ from tests.terminus.conftest import (
     _STATUS_EVENTS_FILENAME,
     _write_meta,
     git_rev,
+    pin_planning_commit,
 )
 from tests.terminus.mixed_lane_support import transition
 
 ACTOR = "canceled-dependency-test"
+#: The approving identity (#6715): an approval recorded by the implementer's own identity is not an
+#: independent review, so every landing surface refuses it. The fixtures' reviews are independent.
+REVIEWER = "canceled-dependency-reviewer"
 WP01_PATH = "src/pkg/wp01.py"
 WP02_PATH = "src/pkg/wp02.py"
 #: What approved WP02 writes over WP01's file with ``wp02_overwrites_wp01``: every
@@ -71,7 +75,7 @@ class NeverStartedDependencyMission:
 
 def _wp_file(wp: str, *, dependencies: tuple[str, ...]) -> str:
     deps = "[" + ", ".join(dependencies) + "]"
-    return f"---\nwork_package_id: {wp}\ntitle: {wp} work\ndependencies: {deps}\nsubtasks: []\n---\n# {wp}\n"
+    return f"---\nwork_package_id: {wp}\ntitle: {wp} work\ndependencies: {deps}\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp}\n"
 
 
 def _manifest(mission: CoordMission, *, depends: bool) -> LanesManifest:
@@ -106,6 +110,7 @@ def _bootstrap_coord_mission(tmp_path: Path, *, mid8: str, depends: bool, target
     _write_meta(mission)
     manifest = _manifest(mission, depends=depends)
     write_lanes_json(mission.feature_dir, manifest)
+    pin_planning_commit(mission.repo, mission.feature_dir)
     (mission.feature_dir / "tasks" / "WP01-work.md").write_text(_wp_file("WP01", dependencies=()), encoding="utf-8")
     (mission.feature_dir / "tasks" / "WP02-work.md").write_text(_wp_file("WP02", dependencies=("WP01",) if depends else ()), encoding="utf-8")
     (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text("", encoding="utf-8")
@@ -126,14 +131,14 @@ def _commit_in(worktree: Path, rel_path: str, text: str, message: str) -> str:
 
 def _approve(mission: CoordMission, wp: str, *, reference: str) -> None:
     transition(mission, wp, "for_review", actor=ACTOR, subtasks_complete=True)
-    transition(mission, wp, "in_review", actor=ACTOR)
+    transition(mission, wp, "in_review", actor=REVIEWER)
     transition(
         mission,
         wp,
         "approved",
-        actor=ACTOR,
+        actor=REVIEWER,
         review_ref=reference,
-        review_result=ReviewResult(reviewer=ACTOR, verdict="approved", reference=reference),
+        review_result=ReviewResult(reviewer=REVIEWER, verdict="approved", reference=reference),
     )
 
 

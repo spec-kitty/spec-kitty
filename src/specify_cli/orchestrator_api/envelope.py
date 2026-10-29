@@ -147,7 +147,18 @@ from kernel.clock import now_utc_iso
 # ``success: true`` but with the canceled lane left off the target (the approved survivor lanes
 # land unchanged). A behaviour change to the shipped tree of a previously-``success`` call, so a
 # minor bump; no envelope field or ``error_code`` is added, removed or renamed.
-CONTRACT_VERSION = "1.18.0"
+# 1.19.0: ``consolidate-mission`` and ``accept-mission`` now run the implementation-evidence and
+# review-independence axis on EVERY topology (#6715; it covered ``single_branch`` only, #5939).
+# ``consolidate-mission`` fails with the existing ``PREFLIGHT_FAILED`` envelope, carrying
+# ``data.preflight_error_code(s)``, before it consolidates its first lane; ``accept-mission`` fails
+# with the existing ``MISSION_NOT_READY`` and a new optional ``data.evidence_error_codes``. The codes are
+# ``IMPLEMENTATION_MISSING``, ``REVIEW_NOT_INDEPENDENT``, ``IMPLEMENTATION_UNREADABLE`` and
+# ``EVIDENCE_WINDOW_UNCOMPUTABLE`` (``single_branch`` keeps emitting its ``SINGLE_BRANCH_*``
+# aliases). A call that used to answer ``success: true`` while landing a work package approved with
+# no owned-file change, or approved by its own implementer, now refuses. A behaviour change on
+# previously-``success`` calls plus one additive optional field, so a minor bump; no field or
+# ``error_code`` is removed or renamed.
+CONTRACT_VERSION = "1.19.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

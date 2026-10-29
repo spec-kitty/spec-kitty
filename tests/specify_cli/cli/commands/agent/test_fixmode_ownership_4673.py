@@ -78,7 +78,7 @@ from specify_cli.status.store import (
     read_event_stream,
 )
 from tests._support.status_seed import seed_status_event
-from tests.lane_test_utils import write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -157,6 +157,8 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
     _git(repo, "config", "user.email", "4673@example.invalid")
     _git(repo, "config", "user.name", "Fixmode Ownership")
     _git(repo, "config", "commit.gpgsign", "false")
+    # #6715: the planning commit lanes.json records, so the evidence window is computable.
+    _git(repo, "commit", "--allow-empty", "-m", "planning base")
     (repo / ".kittify").mkdir()
     (repo / ".kittify" / "config.yaml").write_text("auto_commit: false\nprotection:\n  protected_branches: []\n", encoding="utf-8")
 
@@ -172,12 +174,13 @@ def _build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Pat
 
     (feature_dir / "tasks.md").write_text("# Tasks\n\n## WP01 - Core\n\n(no subtasks)\n", encoding="utf-8")
     (tasks_dir / "WP01-core.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Core\nsubtasks: []\ntracker_refs: []\ndependencies: []\n---\n\n# WP01\n\n## Activity Log\n",
+        "---\nwork_package_id: WP01\ntitle: Core\nowned_files:\n  - src/**\nsubtasks: []\ntracker_refs: []\ndependencies: []\n---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
 
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "seed fixmode-ownership-4673 fixture")
+    commit_lane_implementation(repo, feature_dir)  # #6715: WP01's implementation on its lane
     _seed_claim_through_in_review(feature_dir)
 
     monkeypatch.chdir(repo)

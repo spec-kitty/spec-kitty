@@ -47,6 +47,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import record_evidence_prerequisites
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -175,7 +176,9 @@ def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
             mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane="approved",
-            actor="seed",
+            # #6715: the approving identity differs from the implementer's ("seed"), as an
+            # independent review does; a self-approval is refused at every landing surface.
+            actor="reviewer-renata",
             evidence={
                 "review": {
                     "reviewer": "reviewer-renata",
@@ -201,6 +204,7 @@ def _bootstrap_mission(tmp_path: Path, slug: str) -> Path:
     _write_wp_file(feature_dir, "WP01")
     _git(tmp_path, "add", ".")
     _git(tmp_path, "commit", "-m", f"chore({slug}): bootstrap mission fixture")
+    record_evidence_prerequisites(tmp_path, feature_dir)
 
     mission_branch = f"kitty/mission-{slug}"
     _git(tmp_path, "branch", mission_branch, "main")

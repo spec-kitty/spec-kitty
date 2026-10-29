@@ -135,6 +135,7 @@ from specify_cli.consolidation.git_probes import (
 # #5653: the --dry-run "attestation not applied" notice is a pure decision.
 from specify_cli.consolidation.approved_bound import ATTEST_APPROVED_FLAG
 from specify_cli.consolidation.canceled_attestation import dry_run_attestation_notice
+from specify_cli.consolidation.wp_evidence import ATTEST_NO_IMPLEMENTATION_FLAG
 
 # WP06 (#2057): the merge --dry-run forecast (preview + payload build) lives in
 # the merge seam's ``forecast`` module; the command body delegates to it.
@@ -822,6 +823,7 @@ def _run_real_merge(
     attest_canceled_superseded: tuple[str, ...] = (),
     attest_reason: str | None = None,
     attest_approved_reviewed: tuple[str, ...] = (),
+    attest_no_implementation: tuple[str, ...] = (),
     origin_check: str | None = None,
 ) -> None:
     """Run the real lane-based merge + post-merge retrospective / next-step hints."""
@@ -842,6 +844,7 @@ def _run_real_merge(
             attest_canceled_superseded=attest_canceled_superseded,
             attest_reason=attest_reason,
             attest_approved_reviewed=attest_approved_reviewed,
+            attest_no_implementation=attest_no_implementation,
             origin_check=origin_check,
         )
     except SparseCheckoutPreflightError as exc:
@@ -997,6 +1000,7 @@ class ConsolidateOptions:
     skip_lanes: bool = False
     attest_canceled_superseded: list[str] | None = None
     attest_approved_reviewed: list[str] | None = None
+    attest_no_implementation: list[str] | None = None
     attest_reason: str | None = None
     release_branch: list[str] | None = None
     release_reason: str | None = None
@@ -1093,10 +1097,23 @@ def consolidate(
             "Requires --attest-reason. Does not lift a refusal for commits made after a recorded approval."
         ),
     ),
+    attest_no_implementation: list[str] | None = typer.Option(
+        None,
+        ATTEST_NO_IMPLEMENTATION_FLAG,
+        help=(
+            "Operator attestation (repeatable, one WP id each): the named approved work package owes no "
+            "implementation (for example its deliverable already exists). Lifts IMPLEMENTATION_MISSING for that "
+            "work package only; never lifts REVIEW_NOT_INDEPENDENT and is never read as a review. "
+            "Requires --attest-reason; recorded durably in the status event log."
+        ),
+    ),
     attest_reason: str | None = typer.Option(
         None,
         "--attest-reason",
-        help="What you checked, recorded with --attest-canceled-superseded or --attest-approved-reviewed (required with either); one reason serves every attestation of the run.",
+        help=(
+            "What you checked, recorded with --attest-canceled-superseded, --attest-approved-reviewed or "
+            f"{ATTEST_NO_IMPLEMENTATION_FLAG} (required with each); one reason serves every attestation of the run."
+        ),
     ),
     release_branch: list[str] | None = typer.Option(
         None,
@@ -1154,6 +1171,7 @@ def consolidate(
             attest_canceled_superseded=attest_canceled_superseded,
             attest_reason=attest_reason,
             attest_approved_reviewed=attest_approved_reviewed,
+            attest_no_implementation=attest_no_implementation,
             release_branch=release_branch,
             release_reason=release_reason,
             origin_check=origin_check,
@@ -1190,8 +1208,9 @@ def run_consolidate(options: ConsolidateOptions) -> None:
     origin_check = options.origin_check
 
     del context_token, keep_workspace
-    attested_wps = _validated_attestation_flags(attest_canceled_superseded, attest_reason, options.attest_approved_reviewed)
+    attested_wps = _validated_attestation_flags(attest_canceled_superseded, attest_reason, options.attest_approved_reviewed, options.attest_no_implementation)
     approved_attested_wps = _validated_approved_attestation_flags(options.attest_approved_reviewed, attest_reason)
+    no_implementation_wps = _validated_no_implementation_attestation_flags(options.attest_no_implementation, attest_reason)
     release = _validated_release_flags(options.release_branch, options.release_reason, abort=abort)
 
     # #2959 escape hatch — a skip is never silent: refuse it without a reason
@@ -1331,7 +1350,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
     if dry_run:
         # FR-012 / #5653: the notice decision is the pure
         # ``canceled_attestation.dry_run_attestation_notice``.
-        for notice in _dry_run_attestation_notices(attested_wps, approved_attested_wps, json_output=json_output):
+        for notice in _dry_run_attestation_notices(attested_wps, approved_attested_wps, no_implementation_wps, json_output=json_output):
             console.print(f"[yellow]Note:[/yellow] {notice}")
         # WP06 (#2057): the dry-run preview + payload build lives in the
         # ``forecast`` seam. Behavior + JSON key set preserved byte-for-byte
@@ -1374,8 +1393,9 @@ def run_consolidate(options: ConsolidateOptions) -> None:
         skip_note=note,
         skip_lanes=skip_lanes,
         attest_canceled_superseded=attested_wps,
-        attest_reason=attest_reason if (attested_wps or approved_attested_wps) else None,
+        attest_reason=attest_reason if (attested_wps or approved_attested_wps or no_implementation_wps) else None,
         attest_approved_reviewed=approved_attested_wps,
+        attest_no_implementation=no_implementation_wps,
         origin_check=origin_check if isinstance(origin_check, str) else None,
     )
 
@@ -1395,20 +1415,24 @@ def _clean_attestation_inputs(wp_ids: object, reason: object) -> tuple[tuple[str
     return tuple(dict.fromkeys(wp.strip() for wp in wp_ids if isinstance(wp, str) and wp.strip())), reason
 
 
-def _validated_attestation_flags(wp_ids: object, reason: object, approved_wp_ids: object = None) -> tuple[str, ...]:
+def _validated_attestation_flags(wp_ids: object, reason: object, approved_wp_ids: object = None, no_implementation_wp_ids: object = None) -> tuple[str, ...]:
     """CLI-boundary check for FR-012's flags, BEFORE any merge work runs.
 
     ``--attest-canceled-superseded`` without a non-blank ``--attest-reason`` is
     refused (exit 2) so the attestation always records why. ``--attest-reason``
-    alone (no attestation flag, *approved_wp_ids* being ``--attest-approved-reviewed``'s)
-    is inert: warn, never fail (mirrors ``--note``).
+    alone (no attestation flag; *approved_wp_ids* and *no_implementation_wp_ids* being
+    ``--attest-approved-reviewed``'s and ``--attest-no-implementation``'s) is inert:
+    warn, never fail (mirrors ``--note``).
     """
     requested, reason = _clean_attestation_inputs(wp_ids, reason)
     if requested and not (reason and reason.strip()):
         console.print('[red]Error:[/red] --attest-canceled-superseded requires --attest-reason "<what you checked>" so the attestation records why.')
         raise typer.Exit(2)
-    if reason and reason.strip() and not requested and not _clean_attestation_inputs(approved_wp_ids, None)[0]:
-        console.print(f"[yellow]Note:[/yellow] --attest-reason has no effect without --attest-canceled-superseded or {ATTEST_APPROVED_FLAG}.")
+    other_requests = _clean_attestation_inputs(approved_wp_ids, None)[0] + _clean_attestation_inputs(no_implementation_wp_ids, None)[0]
+    if reason and reason.strip() and not requested and not other_requests:
+        console.print(
+            f"[yellow]Note:[/yellow] --attest-reason has no effect without --attest-canceled-superseded, {ATTEST_APPROVED_FLAG} or {ATTEST_NO_IMPLEMENTATION_FLAG}."
+        )
     return requested
 
 
@@ -1421,11 +1445,27 @@ def _validated_approved_attestation_flags(wp_ids: object, reason: object) -> tup
     return requested
 
 
-def _dry_run_attestation_notices(canceled_wps: tuple[str, ...], approved_wps: tuple[str, ...], *, json_output: bool) -> list[str]:
-    """The ``--dry-run`` "attestation not applied" notices, one per attestation flag in use (FR-012, #5653, #5668)."""
+def _validated_no_implementation_attestation_flags(wp_ids: object, reason: object) -> tuple[str, ...]:
+    """CLI-boundary check for ``--attest-no-implementation`` (#6715): without a non-blank ``--attest-reason`` it is refused (exit 2)."""
+    requested, reason = _clean_attestation_inputs(wp_ids, reason)
+    if requested and not (reason and reason.strip()):
+        console.print(
+            f'[red]Error:[/red] {ATTEST_NO_IMPLEMENTATION_FLAG} requires --attest-reason "<why no implementation is owed>" so the attestation records why.'
+        )
+        raise typer.Exit(2)
+    return requested
+
+
+def _dry_run_attestation_notices(
+    canceled_wps: tuple[str, ...], approved_wps: tuple[str, ...], no_implementation_wps: tuple[str, ...] = (), *, json_output: bool
+) -> list[str]:
+    """The ``--dry-run`` "attestation not applied" notices, one per attestation flag in use (FR-012, #5653, #5668, #6715)."""
     candidates = (
         dry_run_attestation_notice(canceled_wps, dry_run=True, json_output=json_output),
         dry_run_attestation_notice(approved_wps, dry_run=True, json_output=json_output, flag=ATTEST_APPROVED_FLAG, unevaluated="the approved bound"),
+        dry_run_attestation_notice(
+            no_implementation_wps, dry_run=True, json_output=json_output, flag=ATTEST_NO_IMPLEMENTATION_FLAG, unevaluated="implementation evidence"
+        ),
     )
     return [notice for notice in candidates if notice is not None]
 

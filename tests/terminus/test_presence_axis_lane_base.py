@@ -20,6 +20,7 @@ import pytest
 import typer
 
 from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
+from tests.terminus.conftest import pin_planning_commit
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from tests.terminus.approved_content_support import ADDED_PATH, _wp01_work, _wp02_work
 from tests.terminus.canceled_dependency_support import ACTOR, WP02_PATH, _approve, _commit_in, _manifest, _wp_file
@@ -55,6 +56,8 @@ def _build(tmp_path: Path, mid8: str, *, drop_scaffolding: bool) -> CoordMission
     _write_meta(mission)
     manifest = _manifest(mission, depends=True)
     write_lanes_json(mission.feature_dir, manifest)
+    # #6715: the manifest records the planning commit the lanes are cut from.
+    pin_planning_commit(mission.repo, mission.feature_dir)
     (mission.feature_dir / "tasks" / "WP01-work.md").write_text(_wp_file("WP01", dependencies=()), encoding="utf-8")
     (mission.feature_dir / "tasks" / "WP02-work.md").write_text(_wp_file("WP02", dependencies=("WP01",)), encoding="utf-8")
     (mission.feature_dir / _STATUS_EVENTS_FILENAME).write_text("", encoding="utf-8")

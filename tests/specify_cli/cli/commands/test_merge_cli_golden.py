@@ -85,6 +85,9 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         "--attest-canceled-superseded",
         # #5668: operator-attested override for an approval that recorded no lane head.
         "--attest-approved-reviewed",
+        # #6715: operator attestation that an approved WP owes no implementation
+        # (lifts IMPLEMENTATION_MISSING only).
+        "--attest-no-implementation",
         "--attest-reason",
         # #5687 (FR-008): operator release of a NOT-restored branch on --abort.
         "--release-branch",

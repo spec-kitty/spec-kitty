@@ -131,8 +131,10 @@ def _prepare_mission(
         + "\n",
         encoding="utf-8",
     )
+    # #6715: the work package states the surface its lane commits, and the manifest below records
+    # the planning commit — the evidence window the claim reads.
     (mission.feature_dir / "tasks" / "WP01-work.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: WP01 work\n---\n# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: WP01 work\nowned_files:\n  - src/**\n---\n# WP01\n",
         encoding="utf-8",
     )
     write_lanes_json(
@@ -155,6 +157,7 @@ def _prepare_mission(
             ],
             computed_at=_now_iso(),
             computed_from="preserve-local-files",
+            planning_commit_sha=git_rev(repo, "HEAD"),
         ),
     )
     git(repo, "add", "--", str(mission.feature_dir.relative_to(repo)))

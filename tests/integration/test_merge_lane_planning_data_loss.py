@@ -49,6 +49,7 @@ from specify_cli.consolidation.config import MergeStrategy
 from tests.lane_test_utils import create_lane_branches
 from specify_cli.consolidation import phase_bookkeeping
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import implementer_claim_events
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -94,7 +95,7 @@ def _make_manifest_with_planning_and_code(slug: str) -> MagicMock:
     return manifest
 
 
-def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str]) -> None:
+def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str], *, lane_head: str | None = None) -> None:
     """Seed every ``wp_ids`` entry as ``done`` directly on the event log (#4764/T007).
 
     ``_assert_mission_terminal_ready`` reads ``status.events.jsonl``/``reduce``
@@ -122,6 +123,23 @@ def _seed_wp_done_raw(feature_dir: Path, mission_slug: str, wp_ids: list[str]) -
                 "to_lane": "done",
                 "wp_id": wp_id,
             }
+            # #6715: the work package's own claim and its approval by a DIFFERENT identity precede
+            # the seeded ``done``, dated earlier so the reduced lane stays ``done``; the evidence
+            # axis reads an implementer of record and an approving actor from them.
+            approved = {
+                **event,
+                "event_id": f"01HXYZAPPR000000000000{index:04d}",
+                "at": "2020-01-01T00:04:00+00:00",
+                "actor": "reviewer-renata",
+                "force": False,
+                "from_lane": "in_review",
+                "to_lane": "approved",
+            }
+            if lane_head is not None:
+                # #5668: the stamp names the lane commit review approved.
+                approved["policy_metadata"] = {"lane_head": lane_head}
+            for history in [*implementer_claim_events(approved), approved]:
+                handle.write(json.dumps(history, sort_keys=True) + "\n")
             handle.write(json.dumps(event, sort_keys=True) + "\n")
     from specify_cli.status.reducer import materialize
 
@@ -147,12 +165,26 @@ class TestMergeIncludesPlanningLane:
         _init_git_repo(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
-        _seed_wp_done_raw(feature_dir, slug, ["WP01", "WP02", "WP03", "WP04"])
-
         manifest = _make_manifest_with_planning_and_code(slug)
         # #5417: code lanes need their created branches (#5338 claim-time
         # refusal); lane-planning is exempt and resolves to the target.
         create_lane_branches(tmp_path, manifest)
+        # #6715: the evidence axis reads a recorded planning commit, each work package's declared
+        # ownership and its lane's committed change; this layer's subject is the saved ``wp_order``,
+        # so it states them rather than tripping the evidence refusal.
+        manifest.planning_commit_sha = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+        for wp_id in ("WP01", "WP02", "WP03", "WP04"):
+            _write_wp_file(feature_dir, wp_id)
+        (feature_dir / "research.md").write_text("# planning output\n", encoding="utf-8")
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "declare ownership and the planning deliverable")
+        _git(tmp_path, "checkout", "-q", f"kitty/mission-{slug}-lane-a")
+        (tmp_path / "src").mkdir(parents=True, exist_ok=True)
+        (tmp_path / "src" / "lane_a.py").write_text("VALUE = 1\n", encoding="utf-8")
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "feat: lane-a implementation")
+        _git(tmp_path, "checkout", "-q", "main")
+        _seed_wp_done_raw(feature_dir, slug, ["WP01", "WP02", "WP03", "WP04"], lane_head=_git(tmp_path, "rev-parse", f"kitty/mission-{slug}-lane-a").stdout.strip())
 
         captured_states: list[list[str]] = []
 
@@ -343,6 +375,13 @@ def _write_lanes_manifest(
         computed_at=now_utc_iso(),
         computed_from="test-fixture",
     )
+    # #6715: record the planning commit (the repository's current tip, the commit these lanes are
+    # cut from) so the evidence window every landing surface reads is computable, as
+    # ``finalize-tasks`` records it on a real Mission.
+    repo = feature_dir.parents[1]
+    head = subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", "HEAD^{commit}"], capture_output=True, text=True, check=False)
+    if head.returncode == 0:
+        manifest.planning_commit_sha = head.stdout.strip()
     write_lanes_json(feature_dir, manifest)
     return manifest
 
@@ -793,9 +832,13 @@ def _write_wp_file(feature_dir: Path, wp_id: str, *, agent: str = "researcher-ry
     can synthesize done evidence from an approved lane state."""
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
+    # #6715: the evidence axis reads each approved WP's owned_files. A code lane here commits
+    # under ``src/``; a planning-artifact work package's deliverable is its mission dir (its
+    # status log and ``meta.json`` are bookkeeping and never count). Ownership precision is
+    # pinned by ``tests/consolidation/test_wp_evidence.py``.
     (tasks_dir / f"{wp_id}.md").write_text(
         f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} planning\n"
-        f"agent: {agent}\ndependencies: []\n---\n\nBody.\n",
+        f"agent: {agent}\ndependencies: []\nowned_files:\n  - src/**\n  - kitty-specs/**\n---\n\nBody.\n",
         encoding="utf-8",
     )
 
@@ -841,7 +884,9 @@ def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
             mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane="approved",
-            actor="seed",
+            # #6715: the approving identity differs from the implementer's ("seed"), as an
+            # independent review does; a self-approval is refused at every landing surface.
+            actor="reviewer-renata",
             evidence={
                 "review": {
                     "reviewer": "reviewer-renata",

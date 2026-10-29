@@ -29,7 +29,7 @@ from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
 from tests._support.status_seed import seed_status_event
-from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
+from tests.lane_test_utils import commit_lane_implementation, lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 IMPLEMENTER = "claude:opus:implementer-ivan:implementer"
 REVIEWER = "codex:gpt-5:reviewer-renata:reviewer"
@@ -68,6 +68,9 @@ def build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ReworkMiss
     _git(repo, "config", "user.email", "5196@example.invalid")
     _git(repo, "config", "user.name", "Rework Loop")
     _git(repo, "config", "commit.gpgsign", "false")
+    # #6715: the planning commit lanes.json records, so the evidence window every move into
+    # review reads is computable; WP01's implementation is committed on its lane below.
+    _git(repo, "commit", "--allow-empty", "-m", "planning base")
     (repo / ".kittify").mkdir()
     (repo / ".kittify" / "config.yaml").write_text("auto_commit: false\nprotection:\n  protected_branches: []\n", encoding="utf-8")
     feature_dir = repo / "kitty-specs" / MISSION_SLUG
@@ -80,11 +83,12 @@ def build_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ReworkMiss
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# Tasks\n\n## WP01 - Core\n\n(no subtasks)\n", encoding="utf-8")
     (tasks_dir / "WP01-core.md").write_text(
-        "---\nwork_package_id: WP01\ntitle: Core\nsubtasks: []\ntracker_refs: []\ndependencies: []\n---\n\n# WP01\n\n## Activity Log\n",
+        "---\nwork_package_id: WP01\ntitle: Core\nowned_files:\n  - src/**\nsubtasks: []\ntracker_refs: []\ndependencies: []\n---\n\n# WP01\n\n## Activity Log\n",
         encoding="utf-8",
     )
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", "seed rework-loop fixture")
+    commit_lane_implementation(repo, feature_dir)
     # Seed ONLY genesis -> planned; every later hop is a real CLI move.
     seed_status_event(
         feature_dir,
@@ -252,10 +256,10 @@ def implement(m: ReworkMission, agent: str, monkeypatch: pytest.MonkeyPatch) -> 
         analyzer_agent="test",
     )
     workspace = lane_worktree_path(m.repo, m.mission_slug)
-    workspace.mkdir(parents=True, exist_ok=True)
-    gitdir = m.repo / ".git" / "worktrees" / workspace.name
-    gitdir.mkdir(parents=True, exist_ok=True)
-    (workspace / ".git").write_text(f"gitdir: {gitdir}\n", encoding="utf-8")
+    if not workspace.exists():
+        # #6715: a real lane worktree on the lane branch (it carries WP01's implementation and the
+        # recorded planning commit), so the allocator's reuse-path self-heal is a no-op resume.
+        _git(m.repo, "worktree", "add", "-q", str(workspace), lane_branch_name(m.mission_slug))
     argv = ["implement", WP, "--mission", m.mission_slug, "--agent", agent]
     m.argvs.append(["action", *argv])
     return CliRunner().invoke(workflow_module.app, argv)

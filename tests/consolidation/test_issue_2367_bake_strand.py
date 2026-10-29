@@ -127,6 +127,7 @@ from tests.consolidation.test_issue_2711_merge_rollback_resume_coherence import 
     _init_git_repo,
     _merge_external_mocks,
 )
+from tests.terminus.conftest import implementer_claim_events, record_evidence_prerequisites
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -244,16 +245,25 @@ def _bootstrap_two_wp_coord_mission(repo: Path) -> Path:
 
     # Pre-record the per-WP APPROVED events (NOT done) so the bake loop has a real
     # ``approved -> done`` transition to commit for each WP.
+    # #6715: each approval is preceded by a claim event naming a different implementer identity.
+    _stranded_approved = _approved_event(STRANDED_WP, "01HXAPPR0000000000000000W1")
+    _coherent_approved = _approved_event(COHERENT_WP, "01HXAPPR0000000000000000W2")
     (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(_approved_event(STRANDED_WP, "01HXAPPR0000000000000000W1"), sort_keys=True)
-        + "\n"
-        + json.dumps(_approved_event(COHERENT_WP, "01HXAPPR0000000000000000W2"), sort_keys=True)
-        + "\n",
+        "".join(
+            json.dumps(event, sort_keys=True) + "\n"
+            for event in [
+                *implementer_claim_events(_stranded_approved),
+                *implementer_claim_events(_coherent_approved),
+                _stranded_approved,
+                _coherent_approved,
+            ]
+        ),
         encoding="utf-8",
     )
 
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap 2-WP coord mission")
+    record_evidence_prerequisites(repo, feature_dir)
 
     # Coordination/mission branch at the current tip.
     _git(repo, "branch", COORD_BRANCH)

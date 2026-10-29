@@ -133,15 +133,29 @@ def _init_repo(tmp_path: Path, *, slug: str, wp_ids: tuple[str, ...]) -> tuple[P
         computed_at="2026-09-28T00:00:00+00:00",
         computed_from="wp06-canceled-content-residuals",
     )
+    # #6715: each WP states the surface its lane commits and the manifest records the planning
+    # commit — the evidence window every landing surface reads. This fixture's subject is the
+    # canceled-content axis, so it states both rather than tripping the evidence refusal.
+    for wp_id in wp_ids:
+        (feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp_id}\n",
+            encoding="utf-8",
+        )
     write_lanes_json(feature_dir, manifest)
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "bootstrap")
+    manifest.planning_commit_sha = _rev(repo)
+    write_lanes_json(feature_dir, manifest)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "record the planning commit")
     return repo, feature_dir, manifest, _rev(repo)
 
 
 def _event(seq: int, wp: str, frm: str, to: str, *, slug: str, at: str, stamp: str | None) -> dict[str, object]:
     ev: dict[str, object] = {
-        "actor": "implementer-ivan",
+        # #6715: the approving identity differs from the implementer's, as an independent review
+        # does; an approval recorded by the implementer's own identity is refused everywhere.
+        "actor": "reviewer-renata" if to == "approved" else "implementer-ivan",
         "at": at,
         "event_id": f"01RESID{seq:016d}",
         "evidence": None,
@@ -401,6 +415,12 @@ def test_other_lane_identical_content_ideally_passes(tmp_path: Path) -> None:
         parallel_group=0,
     )
     manifest = replace(manifest, lanes=[*manifest.lanes, lane_b])
+    # #6715: the added lane's WP states the surface it commits, like the bootstrap WPs.
+    for wp_id in (wp for lane in manifest.lanes for wp in lane.wp_ids):
+        (feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp_id}\n",
+            encoding="utf-8",
+        )
     write_lanes_json(feature_dir, manifest)
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "add lane-b to manifest")
@@ -800,6 +820,12 @@ def test_fully_canceled_dependency_lane_content_does_not_ship(tmp_path: Path) ->
         parallel_group=0,
     )
     manifest = replace(manifest, lanes=[*manifest.lanes, lane_b])
+    # #6715: the added lane's WP states the surface it commits, like the bootstrap WPs.
+    for wp_id in (wp for lane in manifest.lanes for wp in lane.wp_ids):
+        (feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp_id}\n",
+            encoding="utf-8",
+        )
     write_lanes_json(feature_dir, manifest)
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "add lane-b to manifest")

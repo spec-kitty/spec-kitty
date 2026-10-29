@@ -91,6 +91,7 @@ from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.status import Lane, StatusEvent
 from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import implementer_claim_events, record_evidence_prerequisites
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -240,13 +241,16 @@ def _bootstrap_coord_mission(repo: Path) -> Path:
     # Pre-record the per-WP APPROVED event (NOT done) so the real bookkeeping
     # pass has a genuine ``approved -> done`` transition to emit through the
     # coordination worktree.
+    # #6715: the claim event names an implementer whose identity differs from the approving
+    # actor's, so the manufactured approval reads as an independent review.
     (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(_approved_event(), sort_keys=True) + "\n",
+        "".join(json.dumps(event, sort_keys=True) + "\n" for event in [*implementer_claim_events(_approved_event()), _approved_event()]),
         encoding="utf-8",
     )
 
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap coord mission")
+    record_evidence_prerequisites(repo, feature_dir)
 
     # Coordination/mission branch at the current tip.
     _git(repo, "branch", COORD_BRANCH)

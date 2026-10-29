@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.18.0`
+- `CONTRACT_VERSION`: `1.19.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -168,6 +168,17 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   answers `success: true` but leaves the canceled lane off the target (the approved survivor
   lanes land unchanged). A behaviour change to the shipped tree of a previously-`success`
   call, so a minor bump; no envelope field or `error_code` is added, removed or renamed.
+- `1.19.0` — `consolidate-mission` and `accept-mission` now run the implementation-evidence and
+  review-independence axis on every topology (#6715; it covered `single_branch` only, #5939).
+  `consolidate-mission` fails with the existing `PREFLIGHT_FAILED` envelope — the codes in
+  `data.preflight_error_code` / `data.preflight_error_codes` — before it consolidates its first lane;
+  `accept-mission` fails with the existing `MISSION_NOT_READY` and a new optional
+  `data.evidence_error_codes`. The codes are `IMPLEMENTATION_MISSING`, `REVIEW_NOT_INDEPENDENT`,
+  `IMPLEMENTATION_UNREADABLE` and `EVIDENCE_WINDOW_UNCOMPUTABLE` (`single_branch` keeps emitting
+  its documented `SINGLE_BRANCH_*` aliases of the same meaning). A call that used to answer
+  `success: true` while landing a work package approved with no change to its owned files, or
+  approved by its own implementer, now refuses. A behaviour change on previously-`success` calls
+  plus one additive optional field, so a minor bump; no field or `error_code` is removed or renamed.
 - `1.17.0` — `resolve-decision`, `defer-decision` and `cancel-decision` can newly
   fail with `DECISION_EVENT_REPAIR_FAILED` (#5681), and
   `DESIGN_STATUS_EVENT_LOG_UNREADABLE` (already returned there for an unreadable
@@ -184,7 +195,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.18.0",
+  "contract_version": "1.19.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",

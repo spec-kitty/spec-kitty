@@ -338,17 +338,15 @@ def test_genuine_human_approval_stays_human(tmp_path: Path, monkeypatch: pytest.
         actor="user",
     )
 
-    approved = _move(
-        [
-            "WP01",
-            "--to",
-            "approved",
-            "--mission",
-            mission_slug,
-            "--note",
-            "Review passed",
-        ]
-    )
+    approval = ["WP01", "--to", "approved", "--mission", mission_slug, "--note", "Review passed"]
+    # #6715 ruling A: unforced, an approval that would be recorded as the placeholder 'user' is
+    # refused at the move (accept and consolidate read 'user' as no reviewer).
+    refused = _move(approval)
+    assert refused.exit_code != 0, refused.output
+    assert "REVIEW_NOT_INDEPENDENT" in refused.output
+
+    # Forced (ruling 3), the approval is recorded, and attributed to the human -- never a fabricated agent.
+    approved = _move([*approval, "--force"])
     assert approved.exit_code == 0, approved.output
 
     actor = _latest_actor_for(feature_dir, "WP01", Lane.APPROVED)

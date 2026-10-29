@@ -36,6 +36,7 @@ from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
 from tests._support.status_seed import seed_status_event
+from tests.lane_test_utils import commit_lane_implementation
 
 # Marked for mutmut sandbox skip — subprocess CLI/git invocation.
 pytestmark = [pytest.mark.non_sandbox, pytest.mark.git_repo]
@@ -76,6 +77,10 @@ def _create_lane_feature(
     _git(repo_root, "config", "user.email", "test@test.com")
     _git(repo_root, "config", "user.name", "Test")
     _git(repo_root, "branch", "-M", "main")
+    # #6715: the planning commit lanes.json records (accept refuses a work package whose evidence
+    # window, planning commit..lane branch, is uncomputable or holds no owned change).
+    _git(repo_root, "commit", "--allow-empty", "-m", "planning base")
+    planning_commit = _git(repo_root, "rev-parse", "HEAD").stdout.strip()
 
     # .kittify marker anchors find_repo_root() to this repo (paired with the
     # SPECIFY_REPO_ROOT env var set by the test) so mission resolution works
@@ -116,6 +121,8 @@ def _create_lane_feature(
         'assignee: "test-agent"\n'
         'agent: "test-agent"\n'
         'shell_pid: "12345"\n'
+        "owned_files:\n"
+        '  - "src/**"\n'
         "subtasks: []\n"
         "---\n"
         "# WP01\nDone.\n"
@@ -147,13 +154,29 @@ def _create_lane_feature(
             ),
         ),
     )
+    # #6715: an independent reviewer approved WP01 (accept refuses an approval by the implementer).
+    seed_status_event(
+        feature_dir,
+        StatusEvent(
+            event_id="01TESTACCEPTCLEANTREE00000R",
+            mission_slug=_SLUG,
+            wp_id="WP01",
+            from_lane=Lane.CLAIMED,
+            to_lane=Lane.APPROVED,
+            at="2026-01-01T00:00:01+00:00",
+            actor="test-reviewer",
+            force=True,
+            execution_mode="direct_repo",
+            reason="Test setup: reviewed",
+        ),
+    )
     seed_status_event(
         feature_dir,
         StatusEvent(
             event_id="01TESTACCEPTCLEANTREE000001",
             mission_slug=_SLUG,
             wp_id="WP01",
-            from_lane=Lane.CLAIMED,
+            from_lane=Lane.APPROVED,
             to_lane=Lane.DONE,
             at=now_utc_iso(),
             actor="test-agent",
@@ -184,6 +207,7 @@ def _create_lane_feature(
             ],
             computed_at="2026-04-05T12:00:00Z",
             computed_from="test",
+            planning_commit_sha=planning_commit,
         ),
     )
 
@@ -221,6 +245,7 @@ def _create_lane_feature(
     # Commit a clean baseline, then move onto the mission branch where accept runs.
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "init")
+    commit_lane_implementation(repo_root, feature_dir, path="src/wp01.py")  # #6715: WP01's implementation
     _git(repo_root, "checkout", "-b", _MISSION_BRANCH)
     return feature_dir
 

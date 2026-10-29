@@ -73,6 +73,7 @@ from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import get_state_path
 from specify_cli.status import Lane, StatusEvent
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import implementer_claim_events, record_evidence_prerequisites
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -239,10 +240,16 @@ def _bootstrap_coord_mission(repo: Path, *, wp_event: dict[str, object]) -> Path
     _write_manifest(feature_dir)
     _write_wp_file(feature_dir)
 
-    (feature_dir / "status.events.jsonl").write_text(json.dumps(wp_event, sort_keys=True) + "\n", encoding="utf-8")
+    # #6715: the approval is preceded by the implementer's own lane hops, under a different
+    # identity, so the manufactured approved state reads as an independent review.
+    (feature_dir / "status.events.jsonl").write_text(
+        "".join(json.dumps(event, sort_keys=True) + "\n" for event in [*implementer_claim_events(wp_event), wp_event]),
+        encoding="utf-8",
+    )
 
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap coord mission")
+    record_evidence_prerequisites(repo, feature_dir)
 
     # Coordination/mission branch at the current tip.
     _git(repo, "branch", COORD_BRANCH)

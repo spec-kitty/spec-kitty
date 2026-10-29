@@ -72,6 +72,7 @@ from specify_cli.policy.config import MergeGateConfig
 from specify_cli.policy.merge_gates import GateVerdict, evaluate_merge_gates
 from specify_cli.status import Lane, StatusEvent
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import implementer_claim_events, record_evidence_prerequisites
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -285,6 +286,9 @@ def _bootstrap_coord_mission(repo: Path) -> Path:
     # (so the real bookkeeping emits a genuine ``approved -> done``) and the two
     # canceled WPs at ``canceled`` with operator provenance.
     events = [
+        # #6715: the implementer's own lane hops precede the approval, under a different identity,
+        # so the manufactured approved state reads as an independent review.
+        *implementer_claim_events(_approved_event(WP_SURVIVOR)),
         _approved_event(WP_SURVIVOR),
         _canceled_operator_event(WP_CANCELED_MIXED),
         _canceled_operator_event(WP_CANCELED_LANE),
@@ -296,6 +300,7 @@ def _bootstrap_coord_mission(repo: Path) -> Path:
 
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap coord mission")
+    record_evidence_prerequisites(repo, feature_dir)
 
     # Coordination/mission branch at the current tip.
     _git(repo, "branch", COORD_BRANCH)

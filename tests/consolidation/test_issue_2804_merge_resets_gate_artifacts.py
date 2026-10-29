@@ -98,6 +98,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
 from specify_cli.consolidation.config import MergeStrategy
 from tests.consolidation.executor_family import patch_executor_family
+from tests.terminus.conftest import implementer_claim_events, record_evidence_prerequisites
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -332,11 +333,15 @@ def _bootstrap_mission(repo: Path) -> Path:
     _write_meta(feature_dir)
     _write_manifest(feature_dir)
     _write_wp_file(feature_dir)
+    # #6715: the approval is preceded by the implementer's own lane hops, under a different
+    # identity, so the manufactured approved state reads as an independent review.
     (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(_approved_event(), sort_keys=True) + "\n", encoding="utf-8"
+        "".join(json.dumps(event, sort_keys=True) + "\n" for event in [*implementer_claim_events(_approved_event()), _approved_event()]),
+        encoding="utf-8",
     )
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap (no gate artifacts yet)")
+    record_evidence_prerequisites(repo, feature_dir)
 
     # --- mission branch + lane fork BEFORE the gate artifacts exist anywhere ---
     _git(repo, "branch", MISSION_BRANCH)

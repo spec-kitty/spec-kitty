@@ -123,7 +123,9 @@ def _seed_wp_to_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> No
             mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane="approved",
-            actor="divergent-shapes-fixture",
+            # #6715: the approving identity differs from the implementer's, as an independent
+            # review does; an approval by the implementer's own identity is refused everywhere.
+            actor="divergent-shapes-reviewer",
             evidence={
                 "review": {
                     "reviewer": "reviewer-renata",
@@ -236,16 +238,35 @@ def _build_shape(
         computed_from="divergent-shapes-fixture",
     )
     write_lanes_json(feature_dir, manifest)
+    # #6715: each WP declares the owned surface its lane commits below, and the manifest records
+    # the planning commit the lanes are cut from — the evidence window every landing surface reads.
+    (feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
+    for wp_id in wp_of_lane.values():
+        (feature_dir / "tasks" / f"{wp_id}-work.md").write_text(
+            f"---\nwork_package_id: {wp_id}\ntitle: {wp_id} work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# {wp_id}\n",
+            encoding="utf-8",
+        )
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "bootstrap divergent mission")
+    manifest.planning_commit_sha = _rev(repo, "HEAD")
+    write_lanes_json(feature_dir, manifest)
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-qm", "chore: record the planning commit")
     coord_base_sha = _rev(repo, "HEAD")
 
     lanes: dict[str, tuple[Path, str]] = {}
     for lane_id in lane_ids:
         wp_id = wp_of_lane[lane_id]
         if lane_id == "lane-planning":
-            # Planning-artifact WPs live on the main checkout, never a worktree.
+            # Planning-artifact WPs live on the main checkout, never a worktree. #6715: the
+            # planning WP commits its own owned artifact there, as a real planning lane does —
+            # an approval with nothing committed is what the evidence axis refuses.
             lanes[lane_id] = (repo, _TARGET_BRANCH)
+            planning_rel = f"src/{wp_id.lower()}.py"
+            (repo / "src").mkdir(parents=True, exist_ok=True)
+            (repo / planning_rel).write_text(f"# {wp_id} planning artifact\n", encoding="utf-8")
+            _git(repo, "add", planning_rel)
+            _git(repo, "commit", "-qm", f"docs({wp_id}): planning artifact")
             _seed_wp_to_approved(feature_dir, slug, wp_id)
             continue
 

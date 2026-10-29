@@ -166,10 +166,11 @@ def _write_wp_task_files(mission: DivergentMission) -> None:
         if lane.lane_id == "lane-planning":
             continue
         for wp_id in lane.wp_ids:
-            wp_path = tasks_dir / f"{wp_id}.md"
-            if not wp_path.exists():
-                wp_path.write_text(
-                    f"---\nwork_package_id: {wp_id}\ntitle: {wp_id}\nagent: implementer-ivy\ndependencies: []\n---\n\nBody.\n",
+            # #6715: the fixture's own task file (with its declared ``owned_files``) stands when it
+            # exists — a second file for the same work package id would shadow that declaration.
+            if not any(tasks_dir.glob(f"{wp_id}*.md")):
+                (tasks_dir / f"{wp_id}.md").write_text(
+                    f"---\nwork_package_id: {wp_id}\ntitle: {wp_id}\nagent: implementer-ivy\ndependencies: []\nowned_files:\n  - src/**\n---\n\nBody.\n",
                     encoding="utf-8",
                 )
 

@@ -51,6 +51,7 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.state import ConsolidationState, save_state
+from tests.terminus.conftest import implementer_claim_events, record_evidence_prerequisites
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
@@ -198,8 +199,11 @@ def _bootstrap_coord_mission(
         "to_lane": "done",
         "wp_id": "WP01",
     }
-    (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(done_event) + "\n", encoding="utf-8"
+    (feature_dir / "status.events.jsonl").write_text(json.dumps(done_event) + "\n", encoding="utf-8")
+    # #6715: the work package declares the surface its lane commits; the evidence axis reads it.
+    (feature_dir / "tasks" / "WP01-work.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: WP01 work\ndependencies: []\nsubtasks: []\nowned_files:\n  - src/**\n---\n# WP01\n",
+        encoding="utf-8",
     )
     # Derived status snapshot (tracked alongside the event log in real
     # missions; the bookkeeping safe_commit stages it, so it must exist).
@@ -217,6 +221,7 @@ def _bootstrap_coord_mission(
 
     _git(repo, "add", ".")
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): bootstrap coord mission")
+    record_evidence_prerequisites(repo, feature_dir)
 
     # Create the coordination/mission branch at the current tip. Deliberately
     # a bare `git branch` (NOT a materialized worktree) here: some consumers
@@ -258,8 +263,11 @@ def _bootstrap_coord_mission(
         "to_lane": "approved",
         "wp_id": "WP01",
     }
+    # #6715: the implementer's own claim hops precede the approval, under a different identity, so
+    # the recorded approval reads as an independent review.
     (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(approved_event) + "\n" + json.dumps(done_event) + "\n", encoding="utf-8"
+        "".join(json.dumps(event) + "\n" for event in [*implementer_claim_events(approved_event), approved_event, done_event]),
+        encoding="utf-8",
     )
     _git(repo, "add", str((feature_dir / "status.events.jsonl").relative_to(repo)))
     _git(repo, "commit", "-m", f"chore({MISSION_SLUG}): record the approval stamped at the lane tip")
