@@ -1091,3 +1091,46 @@ def test_seeds_only_work_package_has_no_implementer_of_record_on_for_review(tmp_
 
     assert exc_info.value.claimed_by == "unknown"
     assert "implementer of record (none on record)" in str(exc_info.value)
+
+
+def _seed_for_review_with_implementer(feature_dir: Path, implementer: str | dict[str, str | None]) -> None:
+    """planned -> claimed -> in_progress -> for_review, every hop by ``implementer`` (string or structured)."""
+    chain = [
+        ("01FFFF0000000000000000001A", Lane.PLANNED, Lane.CLAIMED, "2026-04-26T10:00:01+00:00"),
+        ("01FFFF0000000000000000002A", Lane.CLAIMED, Lane.IN_PROGRESS, "2026-04-26T10:00:02+00:00"),
+        ("01FFFF0000000000000000003A", Lane.IN_PROGRESS, Lane.FOR_REVIEW, "2026-04-26T10:00:03+00:00"),
+    ]
+    for event_id, src, dst, at in chain:
+        seed_status_event(
+            feature_dir,
+            StatusEvent(
+                event_id=event_id,
+                mission_slug=_SLUG,
+                wp_id="WP01",
+                from_lane=src,
+                to_lane=dst,
+                at=at,
+                actor=implementer,
+                force=False,
+                execution_mode="worktree",
+            ),
+        )
+
+
+@pytest.mark.parametrize(
+    ("implementer", "named"),
+    [
+        pytest.param("claude:opus:pedro", "claude:opus:pedro", id="compact-string"),
+        pytest.param({"tool": "claude", "role": "implementer", "profile": "pedro", "model": "opus"}, "claude:opus:pedro", id="structured-full"),
+        pytest.param({"tool": "claude", "role": "implementer", "profile": None, "model": None}, "claude", id="structured-bare-tool"),
+    ],
+)
+def test_for_review_refusal_names_the_implementer_of_record(tmp_path: Path, implementer: str | dict[str, str | None], named: str) -> None:
+    """``_implementer_of_record_label``: the refusal names the full recorded identity, trailing absent parts dropped (#6400 F7)."""
+    feature_dir = _feature_dir(tmp_path)
+    _seed_for_review_with_implementer(feature_dir, implementer)
+
+    with pytest.raises(WorkPackageClaimConflict) as exc_info:
+        _start_wp(feature_dir, tmp_path, actor="gemini", review_lane_exit=True)
+
+    assert f"in for_review; only its implementer of record ({named}) may withdraw it" in str(exc_info.value)
