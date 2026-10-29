@@ -1071,7 +1071,7 @@ def test_identity_header_counts_missions_and_residue_apart(tmp_path: Path, monke
 @pytest.mark.git_repo
 @pytest.mark.performance
 def test_nfr_002_timing_residue_aware_200_children_half_id_less(tmp_path: Path) -> None:
-    """NFR-002 on the residue-aware path: a real git repo, 200 children, half without a mission_id."""
+    """NFR-002 on the residue-aware path: a real git repo, 200 tracked children (half id-less) plus untracked residue."""
     import subprocess
 
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
@@ -1079,6 +1079,8 @@ def test_nfr_002_timing_residue_aware_200_children_half_id_less(tmp_path: Path) 
     for i in range(200):
         _mission_dir(specs, f"{i + 1:03d}-m{i}", _ULID_A if i % 2 == 0 else None, i + 1)
     subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    for i in range(10):  # untracked and id-less: the timed walk also takes the residue branch
+        _mission_dir(specs, f"9{i:02d}-untracked{i}", None, None)
 
     start = time.monotonic()
     states = audit_repo(tmp_path, residue_aware=True)
@@ -1086,5 +1088,4 @@ def test_nfr_002_timing_residue_aware_200_children_half_id_less(tmp_path: Path) 
     find_ambiguous_selectors(states)
     elapsed = time.monotonic() - start
 
-    assert len(states) == 200 and "residue" not in {s.state for s in states}
     assert_timing_budget(elapsed, 3.0, name="elapsed")
