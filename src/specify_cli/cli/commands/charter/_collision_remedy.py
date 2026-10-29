@@ -53,10 +53,12 @@ def collision_remedy(repo_root: Path, error: SynthesisError) -> str | None:
     urn = error.colliding_urn
     try:
         is_project = urn.startswith(f"{_DIRECTIVE.value}:") and urn in _project_directive_urns(repo_root)
-    except ValueError as exc:
+    except (OSError, ValueError) as exc:
+        # A scan failure (a malformed file, or an unlistable directory) must not
+        # mask the caller's SynthesisError: report it as unreadable instead.
         return (
             f"'{urn}' collided, and the project directives under {_PROJECT_DIRECTIVE_LABEL} "
-            f"could not be read to tell where it comes from ({exc}). Repair that file, then re-run."
+            f"could not be read to tell where it comes from ({exc}). Repair them or make them readable, then re-run."
         )
     if not is_project:
         return (
@@ -89,7 +91,7 @@ def _project_directive_remedy(repo_root: Path, urn: str) -> str:
 
 
 def _project_directive_urns(repo_root: Path) -> frozenset[str]:
-    """URNs the project pack's directive files declare; ``ValueError`` names a malformed file."""
+    """URNs the project pack's directive files declare; ``ValueError`` names a malformed file, ``OSError`` an unreadable one."""
     folder = project_pack_path(repo_root, _PROJECT_DIRECTIVE_DIR)
     paths = frozenset(folder.rglob(_DIRECTIVE.glob_pattern)) if folder.is_dir() else frozenset()
     if not paths:
