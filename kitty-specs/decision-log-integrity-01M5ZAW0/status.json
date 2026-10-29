@@ -1,33 +1,33 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M5ZE0MBQAQG2W23G6RQBXBC8",
-  "materialized_at": "2026-10-27T19:39:52.562354+00:00",
-  "mission_number": "",
+  "event_count": 14,
+  "last_event_id": "01M5ZH47YBQ9Q1GKMRZXW0C97K",
+  "materialized_at": "2026-10-27T20:34:16.651184+00:00",
+  "mission_number": "243",
   "mission_slug": "decision-log-integrity-01M5ZAW0",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 2,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M5ZE020806688TRDJ77DY7TH",
-      "last_transition_at": "2026-10-27T19:39:33.768876+00:00",
+      "lane": "done",
+      "last_event_id": "01M5ZH45VEPQFZSP4K9NM0XZPE",
+      "last_transition_at": "2026-10-27T20:34:14.510980+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: open_decision holds the decisions lock across lookup, index append, artifact write and opening emit, and across a retry's check-and-repair; red-first ARM A/B tests plus stress supplement green",
@@ -51,20 +51,36 @@
       }
     },
     "WP02": {
-      "actor": "claude",
+      "actor": "merge",
       "agent": "claude",
-      "agent_profile": "python-pedro",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M5ZE0MBQAQG2W23G6RQBXBC8",
-      "last_transition_at": "2026-10-27T19:39:52.562354+00:00",
+      "lane": "done",
+      "last_event_id": "01M5ZH47YBQ9Q1GKMRZXW0C97K",
+      "last_transition_at": "2026-10-27T20:34:16.651184+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: fold accepts openings equal apart from recorded_at (earliest by recorded_at,event_id; order-independent), differing openings still FoldError; reopen rule derived from spec_kitty_events DECISION_POINT_TERMINAL_REOPEN, ALLOWED_TERMINAL_REOPEN removed; malformed-fold fixtures re-pinned to a differing duplicate (incl. test_defer_resolve_repair_4919.py helper); doctor/--repair acceptance test asserts log bytes unchanged; CHANGELOG Fixed entry",
+        "Review passed (reviewer-renata): red->green verified at base 41e800a5 (6 new tests red incl. doctor test, differing-payload controls green); fold tolerates openings equal apart from payload recorded_at, earliest by (recorded_at, event_id), differing payload still raises 'more than one DecisionPointOpened'; doctor/--repair leave status.events.jsonl byte-identical; reopen rule derived from DECISION_POINT_TERMINAL_REOPEN, ALLOWED_TERMINAL_REOPEN gone from src, verdicts unchanged; out-of-map re-pin of test_defer_resolve_repair_4919._duplicate_opened_event justified (3 tests go red under the new fold with the identical duplicate); ruff/format/mypy/C901 clean; 690 targeted tests pass. No shared-file overlap with WP01."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 24264,
-      "shell_pid_created_at": "1793129979.29"
+      "review_result": {
+        "reference": "auto-approval:WP02:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14785,
+      "shell_pid_created_at": "1793132152.91",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     }
   }
 }

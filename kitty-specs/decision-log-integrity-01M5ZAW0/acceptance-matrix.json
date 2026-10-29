@@ -2,48 +2,58 @@
   "mission_slug": "decision-log-integrity-01M5ZAW0",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/decisions/test_service_open_concurrency.py::test_first_open_paused_in_emit_blocks_identical_open (red on 95340255, green at 7b55055b)",
+      "pass_fail": "pass",
+      "verified_by": "claude (orchestrator)",
+      "verified_at": "2026-10-27T20:33:09.060356+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/decisions/test_service_open_concurrency.py::test_retries_after_interrupted_open_write_one_opening (red on 95340255, green at 7b55055b)",
+      "pass_fail": "pass",
+      "verified_by": "claude (orchestrator)",
+      "verified_at": "2026-10-27T20:33:14.693689+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/decisions/test_index_fold_duplicate_open.py + tests/decisions/test_decisions_reconciler.py::test_doctor_and_repair_accept_identical_duplicate_openings (red on 41e800a5, green at ee95b29a)",
+      "pass_fail": "pass",
+      "verified_by": "claude (orchestrator)",
+      "verified_at": "2026-10-27T20:33:20.757917+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/decisions/test_index_fold_duplicate_open.py::test_reopen_rule_comes_from_events_package (green at 32a2335d)",
+      "pass_fail": "pass",
+      "verified_by": "claude (orchestrator)",
+      "verified_at": "2026-10-27T20:33:26.636996+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No local copy of the decision reopen table in src",
+      "verification_method": "grep_absence",
+      "verification_command": "ALLOWED_TERMINAL_REOPEN",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src"
+    }
+  ]
 }

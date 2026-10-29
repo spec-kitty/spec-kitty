@@ -1,7 +1,7 @@
 {
   "rows": {
     "#4848": {
-      "evidence_ref": "7b55055b (open path under decisions lock); reader tolerance lands in WP02",
+      "evidence_ref": "Open half: 7b55055b (open + retry repair under decisions lock); duplicated ledgers read again: ee95b29a",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     },
     "#5681": {
@@ -73,7 +73,7 @@
       "wp": null
     },
     "#6412": {
-      "evidence_ref": "Reopen-rule part only (operator ruling 2); envelope half stays with spec-kitty-events #92 / #6194",
+      "evidence_ref": "Reopen rule from DECISION_POINT_TERMINAL_REOPEN in 32a2335d; envelope half and reduce_decision_point_records adoption follow up in spec-kitty-events #92 / #6194",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,7 +81,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "deferred-with-followup",
       "wp": "WP02"
     },
     "#6447": {
