@@ -163,3 +163,22 @@ Session A owns the events-side list; this is the core-side cross-check.
 - **Q3 read service:** CI-only pin. The CLI never launches it; ADR 2026-10-01-2 D-7 holds.
 - **Q4 freeze gate:** a small standalone PR once the live mission sessions have merged.
 - **Q5 acceptance-jvm tools:** fetched from the pinned `service-v*` release, not copied. Session A publishes them as a separate `contract-tools-<ver>.tar.gz` (`contracts/tools/*.py`, `pins.json`, `enum_pins.json`; no fixtures), so `contract-bundles` stays pure contract data.
+
+## 8. Release asset layout (agreed with spec-kitty-events, 2026-10-29)
+
+Repoint the golden tests at cut-over using these entry names in `conformance-fixtures-<ver>.tar.gz`:
+
+| Entry in the tarball | Staged from (spec-kitty-events `service/`) | Core test that reads it today |
+|---|---|---|
+| `conformance/**` | `src/test/resources/conformance/**` | `tests/contract/_mission_status_conformance.py` |
+| `artifact-conformance/{cases,golden}.json` | `src/test/resources/artifact-conformance/` | `tests/contract/_mission_status_artifact_goldens.py`, `test_mission_status_artifact_goldens.py` |
+| `nativesmoke/requests.json` | `src/test/resources/nativesmoke/requests.json` | (nightly corpus / smoke) |
+| `leak-patterns.json` | `src/main/resources/leak-patterns.json` | `tests/contract/_mission_status_conformance.py` |
+| `event-log/torn-tail/repair-cases.json` | `event-log/src/test/resources/torn-tail/repair-cases.json` | `tests/glossary/test_torn_tail_repair_goldens.py` |
+
+- `contract-bundles-<ver>.tar.gz` holds `bundle/mission-status/openapi.yaml` and `bundle/mission-write/openapi.yaml` (the output of `bundle.py --bundle-only`).
+- `contract-tools-<ver>.tar.gz` holds `contracts/tools/*.py`, `pins.json` and `enum_pins.json`; acceptance-jvm uses it.
+- The tarballs are deterministic: mtime is the commit time, uid/gid 0, entries sorted, compressed with `gzip -n`.
+- Every asset is listed in `SHA256SUMS`, and the attestation covers the subjects of `SHA256SUMS`.
+
+Additional cut-over item: close #6692 as done, citing core ADR 2026-10-22-1 and spec-kitty-events ADR 0002 (operator decision, relayed 2026-10-29).
