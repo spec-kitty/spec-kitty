@@ -112,12 +112,28 @@ The command walks `kitty-specs/` and classifies every mission:
 - `legacy` — mission has no `mission_id`; backfill required.
 - `conflict` — two or more legacy missions share a `mission_slug` or
   `mission_number`; they need human disambiguation before backfill.
-- `residue` — the folder is not a Mission: it has no `meta.json`, or an
-  untracked one with no `mission_id` in a git repository. Selection does not
-  list it. Delete it if it is leftover. If it is a real Mission, restore its
-  `meta.json` from git history, or re-create it with
-  `spec-kitty agent mission create` and move its `spec.md` in.
-  `--fail-on residue` makes the audit exit 1 while any remain.
+- `residue` — the folder is not a Mission, and selection does not list it.
+  It has no `meta.json`; or, in a git repository, git tracks neither its
+  `meta.json` nor its `spec.md`, and the `meta.json` has no `mission_id` or
+  cannot be read. Each row's `residue_reason` names which, and the report
+  prints one remedy per reason (`residue_remedies` under `--json`):
+  - `no_meta`: delete the folder if it is leftover. If it is a real Mission
+    whose `meta.json` was deleted, run `git restore <path>/meta.json` when
+    `git status` shows the deletion; when the deletion was committed, find it
+    with `git log --diff-filter=D --format=%h -1 -- <path>/meta.json`, then
+    run `git checkout <sha>~1 -- <path>/meta.json`. If its `meta.json` was
+    never committed, re-create it with `spec-kitty agent mission create` and
+    move its `spec.md` in.
+  - `untracked_idless_meta`: for a real Mission, commit its `meta.json` or
+    run `spec-kitty migrate backfill-identity`; otherwise delete the folder.
+  - `corrupt_meta`: the Mission content is corrupt (the row's `error` says
+    why). Repair or restore the `meta.json`; do not delete the folder before
+    checking.
+
+  `--fail-on residue` makes the audit exit 1 while any remain. A git index
+  that cannot be read makes the audit exit 1 with one error line
+  (`GIT_INDEX_UNREADABLE` under `--json`); run `git reset`, or
+  `rm .git/index && git reset` if that fails too.
 
 **Expected output** for a project with one legacy mission:
 

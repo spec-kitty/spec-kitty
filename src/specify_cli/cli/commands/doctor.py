@@ -490,7 +490,15 @@ def identity(
     - pending:  mission_id present AND mission_number null (pre-merge)
     - legacy:   mission_id missing AND mission_number present (needs backfill)
     - orphan:   both fields missing or meta.json unreadable (needs triage)
-    - residue:  not a Mission (no meta.json, or an untracked one with no mission_id); selection does not list it
+    - residue:  not a Mission; selection does not list it (see below)
+
+    A folder is residue when it has no meta.json; or, in a git repository,
+    when git tracks neither its meta.json nor its spec.md and the meta.json
+    has no mission_id or cannot be read. Each residue row names its reason
+    (no_meta, untracked_idless_meta, corrupt_meta) and the remedy for it; a
+    corrupt meta.json is reported as corrupt, never as a folder to delete.
+    A git index that cannot be read exits 1 with one error line
+    (GIT_INDEX_UNREADABLE under --json).
 
     Also reports duplicate numeric prefixes (FR-011) and ambiguous selectors
     that would resolve to multiple missions (FR-012); residue is in neither.
