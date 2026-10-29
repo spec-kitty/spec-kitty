@@ -32,7 +32,7 @@ The harness drives the production code on the Python side, never a copy: `kernel
 | Part | Where |
 |---|---|
 | Python peer | `scripts/ci/lock_interop_peer.py` (unit tests: `tests/ci/test_lock_interop_peer.py`) |
-| Java harness | `services/mission-status-api/event-log/src/test/java/org/speckitty/missionstatus/spike/lockinterop/` |
+| Java harness | package `org.speckitty.missionstatus.spike.lockinterop` in the test sources of the `event-log` module of `services/mission-status-api` |
 | CI evidence | the `lock-interop` job of `.github/workflows/mission-status-api.yml` (ubuntu-24.04, macos-15, windows-2025; GraalVM CE 25.0.2) |
 
 `LockInteropSpikeTest` runs once per Java lock. `java-filechannel` is `FileChannel.tryLock()` over the whole file, on every OS. `java-ffm-flock` is `flock(fd, LOCK_EX | LOCK_NB)` through FFM, on Linux and macOS. Each run uses a fresh git repository, so the lock file is the real `<git-common-dir>/spec-kitty-locks/event-logs/<digest>.lock`. The harness checks four things:
