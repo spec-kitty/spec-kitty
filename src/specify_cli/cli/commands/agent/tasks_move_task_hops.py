@@ -299,7 +299,7 @@ def _binding_role_for_lane(lane: Lane | str) -> str | None:
 
     FR-006 (IC-04): APPROVED/DONE are also reviewer-role decisions — the
     approving/completing actor, never the implementer — so the resolved
-    binding's structured actor (``build_self_asserting_actor``) and
+    binding's structured actor (``build_status_actor``) and
     annotation delta are stamped there too, symmetric with IN_REVIEW.
     """
     if lane == Lane.CLAIMED:

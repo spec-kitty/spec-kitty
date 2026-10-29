@@ -1141,12 +1141,12 @@ def _add_history_actor(status_dir: Path, wp_id: str, agent: str | None, recorded
     was already checked upfront and is parsed strictly (compact form accepted); without
     it the WP's recorded agent (or ``unknown``) goes through the lenient builder.
     """
-    from specify_cli.status import actor_from_option, build_self_asserting_actor, role_for_wp
+    from specify_cli.status import actor_from_option, build_status_actor, role_for_wp
 
     role = role_for_wp(status_dir, wp_id)
     actor: dict[str, str | None]
     if agent:
-        actor = build_self_asserting_actor(role=role, agent=agent, fallback_tool="user", binding=None)
+        actor = build_status_actor(role=role, agent=agent, fallback_tool="user", binding=None)
     else:
         actor = actor_from_option(recorded_agent, role)
     return actor

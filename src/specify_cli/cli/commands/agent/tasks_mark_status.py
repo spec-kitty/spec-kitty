@@ -92,13 +92,13 @@ from specify_cli.core.subtask_rows import (
 )
 from specify_cli.core.owned_mission import require_unstaged_index
 from specify_cli.status import Lane, SubtaskStatus, SubtaskValue, mission_lock_key, normalize_wp_id, resolve_subtask_status_alias, wp_snapshot_state
-from specify_cli.status import build_self_asserting_actor
+from specify_cli.status import ActorRole, build_status_actor
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 #: The tool slot of the mark-status actor when no ``--agent`` names one (FR-008).
 _OPERATOR_TOOL = "user"
 #: Marking subtasks is implementation work, whoever records it (FR-008).
-_IMPLEMENTER_ROLE = "implementer"
+_IMPLEMENTER_ROLE = str(ActorRole.IMPLEMENTER)
 
 #: ``--status`` values; ``not_applicable`` is an input alias for ``skipped``.
 _VALID_MARK_STATUSES = ("done", "pending", "skipped", "not_applicable")
@@ -210,7 +210,7 @@ def _ms_status_actor(st: _MarkStatusState) -> dict[str, str | None]:
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     try:
-        actor: dict[str, str | None] = build_self_asserting_actor(role=_IMPLEMENTER_ROLE, agent=st.agent, fallback_tool=_OPERATOR_TOOL, binding=None)
+        actor: dict[str, str | None] = build_status_actor(role=_IMPLEMENTER_ROLE, agent=st.agent, fallback_tool=_OPERATOR_TOOL, binding=None)
     except ValueError as exc:
         _tasks._output_error(st.json_output, f"Invalid --agent value: {exc}")
         raise typer.Exit(1) from exc

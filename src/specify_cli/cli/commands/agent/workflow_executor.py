@@ -64,7 +64,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
 from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.mission import get_deliverables_path, get_mission_type
-from specify_cli.status import FORCE_NOTE_HINT, Lane, StoreError, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
+from specify_cli.status import FORCE_NOTE_HINT, ActorRole, Lane, StoreError, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
 from specify_cli.status import RollbackOutcome, RollbackPoint, RollbackRefusal, UNBOUNDED_LOCK_WAIT, appended_event_ids, capture_rollback_point, mission_write_lock
 from specify_cli import status as _status_facade
 from specify_cli.task_utils import extract_scalar
@@ -1026,9 +1026,9 @@ def _implementer_actor(
     self-asserted parse. Without ``--agent`` the recorded assignment's tool fills
     the slot.
     """
-    from specify_cli.status import build_self_asserting_actor
+    from specify_cli.status import build_status_actor
 
-    actor: dict[str, str | None] = build_self_asserting_actor(
+    actor: dict[str, str | None] = build_status_actor(
         role=_IMPLEMENT_CLAIM_ROLE,
         agent=agent,
         fallback_tool=wp_agent_assignment.tool,
@@ -1086,8 +1086,8 @@ def _implement_emit_resume_refresh(
 
 #: The *actual* role that ran at each claim seam — the resolved-binding ``role``
 #: is the role that executed, NOT the authored frontmatter recommendation (INV-6).
-_IMPLEMENT_CLAIM_ROLE = "implementer"
-_REVIEW_CLAIM_ROLE = "reviewer"
+_IMPLEMENT_CLAIM_ROLE = str(ActorRole.IMPLEMENTER)
+_REVIEW_CLAIM_ROLE = str(ActorRole.REVIEWER)
 
 
 def implement_claim_transition(
@@ -1900,7 +1900,7 @@ def review_claim_transition(
     from specify_cli.status import start_review_status
     from specify_cli.status import emit_inner_state_changed
     from specify_cli.status import WPInnerStateDelta
-    from specify_cli.status import build_self_asserting_actor
+    from specify_cli.status import build_status_actor
 
     w = _wf()
 
@@ -1936,7 +1936,7 @@ def review_claim_transition(
     # asserted parse (``agent`` is guaranteed truthy here — the ``--agent``
     # required guard above already raised otherwise, so ``fallback_tool`` is
     # unreachable).
-    transition_actor = build_self_asserting_actor(
+    transition_actor = build_status_actor(
         role=_REVIEW_CLAIM_ROLE,
         agent=agent,
         fallback_tool=None,
