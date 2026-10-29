@@ -158,7 +158,11 @@ class ActivationChangeReport:
     written by ``--only`` and ``None`` without it. ``no_longer_in_force`` is
     ``None`` without ``--only``, and also with ``--only`` when what stopped being
     in force could not be determined (the effective set was unresolved; the
-    text footer then reads "unknown"), serialized as ``null``.
+    text footer then reads "unknown"), serialized as ``null``. ``notices`` are
+    the lines the post-change tail printed (the catalog refresh and the
+    pack-skill projection: the ``--no-compile`` notice, a degraded recompile,
+    skill sync/preserve lines and warnings), set by the ``--json`` path once
+    the tail has run.
     """
 
     command: str
@@ -173,6 +177,7 @@ class ActivationChangeReport:
     tension_warnings: tuple[str, ...] = ()
     referenced: NoCascadeReport | None = None
     cascade: CascadeReport | None = None
+    notices: tuple[str, ...] = ()
 
     def all_warnings(self) -> list[str]:
         """Every warning the run printed, in print order (cascade advisories last)."""
@@ -198,6 +203,10 @@ class ActivationChangeReport:
             "now_listed": list(self.now_listed or ()),
             "no_longer_in_force": self._no_longer_in_force_json(),
             "warnings": self.all_warnings(),
+            "notices": list(self.notices),
             "referenced_not_cascaded": [ref.to_json() for ref in self.referenced.warned] if self.referenced else [],
+            # The "Not cascaded: <kind>/<id> (kind not charter-activatable)" lines of a
+            # run without --cascade; with --cascade they are cascade.skipped_kind_filtered.
+            "referenced_kind_filtered": [ref.to_json() for ref in self.referenced.kind_filtered] if self.referenced else [],
             "cascade": self.cascade.to_json() if self.cascade else None,
         }

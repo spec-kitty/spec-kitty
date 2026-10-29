@@ -9,6 +9,9 @@
   "now_listed": [],
   "no_longer_in_force": [],
   "warnings": [],
+  "notices": [
+    "Catalog not recompiled (--no-compile): catalog.references may go stale until the next `charter generate` or `charter activate --resynthesize`."
+  ],
   "referenced_not_cascaded": [
     {
       "kind": "procedure",
@@ -24,6 +27,13 @@
       "kind": "tactic",
       "id": "c-tac",
       "urn": "tactic:TACTIC_C"
+    }
+  ],
+  "referenced_kind_filtered": [
+    {
+      "kind": "asset",
+      "id": "a-asset",
+      "urn": "asset:ASSET_A"
     }
   ],
   "cascade": null

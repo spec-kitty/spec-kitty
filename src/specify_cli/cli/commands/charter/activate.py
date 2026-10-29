@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from specify_cli.charter_activate import emit_step_removal_warnings
 from specify_cli.core.constants import KITTY_SPECS_DIR
@@ -35,7 +35,7 @@ from typing import TYPE_CHECKING, NoReturn
 import typer
 from rich.console import Console
 from rich.markup import escape
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console, sanitize_terminal_text
 from specify_cli.cli.helpers import parameter_source_name
 
 from charter.activation.api import DenyListChoice, deny_delta
@@ -1109,20 +1109,40 @@ def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, js
     console.emit_json(_preset_payload(plan, outcome))
 
 
-def _captured_tail(step: Callable[[], None], code: str, what: str, payload: dict[str, object]) -> None:
-    """Run a post-change *step* with its human output captured; a non-zero exit becomes coded error *code*.
-
-    Mirrors ``--preset --json``: the change is already recorded, so the error
-    carries the change report as its payload.
-    """
+@contextlib.contextmanager
+def _unwrapped(target: Console) -> Iterator[None]:
+    """Print without wrapping at the terminal width, so one captured notice stays one line."""
+    previous = target.soft_wrap
+    target.soft_wrap = True
     try:
-        with json_output_guard(True), console.capture():
+        yield
+    finally:
+        target.soft_wrap = previous
+
+
+def captured_lines(text: str) -> list[str]:
+    """The non-empty, whitespace-stripped lines of captured console output, with terminal styling removed."""
+    return [line.strip() for line in sanitize_terminal_text(text).splitlines() if line.strip()]
+
+
+def _captured_tail(step: Callable[[], None], code: str, what: str, payload: dict[str, object]) -> tuple[str, ...]:
+    """Run a post-change *step* with its human output captured and return that output as notice lines.
+
+    A non-zero exit becomes coded error *code*. Mirrors ``--preset --json``: the
+    change is already recorded, so the error carries the change report as its
+    payload, and the step's captured output as ``detail``.
+    """
+    capture = console.capture()
+    try:
+        with json_output_guard(True), capture, _unwrapped(console):
             step()
     except typer.Exit as exc:
         if exc.exit_code == 0:
             raise
-        render_coded_error(code, f"{what} (exit {exc.exit_code}).", payload=payload, json_output=True)
+        detail = "\n".join(captured_lines(capture.get()))
+        render_coded_error(code, f"{what} (exit {exc.exit_code}).", payload={**payload, "detail": detail}, json_output=True)
         raise typer.Exit(1) from exc
+    return tuple(captured_lines(capture.get()))
 
 
 def emit_change_report_json(
@@ -1133,28 +1153,29 @@ def emit_change_report_json(
     *build* runs the preflights, the write and the cascade with its human output
     captured; a :class:`CodedRefusal` is rendered after the capture closed, as
     the canonical error envelope. The catalog refresh and the pack-skill
-    projection run captured too; the change report is emitted last.
+    projection run captured too: what they print becomes the report's
+    ``notices``. The change report is emitted last.
     """
     try:
         with json_output_guard(True), console.capture():
             repo_root, report = build()
     except CodedRefusal as refusal:
         render_refusal(refusal, json_output=True)
-    payload = report.to_json()
     recorded = f"the {report.command} of {report.kind} {report.id!r} is recorded, but"
-    _captured_tail(
+    notices = _captured_tail(
         lambda: recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog),
         _RESYNTHESIS_FAILED,
         f"{recorded} the catalog refresh failed; re-run `spec-kitty charter synthesize`",
-        payload,
+        report.to_json(),
     )
-    _captured_tail(
+    report = dataclasses.replace(report, notices=notices)
+    notices += _captured_tail(
         lambda: reproject_pack_skills(repo_root, kind),
         ACTIVATION_FAILED,
         f"{recorded} the pack skills were not projected; fix the cause and re-run this command",
-        payload,
+        report.to_json(),
     )
-    console.emit_json(payload)
+    console.emit_json(dataclasses.replace(report, notices=notices).to_json())
 
 
 def _dropped_footer(report: ActivationChangeReport) -> str:
