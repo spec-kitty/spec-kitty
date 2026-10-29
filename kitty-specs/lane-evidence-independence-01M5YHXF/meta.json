@@ -26,6 +26,7 @@
   "purpose_context": "On lanes and coordination missions a work package can be claimed, never implemented, approved by the same agent and then accepted and consolidated as done, with every command exiting 0 and the owned deliverable missing from the target (issue 6715, the coordination counterpart of 5939). This mission makes approve, accept and consolidate refuse that on every topology, with named codes, and lets an operator lift the missing-implementation refusal for a docs-only work package through a recorded attestation.",
   "purpose_tldr": "Stop lanes and coord missions from landing a work package as done when nothing was implemented or the implementer approved their own work.",
   "slug": "lane-evidence-independence-01M5YHXF",
+  "status_phase": "1",
   "target_branch": "issue-6715-lane-evidence-independence",
   "topology": "coord",
   "vcs": "git",
