@@ -45,6 +45,9 @@ _OWN_URN = f"directive:{_OWN_ID}"
 _OWN_COMPANION = "how-we-apply-project-001"
 _BUILT_IN_STEM = "003-decision-documentation-requirement"
 _BUILT_IN_COMPANION = "how-we-apply-directive-003"
+_TEAM_STEM = "050-team-directive"
+_TEAM_ID = "TEAM_001"
+_TEAM_COMPANION = "how-we-apply-team-001"
 #: Distinctive rule text of the project directive; ``charter context`` must deliver it.
 _OWN_PHRASE = "Every change names the zebra-quokka outcome it serves."
 
@@ -277,6 +280,68 @@ def test_hand_authored_directive_kept_in_snapshot(project: Path) -> None:
     assert "TEAM_001" in request.interview_snapshot["selected_directives"]
     assert "directive:TEAM_001" in _node_urns(request)
     assert "how-we-apply-team-001" in _target_ids(request)
+
+
+def _sidecar_adapters(root: Path, urn: str) -> set[str]:
+    """``adapter_id`` of every provenance sidecar the synthesis manifest lists for *urn*."""
+    manifest = yaml.safe_load((root / MANIFEST_PATH).read_text(encoding="utf-8"))
+    sidecars = [yaml.safe_load((root / entry["provenance_path"]).read_text(encoding="utf-8")) for entry in manifest["artifacts"]]
+    return {sidecar["adapter_id"] for sidecar in sidecars if sidecar["artifact_urn"] == urn}
+
+
+def _write_team_directive(root: Path) -> None:
+    team = root / ".kittify" / "charter-packs" / "directive" / f"{_TEAM_STEM}.directive.yaml"
+    team.write_text(
+        yaml.safe_dump({"id": _TEAM_ID, "schema_version": "1.0", "title": "Team Directive", "intent": "Pair on risky work.", "enforcement": "advisory"}),
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_hand_authored_directive_activated_through_cli_stays_input(project: Path) -> None:
+    """FR-008 through the real ``charter activate``: its direct-write registration is not synthesis ownership.
+
+    ``charter activate`` registers every hand-authored project directive in the
+    synthesis manifest with a ``project-direct-write`` sidecar. That record says
+    the file was registered, not that synthesis created it, so ``TEAM_001``
+    stays synthesis input and its companion tactic is still demanded.
+    """
+    _write_team_directive(project)
+    seed_activation_ledger(project, activated_directives=[_OWN_STEM])
+    activated = _invoke("activate", "directive", _TEAM_STEM, "--no-compile")
+    assert activated.exit_code == 0, activated.output
+    assert _TEAM_STEM in (project / _ACTIVATION).read_text(encoding="utf-8")
+
+    request = _request(project)
+
+    assert _TEAM_ID in request.interview_snapshot["selected_directives"]
+    assert f"directive:{_TEAM_ID}" in _node_urns(request)
+    assert _TEAM_COMPANION in _target_ids(request)
+    assert _OWN_ID not in request.interview_snapshot["selected_directives"]
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_own_directive_reregistered_by_activate_stays_owned(project: Path) -> None:
+    """A synthesized ``PROJECT_001`` that ``charter activate`` re-registers as direct-write is still owned.
+
+    Activation adds a second, ``project-direct-write`` record for the
+    synthesized directive; the synthesis record still owns it, so the
+    re-synthesis exits 0 without demanding its companion tactic.
+    """
+    seed_activation_ledger(project, activated_directives=[_BUILT_IN_STEM])
+    activated = _invoke("activate", "directive", _OWN_STEM, "--no-compile")
+    assert activated.exit_code == 0, activated.output
+    assert _sidecar_adapters(project, _OWN_URN) >= {"project-direct-write", "generated"}
+
+    request = _request(project)
+    result = _invoke("synthesize", "--json")
+
+    assert _OWN_ID not in request.interview_snapshot["selected_directives"]
+    assert _OWN_COMPANION not in _target_ids(request)
+    assert "colliding_urn" not in result.output, result.output
+    assert result.exit_code == 0, result.output
 
 
 @pytest.mark.integration
