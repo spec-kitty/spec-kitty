@@ -17,6 +17,8 @@ Provides:
   ``.kittify/config.yaml`` (FR-001, FR-004, NEW-1).
 * :func:`find_org_body_path_escapes` — pairs each loaded fragment with its
   pack's effective root and reports authored ``body_path`` escapes (#6418).
+* :func:`find_org_asset_path_escapes` — the same pairing for each pack's asset
+  sidecars, whose ``path`` must stay inside its ``assets/`` root (#6418, FR-007).
 * :func:`filter_graph_by_activation` — the FR-006/FR-018 activation filter
   (WP11), plus its private helpers.
 * :data:`merge_three_layers` — re-exported here (rather than from
@@ -38,6 +40,7 @@ from charter.offering.api import ArtifactKind
 from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
 from charter.offering.drg.merge import merge_three_layers
 from kernel.charter_pack_paths import pack_drg_fragment, project_pack_root
+from charter.offering.assets import AssetPathEscape, find_asset_path_escapes
 from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_config import load_pack_registry
 from charter.offering.drg.org_pack_loader import (
@@ -64,6 +67,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "filter_graph_by_activation",
+    "find_org_asset_path_escapes",
     "find_org_body_path_escapes",
     "load_org_drg",
     "merge_three_layers",
@@ -187,18 +191,12 @@ def load_org_drg(
     return fragments
 
 
-def find_org_body_path_escapes(repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> list[BodyPathEscape]:
-    """Return every authored ``body_path`` escape across *fragments* (#6418).
+def _org_pack_roots_by_name(repo_root: Path) -> dict[str, Path]:
+    """Return each registered org pack's effective root, keyed by pack name.
 
-    A fragment does not carry its pack root, so the root is resolved here the
-    same way :func:`load_org_drg` resolved it: ``pack.effective_root(repo_root)``
-    from the same registry. Each fragment is then judged by the offering
-    predicate :func:`find_body_path_escapes`; nothing here restates containment.
-
-    *fragments* must be the instances :func:`load_org_drg` returned for this
-    *repo_root*. A registry fault, or a fragment whose pack is not registered
-    (``KeyError``), propagates: a caller must report "the check could not run",
-    never "no escapes".
+    The roots are resolved the same way :func:`load_org_drg` resolved them:
+    ``pack.effective_root(repo_root)`` from the same registry. A registry fault
+    propagates, so a caller reports "the check could not run", never "none".
     """
     # A name-paired registry read, not a root chain: each fragment is matched to
     # its own pack by name, which the Path-only ``resolve_pack_chain`` cannot
@@ -206,9 +204,41 @@ def find_org_body_path_escapes(repo_root: Path, fragments: Sequence[OrgDRGFragme
     roots: dict[str, Path] = {}
     for pack in load_pack_registry(repo_root).packs:
         roots[pack.name] = pack.effective_root(repo_root)
+    return roots
+
+
+def find_org_body_path_escapes(repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> list[BodyPathEscape]:
+    """Return every authored ``body_path`` escape across *fragments* (#6418).
+
+    A fragment does not carry its pack root, so the root comes from
+    :func:`_org_pack_roots_by_name`. Each fragment is then judged by the offering
+    predicate :func:`find_body_path_escapes`; nothing here restates containment.
+
+    *fragments* must be the instances :func:`load_org_drg` returned for this
+    *repo_root*. A registry fault, or a fragment whose pack is not registered
+    (``KeyError``), propagates: a caller must report "the check could not run",
+    never "no escapes".
+    """
+    roots = _org_pack_roots_by_name(repo_root)
     escapes: list[BodyPathEscape] = []
     for fragment in fragments:
         escapes.extend(find_body_path_escapes(fragment, roots[fragment.pack_name]))
+    return escapes
+
+
+def find_org_asset_path_escapes(repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> list[AssetPathEscape]:
+    """Return every org asset sidecar escape across the packs of *fragments* (#6418, FR-007).
+
+    Each loaded pack is judged on its own by the offering predicate
+    :func:`find_asset_path_escapes`, which resolves the pack's org-provenance
+    assets through ``AssetRepository.resolve_path`` (anchor ``<root>/assets``);
+    nothing here restates containment. The same contract as
+    :func:`find_org_body_path_escapes` applies to *fragments* and to faults.
+    """
+    roots = _org_pack_roots_by_name(repo_root)
+    escapes: list[AssetPathEscape] = []
+    for fragment in fragments:
+        escapes.extend(find_asset_path_escapes(fragment.pack_name, roots[fragment.pack_name]))
     return escapes
 
 

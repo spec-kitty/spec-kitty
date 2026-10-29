@@ -24,7 +24,10 @@ Two traps the base class does not handle for this kind, addressed here:
 
 from __future__ import annotations
 
+import warnings
+from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 from kernel.pack_tiers import BUILT_IN
 
@@ -39,9 +42,11 @@ from charter.offering.drg.org_pack_config import (
 
 __all__ = [
     "AssetNotFoundError",
+    "AssetPathEscape",
     "AssetPathEscapeError",
     "AssetRepository",
     "AssetResolutionError",
+    "find_asset_path_escapes",
 ]
 
 
@@ -184,3 +189,73 @@ class AssetRepository(BaseArtifactRepository[AssetManifest]):
             if resolved_source.is_relative_to(org_dir.resolve(strict=False)):
                 return org_dir
         return None
+
+
+# ---------------------------------------------------------------------------
+# Org asset sidecar containment, as a finding (#6418, FR-007)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class AssetPathEscape:
+    """One org asset sidecar whose blob ``path`` is not contained in its pack's ``assets/`` root.
+
+    ``path`` is kept exactly as written and ``reason`` is the containment
+    primitive's own message (or the resolve error's text), so a reporter never
+    re-derives either.
+    """
+
+    code: ClassVar[str] = "ORG_ASSET_PATH_ESCAPE"
+
+    pack: str
+    asset: str
+    path: str
+    reason: str
+
+    @property
+    def message(self) -> str:
+        """Operator-facing finding naming the pack, the asset and the path."""
+        return f"org pack {self.pack!r}: asset {self.asset!r} path {self.path!r} is not contained in the pack's assets/ root: {self.reason}"
+
+    def as_dict(self) -> dict[str, str]:
+        """JSON-ready ``{code, pack, asset, path, reason}`` record."""
+        return {"code": self.code, "pack": self.pack, "asset": self.asset, "path": self.path, "reason": self.reason}
+
+
+def find_asset_path_escapes(pack: str, pack_root: Path) -> list[AssetPathEscape]:
+    """Return the org asset sidecars of ONE pack whose ``path`` escapes its ``assets/`` root.
+
+    Builds the repository the way :class:`~charter.offering.service.CharterOfferingService`
+    does for an org root (``org_dirs=[pack_root / "assets"]``) and asks
+    :meth:`AssetRepository.resolve_path` for every org-provenance id, so the
+    anchor and the containment rule are the repository's own (the shared
+    containment primitive :func:`resolve_relative_path_within_root`). Built-in
+    items loaded beside the pack are never judged. One pack per repository, so
+    a later pack cannot shadow an earlier pack's sidecar.
+
+    A :class:`AssetPathEscapeError` is a finding; so is a ``ValueError`` or
+    ``OSError`` from resolving one path (a NUL byte, for example), recorded for
+    that asset only so it never hides another. No blob is opened or read
+    (NFR-001). A malformed sidecar is skipped by the repository and is the pack
+    validator's to report; its load warnings, like layer-collision warnings,
+    are owned by other checks and are silenced here.
+
+    *pack_root* must be the pack's effective root (``subdir`` applied).
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        repository = AssetRepository(org_dirs=[pack_root / "assets"])
+    escapes: list[AssetPathEscape] = []
+    for manifest in repository.list_all():
+        if repository.get_provenance(manifest.id) != "org":
+            continue
+        try:
+            repository.resolve_path(manifest.id)
+        except AssetPathEscapeError as exc:
+            reason = str(exc.__cause__ or exc)
+        except (ValueError, OSError) as exc:
+            reason = str(exc)
+        else:
+            continue
+        escapes.append(AssetPathEscape(pack=pack, asset=manifest.id, path=manifest.path, reason=reason))
+    return escapes

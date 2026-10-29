@@ -36,8 +36,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path
 
-    from charter.drg import DRGGraph, OrgDRGConflict, OrgDRGConflictError
-    from charter.offering.drg.org_pack_loader import OrgDRGFragment
+    from charter.drg import DRGGraph, OrgDRGConflict, OrgDRGConflictError, OrgDRGFragment
 
     from ._charter_pack_health import CharterPackHealthReport
 
@@ -294,29 +293,53 @@ def _render_dangling_org_endpoints(console: Console, dangling: list[str]) -> Non
         )
 
 
+def _render_escape_findings(console: Console, label: str, summary: str, messages: Sequence[str]) -> None:
+    """Print one containment verdict line: ``none`` or a count, bullets and a truncation tail."""
+    if not messages:
+        console.print(f"  {label}: none")
+        return
+    console.print(f"  [red]{label}:[/red] {len(messages)} {summary}")
+    for message in messages[:_ORG_FINDINGS_SHOWN]:
+        console.print(f"    [red]•[/red] {message}")
+    if len(messages) > _ORG_FINDINGS_SHOWN:
+        console.print(f"    … and {len(messages) - _ORG_FINDINGS_SHOWN} more (run spec-kitty doctor charter-packs --json for the full list)")
+
+
 def _render_org_body_path_escapes(console: Console, repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> None:
     """Render authored fragment nodes whose ``body_path`` escapes their pack (#6418).
 
     Calls the same charter predicate as ``_collect_org_layer_data`` so the human
     and ``--json`` halves of the command agree, and keeps "not checked" apart
-    from "none" exactly as the dangling-endpoint line does.
+    from "none" exactly as the dangling-endpoint line does. The label names the
+    fragment nodes, so "none" is not read as a whole-pack verdict.
     """
     from charter.activation.drg_activation import find_org_body_path_escapes
 
+    label = "fragment body_path escapes"
     try:
         escapes = find_org_body_path_escapes(repo_root, fragments)
     except Exception as exc:
         # Diagnostics never crash; say the check did not run rather than "none".
-        console.print(f"  [yellow]body_path escapes: not checked[/yellow] ({exc})")
+        console.print(f"  [yellow]{label}: not checked[/yellow] ({exc})")
         return
-    if not escapes:
-        console.print("  body_path escapes: none")
+    _render_escape_findings(console, label, "fragment node(s) point outside their pack", [e.message for e in escapes])
+
+
+def _render_org_asset_path_escapes(console: Console, repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> None:
+    """Render org asset sidecars whose ``path`` escapes their pack's ``assets/`` root (#6418, FR-007).
+
+    The human half of ``_collect_org_layer_data``'s ``asset_path_escapes``, with
+    the same "not checked" / "none" split as the ``body_path`` line.
+    """
+    from charter.activation.drg_activation import find_org_asset_path_escapes
+
+    label = "asset path escapes"
+    try:
+        escapes = find_org_asset_path_escapes(repo_root, fragments)
+    except Exception as exc:
+        console.print(f"  [yellow]{label}: not checked[/yellow] ({exc})")
         return
-    console.print(f"  [red]body_path escapes:[/red] {len(escapes)} fragment node(s) point outside their pack")
-    for escape in escapes[:_ORG_FINDINGS_SHOWN]:
-        console.print(f"    [red]•[/red] {escape.message}")
-    if len(escapes) > _ORG_FINDINGS_SHOWN:
-        console.print(f"    … and {len(escapes) - _ORG_FINDINGS_SHOWN} more (run spec-kitty doctor charter-packs --json for the full list)")
+    _render_escape_findings(console, label, "asset sidecar(s) point outside their pack's assets/ root", [e.message for e in escapes])
 
 
 def _render_org_layer_section(repo_root: Path, console: Console) -> None:
@@ -368,6 +391,7 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
     # Before the merge, as in ``_collect_org_layer_data``: an escaping
     # body_path is reported even when the merge below refuses the graph.
     _render_org_body_path_escapes(console, repo_root, fragments)
+    _render_org_asset_path_escapes(console, repo_root, fragments)
 
     # Merge with the built-in layer to surface collision warnings AND graph
     # completeness. Both findings lists are truncated per the WP07 risk table

@@ -32,7 +32,7 @@ net, which stays in place. See `RESEARCH.md` for the extraction trail.
 | `PR-CHARTER-SHARING-001` | A team pack carrying an unsound profile is not reported healthy, even when its graph counts look right. | `AgentProfileRepository.skipped_profiles` → `doctor charter-packs` (FR-010) — `src/charter/offering/agent_profiles/repository.py`. | bound |
 | `PR-CHARTER-SHARING-002` | A project's own governance choice wins over the team pack it adopts. | Layered repository + override machinery — ADR `2026-05-16-1`. | `@wip` (needs #6137 override + layer-provenance fixture) |
 | `PR-CHARTER-SHARING-003` | A shared skill under a reserved namespace is not accepted as sound. | Reserved prefixes `spk-` / `spec-kitty-` / `spec-kitty.` + namespace grammar — `src/charter/activation/org_charter.py`, `skill_preparation`; ADR `2026-09-27-1`. | bound |
-| `PR-CHARTER-SHARING-004` | A shared asset that reaches outside its own pack folder is not accepted as sound. | The containment primitive behind `AssetPathEscapeError` (NFR-006), `resolve_relative_path_within_root` — `src/charter/offering/drg/org_pack_config.py`; checked on authored fragment nodes by `doctor charter-packs` via `find_org_body_path_escapes` — `src/charter/activation/drg_activation.py`. | bound (was `@wip` `@defect:6418` after a red first nightly, #6369; `doctor charter-packs` exits non-zero on an escaping `body_path` since #6418) |
+| `PR-CHARTER-SHARING-004` | A shared asset that reaches outside its own pack folder is not accepted as sound. | The containment primitive behind `AssetPathEscapeError` (NFR-006), `resolve_relative_path_within_root` — `src/charter/offering/drg/org_pack_config.py`; checked by `doctor charter-packs` on the `body_path` of authored fragment nodes via `find_org_body_path_escapes`, and on the `path` of org asset sidecars via `find_org_asset_path_escapes`, which catches `AssetPathEscapeError` from `AssetRepository.resolve_path` — both in `src/charter/activation/drg_activation.py`. | bound (was `@wip` `@defect:6418` after a red first nightly, #6369; `doctor charter-packs` exits non-zero on an escaping fragment `body_path` or asset sidecar `path` since #6418) |
 
 ## Binding status
 
@@ -44,7 +44,7 @@ outcome-verb step and gate; one is `@wip`: `SHARING-002`, because witnessing tha
 over an org pack needs the black-box override + layer-provenance fixture tracked by #6137.
 `SHARING-004` landed gating without ever running and was red on its first nightly (#6369); it is
 gating again since #6418 made `doctor charter-packs` exit non-zero on a fragment node whose
-`body_path` reaches outside its pack. `GOVERNANCE-002` was red on that nightly too (#6417) and is gating again since #6417 made
+`body_path`, or an asset sidecar whose `path`, reaches outside its pack. `GOVERNANCE-002` was red on that nightly too (#6417) and is gating again since #6417 made
 `charter list` name the org-required ids an absent allow list leaves in force. `REFUSAL-003` was red on that nightly too and stayed gating
 by operator ruling as a confirmed product gap; #6415 fixed it (`charter synthesize` now refuses an
 unsound `charter.yaml` with `ACTIVE_CHARTER_CONFIG_INVALID`), so it is expected green.

@@ -560,6 +560,24 @@ not.
 | `DENY_SELECTED_ID` | warning | `answers.yaml` selects an excluded id; the exclusion wins |
 | `UNKNOWN_DENY_KEY` | warning | A `deactivated_<kind>` key for a kind this CLI does not know; kept and ignored |
 
+### Path escapes in `spec-kitty doctor charter-packs`
+
+`--json` always carries two lists under `org_drg`, each empty when nothing escapes. A path
+counts as escaping when it is absolute, has a `..` part, resolves outside its root (a
+symlink), or cannot be resolved at all. No target file is opened or read.
+
+| Key | Code | Entry | Checks |
+| --- | --- | --- | --- |
+| `body_path_escapes` | `ORG_FRAGMENT_BODY_PATH_ESCAPE` | `{"code", "pack", "node", "kind", "body_path", "reason"}` | the `body_path` of each node an org pack declares in `drg/fragment.yaml`, against the pack root |
+| `asset_path_escapes` | `ORG_ASSET_PATH_ESCAPE` | `{"code", "pack", "asset", "path", "reason"}` | the `path` of each org asset sidecar (`assets/*.asset.yaml`), against the pack's `assets/` directory |
+
+Each escape also lands in `org_drg.errors` as a message that names the pack, the node or asset
+and the path, and the report is unhealthy (exit 1). `reason` is free text; branch on `code`. If
+a check cannot run, `org_drg.errors` says so and its list stays empty. The human output has a
+`fragment body_path escapes:` line and an `asset path escapes:` line in the organisation-layer
+section. Nodes found from artifact files (for example `directives/*.directive.yaml`) are not in
+these lists; `spec-kitty charter pack validate` checks them.
+
 ### `spec-kitty migrate activation-ledger`
 
 Runs only the move of the `4.0.0rc8_activation_ledger` upgrade step: the activation keys

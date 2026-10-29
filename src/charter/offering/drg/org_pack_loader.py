@@ -500,11 +500,14 @@ class OrgDRGFragment(BaseModel):
 
 @dataclass(frozen=True)
 class BodyPathEscape:
-    """One authored fragment node whose ``body_path`` leaves its pack root (#6418).
+    """One authored fragment node whose ``body_path`` is not contained in its pack root (#6418).
 
     ``body_path`` is kept exactly as written and ``reason`` is the containment
-    primitive's own message, so a reporter never re-derives either.
+    primitive's own message (or the resolve error's text), so a reporter never
+    re-derives either.
     """
+
+    code: ClassVar[str] = "ORG_FRAGMENT_BODY_PATH_ESCAPE"
 
     pack: str
     node: str
@@ -515,21 +518,36 @@ class BodyPathEscape:
     @property
     def message(self) -> str:
         """Operator-facing finding naming the pack, the node and the path."""
-        return f"org pack {self.pack!r}: node {self.node!r} ({self.kind}) body_path {self.body_path!r} escapes the pack root: {self.reason}"
+        return f"org pack {self.pack!r}: node {self.node!r} ({self.kind}) body_path {self.body_path!r} is not contained in the pack root: {self.reason}"
 
     def as_dict(self) -> dict[str, str]:
-        """JSON-ready ``{pack, node, kind, body_path, reason}`` record."""
-        return {"pack": self.pack, "node": self.node, "kind": self.kind, "body_path": self.body_path, "reason": self.reason}
+        """JSON-ready ``{code, pack, node, kind, body_path, reason}`` record."""
+        return {"code": self.code, "pack": self.pack, "node": self.node, "kind": self.kind, "body_path": self.body_path, "reason": self.reason}
+
+
+def _body_path_containment_fault(pack_root: Path, body_path: str) -> str | None:
+    """Return why *body_path* is not contained in *pack_root*, or ``None`` when it is."""
+    try:
+        resolve_relative_path_within_root(pack_root, body_path)
+    except OrgPackSubdirEscapeError as exc:
+        return str(exc)
+    except (ValueError, OSError) as exc:
+        # A path ``Path.resolve`` cannot handle (a NUL byte, for example) is not
+        # contained either; it is this node's finding and must not abort the scan.
+        return str(exc)
+    return None
 
 
 def find_body_path_escapes(fragment: OrgDRGFragment, pack_root: Path) -> list[BodyPathEscape]:
-    """Return the authored nodes of *fragment* whose ``body_path`` escapes *pack_root*.
+    """Return the authored nodes of *fragment* whose ``body_path`` is not contained in *pack_root*.
 
-    Containment is judged by :func:`resolve_relative_path_within_root`, the one
-    pack-relative containment authority (C-001): an absolute path (POSIX,
-    Windows or UNC), a ``..`` part, or a path that resolves outside the root (a
-    symlink) is an escape. A contained path is never one, whether or not its
-    target exists. No ``body_path`` target is opened or read (NFR-001).
+    Containment is judged by :func:`resolve_relative_path_within_root`, the
+    shared containment primitive (C-001): an absolute path (POSIX, Windows or
+    UNC), a ``..`` part, or a path that resolves outside the root (a symlink)
+    is an escape. A path that cannot be resolved at all (a symlink loop, a NUL
+    byte) is reported for that node only. A contained path is never one,
+    whether or not its target exists. No ``body_path`` target is opened or read
+    (NFR-001).
 
     Only :attr:`OrgDRGFragment.authored_nodes` are judged: an authored
     ``body_path`` is pack-root-relative per the org-DRG contract, while a
@@ -542,10 +560,9 @@ def find_body_path_escapes(fragment: OrgDRGFragment, pack_root: Path) -> list[Bo
     for node in fragment.authored_nodes:
         if not node.body_path:
             continue
-        try:
-            resolve_relative_path_within_root(pack_root, node.body_path)
-        except OrgPackSubdirEscapeError as exc:
-            escapes.append(BodyPathEscape(pack=fragment.pack_name, node=node.id, kind=node.kind, body_path=node.body_path, reason=str(exc)))
+        reason = _body_path_containment_fault(pack_root, node.body_path)
+        if reason is not None:
+            escapes.append(BodyPathEscape(pack=fragment.pack_name, node=node.id, kind=node.kind, body_path=node.body_path, reason=reason))
     return escapes
 
 

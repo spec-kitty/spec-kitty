@@ -3,7 +3,7 @@
 ``spec-kitty doctor charter-packs`` reported an org pack healthy (RC=0) when its
 ``drg/fragment.yaml`` declared a node with ``body_path: ../../../../etc/hostname``
 or ``/etc/hostname``. The predicate under test, :func:`find_body_path_escapes`,
-judges each *authored* node through the one containment authority
+judges each *authored* node through the shared containment primitive
 (``resolve_relative_path_within_root``); :func:`find_org_body_path_escapes`
 pairs every loaded fragment with its pack's effective root from the registry.
 
@@ -52,8 +52,10 @@ def test_dot_dot_body_path_is_an_escape(tmp_path: Path) -> None:
     escape = escapes[0]
     assert (escape.pack, escape.node, escape.kind, escape.body_path) == ("acme", "node-0", "assets", "../../../../etc/hostname")
     assert ".." in escape.reason
-    assert escape.message == (f"org pack 'acme': node 'node-0' (assets) body_path '../../../../etc/hostname' escapes the pack root: {escape.reason}")
+    assert escape.code == "ORG_FRAGMENT_BODY_PATH_ESCAPE"
+    assert escape.message == (f"org pack 'acme': node 'node-0' (assets) body_path '../../../../etc/hostname' is not contained in the pack root: {escape.reason}")
     assert escape.as_dict() == {
+        "code": "ORG_FRAGMENT_BODY_PATH_ESCAPE",
         "pack": "acme",
         "node": "node-0",
         "kind": "assets",
@@ -123,6 +125,15 @@ def test_every_escaping_node_is_reported_once_in_authored_order(tmp_path: Path) 
     escapes = _escapes(tmp_path / "pack", "/etc/a", "bodies/ok.md", "../b", None, "../../c")
 
     assert [(e.node, e.body_path) for e in escapes] == [("node-0", "/etc/a"), ("node-2", "../b"), ("node-4", "../../c")]
+
+
+def test_nul_byte_body_path_is_reported_and_does_not_hide_another_escape(tmp_path: Path) -> None:
+    """A ``body_path`` ``Path.resolve`` cannot handle (ValueError) is a finding of that node only."""
+    escapes = _escapes(tmp_path / "pack", "bodies/a\x00b.md", "bodies/ok.md", "../escape.md")
+
+    assert [(e.node, e.body_path) for e in escapes] == [("node-0", "bodies/a\x00b.md"), ("node-2", "../escape.md")]
+    assert "null" in escapes[0].reason
+    assert "is not contained in the pack root" in escapes[0].message
 
 
 def _write_registry(repo: Path, packs: list[dict[str, str]]) -> None:
