@@ -166,6 +166,8 @@
       items:
         - name: "Use Operation History"
           href: how-to/monitoring/use-operation-history.md
+        - name: "Clean Up Local Event Logs"
+          href: how-to/monitoring/clean-up-local-event-logs.md
     - name: Recovery & Troubleshooting
       href: how-to/recovery/index.md
       items:

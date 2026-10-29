@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-27'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -1930,6 +1930,8 @@ _Project health diagnostics_
 │                         prerelease-opt-in).                                  │
 │ env-file                Report ``.kitty.env`` operator env-file health       │
 │                         (presence/tier/ignore).                              │
+│ event-logs              Preview, then prune, local run journals, event logs  │
+│                         and caches past retention (#6610).                   │
 │ provenance              Flag committed absolute built-in-pack leaks and      │
 │                         ambiguous template sources (C-PRV-5).                │
 │ run-index               Flag absolute run_dir paths in the run index that    │
@@ -2272,6 +2274,37 @@ _Project health diagnostics_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Machine-readable JSON output                               │
 │ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor event-logs
+
+```
+ Usage: spec-kitty doctor event-logs [OPTIONS]
+
+ Preview, then prune, local run journals, event logs and caches past retention
+ (#6610).
+
+ Reads ledger.retention (keep_runs, max_age_days) from .kittify/config.yaml;
+ an item is removed only when it is outside the newest keep_runs of its kind
+ AND older than max_age_days, and its work is over: a run once its Mission
+ is merged or the run finished, a glossary log once its Mission is
+ completed. Rebuildable caches are candidates whatever their age, unless
+ locked. Committed ledgers, the Op index, lock files, items of an open or
+ unknown Mission and locked items are never removed.
+
+ Without --apply nothing changes. Exit codes: 0 preview or clean apply,
+ 1 a deletion failed, 2 config, usage or internal error.
+
+ Examples:
+     spec-kitty doctor event-logs
+     spec-kitty doctor event-logs --json
+     spec-kitty doctor event-logs --apply
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --apply            Delete the listed candidates (default: preview only)      │
+│ --json             Machine-readable JSON output                              │
+│ --help   -h        Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

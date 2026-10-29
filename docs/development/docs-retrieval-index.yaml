@@ -4443,6 +4443,7 @@ pages:
     - {slug: "spec-kitty-doctor-cutover", text: "spec-kitty doctor cutover", level: 2}
     - {slug: "spec-kitty-doctor-decisions", text: "spec-kitty doctor decisions", level: 2}
     - {slug: "spec-kitty-doctor-env-file", text: "spec-kitty doctor env-file", level: 2}
+    - {slug: "spec-kitty-doctor-event-logs", text: "spec-kitty doctor event-logs", level: 2}
     - {slug: "spec-kitty-doctor-identity", text: "spec-kitty doctor identity", level: 2}
     - {slug: "spec-kitty-doctor-invocation-pairing", text: "spec-kitty doctor invocation-pairing", level: 2}
     - {slug: "spec-kitty-doctor-mission-state", text: "spec-kitty doctor mission-state", level: 2}
@@ -13053,6 +13054,17 @@ pages:
     - {slug: "json-schema", text: "JSON Schema", level: 2}
     - {slug: "backward-compatibility", text: "Backward Compatibility", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
+  - path: "docs/guides/how-to/monitoring/clean-up-local-event-logs.md"
+    title: "Clean Up Local Event Logs"
+    divio_type: "how-to"
+    abstract: "Preview, then remove, the local run journals, event logs and caches under .kittify/ that are past retention, with spec-kitty doctor event-logs."
+    anchors:
+    - {slug: "preview-what-would-be-removed", text: "Preview what would be removed", level: 2}
+    - {slug: "read-the-reasons", text: "Read the reasons", level: 2}
+    - {slug: "tune-the-limits", text: "Tune the limits", level: 2}
+    - {slug: "remove-the-candidates", text: "Remove the candidates", level: 2}
+    - {slug: "what-is-never-removed", text: "What is never removed", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/guides/how-to/monitoring/index.md"
     title: "Status & History"
     divio_type: "explanation"
