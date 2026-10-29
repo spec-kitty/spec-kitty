@@ -175,6 +175,8 @@ ActorField: TypeAlias = str | dict[str, str | None]
 #: Key set of the structured actor written today (``spec_kitty_events`` 11 diary accepts only these).
 _STRUCTURED_ACTOR_FIELDS = ("role", "profile", "tool", "model")
 #: Key set of the provenance-carrying actor: those keys plus ``profile_source`` (read-only until C-006 lifts).
+#: The package reducer (``spec_kitty_events`` 11.0.0 ``diary.decode_actor``) does NOT accept it yet, so no
+#: writer may emit the 5-key shape until #6721 raises the ``spec-kitty-events`` floor.
 _PROFILE_SOURCE_FIELD = "profile_source"
 _STATUS_ACTOR_FIELDS = (*_STRUCTURED_ACTOR_FIELDS, _PROFILE_SOURCE_FIELD)
 _ACCEPTED_ACTOR_KEY_SETS: tuple[frozenset[str], ...] = (
@@ -206,6 +208,10 @@ def decode_actor(value: Any) -> ActorField:
     ``str | None``; ``profile_source`` must be a :class:`ProfileSource` value and
     null exactly when ``profile`` is null. Every other dict raises; every non-dict
     value is coerced to ``str`` (the legacy string-actor contract).
+
+    The 5-key shape is accepted here only: the package reducer (``spec_kitty_events``
+    11.0.0 ``diary.decode_actor``) refuses it, so no writer may emit it until #6721
+    raises the pin floor (pinned by ``tests/status/test_status_actor.py``).
     """
     if isinstance(value, dict):
         actual = frozenset(value)

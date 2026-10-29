@@ -218,6 +218,20 @@ def test_decode_actor_round_trips_the_five_key_dict() -> None:
     assert decoded is not value
 
 
+def test_package_decoder_rejects_the_five_key_dict_the_cli_decoder_accepts() -> None:
+    """Pins today's split: ``spec_kitty_events`` 11.0.0 refuses the 5-key actor, the CLI reader accepts it.
+
+    No writer may emit the 5-key shape while this holds. When #6721 raises the
+    ``spec-kitty-events`` floor to a release whose ``diary.decode_actor`` accepts
+    ``profile_source``, flip the package assertion (and let writers emit it).
+    """
+    value = {"tool": "claude", "role": "implementer", "profile": "python-pedro", "profile_source": "flag", "model": None}
+
+    assert decode_actor(value) == value
+    with pytest.raises(ValueError, match="structured actor must contain exactly"):
+        diary_decode_actor(value)
+
+
 def test_decode_actor_accepts_legacy_four_key_dict_and_strings() -> None:
     legacy = {"tool": "claude", "role": "reviewer", "profile": None, "model": "opus"}
     assert decode_actor(legacy) == legacy
