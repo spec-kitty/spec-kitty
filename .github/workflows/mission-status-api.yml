@@ -360,7 +360,7 @@ jobs:
   # event-log lock (kernel.event_log_append: fcntl.flock on Linux and macOS, msvcrt.locking on Windows), and do interleaved appends
   # from both sides land whole and pass both readers? LockInteropSpikeTest drives scripts/ci/lock_interop_peer.py; it runs only when
   # SPEC_KITTY_LOCK_INTEROP_PYTHON is set, so `check` in the jvm job skips it. Evidence, not a gate job: the per-OS verdict table goes
-  # to the step summary and the lock-interop-<os> artefact. Report: docs/development/spikes/2026-10-27-lock-interop-spike.md.
+  # to the step summary and the lock-interop-<os> artefact. Report: docs/development/reference/lock-interop-spike.md.
   lock-interop:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
     name: lock-interop (${{ matrix.os }})

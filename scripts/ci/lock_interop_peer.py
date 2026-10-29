@@ -21,7 +21,7 @@ harness can start every writer at the same moment.
 - ``render-row --writer W --index I``: the row bytes writer W appends as its I-th row (the byte-identity reference).
 - ``read LOG``: read LOG with the Python status reader; the number of lane events and the SHA-256 of the bytes read.
 
-The spike report is ``docs/development/spikes/2026-10-27-lock-interop-spike.md``.
+The spike report is ``docs/development/reference/lock-interop-spike.md``.
 """
 
 from __future__ import annotations

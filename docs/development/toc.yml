@@ -59,6 +59,8 @@
       href: reference/issue-matrix-verdicts.md
     - name: Version taxonomy
       href: reference/version-taxonomy.md
+    - name: Lock-interop spike (#6193)
+      href: reference/lock-interop-spike.md
     - name: Analysis report transactions
       href: analysis-report-transactions.md
     - name: 'Deviation: inline-meta-read allow-list baseline'

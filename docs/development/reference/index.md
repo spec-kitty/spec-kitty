@@ -21,6 +21,7 @@ kept honest.
 - [Quality & tech-debt standing orders](quality-and-tech-debt-standing-orders.md) — the eight standing practices for spec-driven missions.
 - [Read-side placement-seam classification ledger](read-side-seam-classification.md) — per-site verdicts for every production call site that bypasses `PlacementSeam.read_dir(kind)`.
 - [Events in core](events-in-core.md) — how to write and read event logs in core today, what not to do, and how to adopt a new `spec-kitty-events` release safely.
+- [Lock-interop spike (#6193)](lock-interop-spike.md) — which Java lock excludes the CLI's interim event-log lock on Linux, macOS and Windows, with the CI evidence.
 - [Red main and release readiness](red-main-and-release-readiness.md) — what a red `main` means and why CI status is the release authority.
 - [Terminology guard exemption policy](terminology-exemptions.md) — surfaces exempted from the terminology drift guards.
 - [CI and architectural gate mechanics](ci-gate-mechanics.md) — what trips each CI/arch gate (testing & marker gates, the arch battery, docs-freshness registration, accept-to-consolidate close-out) with symptom and local repro.

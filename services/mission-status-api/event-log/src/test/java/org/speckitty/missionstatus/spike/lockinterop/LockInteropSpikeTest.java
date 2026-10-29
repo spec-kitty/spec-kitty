@@ -43,7 +43,7 @@ import tools.jackson.databind.json.JsonMapper;
  * {@code mission-status-api.yml}); an ordinary {@code ./gradlew check} skips it. Each Java lock of {@link #locks()} gets its own
  * repository. Every run writes its observations to {@code build/lock-interop/} (one JSON and one Markdown row per lock), and the
  * verdict the spike report records is read from there. The assertions pin what the spike established, so a JDK or OS change that
- * moves a result turns this red. Report: {@code docs/development/spikes/2026-10-27-lock-interop-spike.md}.
+ * moves a result turns this red. Report: {@code docs/development/reference/lock-interop-spike.md}.
  */
 @EnabledIfEnvironmentVariable(named = PythonPeer.PYTHON_ENV, matches = ".+")
 class LockInteropSpikeTest {

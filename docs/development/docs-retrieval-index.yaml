@@ -11737,6 +11737,14 @@ pages:
     - {slug: "the-friction-points", text: "The friction points", level: 2}
     - {slug: "maintaining-this-page", text: "Maintaining this page", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/reference/lock-interop-spike.md"
+    title: "Lock-interop spike (#6193)"
+    divio_type: "reference"
+    abstract: "Verdict and evidence of the #6193 spike: which Java lock excludes the CLI's interim event-log lock on Linux, macOS and Windows, and whether interleaved appends from both sides pass both readers."
+    anchors:
+    - {slug: "what-was-tested", text: "What was tested", level: 2}
+    - {slug: "evidence", text: "Evidence", level: 2}
+    - {slug: "what-the-write-service-needs-follow-ups-not-done-here", text: "What the write service needs (follow-ups, not done here)", level: 2}
   - path: "docs/development/reference/quality-and-tech-debt-standing-orders.md"
     title: "Quality & Tech-Debt Standing Orders"
     divio_type: "explanation"
