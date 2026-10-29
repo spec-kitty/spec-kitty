@@ -1,0 +1,85 @@
+{
+  "event_count": 53,
+  "last_event_id": "01M63QXNHJPZRMD8MR6G7APM7C",
+  "materialized_at": "2026-10-29T11:49:58.962918+00:00",
+  "mission_number": "",
+  "mission_slug": "lane-evidence-independence-01M5YHXF",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M63QXBEGHYK7QVAMNPAZ9819",
+      "last_transition_at": "2026-10-29T11:49:48.624876+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 29526,
+      "shell_pid_created_at": "1793124269.01"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M63QXEX5WR9YE9N6Q1D911JW",
+      "last_transition_at": "2026-10-29T11:49:52.165348+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261027",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 501,
+      "shell_pid_created_at": "1793136477.42"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M63QXJ77S6S6B15PEW3MCCMB",
+      "last_transition_at": "2026-10-29T11:49:55.559542+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261029",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 8238,
+      "shell_pid_created_at": "1793268214.42"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M63QXNHJPZRMD8MR6G7APM7C",
+      "last_transition_at": "2026-10-29T11:49:58.962918+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261029",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 11864,
+      "shell_pid_created_at": "1793272196.42"
+    }
+  }
+}

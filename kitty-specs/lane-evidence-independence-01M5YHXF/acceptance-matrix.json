@@ -1,0 +1,99 @@
+{
+  "mission_slug": "lane-evidence-independence-01M5YHXF",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_6715_lane_autowalk_guards.py, tests/specify_cli/cli/commands/agent/test_move_task_evidence_gate.py (lane-d integrated run, 243 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:45:54.420514+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_6715_lane_autowalk_guards.py (self-approval, no --agent placeholder), tests/consolidation/test_preflight_seam.py (lane-d integrated run, 243 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:46:00.930938+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_accept_evidence_preflight.py, tests/integration/test_6715_lane_autowalk_guards.py (lane-d integrated run, 243 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:46:06.944786+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_6715_consolidate_lane_evidence.py, tests/consolidation/test_lane_evidence_axis.py (lane-d integrated run, 243 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:46:12.593166+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/orchestrator_api/test_consolidate_mission_lane_evidence_6715.py (lane-d integrated run, 243 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:46:18.439745+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_6715_no_implementation_attestation.py, tests/consolidation/test_no_implementation_attestation.py (lane-d integrated run, 243 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:46:24.404295+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_evidence_code_literals.py, tests/consolidation/test_wp_evidence.py (lane-d integrated run, 243 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:46:30.041244+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/4.x/2026-10-04-5 Amendment 2026-10-29 + docs/changelog/CHANGELOG.md [Unreleased]; WP04 independent review cycle 2 approved against the code",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:46:36.392025+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "acceptance_test",
+      "evidence": "tests/scenarios/mission/review.feature @evidence: red on pre-fix CLI, green on lane (JDK 25, Gradle 8.14.5); WP04 reviewer re-ran BUILD SUCCESSFUL",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-29T11:46:42.170009+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

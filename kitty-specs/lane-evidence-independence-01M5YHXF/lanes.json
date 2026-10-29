@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "mission_slug": "lane-evidence-independence-01M5YHXF",
+  "mission_id": "01M5YHXFTMBPM6B1ATWQ5YVQ0R",
+  "mission_branch": "kitty/mission-lane-evidence-independence-01M5YHXF",
+  "target_branch": "issue-6715-lane-evidence-independence",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/reconciliation.py",
+        "src/specify_cli/consolidation/wp_evidence.py",
+        "src/specify_cli/orchestrator_api/consolidation.py",
+        "tests/consolidation/test_lane_evidence_axis.py",
+        "tests/consolidation/test_wp_evidence.py",
+        "tests/integration/test_6715_consolidate_lane_evidence.py",
+        "tests/orchestrator_api/test_consolidate_mission_lane_evidence_6715.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/no_implementation_attestation.py",
+        "src/specify_cli/consolidation/preflight.py",
+        "tests/consolidation/test_no_implementation_attestation.py",
+        "tests/integration/test_6715_no_implementation_attestation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/integration/test_6715_lane_autowalk_guards.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_evidence_gate.py",
+        "tests/specify_cli/cli/commands/test_accept_evidence_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "docs/adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md",
+        "docs/changelog/CHANGELOG.md",
+        "tests/scenarios/mission/review.feature"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-27T12:08:26.634002+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e155b8a1a2d718b0ef2a9b85e5c4e5a30758f1b3"
+}

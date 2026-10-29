@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-27T11:29:22.194781Z",
+      "decision_id": "01M5YHYFRJPTE0SQ9V7SWGK26J",
+      "final_answer": "force bypasses at move; accept+consolidate strict",
+      "input_key": "force_at_move",
+      "mission_id": "01M5YHXFTMBPM6B1ATWQ5YVQ0R",
+      "mission_slug": "lane-evidence-independence-01M5YHXF",
+      "opened_by": "cli",
+      "options": [
+        "force bypasses at move; accept+consolidate strict",
+        "evidence holds under force at move too",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "At move-task, does --force still bypass the owned-file evidence check (accept/consolidate stay strict), or must evidence also hold under --force at the move?",
+      "rationale": null,
+      "resolved_at": "2026-10-27T11:58:01.922864Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.force-at-move",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M5YHXFTMBPM6B1ATWQ5YVQ0R",
+  "version": 1
+}

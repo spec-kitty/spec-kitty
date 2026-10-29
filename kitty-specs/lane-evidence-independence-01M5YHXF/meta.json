@@ -1,0 +1,35 @@
+{
+  "accept_commit": "7a67a53095ffa3ca3ce16627ca2d945b5eb462db",
+  "acceptance_history": [
+    {
+      "accept_commit": "7a67a53095ffa3ca3ce16627ca2d945b5eb462db",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-29T11:46:57.124734+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "c78ac802de3b673e9f86bf9eec36e9f17685e48a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-29T11:46:57.124734+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "c78ac802de3b673e9f86bf9eec36e9f17685e48a",
+  "baseline_merge_commit": "38d35b6f641c567ab4d54e595757055365087dc0",
+  "created_at": "2026-10-27T11:28:50.572088+00:00",
+  "flattened": true,
+  "friendly_name": "Lane evidence and review independence",
+  "merged_at": "2026-10-29T11:50:35.934592+00:00",
+  "merged_commit": "4d931f58ac8f13e4528c6022f1258e5747bdac5f",
+  "mid8": "01M5YHXF",
+  "mission_id": "01M5YHXFTMBPM6B1ATWQ5YVQ0R",
+  "mission_number": 243,
+  "mission_slug": "lane-evidence-independence-01M5YHXF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "On lanes and coordination missions a work package can be claimed, never implemented, approved by the same agent and then accepted and consolidated as done, with every command exiting 0 and the owned deliverable missing from the target (issue 6715, the coordination counterpart of 5939). This mission makes approve, accept and consolidate refuse that on every topology, with named codes, and lets an operator lift the missing-implementation refusal for a docs-only work package through a recorded attestation.",
+  "purpose_tldr": "Stop lanes and coord missions from landing a work package as done when nothing was implemented or the implementer approved their own work.",
+  "slug": "lane-evidence-independence-01M5YHXF",
+  "status_phase": "1",
+  "target_branch": "issue-6715-lane-evidence-independence",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-27T12:11:30.242507+00:00"
+}
