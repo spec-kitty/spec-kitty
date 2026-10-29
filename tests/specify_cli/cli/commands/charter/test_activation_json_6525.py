@@ -48,6 +48,11 @@ _EMPTY_OUTCOMES = {
 }
 
 
+_NO_COMPILE_NOTICE = (
+    "Catalog not recompiled (--no-compile): catalog.references may go stale until the next `charter generate` or `charter activate --resynthesize`."
+)
+
+
 def _run(root: Path, command: str, *args: str, json_output: bool = True) -> Result:
     flags = ["--json"] if json_output else []
     return RUNNER.invoke(charter_app, [command, "--repo-root", str(root), "--no-compile", *args, *flags], env=WIDE_ENV)
@@ -88,7 +93,9 @@ def test_direct_activation_reports_what_the_no_cascade_warning_names(tmp_path: P
         "now_listed": [],
         "no_longer_in_force": [],
         "warnings": [],
+        "notices": [_NO_COMPILE_NOTICE],
         "referenced_not_cascaded": [_G, _S, _C],
+        "referenced_kind_filtered": [_A],
         "cascade": None,
     }
 
@@ -109,6 +116,8 @@ def test_cascade_activation_reports_every_touched_artifact(tmp_path: Path) -> No
     assert result.exit_code == 0, result.output
     payload = _payload(result)
     assert payload["referenced_not_cascaded"] == []
+    # With --cascade the kind-filtered references are cascade.skipped_kind_filtered.
+    assert payload["referenced_kind_filtered"] == []
     assert payload["cascade"] == {
         "source_urn": _P["urn"],
         "scope": "all",
@@ -408,6 +417,69 @@ def test_a_failed_skill_projection_is_a_coded_error(tmp_path: Path, monkeypatch:
     error = _payload(result)["error"]
     assert error["code"] == "ACTIVATION_FAILED"
     assert error["command"] == "deactivate"
+
+
+def test_the_failed_step_output_is_the_error_detail(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import typer
+
+    from specify_cli.cli.console import console
+
+    root = build_activation_project(tmp_path)
+
+    def fail(_root: Path, **_kwargs: object) -> None:
+        console.print("[red]Error[/red]: the bundle could not be synthesized.")
+        raise typer.Exit(3)
+
+    monkeypatch.setattr("specify_cli.cli.commands.charter.activate.recompile_or_notify", fail)
+
+    result = _run(root, "activate", "directive", "p-dir")
+
+    assert result.exit_code == 1
+    error = _payload(result)["error"]
+    assert error["code"] == "RESYNTHESIS_FAILED"
+    assert error["detail"] == "Error: the bundle could not be synthesized."
+
+
+def test_the_no_compile_notice_is_a_json_notice(tmp_path: Path) -> None:
+    root = build_deactivation_project(tmp_path)
+
+    payload = _payload(_run(root, "deactivate", "directive", "p2-dir"))
+
+    assert payload["notices"] == [_NO_COMPILE_NOTICE]
+
+
+def test_a_degraded_catalog_recompile_reaches_the_json_notices(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default compile, nothing patched: an unresolvable activated directive degrades the recompile to a notice."""
+    import subprocess
+
+    root = build_activation_project(tmp_path)
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    monkeypatch.chdir(root)
+    generated = RUNNER.invoke(charter_app, ["generate", "--no-from-interview"], env=WIDE_ENV)
+    assert generated.exit_code == 0, generated.output
+    assert (root / ".kittify" / "charter" / "charter.yaml").is_file()
+
+    result = RUNNER.invoke(charter_app, ["activate", "--repo-root", str(root), "directive", "p-dir", "--json"], env=WIDE_ENV)
+
+    assert result.exit_code == 0, result.output
+    payload = _payload(result)
+    degraded = [notice for notice in payload["notices"] if notice.startswith("Catalog not recompiled: ")]
+    assert len(degraded) == 1, payload["notices"]
+    assert "every activated 'directive' reference is unresolvable (DIRECTIVE_P)" in degraded[0]
+    assert degraded[0].endswith("or `charter activate --resynthesize`.")
+
+
+def test_a_mission_type_activation_reports_its_kind_filtered_references(tmp_path: Path) -> None:
+    root = build_activation_project(tmp_path)
+
+    payload = _payload(_run(root, "activate", "mission-type", "software-dev"))
+    text = _run(root, "activate", "mission-type", "software-dev", json_output=False)
+
+    filtered = payload["referenced_kind_filtered"]
+    assert filtered, "software-dev references templates, which are not charter-activatable"
+    assert {ref["kind"] for ref in filtered} == {"template"}
+    rendered = [line for line in text.stdout.splitlines() if line.startswith("Not cascaded: ")]
+    assert rendered == [f"Not cascaded: {ref['kind']}/{ref['id']} (kind not charter-activatable)" for ref in filtered]
 
 
 def test_a_clean_exit_of_the_tail_passes_through() -> None:
