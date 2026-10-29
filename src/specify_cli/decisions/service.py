@@ -19,7 +19,8 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +29,7 @@ import ulid as _ulid_mod
 from kernel.clock import datetime, now_utc
 from kernel.errors import GuardedReadError
 from kernel.guarded_read import read_guarded
-from kernel.locks import machine_file_lock
+from kernel.locks import LockAcquireTimeout, machine_file_lock
 from specify_cli.decisions import emit as _emit
 from specify_cli.decisions import index_fold as _index_fold
 from specify_cli.decisions import store as _store
@@ -114,9 +115,21 @@ def _mint_decision_id() -> str:
 #: ``kernel.locks`` G1: the caller supplies a DEDICATED lock-only path.
 _LOCK_FILENAME = "index.json.lock"
 
-#: Bounded wait matching the NFR-002 10s hold ceiling -- a stuck holder fails
-#: loudly (``LockAcquireTimeout``) rather than hanging a caller forever.
+#: Bounded wait matching the NFR-002 10s hold ceiling, used by resolve /
+#: defer / cancel -- a stuck holder fails loudly (``DecisionError`` with
+#: ``LOCK_TIMEOUT``, see :func:`_decisions_lock`) rather than hanging a caller
+#: forever. ``open_decision`` does NOT use it: an open waits on the decisions
+#: lock without a bound (:data:`_OPEN_LOCK_WAIT_S`).
 _LOCK_ACQUIRE_TIMEOUT_S = 10.0
+
+#: #4848 (operator ruling): an open waits on the decisions lock WITHOUT a time
+#: bound -- the same unbounded wait the Mission status lock already uses
+#: (``status.locking.UNBOUNDED_LOCK_WAIT``). The holder of the decisions lock
+#: may itself be waiting, without a bound, on the status lock inside its
+#: opening append, so a bounded wait here would fail an unrelated open of a
+#: different decision. Deadlock-free because every path takes the decisions
+#: lock before the status lock, never the reverse.
+_OPEN_LOCK_WAIT_S: float | None = None
 
 
 def _decisions_lock_path(ledger_dir: Path) -> Path:
@@ -130,6 +143,35 @@ def _decisions_lock_path(ledger_dir: Path) -> Path:
     SAME dir so both lock paths agree.
     """
     return Path(_store.decisions_dir(ledger_dir) / _LOCK_FILENAME)
+
+
+@contextmanager
+def _decisions_lock(lock_path: Path, *, timeout_s: float | None, mission_slug: str, decision_id: str | None) -> Iterator[None]:
+    """Hold the decisions lock; a timed-out wait becomes ``DecisionError(LOCK_TIMEOUT)``.
+
+    Only the ACQUIRE is translated: an exception raised inside the held
+    section propagates unchanged. ``timeout_s=None`` waits without a bound.
+    A timeout leaves nothing written, since the caller's critical section
+    never ran.
+    """
+    with ExitStack() as stack:
+        try:
+            stack.enter_context(machine_file_lock(lock_path, blocking=True, timeout_s=timeout_s))
+        except LockAcquireTimeout as exc:
+            raise DecisionError(
+                code=DecisionErrorCode.LOCK_TIMEOUT,
+                details={
+                    "decision_id": decision_id,
+                    "mission_slug": mission_slug,
+                    "lock_path": str(lock_path),
+                    "timeout_seconds": timeout_s,
+                },
+                message=(
+                    f"Timed out after {timeout_s:g}s waiting for the decisions lock {str(lock_path)!r}; "
+                    "another decision command is holding it. Nothing was written; retry the command."
+                ),
+            ) from exc
+        yield
 
 
 def _runtime_lock_ignore_state(owned: OwnedCheckout) -> tuple[Path, bool]:
@@ -763,9 +805,12 @@ def open_decision(
     # identical open waits here and then finds the row, so a decision gets
     # exactly one ``DecisionPointOpened``. Lock order: decisions lock first,
     # then the mission status lock the emit takes inside it (as in
-    # ``_terminal_command``). ``on_minted`` runs after the lock is released.
+    # ``_terminal_command``). The wait is unbounded (``_OPEN_LOCK_WAIT_S``):
+    # the holder may be waiting, unbounded, on the status lock, and a second
+    # open of a different decision must queue behind it, not fail.
+    # ``on_minted`` runs after the lock is released.
     lock_path = _decisions_lock_path(mission_dir)
-    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+    with _decisions_lock(lock_path, timeout_s=_OPEN_LOCK_WAIT_S, mission_slug=mission_slug, decision_id=decision_id):
         entry, idempotent, lamport, artifact = _record_open_locked(
             repo_root,
             mission_slug,
@@ -902,7 +947,7 @@ def _terminal_command(
     the reverse order. The write-side pre-resolve below runs BEFORE the lock
     (it may materialize the coordination surface). A waiter that cannot get
     the lock within ``_LOCK_ACQUIRE_TIMEOUT_S`` fails closed with
-    ``LockAcquireTimeout`` and writes nothing.
+    ``DecisionError(LOCK_TIMEOUT)`` and writes nothing.
 
     An idempotent retry (index already holds this outcome and payload) checks
     the write-side log for this decision's terminal event of that outcome and,
@@ -913,6 +958,8 @@ def _terminal_command(
     Raises:
         DecisionError(NOT_FOUND): if decision_id is not in the index.
         DecisionError(TERMINAL_CONFLICT): if already terminal with different payload.
+        DecisionError(LOCK_TIMEOUT): the decisions lock could not be acquired
+            within ``_LOCK_ACQUIRE_TIMEOUT_S``; nothing was written.
         DecisionError(EVENT_REPAIR_FAILED): an idempotent retry could not repair
             the artifact or the missing terminal event.
         DecisionEventLogReadError: an idempotent retry found the log unreadable.
@@ -930,7 +977,7 @@ def _terminal_command(
     # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir``.
     mission_dir = _ledger_dir(repo_root, mission_slug, owned=owned)
     lock_path = _decisions_lock_path(mission_dir)
-    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+    with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=decision_id):
         updated_entry, idempotent = _apply_terminal_locked(
             mission_dir,
             decision_id,

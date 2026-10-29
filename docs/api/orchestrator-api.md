@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.18.0`
+- `CONTRACT_VERSION`: `1.19.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -160,6 +160,13 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   is present only when non-empty — a clean commit leaves the payload
   byte-identical — so this is a purely additive, optional field; no field is
   removed or renamed.
+- `1.19.0` — `resolve-decision`, `defer-decision` and `cancel-decision` can newly
+  fail with `DECISION_LOCK_TIMEOUT` (#4848): the bounded wait on the decisions lock
+  (`decisions/index.json.lock`) ran out. It used to escape as a traceback with an empty
+  stdout. Nothing is written, the call can be retried, and the failure `data` carries
+  `decision_id`, `mission_slug`, `lock_path` and `timeout_seconds`. `open-decision` now
+  waits on that lock without a bound, so it does not return this code. A new
+  `error_code` on existing verbs, so a minor bump; no field is removed or renamed.
 - `1.18.0` — `consolidate-mission` now skips a fully-canceled-with-provenance lane at
   parity with host `consolidate` (#5814): a lane whose every work package is an acceptable
   canceled-with-provenance ending is no longer merged, so its committed content never lands
@@ -184,7 +191,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.18.0",
+  "contract_version": "1.19.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -631,7 +638,9 @@ with a **different** outcome/payload than requested — never pre-checked
 locally, always the service layer's own verdict, matching the host-CLI
 `decision_app resolve` subcommand's own error code),
 `DECISION_EVENT_REPAIR_FAILED` (an idempotent retry could not re-write the
-missing terminal event; contract >= 1.17.0), `DESIGN_STATUS_EVENT_LOG_UNREADABLE`
+missing terminal event; contract >= 1.17.0), `DECISION_LOCK_TIMEOUT` (the
+decisions lock stayed held past the bounded wait; nothing was written, retry;
+contract >= 1.19.0), `DESIGN_STATUS_EVENT_LOG_UNREADABLE`
 (an idempotent retry found the event log unreadable, or `decisions/index.json`
 is unreadable).
 
@@ -674,7 +683,9 @@ Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 this code rather than minting a new one, matching the host CLI's own
 `cmd_defer` guard verbatim), `DECISION_NOT_FOUND`, `DECISION_TERMINAL_CONFLICT`,
 `DECISION_EVENT_REPAIR_FAILED` (an idempotent retry could not re-write the
-missing terminal event; contract >= 1.17.0), `DESIGN_STATUS_EVENT_LOG_UNREADABLE`
+missing terminal event; contract >= 1.17.0), `DECISION_LOCK_TIMEOUT` (the
+decisions lock stayed held past the bounded wait; nothing was written, retry;
+contract >= 1.19.0), `DESIGN_STATUS_EVENT_LOG_UNREADABLE`
 (an idempotent retry found the event log unreadable, or `decisions/index.json`
 is unreadable).
 
@@ -699,6 +710,8 @@ Error codes: `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`,
 `MISSION_NOT_FOUND`, `DECISION_MISSING_STEP_OR_SLOT`, `DECISION_NOT_FOUND`,
 `DECISION_TERMINAL_CONFLICT`, `DECISION_EVENT_REPAIR_FAILED` (an idempotent
 retry could not re-write the missing terminal event; contract >= 1.17.0),
+`DECISION_LOCK_TIMEOUT` (the decisions lock stayed held past the bounded wait;
+nothing was written, retry; contract >= 1.19.0),
 `DESIGN_STATUS_EVENT_LOG_UNREADABLE` (an idempotent retry found the event log
 unreadable, or `decisions/index.json` is unreadable).
 
@@ -989,6 +1002,7 @@ Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:
 - `DECISION_NOT_FOUND` — `resolve-decision`, `defer-decision`, `cancel-decision`
 - `DECISION_TERMINAL_CONFLICT` — `resolve-decision`, `defer-decision`, `cancel-decision`
 - `DECISION_EVENT_REPAIR_FAILED` — `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`
+- `DECISION_LOCK_TIMEOUT` — `resolve-decision`, `defer-decision`, `cancel-decision`
 - `DESIGN_STATUS_EVENT_LOG_UNREADABLE` — `design-status`, `open-decision`, `resolve-decision`, `defer-decision`, `cancel-decision`
 - `RESULT_REQUIRED` — `answer-decision`
 - `INVALID_RESULT` — `answer-decision`

@@ -147,7 +147,13 @@ from kernel.clock import now_utc_iso
 # ``success: true`` but with the canceled lane left off the target (the approved survivor lanes
 # land unchanged). A behaviour change to the shipped tree of a previously-``success`` call, so a
 # minor bump; no envelope field or ``error_code`` is added, removed or renamed.
-CONTRACT_VERSION = "1.18.0"
+# 1.19.0: ``resolve-decision``, ``defer-decision`` and ``cancel-decision`` can newly fail with
+# ``DECISION_LOCK_TIMEOUT`` (#4848): the bounded wait on the decisions lock ran out. It used to
+# escape as a traceback with an empty stdout. Nothing is written; the failure ``data`` carries
+# ``decision_id``, ``mission_slug``, ``lock_path`` and ``timeout_seconds``, and the call can be
+# retried. ``open-decision`` now waits on that lock without a bound, so it does not return this
+# code. A new ``error_code`` on existing verbs, so a minor bump; no field is removed or renamed.
+CONTRACT_VERSION = "1.19.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

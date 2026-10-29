@@ -53,9 +53,9 @@ def _fail_from_decision_error(cmd: str, exc: DecisionError) -> NoReturn:
     ``exc.code.value`` reaching the public ``error_code`` field verbatim.
 
     open/resolve/defer/cancel-decision each catch ``DecisionError`` and, pre-
-    fix, trusted ``exc.code.value`` unconditionally -- correct for the six
+    fix, trusted ``exc.code.value`` unconditionally -- correct for the seven
     ``DecisionErrorCode`` members ``decisions/service.py`` actually raises
-    today (all six ARE contract-registered), but structurally unsafe: NOTHING
+    today (all seven ARE contract-registered), but structurally unsafe: NOTHING
     at runtime cross-checked the propagated code against
     ``upstream_contract.json``'s ``allowed_error_codes`` allow-list, and the
     static ``TestAllowedErrorCodes`` regex check

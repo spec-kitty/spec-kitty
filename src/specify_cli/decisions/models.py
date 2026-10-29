@@ -59,12 +59,15 @@ class DecisionErrorCode(StrEnum):
     TERMINAL_CONFLICT = "DECISION_TERMINAL_CONFLICT"
     NOT_FOUND = "DECISION_NOT_FOUND"
     MISSION_NOT_FOUND = "MISSION_NOT_FOUND"
+    # #4848: a bounded wait on the decisions lock (resolve/defer/cancel) timed
+    # out; nothing was written and the caller may retry. Contract 1.19.0.
+    LOCK_TIMEOUT = "DECISION_LOCK_TIMEOUT"
     # PR-CONTRACT-002 (design-phase-orchestrator-api-01M1HE6M pre-merge
     # review): reserved-but-unused -- ``decisions/service.py`` never raises
     # this member today (its only other reference is the value-only unit
     # test in ``tests/specify_cli/decisions/test_models.py``), and it is
     # deliberately NOT in ``upstream_contract.json``'s ``allowed_error_codes``
-    # (unlike the six members above, which all ARE registered). If a future
+    # (unlike the seven members above, which all ARE registered). If a future
     # verify/drift check starts raising it, orchestrator-api's
     # ``_fail_from_decision_error`` guard (``orchestrator_api/decision_verbs.py``)
     # degrades an unregistered code to a safe, contract-registered fallback

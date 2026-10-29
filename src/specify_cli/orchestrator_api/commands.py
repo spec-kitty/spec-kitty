@@ -93,6 +93,11 @@ Error codes used:
                                  path): the missing DecisionPointOpened /
                                  DecisionPointResolved event could not be re-written
                                  (propagated verbatim from DecisionError; WP05, #5681)
+  DECISION_LOCK_TIMEOUT        -- resolve/defer/cancel-decision: the bounded wait on
+                                 the decisions lock (decisions/index.json.lock) ran
+                                 out; nothing was written, retry the call
+                                 (propagated verbatim from DecisionError; #4848,
+                                 contract >= 1.19.0)
   DESIGN_STATUS_EVENT_LOG_UNREADABLE -- design-status: status.events.jsonl could
                                  not be read cleanly (a torn/truncated line --
                                  ledger SK-131) while deriving the tasks/-finalized

@@ -710,6 +710,7 @@ spec-kitty orchestrator-api resolve-decision \
 | `DECISION_NOT_FOUND` | `--decision-id` is not present in the mission's ledger |
 | `DECISION_TERMINAL_CONFLICT` | The decision is already terminal with a DIFFERENT outcome/payload than requested |
 | `DECISION_EVENT_REPAIR_FAILED` | Idempotent terminal path (contract >= 1.17.0): the missing `DecisionPointResolved` event could not be re-written |
+| `DECISION_LOCK_TIMEOUT` | Contract >= 1.19.0: the decisions lock stayed held past the bounded wait; nothing was written, retry the call |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | `decisions/index.json` or (contract >= 1.17.0, idempotent retry) `status.events.jsonl` could not be read cleanly |
 
 ---
@@ -746,6 +747,7 @@ spec-kitty orchestrator-api defer-decision \
 | `DECISION_NOT_FOUND` | `--decision-id` is not present in the mission's ledger |
 | `DECISION_TERMINAL_CONFLICT` | The decision is already terminal with a DIFFERENT outcome/payload than requested |
 | `DECISION_EVENT_REPAIR_FAILED` | Idempotent terminal path (contract >= 1.17.0): the missing terminal event could not be re-written |
+| `DECISION_LOCK_TIMEOUT` | Contract >= 1.19.0: the decisions lock stayed held past the bounded wait; nothing was written, retry the call |
 | `DESIGN_STATUS_EVENT_LOG_UNREADABLE` | `decisions/index.json` or (contract >= 1.17.0, idempotent retry) `status.events.jsonl` could not be read cleanly |
 
 ---
@@ -913,6 +915,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `DECISION_EVENT_REPAIR_FAILED` | open-decision, resolve-decision, defer-decision, cancel-decision | Idempotent-open path: the missing `DecisionPointOpened` event could not be re-emitted; idempotent terminal path (contract >= 1.17.0): the missing `DecisionPointResolved` event could not be re-written |
 | `DECISION_NOT_FOUND` | resolve-decision, defer-decision, cancel-decision | `--decision-id` is not present in the mission's ledger |
 | `DECISION_TERMINAL_CONFLICT` | resolve-decision, defer-decision, cancel-decision | The decision is already terminal with a DIFFERENT outcome/payload than requested |
+| `DECISION_LOCK_TIMEOUT` | resolve-decision, defer-decision, cancel-decision | Contract >= 1.19.0: the decisions lock stayed held past the bounded wait; nothing was written, retry the call |
 | `RESULT_REQUIRED` | answer-decision | `--result` is required alongside `--answer` |
 | `INVALID_RESULT` | answer-decision | `--result` is not one of `success`, `failed`, `blocked` |
 | `NO_PENDING_DECISION` | answer-decision | No pending decisions to answer |
