@@ -696,7 +696,7 @@
      "deprecated": false
     },
     "topology": {
-     "help": "Report each mission's STORED topology across kitty-specs/.\n\nReads the authoritative ``topology`` value persisted in ``meta.json`` WITHOUT\nre-inferring from disk/git. Missions not yet backfilled surface\n``topology: null`` — run ``spec-kitty migrate backfill-topology`` to persist\nthe computed value.\n\nExamples:\n    spec-kitty doctor topology\n    spec-kitty doctor topology --json\n    spec-kitty doctor topology --mission 083-foo",
+     "help": "Report each mission's STORED topology across kitty-specs/.\n\nReads the authoritative ``topology`` value persisted in ``meta.json`` WITHOUT\nre-inferring from disk/git. Missions not yet backfilled surface\n``topology: null`` — run ``spec-kitty migrate backfill-topology`` to persist\nthe computed value.\n\nLists Missions only: a ``kitty-specs/`` folder that Mission selection does\nnot list (residue) is not a row. ``spec-kitty doctor identity`` reports such\na folder with its reason and a remedy.\n\nExamples:\n    spec-kitty doctor topology\n    spec-kitty doctor topology --json\n    spec-kitty doctor topology --mission 083-foo",
      "hidden": false,
      "deprecated": false
     },
