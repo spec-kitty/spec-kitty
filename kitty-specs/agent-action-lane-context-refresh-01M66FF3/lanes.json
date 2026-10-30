@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "agent-action-lane-context-refresh-01M66FF3",
+  "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A",
+  "mission_branch": "kitty/mission-agent-action-lane-context-refresh-01M66FF3",
+  "target_branch": "issue-6650-agent-action-lane-context-refresh",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "tests/agent/test_agent_action_lane_context_refresh.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T13:25:58.017189+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "d90e26dca4e873c619f637135417af27af1ea406"
+}
