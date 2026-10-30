@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-10-30'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -413,6 +413,15 @@ invocation (`--invocation-id`), then `--profile`, then the profile (and model)
 segment of a compact `--agent`/`--actor` value. When none of these gives one,
 the value is `null`. Nothing is guessed, and the planned `agent_profile` in the
 WP frontmatter is not copied in.
+
+**Compact form.** A compact `--agent` value is at most four `:`-separated
+segments (`tool:model:profile:role`; the bare `tool` alone is fine). Every
+segment is stripped, and a segment that is blank after stripping is treated as
+absent (#6755). The commands that take an explicit `--agent` (`move-task`,
+`mark-status`, `add-history`) refuse a value with more than four segments —
+or a blank tool — before any write, with `Invalid --agent value: <reason>`;
+free-text `--actor` values on `agent status emit` and `orchestrator-api`, and
+recorded identities, are stored whole instead (#6400).
 
 **Role.** `reviewer` for a hop into `in_review`, `approved` or `done`, for any
 hop that leaves `in_review` (a rejection, a block or a cancel during review)
