@@ -248,7 +248,8 @@ execution/routing invariants.
 
 This view groups the containers as the **open-core producer ecosystem** and draws the one
 boundary to the opaque Team Kitty consumer. The CLI owns the append-only event ledger and the
-Lamport reducer; the **Mission Status Read API** (a Java service that is to start in-repo as a
+wall-clock status reducer (`(at, event_id)` with the #4941 approved-departure lift; CLI lane
+rows carry no Lamport clock); the **Mission Status Read API** (a Java service that is to start in-repo as a
 modular component and be extracted when its contract freezes — ADR
 [2026-10-01-2](../../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
 Accepted) reads that ledger as a read model and **conforms to** the contract beside the Python
@@ -263,8 +264,8 @@ API across its contract boundary and is a single opaque container here.
 *Target state, not shipped state:* `services/mission-status-api/` does not exist yet (only
 `contracts/mission-status/` and the Python reducer ship); the diagram shows the ratified target.
 
-Alt-text: an open-core boundary containing the CLI, the event ledger, the Lamport reducer, the
-Mission-Status Read API (Java, planned, to start in-repo), the extracting charter and the
+Alt-text: an open-core boundary containing the CLI, the event ledger, the wall-clock status
+reducer, the Mission-Status Read API (Java, planned, to start in-repo), the extracting charter and the
 fetched packs; four extracted packages (events, tracker, open-packs, doc-kitty) as separate
 units; and the API contract seam as the one boundary to the opaque Team Kitty consumer.
 
@@ -282,7 +283,7 @@ flowchart TB
       direction TB
       cli["<b>CLI</b> (Python)<br/>command surface + governance<br/><i>open-core · exists</i>"]
       ledger[("<b>Event ledger</b><br/>status.events.jsonl<br/>append-only · sole lane authority<br/><i>open-core · exists</i>")]
-      reducer["<b>Lamport reducer</b><br/>status.reducer.materialize<br/>event → snapshot<br/><i>open-core · exists</i>"]
+      reducer["<b>Status reducer</b><br/>status.reducer.materialize_snapshot<br/>wall clock (at, event_id)<br/><i>open-core · exists</i>"]
       statusapi["<b>Mission-Status Read API</b><br/>Java service · services/mission-status-api/<br/>overview + mission detail<br/><i>open-core · planned · to start in-repo</i>"]
       charter["<b>Charter</b><br/>src/charter/offering/<br/>governance / doctrine / DRG<br/><i>open-core · extracting</i>"]
       packsrc["<b>Fetched packs</b><br/>packs/built-in + packs/internal<br/><i>open-core · exists (pinned, fetched from open-packs)</i>"]
