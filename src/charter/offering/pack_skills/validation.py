@@ -130,6 +130,8 @@ def resolve_body_path(skill: PackSkill, skill_file: Path) -> Path:
     checked here (callers report a missing body separately).
     """
     try:
+        # The ``or ""`` fallback is typing-only: real callers guarantee a
+        # non-empty prompt-form body_path (models.py requires it).
         resolved: Path = resolve_relative_path_within_root(skill_file.parent, skill.body_path or "")
     except (OrgPackSubdirEscapeError, ValueError) as exc:
         raise PackSkillViolation(f"skill {skill.id!r}: body_path {skill.body_path!r} escapes the skill directory ({exc})") from exc
