@@ -1,0 +1,29 @@
+{
+  "mission_slug": "agent-action-lane-context-refresh-01M66FF3",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_action_lane_context_refresh.py::test_agent_action_implement_refreshes_reused_lane_context \u2014 green after the fix (exit 0; load_context current_wp=WP02, wp_id=WP02, dependencies=[WP01]; resolve_active_wp_for_branch reports WP02 with no ACTIVE_WP_CONTEXT_STALE)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T14:16:41.939491+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Red witnessed on the unfixed tree (test commit 9107f42818 precedes fix 2818b003fb; failure output recorded in WP01 history: current_wp stayed 'WP01'); green after the fix; refresh_reused_lane_context call-site count grew exactly 2->3 (NFR-001)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T14:16:46.734488+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
