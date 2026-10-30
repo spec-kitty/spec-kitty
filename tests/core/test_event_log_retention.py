@@ -30,11 +30,16 @@ from specify_cli.state.contract import CleanupPolicy, RetentionRule
 from specify_cli.state.retention import (
     KIND_CACHE,
     KIND_MISSION_LOG,
+    KIND_OP_LOG,
     KIND_RUN,
     REASON_COMPLETED,
     REASON_LOCK_HELD,
     REASON_MISSION_NOT_FOUND,
     REASON_MISSION_OPEN,
+    REASON_NO_MISSION,
+    REASON_NO_OP,
+    REASON_OP_COMPLETED,
+    REASON_OP_OPEN,
     REASON_REBUILDABLE,
     REASON_WITHIN_KEEP_RUNS,
     REASON_YOUNGER_THAN_MAX_AGE,
@@ -332,17 +337,44 @@ def test_old_run_of_an_open_mission_is_kept(project: Path) -> None:
 
 @pytest.mark.unit
 @pytest.mark.fast
-def test_run_whose_mission_resolves_nowhere_is_kept(project: Path) -> None:
-    unknown = _run(project, slug="999-elsewhere", mission_id=UNKNOWN_ID, age_days=90)
-    anonymous = _run(project, slug=None, mission_id=None, age_days=90)
+def test_a_run_whose_recorded_mission_is_unknown_is_kept(project: Path) -> None:
+    """DS: a *recorded* Mission identity this checkout cannot resolve stays protected (#6739)."""
+    indexed = _run(project, slug="999-elsewhere", mission_id=UNKNOWN_ID, age_days=90)
+    unindexed = _run(project, slug="999-elsewhere", mission_id=None, age_days=90, link=False)
+    items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
+    for run_dir in (indexed, unindexed):
+        item = items[_rel(run_dir, project)]
+        assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None), run_dir
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_a_run_with_an_unreadable_snapshot_is_kept(project: Path) -> None:
+    """An unreadable record is not evidence that the run names no Mission: keep it (fail safe)."""
     corrupt = _legacy_run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=90)
     (corrupt / "state.json").write_text("{not json", encoding="utf-8")
     _set_age(corrupt, 90)
-    unindexed = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=90, link=False)
+    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(corrupt, project)]
+    assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_a_run_that_records_no_mission_is_judged_on_age(project: Path) -> None:
+    """An item that names no owner has no lifecycle to protect: only age decides (#6739)."""
+    old = _run(project, slug=None, mission_id=None, age_days=90)
+    young = _run(project, slug=None, mission_id=None, age_days=1)
     items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
-    for run_dir in (unknown, anonymous, corrupt, unindexed):
-        item = items[_rel(run_dir, project)]
-        assert (item.verdict, item.reason, item.mission) == ("kept", REASON_MISSION_NOT_FOUND, None)
+    assert (items[_rel(old, project)].verdict, items[_rel(old, project)].reason, items[_rel(old, project)].mission) == (
+        "candidate",
+        REASON_NO_MISSION,
+        None,
+    )
+    assert (items[_rel(young, project)].verdict, items[_rel(young, project)].reason) == ("kept", REASON_YOUNGER_THAN_MAX_AGE)
+
+    result = apply_retention(project, scan_retention(project, LIMITS_NO_KEEP, now=NOW))
+    assert [item.path for item in result.deleted] == [old]
+    assert result.removed_index_entries == []
 
 
 @pytest.mark.unit
@@ -353,6 +385,36 @@ def test_run_resolves_its_mission_by_slug_when_the_id_is_absent(project: Path) -
     items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
     for run_dir in (indexed, legacy):
         assert (items[_rel(run_dir, project)].reason, items[_rel(run_dir, project)].mission) == (REASON_COMPLETED, DONE_SLUG)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_an_unindexed_run_linked_only_by_its_recorded_input_slug_follows_its_mission(project: Path) -> None:
+    """The production writer records no Mission in ``state.json``; the slug lives in ``inputs`` (#6739)."""
+    done = _run(project, slug=DONE_SLUG, mission_id=DONE_ID, age_days=90, link=False)
+    open_run = _run(project, slug=OPEN_SLUG, mission_id=OPEN_ID, age_days=90, link=False)
+    items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
+    done_item = items[_rel(done, project)]
+    assert (done_item.verdict, done_item.reason, done_item.mission) == ("candidate", REASON_COMPLETED, DONE_SLUG)
+    assert (items[_rel(open_run, project)].verdict, items[_rel(open_run, project)].reason) == ("kept", REASON_MISSION_OPEN)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_a_run_started_by_the_real_writer_follows_its_mission_after_its_index_entry_is_lost(project: Path) -> None:
+    """The reported defect, end to end: a real run whose ``feature-runs.json`` entry is gone."""
+    from runtime.next import runtime_bridge_io
+
+    run_ref = runtime_bridge_io.get_or_start_run(DONE_SLUG, project, "software-dev")
+    run_dir = Path(run_ref.run_dir)
+    run_index.save_index(project, {})  # the entry was replaced or removed
+    _set_age(run_dir, 60)
+
+    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(run_dir, project)]
+    assert (item.verdict, item.reason, item.mission) == ("candidate", REASON_COMPLETED, DONE_SLUG)
+
+    result = apply_retention(project, scan_retention(project, LIMITS_NO_KEEP, now=NOW))
+    assert [item.path for item in result.deleted] == [run_dir]
 
 
 @pytest.mark.unit
@@ -406,6 +468,153 @@ def test_glossary_logs_are_ranked_within_their_own_kind(project: Path) -> None:
     item = _by_path(scan_retention(project, limits, now=NOW).items, project)[_rel(done_log, project)]
     # The run does not push the log out of the newest-1 of ITS kind.
     assert item.reason == REASON_WITHIN_KEEP_RUNS
+
+
+OP_CLOSED_ID = "01M6739000000000000000000A"
+OP_OPEN_ID = "01M6739000000000000000000B"
+OP_GONE_ID = "01M6739000000000000000000C"
+
+
+def _op_record(repo: Path, invocation_id: str, *, completed: bool) -> Path:
+    """An Op record as ``profile-invocation start`` / ``complete`` leave it."""
+    lines: list[dict[str, object]] = [
+        {"event": "started", "invocation_id": invocation_id, "profile_id": "implementer-fixture", "action": "implement", "started_at": "2026-06-05T00:00:00+00:00"}
+    ]
+    if completed:
+        lines.append({"event": "completed", "invocation_id": invocation_id, "action": "", "completed_at": "2026-06-05T00:01:00+00:00"})
+    return _write(repo / "kitty-ops" / f"{invocation_id}.jsonl", "\n".join(json.dumps(line) for line in lines) + "\n")
+
+
+def _op_log(repo: Path, invocation_id: str, age_days: float) -> Path:
+    return _glossary_log(repo, f"profile-invocation-{invocation_id}", age_days)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_an_op_log_of_a_completed_op_is_a_candidate(project: Path) -> None:
+    """#6739: an Op-scoped log follows its Op, not a Mission (#6610 kept it forever)."""
+    record = _op_record(project, OP_CLOSED_ID, completed=True)
+    log = _op_log(project, OP_CLOSED_ID, 60)
+
+    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(log, project)]
+    assert (item.verdict, item.reason, item.kind, item.mission) == ("candidate", REASON_OP_COMPLETED, KIND_OP_LOG, None)
+
+    record_before = record.read_bytes()
+    result = apply_retention(project, scan_retention(project, LIMITS_NO_KEEP, now=NOW))
+    assert [item.path for item in result.deleted] == [log]
+    assert not log.exists()
+    assert record.read_bytes() == record_before
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_an_op_log_closed_on_the_spine_is_a_candidate(project: Path) -> None:
+    """The doctor sweep closes on the append-only spine, never on the record (#4397)."""
+    from specify_cli.invocation.record import OpCompletedEvent
+    from specify_cli.invocation.writer import append_op_closure
+
+    _op_record(project, OP_CLOSED_ID, completed=False)
+    append_op_closure(
+        project,
+        OpCompletedEvent(invocation_id=OP_CLOSED_ID, completed_at="2026-06-05T00:01:00+00:00", outcome="abandoned", closed_by="doctor_sweep"),
+    )
+    log = _op_log(project, OP_CLOSED_ID, 60)
+    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(log, project)]
+    assert (item.verdict, item.reason) == ("candidate", REASON_OP_COMPLETED)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_an_op_log_of_an_open_op_is_kept(project: Path) -> None:
+    """A live Op owns its log: no retention rule may remove a running invocation's trail."""
+    _op_record(project, OP_OPEN_ID, completed=False)
+    log = _op_log(project, OP_OPEN_ID, 400)
+
+    plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
+    item = _by_path(plan.items, project)[_rel(log, project)]
+    assert (item.verdict, item.reason, item.kind) == ("kept", REASON_OP_OPEN, KIND_OP_LOG)
+
+    result = apply_retention(project, plan)
+    assert log.exists()
+    assert result.deleted == []
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_an_op_log_with_a_live_checkpoint_is_kept_while_its_op_is_open(project: Path) -> None:
+    """C-006: a ``StepCheckpointed`` row is a resume point; an open Op keeps it."""
+    from glossary.checkpoint import checkpoint_to_dict, create_checkpoint
+    from glossary.strictness import Strictness
+
+    checkpoint = create_checkpoint(
+        mission_id=f"profile-invocation-{OP_OPEN_ID}",
+        run_id=OP_OPEN_ID,
+        step_id=f"profile-invocation:{OP_OPEN_ID}",
+        strictness=Strictness.MEDIUM,
+        scope_refs=[],
+        inputs={"request": "fixture"},
+        cursor="pre_generation_gate",
+    )
+    _op_record(project, OP_OPEN_ID, completed=False)
+    log = _glossary_log(project, f"profile-invocation-{OP_OPEN_ID}", 400)
+    log.write_text(json.dumps({"event_type": "StepCheckpointed", **checkpoint_to_dict(checkpoint)}) + "\n", encoding="utf-8")
+    _set_age(log, 400)
+
+    item = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)[_rel(log, project)]
+    assert (item.verdict, item.reason) == ("kept", REASON_OP_OPEN)
+    assert log.exists()
+
+    from glossary.checkpoint import load_checkpoint
+
+    assert load_checkpoint(project, f"profile-invocation:{OP_OPEN_ID}") is not None
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_an_op_log_with_no_op_record_is_judged_on_age(project: Path) -> None:
+    """No record of the Op here means no owner to protect: age decides (#6739)."""
+    old = _op_log(project, OP_GONE_ID, 60)
+    young = _op_log(project, "01M6739000000000000000000D", 1)
+
+    items = _by_path(scan_retention(project, LIMITS_NO_KEEP, now=NOW).items, project)
+    assert (items[_rel(old, project)].verdict, items[_rel(old, project)].reason) == ("candidate", REASON_NO_OP)
+    assert (items[_rel(young, project)].verdict, items[_rel(young, project)].reason) == ("kept", REASON_YOUNGER_THAN_MAX_AGE)
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_op_logs_rank_among_their_own_kind(project: Path) -> None:
+    """``keep_runs`` protects the newest N of each kind: Op logs cannot push a Mission log out."""
+    done_log = _glossary_log(project, DONE_ID, 40)
+    op_logs = []
+    for offset, invocation_id in enumerate(("01M6739000000000000000000E", "01M6739000000000000000000F", "01M6739000000000000000000G")):
+        _op_record(project, invocation_id, completed=True)
+        op_logs.append(_op_log(project, invocation_id, 41 + offset))
+
+    items = _by_path(scan_retention(project, RetentionLimits(keep_runs=1, max_age_days=30), now=NOW).items, project)
+    assert items[_rel(done_log, project)].reason == REASON_WITHIN_KEEP_RUNS
+    assert items[_rel(op_logs[0], project)].reason == REASON_WITHIN_KEEP_RUNS
+    assert [items[_rel(log, project)].reason for log in op_logs[1:]] == [REASON_OP_COMPLETED, REASON_OP_COMPLETED]
+
+
+@pytest.mark.unit
+@pytest.mark.fast
+def test_a_thousand_op_records_and_glossary_logs_scan_within_the_budget(project: Path) -> None:
+    """NFR-001 / SC-005: the Op roster is read once per scan, not once per item."""
+    for index in range(1000):
+        invocation_id = f"01M6739{index:019d}"
+        _op_record(project, invocation_id, completed=index % 2 == 0)
+        _glossary_log(project, f"profile-invocation-{invocation_id}", 60)
+        _glossary_log(project, f"_cli-{index}", 60)
+
+    before = _tree_digest(project)
+    started = time.monotonic()
+    plan = scan_retention(project, LIMITS_NO_KEEP, now=NOW)
+    elapsed = time.monotonic() - started
+
+    assert len(plan.candidates) == 500
+    assert elapsed < 2.0, f"scan took {elapsed:.2f}s over 1,000 Op records and 2,000 logs"
+    assert _tree_digest(project) == before
 
 
 @pytest.mark.unit
@@ -910,8 +1119,9 @@ def test_a_non_mapping_run_index_does_not_abort_apply(project: Path) -> None:
     result = apply_retention(project, scan_retention(project, LIMITS_NO_KEEP, now=NOW))
     assert result.failed == []
     assert result.removed_index_entries == []
-    # A non-mapping index links no run, so the run's Mission is not found and it stays.
-    assert paths["done_run"].is_dir()
+    # A non-mapping index names no run, so nothing is dropped from it; the run's
+    # own snapshot still names its Mission, so the run itself is eligible (#6739).
+    assert not paths["done_run"].exists()
     assert not paths["derived"].exists()
     assert paths["ops_index"].exists()
     assert index_path.read_text(encoding="utf-8") == "[1, 2, 3]"
