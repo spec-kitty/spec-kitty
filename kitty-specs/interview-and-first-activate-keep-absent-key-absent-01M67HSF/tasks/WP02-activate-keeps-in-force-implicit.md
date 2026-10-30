@@ -36,13 +36,14 @@ authoritative_surface: src/charter/activation/
 create_intent:
 - src/charter/activation/activation_engine.py
 - src/charter/activation/pack_manager.py
+- tests/charter/test_interview_leaves_absent_key_absent_6685.py
 execution_mode: code_change
 model: ''
 owned_files:
 - src/charter/activation/activation_engine.py
 - src/charter/activation/pack_manager.py
 - tests/charter/test_activation_preserves_effective_4253.py
-- tests/charter/test_activation_engine_freeze_warning.py
+- tests/charter/activation/test_activation_engine_freeze_warning.py
 - tests/charter/test_pack_manager.py
 - tests/charter/test_skill_freeze_warning_6458.py
 - tests/charter/test_interview_leaves_absent_key_absent_6685.py
@@ -122,7 +123,7 @@ Add the guard described above. Rename/refresh the warning so it says what happen
 ### T007 — Activation pins: #4253 rows, freeze-warning rows, `--only` ratchet, skill/mission-type ratchet
 
 - `tests/charter/test_activation_preserves_effective_4253.py`: `test_first_activation_keeps_every_previously_effective_directive` and `test_first_activation_of_a_procedure_keeps_the_rest_effective` now assert the key stays absent **and** keep the zero-drop assertion; `test_default_activation_warning_says_the_materialised_list_is_frozen` moves its freeze assertion to a case that still materialises (e.g. `skill`, or an unresolvable set) and gains the new message assertion. Leave `test_an_explicitly_restricted_set_is_still_respected`, `test_an_explicitly_empty_set_is_still_respected`, `test_mission_type_seeding_spans_both_org_packs` and `test_resolved_set_still_reports_nothing_deactivated` behaviourally unchanged.
-- `tests/charter/test_activation_engine_freeze_warning.py`, `tests/charter/test_pack_manager.py`: add the new branch and the "artifact not in force still materialises" row.
+- `tests/charter/activation/test_activation_engine_freeze_warning.py`, `tests/charter/test_pack_manager.py`: add the new branch and the "artifact not in force still materialises" row.
 - `tests/charter/test_skill_freeze_warning_6458.py`: pin that `skill` still materialises.
 - `tests/specify_cli/cli/commands/charter/test_activate_only_6408.py`: unchanged, run it as the `--only` ratchet.
 

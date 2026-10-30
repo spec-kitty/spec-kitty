@@ -31,7 +31,8 @@ execution_mode: code_change
 model: ''
 owned_files:
 - docs/changelog/CHANGELOG.md
-- docs/ (the operator pages for charter interview and charter activate)
+- docs/api/charter-commands.md
+- docs/architecture/activation-ledger-and-charter-contract.md
 - src/specify_cli/cli/commands/charter/interview.py
 - src/charter/activation/pack_manager.py
 - tests/acceptance/charter_pack_cutover/test_promotion.py
