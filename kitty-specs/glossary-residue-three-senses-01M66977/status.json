@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01M66CZ2X8JYVQ1MRN91MMFW9B",
-  "materialized_at": "2026-10-30T12:36:14.376869+00:00",
+  "event_count": 9,
+  "last_event_id": "01M66CZ9FDC2KVVQP6VMK8PZJT",
+  "materialized_at": "2026-10-30T12:36:21.101283+00:00",
   "mission_number": "",
   "mission_slug": "glossary-residue-three-senses-01M66977",
   "mission_type": "software-dev",
@@ -12,21 +12,21 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "pi",
+      "actor": "kimi-k3",
       "agent": "pi",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01M66CZ2X8JYVQ1MRN91MMFW9B",
-      "last_transition_at": "2026-10-30T12:36:14.376869+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M66CZ9FDC2KVVQP6VMK8PZJT",
+      "last_transition_at": "2026-10-30T12:36:21.101283+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Implement WP01 in the root checkout (single_branch)",
@@ -41,7 +41,7 @@
         "reviewer": "unknown",
         "verdict": "approved"
       },
-      "role": "implementer",
+      "role": "reviewer",
       "subtasks": {
         "T001": "done",
         "T002": "done",
