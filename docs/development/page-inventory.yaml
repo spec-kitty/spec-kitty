@@ -1388,6 +1388,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation
@@ -5181,6 +5187,12 @@
   current_target: true
   notes: null
 - path: docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/events-domain-move/plan.md
   tag: current
   divio_type: none
   owning_workstream: none

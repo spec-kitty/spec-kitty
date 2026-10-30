@@ -1,7 +1,13 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.6.0
+> Version: 1.7.0
+> Updated: 2026-10-29 — the events domain's Java services (the Mission Status
+> Read API and the Mission Write API / event-log write core) and the events contracts move to
+> `spec-kitty-events`, which becomes the canonical owner of the events domain; core consumes a
+> released, pinned `service-v*` build by tag and per-asset sha256, fetched on first use and
+> fail-closed; `services/` is frozen in core until its removal (operator and CEO ruling
+> 2026-10-29; ADR `2026-10-29-1`).
 > Updated: 2026-10-25 — charter direction and hosted surfaces brought in line with the
 > recorded decisions: the Python charter stays in core until it is retired and is replaced
 > in place behind `charter.offering.api`, not extracted to its own repository (ADR
@@ -373,6 +379,25 @@ noted where they bind harder than advisory.
 - Validate cross-repo behavior with consumer tests and compatibility fixtures rather than forcing every sibling package to release in lockstep.
 
 `spec-kitty-events` owns event envelopes, payload schemas, committed fixtures, replay helpers, and event compatibility rules.
+
+**Events services (2026-10-29, ADR `2026-10-29-1`).** `spec-kitty-events` also owns the events
+domain's Java services: the Mission Status Read API, the Mission Write API / event-log write
+core, the shared `domain-model` and `event-log` libraries, and the `mission-status` and
+`mission-write` contracts. It releases them on a separate `service-vX.Y.Z` line (per-OS GraalVM
+native binaries, a JVM jar, contract bundles and conformance fixtures, each with a sha256). Core
+consumes `spec-kitty-events` as two artifact kinds:
+
+- **the PyPI package**, a SemVer range plus `uv.lock`, unchanged;
+- **the pinned service build**, one lockfile per service (`pins/<service>.source.yaml`: tag, commit
+  and per-asset sha256), bumped only through `spec-kitty service vendor`.
+
+The wheel stays pure: the CLI fetches the host binary on first need, executes it only when its
+digest matches the pin, and fails closed with a named code and remedy when it cannot. There is
+no Python fallback writer. The read service is pinned for CI conformance only, and the CLI
+never launches it. The client side stays in core: the EventBridge port,
+`write_service_protocol`, the launcher, `kernel.locks`, and the Python oracle tests. No new
+change lands under `services/` in core; Java work on these modules is done in
+`spec-kitty-events`.
 
 `spec-kitty-tracker` owns tracker provider abstractions, hosted discovery/sync primitives, normalized tracker models, and tracker authority policy behavior.
 

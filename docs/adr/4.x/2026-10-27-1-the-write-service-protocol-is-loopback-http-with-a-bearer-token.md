@@ -3,11 +3,12 @@ title: 'ADR: the write-service protocol is loopback HTTP with a bearer token fro
 description: 'The CLI reaches its write service on 127.0.0.1 with a per-clone bearer token; the service is authoritative, refuses with the CLI''s codes, and acks one synced append.'
 status: Accepted
 date: '2026-10-27'
+updated: '2026-10-29'
 ---
 
 # The write-service protocol is loopback HTTP with a bearer token from the git common dir
 
-**Status:** Accepted (2026-10-27). Operator rulings of 2026-10-25 (on #6675) and 2026-10-27 (the Decision Moments of Mission `write-service-protocol-01M5Z6N5`).
+**Status:** Accepted (2026-10-27). Operator rulings of 2026-10-25 (on #6675) and 2026-10-27 (the Decision Moments of Mission `write-service-protocol-01M5Z6N5`). Amended by [ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) (the events services live in spec-kitty-events); see Amendment 2026-10-29.
 
 > **What was ruled and what is derived.**
 > - **Ruled by the operator (2026-10-25):** loopback HTTP on `127.0.0.1` with a random port; the port and a random bearer token in a file in the git common dir, one writer per clone; the service is authoritative and refuses with structured codes that match the CLI's; one `O_APPEND` write of a full JSON line, `fsync` before the ack, a batched `fsync` for multi-event operations; Windows semantics documented under the lock.
@@ -181,3 +182,11 @@ Every provisional element is settled before the contract's first release (`1.0.0
 - The read service: `services/mission-status-api/README.md` (bind and guard rules).
 - Contract conventions: `contracts/README.md` (the security-scheme rule is added there).
 - The current-state map: [event ledger writers and readers](../../architecture/event-ledger-writers-and-readers.md).
+
+## Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events
+
+[ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
+
+- **The launcher (#6676).** The launcher stays in core and resolves the binary from the pinned release (2026-10-29-1 D-3 to D-5). The native-image build half of #6676 moves to `spec-kitty-events`. The protocol, the endpoint file and the trust model are unchanged; the pin records the protocol versions the build serves, and the launcher refuses a build whose versions do not intersect `SUPPORTED_PROTOCOL_VERSIONS`.
+
+Nothing else in this record changes.

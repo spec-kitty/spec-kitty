@@ -3,6 +3,7 @@ title: 'ADR: Shared Package Boundary Cutover'
 description: 'Retires the standalone runtime package by internalizing the surface the CLI needs, with an import-graph test forbidding production imports of the retired package.'
 status: Accepted
 date: '2026-04-25'
+updated: '2026-10-29'
 ---
 
 ## Context
@@ -146,3 +147,11 @@ in 10 work packages. Concretely:
 The boundary now means public **symbols**. A production import of a `_`-prefixed module segment or a `_`-prefixed imported name from `spec_kitty_events` or `spec_kitty_tracker` is a violation, even when the package itself is the permitted public one. Core's last such import, `spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL`, was deleted together with the dead hosted lifecycle builder that used it.
 
 `tests/architectural/test_events_tracker_public_imports.py` enforces this over all six production roots (`src/kernel`, `src/charter`, `src/glossary`, `src/runtime`, `src/mission_runtime`, `src/specify_cli`). It checks the imported name (`alias.name`) as well as the module path, and has no allowlist. It joins the enforcement references of this ADR beside `test_shared_package_boundary.py`.
+
+## Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events
+
+[ADR 2026-10-29-1](../4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
+
+- **What `spec-kitty-events` is to core.** Core now consumes two artifact kinds from `spec-kitty-events`: the PyPI package (a SemVer range plus `uv.lock`, unchanged) and pinned service builds (`pins/<service>.source.yaml`, holding a `service-v*` tag, the commit and a sha256 per asset). A pin is the release record for a binary, just as `uv.lock` is for the package. No editable, path or moving-branch reference is allowed for either.
+
+Nothing else in this record changes.

@@ -3,11 +3,12 @@ title: 'ADR: the Java write service is the canonical event writer, one resident 
 description: 'The command side of the Mission Write API is the one event writer: one resident Java service per repository behind the CLI EventBridge port, a JVM fallback, no Python writer.'
 status: Accepted
 date: '2026-10-22'
+updated: '2026-10-29'
 ---
 
 # The Java write service is the canonical event writer, one resident service per repository
 
-**Status:** Accepted (2026-10-22). Operator rulings of 2026-10-22, recorded on #6117, #6185 and #6608. Amended by [ADR 2026-10-27-1](2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md) (open question 3, D-3, D-7); see Amendment 2026-10-27.
+**Status:** Accepted (2026-10-22). Operator rulings of 2026-10-22, recorded on #6117, #6185 and #6608. Amended by [ADR 2026-10-27-1](2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md) (open question 3, D-3, D-7); see Amendment 2026-10-27. Amended by [ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) (the events services live in spec-kitty-events); see Amendment 2026-10-29.
 
 > **What was ruled and what is derived.**
 > - **Ruled by the operator:** the event writer is a Java service that reuses the read API's domain models; one service per repository; the CLI decides when and what, the service how and where; a JVM jar fallback for a missing native binary; #6185 folds into #6117's modules.
@@ -264,3 +265,11 @@ Nothing else in this record changes.
 - Contributor rules: [Events in core](../../development/reference/events-in-core.md).
 - `spec-kitty-events`: `docs/api/ledger-write-contract.md`, `src/spec_kitty_events/conformance/fixtures/ledger_append/README.md`.
 - The read service: `services/mission-status-api/README.md`.
+
+## Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events
+
+[ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
+
+- **D-1 (the `event-log` module writes all ledgers) and D-5 (native first, JVM jar fallback).** The `event-log` module and the `command-cli` deployable live in `spec-kitty-events`. Core takes both the native binary and the jar from a pinned `service-v*` release, executes either only when its sha256 matches the pin, and fetches it on first use. The no-Python-writer rule and the named refusal are unchanged; the refusal codes are listed in 2026-10-29-1 D-5.
+
+Nothing else in this record changes.

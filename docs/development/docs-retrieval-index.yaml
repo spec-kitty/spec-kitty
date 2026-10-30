@@ -1545,6 +1545,7 @@ pages:
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "references", text: "References", level: 2}
     - {slug: "amendment-2026-10-22-the-boundary-covers-public-symbols-not-only-the-public-package-6607", text: "Amendment 2026-10-22: the boundary covers public symbols, not only the public package (#6607)", level: 2}
+    - {slug: "amendment-2026-10-29-accepted-the-events-services-live-in-spec-kitty-events", text: "Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events", level: 2}
   - path: "docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md"
     title: "ADR: Contract Pinning to the Resolved Package Version"
     divio_type: "none"
@@ -3420,6 +3421,7 @@ pages:
     - {slug: "option-4-http-service-in-the-cli", text: "Option 4: HTTP service in the CLI", level: 3}
     - {slug: "open-questions-operator", text: "Open questions (operator)", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-29-accepted-the-events-services-live-in-spec-kitty-events", text: "Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events", level: 2}
   - path: "docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md"
     title: "ADR: the decision ledger is a PRIMARY-partition kind (reverses the #3928 COORD intent)"
     divio_type: "none"
@@ -3805,6 +3807,7 @@ pages:
     - {slug: "canonicalize-only-at-the-outbound-edge", text: "Canonicalize only at the outbound edge", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendments", text: "Amendments", level: 2}
+    - {slug: "amendment-2026-10-29-accepted-the-events-services-live-in-spec-kitty-events", text: "Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events", level: 2}
   - path: "docs/adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md"
     title: "ADR: QA and core share ownership of the acceptance scenarios, and engineering tests move into them only through a checked ledger"
     divio_type: "none"
@@ -3946,6 +3949,7 @@ pages:
     - {slug: "a-resident-daemon-per-worktree", text: "A resident daemon per worktree", level: 3}
     - {slug: "a-resident-java-write-service-per-repository-chosen", text: "A resident Java write service per repository (chosen)", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-29-accepted-the-events-services-live-in-spec-kitty-events", text: "Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events", level: 2}
   - path: "docs/adr/4.x/2026-10-26-1-done-judges-every-issue-matrix-row.md"
     title: "ADR: at done, every issue-matrix row is judged, cited or not"
     divio_type: "none"
@@ -3991,6 +3995,7 @@ pages:
     - {slug: "loopback-http-with-a-bearer-token-chosen", text: "Loopback HTTP with a bearer token (chosen)", level: 3}
     - {slug: "a-process-per-write", text: "A process per write", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-29-accepted-the-events-services-live-in-spec-kitty-events", text: "Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events", level: 2}
   - path: "docs/adr/4.x/2026-10-27-2-owned-refusals-use-the-c2-error-contract.md"
     title: "ADR: owned-checkout refusals use the C2 error contract"
     divio_type: "none"
@@ -4005,6 +4010,31 @@ pages:
     - {slug: "neutral", text: "Neutral", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md"
+    title: "ADR: the events domain and its Java services live in spec-kitty-events; core consumes a released, pinned service"
+    divio_type: "none"
+    abstract: "The Java read and write services and the events contracts move to spec-kitty-events with their history; core pins a service-v* release by tag and per-asset sha256, fetches it on first use, and fails closed without it."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-spec-kitty-events-owns-the-java-services-and-the-events-contracts", text: "D-1: spec-kitty-events owns the Java services and the events contracts", level: 3}
+    - {slug: "d-2-the-service-v-release-line-is-core-s-only-source-for-service-binaries", text: "D-2: the `service-v*` release line is core's only source for service binaries", level: 3}
+    - {slug: "d-3-core-pins-a-release-by-tag-and-per-asset-sha256-derived-from-the-ruling", text: "D-3: core pins a release by tag and per-asset sha256 *(derived from the ruling)*", level: 3}
+    - {slug: "d-4-users-get-the-binary-by-a-first-run-digest-verified-fetch", text: "D-4: users get the binary by a first-run, digest-verified fetch", level: 3}
+    - {slug: "d-5-one-launcher-fail-closed-for-every-pinned-service-derived", text: "D-5: one launcher, fail-closed, for every pinned service *(derived)*", level: 3}
+    - {slug: "d-6-the-read-service-is-pinned-for-ci-conformance-only", text: "D-6: the read service is pinned for CI conformance only", level: 3}
+    - {slug: "d-7-the-client-side-stays-in-core-derived", text: "D-7: the client side stays in core *(derived)*", level: 3}
+    - {slug: "d-8-one-owner-for-http-release-asset-downloads-derived", text: "D-8: one owner for HTTP release-asset downloads *(derived)*", level: 3}
+    - {slug: "d-9-freeze-until-removal", text: "D-9: freeze until removal", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "keep-the-services-in-core", text: "Keep the services in core", level: 3}
+    - {slug: "move-them-to-spec-kitty-events-chosen", text: "Move them to spec-kitty-events (chosen)", level: 3}
+    - {slug: "move-them-to-a-new-service-repository", text: "Move them to a new service repository", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -14878,6 +14908,25 @@ pages:
     divio_type: "none"
     abstract: "Redirect stub: the runtime and state overhaul domains-and-splits note moved to the docs archive; kept so old links, including ADR links, resolve."
     anchors: []
+  - path: "docs/plans/events-domain-move/plan.md"
+    title: "Events domain move: core-side plan (session B)"
+    divio_type: "none"
+    abstract: "**Status:** DRAFT for operator sign-off. Planning and preparation only (operator update 2026-10-29). Nothing below has been applied to `main`. No issue comments, no PRs."
+    anchors:
+    - {slug: "1-what-core-holds-today-phase-0-inventory", text: "1. What core holds today (Phase 0 inventory)", level: 2}
+    - {slug: "1-1-the-service-tree", text: "1.1 The service tree", level: 3}
+    - {slug: "1-2-everything-outside-services-that-couples-to-it", text: "1.2 Everything outside `services/` that couples to it", level: 3}
+    - {slug: "1-3-precedents", text: "1.3 Precedents", level: 3}
+    - {slug: "2-in-flight-work-that-must-merge-first", text: "2. In-flight work that must merge first", level: 2}
+    - {slug: "3-design-one-pinned-service-mechanism-serves-6590-6676-and-this-move", text: "3. Design: one pinned-service mechanism (serves #6590, #6676 and this move)", level: 2}
+    - {slug: "3-1-lockfile-one-per-service-pins-source-yaml", text: "3.1 Lockfile, one per service: `pins/<service>.source.yaml`", level: 3}
+    - {slug: "3-2-fetch-and-verify-python-kernel-layer", text: "3.2 Fetch and verify (Python, `kernel` layer)", level: 3}
+    - {slug: "3-3-launcher-python-specify-cli", text: "3.3 Launcher (Python, `specify_cli`)", level: 3}
+    - {slug: "3-4-shipping-the-binary-to-users-the-open-decision-q1", text: "3.4 Shipping the binary to users: the open decision (Q1)", level: 3}
+    - {slug: "4-cut-over-runbook-ordered-each-step-gated-on-the-previous", text: "4. Cut-over runbook (ordered; each step gated on the previous)", level: 2}
+    - {slug: "5-issue-retarget-proposals-none-actioned", text: "5. Issue retarget proposals (none actioned)", level: 2}
+    - {slug: "6-adr-and-governance-drafts-to-write-after-the-q-answers", text: "6. ADR and governance drafts (to write after the Q answers)", level: 2}
+    - {slug: "7-operator-decisions-2026-10-29", text: "7. Operator decisions (2026-10-29)", level: 2}
   - path: "docs/plans/glossary-doctrine-overhaul-program.md"
     title: "Glossary Doctrine Overhaul — Program Plan"
     divio_type: "none"

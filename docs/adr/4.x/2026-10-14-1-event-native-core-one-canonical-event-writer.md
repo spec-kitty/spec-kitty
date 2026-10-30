@@ -3,12 +3,12 @@ title: 'ADR: an event-native core with one canonical event writer behind a domai
 description: 'One EventBridge module writes only spec-kitty-events contract events; the run loop calls its port; git and filesystem effects become internal consumers.'
 status: Accepted
 date: '2026-10-14'
-updated: '2026-10-22'
+updated: '2026-10-29'
 ---
 
 # An event-native core with one canonical event writer behind a domain port
 
-**Status:** Accepted (2026-10-14). Decided by the operator on 2026-10-14; this record writes the decision down. Amended 2026-10-22 by [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md) (D-1, D-2, D-5 and the Confirmation; see Amendments at the end).
+**Status:** Accepted (2026-10-14). Decided by the operator on 2026-10-14; this record writes the decision down. Amended 2026-10-22 by [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md) (D-1, D-2, D-5 and the Confirmation; see Amendments at the end). Amended by [ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) (the events services live in spec-kitty-events); see Amendment 2026-10-29.
 
 **Date:** 2026-10-14
 
@@ -223,3 +223,11 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
   - #4941's library fix (the approved-departure lift, `spec-kitty-events` 10.5.1) has shipped. What remains is narrower: a non-approval transition minted on a clock behind the event it follows still sorts before it.
   - The consolidation gates read through that same reducer.
   - The Technical Story's "keeps ADR 2026-02-09-3 unchanged" now holds only for its merge rules. Its ordering is amended to wall clock for 4.0.0 (ADR 2026-02-09-3, Amendment 2026-10-22), and Lamport-primary ordering is a post-GA direction (#6609).
+
+## Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events
+
+[ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
+
+- **Where the writer lives.** The Java write service that 2026-10-22-1 made the canonical writer is built and released by `spec-kitty-events`. Core keeps the domain port, `bind_event_bridge` and the client adapter. D-1 to D-5 are otherwise unchanged.
+
+Nothing else in this record changes.
