@@ -55,6 +55,20 @@ class PathValidationResult:
     #: itself, so a reader can tell "already integrated" from "present in the
     #: approved lane".
     satisfied_by: dict[str, str] = field(default_factory=dict)
+    #: #6633: path-convention keys that are missing from the workspace AND can
+    #: be remapped by a ``project.path_conventions`` override (``.kittify/config.yaml``,
+    #: #3016) -- every missing key EXCEPT the artifact-routed ones, which the
+    #: override vocabulary excludes (C-010). Drives the copy-pasteable remap
+    #: example in ``format_errors``; empty when nothing missing is remappable,
+    #: so hand-built results keep rendering the historical two-lever text.
+    remappable_missing_keys: list[str] = field(default_factory=list)
+    #: #6633: the mission-type slug (``<...>/missions/<type>``'s last segment,
+    #: e.g. ``software-dev``) used to name the project mission-override route
+    #: (``.kittify/overrides/missions/<type>/mission.yaml``, #4088) in the
+    #: failure text. ``None`` when the slug cannot be derived from the
+    #: mission's resolver path -- ``format_errors`` then renders a generic
+    #: ``<mission-type>`` placeholder rather than guessing.
+    mission_type: str | None = None
 
     @property
     def is_valid(self) -> bool:
@@ -94,15 +108,46 @@ class PathValidationResult:
                 "errors for this mission run - or, if you want to adopt the convention, "
                 "see the commands below:"
             )
-            lines.append("")
-            lines.append("Required Actions:")
-            for suggestion in self.suggestions:
-                lines.append(f"  - {suggestion}")
         else:
             lines.append(
                 "Run `accept --lenient` to treat these as warnings instead of blocking "
                 "errors for this mission run."
             )
+
+        # #6633: name the honest project-level levers #3016/#4088 added, so a
+        # repo whose real layout is not ``src/``/``tests/``/``docs/`` can
+        # self-serve instead of fabricating directories or paying the
+        # ``--lenient`` metadata-check cost. Rendered only when at least one
+        # missing key is remappable: an artifact-routed key (``deliverables``)
+        # is excluded from the override vocabulary (C-010) and governed by the
+        # #5298 ``contracts: none`` waiver instead. Placed AFTER the
+        # ``--lenient`` sentence and BEFORE the ``mkdir -p`` suggestions so the
+        # #3783 ordering contract (``--lenient`` first) is preserved.
+        if self.remappable_missing_keys:
+            lines.append("")
+            lines.append(
+                "If this project's real layout differs from these conventions, remap "
+                "them in `.kittify/config.yaml` via `project.path_conventions` (see ADR "
+                "project-path-convention-override-precedes-doctrine):"
+            )
+            lines.append("")
+            lines.append("  project:")
+            lines.append("    path_conventions:")
+            for key in self.remappable_missing_keys:
+                lines.append(f"      {key}: <real-directory>/  # where this project keeps its {key}")
+            lines.append("")
+            lines.append(
+                "A key this project has no directory for can instead be dropped by "
+                "copying the packaged mission.yaml to "
+                f"`.kittify/overrides/missions/{self.mission_type or '<mission-type>'}/mission.yaml` "
+                "and removing that key's line."
+            )
+
+        if self.suggestions:
+            lines.append("")
+            lines.append("Required Actions:")
+            for suggestion in self.suggestions:
+                lines.append(f"  - {suggestion}")
 
         return "\n".join(lines)
 
@@ -226,6 +271,58 @@ def _drop_overrides_colliding_with_artifacts(
     return safe_overrides
 
 
+def _mission_type_slug(mission: Mission) -> str | None:
+    """Return the mission-type slug from a resolver-style mission path (#6633).
+
+    ``Mission.path`` is ``<...>/missions/<type>`` on every resolver tier
+    (package, global, legacy project, org, override), so its last segment is
+    the type slug the project mission-override route is keyed by. Derive it
+    ONLY when the path genuinely sits inside a ``missions`` directory -- a
+    descriptive marker path elsewhere (a feature directory, a hand-built stub
+    with no path at all) yields ``None``, and the failure text renders a
+    generic ``<mission-type>`` placeholder instead of guessing.
+    """
+    mission_path = getattr(mission, "path", None)
+    if not isinstance(mission_path, Path):
+        return None
+    if mission_path.parent.name != "missions":
+        return None
+    slug = mission_path.name
+    return slug or None
+
+
+def _record_missing_path(
+    result: PathValidationResult,
+    *,
+    mission_name: str,
+    key: str,
+    resolved: str,
+    relative_path: str,
+    is_artifact_tagged: bool,
+) -> None:
+    """Record one missing required path on ``result`` (#6633: split out of
+    ``validate_mission_paths`` to keep its cyclomatic complexity under the C901
+    limit -- behaviour is unchanged).
+
+    Also records the render input the strict failure text's project-level
+    guidance needs: a missing key outside ``ARTIFACT_ROUTED_KEYS`` is remappable
+    via ``project.path_conventions`` (#3016); artifact-routed keys are excluded
+    from the override vocabulary (C-010) and governed by the #5298 waiver.
+    """
+    result.missing_paths.append(resolved)
+    result.warnings.append(f"{mission_name} expects {key} path: {resolved} (not found)")
+    if key not in ARTIFACT_ROUTED_KEYS:
+        result.remappable_missing_keys.append(key)
+    if is_artifact_tagged:
+        # Real feature_dir-relative token, straight from the declared path —
+        # `resolved` above is project_root-relative and can't recover this.
+        # A build/repo-root path is never appended here: it can never be a
+        # declared mission artifact, so the sole consumer's artifact_tokens
+        # membership filter could never let it through (see the field's
+        # docstring above).
+        result.missing_artifact_tokens.append(normalize_path_token(relative_path))
+
+
 def validate_mission_paths(
     mission: Mission,
     project_root: Path,
@@ -301,6 +398,7 @@ def validate_mission_paths(
     result = PathValidationResult(
         mission_name=mission.name,
         required_paths=required_paths,
+        mission_type=_mission_type_slug(mission),
     )
 
     if not required_paths:
@@ -348,16 +446,14 @@ def validate_mission_paths(
         if relative_path.endswith("/") and not resolved.endswith("/"):
             resolved += "/"
 
-        result.missing_paths.append(resolved)
-        result.warnings.append(f"{mission.name} expects {key} path: {resolved} (not found)")
-        if is_artifact_tagged:
-            # Real feature_dir-relative token, straight from the declared path —
-            # `resolved` above is project_root-relative and can't recover this.
-            # A build/repo-root path is never appended here: it can never be a
-            # declared mission artifact, so the sole consumer's artifact_tokens
-            # membership filter could never let it through (see the field's
-            # docstring above).
-            result.missing_artifact_tokens.append(normalize_path_token(relative_path))
+        _record_missing_path(
+            result,
+            mission_name=mission.name,
+            key=key,
+            resolved=resolved,
+            relative_path=relative_path,
+            is_artifact_tagged=is_artifact_tagged,
+        )
 
     if result.missing_paths:
         result.suggestions = suggest_directory_creation(result.missing_paths)

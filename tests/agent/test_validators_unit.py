@@ -168,8 +168,12 @@ class _MissionStub:
         *,
         required_artifacts: tuple[str, ...] = (),
         optional_artifacts: tuple[str, ...] = (),
+        mission_path: Path | None = None,
     ) -> None:
         self.name = name
+        # #6633: optional resolver-style marker path (``<...>/missions/<type>``)
+        # so tests can exercise the mission-type slug in the failure guidance.
+        self.path = mission_path
         self.config = SimpleNamespace(
             paths=paths,
             artifacts=SimpleNamespace(
@@ -522,6 +526,97 @@ def test_format_errors_names_lenient_before_mkdir_and_drops_unconditional_claim(
     assert "mkdir -p" in output
     assert output.index("--lenient") < output.index("mkdir -p")
     assert "are required by the active mission" not in output
+
+
+def _go_style_repo(tmp_path: Path) -> Path:
+    """A repo with a real layout but no ``src/``, ``tests/`` or ``docs/`` (#6633)."""
+    repo_root = tmp_path / "repo"
+    (repo_root / "internal").mkdir(parents=True)
+    (repo_root / "kitty-specs" / "010-mission").mkdir(parents=True)
+    return repo_root
+
+
+def _software_dev_stub(mission_path: Path | None = None) -> _MissionStub:
+    return _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "tests": "tests/", "documentation": "docs/"},
+        optional_artifacts=("contracts/",),
+        mission_path=mission_path,
+    )
+
+
+def test_strict_failure_names_project_path_conventions_and_drop_route(tmp_path: Path) -> None:
+    """#6633: the strict failure text must name the honest project-level levers
+    #3016 (``project.path_conventions`` remap) and #4088 (mission-type override)
+    for a repo whose layout is not ``src/``/``tests/``/``docs/`` -- with the exact
+    missing keys in a copy-pasteable example, while the #3783 ordering contract
+    (``--lenient`` before ``mkdir -p``) stays intact.
+    """
+    repo_root = _go_style_repo(tmp_path)
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+    missions_dir = repo_root / ".kittify" / "missions"
+    missions_dir.mkdir(parents=True)
+    mission = _software_dev_stub(missions_dir / "software-dev")
+
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(mission, repo_root, strict=True, feature_dir=feature_dir)
+
+    output = str(excinfo.value)
+
+    # The remap lever is named with its config file (FR-001).
+    assert "project.path_conventions" in output
+    assert ".kittify/config.yaml" in output
+    # The example lists EXACTLY the missing remappable keys -- key names, not a
+    # version-fragile literal snapshot of the whole text.
+    for key in ("workspace", "tests", "documentation"):
+        assert f"{key}:" in output
+    # The drop lever is named with the real mission-type directory (FR-002).
+    assert ".kittify/overrides/missions/software-dev/mission.yaml" in output
+    # The #3783 contract survives the addition (FR-003).
+    assert "--lenient" in output
+    assert output.index("--lenient") < output.index("mkdir -p")
+
+
+def test_path_conventions_example_lists_only_actually_missing_keys(tmp_path: Path) -> None:
+    """#6633: a satisfied convention must not appear in the copy-pasteable
+    ``project.path_conventions`` example (partial-missing scenario)."""
+    repo_root = _go_style_repo(tmp_path)
+    (repo_root / "docs").mkdir()  # only src/ and tests/ are missing now
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+    mission = _software_dev_stub()
+
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(mission, repo_root, strict=True, feature_dir=feature_dir)
+
+    output = str(excinfo.value)
+
+    assert "workspace:" in output
+    assert "tests:" in output
+    assert "documentation:" not in output
+
+
+def test_artifact_routed_missing_key_gets_no_path_conventions_hint(tmp_path: Path) -> None:
+    """#6633/C-002: ``deliverables`` is artifact-routed and excluded from the
+    ``project.path_conventions`` vocabulary -- when it is the ONLY missing path,
+    the failure text must not suggest the remap (the #5298 waiver governs it)."""
+    repo_root = tmp_path / "repo"
+    (repo_root / "src").mkdir(parents=True)
+    feature_dir = repo_root / "kitty-specs" / "010-mission"
+    feature_dir.mkdir(parents=True)
+    mission = _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "deliverables": "contracts/"},
+        optional_artifacts=("contracts/",),
+    )
+
+    with pytest.raises(PathValidationError) as excinfo:
+        validate_mission_paths(mission, repo_root, strict=True, feature_dir=feature_dir)
+
+    output = str(excinfo.value)
+
+    assert "contracts" in output  # the missing artifact is still reported
+    assert "project.path_conventions" not in output
+    assert ".kittify/overrides/missions/" not in output
 
 
 def test_waived_artifact_path_is_not_required(tmp_path: Path) -> None:
