@@ -16,7 +16,17 @@ reason, and, on apply, deletes the candidates under the right locks.
   (FR-007, FR-008). A run's work is over when its Mission is merged or the run
   itself recorded ``MissionRunCompleted``; a glossary log's when its Mission is
   completed (merged, or every WP terminal). A run's Mission comes from its
-  run-index entry (``next`` records none in ``state.json``).
+  run-index entry, or from its own snapshot when it has no entry; the snapshot
+  names it by id, by slug, or — as the production writer records it — by the
+  slug under ``inputs`` (#6739).
+- An item that names **no** owner at all is judged on age alone once it is past
+  both limits: a run left behind by a lost race has no Mission whose state could
+  protect it, and a log whose Op has no record is the trace of an Op this
+  checkout cannot see (#6739). A *recorded* owner that cannot be resolved keeps
+  its protection instead (``Mission not found``; operator ruling 2026-10-23).
+- Op-scoped glossary logs (``profile-invocation-<id>.events.jsonl``) link to
+  their Op, not to a Mission: kept while the Op is open, eligible once it
+  completes, age-judged when it has no record (#6739).
 - ``rebuildable`` items (derived Mission views) are candidates whatever their
   age, unless locked (FR-010). The Op index is not in scope (operator ruling
   2026-10-28): ``invocations list`` trusts a partial index.
@@ -54,6 +64,7 @@ from runtime.next.run_lock import try_run_cursor_lock
 from specify_cli.context.mission_resolver import FsMissionResolver
 from specify_cli.core.ledger_retention import RetentionLimits
 from specify_cli.core.paths import MissionMetaReadError
+from specify_cli.invocation.writer import read_ops_roster
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.state.contract import STATE_SURFACES, RetentionRule, get_surfaces_by_retention
 from specify_cli.status import is_mission_completed, is_mission_merged
@@ -75,10 +86,20 @@ __all__ = [
 
 KIND_RUN = "run"
 KIND_MISSION_LOG = "mission_log"
+KIND_OP_LOG = "op_log"
 KIND_CACHE = "cache"
 
 VERDICT_CANDIDATE = "candidate"
 VERDICT_KEPT = "kept"
+
+#: What an item's owner link says about it (#6739). ``LINK_OWNED`` means the
+#: owner is found here, so its own state decides eligibility; ``LINK_UNLINKED``
+#: means the item names no owner at all, so only age decides; ``LINK_UNKNOWN``
+#: means an owner *is* recorded but this checkout cannot resolve it, which keeps
+#: the item (operator ruling 2026-10-23).
+LINK_OWNED = "owned"
+LINK_UNLINKED = "unlinked"
+LINK_UNKNOWN = "unknown"
 
 REASON_COMPLETED = "past retention; Mission completed"
 REASON_REBUILDABLE = "rebuildable cache"
@@ -87,6 +108,12 @@ REASON_YOUNGER_THAN_MAX_AGE = "younger than max_age_days"
 REASON_MISSION_OPEN = "Mission is open"
 REASON_MISSION_NOT_FOUND = "Mission not found"
 REASON_LOCK_HELD = "lock held"
+#: An item that names no owner at all: age alone decides.
+REASON_NO_MISSION = "past retention; no Mission recorded"
+REASON_NO_OP = "past retention; no Op recorded"
+#: An Op-scoped log's own verdicts.
+REASON_OP_COMPLETED = "past retention; Op completed"
+REASON_OP_OPEN = "Op is open"
 
 # Registry surface names this engine has a collector for.
 _SURFACE_RUN_SNAPSHOT = "runtime_run_snapshot"
@@ -104,6 +131,8 @@ _GLOSSARY_LOG_DIR = GLOSSARY_EVENTS_DIR
 _GLOSSARY_LOG_SUFFIX = EVENT_LOG_SUFFIX
 #: Glossary logs that name no Mission (``_cli``, ``_renderer``) start with this.
 _NON_MISSION_LOG_PREFIX = "_"
+#: Op-scoped glossary logs are named for the Op they belong to (#6739).
+_OP_LOG_PREFIX = "profile-invocation-"
 
 
 def _registry_pattern(surface_name: str) -> Path:
@@ -343,14 +372,31 @@ _LockFactory = Callable[[], SyncMachineFileLock]
 
 @dataclass(frozen=True)
 class _Unit:
-    """One deletable unit before its verdict."""
+    """One deletable unit with its owner link, before its verdict.
+
+    ``link`` is :data:`LINK_OWNED` (``feature_dir`` names the Mission, or
+    ``work_over`` states the Op's lifecycle), :data:`LINK_UNLINKED` (the item
+    names no owner at all) or :data:`LINK_UNKNOWN` (an owner is recorded but
+    this checkout cannot resolve it). ``work_over`` is set only for a family
+    whose owner is not a Mission directory, so its lifecycle is decided while
+    collecting rather than by the collector's ``done`` predicate.
+    """
 
     surface: str
     kind: str
     path: Path
     age_days: float
-    feature_dir: Path | None
+    link: str = LINK_UNKNOWN
+    feature_dir: Path | None = None
     lock: _LockFactory | None = None
+    #: Why a candidate that names no owner is eligible (its family's wording).
+    unlinked_reason: str = REASON_NO_MISSION
+    #: Why a candidate whose owner's work is over is eligible.
+    done_reason: str = REASON_COMPLETED
+    #: Why an item whose owner's work is still running is kept.
+    open_reason: str = REASON_MISSION_OPEN
+    #: A pre-decided lifecycle fact for a family whose owner has no feature dir.
+    work_over: bool | None = None
 
     def judged(self, verdict: str, reason: str) -> RetentionItem:
         mission = self.feature_dir.name if self.feature_dir is not None else None
@@ -453,29 +499,79 @@ def _index_entries_by_run_dir(repo_root: Path) -> dict[Path, list[dict[str, Any]
     return by_dir
 
 
-def _read_snapshot_mission(run_dir: Path, missions: _Missions) -> Path | None:
-    """Legacy fallback: the Mission a run's own snapshot records; unreadable reads as unknown."""
+@dataclass(frozen=True)
+class _RunLink:
+    """What a run's own records say about the Mission it belongs to (#6739)."""
+
+    link: str
+    feature_dir: Path | None = None
+
+
+def _present(value: object) -> bool:
+    """True when a recorded identity field carries a value."""
+    return value is not None and value != ""
+
+
+def _linked(feature_dir: Path | None) -> _RunLink:
+    """A recorded identity: owned when this checkout resolves it, unknown otherwise."""
+    return _RunLink(LINK_OWNED, feature_dir) if feature_dir is not None else _RunLink(LINK_UNKNOWN)
+
+
+def _inputs_slug(state: dict[str, Any]) -> object | None:
+    """The Mission slug the production writer records under ``inputs`` (#6739).
+
+    ``runtime.next.runtime_bridge_io.get_or_start_run`` leaves ``mission_id`` and
+    ``mission_slug`` empty and records the Mission only as
+    ``inputs.mission_slug``, so that field is a run snapshot's slug record.
+    """
+    inputs = state.get("inputs")
+    if not isinstance(inputs, dict):
+        return None
+    slug = inputs.get("mission_slug")
+    return slug if _present(slug) else None
+
+
+def _snapshot_link(state: dict[str, Any], missions: _Missions) -> _RunLink:
+    """The Mission a run snapshot records: its id, else its slug, else its recorded input slug.
+
+    The identity rule is unchanged (C-001): a recorded ``mission_id`` is the only
+    runtime identity, and a slug is read only from a record that carries no id.
+    A snapshot that records none of the three names no Mission at all.
+    """
+    mission_id = state.get("mission_id")
+    if _present(mission_id):
+        return _linked(missions.by_id(mission_id) if isinstance(mission_id, str) else None)
+    slug = state.get("mission_slug")
+    if _present(slug):
+        return _linked(missions.by_slug(slug))
+    input_slug = _inputs_slug(state)
+    if input_slug is None:
+        return _RunLink(LINK_UNLINKED)
+    return _linked(missions.by_slug(input_slug))
+
+
+def _read_snapshot_link(run_dir: Path, missions: _Missions) -> _RunLink:
+    """The Mission a run's own snapshot records; unreadable reads as unknown (fail safe)."""
     try:
         state = json.loads((run_dir / _RUN_STATE_FILENAME).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    return _mission_of_record(state, missions) if isinstance(state, dict) else None
+        return _RunLink(LINK_UNKNOWN)
+    return _snapshot_link(state, missions) if isinstance(state, dict) else _RunLink(LINK_UNKNOWN)
 
 
-def _run_mission(run_dir: Path, entries: list[dict[str, Any]], missions: _Missions) -> Path | None:
+def _run_link(run_dir: Path, entries: list[dict[str, Any]], missions: _Missions) -> _RunLink:
     """Resolve a run's Mission: its run-index entry first, its snapshot only when unindexed.
 
     ``next`` records the Mission of a run in the run index
-    (``feature-runs.json``: ``mission_id`` / ``mission_slug``), not in
-    the run's ``state.json``. A run with no index entry falls back to the
-    snapshot's own ``mission_id`` / ``mission_slug`` (older writers); a run
-    that neither names is ``Mission not found``. Entries that disagree read as
-    unknown.
+    (``feature-runs.json``: ``mission_id`` / ``mission_slug``). A run with no
+    index entry falls back to its own snapshot's identity — its ``mission_id``,
+    its ``mission_slug``, or its recorded input slug (older and production
+    writers respectively). Entries that disagree read as unknown.
     """
     if not entries:
-        return _read_snapshot_mission(run_dir, missions)
+        return _read_snapshot_link(run_dir, missions)
     resolved = {_mission_of_record(entry, missions) for entry in entries}
-    return resolved.pop() if len(resolved) == 1 else None
+    return _linked(resolved.pop()) if len(resolved) == 1 else _RunLink(LINK_UNKNOWN)
 
 
 def _collect_runs(ctx: _ScanContext) -> list[_Unit]:
@@ -488,13 +584,15 @@ def _collect_runs(ctx: _ScanContext) -> list[_Unit]:
         age = _age_or_none(ctx, run_dir)
         if age is None:
             continue
+        link = _run_link(run_dir, entries_by_dir.get(run_dir.resolve(), []), ctx.missions)
         units.append(
             _Unit(
                 surface=_SURFACE_RUN_EVENT_LOG,
                 kind=KIND_RUN,
                 path=run_dir,
                 age_days=age,
-                feature_dir=_run_mission(run_dir, entries_by_dir.get(run_dir.resolve(), []), ctx.missions),
+                link=link.link,
+                feature_dir=link.feature_dir,
                 lock=_run_lock(run_dir),
             )
         )
@@ -507,21 +605,66 @@ def _collect_glossary_logs(ctx: _ScanContext) -> list[_Unit]:
         return []
     units: list[_Unit] = []
     for log in sorted(log_dir.glob(f"*{_GLOSSARY_LOG_SUFFIX}")):
-        if log.name.startswith(_NON_MISSION_LOG_PREFIX) or log.is_symlink() or not log.is_file():
+        if log.name.startswith((_NON_MISSION_LOG_PREFIX, _OP_LOG_PREFIX)) or log.is_symlink() or not log.is_file():
             continue  # FR-011: _cli / _renderer name no Mission and are never listed; symlinks never.
         age = _age_or_none(ctx, log)
         if age is None:
             continue
         # The stem is the sanitized mission_id; there is no slug fallback here.
         stem = log.name.removesuffix(_GLOSSARY_LOG_SUFFIX)
+        feature_dir = ctx.missions.by_log_stem(stem)
         units.append(
             _Unit(
                 surface=_SURFACE_GLOSSARY_LOG,
                 kind=KIND_MISSION_LOG,
                 path=log,
                 age_days=age,
-                feature_dir=ctx.missions.by_log_stem(stem),
+                link=LINK_OWNED if feature_dir is not None else LINK_UNKNOWN,
+                feature_dir=feature_dir,
                 lock=_writers_log_lock(log),
+            )
+        )
+    return units
+
+
+def _collect_op_logs(ctx: _ScanContext) -> list[_Unit]:
+    """Op-scoped glossary logs, judged by the state of the Op they belong to (#6739).
+
+    The Op roster is read once per scan, so 1,000 logs cost one pass over the
+    record directory rather than one probe per log. An Op log names its Op in its
+    stem; a log whose Op has no record here is unlinked and therefore judged on
+    age alone.
+    """
+    log_dir = ctx.repo_root / _GLOSSARY_LOG_DIR
+    if not log_dir.is_dir():
+        return []
+    roster = read_ops_roster(ctx.repo_root)
+    units: list[_Unit] = []
+    for log in sorted(log_dir.glob(f"{_OP_LOG_PREFIX}*{_GLOSSARY_LOG_SUFFIX}")):
+        if log.is_symlink() or not log.is_file():
+            continue
+        age = _age_or_none(ctx, log)
+        if age is None:
+            continue
+        invocation_id = log.name.removesuffix(_GLOSSARY_LOG_SUFFIX).removeprefix(_OP_LOG_PREFIX)
+        if invocation_id in roster.open:
+            link, work_over = LINK_OWNED, False
+        elif invocation_id in roster.recorded:
+            link, work_over = LINK_OWNED, True
+        else:
+            link, work_over = LINK_UNLINKED, None
+        units.append(
+            _Unit(
+                surface=_SURFACE_GLOSSARY_LOG,
+                kind=KIND_OP_LOG,
+                path=log,
+                age_days=age,
+                link=link,
+                lock=_writers_log_lock(log),
+                unlinked_reason=REASON_NO_OP,
+                done_reason=REASON_OP_COMPLETED,
+                open_reason=REASON_OP_OPEN,
+                work_over=work_over,
             )
         )
     return units
@@ -535,7 +678,17 @@ def _collect_derived_views(ctx: _ScanContext) -> list[_Unit]:
     for view_dir in _real_dirs(derived):
         age = _age_or_none(ctx, view_dir)
         if age is not None:
-            units.append(_Unit(_SURFACE_DERIVED_VIEWS, KIND_CACHE, view_dir, age, ctx.missions.by_slug(view_dir.name)))
+            feature_dir = ctx.missions.by_slug(view_dir.name)
+            units.append(
+                _Unit(
+                    surface=_SURFACE_DERIVED_VIEWS,
+                    kind=KIND_CACHE,
+                    path=view_dir,
+                    age_days=age,
+                    link=LINK_OWNED if feature_dir is not None else LINK_UNKNOWN,
+                    feature_dir=feature_dir,
+                )
+            )
     return units
 
 
@@ -599,6 +752,10 @@ _COLLECTORS: tuple[_Collector, ...] = (
         done=_run_is_done,
     ),
     _Collector(frozenset({_SURFACE_GLOSSARY_LOG}), RetentionRule.LEDGER_RETENTION, _GLOSSARY_LOG_DIR, _collect_glossary_logs),
+    # Op-scoped logs share the glossary directory and registry surface but are
+    # their own family: ``keep_runs`` ranks them among themselves, so a flood of
+    # Op logs cannot push a Mission's log out of the newest N (#6739).
+    _Collector(frozenset({_SURFACE_GLOSSARY_LOG}), RetentionRule.LEDGER_RETENTION, _GLOSSARY_LOG_DIR, _collect_op_logs),
     _Collector(frozenset({_SURFACE_DERIVED_VIEWS}), RetentionRule.REBUILDABLE, _DERIVED_DIR, _collect_derived_views),
 )
 
@@ -667,13 +824,16 @@ def _ledger_verdict(unit: _Unit, rank: int, limits: RetentionLimits, missions: _
         return unit.judged(VERDICT_KEPT, REASON_WITHIN_KEEP_RUNS)
     if unit.age_days <= limits.max_age_days:
         return unit.judged(VERDICT_KEPT, REASON_YOUNGER_THAN_MAX_AGE)
-    if unit.feature_dir is None:
+    if unit.link is LINK_UNLINKED:
+        return unit.judged(VERDICT_CANDIDATE, unit.unlinked_reason)
+    if unit.link is LINK_UNKNOWN:
         return unit.judged(VERDICT_KEPT, REASON_MISSION_NOT_FOUND)
-    if not done(unit.path, unit.feature_dir, missions):
-        return unit.judged(VERDICT_KEPT, REASON_MISSION_OPEN)
+    work_over = unit.work_over if unit.work_over is not None else unit.feature_dir is not None and done(unit.path, unit.feature_dir, missions)
+    if not work_over:
+        return unit.judged(VERDICT_KEPT, unit.open_reason)
     if _lock_is_held(unit.lock):
         return unit.judged(VERDICT_KEPT, REASON_LOCK_HELD)
-    return unit.judged(VERDICT_CANDIDATE, REASON_COMPLETED)
+    return unit.judged(VERDICT_CANDIDATE, unit.done_reason)
 
 
 def _rebuildable_verdict(unit: _Unit) -> RetentionItem:
@@ -797,7 +957,7 @@ def _delete_run(repo_root: Path, item: RetentionItem) -> list[str]:
     writes nothing. Residual: taking that lock goes through
     ``kernel.locks._ensure_dir``, which may recreate an empty run directory
     holding only ``state.json.lock`` after the removal; it names no Mission, so
-    later scans keep it as ``Mission not found`` (tracked with #6739).
+    it is unlinked and a later scan past both limits removes it (#6739).
 
     Trade-off: the entries are dropped BEFORE the files go. If an unlink or the
     removal then fails (an open handle, permissions), the run stays on disk
