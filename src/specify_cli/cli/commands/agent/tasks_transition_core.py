@@ -645,9 +645,46 @@ def _authorize_review_override(req: MoveTaskRequest) -> bool:
     )
 
 
+def _feedback_edge_recordable(old_lane: str, target_lane: str) -> bool:
+    """True iff this edge can durably record a ``--review-feedback-file`` (#6699).
+
+    The union of the two edge families whose writers consume the resolved
+    file: review-rejection edges (the rejection writer) and approval edges
+    (the approval writer, #6652). Everywhere else no review cycle is written
+    and no on-wire ``review_ref`` exists, so a supplied file would be
+    validated and then dropped. Reuses the canonical predicates — never a
+    second source of truth for "which edges record review feedback".
+    """
+    return is_review_rejection_edge(old_lane, target_lane) or resolve_lane_alias(target_lane) in _APPROVAL_LANES
+
+
+def _feedback_file_no_effect_message(task_id: str, old_lane: str, target_lane: str) -> str:
+    """Refusal text for a ``--review-feedback-file`` on a non-recordable edge (#6699)."""
+    old = resolve_lane_alias(old_lane)
+    target = resolve_lane_alias(target_lane)
+    return (
+        f"Cannot move {task_id} from '{old}' to '{target}' with --review-feedback-file: "
+        "this edge writes no review cycle, so the file would be validated and then dropped.\n\n"
+        "The flag is only used on:\n"
+        "  - review-rejection edges: --to planned (from any lane), and in_review -> in_progress\n"
+        "  - approval edges: --to approved / --to done (recorded when a new approval review-cycle is written;\n"
+        "    otherwise a warning on stderr says it was not recorded)\n\n"
+        "Remove --review-feedback-file from this move, or put the rationale in --note."
+    )
+
+
 def _guard_feedback_file(req: MoveTaskRequest) -> RefuseExit1 | None:
+    # #6699: the edge arm deliberately PRECEDES the path checks — on an edge
+    # that writes no review cycle the flag is useless regardless of the path's
+    # validity, so the edge message wins over "not found"/"not a file". It is
+    # inert on approval lanes by construction, which keeps
+    # ``arbiter_persist_signal``'s prefix slice (it includes this guard)
+    # unchanged: that signal only arms for arbiter overrides, whose targets
+    # are exactly the approval lanes this arm never refuses.
     if not req.feedback_provided:
         return None
+    if not _feedback_edge_recordable(req.old_lane, req.target_lane):
+        return RefuseExit1(_feedback_file_no_effect_message(req.task_id, req.old_lane, req.target_lane))
     if not req.feedback_exists:
         return RefuseExit1(f"Review feedback file not found: {req.feedback_source}")
     if not req.feedback_is_file:
