@@ -1,0 +1,35 @@
+{
+  "accept_commit": "14fae21d2469828a0fac38ed6e4e22ad7e9613cd",
+  "acceptance_history": [
+    {
+      "accept_commit": "14fae21d2469828a0fac38ed6e4e22ad7e9613cd",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T12:28:06.164200+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "7a4b60be70e62280b09c86721b9289aa23ead8cf"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T12:28:06.164200+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "7a4b60be70e62280b09c86721b9289aa23ead8cf",
+  "baseline_merge_commit": "647a7039167675f5fc255f85f08754f980370691",
+  "created_at": "2026-10-30T11:29:52.910293+00:00",
+  "flattened": false,
+  "friendly_name": "remove decisions mission dir",
+  "merged_at": "2026-10-30T12:29:22.528768+00:00",
+  "merged_commit": "9c11642ea8834947ea9890e31ccb22d68cdd91aa",
+  "mid8": "01M6695J",
+  "mission_id": "01M6695JMW6V56MSXNC9BAFKWH",
+  "mission_number": 244,
+  "mission_slug": "remove-decisions-mission-dir-01M6695J",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances remove decisions mission dir on issue-6766-remove-decisions-mission-dir so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "remove decisions mission dir",
+  "slug": "remove-decisions-mission-dir-01M6695J",
+  "status_phase": "1",
+  "target_branch": "issue-6766-remove-decisions-mission-dir",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T11:35:51.092626+00:00"
+}
