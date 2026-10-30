@@ -15,5 +15,7 @@
   "purpose_tldr": "Extract one kernel helper for anchor-keyed lock paths",
   "slug": "anchor-lock-path-single-authority-01M66YWP",
   "target_branch": "issue-6727-anchor-lock-paths",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T17:54:11.098709+00:00"
 }

@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: issue-6727-anchor-lock-paths
 merge_target_branch: issue-6727-anchor-lock-paths
 branch_strategy: Planning artifacts for this mission were generated on issue-6727-anchor-lock-paths. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6727-anchor-lock-paths unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-anchor-lock-path-single-authority-01M66YWP
+base_commit: 9adc8d04a34e09518b61c2b3d25c3e5c7d7eaa18
+created_at: '2026-10-30T17:54:23.835342+00:00'
 subtasks:
 - T001
 - T002

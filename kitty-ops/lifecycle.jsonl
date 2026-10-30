@@ -114,3 +114,11 @@
 {"agent": "pi", "at": "2026-10-30T17:51:41.318189+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "started", "reason": null, "wp_id": null}
 {"agent": "pi", "at": "2026-10-30T17:52:44.294114+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "completed", "reason": null, "wp_id": null}
 {"agent": "pi", "at": "2026-10-30T17:53:08.796428+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T17:53:39.923889+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T17:53:45.802459+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "started", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-30T18:15:43.341684+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "completed", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-30T18:15:48.728364+00:00", "canonical_action_id": "review::review", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "started", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-30T18:16:37.840872+00:00", "canonical_action_id": "review::review", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "completed", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-30T18:16:44.976752+00:00", "canonical_action_id": "review::review", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "started", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-30T18:18:22.482756+00:00", "canonical_action_id": "review::review", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "completed", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-30T18:18:31.504488+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0", "phase": "started", "reason": null, "wp_id": "WP02"}
