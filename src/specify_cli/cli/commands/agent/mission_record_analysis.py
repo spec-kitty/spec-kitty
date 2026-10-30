@@ -500,6 +500,7 @@ def record_analysis(
             repo_root=repo_root,
             body=body,
             analyzer_agent=analyzer_agent,
+            charter_root=owned.owned_root if owned is not None else None,
         )
 
         # FR-003 (coord-commit-integrity): commit the analysis report via the
