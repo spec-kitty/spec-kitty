@@ -506,7 +506,6 @@ exclude = [
     "src/specify_cli/cli/commands/agent/mission.py",
     "src/specify_cli/cli/commands/agent/mission_parsing.py",
     "src/specify_cli/cli/commands/agent/mission_repair.py",
-    "src/specify_cli/cli/commands/agent/release.py",
     "src/specify_cli/cli/commands/agent/status.py",
     "src/specify_cli/cli/commands/agent/surface_presence.py",
     "src/specify_cli/cli/commands/agent/tasks.py",
