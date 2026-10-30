@@ -357,9 +357,9 @@ class StagingDir:
         return None
 
 
-__all__ = [
-    "DEFAULT_KEEP_FAILED_RUNS",
-    "StagingDir",
-    "retain_failed_staging_dirs",
-    "retention_hint",
-]
+# Only the cross-module exports live here: ``retention_hint`` is read by the
+# refusing error messages. ``DEFAULT_KEEP_FAILED_RUNS`` and
+# ``retain_failed_staging_dirs`` are public so tests can pin the bound and the
+# helper directly, but they are used inside this module (declaring them here
+# would claim a cross-module caller they do not have — the dead-symbol gate).
+__all__ = ["StagingDir", "retention_hint"]
