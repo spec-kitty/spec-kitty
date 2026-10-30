@@ -1,0 +1,93 @@
+# Pack-containment conformance table (#6733).
+#
+# The portable table for one rule: *a path an org pack declares must stay inside its own pack*.
+# An org pack is shareable, so a path that is absolute, climbs out with `..`, or resolves outside
+# its root (a symlink) is not sound — and every surface that reports on the pack has to say so.
+#
+# Core reports the rule on three surfaces, and this table asserts all three agree, one pack shape
+# per case:
+#   doctor   — `spec-kitty doctor charter-packs` (its JSON collector; codes + `errors`)
+#   status   — `spec-kitty charter status` (`org_layer.errors`)
+#   validate — `spec-kitty charter org validate` (issue categories + exit code)
+#
+# Why one table: the three surfaces drifted apart once already (#6418 taught the doctor; #6733
+# found `status` and `validate` still silent), and the spec-kitty-charter replacement inherits a
+# rule only if the rule is stated somewhere a replacement can be run against. The runner is
+# `test_pack_containment_conformance.py`; it drives the production entry points, never a helper,
+# and fails on an `expect` key its adapter does not observe.
+#
+# Plain data only: no expressions, no repository paths. `pack` names the fault to install in the
+# canonical example org pack; `expect` is exactly what each surface must answer.
+
+schema: pack-containment-conformance/1
+
+# Each case scaffolds its pack with the canonical `charter org init`, so the only faults present
+# are the ones the case declares.
+# `node_body_path` adds one authored node (id `team-asset`, kind `assets`) to `drg/fragment.yaml`;
+# `asset_path` adds one schema-valid asset sidecar (id `team-logo`). A key that is absent installs
+# nothing for that half.
+
+cases:
+  - id: escaping-body-path
+    pack:
+      node_body_path: "../../../../etc/hostname"
+    expect:
+      doctor:
+        codes: [ORG_FRAGMENT_BODY_PATH_ESCAPE]
+        names: [team-asset]
+        errors: 1
+      status:
+        errors: 1
+        names: [team-asset]
+      validate:
+        ok: false
+        categories: [body_path_escape]
+
+  - id: escaping-asset-path
+    pack:
+      asset_path: "../../../../etc/hostname"
+    expect:
+      doctor:
+        codes: [ORG_ASSET_PATH_ESCAPE]
+        names: [team-logo]
+        errors: 1
+      status:
+        errors: 1
+        names: [team-logo]
+      validate:
+        ok: false
+        categories: [asset_path_escape]
+
+  - id: both-escapes
+    pack:
+      node_body_path: "../../../../etc/hostname"
+      asset_path: "../../../../etc/hostname"
+    expect:
+      doctor:
+        codes: [ORG_ASSET_PATH_ESCAPE, ORG_FRAGMENT_BODY_PATH_ESCAPE]
+        names: [team-asset, team-logo]
+        errors: 2
+      status:
+        errors: 2
+        names: [team-asset, team-logo]
+      validate:
+        ok: false
+        categories: [asset_path_escape, body_path_escape]
+
+  # The positive control. Same fixture, same builder as the escaping cases: a table that flags
+  # every pack would pass the three cases above and fail this one.
+  - id: contained
+    pack:
+      node_body_path: "bodies/team-asset.md"
+      asset_path: "img/team-logo.txt"
+    expect:
+      doctor:
+        codes: []
+        names: []
+        errors: 0
+      status:
+        errors: 0
+        names: []
+      validate:
+        ok: true
+        categories: []
