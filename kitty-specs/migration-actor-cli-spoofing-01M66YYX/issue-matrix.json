@@ -23,6 +23,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "unknown",
       "wp": null
+    },
+    "#6754": {
+      "evidence_ref": "spec.md FR-001..FR-011; tests/status/test_caller_seed_refusal_6754.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
