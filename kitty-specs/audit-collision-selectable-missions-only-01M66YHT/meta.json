@@ -1,0 +1,31 @@
+{
+  "accept_commit": "cd02f3f901b34acabb8dc6ef3f7ec18b3a16db55",
+  "acceptance_history": [
+    {
+      "accept_commit": "cd02f3f901b34acabb8dc6ef3f7ec18b3a16db55",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T18:45:44.778096+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "bbeecb8022f81be49c22ac2f8449273b591f59ea"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T18:45:44.778096+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "bbeecb8022f81be49c22ac2f8449273b591f59ea",
+  "created_at": "2026-10-30T17:43:34.247983+00:00",
+  "flattened": false,
+  "friendly_name": "audit collision selectable missions only",
+  "mid8": "01M66YHT",
+  "mission_branch": "kitty/mission-audit-collision-selectable-missions-only-01M66YHT",
+  "mission_id": "01M66YHTFARS9969Z6BRJ9KYTA",
+  "mission_number": null,
+  "mission_slug": "audit-collision-selectable-missions-only-01M66YHT",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances audit collision selectable missions only on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "audit collision selectable missions only",
+  "slug": "audit-collision-selectable-missions-only-01M66YHT",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
