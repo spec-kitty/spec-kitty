@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances pack skill body path containment on issue-6734-pack-skill-body-path-containment so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "pack skill body path containment",
   "slug": "pack-skill-body-path-containment-01M66FEC",
+  "status_phase": "1",
   "target_branch": "issue-6734-pack-skill-body-path-containment",
   "topology": "lanes",
   "vcs": "git",
