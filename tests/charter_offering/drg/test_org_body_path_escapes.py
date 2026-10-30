@@ -3,11 +3,14 @@
 ``spec-kitty doctor charter-packs`` reported an org pack healthy (RC=0) when its
 ``drg/fragment.yaml`` declared a node with ``body_path: ../../../../etc/hostname``
 or ``/etc/hostname``. The predicate under test, :func:`find_body_path_escapes`,
-judges each *authored* node through the shared containment primitive
-(``resolve_relative_path_within_root``); :func:`find_org_body_path_escapes`
-pairs every loaded fragment with its pack's effective root from the registry.
+takes the loaded org fragment and judges each *authored* node through the shared
+containment primitive (``resolve_relative_path_within_root``), anchored at the
+fragment's own carried effective root (#6731 — the root the loader resolved, not
+a second registry read).
 
-RED before the fix: neither name existed, so this module failed to import.
+RED before the #6418 fix: neither name existed, so this module failed to import.
+RED before #6731: the predicate took ``(fragment, pack_root)`` and the doctor paired
+it with a registry re-read.
 """
 
 from __future__ import annotations
@@ -18,8 +21,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.activation.drg_activation import find_org_body_path_escapes, load_org_drg
-from charter.offering.drg.org_pack_loader import BodyPathEscape, find_body_path_escapes, load_org_pack
+from charter.activation.drg_activation import load_org_drg
+from charter.offering.drg.org_pack_loader import (
+    BodyPathEscape,
+    OrgDRGFragment,
+    OrgPackRootUnavailableError,
+    find_body_path_escapes,
+    load_org_pack,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -42,7 +51,7 @@ def _escapes(pack_root: Path, *body_paths: str | None) -> list[BodyPathEscape]:
             node["body_path"] = body_path
         nodes.append(node)
     _make_pack(pack_root, nodes)
-    return find_body_path_escapes(load_org_pack("acme", pack_root, 1), pack_root)
+    return find_body_path_escapes(load_org_pack("acme", pack_root, 1))
 
 
 def test_dot_dot_body_path_is_an_escape(tmp_path: Path) -> None:
@@ -118,13 +127,64 @@ def test_discovered_artifact_node_is_not_checked(tmp_path: Path) -> None:
     # Guard the premise: the discovered node really carries the escaping string.
     assert [n.body_path for n in fragment.nodes] == ["../../x"]
 
-    assert find_body_path_escapes(fragment, pack_root) == []
+    assert find_body_path_escapes(fragment) == []
 
 
 def test_every_escaping_node_is_reported_once_in_authored_order(tmp_path: Path) -> None:
     escapes = _escapes(tmp_path / "pack", "/etc/a", "bodies/ok.md", "../b", None, "../../c")
 
     assert [(e.node, e.body_path) for e in escapes] == [("node-0", "/etc/a"), ("node-2", "../b"), ("node-4", "../../c")]
+
+
+# ---------------------------------------------------------------------------
+# #6731: the fragment carries the effective root it was loaded from
+# ---------------------------------------------------------------------------
+
+
+def test_loaded_fragment_carries_its_effective_root(tmp_path: Path) -> None:
+    """The predicate judges against the root the loader received, not a registry lookup."""
+    pack_root = _make_pack(tmp_path / "pack", [{"id": "n", "kind": "assets", "body_path": "b.md"}])
+
+    fragment = load_org_pack("acme", pack_root, 1)
+
+    assert fragment.pack_root == pack_root
+    # Positive control: a sibling fact about the same loader result, so this
+    # assertion is not just observing an empty accessor.
+    assert fragment.pack_name == "acme"
+
+
+def test_carried_root_is_not_part_of_the_serialized_or_schema_surface(tmp_path: Path) -> None:
+    """The carried root is runtime metadata only: dumps and the JSON schema are unchanged."""
+    pack_root = _make_pack(tmp_path / "pack", [])
+    fragment = load_org_pack("acme", pack_root, 1)
+
+    dumped = fragment.model_dump()
+
+    assert "pack_root" not in dumped
+    assert "pack_root" not in OrgDRGFragment.model_json_schema()["properties"]
+    # Positive control: a real field IS visible to the same probe.
+    assert dumped["pack_name"] == "acme"
+
+
+def test_a_copy_of_a_loaded_fragment_keeps_its_root(tmp_path: Path) -> None:
+    pack_root = _make_pack(tmp_path / "pack", [])
+
+    copied = load_org_pack("acme", pack_root, 1).model_copy()
+
+    assert copied.pack_root == pack_root
+
+
+def test_a_fragment_rebuilt_from_a_dump_cannot_supply_its_root(tmp_path: Path) -> None:
+    """A dump/reload round-trip drops the private root; reading it must refuse, never guess."""
+    pack_root = _make_pack(tmp_path / "pack", [{"id": "n", "kind": "assets", "body_path": "../escape.md"}])
+    loaded = load_org_pack("acme", pack_root, 1)
+    # Guard the premise: the loaded fragment reports the escape, so the probe can see one.
+    assert [e.node for e in find_body_path_escapes(loaded)] == ["n"]
+
+    rebuilt = OrgDRGFragment.model_validate(loaded.model_dump())
+
+    with pytest.raises(OrgPackRootUnavailableError, match="acme"):
+        find_body_path_escapes(rebuilt)
 
 
 def test_nul_byte_body_path_is_reported_and_does_not_hide_another_escape(tmp_path: Path) -> None:
@@ -141,18 +201,18 @@ def _write_registry(repo: Path, packs: list[dict[str, str]]) -> None:
     (repo / ".kittify" / "config.yaml").write_text(yaml.safe_dump({"charter_packs": {"org": {"packs": packs}}}), encoding="utf-8")
 
 
-def test_registry_aware_check_names_only_the_escaping_pack(tmp_path: Path) -> None:
+def test_configured_packs_name_only_the_escaping_pack(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     bad = _make_pack(tmp_path / "bad", [{"id": "team-asset", "kind": "assets", "body_path": "../../../../etc/hostname"}], name="bad")
     good = _make_pack(tmp_path / "good", [{"id": "fine", "kind": "assets", "body_path": "bodies/fine.md"}], name="good")
     _write_registry(repo, [{"name": "bad", "local_path": str(bad)}, {"name": "good", "local_path": str(good)}])
 
-    escapes = find_org_body_path_escapes(repo, load_org_drg(repo))
+    escapes = [e for f in load_org_drg(repo) for e in find_body_path_escapes(f)]
 
     assert [(e.pack, e.node) for e in escapes] == [("bad", "team-asset")]
 
 
-def test_registry_aware_check_uses_the_subdir_effective_root(tmp_path: Path) -> None:
+def test_configured_pack_carries_the_subdir_effective_root(tmp_path: Path) -> None:
     """With ``subdir`` set, containment is judged against the effective root, not the checkout."""
     repo = tmp_path / "repo"
     checkout = tmp_path / "checkout"
@@ -160,12 +220,12 @@ def test_registry_aware_check_uses_the_subdir_effective_root(tmp_path: Path) -> 
     _make_pack(checkout / "inner", [{"id": "n", "kind": "assets", "body_path": "../sibling.md"}, {"id": "ok", "kind": "assets", "body_path": "b.md"}])
     _write_registry(repo, [{"name": "acme", "local_path": str(checkout), "subdir": "inner"}])
 
-    escapes = find_org_body_path_escapes(repo, load_org_drg(repo))
+    escapes = [e for f in load_org_drg(repo) for e in find_body_path_escapes(f)]
 
     assert [(e.pack, e.node) for e in escapes] == [("acme", "n")]
 
 
-def test_registry_aware_check_with_symlink_in_effective_root(tmp_path: Path) -> None:
+def test_configured_pack_with_a_symlinked_effective_root(tmp_path: Path) -> None:
     """A symlink resolving into the checkout but outside the subdir root escapes too."""
     if not hasattr(os, "symlink"):  # pragma: no cover
         pytest.skip("os.symlink unavailable")
@@ -179,6 +239,6 @@ def test_registry_aware_check_with_symlink_in_effective_root(tmp_path: Path) -> 
         pytest.skip(f"cannot create symlink: {exc}")
     _write_registry(repo, [{"name": "acme", "local_path": str(checkout), "subdir": "inner"}])
 
-    escapes = find_org_body_path_escapes(repo, load_org_drg(repo))
+    escapes = [e for f in load_org_drg(repo) for e in find_body_path_escapes(f)]
 
     assert [(e.pack, e.node) for e in escapes] == [("acme", "n")]

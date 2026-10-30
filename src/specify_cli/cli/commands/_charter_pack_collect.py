@@ -726,8 +726,8 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
 
     # Before the merge: an escaping body_path is a pack fault in its own right,
     # so a merge that refuses or crashes must not hide it.
-    _record_body_path_escapes(result, repo_root, fragments)
-    _record_asset_path_escapes(result, repo_root, fragments)
+    _record_body_path_escapes(result, fragments)
+    _record_asset_path_escapes(result, fragments)
 
     # The merge is the ONLY thing in this try. The post-merge checks used to sit
     # inside it, which cost twice: a hard-fail raise aborted the block before
@@ -770,18 +770,21 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     return result
 
 
-def _record_body_path_escapes(result: dict[str, object], repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> None:
+def _record_body_path_escapes(result: dict[str, object], fragments: Sequence[OrgDRGFragment]) -> None:
     """Record authored fragment nodes whose ``body_path`` escapes their pack (#6418).
 
     Each escape lands twice: as a structured entry in ``body_path_escapes`` and
     as a message in ``errors``, the channel ``CharterPackHealthReport.healthy``
     reads, so one escape flips ``doctor charter-packs`` to RC=1. The predicate
-    is the charter's; ``_render_org_layer_section`` calls the same function.
+    is the offering layer's, reached through the ``charter.drg`` facade, and each
+    fragment is judged against the effective root it carries (#6731); nothing
+    here re-reads the pack registry. ``_render_org_layer_section`` calls the same
+    predicate, so the human and ``--json`` halves cannot disagree.
     """
-    from charter.activation.drg_activation import find_org_body_path_escapes
+    from charter.drg import BodyPathEscape, find_body_path_escapes
 
     try:
-        escapes = find_org_body_path_escapes(repo_root, fragments)
+        escapes: list[BodyPathEscape] = [escape for fragment in fragments for escape in find_body_path_escapes(fragment)]
     except Exception as exc:
         # Diagnostics never crash, and a check that could not RUN is not a
         # check that PASSED: report it on the verdict channel.
@@ -791,18 +794,19 @@ def _record_body_path_escapes(result: dict[str, object], repo_root: Path, fragme
     _append_org_errors(result, [escape.message for escape in escapes])
 
 
-def _record_asset_path_escapes(result: dict[str, object], repo_root: Path, fragments: Sequence[OrgDRGFragment]) -> None:
+def _record_asset_path_escapes(result: dict[str, object], fragments: Sequence[OrgDRGFragment]) -> None:
     """Record org asset sidecars whose ``path`` escapes their pack's ``assets/`` root (#6418, FR-007).
 
     Same two channels as :func:`_record_body_path_escapes`: a structured entry
     in ``asset_path_escapes`` and a message in ``errors``, so one escape flips
     ``doctor charter-packs`` to RC=1. ``_render_org_layer_section`` calls the
-    same charter predicate.
+    same offering predicate through ``charter.drg``, judged against each
+    fragment's carried effective root (#6731).
     """
-    from charter.activation.drg_activation import find_org_asset_path_escapes
+    from charter.drg import find_asset_path_escapes
 
     try:
-        escapes = find_org_asset_path_escapes(repo_root, fragments)
+        escapes = [escape for fragment in fragments for escape in find_asset_path_escapes(fragment)]
     except Exception as exc:
         # A check that could not RUN is not a check that PASSED.
         _append_org_errors(result, [f"org-layer asset path check failed: {exc}"])

@@ -4,11 +4,14 @@
 of its ``assets/*.asset.yaml`` sidecars named ``path: ../../../../etc/hostname``,
 although :meth:`AssetRepository.resolve_path` refuses that sidecar with
 :class:`AssetPathEscapeError`. The predicate under test,
-:func:`find_asset_path_escapes`, resolves every org-provenance asset of ONE pack
-through that repository; :func:`find_org_asset_path_escapes` pairs every loaded
-fragment with its pack's effective root from the registry.
+:func:`find_asset_path_escapes`, takes the loaded org fragment and resolves every
+org-provenance asset of that ONE pack through that repository, anchored at the
+fragment's own carried effective root (#6731 — the root the loader resolved, not
+a second registry read).
 
-RED before the fix: neither name existed, so this module failed to import.
+RED before the #6418 fix: neither name existed, so this module failed to import.
+RED before #6731: the predicate took ``(pack, pack_root)`` and the doctor paired it
+with a registry re-read.
 """
 
 from __future__ import annotations
@@ -19,8 +22,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.activation.drg_activation import find_org_asset_path_escapes, load_org_drg
+from charter.activation.drg_activation import load_org_drg
 from charter.offering.assets import AssetPathEscape, AssetRepository, find_asset_path_escapes
+from charter.offering.drg.org_pack_loader import OrgPackRootUnavailableError, load_org_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -46,7 +50,7 @@ def _make_pack(pack_root: Path, assets: dict[str, str], name: str = "acme") -> P
 def test_dot_dot_asset_path_is_an_escape(tmp_path: Path) -> None:
     pack_root = _make_pack(tmp_path / "pack", {"team-logo": _ESCAPING})
 
-    escapes = find_asset_path_escapes("acme", pack_root)
+    escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
     assert len(escapes) == 1
     escape = escapes[0]
@@ -65,7 +69,7 @@ def test_dot_dot_asset_path_is_an_escape(tmp_path: Path) -> None:
 def test_absolute_asset_path_is_an_escape(tmp_path: Path) -> None:
     pack_root = _make_pack(tmp_path / "pack", {"team-logo": "/etc/hostname"})
 
-    escapes = find_asset_path_escapes("acme", pack_root)
+    escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
     assert [(e.asset, e.path) for e in escapes] == [("team-logo", "/etc/hostname")]
     assert "absolute" in escapes[0].reason
@@ -79,7 +83,7 @@ def test_contained_asset_path_is_not_an_escape(tmp_path: Path, materialise: bool
         (pack_root / "assets" / "img" / "logo.png").write_bytes(b"\x89PNG")
 
     # Same fixture, positive control: the escaping sibling IS reported, the contained one is not.
-    assert [e.asset for e in find_asset_path_escapes("acme", pack_root)] == ["bad"]
+    assert [e.asset for e in find_asset_path_escapes(load_org_pack("acme", pack_root, 1))] == ["bad"]
 
 
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="os.symlink unavailable")
@@ -92,7 +96,7 @@ def test_symlink_resolving_outside_the_assets_root_is_an_escape(tmp_path: Path) 
     except OSError as exc:  # pragma: no cover - platform without symlink privilege
         pytest.skip(f"cannot create symlink: {exc}")
 
-    escapes = find_asset_path_escapes("acme", pack_root)
+    escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
     assert [e.asset for e in escapes] == ["team-logo"]
     assert "outside" in escapes[0].reason
@@ -110,7 +114,7 @@ def test_built_in_asset_is_never_reported(tmp_path: Path, monkeypatch: pytest.Mo
         repo.resolve_path("shipped-bad")
     pack_root = _make_pack(tmp_path / "pack", {"team-logo": _ESCAPING})
 
-    assert [e.asset for e in find_asset_path_escapes("acme", pack_root)] == ["team-logo"]
+    assert [e.asset for e in find_asset_path_escapes(load_org_pack("acme", pack_root, 1))] == ["team-logo"]
 
 
 def test_nul_byte_path_is_reported_and_does_not_hide_another_escape(tmp_path: Path) -> None:
@@ -119,7 +123,7 @@ def test_nul_byte_path_is_reported_and_does_not_hide_another_escape(tmp_path: Pa
     # Guard the premise: the sidecar loaded with the NUL byte intact.
     assert AssetRepository(org_dirs=[pack_root / "assets"]).get("a-nul") is not None
 
-    escapes = find_asset_path_escapes("acme", pack_root)
+    escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
     assert sorted(e.asset for e in escapes) == ["a-nul", "b-escape"]
     nul = next(e for e in escapes if e.asset == "a-nul")
@@ -129,7 +133,20 @@ def test_nul_byte_path_is_reported_and_does_not_hide_another_escape(tmp_path: Pa
 def test_pack_without_assets_dir_has_no_escape(tmp_path: Path) -> None:
     pack_root = _make_pack(tmp_path / "pack", {})
 
-    assert find_asset_path_escapes("acme", pack_root) == []
+    assert find_asset_path_escapes(load_org_pack("acme", pack_root, 1)) == []
+
+
+def test_a_fragment_rebuilt_from_a_dump_cannot_supply_its_root(tmp_path: Path) -> None:
+    """#6731: the root rides on the loaded fragment; a dump/reload loses it and must refuse loudly."""
+    pack_root = _make_pack(tmp_path / "pack", {"team-logo": _ESCAPING})
+    loaded = load_org_pack("acme", pack_root, 1)
+    # Guard the premise: the loaded fragment judges the pack, so the probe can see a finding.
+    assert [e.asset for e in find_asset_path_escapes(loaded)] == ["team-logo"]
+
+    rebuilt = loaded.__class__.model_validate(loaded.model_dump())
+
+    with pytest.raises(OrgPackRootUnavailableError, match="acme"):
+        find_asset_path_escapes(rebuilt)
 
 
 def _write_registry(repo: Path, packs: list[dict[str, str]]) -> None:
@@ -137,19 +154,19 @@ def _write_registry(repo: Path, packs: list[dict[str, str]]) -> None:
     (repo / ".kittify" / "config.yaml").write_text(yaml.safe_dump({"charter_packs": {"org": {"packs": packs}}}), encoding="utf-8")
 
 
-def test_registry_aware_check_names_only_the_escaping_pack(tmp_path: Path) -> None:
+def test_configured_packs_name_only_the_escaping_pack(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     bad = _make_pack(tmp_path / "bad", {"team-logo": _ESCAPING}, name="bad")
     good = _make_pack(tmp_path / "good", {"fine-logo": "fine.png"}, name="good")
     _write_registry(repo, [{"name": "bad", "local_path": str(bad)}, {"name": "good", "local_path": str(good)}])
 
-    escapes = find_org_asset_path_escapes(repo, load_org_drg(repo))
+    escapes = [e for f in load_org_drg(repo) for e in find_asset_path_escapes(f)]
 
     assert [(e.pack, e.asset) for e in escapes] == [("bad", "team-logo")]
     assert all(isinstance(e, AssetPathEscape) for e in escapes)
 
 
-def test_registry_aware_check_uses_the_subdir_effective_root(tmp_path: Path) -> None:
+def test_configured_pack_carries_the_subdir_effective_root(tmp_path: Path) -> None:
     """With ``subdir`` set, the anchor is ``<checkout>/<subdir>/assets``, not the checkout's."""
     repo = tmp_path / "repo"
     checkout = tmp_path / "checkout"
@@ -159,7 +176,7 @@ def test_registry_aware_check_uses_the_subdir_effective_root(tmp_path: Path) -> 
     _write_sidecar(checkout / "inner" / "assets", "inner-bad", "/etc/hostname")
     _write_registry(repo, [{"name": "acme", "local_path": str(checkout), "subdir": "inner"}])
 
-    escapes = find_org_asset_path_escapes(repo, load_org_drg(repo))
+    escapes = [e for f in load_org_drg(repo) for e in find_asset_path_escapes(f)]
 
     assert [(e.pack, e.asset) for e in escapes] == [("acme", "inner-bad")]
 
@@ -175,7 +192,7 @@ def test_symlinked_sidecar_outside_the_pack_is_reported_and_does_not_hide_anothe
     except OSError:  # pragma: no cover - platform without symlink privilege
         pytest.skip("symlink creation not permitted")
 
-    escapes = find_asset_path_escapes("acme", pack_root)
+    escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
     assert sorted(e.asset for e in escapes) == ["a-linked", "b-escape"]
     linked = next(e for e in escapes if e.asset == "a-linked")
@@ -197,7 +214,7 @@ def test_symlinked_assets_dir_is_judged_against_the_pack_root(tmp_path: Path, ou
     except OSError:  # pragma: no cover - platform without symlink privilege
         pytest.skip("symlink creation not permitted")
 
-    escapes = find_asset_path_escapes("acme", pack_root)
+    escapes = find_asset_path_escapes(load_org_pack("acme", pack_root, 1))
 
     if outside:
         assert [e.asset for e in escapes] == ["team-logo"]
@@ -206,13 +223,13 @@ def test_symlinked_assets_dir_is_judged_against_the_pack_root(tmp_path: Path, ou
         assert escapes == []
 
 
-def test_registry_aware_check_attributes_a_shadowed_asset_id_to_its_own_pack(tmp_path: Path) -> None:
+def test_a_shadowed_asset_id_is_attributed_to_its_own_pack(tmp_path: Path) -> None:
     """Two packs declaring the same asset id are judged separately; only the escaping one is named."""
     repo = tmp_path / "repo"
     alpha = _make_pack(tmp_path / "alpha", {"team-logo": "logo.png"}, name="alpha")
     beta = _make_pack(tmp_path / "beta", {"team-logo": _ESCAPING}, name="beta")
     _write_registry(repo, [{"name": "alpha", "local_path": str(alpha)}, {"name": "beta", "local_path": str(beta)}])
 
-    escapes = find_org_asset_path_escapes(repo, load_org_drg(repo))
+    escapes = [e for f in load_org_drg(repo) for e in find_asset_path_escapes(f)]
 
     assert [(e.pack, e.asset) for e in escapes] == [("beta", "team-logo")]
