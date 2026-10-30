@@ -59,6 +59,18 @@ Rules:
   (`.kittify/migration-ledger.jsonl`, `upgrade/ledger.py`) and the activation ledger
   (`.kittify/charter/activation.yaml`) are state ledgers, not event logs. Never write
   bare "the ledger".
+- **The migration ledger's append is locked, and one selection rule is structural.**
+  `MigrationLedger.append` / `append_many` hold
+  `.kittify/migrations/<ledger file name>.lock` (a `kernel.locks.machine_file_lock`
+  sidecar in the IGNORED per-clone surface, bounded at 30 s) across their
+  read-modify-write, so two `upgrade`/`migrate` runs on one checkout cannot lose a
+  record; a lock that never frees raises `MigrationLedgerLockTimeoutError` and
+  appends nothing. Selection is ledger-diff **plus** the `runs_first` structural
+  reselection: a recorded migration whose `structural_detect` fires is re-selected
+  (a pulled `metadata.yaml` or a merge can revive the old state), while `detect()`
+  stays the pre-`apply()` idempotency guard. See
+  [ADR 2026-10-17-1](../../adr/4.x/2026-10-17-1-explicit-migration-ledger.md), Amendments
+  2026-10-20 and 2026-10-30.
 
 ## Appending to an event log (interim)
 
