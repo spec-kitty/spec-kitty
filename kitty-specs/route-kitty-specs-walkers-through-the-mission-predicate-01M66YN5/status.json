@@ -53,7 +53,7 @@
     },
     "WP02": {
       "actor": "reviewer-renata",
-      "agent": "pi",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -63,7 +63,8 @@
       "last_transition_at": "2026-10-30T19:10:52.825365+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Three read surfaces route through is_selectable_mission_dir; 4 new tests (3 failed before the fix); 320 passed in the blast radius; make test-fast 2609 passed."
+        "Three read surfaces route through is_selectable_mission_dir; 4 new tests (3 failed before the fix); 320 passed in the blast radius; make test-fast 2609 passed.",
+        "Review passed under reviewer-renata. Checklist: no dead code (test-only helper); tests drive _mission_dirs_to_process/_collect_inflight_missions/build_changelog_block; no new silent empty return; FR-004/005/006/007/009 each pinned; audit engine and all frozen surfaces untouched; enumeration postures preserved (dot-dir skip, errors[] contract, best-effort scan); no new raise. Out-of-map edit to test_materialize._setup_feature recorded in tracer (its fixtures were read-side residue)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
