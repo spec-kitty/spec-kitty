@@ -115,7 +115,8 @@ existing `invalid_resume_offset` envelope computed against the decision log.
   the change.
 - A coordination-routed mission: `decisions` joins `decisions.events.jsonl` onto
   the same resolved status surface as `status` (both streams are COORD-partition);
-  an unmaterialized surface still starts empty rather than erroring (FR-008).
+  an unmaterialized surface still starts empty rather than erroring
+  (`event-push-watch-channel-01M1K6W2#FR-008`).
 - Multiple run journals for one mission: the most recently modified one wins;
   state.json rows missing `mission_id` (legacy) fall back to matching
   `mission_slug`; a run dir with an unreadable state.json is skipped, not fatal.
