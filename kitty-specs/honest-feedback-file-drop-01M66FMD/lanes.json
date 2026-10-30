@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mission_slug": "honest-feedback-file-drop-01M66FMD",
+  "mission_id": "01M66FMDFNM8413XP96RBPNZQK",
+  "mission_branch": "kitty/mission-honest-feedback-file-drop-01M66FMD",
+  "target_branch": "issue-6699-honest-feedback-file-drop",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_transition_core.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_6699_feedback_file_edges.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/help/move-task.help"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T13:29:24.343037+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6e283afb16af13636dca1b7a4c95fa88f611d569"
+}

@@ -1,0 +1,32 @@
+{
+  "accept_commit": "554d120712356a9a1871bb6e8803ce2375c475d7",
+  "acceptance_history": [
+    {
+      "accept_commit": "554d120712356a9a1871bb6e8803ce2375c475d7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:20:14.837327+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "c9a6df9a564baecdd6f055dce1fb0786be201e95"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T14:20:14.837327+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "c9a6df9a564baecdd6f055dce1fb0786be201e95",
+  "baseline_merge_commit": "2a355454812b446b05283e58dc7c2a847b97745f",
+  "created_at": "2026-10-30T13:22:50.576485+00:00",
+  "flattened": true,
+  "friendly_name": "honest feedback file drop",
+  "merged_at": "2026-10-30T14:52:09.266581+00:00",
+  "merged_commit": "ebd83ae396dd40418999a0aa8568eedc65254e50",
+  "mid8": "01M66FMD",
+  "mission_id": "01M66FMDFNM8413XP96RBPNZQK",
+  "mission_number": 244,
+  "mission_slug": "honest-feedback-file-drop-01M66FMD",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances honest feedback file drop on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "honest feedback file drop",
+  "slug": "honest-feedback-file-drop-01M66FMD",
+  "status_phase": "1",
+  "target_branch": "issue-6699-honest-feedback-file-drop"
+}

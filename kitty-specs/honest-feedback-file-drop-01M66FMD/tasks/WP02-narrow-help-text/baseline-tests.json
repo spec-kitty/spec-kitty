@@ -1,0 +1,14 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-10-30T14:15:50Z",
+  "base_branch": "issue-6699-honest-feedback-file-drop",
+  "base_commit": "4a98f577dd07c90921e81ce897a02c6e8f50cdc8",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300
+}
