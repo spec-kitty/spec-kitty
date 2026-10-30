@@ -989,3 +989,129 @@ def test_doctor_and_repair_accept_identical_duplicate_openings(tmp_path: Path) -
     rebuilt = next(e for e in _store.load_index(mission_dir).entries if e.decision_id == resp.decision_id)
     assert rebuilt == original
     assert events_path.read_bytes() == log_before, "doctor --repair must never rewrite the event log"
+
+
+# ---------------------------------------------------------------------------
+# #6764 -- tolerated duplicate openings are reported as an INFORMATIONAL finding
+# ---------------------------------------------------------------------------
+
+
+def _open_with_extra_openings(tmp_path: Path, *, extra: int, duplicate_payload_update: dict[str, str] | None = None) -> tuple[str, Path]:
+    """A mission with one real opening plus *extra* appended ``DecisionPointOpened``
+    rows. Returns ``(decision_id, events_path)``.
+
+    ``duplicate_payload_update`` lets a caller corrupt a payload field so the rows
+    are NOT tolerated (they differ beyond ``recorded_at``).
+    """
+    _setup_meta(tmp_path)
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    resp = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="dup-open-step",
+        input_key="dup-open-key",
+        question="Q?",
+        options=("a", "b"),
+        actor="alice",
+    )
+    mission_dir = _mission_dir(tmp_path)
+    events_path = mission_dir / "status.events.jsonl"
+    (opened,) = [e for e in _events_for_decision(tmp_path, resp.decision_id) if e["event_type"] == DECISION_POINT_OPENED]
+    with events_path.open("a", encoding="utf-8") as handle:
+        for index in range(extra):
+            recorded_at = f"2099-01-0{index + 1}T00:00:00+00:00"
+            duplicate = {
+                **opened,
+                "event_id": f"{opened['event_id']}-dup{index}",
+                "at": recorded_at,
+                "payload": {**opened["payload"], "recorded_at": recorded_at, **(duplicate_payload_update or {})},
+            }
+            handle.write(json.dumps(duplicate) + "\n")
+    return resp.decision_id, events_path
+
+
+def test_doctor_reports_tolerated_duplicate_openings_as_informational(tmp_path: Path) -> None:
+    """#6764: a log written before #4848 holds two identical openings. The doctor
+    still reports the mission clean and exits 0 -- the rows ARE tolerated -- and now
+    also names the decision as an informational finding, leaving both files untouched."""
+    decision_id, events_path = _open_with_extra_openings(tmp_path, extra=1)
+    index_path = _store.decisions_dir(_mission_dir(tmp_path)) / "index.json"
+    log_before = events_path.read_bytes()
+    index_before = index_path.read_bytes() if index_path.exists() else None
+
+    exit_code, payload = _invoke_doctor_decisions_json(tmp_path, MISSION_SLUG, repair=False)
+
+    assert exit_code == 0, payload
+    assert payload["clean"] is True, payload
+    assert payload["malformed_folds"] == [], payload
+    assert payload["status_mismatch"] == [], payload
+    assert payload["duplicate_openings_tolerated"] == [decision_id], payload
+    assert events_path.read_bytes() == log_before, "doctor decisions is read-only"
+    if index_before is not None:
+        assert index_path.read_bytes() == index_before, "doctor decisions is read-only"
+
+
+def test_doctor_reports_each_duplicated_decision_once_including_three_duplicates(tmp_path: Path) -> None:
+    """Three identical openings name the decision ONCE, and a decision with a
+    single opening is not named at all."""
+    decision_id, _events_path = _open_with_extra_openings(tmp_path, extra=2)
+    single = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="single-open-step",
+        input_key="single-open-key",
+        question="single?",
+        options=("a", "b"),
+        actor="alice",
+    )
+
+    exit_code, payload = _invoke_doctor_decisions_json(tmp_path, MISSION_SLUG, repair=False)
+
+    assert exit_code == 0, payload
+    assert payload["duplicate_openings_tolerated"] == [decision_id], payload
+    assert single.decision_id not in payload["duplicate_openings_tolerated"], payload
+
+
+def test_doctor_prints_no_informational_line_for_a_log_without_duplicates(tmp_path: Path) -> None:
+    """A log with no duplicate openings reports an empty list and prints no
+    informational line, so a healthy mission's report stays quiet."""
+    _open_with_extra_openings(tmp_path, extra=0)
+
+    exit_code, payload = _invoke_doctor_decisions_json(tmp_path, MISSION_SLUG, repair=False)
+    assert exit_code == 0, payload
+    assert payload["duplicate_openings_tolerated"] == [], payload
+
+    with contextlib.chdir(tmp_path):
+        result = _runner.invoke(root_app, ["doctor", "decisions", "--mission", MISSION_SLUG], catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    assert "informational" not in result.output.lower(), result.output
+    assert "ok" in result.output.lower(), result.output
+
+
+def test_doctor_keeps_differing_openings_a_malformed_fold_not_an_informational_duplicate(tmp_path: Path) -> None:
+    """The tolerance rule is the fold's: openings that differ beyond ``recorded_at``
+    stay a malformed fold and must never be reported as a tolerated duplicate."""
+    decision_id, _events_path = _open_with_extra_openings(tmp_path, extra=1, duplicate_payload_update={"question": "a different question"})
+
+    exit_code, payload = _invoke_doctor_decisions_json(tmp_path, MISSION_SLUG, repair=False)
+
+    assert exit_code == 0, payload
+    assert payload["malformed_folds"] == [decision_id], payload
+    assert payload["duplicate_openings_tolerated"] == [], payload
+    assert payload["clean"] is False, payload
+
+
+def test_repair_keeps_reporting_tolerated_duplicates_and_never_rewrites_the_log(tmp_path: Path) -> None:
+    """#6764 / FR-006: ``--repair`` rebuilds the index as before, the log is never
+    rewritten, and the informational finding survives the repair."""
+    decision_id, events_path = _open_with_extra_openings(tmp_path, extra=1)
+    log_before = events_path.read_bytes()
+
+    exit_code, payload = _invoke_doctor_decisions_json(tmp_path, MISSION_SLUG, repair=True)
+
+    assert exit_code == 0, payload
+    assert payload["clean"] is True, payload
+    assert payload["duplicate_openings_tolerated"] == [decision_id], payload
+    assert events_path.read_bytes() == log_before, "doctor --repair must never rewrite the event log"
