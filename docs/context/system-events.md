@@ -176,7 +176,7 @@ Terms describing Spec Kitty's append-only event model, replay behavior, and syst
 
 | | |
 |---|---|
-| **Definition** | One JSON line emitted on stdout by `spec-kitty events tail` -- either a pass-through of an existing `StatusEvent` dict as already serialized by `store.py`, or one of the two new signal shapes this command defines: the [`log_truncated`](#log_truncated) truncation-resync signal (FR-005/FR-007) and a resolve-failure/error signal (FR-009), the latter emitted on stderr only, never on the stdout Tail-envelope stream itself. Every pass-through envelope also carries the offset and content-invariant value immediately past the emitted event, so a consumer can persist both (as a [resume token](#resume-token)) without deriving them itself. |
+| **Definition** | One JSON line emitted on stdout by `spec-kitty events tail` in `--json` mode (#6611) -- either a pass-through of an existing `StatusEvent` dict as already serialized by `store.py`, or one of the two new signal shapes this command defines: the [`log_truncated`](#log_truncated) truncation-resync signal (FR-005/FR-007) and a resolve-failure/error signal (FR-009), the latter emitted on stderr only, never on the stdout Tail-envelope stream itself. Every pass-through envelope also carries the offset and content-invariant value immediately past the emitted event, so a consumer can persist both (as a [resume token](#resume-token)) without deriving them itself. Without `--json` the command prints one human-readable plain-text line per event instead (the reader-injected cursor keys omitted); the Tail envelope is the machine channel. |
 | **Context** | System Events |
 | **Status** | candidate |
 | **Applicable to** | `3.x` |
