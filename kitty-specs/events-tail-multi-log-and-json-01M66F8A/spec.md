@@ -48,8 +48,8 @@ surface; today the flag does not exist (red test).
    printed as JSON lines, in file order, from the resolved status surface (the same
    directory resolution as `status`).
 2. **Given** a mission with no decision log yet, **When** the same command runs,
-   **Then** it prints nothing and exits 0 (FR-008 wait-for-file semantics carry
-   over).
+   **Then** it prints nothing and exits 0 (wait-for-file semantics, as in
+   `event-push-watch-channel-01M1K6W2#FR-008`, carry over).
 3. **Given** `--log run` and a mission with run journals under
    `.kittify/runtime/runs/`, **When** the command runs, **Then** the most recently
    modified `run.events.jsonl` belonging to that mission is tailed.
