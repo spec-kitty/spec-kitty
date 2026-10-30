@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, Generic, TypeVar
 
@@ -76,12 +76,25 @@ def _emit_collision_warning(
     replaced = len(higher_keys & lower_keys)
     inherited = len(lower_keys - higher_keys)
     warnings.warn(
-        f"Artifact override: {kind} {item_id} from {higher_layer} shadowed "
-        f"{lower_layer} ({replaced} field(s) replaced; "
-        f"{inherited} field(s) inherited).",
+        f"Artifact override: {kind} {item_id} from {higher_layer} shadowed {lower_layer} ({replaced} field(s) replaced; {inherited} field(s) inherited).",
         ArtifactLayerCollisionWarning,
         stacklevel=3,
     )
+
+
+def _non_mapping_reason(data: object) -> str | None:
+    """Return the skip reason when a parsed YAML document is not a mapping.
+
+    Single authority for the malformed-document wording shared by the
+    built-in and overlay load sites (#6735): a file that parses cleanly but
+    whose top level is a list, scalar or bool is present-but-malformed — it
+    is skipped with the usual ``Skipping invalid …`` warning, never allowed
+    to reach ``data.get`` / ``_pre_validate`` and crash the load. An empty
+    file (``None``) is absence, not malformed, and returns ``None``.
+    """
+    if data is None or isinstance(data, Mapping):
+        return None
+    return f"expected a YAML mapping, got {type(data).__name__}"
 
 
 class BaseArtifactRepository(ABC, Generic[T]):
@@ -168,11 +181,7 @@ class BaseArtifactRepository(ABC, Generic[T]):
         authority is the single source both loader and resolver share.
         """
         recursive = overlay_scan_is_recursive(self._overlay_scan_kind())
-        scan = (
-            project_dir.rglob(self._glob)
-            if recursive
-            else project_dir.glob(self._glob)
-        )
+        scan = project_dir.rglob(self._glob) if recursive else project_dir.glob(self._glob)
         return sorted(scan)
 
     def _overlay_scan_kind(self) -> ArtifactKind | None:
@@ -218,6 +227,17 @@ class BaseArtifactRepository(ABC, Generic[T]):
             try:
                 data = parse_shipped_yaml(yaml_file, yaml_parser.load, variant="safe")
                 if data is None:
+                    continue
+                non_mapping = _non_mapping_reason(data)
+                if non_mapping is not None:
+                    # Before _pre_validate: six kinds' hooks read ``data`` and
+                    # would crash on a non-mapping document before Pydantic
+                    # can reject it (#6735).
+                    warnings.warn(
+                        f"Skipping invalid built-in {self._kind} {yaml_file.name}: {non_mapping}",
+                        UserWarning,
+                        stacklevel=3,
+                    )
                     continue
                 self._pre_validate(data, yaml_file)
                 obj = self._schema.model_validate(data)
@@ -290,9 +310,7 @@ class BaseArtifactRepository(ABC, Generic[T]):
             if not overlay_dir.exists():
                 continue
             for yaml_file in self._project_scan(overlay_dir):
-                self._apply_overlay_file(
-                    yaml_file, layer_name, yaml_parser=yaml_parser, built_in=built_in
-                )
+                self._apply_overlay_file(yaml_file, layer_name, yaml_parser=yaml_parser, built_in=built_in)
 
     def _apply_overlay_file(
         self,
@@ -310,10 +328,24 @@ class BaseArtifactRepository(ABC, Generic[T]):
         this one stack frame deeper than the original inline block bumps the
         ``warnings.warn`` ``stacklevel`` from 3 to 4 so the warning is still
         attributed to the repository's construction call site.
+
+        A present-but-non-mapping document (top-level list, scalar, bool) is
+        malformed and skipped with the usual warning (#6735), like invalid
+        YAML, schema-invalid documents and unreadable files.
         """
         try:
             data = yaml_parser.load(yaml_file)
             if data is None:
+                return
+            non_mapping = _non_mapping_reason(data)
+            if non_mapping is not None:
+                # Before _pre_validate and data.get("id"): both read ``data``
+                # and crash on a non-mapping document (#6735).
+                warnings.warn(
+                    f"Skipping invalid {layer_name} {self._kind} {yaml_file.name}: {non_mapping}",
+                    UserWarning,
+                    stacklevel=4,
+                )
                 return
             self._pre_validate(data, yaml_file)
             item_id = data.get("id")
@@ -400,9 +432,7 @@ class BaseArtifactRepository(ABC, Generic[T]):
         # Tag all built-in items with the canonical built-in provenance token.
         self._provenance = dict.fromkeys(self._items, BUILT_IN)
         # Org layer overrides built-in
-        self._apply_overlay_layer(
-            self._org_dirs, "org", yaml_parser=yaml_parser, built_in=built_in
-        )
+        self._apply_overlay_layer(self._org_dirs, "org", yaml_parser=yaml_parser, built_in=built_in)
         # Project layer overrides built-in + org
         self._apply_overlay_layer(
             [self._project_dir] if self._project_dir else [],

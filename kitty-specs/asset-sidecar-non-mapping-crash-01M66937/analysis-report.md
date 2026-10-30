@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: asset-sidecar-non-mapping-crash-01M66937
 mission_id: 01M66937BPRRERJFR4F86S86QE
-generated_at: '2026-10-30T11:36:49.133197+00:00'
+generated_at: '2026-10-30T11:38:48.916831+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -23,41 +23,40 @@ verdict: ready
 issue_counts:
   medium: 0
   critical: 0
-  low: 1
+  low: 0
   high: 0
   info: 0
-findings:
-- id: C1
-  severity: low
-  category: coverage
-  summary: 'spec.md cites issue #6735 bare; an issue-matrix row with a terminal verdict is required before WP01 approval (handled at wrap-up via issue-verdict).'
+findings: []
 ---
 
 ## Specification Analysis Report
 
 Mission: `asset-sidecar-non-mapping-crash-01M66937` (issue spec-kitty/spec-kitty#6735).
+Re-analysis after review round 1 (reviewer verdict SOUND; all three findings folded:
+guard-before-`_pre_validate` wording in WP01 T003, branch-target consistency, and a
+project-layer test case added to T001 per spec scenario 3).
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
-| C1 | Coverage | LOW | spec.md (Input), tasks.md WP01 | spec.md cites `#6735` bare; the issue-matrix row must reach a terminal verdict before WP01 approval | Record the issue verdict (`fixed`) via `spec-kitty agent issue-verdict` at wrap-up |
+| — | — | — | — | No findings | — |
 
 **Coverage Summary Table:**
 
 | Requirement Key | Has Task? | Task IDs | Notes |
 |-----------------|-----------|----------|-------|
-| FR-001 | Yes | T001, T003 | org/project overlay non-mapping skip, red-first |
+| FR-001 | Yes | T001, T003 | org/project overlay non-mapping skip, red-first, incl. project-layer case |
 | FR-002 | Yes | T002, T003 | built-in tier guard before `_pre_validate` |
 | FR-003 | Yes | T005 | existing base-layer suite as ratchet |
 | NFR-001 | Yes | T003 | single fix site in `src/charter/offering/base.py` |
 | NFR-002 | Yes | T003, T005 | pinned warning shape; glossary-pack parse tests in T005 |
 | C-001 | Yes | T001, T002 | red-first ordering enforced in WP prompt |
 | C-002 | Yes | WP01 prompt Branch Strategy | operator merges; PR flipped to ready |
-| C-003 | Yes | WP01 prompt Review Guidance | proportionate squad |
+| C-003 | Yes | WP01 prompt Review Guidance | proportionate squad (round 1 run, verdict SOUND) |
 | SC-001 | Yes | T001 | issue repro as parametrized case |
 | SC-002 | Yes | T001 | all 11 kinds parametrized |
 | SC-003 | Yes | T005 | `test_base_org_layer.py` green |
 
-**Charter Alignment Issues:** none — fix lands in the existing base-class seam (architectural alignment), ATDD/red-first honored (C-001), single authority (DIRECTIVE_044), locality (DIRECTIVE_024).
+**Charter Alignment Issues:** none.
 
 **Unmapped Tasks:** none — T001-T005 all map to requirements.
 

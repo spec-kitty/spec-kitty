@@ -1,0 +1,39 @@
+{
+  "mission_slug": "asset-sidecar-non-mapping-crash-01M66937",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_non_mapping_sidecar_skip.py: 22 org+project overlay cases green; red-first proof 26/26 failures pre-fix reproduced by the independent reviewer",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T12:04:19.009246+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "built-in-tier directive case (crashed pre-fix via _pre_validate) and asset case green; guard placed before _pre_validate in _load_built_in_items",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T12:04:22.941399+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ratchet suites test_base_org_layer.py, test_loader_fail_closed.py, test_overlay_precedence.py, test_charter_pack_health_glossary_pack.py, assets/ all green (194 passed) post-fix; except tuple unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T12:04:26.511968+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
