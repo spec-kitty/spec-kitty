@@ -1,0 +1,89 @@
+{
+  "mission_slug": "review-feedback-draft-retirement-01M66YR3",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T19:26:32.342863+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T19:26:38.761093+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T19:26:44.406131+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T19:26:50.515073+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T19:27:15.854905+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T19:26:59.169467+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T19:27:05.042264+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T19:27:09.923828+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
