@@ -1,0 +1,69 @@
+{
+  "mission_slug": "charter-escape-report-convergence-01M66YM0",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_status_org_layer_path_escapes.py::test_status_reports_an_escaping_body_path (9/9 green; red-first 7 failed/2 passed on base)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:33:27.030875+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_status_org_layer_path_escapes.py::test_status_reports_an_escaping_asset_path",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:33:31.354370+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_status_org_layer_path_escapes.py::test_a_crashed_containment_check_is_reported_not_silent + ::test_escapes_are_reported_even_when_the_merge_refuses",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:33:36.181873+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/packs/test_pack_validator_body_path_escape.py (9/9 green; red-first 5 failed/4 passed on base)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:33:40.464097+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/conformance/test_pack_containment_conformance.py (17 cases; half-by-half reverts turn status/validate cases red)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:33:44.877042+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "contained case in pack_containment_cases.yaml + test_contained_pack_is_clean + test_validate_pack_reports_nothing_for_a_contained_body_path",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:33:49.133262+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#6099": {
+      "evidence_ref": "Epic cited for context: the conformance-corpus owner; this mission adds an additive pack-containment table and changes neither corpus nor schema.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6418": {
+      "evidence_ref": "PR #6756 (merged): doctor charter-packs reports both escapes; this mission converges the other two surfaces on the same predicates",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6534": {
+      "evidence_ref": "Epic/task cited for context: the conformance-corpus owner; this mission adds an additive pack-containment table and changes neither corpus nor schema.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6733": {
+      "evidence_ref": "kitty-specs/charter-escape-report-convergence-01M66YM0/tasks/WP01-status-escape-findings.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#6756": {
+      "evidence_ref": "PR #6756 is the merged delivery of #6418; cited in this mission for context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
