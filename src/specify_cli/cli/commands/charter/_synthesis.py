@@ -7,7 +7,7 @@ behaviour-preserving; only import paths changed.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -769,7 +769,16 @@ _SYNTHESIS_ARTIFACT_PATHS = (
 )
 
 
-def _print_synthesis_commit_reminder(repo_root: Path) -> None:
+def _print_synthesis_commit_reminder(repo_root: Path, extra_paths: Iterable[str] = ()) -> None:
+    """Print the safe-commit recipe for the synthesis write surface (#6631).
+
+    The base artifact list (:data:`_SYNTHESIS_ARTIFACT_PATHS`) names what every
+    established-store run writes. *extra_paths* adds paths THIS run also wrote
+    and the base list does not name (the created-artifacts record, the promoted
+    activation write target) -- sourced from the append seam's own report, never
+    restated here, so the recipe cannot drift from the write surface. Duplicates
+    are collapsed with base order first, then extras in write order.
+    """
     # FR-018 (WP03 review cycle 1, #1): name --to-branch, resolved from
     # repo_root's own checked-out branch -- charter synthesis always runs
     # from a repository-root checkout (the linked-worktree guard refuses
@@ -777,8 +786,9 @@ def _print_synthesis_commit_reminder(repo_root: Path) -> None:
     # own repo.
     from specify_cli.core.git_ops import get_current_branch
 
+    paths = list(dict.fromkeys((*_SYNTHESIS_ARTIFACT_PATHS, *extra_paths)))
     console.print("[yellow]Synthesis artifacts written; commit provenance before continuing:[/yellow]")
-    console.print(f"  {safe_commit_recipe(list(_SYNTHESIS_ARTIFACT_PATHS), 'chore: charter synthesis artifacts', get_current_branch(repo_root))}")
+    console.print(f"  {safe_commit_recipe(paths, 'chore: charter synthesis artifacts', get_current_branch(repo_root))}")
 
 
 # ---------------------------------------------------------------------------
@@ -1103,8 +1113,13 @@ def _emit_real_run_report(
     warnings_collected: list[str],
     prune: bool,
     repo_root: Path,
+    extra_artifact_paths: Iterable[str] = (),
 ) -> None:
     """Emit the real-run (preserve/prune) success report.
+
+    *extra_artifact_paths* are the additional repo-relative paths this run wrote
+    beyond the base synthesis artifacts (threaded from the activation-append
+    seam); the human report's commit reminder names them (#6631).
 
     ``prune=True`` lists every effected deletion (T012); ``prune=False``
     reports retained content plus preserved-content conflict warnings
@@ -1172,7 +1187,7 @@ def _emit_real_run_report(
             for conflict in reconciliation.conflicts:
                 console.print(f"[yellow]{_conflict_to_line(conflict)}[/yellow]")
     if written_artifacts_real:
-        _print_synthesis_commit_reminder(repo_root)
+        _print_synthesis_commit_reminder(repo_root, extra_paths=extra_artifact_paths)
 
 
 # Fresh-project doctrine seed helpers were carved out into ``_fresh_project_layer``

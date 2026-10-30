@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -42,7 +43,7 @@ from kernel.atomic import atomic_write
 from kernel.charter_pack_paths import project_pack_root
 from kernel.errors import KittyInternalConsistencyError
 
-__all__ = ["append_synthesized_activations", "created_slugs_by_kind", "reach_only_ids"]
+__all__ = ["SynthesizedActivationAppend", "append_synthesized_activations", "created_slugs_by_kind", "reach_only_ids"]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,6 +66,22 @@ _UNREADABLE_RECORD_WARNING = (
 
 class _UnreadableRecordError(ValueError):
     """A created-artifact record exists but cannot be read as per-kind lists of ids."""
+
+
+@dataclass(frozen=True)
+class SynthesizedActivationAppend:
+    """What one :func:`append_synthesized_activations` call did (#6631).
+
+    ``warnings`` carries the call's operator-facing warnings (unchanged content);
+    ``written_paths`` lists the repo-relative POSIX paths the call wrote — the
+    created-artifacts record when its content changed, and the activation write
+    target when a promote fired. Commit-reminder surfaces render these instead
+    of restating a fixed path list, so a path the run never wrote is never
+    named and a path it did write is never missed.
+    """
+
+    warnings: tuple[str, ...] = ()
+    written_paths: tuple[str, ...] = ()
 
 
 class SynthesisMembershipUnreadableError(KittyInternalConsistencyError):
@@ -245,8 +262,14 @@ def _eligible(repo_root: Path, kind: str, slugs: list[str]) -> list[str]:
     return [slug for slug in slugs if slug in reach_only]
 
 
-def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str, Iterable[str]]) -> list[str]:
-    """Append first-time created slugs to each explicit ``activated_<kind>s`` list; return warnings.
+def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str, Iterable[str]]) -> SynthesizedActivationAppend:
+    """Append first-time created slugs to each explicit ``activated_<kind>s`` list.
+
+    Returns a :class:`SynthesizedActivationAppend`: the call's warnings plus the
+    repo-relative paths it wrote (the created-artifacts record and/or the
+    activation write target). Callers that only want the warnings destructure
+    ``.warnings``; commit-reminder surfaces render ``.written_paths`` so the
+    printed recipe names exactly the write surface (#6631).
 
     *created_by_kind* maps a kind in :data:`~charter.activation.synthesizer.reconcile.REACH_ONLY_KINDS`
     to the slugs a run created. A slug counts only when synthesis has never
@@ -270,17 +293,17 @@ def append_synthesized_activations(repo_root: Path, created_by_kind: Mapping[str
         return _append_synthesized_activations_locked(repo_root, created_by_kind)
 
 
-def _append_synthesized_activations_locked(repo_root: Path, created_by_kind: Mapping[str, Iterable[str]]) -> list[str]:
+def _append_synthesized_activations_locked(repo_root: Path, created_by_kind: Mapping[str, Iterable[str]]) -> SynthesizedActivationAppend:
     """Body of :func:`append_synthesized_activations`; the caller holds the synthesis lock."""
     slugs_by_kind = {kind: list(dict.fromkeys(created_by_kind.get(kind, ()))) for kind in REACH_ONLY_KINDS}
     slugs_by_kind = {kind: _eligible(repo_root, kind, slugs) for kind, slugs in slugs_by_kind.items()}
     slugs_by_kind = {kind: slugs for kind, slugs in slugs_by_kind.items() if slugs}
     if not slugs_by_kind:
-        return []
+        return SynthesizedActivationAppend()
     try:
         recorded, foreign = _read_record(repo_root)
     except _UnreadableRecordError as exc:
-        return [_UNREADABLE_RECORD_WARNING.format(path=exc)]
+        return SynthesizedActivationAppend(warnings=(_UNREADABLE_RECORD_WARNING.format(path=exc),))
     first_time = _first_time_slugs(repo_root, slugs_by_kind, recorded)
     # Every slug of a participating kind is recorded, including those already in the manifest.
     updated = {
@@ -289,24 +312,38 @@ def _append_synthesized_activations_locked(repo_root: Path, created_by_kind: Map
         else recorded[kind]
         for kind in REACH_ONLY_KINDS
     }
+    written: list[str] = []
 
     def _record() -> None:
         if updated != recorded:
             _write_record(repo_root, updated, foreign)
+            written.append(CREATED_ARTIFACTS_PATH.as_posix())
 
     write_target = _activation_write_target(repo_root) if any(first_time.values()) else None
     additions = _config_additions(write_target[1], first_time) if write_target is not None else {}
     if write_target is None or not additions:
+        # No config rewrite and no restamp -- but the record may still have been
+        # written (every slug is recorded, also when the activated-<kind>s key is
+        # absent), so report exactly what _record() wrote and nothing more.
         _record()
-        return []  # nothing to append: no config rewrite, no restamp
+        return SynthesizedActivationAppend(written_paths=tuple(written))
     warnings = _promote(repo_root, additions, write_target)
+    written.append(_repo_relative(write_target[0], repo_root))
     # Record only once the config write succeeded: a failed promote must leave the
     # artifact unrecorded so a later run still appends it.
     _record()
     from charter.activation.bundle_restamp import restamp_bundle_hash  # deferred import
 
     restamp_bundle_hash(repo_root)
-    return warnings
+    return SynthesizedActivationAppend(warnings=tuple(warnings), written_paths=tuple(written))
+
+
+def _repo_relative(path: Path, repo_root: Path) -> str:
+    """*path* as a repo-relative POSIX string (the shape commit-reminder surfaces render)."""
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
 _WriteTarget = tuple[Path, dict[str, Any], Callable[[Path, dict[str, Any]], None]]

@@ -9,7 +9,10 @@ interview -> request derivation and evidence collection are patched (same conven
 from __future__ import annotations
 
 import json
+import re
+import shlex
 import shutil
+import subprocess
 import threading
 from collections.abc import Callable
 from pathlib import Path
@@ -23,8 +26,9 @@ from typer.testing import CliRunner
 
 from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify_manifest_hash
-from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
+from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH, SynthesizedActivationAppend
 from charter.bundle import compute_bundle_content_hash
+from specify_cli import app as cli_app
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -204,6 +208,62 @@ def test_created_slugs_takes_only_added_entries_of_the_kind() -> None:
     assert created_slugs(SimpleNamespace(manifest_delta=delta.manifest_delta), "tactic") == []
 
 
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+
+def _plain_output(output: str) -> str:
+    """Remove ANSI styling so the safe-commit recipe line can be parsed stably."""
+    return re.sub(r"\x1b\[[0-9;]*m", "", output)
+
+
+@pytest.mark.regression
+@pytest.mark.git_repo
+def test_printed_commit_command_leaves_kittify_clean(tmp_path: Path, charter_cwd_isolation: Callable[..., Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """The safe-commit recipe synthesize prints names every path the run wrote (#6631).
+
+    Runs the real synthesize on the canonical fixture (explicit ``activated_tactics``
+    list, so the run writes the created-artifacts record AND promotes into
+    ``charter.yaml``), then executes the printed command verbatim through the real
+    ``safe-commit`` CLI. The assertion is over the whole ``.kittify/`` tree, not a
+    fixed path list, so any future written-but-unnamed artifact fails this test.
+    """
+    branch = "kitty/mission-test-01REG6631"
+    # tests/charter/conftest.py autouse-inits tmp_path as a git repo (default
+    # branch name) before the test body; re-point HEAD at a non-protected lane
+    # branch so the printed --to-branch is committable.
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    _git(tmp_path, "init", "-q", f"--initial-branch={branch}")
+    _git(tmp_path, "branch", "-M", branch)
+    _git(tmp_path, "config", "user.email", "test@example.com")
+    _git(tmp_path, "config", "user.name", "Test User")
+    _git(tmp_path, "config", "commit.gpgsign", "false")
+
+    _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    _git(tmp_path, "add", ".kittify")
+    _git(tmp_path, "commit", "-q", "-m", "seed project")
+
+    # The human (non-JSON) branch is the one that prints the commit reminder.
+    result = _invoke(charter_cwd_isolation, ["synthesize", "--adapter", "fixture"], _request("01DDDDDDDDDDDDDDDDDDDDDDDDD"))
+
+    assert result.exit_code == 0, result.output
+    plain = _plain_output(result.output)
+    recipe_lines = [line.strip() for line in plain.splitlines() if line.strip().startswith("spec-kitty safe-commit")]
+    assert len(recipe_lines) == 1, f"expected exactly one safe-commit recipe line, got: {recipe_lines}"
+    # The record and the promoted activation target must both be named (written this run).
+    assert CREATED_ARTIFACTS_PATH.as_posix() in recipe_lines[0]
+    assert ".kittify/charter/charter.yaml" in recipe_lines[0]
+
+    monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
+    args = shlex.split(recipe_lines[0])[2:]  # drop the program token and the "safe-commit" subcommand token
+    commit_result = runner.invoke(cli_app, ["safe-commit", *args], catch_exceptions=False)
+
+    assert commit_result.exit_code == 0, commit_result.output
+    status = _git(tmp_path, "status", "--porcelain", ".kittify/").stdout
+    assert status == "", f"running the printed command left .kittify/ dirty: {status}"
+    assert _git(tmp_path, "ls-files", CREATED_ARTIFACTS_PATH.as_posix()).stdout.strip() != ""
+
+
 def test_synthesize_leaves_absent_key_absent(tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
     charter_yaml = _seed_project(tmp_path, activated_tactics=None)
 
@@ -285,8 +345,68 @@ def test_append_skips_slugs_already_activated(tmp_path: Path) -> None:
     charter_yaml = _seed_project(tmp_path, activated_tactics=[_EXISTING])
     before = charter_yaml.read_bytes()
 
-    assert append_synthesized_activations(tmp_path, {"tactic": [_EXISTING]}) == []
+    append_result = append_synthesized_activations(tmp_path, {"tactic": [_EXISTING]})
+    assert append_result.warnings == ()
+    # No config rewrite (charter.yaml is untouched below) but the record is written:
+    # every participating slug is recorded, also one already activated.
+    assert append_result.written_paths == (CREATED_ARTIFACTS_PATH.as_posix(),)
     assert charter_yaml.read_bytes() == before
+
+
+def test_append_reports_the_paths_it_wrote_on_a_promote(tmp_path: Path) -> None:
+    """#6631: a promote reports both the activation target and the created-artifacts record."""
+    from charter.activation.synthesizer.reach_only import append_synthesized_activations
+
+    _seed_project(tmp_path, activated_tactics=[_EXISTING])
+
+    with patch("charter.activation.bundle_restamp.restamp_bundle_hash"):
+        append_result = append_synthesized_activations(tmp_path, {"tactic": ["brand-new"]})
+
+    assert append_result.warnings == ()
+    assert append_result.written_paths == (
+        ".kittify/charter/charter.yaml",  # the promoted activation write target
+        CREATED_ARTIFACTS_PATH.as_posix(),  # the created-artifacts record
+    )
+
+
+def test_append_reports_the_record_when_the_activated_key_stays_absent(tmp_path: Path) -> None:
+    """#6631: an absent activated-<kind>s key stays absent (C-001) but the record is still written -- and reported."""
+    from charter.activation.synthesizer.reach_only import append_synthesized_activations
+
+    _seed_project(tmp_path, activated_tactics=None)
+
+    with patch("charter.activation.bundle_restamp.restamp_bundle_hash"):
+        append_result = append_synthesized_activations(tmp_path, {"tactic": ["brand-new"]})
+
+    assert append_result.warnings == ()
+    assert append_result.written_paths == (CREATED_ARTIFACTS_PATH.as_posix(),)
+
+
+def test_append_reports_no_written_paths_when_nothing_changed(tmp_path: Path) -> None:
+    """#6631: an already-recorded, already-activated slug writes nothing -- and reports nothing."""
+    from charter.activation.synthesizer.reach_only import append_synthesized_activations
+
+    _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    (tmp_path / CREATED_ARTIFACTS_PATH).write_text(f"created_tactics:\n- {_EXISTING}\n", encoding="utf-8")
+
+    with patch("charter.activation.bundle_restamp.restamp_bundle_hash"):
+        append_result = append_synthesized_activations(tmp_path, {"tactic": [_EXISTING]})
+
+    assert append_result == SynthesizedActivationAppend()
+
+
+def test_append_reports_no_written_paths_on_an_unreadable_record(tmp_path: Path) -> None:
+    """#6631: an unreadable record appends nothing (no writes) and only warns."""
+    from charter.activation.synthesizer.reach_only import append_synthesized_activations
+
+    _seed_project(tmp_path, activated_tactics=[_EXISTING])
+    (tmp_path / CREATED_ARTIFACTS_PATH).write_text("created_tactics: not-a-list\n", encoding="utf-8")
+
+    with patch("charter.activation.bundle_restamp.restamp_bundle_hash"):
+        append_result = append_synthesized_activations(tmp_path, {"tactic": ["brand-new"]})
+
+    assert append_result.written_paths == ()
+    assert len(append_result.warnings) == 1
 
 
 def test_append_records_every_slug_and_appends_only_first_time_ones(tmp_path: Path) -> None:
@@ -398,7 +518,7 @@ class _Handshake:
 def _append(repo: Path, created: list[str]) -> Any:
     from charter.activation.synthesizer.reach_only import append_synthesized_activations
 
-    return append_synthesized_activations(repo, {"tactic": created})
+    return append_synthesized_activations(repo, {"tactic": created}).warnings
 
 
 def test_concurrent_appends_lose_no_recorded_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

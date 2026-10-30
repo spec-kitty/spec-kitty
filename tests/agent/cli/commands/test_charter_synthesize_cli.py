@@ -136,20 +136,21 @@ class TestSynthesizeHappyPath:
         _write_interview_answers(tmp_path)
 
         charter_cwd_isolation()
-        with patch(
-            "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
-        ), patch(
-            "specify_cli.cli.commands.charter._run_synthesis_dry_run_with_artifacts",
-            return_value=(
-                ["directive:test-directive"],
-                [
-                    {
-                        "path": ".kittify/charter-packs/directive/001-test-directive.directive.yaml",
-                        "kind": "directive",
-                        "slug": "test-directive",
-                        "artifact_id": "PROJECT_001",
-                    }
-                ],
+        with (
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.charter._run_synthesis_dry_run_with_artifacts",
+                return_value=(
+                    ["directive:test-directive"],
+                    [
+                        {
+                            "path": ".kittify/charter-packs/directive/001-test-directive.directive.yaml",
+                            "kind": "directive",
+                            "slug": "test-directive",
+                            "artifact_id": "PROJECT_001",
+                        }
+                    ],
+                ),
             ),
         ):
             result = runner.invoke(app, ["synthesize", "--dry-run"])
@@ -185,30 +186,30 @@ class TestSynthesizeHappyPath:
         mock_result.effective_adapter_version = "1.0.0"
 
         charter_cwd_isolation()
-        with patch(
-            "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
-        ), patch(
-            "specify_cli.cli.commands.charter._collect_evidence_result",
-            return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
-        ), patch(
-            "specify_cli.cli.commands.charter._build_synthesis_request",
-            return_value=(SimpleNamespace(), SimpleNamespace()),
-        ), patch(
-            "charter.activation.synthesizer.synthesize", return_value=mock_result
-        ), patch(
-            "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
-            return_value=[
-                {
-                    "path": ".kittify/charter-packs/directive/001-test.directive.yaml",
-                    "kind": "directive",
-                    "slug": "test",
-                    "artifact_id": "PROJECT_001",
-                }
-            ],
+        with (
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.charter._collect_evidence_result",
+                return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
+            ),
+            patch(
+                "specify_cli.cli.commands.charter._build_synthesis_request",
+                return_value=(SimpleNamespace(), SimpleNamespace()),
+            ),
+            patch("charter.activation.synthesizer.synthesize", return_value=mock_result),
+            patch(
+                "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
+                return_value=[
+                    {
+                        "path": ".kittify/charter-packs/directive/001-test.directive.yaml",
+                        "kind": "directive",
+                        "slug": "test",
+                        "artifact_id": "PROJECT_001",
+                    }
+                ],
+            ),
         ):
-            result = runner.invoke(
-                app, ["synthesize", "--adapter", "fixture", "--json"]
-            )
+            result = runner.invoke(app, ["synthesize", "--adapter", "fixture", "--json"])
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
         data = json.loads(result.output)
@@ -245,29 +246,32 @@ class TestSynthesizeHappyPath:
         mock_result.effective_adapter_version = "1.0.0"
 
         charter_cwd_isolation()
-        with patch(
-            "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
-        ), patch(
-            "specify_cli.cli.commands.charter._collect_evidence_result",
-            return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
-        ), patch(
-            "specify_cli.cli.commands.charter._build_synthesis_request",
-            return_value=(SimpleNamespace(), SimpleNamespace()),
-        ), patch(
-            "charter.activation.synthesizer.synthesize", return_value=mock_result
-        ), patch(
-            "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
-            return_value=[
-                {
-                    "path": ".kittify/charter/synthesis-manifest.yaml",
-                    "kind": "manifest",
-                    "slug": "synthesis",
-                    "artifact_id": None,
-                }
-            ],
-        ), patch(
-            "specify_cli.core.git_ops.get_current_branch",
-            return_value="kitty/mission-charter-synth-demo",
+        with (
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.charter._collect_evidence_result",
+                return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
+            ),
+            patch(
+                "specify_cli.cli.commands.charter._build_synthesis_request",
+                return_value=(SimpleNamespace(), SimpleNamespace()),
+            ),
+            patch("charter.activation.synthesizer.synthesize", return_value=mock_result),
+            patch(
+                "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
+                return_value=[
+                    {
+                        "path": ".kittify/charter/synthesis-manifest.yaml",
+                        "kind": "manifest",
+                        "slug": "synthesis",
+                        "artifact_id": None,
+                    }
+                ],
+            ),
+            patch(
+                "specify_cli.core.git_ops.get_current_branch",
+                return_value="kitty/mission-charter-synth-demo",
+            ),
         ):
             result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
 
@@ -278,6 +282,102 @@ class TestSynthesizeHappyPath:
         # resolved from the repo root's current branch -- never silently
         # rely on safe-commit's deprecated HEAD fallback.
         assert "--to-branch kitty/mission-charter-synth-demo" in result.output
+        # #6631 drift guard, other direction: this run writes no activation-surface
+        # path (the append seam reports none), so the recipe must not name one.
+        assert "synthesized-artifacts.yaml" not in result.output
+        assert ".kittify/charter/charter.yaml" not in result.output
+
+    def test_synthesize_reminder_names_paths_the_append_seam_reported(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
+        """#6631: the reminder renders the append seam's written paths, not a restated list.
+
+        Same complete-bundle seeding + evidence/request mocks as
+        ``test_synthesize_non_json_reminds_to_commit_artifacts``; the append
+        seam is patched to report a realistic write surface (the created-
+        artifacts record and the promoted activation target) and the reminder
+        must name both, after the base artifacts, without duplicating one.
+        """
+        from charter.activation.api import SynthesizedActivationAppend
+
+        _seed_complete_bundle(tmp_path)
+
+        mock_result = MagicMock()
+        mock_result.target_kind = "directive"
+        mock_result.target_slug = "project-intent-directive"
+        mock_result.inputs_hash = "abc123def456"
+        mock_result.effective_adapter_id = "fixture"
+        mock_result.effective_adapter_version = "1.0.0"
+
+        charter_cwd_isolation()
+        with (
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.charter._collect_evidence_result",
+                return_value=SimpleNamespace(warnings=[], bundle=SimpleNamespace()),
+            ),
+            patch(
+                "specify_cli.cli.commands.charter._build_synthesis_request",
+                return_value=(SimpleNamespace(), SimpleNamespace()),
+            ),
+            patch("charter.activation.synthesizer.synthesize", return_value=mock_result),
+            patch(
+                "charter.activation.api.append_synthesized_activations",
+                return_value=SynthesizedActivationAppend(
+                    written_paths=(
+                        ".kittify/charter/charter.yaml",  # promoted activation target
+                        ".kittify/charter/synthesized-artifacts.yaml",  # created-artifacts record
+                        ".kittify/charter-packs/",  # duplicate of a base path: must appear once
+                    )
+                ),
+            ),
+            patch(
+                "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
+                return_value=[
+                    {
+                        "path": ".kittify/charter/synthesis-manifest.yaml",
+                        "kind": "manifest",
+                        "slug": "synthesis",
+                        "artifact_id": None,
+                    }
+                ],
+            ),
+            patch(
+                "specify_cli.core.git_ops.get_current_branch",
+                return_value="kitty/mission-charter-synth-demo",
+            ),
+        ):
+            result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
+
+        assert result.exit_code == 0, f"Expected exit 0: {result.output}"
+        # Base artifacts first, then the seam's extras in report order, deduped.
+        assert (
+            "spec-kitty safe-commit .kittify/charter/synthesis-manifest.yaml .kittify/charter/provenance/ "
+            ".kittify/charter-packs/ .kittify/charter/charter.yaml .kittify/charter/synthesized-artifacts.yaml"
+        ) in result.output
+        assert result.output.count(".kittify/charter-packs/") == 1
+        assert "synthesized-artifacts.yaml" in result.output
+
+    def test_reminder_derives_path_list_from_written_surface(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """#6631: the reminder's path list is base artifacts plus the caller's extras, deduped, base order first."""
+        from specify_cli.cli.commands.charter._synthesis import _print_synthesis_commit_reminder
+
+        with patch("specify_cli.core.git_ops.get_current_branch", return_value="kitty/mission-x"):
+            _print_synthesis_commit_reminder(
+                tmp_path,
+                extra_paths=(
+                    ".kittify/charter/synthesized-artifacts.yaml",
+                    ".kittify/charter/charter.yaml",
+                    ".kittify/charter-packs/",  # duplicate of a base path
+                    ".kittify/charter/charter.yaml",  # duplicate extra
+                ),
+            )
+
+        out = " ".join(capsys.readouterr().out.split())  # rich wraps at console width; compare collapsed
+        assert (
+            "spec-kitty safe-commit .kittify/charter/synthesis-manifest.yaml .kittify/charter/provenance/ "
+            ".kittify/charter-packs/ .kittify/charter/synthesized-artifacts.yaml .kittify/charter/charter.yaml "
+            '-m "chore: charter synthesis artifacts" --to-branch kitty/mission-x'
+        ) in out
+        assert out.count(".kittify/charter/charter.yaml") == 1
 
     def test_synthesize_dry_run_json(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """--dry-run --json returns staged artifacts and validated=true.
@@ -290,20 +390,21 @@ class TestSynthesizeHappyPath:
         _write_interview_answers(tmp_path)
 
         charter_cwd_isolation()
-        with patch(
-            "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
-        ), patch(
-            "specify_cli.cli.commands.charter._run_synthesis_dry_run_with_artifacts",
-            return_value=(
-                ["directive:test-directive"],
-                [
-                    {
-                        "path": ".kittify/charter-packs/directive/001-test-directive.directive.yaml",
-                        "kind": "directive",
-                        "slug": "test-directive",
-                        "artifact_id": "PROJECT_001",
-                    }
-                ],
+        with (
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.charter._run_synthesis_dry_run_with_artifacts",
+                return_value=(
+                    ["directive:test-directive"],
+                    [
+                        {
+                            "path": ".kittify/charter-packs/directive/001-test-directive.directive.yaml",
+                            "kind": "directive",
+                            "slug": "test-directive",
+                            "artifact_id": "PROJECT_001",
+                        }
+                    ],
+                ),
             ),
         ):
             result = runner.invoke(
@@ -318,9 +419,7 @@ class TestSynthesizeHappyPath:
         assert data["validated"] is True
         # FR-002 contracted fields:
         assert "adapter" in data and isinstance(data["adapter"], dict)
-        assert "written_artifacts" in data and isinstance(
-            data["written_artifacts"], list
-        )
+        assert "written_artifacts" in data and isinstance(data["written_artifacts"], list)
         assert "warnings" in data and isinstance(data["warnings"], list)
         # Typed entry shape per data-model §E-3:
         assert len(data["written_artifacts"]) == 1
@@ -346,9 +445,7 @@ class TestSynthesizeEnvelopeContract:
     cases with no artifacts.
     """
 
-    def test_synthesize_fixture_envelope_has_contracted_fields(
-        self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]
-    ) -> None:
+    def test_synthesize_fixture_envelope_has_contracted_fields(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
         """Real-run --json envelope carries result / adapter / written_artifacts / warnings.
 
         Uses the dry-run code path with the fixture adapter so the test
@@ -359,11 +456,12 @@ class TestSynthesizeEnvelopeContract:
         _write_interview_answers(tmp_path)
 
         charter_cwd_isolation()
-        with patch(
-            "specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path
-        ), patch(
-            "specify_cli.cli.commands.charter._run_synthesis_dry_run_with_artifacts",
-            return_value=([], []),
+        with (
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.charter._run_synthesis_dry_run_with_artifacts",
+                return_value=([], []),
+            ),
         ):
             result = runner.invoke(
                 app,
@@ -377,9 +475,7 @@ class TestSynthesizeEnvelopeContract:
 
         # FR-002: the four contracted fields MUST be present.
         for key in ("result", "adapter", "written_artifacts", "warnings"):
-            assert key in envelope, (
-                f"FR-002: contracted field {key!r} missing from envelope: {envelope!r}"
-            )
+            assert key in envelope, f"FR-002: contracted field {key!r} missing from envelope: {envelope!r}"
 
         # Type / shape contract per data-model §E-1:
         assert envelope["result"] in {"success", "failure", "dry_run"}
@@ -394,12 +490,8 @@ class TestSynthesizeEnvelopeContract:
         # FR-005: PROJECT_000 must not appear anywhere on the wire.
         assert "PROJECT_000" not in json.dumps(envelope)
 
-    @pytest.mark.parametrize(
-        "field", ["result", "adapter", "written_artifacts", "warnings"]
-    )
-    def test_synthesize_fixture_envelope_rejects_missing_contracted_field(
-        self, field: str
-    ) -> None:
+    @pytest.mark.parametrize("field", ["result", "adapter", "written_artifacts", "warnings"])
+    def test_synthesize_fixture_envelope_rejects_missing_contracted_field(self, field: str) -> None:
         """Defensive scaffolding test: removing any contracted field MUST be detectable.
 
         This guards against a future regression where a test
@@ -415,12 +507,8 @@ class TestSynthesizeEnvelopeContract:
         }
         del complete[field]
         # The four-field membership check must reject this envelope.
-        missing = [k for k in ("result", "adapter", "written_artifacts", "warnings")
-                   if k not in complete]
-        assert missing == [field], (
-            f"scaffolding sanity: deleting {field!r} should leave it (and only it) "
-            f"missing; got missing={missing}"
-        )
+        missing = [k for k in ("result", "adapter", "written_artifacts", "warnings") if k not in complete]
+        assert missing == [field], f"scaffolding sanity: deleting {field!r} should leave it (and only it) missing; got missing={missing}"
 
 
 # ---------------------------------------------------------------------------
@@ -447,9 +535,7 @@ class TestSynthesizeErrorPaths:
         with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
             result = runner.invoke(app, ["synthesize", "--adapter", "production"])
 
-        assert result.exit_code == 1, (
-            f"Expected exit 1, got {result.exit_code}: {result.output}"
-        )
+        assert result.exit_code == 1, f"Expected exit 1, got {result.exit_code}: {result.output}"
         assert LINKED_WORKTREE_REFUSAL not in " ".join(result.output.split())
 
     def test_pack_config_error_surfaces_diagnostic_body(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
