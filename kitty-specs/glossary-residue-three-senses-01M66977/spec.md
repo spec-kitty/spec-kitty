@@ -25,8 +25,8 @@ The three senses, per the issue and the code on `main`@512567ee:
 2. **Audit-engine residue** — `RESIDUE_DIRECTORY`
    (`src/specify_cli/audit/models.py`, engine `src/specify_cli/audit/engine.py`,
    #5812): a directory that is not a Mission per `is_mission_dir`, reported as
-   one INFO finding and not classified (FR-008 of #5875 keeps the engine on this
-   looser rule).
+   one INFO finding and not classified (the engine keeps this looser rule
+   deliberately: `mission-walker-residue-rule-01M5ZC0X#FR-008`, issue #5875).
 3. **Read-side / `doctor identity` residue** — `not is_selectable_mission_dir`
    (`src/specify_cli/context/mission_resolver.py`,
    `src/specify_cli/status/identity_audit.py`, #5875 operator ruling 2026-10-27):
