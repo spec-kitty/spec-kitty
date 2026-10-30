@@ -728,13 +728,15 @@ def test_collect_org_layer_data_records_a_crashed_body_path_check(
     tmp_repo_with_escaping_pack: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A check that could not RUN is reported, never read as "no escapes"."""
-    import charter.activation.drg_activation as drg_activation
+    import charter.drg as charter_drg
     from specify_cli.cli.commands.doctor import _collect_org_layer_data
 
     def _boom(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError("registry exploded")
 
-    monkeypatch.setattr(drg_activation, "find_org_body_path_escapes", _boom)
+    # #6731: the predicate the doctor calls is the offering one, reached through
+    # the ``charter.drg`` facade — patch THAT name, not the deleted activation wrapper.
+    monkeypatch.setattr(charter_drg, "find_body_path_escapes", _boom)
 
     result = _collect_org_layer_data(tmp_repo_with_escaping_pack)
 
@@ -780,12 +782,12 @@ def test_render_org_layer_section_reports_no_body_path_escape_when_contained(tmp
 def test_render_org_layer_section_reports_a_crashed_body_path_check(
     tmp_repo_with_escaping_pack: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import charter.activation.drg_activation as drg_activation
+    import charter.drg as charter_drg
 
     def _boom(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError("registry exploded")
 
-    monkeypatch.setattr(drg_activation, "find_org_body_path_escapes", _boom)
+    monkeypatch.setattr(charter_drg, "find_body_path_escapes", _boom)
 
     output = _render(tmp_repo_with_escaping_pack)
 
@@ -914,13 +916,14 @@ def test_collect_org_layer_data_records_a_crashed_asset_check(
     tmp_repo_with_escaping_asset: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A check that could not RUN is reported, never read as "no escapes"."""
-    import charter.activation.drg_activation as drg_activation
+    import charter.drg as charter_drg
     from specify_cli.cli.commands.doctor import _collect_org_layer_data
 
     def _boom(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError("assets exploded")
 
-    monkeypatch.setattr(drg_activation, "find_org_asset_path_escapes", _boom)
+    # #6731: same re-point as the body_path case — the facade name is the live call.
+    monkeypatch.setattr(charter_drg, "find_asset_path_escapes", _boom)
 
     result = _collect_org_layer_data(tmp_repo_with_escaping_asset)
 
@@ -951,12 +954,12 @@ def test_render_org_layer_section_truncates_many_asset_escapes(tmp_repo_with_org
 def test_render_org_layer_section_reports_a_crashed_asset_check(
     tmp_repo_with_escaping_asset: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import charter.activation.drg_activation as drg_activation
+    import charter.drg as charter_drg
 
     def _boom(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError("assets exploded")
 
-    monkeypatch.setattr(drg_activation, "find_org_asset_path_escapes", _boom)
+    monkeypatch.setattr(charter_drg, "find_asset_path_escapes", _boom)
 
     output = _render(tmp_repo_with_escaping_asset)
 
@@ -1007,3 +1010,83 @@ def test_doctor_charter_packs_human_exit_code_on_asset_escape(
 
     assert result.exit_code == expected_exit, result.output
     assert ("asset path escapes: 1" in result.output) is (expected_exit == 1), result.output
+
+
+# ---------------------------------------------------------------------------
+# #6731: one pack→root authority — the containment flow reads the registry once
+# ---------------------------------------------------------------------------
+#
+# RED before the fix: `load_org_drg` read the registry once and the two
+# `charter.activation` containment wrappers read it again through
+# `_org_pack_roots_by_name`, so one doctor run parsed `.kittify/config.yaml`
+# three times. The fragment now carries the effective root it was loaded from.
+
+
+def _count_registry_reads(monkeypatch: pytest.MonkeyPatch) -> list[object]:
+    """Route `load_pack_registry` through a counter that delegates to the real reader."""
+    import charter.activation.drg_activation as drg_activation
+
+    real = drg_activation.load_pack_registry
+    calls: list[object] = []
+
+    def _counting(repo_root: object) -> object:
+        calls.append(repo_root)
+        return real(repo_root)
+
+    monkeypatch.setattr(drg_activation, "load_pack_registry", _counting)
+    return calls
+
+
+def test_collect_org_layer_data_reads_the_pack_registry_once(
+    tmp_repo_with_org_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The containment half judges packs against the root the loader resolved, not a re-read."""
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    calls = _count_registry_reads(monkeypatch)
+
+    result = _collect_org_layer_data(tmp_repo_with_org_pack)
+
+    assert len(calls) == 1, f"expected one registry read for one doctor run, got {len(calls)}"
+    # Positive control: the one counted read really produced the pack list, so a
+    # broken probe cannot pass by counting nothing.
+    assert [p["name"] for p in result["configured_packs"]] == ["example-org"]
+
+
+def test_render_org_layer_section_reads_the_pack_registry_once(
+    tmp_repo_with_org_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The human half shares the same single authority as the JSON half."""
+    calls = _count_registry_reads(monkeypatch)
+
+    output = _render(tmp_repo_with_org_pack)
+
+    assert len(calls) == 1, f"expected one registry read for one doctor render, got {len(calls)}"
+    # Positive control: the render really saw the pack.
+    assert "example-org" in output, output
+
+
+def test_org_layer_containment_flow_reads_the_registry_exactly_once(
+    tmp_repo_with_escaping_pack: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With a genuine finding present, the verdict still costs one registry read."""
+    from specify_cli.cli.commands.doctor import _collect_org_layer_data
+
+    calls = _count_registry_reads(monkeypatch)
+
+    result = _collect_org_layer_data(tmp_repo_with_escaping_pack)
+
+    assert [e["node"] for e in result["body_path_escapes"]] == ["team-asset"]
+    assert len(calls) == 1, f"expected one registry read, got {len(calls)}"
+
+
+def test_the_activation_layer_no_longer_owns_the_containment_wrappers() -> None:
+    """#6731: the registry re-read's home is gone; the loader that reads it once remains."""
+    import charter.activation.drg_activation as drg_activation
+
+    for name in ("find_org_body_path_escapes", "find_org_asset_path_escapes", "_org_pack_roots_by_name"):
+        assert not hasattr(drg_activation, name), f"{name!r} must be gone: containment judges the fragment's carried root"
+        assert name not in drg_activation.__all__
+    # Positive control: the probe can see a symbol that IS there, so the three
+    # absences above are not an artifact of looking at the wrong module.
+    assert callable(drg_activation.load_org_drg)
