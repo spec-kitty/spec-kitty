@@ -164,6 +164,11 @@ def _score_profile(
         context.complexity or "medium",
     )
     # When no context signals match (base_score=0), routing_priority becomes dominant.
+    # Annotated local, not a bare ``return``: the ``charter.*`` mypy override sets
+    # ``follow_imports = "skip"`` (pyproject.toml), so ``profile.routing_priority``
+    # resolves to ``Any`` when this module is checked on its own and reads as
+    # ``no-any-return``. The annotation re-asserts the field's declared type without
+    # a ``cast`` or a ``type: ignore`` (#4292).
     routing_priority: int = profile.routing_priority
     return (base_score + routing_priority / 100.0) * penalty * complexity_adj
 
@@ -271,8 +276,7 @@ class AgentProfileRepository:
     @staticmethod
     def _default_built_in_dir() -> Path:
         """Return the shipped built-in profiles directory (``packs/built-in/agent_profiles/``)."""
-        profiles_dir: Path = built_in_dir(ArtifactKind.AGENT_PROFILE)
-        return profiles_dir
+        return built_in_dir(ArtifactKind.AGENT_PROFILE)
 
     @classmethod
     def _default_drg(cls) -> DRGGraph:
@@ -958,6 +962,9 @@ class AgentProfileRepository:
         seed = _profile_urn(profile_id)
         if seed not in agent_profile_seed_urns(self._drg):
             return frozenset()
+        # Annotated local for the same reason as ``_score_profile``: ``charter.*``
+        # imports resolve to ``Any`` under ``follow_imports = "skip"``, so a bare
+        # ``return`` here reads as ``no-any-return`` (#4292).
         reached: frozenset[str] = profile_channel_reachable(self._drg, {seed})
         return reached
 
