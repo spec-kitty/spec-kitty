@@ -60,6 +60,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6510": {
+      "evidence_ref": "Context reference only (research.md): related-but-distinct prior work; not in this mission's fix scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6631": {
       "evidence_ref": "e2e regression test_printed_commit_command_leaves_kittify_clean red on unfixed code (recipe omitted .kittify/charter/synthesized-artifacts.yaml and the promoted charter.yaml), green after; lane-a commit 9c69b0195d",
       "fr": null,
