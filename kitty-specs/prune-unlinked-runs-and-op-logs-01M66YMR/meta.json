@@ -1,0 +1,41 @@
+{
+  "accept_commit": "8fdd001501cb2e50c6001a9d7e209455e6f5fd30",
+  "acceptance_history": [
+    {
+      "accept_commit": "f083119e3e30a83c4003b1218350278bf73c9787",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:40:18.669452+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "9ecd89f78a043319baf1b942555e0291488c178f"
+    },
+    {
+      "accept_commit": "8fdd001501cb2e50c6001a9d7e209455e6f5fd30",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:40:25.014203+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "d994d0ced17d04c1d69e17324508168415c1dede"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:40:25.014203+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "d994d0ced17d04c1d69e17324508168415c1dede",
+  "baseline_merge_commit": "a06f0524c09285b5651d3e404c635d193a6dcfa6",
+  "created_at": "2026-10-30T17:45:10.876353+00:00",
+  "flattened": false,
+  "friendly_name": "Prune unlinked runs and Op-scoped glossary logs",
+  "merged_at": "2026-10-30T19:41:00.958361+00:00",
+  "merged_commit": "a06f0524c09285b5651d3e404c635d193a6dcfa6",
+  "mid8": "01M66YMR",
+  "mission_id": "01M66YMRTNJAE9ACSN1RQSFTEQ",
+  "mission_number": 244,
+  "mission_slug": "prune-unlinked-runs-and-op-logs-01M66YMR",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "doctor event-logs (#6610) keeps two local-tier families forever, both reported as Mission not found: run directories whose run-index entry was replaced or removed (the slug survives only in inputs.mission_slug), and Op-scoped glossary logs named profile-invocation-<id>.events.jsonl. An unlinked item is now judged on age once it is past keep_runs and max_age_days, while a recorded unknown Mission keeps its protection, an open Op's log and a live run stay protected by their owner state and their locks, and the preview keeps reporting exactly what --apply would delete (#6739).",
+  "purpose_tldr": "Make doctor event-logs reclaim run directories and Op-scoped glossary logs that link to no Mission or Op it can find.",
+  "slug": "prune-unlinked-runs-and-op-logs-01M66YMR",
+  "status_phase": "1",
+  "target_branch": "issue-6739-prune-unlinked-runs-and-op-logs",
+  "topology": "single_branch"
+}
