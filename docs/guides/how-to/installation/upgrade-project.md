@@ -114,12 +114,12 @@ Or use `spec-kitty safe-commit <those files> -m "chore: upgrade Spec Kitty proje
 
 ### If a Mission's `meta.json` is missing
 
-Each Mission's `kitty-specs/<slug>/meta.json` carries its immutable `mission_id`. If git tracks that file but it is missing from your working tree — an accidental delete, or a partial/sparse checkout that excludes it — the upgrade rebuilds it from the copy git holds, so the Mission keeps the identity its history uses. Nothing is re-identified.
+Each Mission's `kitty-specs/<slug>/meta.json` carries its immutable `mission_id`. If git tracks that file but it is missing from your working tree — an accidental delete, or a partial/sparse checkout that excludes it — the upgrade rebuilds it from the copy git holds, so the Mission keeps the identity its history uses. A working-tree copy that has lost its `mission_id` takes the tracked one back. Nothing is re-identified.
 
 When the tracked copy cannot be read, the upgrade writes nothing for that Mission and names it, for example:
 
 ```text
-kitty-specs/<slug>/meta.json: tracked meta.json is missing from the working tree and git holds no readable copy; no identity was minted — restore it with `git checkout -- kitty-specs/<slug>/meta.json` and re-run the upgrade
+kitty-specs/<slug>/meta.json: tracked meta.json is missing from the working tree and the committed copy is not a JSON object; no identity was minted — repair the committed copy (`git show HEAD:kitty-specs/<slug>/meta.json` shows it), commit the fix, then restore it with `git checkout -- kitty-specs/<slug>/meta.json`
 ```
 
 Run the printed `git checkout -- <path>` and upgrade again. A `meta.json` git holds only in the index (staged, never committed) is reported the same way, with a note to commit it: its content is your working copy, not history's identity.

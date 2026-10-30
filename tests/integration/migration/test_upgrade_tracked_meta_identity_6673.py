@@ -224,3 +224,37 @@ def test_the_lifecycle_normalization_reports_the_restore_command(tmp_path: Path)
     notice = " ".join(refused.warnings)
     assert f"git checkout -- kitty-specs/{_CORRUPT}/meta.json" in notice
     assert "meta.json missing; mission skipped" not in notice
+
+
+def test_a_settled_sweep_still_restores_the_tracked_copy(tmp_path: Path) -> None:
+    """The restore must not depend on the 2.0.6 sweep still running (recorded-settled projects)."""
+    project = tmp_path / "proj"
+    project.mkdir(parents=True)
+    (project / ".kittify").mkdir()
+    (project / ".kittify" / "metadata.yaml").write_text(
+        "spec_kitty:\n"
+        "  schema_version: 3\n"
+        "  version: 3.1.0\n"
+        "  initialized_at: '2025-01-01T00:00:00+00:00'\n"
+        "  last_upgraded_at: '2025-01-01T00:00:00+00:00'\n"
+        "environment:\n"
+        "  python_version: '3.11.0'\n"
+        "  platform: linux\n"
+        "  platform_version: ''\n"
+        "migrations:\n"
+        "  applied: []\n",
+        encoding="utf-8",
+    )
+    _git(project, "init", "-q", "-b", "main")
+    _git(project, "config", "user.email", "test@example.com")
+    _git(project, "config", "user.name", "Test")
+    mission_dir = _commit_mission(project, _SPARSE, _meta(_SPARSE, _SPARSE_ID))
+    _git(project, "add", "-A")
+    _git(project, "commit", "-q", "-m", "init")
+    (mission_dir / "meta.json").unlink()
+
+    exit_code, output = _upgrade(project)
+
+    assert exit_code == 0, output
+    assert (mission_dir / "meta.json").is_file(), "a settled 2.0.6 sweep left the tracked copy missing"
+    assert json.loads((mission_dir / "meta.json").read_text(encoding="utf-8"))["mission_id"] == _SPARSE_ID

@@ -474,12 +474,14 @@ class TrackedMeta:
     could not be read); ``unavailable`` is True when git *knows* the path but its
     content cannot be used -- the refusal signal: a caller must never mint an identity
     over it. ``index_only`` marks the sub-case where the only copy is staged and never
-    committed, so the operator message can name the right repair.
+    committed; ``corrupt`` marks a committed copy that is not a JSON object, whose
+    content exists but cannot be parsed. Both only shape the operator message.
     """
 
     meta: dict[str, Any] | None
     unavailable: bool
     index_only: bool = False
+    corrupt: bool = False
 
 
 def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
@@ -509,7 +511,10 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
             :func:`~specify_cli.context.mission_resolver.probe_tracked_mission_paths`
             policy), because degrading it would re-enable the mint.
     """
-    prefix = _meta_checkout_prefix(feature_dir)
+    try:
+        prefix = _meta_checkout_prefix(feature_dir)
+    except _GitRefuses:
+        return TrackedMeta(None, unavailable=True)
     if prefix is None:
         return TrackedMeta(None, unavailable=False)
     try:
@@ -522,30 +527,84 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
         try:
             return TrackedMeta(decode_meta(tracked_bytes, on_malformed="raise"), unavailable=False)
         except MetaDecodeError:
-            return TrackedMeta(None, unavailable=True)
+            return TrackedMeta(None, unavailable=True, corrupt=True)
     if _index_tracks_meta(feature_dir):
         return TrackedMeta(None, unavailable=True, index_only=True)
     return TrackedMeta(None, unavailable=False)
 
 
+def restore_tracked_meta(feature_dir: Path) -> bool:
+    """Write the tracked ``meta.json`` git holds back into the working tree (#6673).
+
+    The canonical repair for a Mission whose tracked ``meta.json`` the working tree has lost
+    (an accidental ``rm``, a sparse/partial checkout): the file is recreated byte-for-value
+    from the copy git holds, so the Mission keeps the identity its history uses. Idempotent
+    and a no-op when the working-tree copy is present or git holds no usable copy.
+
+    Every write goes through :func:`write_meta` under the Mission write lock, like every other
+    ``meta.json`` mutation (C-002 of the mission spec).
+
+    Returns:
+        ``True`` when the file was written, ``False`` when it was not (present on disk, or
+        git holds nothing usable).
+    """
+    if (feature_dir / META_FILENAME).exists():
+        return False
+    tracked = read_tracked_meta(feature_dir)
+    if tracked.meta is None:
+        return False
+    from specify_cli.status import mission_write_lock  # deferred: status imports this module
+
+    with mission_write_lock(feature_dir, fallback_to_dir_name=True):
+        write_meta(feature_dir, tracked.meta, validate=False)
+    return True
+
+
+class _GitRefuses(Exception):
+    """git did not answer "this is not a work tree", so the tracked copy is unknown (#6673)."""
+
+
 def _meta_checkout_prefix(feature_dir: Path) -> str | None:
     """``rev-parse --show-prefix`` of *feature_dir* (``""`` at the checkout root), or ``None``.
 
-    ``None`` means "nothing is tracked here": outside a work tree, or git could not be
-    run at all. A timeout is re-raised. The trailing newline git prints is stripped --
-    without that, the blob lookup would silently miss and every case would degrade to a
-    refusal.
+    ``None`` means "nothing is tracked here": git is not installed, or it positively answered
+    that *feature_dir* is outside a work tree and no ``.git`` anchor exists above it.
+
+    The trailing newline git prints is removed -- and only that. ``strip()`` would also eat a
+    leading space that is part of the first path component, silently missing the blob and
+    refusing a Mission it could have restored.
+
+    A git that *runs and refuses* (dubious ownership, an unreadable or garbled ``.git``, a
+    misconfigured ``GIT_DIR``) exits non-zero too, with the same "not a git repository"
+    message. Message text cannot separate those, so a ``.git`` anchor above *feature_dir*
+    raises :class:`_GitRefuses`: the caller refuses instead of falling back to fabricating an
+    identity over a copy git does hold (NFR-002).
     """
     try:
         result = run_git(feature_dir, "rev-parse", "--is-inside-work-tree", "--show-prefix", check=False)
     except GitCommandError as exc:
         if exc.timed_out:
             raise
-        return None
+        if exc.not_run:
+            return None  # git is not installed: nothing is tracked here
+        raise _GitRefuses(str(exc)) from exc
     lines = result.stdout.decode(_UTF8, "replace").split("\n")
-    if result.returncode != 0 or len(lines) < 2 or lines[0].strip() != "true":
+    if result.returncode == 0 and len(lines) >= 2 and lines[0].strip() == "true":
+        return lines[1].removesuffix("\n")
+    if _has_no_git_anchor(feature_dir):
         return None
-    return lines[1].strip()
+    raise _GitRefuses(result.stderr.decode(_UTF8, "replace"))
+
+
+def _has_no_git_anchor(feature_dir: Path) -> bool:
+    """Whether no ``.git`` (directory, file or worktree marker) exists at or above *feature_dir*."""
+    for candidate in (feature_dir, *feature_dir.parents):
+        try:
+            if (candidate / ".git").exists():
+                return False
+        except OSError:
+            return False
+    return True
 
 
 def _committed_meta_bytes(feature_dir: Path, prefix: str) -> bytes | None:
