@@ -1,7 +1,7 @@
 {
   "rows": {
     "#5446": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "ADR 2026-10-07-3; exemption semantics unchanged, only production narrowed",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#6400": {
       "evidence_ref": "PR #6774 merged; #6754 is the follow-up it deliberately left open",
