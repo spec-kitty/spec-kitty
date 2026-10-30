@@ -162,8 +162,10 @@ def main_callback(
 def _run_startup_project_gates(ctx: typer.Context) -> None:
     """Run project-local safety gates shared by normal and startup-fast paths."""
     from specify_cli.cli.helpers import ROOT_COMMAND_ARGS_META_KEY
+    from specify_cli.core._ownership_claim_scope import owned_claim_scope
     from specify_cli.runtime.bootstrap import check_version_pin
 
+    ctx.with_resource(owned_claim_scope())
     # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
     project_root = locate_project_root()
     repository_root = project_root
