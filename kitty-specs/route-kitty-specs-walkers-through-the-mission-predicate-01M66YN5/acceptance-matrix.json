@@ -68,10 +68,10 @@
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "src/specify_cli/{cli/commands/materialize.py,charter_activate.py,release/changelog.py,cli/commands/_identity_audit.py,cli/commands/_coordination_doctor.py,cli/commands/_review_cycle_reconcile_doctor.py}: one is_selectable_mission_dir call per walk, pinned by tests/architectural/test_mission_resolver_walker_gate.py::test_named_walker_asks_the_selectable_predicate",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:47:01.191539+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
