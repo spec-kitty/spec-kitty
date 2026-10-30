@@ -14,7 +14,7 @@ import os
 import statistics
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import click
@@ -604,8 +604,19 @@ def test_cli_raw_owned_text_grants_no_startup_authority(tmp_path: Path, command_
     assert not (root / "kitty-ops").exists()
 
 
+@pytest.fixture
+def fresh_owned_startup_topology() -> Iterator[None]:
+    from kernel.git_topology import clear_caches
+
+    clear_caches()
+    try:
+        yield
+    finally:
+        clear_caches()
+
+
 @pytest.mark.parametrize("first_fails", [False, True])
-def test_cli_startup_claim_is_not_reused_by_later_commands(tmp_path: Path, first_fails: bool) -> None:
+def test_cli_startup_claim_is_not_reused_by_later_commands(tmp_path: Path, first_fails: bool, fresh_owned_startup_topology: None) -> None:
     from kernel.git_topology import clear_caches
     from mission_runtime import ActionContextError
     from specify_cli.core.owned_mission import resolve_owned_create_root
