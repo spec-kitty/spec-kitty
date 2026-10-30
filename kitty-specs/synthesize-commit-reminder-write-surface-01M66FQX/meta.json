@@ -11,5 +11,7 @@
   "purpose_tldr": "synthesize commit reminder write surface",
   "slug": "synthesize-commit-reminder-write-surface-01M66FQX",
   "target_branch": "issue-6631-synthesize-reminder-write-surface",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T13:32:10.603305+00:00"
 }
