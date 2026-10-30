@@ -71,6 +71,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "not-applicable",
       "wp": "WP01"
+    },
+    "#6759": {
+      "evidence_ref": "The mission delivers this issue: docs/context/orchestration.md#residue entry, docstring links, AGENTS.md canon bullet, regenerated Contextive, changelog, structural test \u2014 WP01 approved after review",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
