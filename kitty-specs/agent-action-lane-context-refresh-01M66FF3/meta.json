@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-agent-action-lane-context-refresh-01M66FF3",
+  "created_at": "2026-10-30T13:19:57.008224+00:00",
+  "flattened": false,
+  "friendly_name": "agent action lane context refresh",
+  "mid8": "01M66FF3",
+  "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A",
+  "mission_number": null,
+  "mission_slug": "agent-action-lane-context-refresh-01M66FF3",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Close the third claim path PR #4584 left uncovered: agent action implement must advance a shared lane's persisted workspace context to the newly claimed WP so later commits print no ACTIVE_WP_CONTEXT_STALE warning.",
+  "purpose_tldr": "agent action implement refreshes a reused lane's workspace context (#6650)",
+  "slug": "agent-action-lane-context-refresh-01M66FF3",
+  "target_branch": "issue-6650-agent-action-lane-context-refresh",
+  "topology": "coord"
+}
