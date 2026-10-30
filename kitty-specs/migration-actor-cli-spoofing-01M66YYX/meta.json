@@ -1,0 +1,19 @@
+{
+  "contracts": "none",
+  "contracts_rationale": "No data shape, endpoint or event field is added. The one externally visible surface is the orchestrator-api failure envelope, and it reuses the already-contracted, already-allowlisted error_code USAGE_ERROR (src/specify_cli/core/upstream_contract.json), so there is no contract artifact to write and no allowlist to extend.",
+  "coordination_branch": "kitty/mission-migration-actor-cli-spoofing-01M66YYX",
+  "created_at": "2026-10-30T17:50:42.949678+00:00",
+  "flattened": false,
+  "friendly_name": "Caller-supplied migration actors are not reconstruction seeds",
+  "mid8": "01M66YYX",
+  "mission_id": "01M66YYX43K243WESFE0QRZ1MJ",
+  "mission_number": null,
+  "mission_slug": "migration-actor-cli-spoofing-01M66YYX",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A reconstruction seed is a best-effort restatement of history, exempt from consolidation work windows, timestamp continuity and the review-exit note rule. Today any caller can pass --actor migration:anything to a status writer and produce one, so a live transition can be made to look like reconstruction. This Mission makes the capability belong to in-process migration writers alone: a caller-supplied seed-shaped identity is refused before any write, while recorded seeds and the in-process backfills keep working unchanged.",
+  "purpose_tldr": "Refuse a caller-supplied 'migration:' identity at every status boundary that records it verbatim, so only in-process migrations can write reconstruction seeds (#6754).",
+  "slug": "migration-actor-cli-spoofing-01M66YYX",
+  "target_branch": "issue-6754-migration-actor-cli-spoofing",
+  "topology": "coord"
+}
