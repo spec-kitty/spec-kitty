@@ -26,8 +26,10 @@ from tests.specify_cli.invocation._op_git import (
 )
 
 from specify_cli import app as cli_app
+from specify_cli.invocation import op_custody
 from specify_cli.invocation.writer import EVENTS_DIR, read_op_closures
-from specify_cli.doctor.ops import close_stale_ops
+from specify_cli.doctor import ops as ops_module
+from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops, list_orphan_ops_across_checkouts
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -91,9 +93,7 @@ def _doctor_ops(cwd: Path, monkeypatch: pytest.MonkeyPatch, *args: str) -> objec
 # ---------------------------------------------------------------------------
 
 
-def test_doctor_ops_lists_an_op_held_by_a_linked_worktree(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_doctor_ops_lists_an_op_held_by_a_linked_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _repo(tmp_path)
     lane = _add_worktree(root, "lane", "topic")
     _write_stale_op(lane, _LANE_OP)
@@ -104,9 +104,7 @@ def test_doctor_ops_lists_an_op_held_by_a_linked_worktree(
     assert json.loads(result.output) == [{"path": f"../lane/{EVENTS_DIR}/{_LANE_OP}.jsonl"}]
 
 
-def test_doctor_ops_lists_a_worktree_op_from_inside_the_worktree(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_doctor_ops_lists_a_worktree_op_from_inside_the_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _repo(tmp_path)
     lane = _add_worktree(root, "lane", "topic")
     _write_stale_op(lane, _LANE_OP)
@@ -117,9 +115,7 @@ def test_doctor_ops_lists_a_worktree_op_from_inside_the_worktree(
     assert json.loads(result.output) == [{"path": f"../lane/{EVENTS_DIR}/{_LANE_OP}.jsonl"}]
 
 
-def test_doctor_ops_lists_every_checkout_root_first(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_doctor_ops_lists_every_checkout_root_first(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _repo(tmp_path)
     lane = _add_worktree(root, "lane", "topic")
     other = _add_worktree(root, "other", "other-topic")
@@ -142,9 +138,7 @@ def test_doctor_ops_lists_every_checkout_root_first(
 # ---------------------------------------------------------------------------
 
 
-def test_sweep_closes_a_worktree_op_on_the_worktree_spine(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_sweep_closes_a_worktree_op_on_the_worktree_spine(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _repo(tmp_path)
     # #6410: the auto-commit only fires where the primary branch tracks an Op
     # record, so seed one (closed, never an orphan) on `main` first.
@@ -161,6 +155,7 @@ def test_sweep_closes_a_worktree_op_on_the_worktree_spine(
     payload = json.loads(result.output)
     assert [entry["invocation_id"] for entry in payload["open_ops"]] == [_LANE_OP]
     assert payload["open_ops"][0]["action_taken"] == "closed_abandoned"
+    assert payload["open_ops"][0]["commit"] == "committed"
     assert payload["swept"] == 1
     # The closure landed on the worktree's spine, not the root checkout's.
     assert [event.invocation_id for event in read_op_closures(lane)] == [_LANE_OP]
@@ -169,9 +164,7 @@ def test_sweep_closes_a_worktree_op_on_the_worktree_spine(
     assert record.read_bytes() == record_before
 
 
-def test_sweep_closes_ops_in_every_checkout_in_one_run(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_sweep_closes_ops_in_every_checkout_in_one_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _repo(tmp_path)
     track_op_record_on_current_branch(root)
     lane = _add_worktree(root, "lane", "topic")
@@ -189,6 +182,11 @@ def test_sweep_closes_ops_in_every_checkout_in_one_run(
     assert [event.invocation_id for event in read_op_closures(root)] == [_ROOT_OP]
     assert [event.invocation_id for event in read_op_closures(lane)] == [_LANE_OP]
     assert [event.invocation_id for event in read_op_closures(other)] == [_OTHER_LANE_OP]
+    # And each closure was committed on the branch of the checkout that owns it:
+    # the worktree's own history gains the sweep commit, not only the root's.
+    assert {entry.commit for entry in swept.open_ops} == {"committed"}
+    for checkout in (root, lane, other):
+        assert "(doctor sweep)" in run_git(checkout, "log", "-1", "--format=%s")
 
     # A second run has nothing left to close, from any checkout.
     again = close_stale_ops(root, threshold_hours=0, now=_NOW)
@@ -197,3 +195,95 @@ def test_sweep_closes_ops_in_every_checkout_in_one_run(
     listed = _doctor_ops(root, monkeypatch, "--json")
     assert listed.exit_code == 0, listed.output
     assert json.loads(listed.output) == []
+
+
+# ---------------------------------------------------------------------------
+# Cost and degraded paths
+# ---------------------------------------------------------------------------
+
+
+def test_doctor_ops_enumerates_checkouts_once_per_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: one `git worktree list` per run, never one per record or checkout."""
+    root = _repo(tmp_path)
+    lane = _add_worktree(root, "lane", "topic")
+    other = _add_worktree(root, "other", "other-topic")
+    for checkout, invocation_id in ((root, _ROOT_OP), (lane, _LANE_OP), (other, _OTHER_LANE_OP)):
+        _write_stale_op(checkout, invocation_id)
+    calls: list[tuple[str, ...]] = []
+    real_git_lines = op_custody._git_lines
+
+    def counting(cwd: Path, *args: str) -> list[str] | None:
+        calls.append(args)
+        return real_git_lines(cwd, *args)
+
+    monkeypatch.setattr(op_custody, "_git_lines", counting)
+
+    result = _doctor_ops(root, monkeypatch, "--json")
+
+    assert result.exit_code == 1, result.output
+    assert len(json.loads(result.output)) == 3
+    assert calls.count(("worktree", "list", "--porcelain")) == 1
+    assert all(args == ("worktree", "list", "--porcelain") for args in calls)
+
+
+def test_sweep_enumerates_checkouts_once_for_many_ops(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A sweep over several checkouts still runs one `git worktree list`."""
+    root = _repo(tmp_path)
+    lane = _add_worktree(root, "lane", "topic")
+    for invocation_id in (_ROOT_OP, _OTHER_LANE_OP):
+        _write_stale_op(root, invocation_id)
+    _write_stale_op(lane, _LANE_OP)
+    calls: list[tuple[str, ...]] = []
+    real_git_lines = op_custody._git_lines
+
+    def counting(cwd: Path, *args: str) -> list[str] | None:
+        calls.append(args)
+        return real_git_lines(cwd, *args)
+
+    monkeypatch.setattr(op_custody, "_git_lines", counting)
+
+    report = close_stale_ops(root, threshold_hours=0, now=_NOW)
+
+    assert report.swept == 3
+    assert calls.count(("worktree", "list", "--porcelain")) == 1
+
+
+def test_checkout_enumeration_degrades_to_the_project_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """No usable git: the sweep behaves exactly as it did before #6661."""
+    root = _repo(tmp_path)
+    lane = _add_worktree(root, "lane", "topic")
+    _write_stale_op(root, _ROOT_OP)
+    _write_stale_op(lane, _LANE_OP)
+    monkeypatch.setattr(op_custody, "_git_lines", lambda cwd, *args: None)
+
+    assert list(op_custody.repository_checkouts(root)) == []
+    assert list_orphan_ops_across_checkouts(root) == list_orphan_ops(root) == [root / EVENTS_DIR / f"{_ROOT_OP}.jsonl"]
+
+
+def test_unreadable_checkout_does_not_hide_the_others(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """NFR-002: one broken worktree must not fail the whole repository-wide sweep."""
+    root = _repo(tmp_path)
+    lane = _add_worktree(root, "lane", "topic")
+    _write_stale_op(root, _ROOT_OP)
+    _write_stale_op(lane, _LANE_OP)
+    real_closed_ids = ops_module.closed_invocation_ids
+
+    def broken_spine(checkout: Path) -> set[str]:
+        if Path(checkout).resolve() == lane.resolve():
+            raise PermissionError(f"cannot read {checkout}")
+        return real_closed_ids(checkout)
+
+    monkeypatch.setattr(ops_module, "closed_invocation_ids", broken_spine)
+
+    with caplog.at_level("WARNING", logger="specify_cli.doctor.ops"):
+        orphans = list_orphan_ops_across_checkouts(root)
+
+    assert orphans == [root / EVENTS_DIR / f"{_ROOT_OP}.jsonl"]
+    assert any(str(lane) in record.getMessage() for record in caplog.records)
+
+    # The operator is told, on stderr, that a checkout was skipped: `--json` stdout
+    # stays the frozen payload, and the exit code is unchanged.
+    listed = _doctor_ops(root, monkeypatch, "--json")
+    assert listed.exit_code == 1, listed.output
+    assert json.loads(listed.stdout) == [{"path": f"{EVENTS_DIR}/{_ROOT_OP}.jsonl"}]
+    assert "could not read Op records in ../lane" in listed.stderr

@@ -17,7 +17,7 @@ from tests.specify_cli.invocation._op_git import checkout_issue_branch, track_op
 
 from specify_cli import app as cli_app
 from specify_cli.doctor import ops as ops_module
-from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops
+from specify_cli.doctor.ops import close_stale_ops, display_path, list_orphan_ops, list_orphan_ops_across_checkouts
 from specify_cli.invocation import writer as writer_module
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.record import OpCompletedEvent
@@ -92,6 +92,32 @@ def test_list_orphan_ops_returns_started_only_files(tmp_path: Path) -> None:
     )
 
     assert list_orphan_ops(tmp_path) == [orphan]
+
+
+def test_display_path_falls_back_to_the_absolute_form(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A checkout on another drive has no relative form; the absolute one is returned (#6661)."""
+    record = tmp_path / "lane" / EVENTS_DIR / "01KTBE0RQY9XKTV0PE49PJDMRR.jsonl"
+
+    def no_relative(*args: object, **kwargs: object) -> str:
+        raise ValueError("path is on mount 'D:', start on mount 'C:'")
+
+    monkeypatch.setattr(ops_module.os.path, "relpath", no_relative)
+
+    assert display_path(record, tmp_path) == record.as_posix()
+
+
+def test_list_orphan_ops_across_checkouts_matches_one_directory_outside_git(
+    tmp_path: Path,
+) -> None:
+    """Outside a git checkout the repository-wide enumeration is today's scan (#6661)."""
+    ops_dir = _ops_dir(tmp_path)
+    orphan = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRQ.jsonl"
+    _write_op(orphan, completed=False)
+
+    assert list_orphan_ops_across_checkouts(tmp_path) == [orphan]
+    assert list_orphan_ops_across_checkouts(tmp_path) == list_orphan_ops(tmp_path)
 
 
 def test_doctor_ops_json_reports_orphan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

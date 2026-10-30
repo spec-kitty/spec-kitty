@@ -39,8 +39,10 @@ spec-kitty profile-invocation complete --invocation-id <id> --outcome <done|fail
 
 That command appends a `completed` event to the same JSONL file (see
 `src/specify_cli/invocation/executor.py`'s `ProfileInvocationExecutor.invoke()` /
-`complete_invocation()`). Unclosed Ops are surfaced by `spec-kitty doctor ops` and
-eventually swept to `abandoned`. There is no lane, no `for_review` state, and no
+`complete_invocation()`). The record belongs to the checkout the command ran in
+(the repository root checkout or a linked worktree). Unclosed Ops in every checkout
+of the repository are surfaced by `spec-kitty doctor ops` and eventually swept to
+`abandoned`, each closure on the spine of the checkout that owns the record. There is no lane, no `for_review` state, and no
 consolidation step — an Op is a single governed unit of work with a start event and an
 end event, nothing else.
 

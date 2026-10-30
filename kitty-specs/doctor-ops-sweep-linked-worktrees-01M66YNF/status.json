@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01M66YVGDRA23199K834F6S33J",
-  "materialized_at": "2026-10-30T17:48:51.512253+00:00",
+  "event_count": 4,
+  "last_event_id": "01M670NNKY5W8YHJMBGNNFSM04",
+  "materialized_at": "2026-10-30T18:20:37.374929+00:00",
   "mission_number": "",
   "mission_slug": "doctor-ops-sweep-linked-worktrees-01M66YNF",
   "mission_type": "software-dev",
@@ -12,18 +12,41 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
+    "for_review": 1,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M66YVGDRA23199K834F6S33J",
-      "last_transition_at": "2026-10-30T17:48:51.512253+00:00"
+      "actor": "python-pedro",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "for_review",
+      "last_event_id": "01M670NNKY5W8YHJMBGNNFSM04",
+      "last_transition_at": "2026-10-30T18:20:37.374929+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T18:13:46Z – unknown – T001/T002 RED committed (c2145b67): 5 tests failed - worktree Op invisible to listing ([] exit 0) and sweep closed 1 of 3. T003-T005 landed: public repository_checkouts, list_orphan_ops_across_checkouts + per-checkout executors, root-relative display_path. T006/T007: session-presence boundary pinned (no git, root-only), one git worktree list per run, degraded git fallback. Targeted green: 8 new worktree tests, test_doctor_ops 21p, test_op_custody 22p, session_presence 242p.",
+        "- 2026-10-30T18:15:12Z – python-pedro – shell_pid=287661 – Deviation: the fix and its tests were committed in the single-branch write checkout (c2145b67 test, 97fc0b34 fix) before the CLI claim was recorded, so the for_review claim-base gate has no post-claim implementation commit. Transition to for_review forced with this note; every later commit (review fixes) sits after claim base c1ea5a8.",
+        "Implemented in the write checkout; work is in c2145b67 (red) and 97fc0b34 (fix)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 287661,
+      "shell_pid_created_at": "1793384090.11",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     }
   }
 }
