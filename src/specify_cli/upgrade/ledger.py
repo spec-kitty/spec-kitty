@@ -16,9 +16,27 @@ record is written to and read from.
 
 Durability (NFR-001): every append is a full-file atomic rewrite via
 ``specify_cli/core/atomic.py`` (→ ``kernel.atomic``), never ``O_APPEND`` — a
-crash leaves a valid old-or-new ledger, never a torn/partial file. The
-subsystem is single-writer; ``kernel.locks`` is the named extension point if
-cross-process concurrency ever becomes real, deliberately not built here.
+crash leaves a valid old-or-new ledger, never a torn/partial file.
+
+Concurrency (#6613, ADR ``2026-10-17-1`` §1 as amended 2026-10-30): a
+read-modify-write with no lock lets two ``upgrade``/``migrate`` processes on one
+checkout read the same lines, and the second ``os.replace`` then drops the
+first's record — a lost ``success`` record silently re-selects an applied
+migration. Every append therefore holds a dedicated sidecar lock
+(:func:`ledger_lock_path`) across its read and its write, taken through the
+canonical ``kernel.locks.machine_file_lock`` primitive the ADR names as the
+extension point. Bounded wait (:data:`LEDGER_LOCK_TIMEOUT_S`), and a wait that
+expires raises :class:`MigrationLedgerLockTimeoutError` having appended nothing.
+
+The lock is per ledger **file**, not per repository: the file is what can lose a
+record, and a git-keyed lock would both over-serialize unrelated checkouts and
+need a git invocation on a path that must also run outside a repository. It is
+never the payload itself — the primitive writes its own record into the file it
+locks and truncates it on release — and it never lands beside the *tracked*
+ledger either: ``.kittify/migrations/`` is the already-IGNORED per-clone
+surface, so the lock file cannot show up in ``git status`` or be swept into an
+upgrade autocommit (a tracked ledger is a sibling of the tracked
+``metadata.yaml``, and a sibling ``.lock`` there would be untracked noise).
 
 This module must NOT import ``base.py``: it reaches migration identity and
 ``content_hash_sources`` through defensive ``getattr`` so it works whether or
@@ -29,12 +47,15 @@ from __future__ import annotations
 
 import inspect
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 from kernel.clock import datetime, now_utc, parse_iso
 from kernel.content_digest import sha256_digest
+from kernel.locks import LockAcquireTimeout, machine_file_lock
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.git_ops import is_git_repo
@@ -46,6 +67,10 @@ from .metadata import _LEGACY_MIGRATION_ID_MAP
 TRACKED_LEDGER_RELPATH = ".kittify/migration-ledger.jsonl"
 #: Per-clone partition — inside the already-IGNORED ``.kittify/migrations/`` surface.
 CLONE_LOCAL_LEDGER_RELPATH = ".kittify/migrations/clone-local.jsonl"
+#: Folder, relative to a project root, that holds every ledger lock file: the
+#: already-IGNORED per-clone surface, so a lock is never a ``git status`` entry
+#: and never reaches an upgrade autocommit. A lock is per-clone machine state.
+LEDGER_LOCK_DIR_RELPATH = ".kittify/migrations"
 
 # Record field keys (hoisted; S1192).
 _K_ID = "id"
@@ -56,6 +81,55 @@ _K_CONTENT_HASH = "content_hash"
 _K_CLI_VERSION = "cli_version"
 _K_CLONE_LOCAL = "clone_local"
 _K_SUPERSEDED_BY = "superseded_by"
+
+#: Suffix of the dedicated lock-only sidecar taken around a partition's
+#: read-modify-write. Never the payload path itself: ``kernel.locks`` writes its
+#: own record into the file it locks and truncates it on release (kernel G3).
+_LOCK_SUFFIX = ".lock"
+#: Bounded wait for the ledger lock. Far above one atomic rewrite (a read of a
+#: few hundred JSONL lines plus one ``os.replace``), far below a hang that would
+#: leave an operator staring at an upgrade.
+LEDGER_LOCK_TIMEOUT_S: float = 30.0
+
+
+class MigrationLedgerLockTimeoutError(RuntimeError):
+    """The ledger lock was not acquired within ``LEDGER_LOCK_TIMEOUT_S``; nothing was appended."""
+
+
+def ledger_lock_path(project_root: Path | str, ledger_path: Path | str) -> Path:
+    """The lock-only sidecar for *ledger_path* of the project rooted at *project_root*.
+
+    ``<project_root>/.kittify/migrations/<ledger file name>.lock``: a dedicated
+    sidecar (deliberately not the payload, which ``kernel.locks`` would truncate)
+    living in the already-IGNORED per-clone surface, so the lock file never shows
+    up in ``git status`` and is never swept into an upgrade autocommit. Naming it
+    after the ledger file keeps the two partitions — and two projects — on
+    distinct lock files, so unrelated appends never exclude each other.
+    """
+    return Path(project_root) / LEDGER_LOCK_DIR_RELPATH / (Path(ledger_path).name + _LOCK_SUFFIX)
+
+
+@contextmanager
+def _ledger_lock(project_root: Path, ledger_path: Path) -> Iterator[Path]:
+    """Hold the exclusive lock for *ledger_path*'s read-modify-write; yield the lock file.
+
+    Blocking with a bounded wait (``LEDGER_LOCK_TIMEOUT_S``): a second appender
+    waits for the in-flight writer instead of failing instantly, and a holder
+    that never releases surfaces as :class:`MigrationLedgerLockTimeoutError`
+    rather than a hang. ``reentrant=True`` is the primitive's own per-thread
+    re-entrancy, so a nested append from the holding thread neither deadlocks
+    nor takes the OS lock twice.
+    """
+    lock_path = ledger_lock_path(project_root, ledger_path)
+    try:
+        with machine_file_lock(lock_path, blocking=True, timeout_s=LEDGER_LOCK_TIMEOUT_S, reentrant=True):
+            yield lock_path
+    except LockAcquireTimeout as exc:
+        raise MigrationLedgerLockTimeoutError(
+            f"{lock_path}: the migration ledger lock was not acquired within {LEDGER_LOCK_TIMEOUT_S}s, "
+            "so nothing was appended. Another spec-kitty process is writing this ledger; retry when it finishes."
+        ) from exc
+
 
 _PARTITION_TRACKED = "tracked"
 _PARTITION_CLONE_LOCAL = "clone-local"
@@ -259,25 +333,37 @@ class MigrationLedger:
         return self._read(self._path_for(bool(getattr(migration, "clone_local_effect", False))))
 
     def append(self, record: LedgerRecord) -> None:
-        """Append *record* via a full-file atomic rewrite (NFR-001 — no O_APPEND)."""
-        path = self._path_for(record.clone_local)
-        lines = self._read_raw_lines(path)
-        lines.append(json.dumps(record.to_dict(), ensure_ascii=False))
-        atomic_write(path, "\n".join(lines) + "\n", mkdir=True)
+        """Append *record* via a locked full-file atomic rewrite (NFR-001 — no O_APPEND)."""
+        self._append_lines(self._path_for(record.clone_local), [json.dumps(record.to_dict(), ensure_ascii=False)])
 
     def append_many(self, records: list[LedgerRecord]) -> None:
-        """Append *records* with one full-file atomic rewrite per partition.
+        """Append *records* with one locked full-file atomic rewrite per partition.
 
         A crash leaves each partition with all of its new records or none,
-        never a prefix (the adoption backfill relies on this, #6431).
+        never a prefix (the adoption backfill relies on this, #6431). The
+        partitions are written one after the other, each under its own lock:
+        no code path ever holds one partition's lock while taking the other's,
+        so there is no lock order to get wrong.
         """
         for clone_local in (False, True):
             batch = [record for record in records if record.clone_local == clone_local]
             if not batch:
                 continue
-            path = self._path_for(clone_local)
+            self._append_lines(
+                self._path_for(clone_local),
+                [json.dumps(record.to_dict(), ensure_ascii=False) for record in batch],
+            )
+
+    def _append_lines(self, path: Path, new_lines: list[str]) -> None:
+        """Read *path*, add *new_lines*, and replace it atomically — holding its lock throughout.
+
+        The single site of the read-modify-write: the read and the ``os.replace``
+        must happen inside one lock hold, or a concurrent appender writes a file
+        built from the same pre-append read (#6613).
+        """
+        with _ledger_lock(self.project_root, path):
             lines = self._read_raw_lines(path)
-            lines.extend(json.dumps(record.to_dict(), ensure_ascii=False) for record in batch)
+            lines.extend(new_lines)
             atomic_write(path, "\n".join(lines) + "\n", mkdir=True)
 
     def recorded_ids_for(self, migration: object) -> set[str]:
