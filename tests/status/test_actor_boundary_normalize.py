@@ -81,6 +81,47 @@ def test_parse_agent_boundary_string_empty_tool_raises() -> None:
         parse_agent_boundary_string("")
 
 
+def test_parse_agent_boundary_string_whitespace_tool_raises() -> None:
+    """A tool segment that is blank after stripping is the same hard error —
+    whitespace is not an agent identity (#6755)."""
+    with pytest.raises(ValueError, match="Empty agent tool"):
+        parse_agent_boundary_string(" \n ")
+
+
+def test_parse_agent_boundary_string_whitespace_segment_is_absent() -> None:
+    """A segment that is blank after stripping is absent (``None``), exactly
+    as an empty segment already is — ``" "`` must never become the model
+    (#6755, row 1)."""
+    assert parse_agent_boundary_string("claude: :") == ("claude", None, None, None)
+
+
+def test_parse_agent_boundary_string_segments_are_stripped() -> None:
+    """Every segment is stripped, so stray whitespace never rides into the
+    stored actor (``"claude\\n"`` parses as the bare tool ``"claude"``)
+    (#6755, row 2)."""
+    assert parse_agent_boundary_string("claude\n") == ("claude", None, None, None)
+    assert parse_agent_boundary_string(" codex :: planner-priti: ") == ("codex", None, "planner-priti", None)
+
+
+def test_parse_agent_boundary_string_more_than_four_segments_refused() -> None:
+    """A value with more than four segments is refused — it is not a compact
+    agent string, and silently dropping the extra segments would store an
+    identity the operator never gave (#6755, row 3)."""
+    with pytest.raises(ValueError, match="5"):
+        parse_agent_boundary_string("a:b:c:d:e")
+
+
+def test_parse_agent_boundary_string_exactly_four_segments_still_accepted() -> None:
+    """The full compact form keeps parsing verbatim (stripped) — the refusal
+    starts only past the fourth segment."""
+    assert parse_agent_boundary_string("claude:opus:python-pedro:reviewer") == (
+        "claude",
+        "opus",
+        "python-pedro",
+        "reviewer",
+    )
+
+
 def test_parse_agent_boundary_string_no_synthetic_default_values() -> None:
     """Regression pin: neither of the frontmatter parser's synthetic
     fallback strings ever appears from this boundary parser."""
