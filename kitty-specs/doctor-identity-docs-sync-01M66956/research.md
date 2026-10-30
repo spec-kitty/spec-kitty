@@ -1,7 +1,7 @@
 # Research — doctor-identity-docs-sync-01M66956
 
 Discovery findings captured before planning. Evidence gathered on
-`main@512567eee7` (checkout `/home/exedev/work/sk-6760`, branch
+`main@512567eee7` (operator checkout, branch
 `issue-6760-doctor-identity-docs-sync`). Planning artifacts live in
 `kitty-specs/doctor-identity-docs-sync-01M66956/` in the primary checkout on
 the topic branch (the coordination worktree
@@ -69,7 +69,7 @@ streams).
   661 `missions[]` rows, non-empty `duplicate_prefixes` (e.g. `041`, `080`)
   and matching `ambiguous_selectors`, `fail_on_triggered: false`. Row keys:
   `path, slug, mission_id, mission_number, state, error, residue_reason`.
-- Throwaway fixture project `/tmp/sk-fixture-6760` (git repo, `.kittify/`,
+- Throwaway fixture project (temp dir) (git repo, `.kittify/`,
   `kitty-specs/001-auth-system` with `mission_number: 1` and no `mission_id`;
   `kitty-specs/002-dashboard` with `mission_id` and `mission_number: null`;
   `kitty-specs/leftover-junk` with no `meta.json`): live output
