@@ -1,7 +1,7 @@
 {
   "rows": {
     "#6564": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Prior custody change this mission follows up; its fix already landed and is not reopened here (see spec.md Context).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6661": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "tests/specify_cli/invocation/test_doctor_ops_worktrees.py (red in c2145b67, green after 97fc0b34); commits 97fc0b34, 8b490e4c",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#6664": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "The mission-step half of the follow-up, fixed already in #6664 (40a1e229cb); out of scope here (spec.md C-003).",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     }
   },

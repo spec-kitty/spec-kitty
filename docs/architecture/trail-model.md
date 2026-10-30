@@ -164,6 +164,14 @@ The resolved design (#4397, option "record closure on the append-only spine"):
 - **Open-Op detection reads both surfaces**: an Op is closed when its
   per-record file carries a `completed` event OR the spine carries a closure
   for its invocation id (`list_orphan_ops`).
+- **The sweep covers every checkout of the repository** (#6661). Op records are
+  written in the checkout the command ran in (#6564), so `doctor ops` enumerates the
+  checkouts `git worktree list --porcelain` reports (one call per run, the same
+  enumeration Op custody uses) and reads each checkout's own `kitty-ops/` and spine.
+  `--close-stale` closes each stale Op through an executor rooted in the checkout
+  that owns it, so a worktree's closure is appended to — and auto-committed on —
+  that worktree's branch, never the root checkout's. The session-start/stop
+  reminder stays a single-checkout, git-free scan.
 - **The sweep auto-commits only the spine** (`op(<profile>): <action>
   [<id8>] (doctor sweep)`). A refused commit (e.g. the protected-branch guard
   on `main`) is reported per entry in the sweep output and stated in the
