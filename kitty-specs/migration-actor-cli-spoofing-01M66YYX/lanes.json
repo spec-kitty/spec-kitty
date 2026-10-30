@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "mission_slug": "migration-actor-cli-spoofing-01M66YYX",
+  "mission_id": "01M66YYX43K243WESFE0QRZ1MJ",
+  "mission_branch": "kitty/mission-migration-actor-cli-spoofing-01M66YYX",
+  "target_branch": "issue-6754-migration-actor-cli-spoofing",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task_hops.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/actor.py",
+        "src/specify_cli/status/models.py",
+        "tests/status/test_caller_seed_refusal_6754.py",
+        "tests/status/test_status_emit_structured_actor_6400.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/orchestrator_api/wp_lifecycle.py",
+        "tests/specify_cli/cli/commands/test_implement_caller_seed_refusal_6754.py",
+        "tests/specify_cli/orchestrator_api/test_caller_seed_refusal_6754.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/agent-subcommands.md",
+        "docs/architecture/status-model.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-30T17:55:07.887583+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "7a829c3eb90dd746c1ef52cf4fdfd54a1347e457"
+}
