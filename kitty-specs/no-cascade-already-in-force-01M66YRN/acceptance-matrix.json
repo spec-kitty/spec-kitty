@@ -1,0 +1,89 @@
+{
+  "mission_slug": "no-cascade-already-in-force-01M66YRN",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "pytest",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeAlreadyInForce (89 passed in the four charter CLI modules; ruff+mypy clean)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:05:47.187339+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "pytest",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeAlreadyInForce (89 passed in the four charter CLI modules; ruff+mypy clean)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:05:52.350558+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "pytest",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeAlreadyInForce (89 passed in the four charter CLI modules; ruff+mypy clean)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:05:58.213221+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "pytest",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeAlreadyInForce (89 passed in the four charter CLI modules; ruff+mypy clean)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:06:03.140671+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "pytest",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeAlreadyInForce (89 passed in the four charter CLI modules; ruff+mypy clean)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:06:07.979443+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "pytest",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeAlreadyInForce (89 passed in the four charter CLI modules; ruff+mypy clean)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:06:19.707021+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "pytest",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeAlreadyInForce (89 passed in the four charter CLI modules; ruff+mypy clean)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:06:24.402835+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "pytest",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeAlreadyInForce (89 passed in the four charter CLI modules; ruff+mypy clean)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:06:28.970952+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
