@@ -115,10 +115,14 @@ No charter violations. Nothing to justify.
   `tests/kernel/test_lock_paths.py`
 - **Sequencing/depends-on**: none
 - **Risks**: the parameter set must cover exactly the three shapes and no more (a knob no caller
-  uses is a defect); the `probe_dir` parameter is load-bearing because the event-log anchor may
-  not exist yet (`kernel.git_topology._probe_dir` only normalises an existing file); the
-  sha1 path must pass `usedforsecurity=False` so the security lint stays quiet; `normcase` must
-  stay applied to the *resolved* string, exactly as the three copies do it.
+  uses is a defect); the sha1 path must pass `usedforsecurity=False` so the security lint stays
+  quiet; `normcase` must stay applied to the *resolved* string, exactly as the three copies do
+  it.
+- **Revision (2026-10-30, WP02)**: the helper first carried the git probe plus a `probe_dir=`
+  override. Routing the families showed the probe belongs to the family (its failure policy
+  differs, and the family tests patch that seam), so `common_dir` became required, `probe_dir`
+  and the `kernel.git_topology` import were removed, and the event-log family probes the
+  anchor's parent itself. `research.md` D2 records the reasoning.
 
 ### IC-02 — Route the three families, and gate the fourth copy
 
@@ -135,5 +139,6 @@ No charter violations. Nothing to justify.
 - **Risks**: the status family must pass its *degraded* common dir so it keeps never raising
   (its `_git_common_dir` has three fallback branches); `_is_checkout_claim_lock_key` pattern-matches
   the lock *name*, so the sha1/16 shape must be exact; the gate must not fire on the fixed-name
-  lock files in `review/` and `design/` (they name files under `LOCK_DIRECTORY` but digest
-  nothing), and its non-vacuity proof (re-adding a copy fails it) is part of the test.
+  lock files in `review/` and `design/` — `design/receipts.py` does digest, but a Mission slug
+  rather than a path, so the gate keys on the anchor rule's identity step (`os.path.normcase` of
+  the resolved path) and asserts both controls in the test.

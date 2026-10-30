@@ -52,15 +52,13 @@ by the helper, so no caller joins it.
    `5d011f83a018c89fa185a10c696c8293`), `tests/charter/synthesizer/test_synthesis_lock.py` and
    `tests/status/test_checkout_claim_lock.py` (literal sha1 name) are the proof and stay
    unedited.
-2. **One probe at most.** With `common_dir` supplied, the helper runs no git probe. Without it,
-   it calls `git_common_dir` once, which is `lru_cache`d.
-3. **Probe location is explicit.** `probe_dir` is what is probed — the event-log family passes
-   the anchor's parent because the log file may not exist yet, and
-   `kernel.git_topology._probe_dir` only normalises an existing file.
-4. **No policy in the helper.** A not-a-repository or an unusable git raises the
-   `kernel.git_topology` error; the family decides between a fallback path (event-log, synthesis)
-   and a degraded common dir (Mission status). The helper never catches, never falls back, never
-   writes.
+2. **No probe in the helper.** `common_dir` is required and the helper never runs git, so it
+   cannot raise a probe error and cannot make a policy decision. The family probes once
+   (through the `lru_cache`d `git_common_dir`, from the anchor's parent when the anchor is a
+   file that may not exist yet).
+3. **No policy in the helper.** The family decides between a fallback path (event-log,
+   synthesis) and a degraded common dir (Mission status) *before* it calls the helper. The
+   helper never catches, never falls back, never writes.
 5. **One owner.** No module under `src/` other than `kernel/locks.py` both names a file under
    `LOCK_DIRECTORY` and derives a digest from a path (gate `FR-006`).
 
