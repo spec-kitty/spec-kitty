@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "ledger-lock-and-runs-first-record-01M66YMC",
+  "mission_id": "01M66YMC8061RKCHH6X6YHFD66",
+  "mission_branch": "kitty/mission-ledger-lock-and-runs-first-record-01M66YMC",
+  "target_branch": "issue-6613-ledger-lock-and-runs-first-record",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/ledger.py",
+        "tests/upgrade/test_ledger_append_lock.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/reference/events-in-core.md",
+        "tests/docs/test_migration_ledger_adr_records_reselection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T17:47:59.980880+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fde4ebfef53f169c0681a4c1c715e6a106e83254"
+}
