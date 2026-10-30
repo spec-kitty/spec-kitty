@@ -93,7 +93,7 @@ actor is `{tool: "migration", ...}` and is not a seed.
 
 - `--actor "migration:"` (empty suffix) is refused: the prefix alone is what classifies a seed.
 - `--actor Migration:x` (capitalised) is not a seed today and is not refused; the classification stays the exact, case-sensitive prefix it is now.
-- `--actor " migration:x"` (leading space) is not a seed today (the projection does not start with the prefix) and is left alone.
+- `--actor " migration:x"` (leading space) is not a seed today (the projection does not start with the prefix) and is left alone; the guard is the exact, case-sensitive prefix and never a trimmed one.
 - A refusal happens before any lock, worktree allocation, event append or snapshot materialization; a partial write is never possible.
 - A structured (dict) actor whose `tool` starts with `migration:` — the shape #6400 writes — is refused on the same terms as a bare string.
 - A legacy log that already contains a caller-produced `migration:` row keeps reading, reducing and displaying exactly as today; the fix changes what can be *written*, never how a stored row is read.
@@ -112,7 +112,7 @@ actor is `{tool: "migration", ...}` and is not a seed.
 | FR-006 | Recorded seeds keep their status | As a consumer of the log, I want a `migration:` identity that is re-recorded from the log (a recorded reviewer/agent, not a caller flag) to stay a reconstruction seed, unchanged from today. | High | Open | [ratchet] | yes — paired with FR-002/FR-003 on the same fixtures |
 | FR-007 | Explicit `--agent` unchanged | As an agent, I want an explicit `--agent migration:x` on `move-task`, `mark-status`, `add-history` and `agent action implement/review` to keep its recorded behaviour: strict compact parse, tool `migration`, never a seed. | High | Open | [ratchet] | yes — the existing #6400 tests are the pin |
 | FR-008 | Migration writers unchanged | As a maintainer, I want the in-process migration writers to keep producing seeds through the private `_unsafe` append seam, with no change to their actor strings or their reducibility. | High | Open | [ratchet] | yes — same fixtures, no diff in their output |
-| FR-009 | Refusal/allowed matrix pinned | As a reviewer, I want one matrix test file that drives each refused surface and each allowed form through its real entry point, so the boundary is stated in tests rather than inferred from a diff. | High | Open | [build] | no — the refused arms fail on the base |
+| FR-009 | Refusal/allowed matrix pinned | As a reviewer, I want the refusal and allowed arms pinned as one matrix per surface family (the status emit + builder module, the orchestrator-api module, the implement module), each driven through its real entry point, so the boundary is stated in tests rather than inferred from a diff. | High | Open | [build] | no — the refused arms fail on the base |
 | FR-010 | No silent rewrite | As an operator, I want the refusal to leave the value as typed — never stripped of its prefix, escaped or re-parsed into a live-looking actor — so the log never records an identity I did not write. | High | Open | [build] | no — asserts the absence of a rewrite on the base's spoof fixture |
 | FR-011 | Docs and changelog | As a maintainer, I want the `--actor` help text, the operator docs that describe seeds, and the `[Unreleased]` changelog entry to state the refusal and its compatibility consequence. | Medium | Open | [build] | no — the base documents the old behaviour |
 
