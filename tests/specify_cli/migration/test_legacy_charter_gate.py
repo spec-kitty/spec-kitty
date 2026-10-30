@@ -455,27 +455,88 @@ def test_cli_refuses_migrate_too(tmp_path: Path) -> None:
     assert _refused(result)
 
 
-def test_cli_creates_in_migrated_owned_checkout_when_primary_is_legacy(tmp_path: Path) -> None:
-    root = _project(tmp_path / "primary")
+@pytest.mark.parametrize("invoking_checkout", ["primary", "owned"])
+def test_cli_creates_in_migrated_owned_checkout_when_primary_is_legacy(tmp_path: Path, invoking_checkout: str) -> None:
+    root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
     for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
         subprocess.run(["git", *args], cwd=root, check=True)
     owned = tmp_path / "owned"
     subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
     _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
 
-    result = _run([
-        "agent", "mission", "create", "owned-startup-proof",
-        "--owned-checkout", str(owned), "--mission-type", "software-dev",
-        "--friendly-name", "Owned startup proof", "--purpose-tldr", "Preserve owned admission",
-        "--purpose-context", "An upgraded linked checkout owns its project safety gates.",
-        "--branch-strategy", "already-confirmed", "--json",
-    ], owned)
+    result = _run(
+        [
+            "agent",
+            "mission",
+            "create",
+            "owned-startup-proof",
+            "--owned-checkout",
+            str(owned),
+            "--mission-type",
+            "software-dev",
+            "--friendly-name",
+            "Owned startup proof",
+            "--purpose-tldr",
+            "Preserve owned admission",
+            "--purpose-context",
+            "An upgraded linked checkout owns its project safety gates.",
+            "--branch-strategy",
+            "already-confirmed",
+            "--json",
+        ],
+        root if invoking_checkout == "primary" else owned,
+    )
 
     assert not _refused(result), result.output
     assert result.exit_code == 0, result.output
     assert list((owned / "kitty-specs").glob("owned-startup-proof-*/meta.json"))
     assert not (root / "kitty-specs").exists()
     assert _refused(_run(["charter", "list", "--json"], root))
+
+
+@pytest.mark.parametrize("claim_kind", ["primary", "foreign", "missing", "legacy"])
+def test_cli_owned_flag_never_bypasses_invalid_or_legacy_claim(tmp_path: Path, claim_kind: str) -> None:
+    root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    claimed = root
+    if claim_kind == "foreign":
+        claimed = _project(tmp_path / "foreign")
+        subprocess.run(["git", "init", "-q"], cwd=claimed, check=True)
+    elif claim_kind == "missing":
+        claimed = tmp_path / "missing"
+    elif claim_kind == "legacy":
+        claimed = tmp_path / "owned"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(claimed)], cwd=root, check=True)
+        _write(claimed / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+    _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+    result = _run(
+        [
+            "agent",
+            "mission",
+            "create",
+            "must-not-create",
+            "--owned-checkout",
+            str(claimed),
+            "--mission-type",
+            "software-dev",
+            "--friendly-name",
+            "Refusal control",
+            "--purpose-tldr",
+            "Must refuse",
+            "--purpose-context",
+            "Invalid claims confer no startup authority.",
+            "--branch-strategy",
+            "already-confirmed",
+            "--json",
+        ],
+        root,
+    )
+
+    assert result.exit_code != 0, result.output
+    assert _refused(result), result.output
+    assert not (root / "kitty-specs").exists()
+    assert not (claimed / "kitty-specs").exists()
 
 
 # --------------------------------------------------------------------------- #
