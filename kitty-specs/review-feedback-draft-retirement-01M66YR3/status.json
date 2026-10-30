@@ -1,5 +1,5 @@
 {
-  "event_count": 16,
+  "event_count": 17,
   "last_event_id": "01M674M6A0AGQZQ74PR86CWYWH",
   "materialized_at": "2026-10-30T19:29:43.232365+00:00",
   "mission_number": "244",
@@ -94,15 +94,20 @@
     },
     "WP03": {
       "actor": "user",
+      "agent": "claude",
       "cancellation_reason": "Folded into WP01+WP02: a red-test-only package cannot pass its own per-WP review while its tests are red.",
       "force_count": 0,
+      "implementer_of_record": "claude",
       "lane": "canceled",
       "last_event_id": "01M66Z2R1Q6ZSMG9ZTFT1JFA7R",
       "last_transition_at": "2026-10-30T17:52:48.695489+00:00",
       "notes": [
         "Folded into WP01+WP02: a red-test-only package cannot pass its own per-WP review while its tests are red."
       ],
-      "reason_source": "operator"
+      "reason_source": "operator",
+      "tracker_refs": [
+        "#6632"
+      ]
     }
   }
 }

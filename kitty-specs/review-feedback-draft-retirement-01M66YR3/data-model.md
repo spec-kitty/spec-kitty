@@ -50,10 +50,14 @@ and compared |
 | yes | yes | no | yes | **remove**, silent |
 | yes | yes | no | yes, but `unlink` fails | keep, **warn** (NFR-002: the rejection still exits 0) |
 
-`mission_dirs` is `kitty-specs/<mission_slug>` under the repository root checkout, the write
-`surface_root` (coordination worktree when the topology has one), and `owned.owned_root` for an owned
-checkout — resolved paths compared with `Path.is_relative_to`, never string prefixes, so the rule
-holds on Windows separators.
+`mission_dirs` is the mission directory `placement_seam(...).read_dir(WORK_PACKAGE_TASK)` returns —
+the PRIMARY-partition directory that owns `tasks/<wp>/`, which is where the review prompt anchors the
+advertised draft path in every topology (under a coordination topology the RECORD is COORD-partition
+while the draft stays here). It is derived through that one seam, never a hand `kitty-specs/<slug>`
+join and never the kind-blind `candidate_feature_dir_for_mission` fold, and compared with
+`Path.is_relative_to` on resolved paths (never string prefixes), so the rule holds on Windows
+separators. The whole retirement — including that resolution — is best-effort: an unexpected error is
+logged and the rejection still exits 0 (NFR-002).
 
 ## Lifecycle
 
