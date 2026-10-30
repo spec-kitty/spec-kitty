@@ -61,7 +61,7 @@
       "wp": null
     },
     "#6673": {
-      "evidence_ref": "the defect this mission fixes",
+      "evidence_ref": "PR #6843: upgrade restores the tracked meta.json or refuses with the restore command; 6 new test files/paths green, both branches pinned; reproduces on main (01REALMIS -> minted 01M66YHMT4)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,7 +69,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": null
     }
   },
