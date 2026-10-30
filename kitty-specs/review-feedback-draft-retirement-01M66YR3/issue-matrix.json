@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2939": {
+      "evidence_ref": "Closed. It made the review-cycle RECORD durable; this mission completes the clean-tree half its regression test asks for, by retiring the draft the record already holds.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3044": {
+      "evidence_ref": "Closed and context-only: the hazard (a negative verdict's text not reaching its consumer) is the reason this mission retires the draft only after the record's commit is read back, never commits it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#3430": {
+      "evidence_ref": "Closed. Its own contract (the printed rejection command runs as printed; the path is owned by review_feedback_source_path) holds on main; this mission completes the file's lifecycle that entry claimed was already handled.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6632": {
+      "evidence_ref": "issue-6632-review-feedback-draft-retirement: lane-a c3bf553efa (red) + 3b8df34ab0/8619fd5420/cc3446b79a (fix); lane-b 01b078a6b1/e4d9cd5146 (prompt, guide, changelog). Rejection retires the draft after a durable record; e2e test drives the real move-task gate.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6652": {
+      "evidence_ref": "Shipped in 4.0.0rc8: an approval records the supplied feedback file's content in review-cycle-N.md. This mission retires that draft on the same predicates, and announces a kept one.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6740": {
+      "evidence_ref": "Merged PR about local event-log retention; it names #6632 in passing and owes this mission no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

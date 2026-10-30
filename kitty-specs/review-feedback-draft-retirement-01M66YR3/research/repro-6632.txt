@@ -1,0 +1,36 @@
+REJECT exit: 0
+Branch: main (target for this mission)
+✓ Moved WP01 from in_review to planned
+↺ Reset 0 subtask(s) to planned — re-mark completed work before this WP 
+re-enters review.
+  • runtime claim released; any review-override cleared (the WP exposes no live 
+claim and no superseded approval).
+
+git status kitty-specs:
+?? kitty-specs/001-repro-6632/status.events.jsonl
+?? kitty-specs/001-repro-6632/status.json
+?? kitty-specs/001-repro-6632/tasks/WP01-core/review-feedback-1.md
+
+FOR_REVIEW exit: 1
+Branch: main (target for this mission)
+Pre-review regression gate: no_coverage — no changed files detected for this WP 
+— skipping the gate cheaply
+Note: 2 unrelated dirty file(s) ignored (not owned by WP01)
+Error: Cannot move WP01 to for_review
+
+Blocking: 1 uncommitted file(s):
+
+Modified files in kitty-specs/:
+  ?? kitty-specs/001-repro-6632/tasks/WP01-core/review-feedback-1.md (owned by 
+WP01)
+
+Commit these files before moving to for_review.
+  cd <tmp-repo>/repo
+  spec-kitty safe-commit kitty-specs/001-repro-6632/ -m "docs(WP01): <describe 
+your changes>" --to-branch main
+
+Then retry: spec-kitty agent tasks move-task WP01 --to for_review
+
+Or use --force to override (not recommended)
+
+REPO: <tmp-repo>/repo
