@@ -1154,9 +1154,78 @@ def _merge_org_charter_payloads(paths: Sequence[Path]) -> OrgCharterPolicy | Non
         return None
 
 
+#: ``ValidationIssue.category`` of the cross-layer file-name collision finding (#6743).
+FILE_NAME_COLLISION_CATEGORY = "file_name_collision"
+
+
 def validate_pack_with_org_charter(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationResult:
-    """Validate a pack including its org-charter leg (the CLI's validation door)."""
-    return validate_pack(pack_dir, check_drg_root=check_drg_root, org_charter_check=validate_org_charter_file)
+    """Validate a pack including its org-charter leg (the CLI's validation door).
+
+    The door also carries the identity leg (#6743): a file name that this pack's
+    file shares with a file in a lower layer while declaring a *different* id is a
+    pack-content error (Decision ``file_name_collision``), because the file name
+    then cannot stand for one of the ids and every activation writer refuses it.
+    The comparison is against the **built-in** layer only — the layer any pack is
+    layered onto — so a bare pack path validated outside a repository behaves
+    exactly as it does inside one (C-004); the configured-chain case belongs to
+    ``spec-kitty doctor charter-packs``.
+    """
+    result = validate_pack(pack_dir, check_drg_root=check_drg_root, org_charter_check=validate_org_charter_file)
+    collision_errors = file_name_collision_issues(pack_dir)
+    if not collision_errors:
+        return result
+    return ValidationResult(ok=False, errors=[*result.errors, *collision_errors], advisories=list(result.advisories))
+
+
+def file_name_collision_issues(pack_dir: Path) -> list[ValidationIssue]:
+    """Error findings for every file name *pack_dir* shares with the built-in layer for another id (#6743).
+
+    The collision set itself is computed by
+    :meth:`charter.activation.identity_index.IdentityIndex.file_name_collisions`
+    over an index of exactly two layers: the pack being validated and the
+    shipped built-in pack. One finding is emitted per collision, attributed to
+    the validated pack's own file (so the operator sees the file to rename) and
+    labelled with the ``pack_level`` the pack's ``pack.yaml`` declares — a pack
+    without a descriptor yet (the deprecation window) is reported as ``org``.
+    """
+    from charter.activation.identity_index import IdentityIndex
+
+    root = Path(pack_dir).resolve()
+    if not root.is_dir():
+        return []
+    label = _declared_pack_level(root)
+    index = IdentityIndex(org_roots=[root], project_root=None)
+    issues: list[ValidationIssue] = []
+    for collision in index.file_name_collisions():
+        own = [path for _layer, _declared, path in collision.declarations if path is not None and path.resolve().is_relative_to(root)]
+        file = own[0] if own else next((path for _layer, _declared, path in collision.declarations if path is not None), None)
+        issues.append(
+            ValidationIssue(
+                severity="error",
+                artifact_type=collision.kind.plural,
+                artifact_id=None,
+                file=str(file if file is not None else root),
+                message=collision.message(label=label),
+                category=FILE_NAME_COLLISION_CATEGORY,
+            )
+        )
+    return issues
+
+
+def _declared_pack_level(pack_dir: Path) -> str:
+    """The ``pack_level`` *pack_dir*'s ``pack.yaml`` declares; ``org`` when it cannot be read.
+
+    During the ``pack_level`` deprecation window a pack may ship no descriptor (an
+    advisory, not an error), so a collision message must still name a layer
+    rather than fail closed on a missing field.
+    """
+    from charter.offering.packs.pack_descriptor import load_pack_descriptor
+    from ruamel.yaml.error import YAMLError
+
+    try:
+        return str(load_pack_descriptor(pack_dir / "pack.yaml").pack_level)
+    except (ValueError, OSError, YAMLError):
+        return "org"
 
 
 def assemble_pack_with_org_charter(

@@ -74,6 +74,7 @@ __all__ = [
     "_run_retired_governance_key_check",
     "_run_retired_layout_check",
     "_run_activation_ledger_check",
+    "_run_file_name_collision_check",
     "_attach_pack_health",
     "_build_pack_entries",
     "_collect_layer_collisions",
@@ -535,6 +536,80 @@ def _run_operating_procedures_check(report: CharterPackHealthReport) -> None:
         errors = list(existing) if isinstance(existing, list) else []
         errors.append(message)
         org_drg["errors"] = errors
+
+
+def _collect_file_name_collisions(repo_root: Path) -> list[dict[str, object]]:
+    """Every file name the configured chain binds to more than one declared id (#6743).
+
+    Reads the one identity authority, ``IdentityIndex.file_name_collisions``
+    (reached through the ``charter.activation.api`` seam), over the index this
+    repository's configured chain already describes (project pack, org packs,
+    built-in), so there is no second directory walk and no second notion of
+    "layer". Each record is JSON-ready:
+    ``{"kind", "file_name", "declarations": [{"layer", "declared_id", "path"}]}``,
+    declarations in layer precedence order and records ordered by
+    ``(kind, file name)`` (NFR-002), so repeated runs on one tree are identical.
+
+    This is a *different* collision from :func:`_collect_layer_collisions`: that
+    one reports a higher layer shadowing the same id; this one reports a file name
+    that stands for two different ids, which no activation writer can store.
+    """
+    from charter.activation.api import IdentityIndex
+
+    collisions: list[dict[str, object]] = []
+    for collision in IdentityIndex.build(repo_root).file_name_collisions():
+        collisions.append(
+            {
+                "kind": collision.kind.value,
+                "file_name": collision.file_name,
+                "declarations": [
+                    {"layer": layer, "declared_id": declared, "path": str(path) if path is not None else None} for layer, declared, path in collision.declarations
+                ],
+            }
+        )
+    return collisions
+
+
+def _run_file_name_collision_check(report: CharterPackHealthReport, repo_root: Path) -> None:
+    """Fold the cross-layer file-name collision scan into *report* in place (#6743).
+
+    Mirrors :func:`_run_cross_grain_check`'s fail-loud pattern:
+
+    * always records a structured ``org_drg["file_name_collisions"]`` list, so an
+      empty list means "checked, nothing found" rather than "the check never ran";
+    * when it is non-empty, appends one message to ``org_drg["errors"]`` — the list
+      the honest ``CharterPackHealthReport.healthy`` flag reads — so a colliding
+      chain forces RC=1 without a parallel health field;
+    * records a failed scan as an ``org_drg["errors"]`` entry instead of raising,
+      because a check that could not run is not a check that passed (NFR-003).
+
+    Read-only: nothing is written and nothing is repaired.
+    """
+    org_drg = report.org_drg
+    if not isinstance(org_drg, dict):  # pragma: no cover — _collect_org_layer_data always returns a dict
+        return
+    try:
+        collisions = _collect_file_name_collisions(repo_root)
+    except Exception as exc:  # noqa: BLE001 — diagnostics must never crash doctor
+        existing = org_drg.get("errors")
+        errors = list(existing) if isinstance(existing, list) else []
+        errors.append(f"file-name collision scan error: {exc}")
+        org_drg["errors"] = errors
+        return
+
+    org_drg["file_name_collisions"] = collisions
+    if not collisions:
+        return
+    noun = "file name" if len(collisions) == 1 else "file names"
+    named = ", ".join(f"{collision['kind']} {collision['file_name']!r}" for collision in collisions[:3])
+    more = "" if len(collisions) <= 3 else f" and {len(collisions) - 3} more"
+    existing = org_drg.get("errors")
+    errors = list(existing) if isinstance(existing, list) else []
+    errors.append(
+        f"{len(collisions)} {noun} stand for more than one declared id across the configured chain ({named}{more}); "
+        "rename one of the files so each id has its own file name."
+    )
+    org_drg["errors"] = errors
 
 
 def _attach_pack_health(pack_entries: list[dict[str, object]], report: CharterPackHealthReport) -> None:

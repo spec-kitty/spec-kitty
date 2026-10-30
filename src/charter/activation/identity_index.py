@@ -59,6 +59,56 @@ class IdentityEntry:
 
 
 @dataclass(frozen=True)
+class FileNameCollision:
+    """One file name that files in more than one layer bind to different declared ids (#6743).
+
+    Every consumer of the *Decision* ``file_name_collision`` reads this record:
+    :meth:`IdentityIndex.collision_error` (the writer refusal) and the
+    validate/doctor diagnostics. *declarations* are
+    ``(layer, declared id, path)`` triples in index precedence order, so the
+    highest-precedence file -- the one the stem-first rule actually hands the file
+    name to -- comes first.
+    """
+
+    kind: ArtifactKind
+    file_name: str
+    declarations: tuple[tuple[str, str, Path | None], ...]
+
+    @property
+    def sort_key(self) -> tuple[str, str]:
+        """Stable ordering key ``(kind, file name)`` so one tree always reports identically."""
+        return (self.kind.value, self.file_name)
+
+    def message(self, *, label: str | None = None) -> str:
+        """One operator message, shared by every surface (validate, doctor, and the writer refusal).
+
+        *label* renames the layer of the file the caller is reporting on (for
+        ``charter pack validate`` the pack under validation calls itself by the
+        ``pack_level`` its ``pack.yaml`` declares); ``None`` keeps the index's own
+        layer name. The rename advice mirrors :class:`ActivationIdCollisionError`:
+        a built-in file cannot be renamed, so the other files are named instead.
+        """
+
+        def describe(layer: str) -> str:
+            return f"{label if label is not None and layer != _LAYER_BUILT_IN else layer} file"
+
+        def where(entry: tuple[str, str, Path | None]) -> str:
+            layer, _declared, path = entry
+            return f"{describe(layer)} {path}" if path is not None else describe(layer)
+
+        owners = "; ".join(f"the {where(entry)} declares {entry[1]!r}" for entry in self.declarations)
+        if any(entry[0] == _LAYER_BUILT_IN for entry in self.declarations):
+            renamable = [where(entry) for entry in self.declarations if entry[0] != _LAYER_BUILT_IN]
+            advice = f"Rename the {' and the '.join(renamable)}" if renamable else "Rename one of them"
+        else:
+            advice = "Rename one of them"
+        return (
+            f"File name collision on {self.kind.operator_token} {self.file_name!r}: files in more than one layer use that file name "
+            f"for different ids ({owners}), so it cannot stand for all of them. {advice} so each id has its own file name."
+        )
+
+
+@dataclass(frozen=True)
 class _KindTable:
     """Precedence-ordered entries for one kind plus first-match lookups."""
 
@@ -163,6 +213,22 @@ def _declared_id_of(
 def _describe_file(entry: IdentityEntry) -> str:
     """``"<layer> file <path>"`` for a collision message (the path when it is known)."""
     return f"{entry.layer} file {entry.path}" if entry.path is not None else f"{entry.layer} file"
+
+
+def _sharing_entries(table: _KindTable, stem: str) -> list[IdentityEntry]:
+    """Every file of *table* named *stem*, in layer precedence order (the one collision computation).
+
+    Both the writer refusal (:meth:`IdentityIndex.collision_error`) and the
+    diagnostic (:meth:`IdentityIndex.file_name_collisions`) read the colliding
+    files here, so the two surfaces cannot disagree about the file name, the
+    layers or the declared ids (FR-005).
+    """
+    return [entry for entry in table.entries if entry.stem == stem]
+
+
+def _collision_kinds() -> list[ArtifactKind]:
+    """Every artifact kind that ships files, in declaration order (kinds without a glob are skipped)."""
+    return [kind for kind in ArtifactKind if kind.glob_pattern]
 
 
 def _layer_of(scan_dir: Path, project_root: Path | None, org_roots: list[Path]) -> str:
@@ -370,11 +436,35 @@ class IdentityIndex:
         entry = table.by_id.get(bare) or self._lookup(kind, bare)
         declared = entry.declared_id if entry is not None else bare
         file_name = next((item.stem for item in table.entries if item.declared_id == declared), bare)
-        sharing = [item for item in table.entries if item.stem == file_name]
+        sharing = _sharing_entries(table, file_name)
         declarations = [(_describe_file(item), item.declared_id) for item in sharing]
         # A built-in file cannot be renamed: name the others; with no built-in file, any one of them will do.
         rename = [_describe_file(item) for item in sharing if item.layer != _LAYER_BUILT_IN] if any(item.layer == _LAYER_BUILT_IN for item in sharing) else []
         return ActivationIdCollisionError(kind.operator_token, bare, file_name, declarations, rename)
+
+    def file_name_collisions(self, *, kinds: Sequence[ArtifactKind] | None = None) -> tuple[FileNameCollision, ...]:
+        """Every file name that files in more than one layer bind to *different* declared ids (#6743).
+
+        The query is a view over the per-kind tables this index already builds: it
+        re-walks no directory and re-reads no file (NFR-001). *kinds* restricts the
+        scan (and so the tables built); the default covers every kind that ships
+        files on disk. Records come out ordered by ``(kind, file name)`` and their
+        declarations in layer precedence order, so two runs on one tree are
+        identical (NFR-002).
+
+        One file name bound to the *same* declared id in two layers is a deliberate
+        override, not a collision, and is not reported.
+        """
+        requested = _collision_kinds() if kinds is None else list(kinds)
+        collisions: list[FileNameCollision] = []
+        for kind in requested:
+            table = self._table(kind)
+            for stem, declared in table.ids_by_stem.items():
+                if len(declared) > 1:
+                    declarations = tuple((entry.layer, entry.declared_id, entry.path) for entry in _sharing_entries(table, stem))
+                    collisions.append(FileNameCollision(kind, stem, declarations))
+        collisions.sort(key=lambda collision: collision.sort_key)
+        return tuple(collisions)
 
     @staticmethod
     def unindexed_key(kind: ArtifactKind | None, token: str) -> str:
