@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:38:36.303334+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f821f8a92f47b11acef1e4e124ed2be52b14050a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:38:36.303334+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "f821f8a92f47b11acef1e4e124ed2be52b14050a",
   "contracts": "none",
   "contracts_rationale": "No data shape, endpoint or event field is added. The one externally visible surface is the orchestrator-api failure envelope, and it reuses the already-contracted, already-allowlisted error_code USAGE_ERROR (src/specify_cli/core/upstream_contract.json), so there is no contract artifact to write and no allowlist to extend.",
   "coordination_branch": "kitty/mission-migration-actor-cli-spoofing-01M66YYX",
