@@ -23,35 +23,22 @@ import pytest
 
 from specify_cli.charter_activate import _collect_inflight_missions
 from specify_cli.cli.commands import materialize as materialize_command
-from specify_cli.context import mission_resolver
 from specify_cli.release.changelog import build_changelog_block
 from tests._support.mission_residue_fixture import (
     MISSION_SLUG,
     RESIDUE_SLUG,
     seed_mission_and_residue,
     seed_tracked_idless_missions,
+    spy_on_tracked_paths,
 )
 
 pytestmark = [pytest.mark.regression, pytest.mark.integration, pytest.mark.git_repo]
 
 
-def _spy_on_tracked_paths(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
-    """Count the ``git ls-files`` probes ``tracked_mission_paths`` makes, keyed by repo root."""
-    calls: list[Path] = []
-    real = mission_resolver.tracked_paths
-
-    def _counting(cwd: Path, **kwargs: object) -> tuple[str, ...]:
-        calls.append(cwd)
-        return real(cwd, **kwargs)  # type: ignore[arg-type]
-
-    monkeypatch.setattr(mission_resolver, "tracked_paths", _counting)
-    return calls
-
-
 def test_mission_dirs_to_process_skips_residue(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``materialize`` targets Missions only, and never probes a coordination surface for residue."""
     fixture = seed_mission_and_residue(tmp_path)
-    calls = _spy_on_tracked_paths(monkeypatch)
+    calls = spy_on_tracked_paths(monkeypatch)
 
     errors: list[str] = []
     targets = materialize_command._mission_dirs_to_process(tmp_path, fixture.repo_root / "kitty-specs", errors)
@@ -64,7 +51,7 @@ def test_mission_dirs_to_process_skips_residue(tmp_path: Path, monkeypatch: pyte
 def test_mission_dirs_to_process_keeps_tracked_idless_missions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An id-less Mission git tracks is still materialized, on one git probe for the walk."""
     children = seed_tracked_idless_missions(tmp_path)
-    calls = _spy_on_tracked_paths(monkeypatch)
+    calls = spy_on_tracked_paths(monkeypatch)
 
     targets = materialize_command._mission_dirs_to_process(tmp_path, tmp_path / "kitty-specs", [])
 
