@@ -187,8 +187,8 @@ def anchored_lock_path(
         digest_hex_length: How many hex characters of the digest to keep, 1 to 64.
 
     Returns:
-        The lock file path. Nothing is created, and no lock is taken: this function is
-        pure with respect to the filesystem apart from resolving paths and probing git.
+        The lock file path. Nothing is created and no lock is taken: the function only
+        resolves paths and computes a name.
 
     Raises:
         ValueError: *digest_algorithm* is not a supported algorithm, or
