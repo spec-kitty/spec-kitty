@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M66G5KV0GQVAXSM21W1JE1VV",
-  "materialized_at": "2026-10-30T13:32:14.039409+00:00",
+  "event_count": 5,
+  "last_event_id": "01M66JRWXMCPC5DS1ZTFDJERW2",
+  "materialized_at": "2026-10-30T14:17:43.092750+00:00",
   "mission_number": "",
   "mission_slug": "synthesize-commit-reminder-write-surface-01M66FQX",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 1
   },
@@ -25,14 +25,22 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "maintainer-j",
-      "lane": "in_progress",
-      "last_event_id": "01M66G5KV0GQVAXSM21W1JE1VV",
-      "last_transition_at": "2026-10-30T13:32:14.039409+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M66JRWXMCPC5DS1ZTFDJERW2",
+      "last_transition_at": "2026-10-30T14:17:43.092750+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 402660,
-      "shell_pid_created_at": "1793367124.37"
+      "shell_pid_created_at": "1793367124.37",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "finalize-tasks",
