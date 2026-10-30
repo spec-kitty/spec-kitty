@@ -71,15 +71,22 @@ def _restore_notice(path: str) -> str:
 
 
 def _refusal_notice(path: str, tracked: TrackedMeta) -> str:
-    """The notice for a tracked copy git cannot give back, naming the reason and the repair."""
+    """The notice for a tracked copy git cannot give back, naming the real reason and the repair."""
     if tracked.index_only:
         return (
             f"{path}: meta.json is missing from the working tree and git holds it only in the index (not committed); "
             f"no identity was minted — restore it with `{_RESTORE.format(path=path)}` and commit it"
         )
+    if tracked.corrupt:
+        # `git checkout -- <path>` would restore the same unusable bytes, so it is not the repair here.
+        return (
+            f"{path}: tracked meta.json is missing from the working tree and the committed copy is not a JSON object; "
+            f"no identity was minted — repair the committed copy (`git show HEAD:{path}` shows it), commit the fix, "
+            f"then restore it with `{_RESTORE.format(path=path)}`"
+        )
     return (
-        f"{path}: tracked meta.json is missing from the working tree and git holds no readable copy; "
-        f"no identity was minted — restore it with `{_RESTORE.format(path=path)}` and re-run the upgrade"
+        f"{path}: tracked meta.json is missing from the working tree and git could not produce its content; "
+        f"no identity was minted — restore it with `{_RESTORE.format(path=path)}`"
     )
 
 

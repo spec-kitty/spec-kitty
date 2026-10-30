@@ -241,3 +241,81 @@ def test_a_present_copy_with_its_identity_is_left_alone(tmp_path: Path) -> None:
 
     assert built is not None
     assert built["mission_id"] == local_id
+
+
+def test_a_path_component_with_leading_space_still_reads_the_tracked_copy(tmp_path: Path) -> None:
+    """The prefix's trailing newline is removed, but nothing else: a leading space is path data."""
+    root = _repo(tmp_path)
+    mission_dir = root / " kitty-specs" / _SLUG
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(json.dumps(_META) + "\n", encoding="utf-8")
+    (mission_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "space-prefixed mission")
+    (mission_dir / "meta.json").unlink()
+
+    tracked = read_tracked_meta(mission_dir)
+
+    assert tracked.unavailable is False
+    assert tracked.meta is not None
+    assert tracked.meta["mission_id"] == _MISSION_ID
+
+
+def test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked(tmp_path: Path) -> None:
+    """A `.git` anchor with git refusing (dubious ownership, garbled repo) must refuse, not fabricate."""
+    root = _repo(tmp_path)
+    mission_dir = _commit_meta(root)
+    (mission_dir / "meta.json").unlink()
+    # Replace the real .git directory with a marker file git cannot follow: git exits 128 with
+    # "not a git repository", the same message a non-repository prints.
+    git_dir = root / ".git"
+    for child in sorted(git_dir.rglob("*"), reverse=True):
+        child.unlink() if child.is_file() or child.is_symlink() else child.rmdir()
+    git_dir.rmdir()
+    (root / ".git").write_text("gitdir: /nonexistent/gitdir\n", encoding="utf-8")
+
+    tracked = read_tracked_meta(mission_dir)
+
+    assert tracked.meta is None
+    assert tracked.unavailable is True, "a refusing git was read as 'nothing tracked' (the fabricating branch)"
+
+
+def test_the_refusal_notice_names_the_index_only_case(tmp_path: Path) -> None:
+    """US2 Scenario 3: the staged-only refusal says so, instead of claiming git holds nothing."""
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    root = _repo(tmp_path)
+    mission_dir = root / "kitty-specs" / _SLUG
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+    (mission_dir / "meta.json").write_text(json.dumps(_META) + "\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    (mission_dir / "meta.json").unlink()
+
+    classified = classify_missing_tracked_meta(mission_dir, root)
+
+    assert classified is not None
+    assert classified.refuse is True
+    assert "only in the index (not committed)" in classified.notice
+    assert f"git checkout -- kitty-specs/{_SLUG}/meta.json" in classified.notice
+
+
+def test_the_refusal_notice_for_a_corrupt_committed_copy_does_not_prescribe_checkout_alone(tmp_path: Path) -> None:
+    """`git checkout --` would restore the same unusable bytes, so the notice must say to repair it."""
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    root = _repo(tmp_path)
+    mission_dir = root / "kitty-specs" / _SLUG
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text("{not json\n", encoding="utf-8")
+    (mission_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "corrupt")
+    (mission_dir / "meta.json").unlink()
+
+    classified = classify_missing_tracked_meta(mission_dir, root)
+
+    assert classified is not None
+    assert classified.refuse is True
+    assert "not a JSON object" in classified.notice
+    assert f"git show HEAD:kitty-specs/{_SLUG}/meta.json" in classified.notice

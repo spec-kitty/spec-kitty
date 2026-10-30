@@ -86,6 +86,8 @@ def _load_meta_for_normalization(
     feature_dir: Path,
     result: NormalizeMissionLifecycleResult,
     repo_root: Path,
+    *,
+    dry_run: bool,
 ) -> dict[str, Any] | None:
     from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
@@ -95,12 +97,39 @@ def _load_meta_for_normalization(
         result.error = f"Could not read meta.json: {exc}"
         return None
     if meta is None:
-        # A tracked meta.json that is missing from the working tree is #6673: report the
-        # restore command and never derive an identity for the folder.
-        notice = _missing_meta_notice(feature_dir, repo_root)
-        result.warnings.append(notice or "meta.json missing; mission skipped")
-        return None
+        return _restore_or_report_missing_meta(feature_dir, repo_root, result, dry_run=dry_run)
     return meta
+
+
+def _restore_or_report_missing_meta(
+    feature_dir: Path,
+    repo_root: Path,
+    result: NormalizeMissionLifecycleResult,
+    *,
+    dry_run: bool,
+) -> dict[str, Any] | None:
+    """Rebuild a lost tracked ``meta.json`` from git, or report why it cannot be (#6673).
+
+    This seam runs whether or not the ``2.0.6`` sweep still does, so the restore is not
+    tied to that migration's settled state: a Mission whose tracked copy is readable gets
+    the file back (kept identity included); one whose copy cannot be used is reported with
+    the restore command and never given a derived identity.
+    """
+    from specify_cli.mission_metadata import read_tracked_meta, restore_tracked_meta
+
+    if dry_run:
+        if read_tracked_meta(feature_dir).meta is not None:
+            result.actions.append("Would restore the tracked meta.json from git")
+            return None
+    elif restore_tracked_meta(feature_dir):
+        result.actions.append("Restored the tracked meta.json from git")
+        from specify_cli.core.paths import load_meta_fail_closed
+
+        restored = load_meta_fail_closed(feature_dir)
+        if restored is not None:
+            return restored
+    result.warnings.append(_missing_meta_notice(feature_dir, repo_root) or "meta.json missing; mission skipped")
+    return None
 
 
 def _apply_identity_normalization(
@@ -239,8 +268,12 @@ def normalize_repo(
             result.warnings.append(residue_notice(_repo_relative(feature_dir, repo_root)))
             results.append(result)
             continue
-        meta = _load_meta_for_normalization(feature_dir, result, repo_root)
+        meta = _load_meta_for_normalization(feature_dir, result, repo_root, dry_run=dry_run)
         if meta is None:
+            # A dry run that *would* restore a lost tracked meta.json still marks the Mission as
+            # work for this migration, or `detect()` would skip the apply that does it (#6673).
+            if result.actions:
+                result.status = "normalized"
             results.append(result)
             continue
 
