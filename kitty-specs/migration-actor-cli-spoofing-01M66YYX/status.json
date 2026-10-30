@@ -88,7 +88,7 @@
     },
     "WP03": {
       "actor": "reviewer-renata",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -100,7 +100,8 @@
       "notes": [
         "- 2026-10-30T19:31:20Z – python-pedro – shell_pid=224204 – Docs + changelog: status-model actor section gained 'Who may write a seed'; agent-subcommands.md's status emit --actor block follows the new help text verbatim (rendered from the lane-a code at 79 cols); changelog [Unreleased] Breaking entry with impact-first lead, before/after and remedy (1045 chars). Gates: check_docs_freshness errors=0 (6 pre-existing warnings: 3 HELP-DRIFT on charter/migrate, 3 404 links), test_no_legacy_terminology 98 passed.",
         "Docs, help-text reference and changelog for #6754",
-        "- 2026-10-30T19:37:03Z – python-pedro – shell_pid=224204 – Review (reviewer-renata lens) PASS: the three claims match the code on lane-a (refused surfaces, --agent asymmetry, recorded replay), the help block is character-identical to the rendered --help, the changelog entry leads with impact, cites (#6754) and names the remedy under 1,200 chars; no ADR edited; terminology canon holds."
+        "- 2026-10-30T19:37:03Z – python-pedro – shell_pid=224204 – Review (reviewer-renata lens) PASS: the three claims match the code on lane-a (refused surfaces, --agent asymmetry, recorded replay), the help block is character-identical to the rendered --help, the changelog entry leads with impact, cites (#6754) and names the remedy under 1,200 chars; no ADR edited; terminology canon holds.",
+        "Review passed: docs and changelog for #6754"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
