@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:47:16.433519+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "530b03db8a340b87586f441ba0734b233f90f390"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:47:16.433519+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "530b03db8a340b87586f441ba0734b233f90f390",
   "contracts": "none",
   "contracts_rationale": "This Mission changes no external interface: no CLI flag, no JSON field, no API. It routes six internal read-surface walkers through the existing read-side Mission predicate, so there is nothing to contract.",
   "created_at": "2026-10-30T17:45:23.935965+00:00",
