@@ -3,7 +3,7 @@ title: 'ADR: a mission status read API replaces the CLI-bundled dashboard (extra
 description: 'Remove the bundled dashboard; keep one read-only mission status API (overview + detail) consumed by external UIs (#645). Accepted 2026-10-12 as the open-core producer surface.'
 status: Accepted
 date: '2026-10-01'
-updated: '2026-10-29'
+updated: '2026-10-30'
 ---
 
 **Status:** Accepted (2026-10-12). D-1 and D-2 recorded a direction the operator stated on
@@ -20,6 +20,10 @@ design. D-5 records that the CLI's own read verbs stay native Python behind one 
 for now. See "Amendment 2026-10-03" below.
 **Amendment 2026-10-12 (Accepted):** the read API is open-core (producer side), not a Team
 Kitty surface; in-repo now, extracted when frozen. See "Amendment 2026-10-12" below.
+**Amendment 2026-10-30 (Accepted):** factual wording amendment (#6604): D-5's "Lamport"
+ordering phrases describe the superseded record. The status path is ordered by wall clock
+`(at, event_id)` with the approved-departure lift, per ADR 2026-02-09-3 Amendment
+2026-10-22. See "Amendment 2026-10-30" below.
 
 The inline '(Proposed)' labels on D-3..D-7 are historical; all are Accepted as of 2026-10-12.
 
@@ -396,5 +400,58 @@ it.
 [ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) records the operator and CEO ruling of 2026-10-29 that the events domain's Java services and contracts move to `spec-kitty-events`, and that core consumes a released, pinned build.
 
 - **D-7 and D-9 to D-12 (the service is its own build in this repository, extracted when its contract freezes).** The service, its `domain-model` and `event-log` libraries and the `mission-status` contract move to `spec-kitty-events` with their history, and are released there on the `service-v*` line. Core pins the read service for CI conformance only. The CLI never launches it, so D-5 (CLI reads stay native Python) and D-7's "the CLI wheel ships no server" hold unchanged. The contract and conformance fixtures are canonical in `spec-kitty-events`; core's Python oracle tests run against the pinned contract bundle and fixtures.
+
+Nothing else in this record changes.
+
+## Amendment 2026-10-30 (Accepted): the ordering is wall clock, not Lamport
+
+Factual amendment, tracking [#6604](https://github.com/spec-kitty/spec-kitty/issues/6604).
+The decision does not change: D-3 to D-7, the D-5 read seam and the conformance gate all
+stand exactly as accepted. What changes is the wording this record used for the ordering it
+relies on, which no longer matches the code.
+
+The operator ruling of 2026-10-22 (recorded in [ADR 2026-02-09-3](../2.x/2026-02-09-3-event-log-merge-semantics.md)
+Amendment 2026-10-22, and in the same day's amendment to
+[ADR 2026-10-14-1](2026-10-14-1-event-native-core-one-canonical-event-writer.md)) settles
+what the status path does for 4.0.0:
+
+- **Wall clock.** Lane transitions are ordered by the writer's `at`, then `event_id`. One
+  reducer applies that fold: `status.reducer.reduce` calls `spec_kitty_events.diary.reduce_parsed`
+  directly, and `materialize_snapshot` calls `reduce_shared_state`, a re-export of
+  `diary.reduce` (`parse_diary`, then `reduce_parsed`). There is one reducer and two
+  parsers, not a Lamport reducer beside a wall-clock one.
+- **From-lane continuity.** A transition applies only when its `from_lane` matches the WP's
+  lane (spec-kitty-events#87; spec-kitty [`#4990`](https://github.com/spec-kitty/spec-kitty/issues/4990),
+  closed 2026-09-25 in `spec-kitty-events` 10.4.0), so a stale approval stamped later cannot
+  override a committed rejection.
+- **The approved-departure lift.** A non-seed departure from `approved` sorts after the
+  approval it followed, so a rejection minted on a clock behind its approval still applies;
+  the stored `at` is untouched (spec-kitty [`#4941`](https://github.com/spec-kitty/spec-kitty/issues/4941),
+  fixed by [PR #6261](https://github.com/spec-kitty/spec-kitty/pull/6261) in
+  `spec-kitty-events` 10.5.1).
+- **The residual, still open.** A **non-approval** transition minted on a clock behind the
+  event it follows still sorts before that event. The lift covers departures from `approved`
+  only.
+- **Lamport-primary ordering is a post-GA direction**
+  ([`#6609`](https://github.com/spec-kitty/spec-kitty/issues/6609)). It needs a clock on CLI
+  rows (spec-kitty-events#72) and its own ADR before it is built. This record does not adopt
+  it.
+
+Which sentences above are superseded in wording (their decisions stand unchanged):
+
+- The Context section's "two different reducers" paragraph (the one describing
+  `materialize_snapshot` as "the Lamport `reduce_shared_state` reduction") and D-5's "moves
+  them onto the Lamport reducer" describe the superseded ordering. The read API's point
+  still holds — external readers should reach one answer — but that answer is the wall-clock
+  fold, and the D-5 bypass gate is about the read seam, not about which clock the reducer
+  reads.
+- D-5 (amended) "the service ports the Lamport reduction (`status.reducer.materialize`)" is
+  superseded: the service ports the same `(at, event_id)` fold, and its conformance test
+  compares that port against the Python fold. Gap G-4 in the
+  [event-ledger writers and readers map](../../architecture/event-ledger-writers-and-readers.md)
+  tracks the one part of that fold the Java port does not implement yet.
+- "Until the cut-over there are two reducer implementations" now means two *implementations
+  of one algorithm* (the Python adapter and the Java port), not two different algorithms.
+  The conformance gate is unchanged and remains the reason the pair is acceptable.
 
 Nothing else in this record changes.
