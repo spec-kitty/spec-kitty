@@ -25,7 +25,7 @@
       "wp": null
     },
     "#6612": {
-      "evidence_ref": "spec-kitty/spec-kitty#6612: changelog WP lane read bypasses the reducer; fixed by WP01",
+      "evidence_ref": "commit d8dcabb620 (WP01 lane squash) + tests/release/test_release_prep.py coord-surface tests",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
