@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: issue-6611-events-tail-multi-log-and-json
 merge_target_branch: issue-6611-events-tail-multi-log-and-json
 branch_strategy: Planning artifacts for this mission were generated on issue-6611-events-tail-multi-log-and-json. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6611-events-tail-multi-log-and-json unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-events-tail-multi-log-and-json-01M66F8A
+base_commit: 265463e59204611d8e3992478a66ca7f0e4ec103
+created_at: '2026-10-30T14:06:59.079209+00:00'
 subtasks:
 - T005
 - T006
@@ -30,6 +33,7 @@ owned_files:
 - src/specify_cli/cli/commands/events.py
 - tests/cli/test_events_tail_log_selector.py
 - tests/cli/test_events_tail_status_surface.py
+- tests/cli/test_events_tail.py
 role: implementer
 tags: []
 tracker_refs:
@@ -141,6 +145,11 @@ assertions in the final file (they become the regression battery).
   after the flip those lines are human-rendered. Minimally update that
   suite (its `_tail` helper gains `--json`) keeping every
   surface-resolution assertion intact; this file is in `owned_files`.
+  The same applies to ONE test in `tests/cli/test_events_tail.py`
+  (`test_log_comes_from_the_resolved_status_surface`, the only invocation
+  there without `--json` that asserts JSON on stdout) — discovered during
+  implementation; that file is also in `owned_files` for exactly this
+  minimal one-flag update.
 - The default flip is user-facing: changelog and docs are handled by the
   mission close-out (NOT this WP) — do not edit CHANGELOG.md here.
 
