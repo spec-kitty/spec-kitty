@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2743": {
+      "evidence_ref": "Cited for context only; separate defect tracked in its own issue",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5464": {
+      "evidence_ref": "Cited for context only; separate defect tracked in its own issue",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6761": {
+      "evidence_ref": "grep -I + stderr-fallback fix in src/specify_cli/acceptance/matrix.py; red-first repro tests in TestGrepAbsenceBinaryAndEvidence (lane branch kitty/mission-grep-absence-binary-evidence-01M66F4Y-lane-a, PR to follow)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
