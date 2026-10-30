@@ -134,3 +134,4 @@ Reviewer: verify the three sense definitions match the code docstrings exactly i
 ## Activity Log
 
 - 2026-10-30T11:35:00Z – pi – Prompt created.
+- 2026-10-30T11:45:00Z – pi (python-pedro) – T001 red first: `uv run --frozen pytest tests/docs/test_glossary_residue_entry.py -q` → 5 failed (entry, three docstring links, canon bullet), 1 passed (the positive control on the known target-owned-bookkeeping link, proving the probe is non-vacuous). Red on the planning base as required.
