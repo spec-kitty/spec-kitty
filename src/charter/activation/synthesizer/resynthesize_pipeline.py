@@ -47,6 +47,7 @@ from .manifest import (
 )
 from .reconcile import REACH_ONLY_KINDS as _REACH_ONLY_KINDS
 from .reconcile import merge_project_overlay as _merge_project_overlay
+from .reconcile import RunScope
 from .reconcile import legacy_applies_edges as _legacy_applies_edges
 from .reconcile import legacy_strip_notice as _legacy_strip_notice
 from .reconcile import synthesized_node_urns as _synthesized_node_urns
@@ -384,9 +385,16 @@ def run(
             existing_overlay = load_graph_or_dir(existing_graph_dir)
             synthesized_urns = _synthesized_node_urns(new_manifest)
             # #6404: legacy ``applies`` edges are stripped on partial runs too;
-            # surface each one so a preserving run never drops silently.
+            # surface each one so a preserving run never drops silently. This run is
+            # topic-scoped (#6728), the same scope it merges with two lines below.
             reference_warnings.extend(
-                _legacy_strip_notice(e) for e in _legacy_applies_edges(existing_overlay, synthesized_urns, {n.urn for n in updated_overlay.nodes})
+                _legacy_strip_notice(e)
+                for e in _legacy_applies_edges(
+                    existing_overlay,
+                    synthesized_urns,
+                    {n.urn for n in updated_overlay.nodes},
+                    run_scope=RunScope.TOPIC_SCOPED,
+                )
             )
             project_graph = _merge_project_overlay(
                 existing_overlay=existing_overlay,
