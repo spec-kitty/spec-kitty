@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: issue-6734-pack-skill-body-path-containment
 merge_target_branch: issue-6734-pack-skill-body-path-containment
 branch_strategy: Planning artifacts for this mission were generated on issue-6734-pack-skill-body-path-containment. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6734-pack-skill-body-path-containment unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-pack-skill-body-path-containment-01M66FEC
+base_commit: cab1be39f6ba43ea99cb65f4d0df7db25414a52d
+created_at: '2026-10-30T14:39:02.069341+00:00'
 subtasks:
 - T007
 - T008
