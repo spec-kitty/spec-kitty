@@ -763,6 +763,32 @@ def _approval_write_skip_reason(st: _MoveTaskState) -> str | None:
     return None
 
 
+def _announce_kept_feedback_draft(review_cycle: CreatedRejectedReviewCycle | None) -> None:
+    """#6632: say on stderr why a reviewer's feedback draft was left in place.
+
+    The retirement seam (``review.cycle._retire_consumed_feedback_source``)
+    only FAILS to remove the draft -- it never fails the move, because the
+    verdict is already durably committed by the time it runs. Each kept-case
+    reason rides back on the write result's ``warnings`` and is printed here,
+    on BOTH feedback-file legs the writer serves: the rejection
+    (:func:`persist_rejected_review_cycle_for_rollback`) and the #6652
+    approval-with-feedback leg (:func:`_persist_approved_review_cycle`).
+    Follows :func:`_warn_feedback_file_not_recorded`'s stderr idiom so a
+    ``--json`` caller's stdout document is unchanged.
+    """
+    # ``getattr`` with a default: the frozen seam tests inject a compatibility
+    # writer double (a bare ``SimpleNamespace``) that carries neither this field
+    # nor the retirement fact, and this announcement must never be the reason a
+    # scripted rejection fails.
+    warnings: tuple[str, ...] = tuple(getattr(review_cycle, "warnings", ()) or ())
+    if not warnings:
+        return
+    import typer
+
+    for warning in warnings:
+        typer.echo(f"Warning: {warning}", err=True)
+
+
 def _warn_feedback_file_not_recorded(st: _MoveTaskState, reason: str) -> None:
     """#6652: never drop a supplied ``--review-feedback-file`` in silence.
 
@@ -923,6 +949,10 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
         )
 
     durability_signal = _persist_review_cycle_with_queue(st, ports, _create)
+    # #6632 review finding: the #6652 approval leg passes ``feedback_source``
+    # too, so it retires the reviewer's draft under exactly the same predicates —
+    # and therefore owes the operator the same stderr notice when it cannot.
+    _announce_kept_feedback_draft(durability_signal.review_cycle)
     _announce_verdict_durability_gap(st, durability_signal)
     return durability_signal
 
@@ -956,6 +986,7 @@ def persist_rejected_review_cycle_for_rollback(st: _MoveTaskState, ports: TasksP
     durability_signal = _persist_review_cycle_with_queue(st, ports, _create)
     review_cycle = durability_signal.review_cycle
     assert review_cycle is not None
+    _announce_kept_feedback_draft(review_cycle)
     st.review_feedback_pointer = review_cycle.pointer
     st.rejected_review_result = review_cycle.review_result
     _announce_verdict_durability_gap(st, durability_signal)
