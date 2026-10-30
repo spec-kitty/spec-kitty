@@ -1,49 +1,49 @@
 {
-  "mission_slug": "changelog-wp-lane-reducer-01M66FMR",
-  "mission_number": "",
-  "mission_type": "",
-  "overall_verdict": "pass",
-  "criteria": [
-    {
-      "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": "tests/release/test_release_prep.py (lane-a branch, merged): FR-001 test_changelog_classifies_wp_by_reduced_lane_not_file_order + test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted; FR-002 test_changelog_reads_coordination_surface_not_stale_primary_copy + test_changelog_unmaterialized_coord_surface_never_reads_stale_primary; FR-003 test_changelog_fails_loudly_on_corrupt_status_log (mission-named StoreError); FR-004 legacy frontmatter fallback covered by test_changelog_unmaterialized_coord_surface_never_reads_stale_primary and pre-existing frontmatter tests",
-      "pass_fail": "pass",
-      "verified_by": "maintainer-f",
-      "verified_at": "2026-10-30T14:41:33.371989+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
-    },
-    {
-      "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": "tests/release/test_release_prep.py (lane-a branch, merged): FR-001 test_changelog_classifies_wp_by_reduced_lane_not_file_order + test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted; FR-002 test_changelog_reads_coordination_surface_not_stale_primary_copy + test_changelog_unmaterialized_coord_surface_never_reads_stale_primary; FR-003 test_changelog_fails_loudly_on_corrupt_status_log (mission-named StoreError); FR-004 legacy frontmatter fallback covered by test_changelog_unmaterialized_coord_surface_never_reads_stale_primary and pre-existing frontmatter tests",
-      "pass_fail": "pass",
-      "verified_by": "maintainer-f",
-      "verified_at": "2026-10-30T14:41:37.143942+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
-    },
-    {
-      "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": "tests/release/test_release_prep.py (lane-a branch, merged): FR-001 test_changelog_classifies_wp_by_reduced_lane_not_file_order + test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted; FR-002 test_changelog_reads_coordination_surface_not_stale_primary_copy + test_changelog_unmaterialized_coord_surface_never_reads_stale_primary; FR-003 test_changelog_fails_loudly_on_corrupt_status_log (mission-named StoreError); FR-004 legacy frontmatter fallback covered by test_changelog_unmaterialized_coord_surface_never_reads_stale_primary and pre-existing frontmatter tests",
-      "pass_fail": "pass",
-      "verified_by": "maintainer-f",
-      "verified_at": "2026-10-30T14:41:41.038868+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
-    },
-    {
-      "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": "tests/release/test_release_prep.py (lane-a branch, merged): FR-001 test_changelog_classifies_wp_by_reduced_lane_not_file_order + test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted; FR-002 test_changelog_reads_coordination_surface_not_stale_primary_copy + test_changelog_unmaterialized_coord_surface_never_reads_stale_primary; FR-003 test_changelog_fails_loudly_on_corrupt_status_log (mission-named StoreError); FR-004 legacy frontmatter fallback covered by test_changelog_unmaterialized_coord_surface_never_reads_stale_primary and pre-existing frontmatter tests",
-      "pass_fail": "pass",
-      "verified_by": "maintainer-f",
-      "verified_at": "2026-10-30T14:41:44.986999+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
-    }
-  ],
-  "negative_invariants": []
+ "mission_slug": "changelog-wp-lane-reducer-01M66FMR",
+ "mission_number": "",
+ "mission_type": "",
+ "overall_verdict": "pass",
+ "criteria": [
+  {
+   "criterion_id": "FR-001",
+   "description": "Verify FR-001 is satisfied",
+   "proof_type": "automated_test",
+   "evidence": "tests/release/test_release_prep.py (lane-a branch, merged): FR-001 test_changelog_classifies_wp_by_reduced_lane_not_file_order + test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted; FR-002 test_changelog_reads_coordination_surface_not_stale_primary_copy + test_changelog_unmaterialized_coord_surface_never_reads_stale_primary; FR-003 test_changelog_fails_loudly_on_corrupt_status_log (mission-named StoreError); FR-004 legacy frontmatter fallback covered by test_changelog_unmaterialized_coord_surface_never_reads_stale_primary and pre-existing frontmatter tests",
+   "pass_fail": "pass",
+   "verified_by": "maintainer-f",
+   "verified_at": "2026-10-30T14:41:33.371989+00:00",
+   "notes": "Changelog classifies WP acceptance by the reduced lane (at, then event_id, approved-departure lift), not file order: out-of-order and mirror-case tests"
+  },
+  {
+   "criterion_id": "FR-002",
+   "description": "Verify FR-002 is satisfied",
+   "proof_type": "automated_test",
+   "evidence": "tests/release/test_release_prep.py (lane-a branch, merged): FR-001 test_changelog_classifies_wp_by_reduced_lane_not_file_order + test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted; FR-002 test_changelog_reads_coordination_surface_not_stale_primary_copy + test_changelog_unmaterialized_coord_surface_never_reads_stale_primary; FR-003 test_changelog_fails_loudly_on_corrupt_status_log (mission-named StoreError); FR-004 legacy frontmatter fallback covered by test_changelog_unmaterialized_coord_surface_never_reads_stale_primary and pre-existing frontmatter tests",
+   "pass_fail": "pass",
+   "verified_by": "maintainer-f",
+   "verified_at": "2026-10-30T14:41:37.143942+00:00",
+   "notes": "Lane read resolves the status surface through the placement seam (coordination branch under coord topology); stale primary never read: coord, unmaterialized and deleted-branch tests"
+  },
+  {
+   "criterion_id": "FR-003",
+   "description": "Verify FR-003 is satisfied",
+   "proof_type": "automated_test",
+   "evidence": "tests/release/test_release_prep.py (lane-a branch, merged): FR-001 test_changelog_classifies_wp_by_reduced_lane_not_file_order + test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted; FR-002 test_changelog_reads_coordination_surface_not_stale_primary_copy + test_changelog_unmaterialized_coord_surface_never_reads_stale_primary; FR-003 test_changelog_fails_loudly_on_corrupt_status_log (mission-named StoreError); FR-004 legacy frontmatter fallback covered by test_changelog_unmaterialized_coord_surface_never_reads_stale_primary and pre-existing frontmatter tests",
+   "pass_fail": "pass",
+   "verified_by": "maintainer-f",
+   "verified_at": "2026-10-30T14:41:41.038868+00:00",
+   "notes": "Corrupt status log fails release prep loudly with a mission-named StoreError; deleted coordination branch propagates its remediation"
+  },
+  {
+   "criterion_id": "FR-004",
+   "description": "Verify FR-004 is satisfied",
+   "proof_type": "automated_test",
+   "evidence": "tests/release/test_release_prep.py (lane-a branch, merged): FR-001 test_changelog_classifies_wp_by_reduced_lane_not_file_order + test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted; FR-002 test_changelog_reads_coordination_surface_not_stale_primary_copy + test_changelog_unmaterialized_coord_surface_never_reads_stale_primary; FR-003 test_changelog_fails_loudly_on_corrupt_status_log (mission-named StoreError); FR-004 legacy frontmatter fallback covered by test_changelog_unmaterialized_coord_surface_never_reads_stale_primary and pre-existing frontmatter tests",
+   "pass_fail": "pass",
+   "verified_by": "maintainer-f",
+   "verified_at": "2026-10-30T14:41:44.986999+00:00",
+   "notes": "Legacy YAML frontmatter fallback preserved for pre-3.x features and unreadable logs"
+  }
+ ],
+ "negative_invariants": []
 }

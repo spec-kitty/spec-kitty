@@ -30,7 +30,10 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+from specify_cli.coordination.surface_resolver import (
+    CoordinationBranchDeleted,
+    WorktreeRegistryUnavailable,
+)
 from specify_cli.release.payload import ReleasePrepPayload, build_release_prep_payload
 from specify_cli.release.version import ReleaseChannel
 from specify_cli.status import StoreError
@@ -112,10 +115,11 @@ def prep(
             channel=channel,
             repo_root=repo_root.resolve(),
         )
-    except (StoreError, CoordinationBranchDeleted) as exc:
-        # A corrupt status log or a deleted coordination branch must fail
-        # release prep loudly but cleanly — like every other status reader
-        # (see agent/status.py) — not as a raw traceback (#6612).
+    except (StoreError, CoordinationBranchDeleted, WorktreeRegistryUnavailable) as exc:
+        # A corrupt status log, a deleted coordination branch, or an
+        # unconsultable worktree registry must fail release prep loudly but
+        # cleanly — like every other status reader (see agent/status.py) —
+        # not as a raw traceback (#6612).
         if json_output:
             console.print_json(_json.dumps({"error": str(exc)}))
         else:
