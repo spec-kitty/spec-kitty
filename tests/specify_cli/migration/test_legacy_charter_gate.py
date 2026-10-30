@@ -455,6 +455,29 @@ def test_cli_refuses_migrate_too(tmp_path: Path) -> None:
     assert _refused(result)
 
 
+def test_cli_creates_in_migrated_owned_checkout_when_primary_is_legacy(tmp_path: Path) -> None:
+    root = _project(tmp_path / "primary")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    owned = tmp_path / "owned"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
+    _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+
+    result = _run([
+        "agent", "mission", "create", "owned-startup-proof",
+        "--owned-checkout", str(owned), "--mission-type", "software-dev",
+        "--friendly-name", "Owned startup proof", "--purpose-tldr", "Preserve owned admission",
+        "--purpose-context", "An upgraded linked checkout owns its project safety gates.",
+        "--branch-strategy", "already-confirmed", "--json",
+    ], owned)
+
+    assert not _refused(result), result.output
+    assert result.exit_code == 0, result.output
+    assert list((owned / "kitty-specs").glob("owned-startup-proof-*/meta.json"))
+    assert not (root / "kitty-specs").exists()
+    assert _refused(_run(["charter", "list", "--json"], root))
+
+
 # --------------------------------------------------------------------------- #
 # --json refusal (#6232)
 # --------------------------------------------------------------------------- #
