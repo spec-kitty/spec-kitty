@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-10-29'
+updated: '2026-10-30'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -983,6 +983,24 @@ these lists, and an asset sidecar that does not parse is skipped here;
 `spec-kitty charter pack validate` checks both. A sidecar file that lives outside the pack's
 `assets/` directory (for example through a symlink), and every asset of a pack whose `assets/`
 directory itself resolves outside the pack, are reported as `ORG_ASSET_PATH_ESCAPE`.
+
+#### The same rule on `charter status` and `charter org validate`
+
+Since #6733 the other two surfaces that report on an org pack give the same verdict as the doctor,
+from the same predicates, so a pack cannot look sound on one command and unsound on another.
+
+| Surface | Where the finding appears | What names it |
+| --- | --- | --- |
+| `spec-kitty charter status` | `org_layer.errors`, and the human organisation-layer section | the same message the doctor writes: the pack, the node or asset, the path |
+| `spec-kitty charter org validate` | one error issue per escape, exit 1 | category `body_path_escape` for a fragment node, `asset_path_escape` for an asset sidecar; `artifact_id` is the node or asset id, `file` is the file that declares it |
+
+`charter status` adds no JSON key: the finding rides the existing `org_layer.errors` array, the
+channel it already uses for a dangling edge endpoint. If a containment check cannot run, the array
+says so (`org-layer body_path check failed: ...`) rather than reading as "no escapes".
+
+The rule itself is stated as portable data in `tests/charter/conformance/pack_containment_cases.yaml`
+(`pack-containment-conformance/1`): one case per pack shape, each asserting what all three surfaces
+must answer. That table is what the spec-kitty-charter replacement is run against.
 
 ### `spec-kitty migrate activation-ledger`
 
