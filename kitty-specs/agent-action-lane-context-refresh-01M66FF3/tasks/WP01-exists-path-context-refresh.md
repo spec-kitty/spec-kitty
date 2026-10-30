@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: issue-6650-agent-action-lane-context-refresh
 merge_target_branch: issue-6650-agent-action-lane-context-refresh
 branch_strategy: Planning artifacts for this mission were generated on issue-6650-agent-action-lane-context-refresh. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6650-agent-action-lane-context-refresh unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-agent-action-lane-context-refresh-01M66FF3
+base_commit: 1969dea1b1ad796687f06b4ae28d208790139c95
+created_at: '2026-10-30T13:27:15.286664+00:00'
 subtasks:
 - T001
 - T002
