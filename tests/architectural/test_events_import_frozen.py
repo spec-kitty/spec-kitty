@@ -1,9 +1,11 @@
-"""Freeze gate: ``services/`` in core does not change until the cut-over removes it (ADR 2026-10-29-1 D-9).
+"""Freeze gate: the paths the events import takes do not change in core until the cut-over removes them (ADR 2026-10-29-1 D-9).
 
-The events domain's Java services move to ``spec-kitty/spec-kitty-events``, which imports them with their history.
-A change landed here after the freeze would be lost by that import or would need porting by hand, so the committed
-``services/`` tree is pinned to the git tree id recorded at the freeze. The gate lives in ``tests/ci`` because a
-``services/``-only diff selects the ``ci`` module row (``.github/ci-module-registry.yml``).
+The events domain's Java services, its contract modules and tools, and the event-ledger architecture page move to
+``spec-kitty/spec-kitty-events``, which imports them with their history. A change landed here after the freeze would
+be lost by that import or would need porting by hand, so each imported path is pinned to the git object id it had at
+the freeze. The frozen paths belong to different CI routing groups (``ci``, ``corpus``, ``docs``), so the gate is on
+the always-on ``architectural-fast`` roster (``special_tiers.architectural.fast_gate`` in
+``.github/ci-module-registry.yml``): it runs on every PR shape, whatever paths the diff touches.
 
 Java work on these modules is filed and done in spec-kitty-events. The cut-over PR deletes ``services/`` and this file
 together; while ``services/`` is absent the gate passes, so the removal itself is never refused.
@@ -19,17 +21,32 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.fast
+pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _FROZEN_PATH = "services"
 # `git rev-parse HEAD:services` on origin/main 4eecb12414 + the 2026-10-29 merges (b1ef6847bf), the freeze point.
 _FROZEN_TREE_ID = "99c06d1dba366c65c1260342c3e6370c8233953e"
+# Every other path the events import takes, with its git object id (tree or blob) at the same freeze point.
+# contracts/fixtures/ stays in core and is not frozen.
+_FROZEN_OBJECTS: dict[str, str] = {
+    _FROZEN_PATH: _FROZEN_TREE_ID,
+    "contracts/mission-status": "a09d96532581d244b5dd0f295a23cf3705d0cd00",
+    "contracts/mission-write": "3f52fa137ee62aa48469c3e0cdbea4efb0f65be3",
+    "contracts/_shared": "fa7cc44678491c5b0d87eb4b1441f0945a375ed4",
+    "contracts/tools": "6235043e87c4ba3b77f7708e80052b843dcb14c5",
+    "contracts/lint": "afea11080e3f206cddf9212e472ac56b047224c7",
+    "contracts/gradle": "4a5e2c489b274718b7c0bdd9bc2a2ef009474e93",
+    "contracts/README.md": "79436249bde4a84af4467d0b2fb180104e6417c4",
+    "contracts/build.gradle": "2ebf317f01cdce199eaef571c7a6c1febb3be3be",
+    "contracts/settings.gradle": "c4b8720e271103c957b5a02253b99f6e815f155b",
+    "docs/architecture/event-ledger-writers-and-readers.md": "c2943d4997a19d10ffd1289e70220ec602f4e3ac",
+}
 # 743 files were in the frozen tree; a much smaller count means the gate is reading the wrong tree.
 _FROZEN_FILE_FLOOR = 700
 _REMEDY = (
-    "services/ is frozen in core (ADR 2026-10-29-1 D-9): the Java services move to spec-kitty/spec-kitty-events. "
-    "Revert the change under services/ and file the Java work in spec-kitty-events."
+    "This path is frozen in core (ADR 2026-10-29-1 D-9): it moves to spec-kitty/spec-kitty-events with its history. "
+    "Revert the change and make it in spec-kitty-events."
 )
 
 
@@ -46,17 +63,22 @@ def committed_tree_id(repo: Path, path: str) -> str | None:
 
 
 def frozen_violation(repo: Path, path: str, frozen_tree_id: str) -> str | None:
-    """A refusal message when ``path`` at ``HEAD`` differs from the frozen tree, else ``None``."""
+    """A refusal message when ``path`` at ``HEAD`` differs from its frozen object, else ``None``."""
     tree_id = committed_tree_id(repo, path)
     if tree_id is None or tree_id == frozen_tree_id:
         return None
+    if _git(repo, "cat-file", "-t", tree_id).stdout.strip() != "tree":
+        return f"{path} changed after the freeze.\n{_REMEDY}"
     changed = _git(repo, "diff", "--name-only", frozen_tree_id, tree_id).stdout.split()
+    if not changed:  # the frozen tree object is absent from this shallow clone
+        return f"{path}/ changed after the freeze.\n{_REMEDY}"
     listed = "\n".join(f"  {path}/{name}" for name in changed[:20])
     return f"{path}/ changed after the freeze ({len(changed)} file(s)):\n{listed}\n{_REMEDY}"
 
 
-def test_services_tree_is_frozen() -> None:
-    violation = frozen_violation(_REPO_ROOT, _FROZEN_PATH, _FROZEN_TREE_ID)
+@pytest.mark.parametrize(("path", "object_id"), sorted(_FROZEN_OBJECTS.items()))
+def test_imported_path_is_frozen(path: str, object_id: str) -> None:
+    violation = frozen_violation(_REPO_ROOT, path, object_id)
     assert violation is None, violation
 
 
@@ -83,6 +105,17 @@ def _scratch_repo(tmp_path: Path) -> tuple[Path, str]:
 def _commit_all(repo: Path, message: str) -> None:
     assert _git(repo, "add", "-A").returncode == 0
     assert _git(repo, "-c", "user.name=t", "-c", "user.email=t@e", "commit", "-qm", message).returncode == 0
+
+
+def test_planted_blob_change_is_refused(tmp_path: Path) -> None:
+    repo, _ = _scratch_repo(tmp_path)
+    frozen_blob = committed_tree_id(repo, "README.md")
+    assert frozen_blob is not None
+    (repo / "README.md").write_text("root, edited\n", encoding="utf-8")
+    _commit_all(repo, "edit a frozen file")
+    violation = frozen_violation(repo, "README.md", frozen_blob)
+    assert violation is not None
+    assert "README.md changed after the freeze" in violation
 
 
 def test_planted_change_under_services_is_refused(tmp_path: Path) -> None:

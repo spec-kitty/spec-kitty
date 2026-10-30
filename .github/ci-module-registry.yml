@@ -945,6 +945,7 @@ special_tiers:
       - {path: tests/architectural/test_timing_coverage_invariant.py, budget_seconds: 13, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_status_module_boundary.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_src_reachability_guard.py, budget_seconds: 15, reason: "red 1x in the 2026-09-30 census window"}
+      - {path: tests/architectural/test_events_import_frozen.py, budget_seconds: 10, reason: "freeze gate for the events import (ADR 2026-10-29-1 D-9): its paths span the ci, corpus and docs groups, so it must run on every PR"}
       - {path: tests/architectural/test_no_tmp_paths_in_tests.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_no_dead_modules.py, budget_seconds: 14, reason: "red 1x in the 2026-09-30 census window"}
       - {path: tests/architectural/test_module_shard_registry.py, budget_seconds: 10, reason: "red 1x in the 2026-09-30 census window"}

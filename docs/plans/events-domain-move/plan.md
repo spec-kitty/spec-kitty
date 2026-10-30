@@ -129,7 +129,7 @@ tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-he
 ## 4. Cut-over runbook (ordered; each step gated on the previous)
 
 0. **Now (prep, this branch only):** this plan, the ADR draft, the charter/CLAUDE.md/AGENTS.md drafts, the pin schema. No `main` change.
-1. **Freeze, on a go signal:** a `tests/architectural/test_services_frozen.py` gate (fails on any diff under `services/` against a recorded tree digest, with a planted-violation non-vacuity test) plus a CODEOWNERS note. Announce on #6409, #6676 and #6117 (comment text drafted for approval).
+1. **Freeze, on a go signal:** the `tests/architectural/test_events_import_frozen.py` gate on the always-on fast roster (fails on any change to `services/`, the moving `contracts/` modules and tools, or `docs/architecture/event-ledger-writers-and-readers.md`, against the git object ids at the freeze; planted-violation non-vacuity tests) plus a CODEOWNERS note. Announce on #6409, #6676 and #6117 (comment text drafted for approval).
 2. **All in-flight sessions merged** (§2); confirm that no live session holds unpushed `services/` or `contracts/` work.
 3. **Session A:** filter-repo import (`service/` plus `contracts/`), Gradle unification, CI (pinned to the frozen core SHA), and the first `service-v*` pre-release with per-OS assets, the jar, the contract-bundles and conformance-fixtures assets, `SHA256SUMS` and attestation.
 4. **Core PR 1 (pre-cut-over, can merge while `services/` still exists):** the pin mechanism (`kernel.service_artifacts`, `sync-services`, the composite action, `service vendor`), the launcher skeleton with fail-closed codes, and the ADR plus charter/CLAUDE.md amendments. The pins point at A's pre-release. CI fetches and verifies the pin.
