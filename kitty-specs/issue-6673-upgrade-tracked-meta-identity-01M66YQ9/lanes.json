@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "mission_slug": "issue-6673-upgrade-tracked-meta-identity-01M66YQ9",
+  "mission_id": "01M66YQ981AKQ5F3H87BBHPRRF",
+  "mission_branch": "kitty/mission-issue-6673-upgrade-tracked-meta-identity-01M66YQ9",
+  "target_branch": "issue-6673-upgrade-tracked-meta-identity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/upgrade/feature_meta.py",
+        "tests/specify_cli/upgrade/test_read_tracked_meta_6673.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_identity.py",
+        "src/specify_cli/migration/normalize_mission_lifecycle.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_6_residue_safe_consistency_sweep.py",
+        "src/specify_cli/upgrade/migrations/m_zz_runtime_state_backfill.py",
+        "src/specify_cli/upgrade/tracked_meta_notice.py",
+        "tests/integration/migration/test_upgrade_tracked_meta_identity_6673.py",
+        "tests/specify_cli/migration/test_backfill_identity_tracked_absent_6673.py",
+        "tests/specify_cli/upgrade/test_runtime_state_cutover_skips_absent_meta_6673.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/upgrade-lifecycle.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/installation/upgrade-project.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-30T17:56:26.495093+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "ce1492b4ec06d53890c1cb52202c01a7322d2133"
+}
