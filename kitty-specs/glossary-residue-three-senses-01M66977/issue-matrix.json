@@ -48,6 +48,18 @@
       "verdict": "not-applicable",
       "wp": "WP01"
     },
+    "#6669": {
+      "evidence_ref": "write-seam provenance context cited in spec; the entry cites the docstring's own issues (#6627, #6668); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
     "#6680": {
       "evidence_ref": "issue 6759's own reference for the write-seam seam; context only",
       "fr": null,
