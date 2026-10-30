@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#4226": {
+      "evidence_ref": "context only: the parent report whose staging-growth observation this mission bounds",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6510": {
+      "evidence_ref": "context only: the prior mission that fixed the self-collision; retention was explicitly out of its scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6723": {
+      "evidence_ref": "kitty-specs/bound-failed-staging-retention-01M66YPB/tasks/WP01-staging-retention-bound.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
