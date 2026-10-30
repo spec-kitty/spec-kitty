@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "charter-packs-refusal-code-convergence-01M66FC9",
+  "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY",
+  "mission_branch": "kitty/mission-charter-packs-refusal-code-convergence-01M66FC9",
+  "target_branch": "issue-6772-charter-packs-refusal-code",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/offering/drg/org_pack_config.py",
+        "tests/charter_offering/drg/test_org_pack_config_cr04_charter_packs.py",
+        "tests/specify_cli/cli/commands/charter/test_activation_json_6525.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T13:28:20.633433+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "590926418483dd0c18e621c68d346c34a367e1bc"
+}
