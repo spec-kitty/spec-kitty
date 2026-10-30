@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "Internal consolidation: no interface, endpoint, event payload or file format changes. The only contract is the anchored lock path itself, pinned by value in tests/kernel/test_lock_paths.py and documented in data-model.md.",
   "coordination_branch": "kitty/mission-anchor-lock-path-single-authority-01M66YWP",
   "created_at": "2026-10-30T17:49:30.635174+00:00",
   "flattened": false,
