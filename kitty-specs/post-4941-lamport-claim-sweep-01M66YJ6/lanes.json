@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "post-4941-lamport-claim-sweep-01M66YJ6",
+  "mission_id": "01M66YJ6D0RNRW0N1Q8QBRZM6V",
+  "mission_branch": "kitty/mission-post-4941-lamport-claim-sweep-01M66YJ6",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "AGENTS.md",
+        "docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md",
+        "docs/architecture/diagrams/01_context/README.md",
+        "docs/architecture/diagrams/02_containers/README.md",
+        "docs/architecture/event-ledger-writers-and-readers.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/plans/domains/api-dashboard-domain-plan.md",
+        "src/specify_cli/consolidation/preflight.py",
+        "tests/architectural/test_status_path_ordering_claims.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:47:46.167282+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "512567eee71e31bb39f580c4f7acf8b865e9d1b2"
+}
