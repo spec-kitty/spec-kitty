@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#5812": {
+      "evidence_ref": "context reference only: #5812 shipped is_mission_dir and RESIDUE_DIRECTORY; this mission neither changes nor owes work on it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context reference",
+      "source_file": null,
+      "title": "One is-a-Mission predicate; residue directories are not Missions",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5875": {
+      "evidence_ref": "context reference only: #5875 (PR #6775) shipped the read-side residue rule this mission reuses; it owes no work here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "context reference",
+      "source_file": "spec.md",
+      "title": "Mission walkers share one residue rule: spec.md-only folders are no longer listed as Missions",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6757": {
+      "evidence_ref": "PR https://github.com/spec-kitty/spec-kitty/pull/6820 (branch issue-6757-audit-collision-selectable-missions-only)",
+      "fr": "FR-001, FR-003",
+      "nfr": "NFR-001",
+      "repo": null,
+      "sc": "SC-001, SC-002, SC-003",
+      "scope": "code + docs",
+      "source_file": "spec.md",
+      "title": "Audit engine reports a fake prefix collision on a healthy Mission when a spec.md-only folder shares its prefix",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
