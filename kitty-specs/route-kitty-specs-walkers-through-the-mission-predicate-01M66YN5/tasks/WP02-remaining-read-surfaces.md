@@ -29,15 +29,15 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/
 create_intent: []
+create_intent:
+- tests/regressions/test_issue_6758_read_surfaces.py
 execution_mode: code_change
 model: ''
 owned_files:
 - src/specify_cli/cli/commands/materialize.py
 - src/specify_cli/charter_activate.py
 - src/specify_cli/release/changelog.py
-- tests/specify_cli/cli/commands/test_materialize.py
-- tests/cli/test_charter_activate_warning.py
-- tests/release/test_release_prep.py
+- tests/regressions/test_issue_6758_read_surfaces.py
 role: implementer
 tags: []
 task_type: implement
@@ -90,8 +90,9 @@ each new test was seen red before its walker changed.
 ### Subtask T007 – Red-first tests for the three surfaces
 
 - **Purpose**: pin behaviour before the change.
-- **Files**: `tests/specify_cli/cli/commands/test_materialize.py`,
-  `tests/cli/test_charter_activate_warning.py`, `tests/release/test_release_prep.py`.
+- **Files**: create `tests/regressions/test_issue_6758_read_surfaces.py` (markers
+  `pytest.mark.integration`, `pytest.mark.git_repo`, `pytest.mark.regression`). The three owning module
+  test files stay untouched as the non-residue regression guard; do not add a git fixture to them.
 - **Steps**: each test uses `seed_mission_and_residue(tmp_path)` from
   `tests/_support/mission_residue_fixture.py` and asserts both halves on that one fixture:
   - `test_mission_dirs_to_process_skips_residue` — `[slug for slug, _ in _mission_dirs_to_process(repo_root, repo_root / "kitty-specs", errors)] == [MISSION_SLUG]` and `errors == []`.
@@ -132,7 +133,7 @@ each new test was seen red before its walker changed.
 ### Subtask T011 – Blast radius
 
 - **Steps**: run and record:
-  - `uv run pytest tests/specify_cli/cli/commands/test_materialize.py tests/cli/test_charter_activate_warning.py tests/release/test_release_prep.py tests/regressions/test_changelog_regex_redos.py -q`
+  - `uv run pytest tests/regressions/test_issue_6758_read_surfaces.py tests/specify_cli/cli/commands/test_materialize.py tests/cli/test_charter_activate_warning.py tests/release/test_release_prep.py tests/regressions/test_changelog_regex_redos.py -q`
   - `uv run pytest tests/release tests/cli -q` (the two owning subsystem directories; keep it to these,
     `NO_FULL_HEAVY_SUITES_IN_MISSION`)
   - `uv run ruff check` and `uv run ruff format --check` on the three source and three test files.
