@@ -210,13 +210,13 @@ def test_stale_bundle_warning_sees_the_bounded_set(tmp_path: Path) -> None:
 
 
 @pytest.mark.unit
-def test_refusal_text_states_the_enforced_bound() -> None:
+def test_refusal_text_states_the_enforced_bound(tmp_path: Path) -> None:
     """FR-007/FR-008: the operator text and the enforced number share one source."""
     from charter.activation.synthesizer.errors import NeutralityGateViolation, StagingPromoteError
     from charter.activation.synthesizer.staging import retention_hint
 
-    promote = str(StagingPromoteError(run_id="X", staging_dir="/tmp/run-X", cause="boom"))
-    neutrality = str(NeutralityGateViolation(artifact_urn="tactic:t", detected_terms=("java",), staging_dir=Path("/tmp/run-Y")))
+    promote = str(StagingPromoteError(run_id="X", staging_dir=str(tmp_path / "run-X"), cause="boom"))
+    neutrality = str(NeutralityGateViolation(artifact_urn="tactic:t", detected_terms=("java",), staging_dir=tmp_path / "run-Y"))
 
     for message in (promote, neutrality):
         assert retention_hint() in message
