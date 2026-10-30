@@ -137,11 +137,14 @@ def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
     """Resolve *relative_path* under *root*, enforcing containment.
 
     Shared containment primitive: :meth:`OrgPackConfig.effective_root` uses
-    this for ``subdir`` containment, and
+    this for ``subdir`` containment,
     ``charter.offering.packs.pack_validator._check_asset_path_containment``
     reuses it for ASSET sidecar manifest ``path`` containment (FR-009 /
-    NFR-005) — a single canonical escape-detection implementation rather than
-    a hand-rolled resolve-then-``relative_to`` at each call site.
+    NFR-005), and ``charter.offering.pack_skills.validation.resolve_body_path``
+    reuses it for pack-skill ``body_path`` containment at both load-time
+    validation and read time (#6734) — a single canonical escape-detection
+    implementation rather than a hand-rolled resolve-then-``relative_to`` at
+    each call site.
 
     Rejects (raising :class:`OrgPackSubdirEscapeError`):
 
