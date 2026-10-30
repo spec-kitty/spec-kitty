@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "asset-sidecar-non-mapping-crash-01M66937",
+  "mission_id": "01M66937BPRRERJFR4F86S86QE",
+  "mission_branch": "kitty/mission-asset-sidecar-non-mapping-crash-01M66937",
+  "target_branch": "issue-6735-asset-sidecar-non-mapping-crash",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/offering/base.py",
+        "tests/charter_offering/test_non_mapping_sidecar_skip.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T11:36:03.857846+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c78cd0298659a811ae2ba0074537015af79fcc24"
+}
