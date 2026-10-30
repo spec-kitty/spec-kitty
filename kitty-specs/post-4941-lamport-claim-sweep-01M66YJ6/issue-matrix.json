@@ -73,7 +73,7 @@
       "wp": null
     },
     "#6604": {
-      "evidence_ref": "tests/architectural/test_status_path_ordering_claims.py (red-first guard)",
+      "evidence_ref": "PR https://github.com/spec-kitty/spec-kitty/pull/6819",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,7 +81,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     },
     "#6609": {
