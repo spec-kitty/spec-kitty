@@ -1,160 +1,137 @@
-# Mission Specification: [MISSION NAME]
-<!-- Replace [MISSION NAME] with the confirmed friendly title generated during /spec-kitty.specify. -->
+# Mission Specification: Route the remaining `kitty-specs/` walkers through the Mission predicate
 
-**Mission Branch**: `[###-mission-name]`  
-**Created**: [DATE]  
-**Status**: Draft  
-**Input**: User description: "$ARGUMENTS"
+**Mission Branch**: `issue-6758-kitty-specs-walkers-mission-predicate`
+**Created**: 2026-10-30
+**Status**: Draft
+**Input**: Issue spec-kitty/spec-kitty#6758 (follow-up from the pre-merge squad on #5875): route the remaining `kitty-specs/` walkers — `doctor topology` among them — through the shared Mission predicate, so residue handling stops drifting.
 
 ## User Scenarios & Testing *(mandatory)*
 
-<!--
-  IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
-  Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
-  you should still have a viable MVP (Minimum Viable Product) that delivers value.
-  
-  Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
-  Think of each story as a standalone slice of functionality that can be:
-  - Developed independently
-  - Tested independently
-  - Deployed independently
-  - Demonstrated to users independently
--->
+### The one rule every surface asks
 
-### User Story 1 - [Brief Title] (Priority: P1)
+```mermaid
+flowchart LR
+    A["kitty-specs/&lt;child&gt;"] --> B{"is_selectable_mission_dir<br/>(read-side Mission test)"}
+    B -->|Mission| C1["doctor topology row"]
+    B -->|Mission| C2["doctor coordination scan"]
+    B -->|Mission| C3["doctor review-cycle-reconcile scan"]
+    B -->|Mission| C4["materialize derived views"]
+    B -->|Mission| C5["charter-activate in-flight warning"]
+    B -->|Mission| C6["release changelog block"]
+    B -->|residue| D["left out everywhere;<br/>doctor identity reports it once,<br/>with a reason and a remedy"]
+```
 
-[Describe this user journey in plain language]
+### User Story 1 - `doctor topology` stops calling residue a Mission (Priority: P1)
 
-**Why this priority**: [Explain the value and why it has this priority level]
+An operator runs `spec-kitty doctor topology` on a repository that has a real Mission
+and a leftover `kitty-specs/` folder holding only a `spec.md` (or a `tasks/` tree). Today the
+leftover folder is printed as a Mission with a `null` topology and `meta.json not found`;
+after the change only real Missions are listed, in the table and in `--json`.
 
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
+**Why this priority**: it is the user-visible defect. Two doctor commands currently
+describe the same folder differently — `doctor identity` as residue with a remedy,
+`doctor topology` as a broken Mission — and the second answer is wrong.
 
-**Acceptance Scenarios**:
-
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-2. **Given** [initial state], **When** [action], **Then** [expected outcome]
-
----
-
-### User Story 2 - [Brief Title] (Priority: P2)
-
-[Describe this user journey in plain language]
-
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
+**Independent Test**: in a scratch git repository holding one Mission and one residue
+folder, `spec-kitty doctor topology --json` returns exactly the Mission.
 
 **Acceptance Scenarios**:
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
+1. **Given** a repository with a Mission (`meta.json` with a `mission_id`) and a residue folder (no `meta.json`), **When** `spec-kitty doctor topology` runs, **Then** the table lists the Mission and the count is 1, and no row carries `meta.json not found`.
+2. **Given** the same repository, **When** `spec-kitty doctor topology --json` runs, **Then** `missions` contains exactly the Mission.
+3. **Given** a repository whose only `kitty-specs/` child is residue, **When** `spec-kitty doctor topology` runs, **Then** it reports 0 missions and does not fail.
 
----
+### User Story 2 - The other five read surfaces skip residue too (Priority: P2)
 
-### User Story 3 - [Brief Title] (Priority: P3)
+Five more walkers enumerate every `kitty-specs/` child and decide for themselves: the
+`doctor coordination` whole-repo scan, the `doctor review-cycle-reconcile` scan,
+`materialize`, the charter-activate in-flight warning and the release-changelog block.
+Each now asks the same predicate, so a folder the operator cannot select never appears
+as a Mission in those reports, never gets a derived-view target or a coordination-worktree
+probe, and never reaches the release notes.
 
-[Describe this user journey in plain language]
+**Why this priority**: the drift is the issue's real subject; `doctor topology` is only
+the most visible symptom. Leaving five local rules in place leaves five ways to drift again.
 
-**Why this priority**: [Explain the value and why it has this priority level]
-
-**Independent Test**: [Describe how this can be tested independently]
+**Independent Test**: for each surface, a fixture with a residue child and a selectable
+Mission returns only the Mission.
 
 **Acceptance Scenarios**:
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
+1. **Given** a residue child (a folder with `tasks/` and no `meta.json`, in a git repository) alongside a Mission, **When** `_resolve_mission_dirs` (coordination), `_mission_dirs_for` (review-cycle-reconcile), `_mission_dirs_to_process` (materialize), `_collect_inflight_missions` (charter activate) and `build_changelog_block` (release) run, **Then** each yields only the Mission.
+2. **Given** the same fixtures, **When** only a Mission is present, **Then** every surface still yields it (positive control on the shared fixture).
 
----
+### User Story 3 - One authority, enforced (Priority: P3)
 
-[Add more user stories as needed, each with an assigned priority]
+A reviewer can see, mechanically, that all six walkers route through the read-side
+predicate, and a later change that drops the predicate from any of them fails the
+architectural gate instead of silently reintroducing a walker-local rule.
+
+**Why this priority**: "one authority" is only true while something checks. Without the
+pin, the next walker edit can regress the whole issue.
+
+**Independent Test**: remove the predicate call from any of the six functions; the
+architectural gate fails naming that function.
+
+**Acceptance Scenarios**:
+
+1. **Given** the six walkers, **When** the architectural gate runs, **Then** it verifies each named function calls `is_selectable_mission_dir`.
+2. **Given** a temporarily planted copy of one walker without the call, **When** the gate's own test drives its checker, **Then** the gate reports the missing predicate (non-vacuity of the pin).
 
 ### Edge Cases
 
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
-
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
+- **Mission with a `meta.json` but no `mission_id`, tracked by git**: still a Mission (predicate rule 3); every surface keeps listing it. Covered by the positive control fixtures.
+- **Mission with a `meta.json` but no `mission_id`, untracked in a git repository**: read-side residue; all six surfaces skip it. Selection never lists it either.
+- **Unstattable `kitty-specs/` child during the coordination scan**: keeps raising (`#3194`); the change adds a predicate call and must not swallow the raise.
+- **Broken git index**: the walks keep their current posture. `doctor topology` is a read-only report and degrades through the hardened memo (one warning) rather than crashing; a timeout still propagates.
+- **No git repository at all**: the predicate falls back to file presence, so a `meta.json`-bearing folder stays a Mission and every existing non-git fixture keeps passing.
+- **Every child carries a `mission_id`**: no `git ls-files` subprocess at all.
 
 ## Requirements *(mandatory)*
-
-<!--
-  ACTION REQUIRED:
-  1) Keep requirement types separated (Functional / Non-Functional / Constraints)
-  2) Use unique IDs per type (FR-###, NFR-###, C-###, and SC-### for success
-     criteria). An ID is the kind, a hyphen, digits, and optionally one
-     lowercase letter for a sub-requirement (FR-###a). Digit width is part of
-     the ID. To cite an ID that another mission owns, write
-     <mission-slug>#<ID>; it is never counted as this mission's own.
-     setup-plan refuses a malformed ID in a declared position (first table
-     cell, heading, list-item lead or bold lead).
-  3) Keep Status populated for every row
-  4) Non-functional requirements must include measurable thresholds
-  5) Delivery label + no-op mark on every FR row and success criterion (summary of
-     tactic `acceptance-criteria-non-vacuity`): `[build]`/`[ratchet]`/`[folded]`
-     delivery, `yes`/`no` no-op passable.
-  6) The label set and the three non-vacuity rules (same-fixture positive control,
-     half-by-half proof for compound fixes, production-path non-vacuity) are defined
-     once, in tactic `acceptance-criteria-non-vacuity` -- fetch it with
-     `spec-kitty charter context --include tactic:acceptance-criteria-non-vacuity`.
-     Do not redefine the labels here; this comment only points to that tactic.
-  7) A label never goes inside or before the ID cell, and never inline on an FR
-     bullet/heading -- it is a trailing column (or success-criterion suffix) only.
-
-  Filled example (summary of tactic acceptance-criteria-non-vacuity; `FR-EXAMPLE`
-  does not match the requirement-ID grammar, so it declares no requirement
-  id; it stays inside this comment because setup-plan refuses a malformed
-  declared ID):
-
-  | FR-EXAMPLE | Refuses malformed input | As an operator, I want malformed input rejected so that downstream state stays consistent. | High | Open | [ratchet] | yes — paired with the well-formed-input row on the same fixture |
--->
 
 ### Functional Requirements
 
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
-| FR-001 | [Short title] | As a [role], I want [goal] so that [benefit]. | High | Open | [build/ratchet/folded] | [yes/no] |
-| FR-002 | [Short title] | As a [role], I want [goal] so that [benefit]. | Medium | Open | [build/ratchet/folded] | [yes/no] |
-| FR-003 | [Short title] | As a [role], I want [goal] so that [benefit]. | Low | Open | [build/ratchet/folded] | [yes/no] |
+| FR-001 | `doctor topology` lists Missions only | As an operator, I want `doctor topology` to list only Missions, in the table and in `--json`, so that a residue folder is never described as a broken Mission. | High | Open | [build] | no |
+| FR-002 | Coordination scan lists Missions only | As an operator, I want the `doctor coordination` whole-repo scan to skip residue, so that findings are never reported for a folder that is not a Mission, while an unstattable child keeps raising. | High | Open | [build] | no |
+| FR-003 | Review-cycle-reconcile scan lists Missions only | As an operator, I want `doctor review-cycle-reconcile` to skip residue, so that its reports name Missions only. | High | Open | [build] | no |
+| FR-004 | `materialize` processes Missions only | As an operator, I want `materialize` to skip residue, so that it neither writes a derived view for nor probes a coordination surface for a folder that is not a Mission. | High | Open | [build] | no |
+| FR-005 | In-flight warning scans Missions only | As an operator, I want the charter-activate in-flight warning to scan Missions only, so that its warnings name reachable Missions. | Medium | Open | [build] | no |
+| FR-006 | Release changelog lists Missions only | As an operator, I want the release-changelog block to skip residue, so that a leftover folder never reaches the release notes. | Medium | Open | [build] | no |
+| FR-007 | One predicate call per walker | As a maintainer, I want each of the six walkers to decide each child through `is_selectable_mission_dir`, so that the read-side Mission rule has exactly one authority. | High | Open | [build] | no |
+| FR-008 | Architectural pin on the six walkers | As a reviewer, I want an architectural gate that fails when any of the six named functions stops calling the predicate, so that the routing cannot silently regress. | High | Open | [ratchet] | no — verified by a planted walker in the gate's own test |
+| FR-009 | Per-walker behavioural tests | As a reviewer, I want one test per changed walker with a residue child and a selectable Mission on the same fixture, so that each routing is pinned by behaviour, not only by structure. | High | Open | [build] | no |
 
 ### Non-Functional Requirements
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | [Short title] | [Measurable threshold, e.g., p95 latency under 300ms] | Performance | High | Open |
-| NFR-002 | [Short title] | [Measurable threshold] | Security | High | Open |
-| NFR-003 | [Short title] | [Measurable threshold] | Reliability | Medium | Open |
+| NFR-001 | One git probe per walk | Each walk runs at most one `git ls-files` for the whole `kitty-specs/` tree (one `TrackedMissionPaths` memo), and none when every child carries a `mission_id`; asserted by counting subprocess invocations in the walker tests. | Performance | High | Open |
+| NFR-002 | No regression for Missions | Every existing test of the six owning modules and their subsystem directories passes unchanged; no selectable Mission disappears from any surface. | Reliability | High | Open |
+| NFR-003 | Blast-radius test run | The changed and added tests plus the owning subsystems (`tests/specify_cli/cli/commands`, `tests/cli/charter*`, `tests/release`, `tests/charter`) pass, with no full heavy suite (`NO_FULL_HEAVY_SUITES_IN_MISSION`). | Maintainability | Medium | Open |
 
 ### Constraints
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | [Short title] | [Required boundary or limitation] | Technical | High | Open |
-| C-002 | [Short title] | [Required boundary or limitation] | Business | Medium | Open |
-| C-003 | [Short title] | [Required boundary or limitation] | Regulatory | Medium | Open |
+| C-001 | Audit engine untouched | `src/specify_cli/audit/engine.py` and its pin test keep their looser `is_mission_dir` population; #6757 owns that change. | Technical | High | Open |
+| C-002 | Predicate semantics unchanged | `is_selectable_mission_dir`, `is_mission_dir` and `is_kitty_specs_residue` keep their rules; this Mission only adds callers. | Technical | High | Open |
+| C-003 | Enumeration posture preserved | Each walker keeps its own listing posture (`safe_is_dir` raising on an unstattable child, dot-directory skip, best-effort scan); the change adds exactly one predicate call per child rather than replacing the walk. | Technical | High | Open |
+| C-004 | Read side only | All six are read-surface walkers and none writes into `kitty-specs/`, so none takes the write-seam predicate; a future write-side walker must not copy this routing by analogy. | Technical | Medium | Open |
 
-### Key Entities *(include if the mission involves data)*
+### Key Entities
 
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
+- **`kitty-specs/` child**: a directory under `kitty-specs/`; either a Mission or read-side residue.
+- **Read-side Mission predicate** (`is_selectable_mission_dir`): the one authority for "does Mission selection list this folder?".
+- **Walker**: one of the six read surfaces that enumerates `kitty-specs/` children and asks the predicate per child.
+- **Predicate pin**: the architectural ledger of `(module, function)` pairs that must call the predicate.
 
 ## Success Criteria *(mandatory)*
 
-<!--
-  ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
-  Give each one an SC-### ID in the bold-lead bullet shape below. Success
-  criteria are tracked, not gating: finalize-tasks reports which work
-  packages reference each one, but an unreferenced success criterion never
-  fails it. A work package may list SC-### IDs in its requirement_refs.
--->
-
 ### Measurable Outcomes
 
-<!-- ACTION REQUIRED: append a delivery label + no-op mark to every success criterion,
-     same as the FR table above -- "— [build/ratchet/folded] · no-op passable: [yes/no]". -->
-
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"] — [build/ratchet/folded] · no-op passable: [yes/no]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"] — [build/ratchet/folded] · no-op passable: [yes/no]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"] — [build/ratchet/folded] · no-op passable: [yes/no]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"] — [build/ratchet/folded] · no-op passable: [yes/no]
+- **SC-001**: In a repository with one Mission and one residue folder, `spec-kitty doctor topology` reports exactly 1 mission and no `meta.json not found` row; `--json` returns 1 entry. — [build] · no-op passable: no
+- **SC-002**: All six walkers, given a residue child and a Mission child on one fixture, return the Mission and only the Mission (6 tests, each with the positive control). — [build] · no-op passable: no
+- **SC-003**: The architectural gate names and verifies all six `(module, function)` pairs, and fails when a planted walker omits the predicate call. — [ratchet] · no-op passable: no, verified by the planted-walker case
+- **SC-004**: The six modules' existing tests stay green alongside the new ones, and each new test fails when its walker's predicate call is removed. — [ratchet] · no-op passable: yes — paired with the per-walker red-first proof on the same fixture
