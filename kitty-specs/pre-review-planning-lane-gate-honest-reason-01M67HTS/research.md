@@ -88,3 +88,50 @@ committed from the primary checkout onto the coordination branch.
   proposes "planning-lane WP — gate not applicable (committed diff not inspected)",
   and the mission adopts that shape so the record matches the filed acceptance
   criterion.
+
+## Plan-phase decisions (Phase 0, appended)
+
+### D-6 — Where the classification lives and in what order it asks
+
+A new pair of private helpers in `tasks_move_task_gates.py`, next to the
+short-circuit they serve:
+
+1. `_mt_pre_review_planning_lane_wp(st)` — declared `execution_mode` from the WP
+   frontmatter first (`extract_scalar`, the same reader
+   `_mt_pre_review_scope_override` already uses on `wp.frontmatter`); an explicit
+   `planning_artifact` is a yes, an explicit `code_change` is a no.
+2. Only when the frontmatter is silent, ask `lanes.json`:
+   `placement_seam(st.main_repo_root, st.mission_slug, owned=st.owned).read_dir(
+   MissionArtifactKind.LANE_STATE)` → `read_lanes_json` →
+   `manifest.lane_for_wp(st.task_id)` → `is_planning_lane(lane)`.
+
+Rejected alternatives:
+- **Reuse the resolved workspace's `execution_mode`/`lane_id`.** Truest signal, but
+  the gate resolves only the workspace *path*, and the owned-checkout arm returns
+  the owned root without a resolution object — reaching the resolution would mean
+  a new field on the frozen `_TransitionGateInputs` (constructed positionally in
+  existing tests) for information the frontmatter already carries.
+- **Inspect the committed diff** (share a merge-base with `review_base_ref`
+  instead of the target branch). That is #2741's larger scope, changes gate
+  policy, and can start running tests on a planning lane — explicitly out (D-2,
+  C-001).
+- **Only check lane membership.** Mislabels a `single_branch` mission's repo-root
+  code WP, which `workspace/context._resolve_repo_root_lane_arm` documents as
+  legitimate. Membership must stay the fallback.
+
+Failure policy: `read_lanes_json` raises `CorruptLanesError` (a
+`GuardedReadError`) and file reads can raise `OSError`; both are caught inside
+the helper and degrade to "not a planning-lane WP", i.e. today's wording. A
+malformed mission file must not convert a non-blocking skip into a resolution
+failure warn.
+
+### D-7 — What the test must be built from
+
+The reproduction fixture is a real git repository (real `git init`, real commit,
+clean tree) whose branch **is** the mission's `target_branch`, with
+`lanes.json` placing WP09 in `lane-planning` and WP09's frontmatter declaring
+`execution_mode: planning_artifact`. Patching `_mt_pre_review_changed_files`
+would defeat the point: the reported shape is the *real* empty merge-base diff.
+The control arm (a `code_change` WP with an empty diff) runs on the same fixture
+and asserts the incumbent wording, so a blanket rewrite of the message fails the
+suite.
