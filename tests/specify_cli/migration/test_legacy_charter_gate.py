@@ -604,6 +604,58 @@ def test_cli_raw_owned_text_grants_no_startup_authority(tmp_path: Path, command_
     assert not (root / "kitty-ops").exists()
 
 
+@pytest.mark.parametrize("first_fails", [False, True])
+def test_cli_startup_claim_is_not_reused_by_later_commands(tmp_path: Path, first_fails: bool) -> None:
+    from kernel.git_topology import clear_caches
+    from mission_runtime import ActionContextError
+    from specify_cli.core.owned_mission import resolve_owned_create_root
+
+    root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    owned = tmp_path / "owned"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
+    _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+    if first_fails:
+        from specify_cli.upgrade.runner import MigrationRunner
+
+        MigrationRunner._stamp_schema_version(owned / ".kittify", 1001)
+    args = [
+        "agent",
+        "mission",
+        "create",
+        "scoped-claim",
+        "--owned-checkout",
+        str(owned),
+        "--mission-type",
+        "software-dev",
+        "--friendly-name",
+        "Scoped claim",
+        "--purpose-tldr",
+        "Bound ownership to a command",
+        "--purpose-context",
+        "Later commands must freshly validate the selected checkout.",
+        "--branch-strategy",
+        "already-confirmed",
+        "--json",
+    ]
+    first = _run(args, root)
+    assert not _refused(first), first.output
+    assert (first.exit_code != 0) == first_fails, first.output
+
+    subprocess.run(["git", "worktree", "remove", "--force", str(owned)], cwd=root, check=True)
+    _project(owned, config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    subprocess.run(["git", "init", "-q"], cwd=owned, check=True)
+    # A new CLI process has fresh topology caches; keep this in-process runner
+    # faithful to that boundary while checking the command-scoped claim expires.
+    clear_caches()
+    with pytest.raises(ActionContextError):
+        resolve_owned_create_root(root, owned)
+    second = _run(args, root)
+    assert _refused(second), second.output
+    assert not (owned / "kitty-specs").exists()
+
+
 # --------------------------------------------------------------------------- #
 # --json refusal (#6232)
 # --------------------------------------------------------------------------- #

@@ -25,6 +25,8 @@ from specify_cli.core.owned_mission import (
 
 pytestmark = [pytest.mark.git_repo]
 
+from specify_cli.core._ownership_claim_scope import owned_claim_scope
+
 SLUG = "owned-minter-01M2A900"
 MID = "01M2A900000000000000000001"
 TARGET = "codex/owned"
@@ -92,6 +94,34 @@ def test_returns_validated_fact(tmp_path: Path) -> None:
     assert fact.topology is MissionTopology.SINGLE_BRANCH
     assert fact.owned_root == p_root.resolve()
     assert fact.mission_dir == p_root.resolve() / "kitty-specs" / SLUG
+
+
+def test_claim_scope_restores_nested_errors_and_expires_at_exit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.core import checkout_ownership
+
+    root, checkout = _owned_pair(tmp_path)
+
+    def unavailable(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("fresh ownership discovery required")
+
+    with owned_claim_scope():
+        assert resolve_owned_create_root(root, checkout).checkout == checkout.resolve()
+        monkeypatch.setattr(checkout_ownership, "resolve_ownership_claim", unavailable)
+        with pytest.raises(RuntimeError, match="fresh ownership"), owned_claim_scope():
+            resolve_owned_create_root(root, checkout)
+        assert resolve_owned_create_root(root, checkout).checkout == checkout.resolve()
+    with pytest.raises(RuntimeError, match="fresh ownership"):
+        resolve_owned_create_root(root, checkout)
+
+
+def test_cached_basic_claim_does_not_cache_write_branch_authority(tmp_path: Path) -> None:
+    root, checkout = _owned_pair(tmp_path)
+    with owned_claim_scope():
+        resolve_owned_create_root(root, checkout)
+        git(checkout, "switch", "-c", "other-branch")
+        with pytest.raises(ActionContextError) as refused:
+            resolve_owned_mission(root, checkout, SLUG)
+        assert refused.value.code == "OWNED_BRANCH_REFUSED"
 
 
 @pytest.mark.parametrize("handle_kind", ["slug", "mid8", "mission_id"])

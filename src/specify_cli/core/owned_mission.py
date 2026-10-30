@@ -20,6 +20,7 @@ from mission_runtime import (
     single_branch_write_ref,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core._ownership_claim_scope import command_claims
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.paths import assert_safe_path_segment, get_status_read_root, load_meta_fail_closed
 from specify_cli.core.utils import ensure_within_directory
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     # below, never at module scope.
     from specify_cli.context.mission_resolver import ResolvedMission
     from specify_cli.core.checkout_ownership import OwnershipClaim
+
 
 # Two pre-existing wire codes this module raises that predate WP01's
 # OwnedRefusalCode registry and are NOT part of it (orchestrator decision,
@@ -145,12 +147,18 @@ def _require_owned_claim(repository_root: Path, checkout: Path) -> OwnershipClai
         resolve_ownership_claim,
     )
 
+    claims = command_claims()
+    key = (repository_root.resolve(), checkout.resolve())
+    if claims is not None and key in claims:
+        return claims[key]
     claim = resolve_ownership_claim(checkout, resolved_primary=repository_root)
     error = error_for_claim(claim)
     if error is not None:
         raise ActionContextError(error.error_code, str(error))
     if claims_repository_root(claim):
         raise ActionContextError(OWNED_CHECKOUT_IS_REPOSITORY_ROOT, _REPOSITORY_ROOT_REFUSAL)
+    if claims is not None:
+        claims[key] = claim
     return claim
 
 
