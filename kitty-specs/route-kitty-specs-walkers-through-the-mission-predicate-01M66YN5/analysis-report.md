@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: route-kitty-specs-walkers-through-the-mission-predicate-01M66YN5
 mission_id: 01M66YN5JQ1MA9ACTFX7XHWGW6
-generated_at: '2026-10-30T17:52:36.178840+00:00'
+generated_at: '2026-10-30T17:54:29.900578+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -12,10 +12,10 @@ input_artifacts:
     sha256: 473aa7fee1fe5addaaf1bfe15c461a95fd3bddd153a5fea9bec21facc2e755d6
   plan.md:
     path: kitty-specs/route-kitty-specs-walkers-through-the-mission-predicate-01M66YN5/plan.md
-    sha256: 9c25ae8a54049c6105c33fbc5aadcefbd0ff493126e5eb5768b2655c181329ea
+    sha256: 4d3daaca27790285dea0943ee4675e1ee332ae7c327c670f5a5bcc62ea37f74c
   tasks.md:
     path: kitty-specs/route-kitty-specs-walkers-through-the-mission-predicate-01M66YN5/tasks.md
-    sha256: 1cb7e4ea215e483149fd420f1938b2b6005b98252deebbf0b88a44188d206455
+    sha256: 0b0321db8973472f88e339683eae5c45438ae8036d649de90dc87ddab92b9d04
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
@@ -23,8 +23,8 @@ verdict: ready
 issue_counts:
   critical: 0
   medium: 0
-  low: 2
   high: 0
+  low: 2
   info: 0
 findings:
 - id: I1
