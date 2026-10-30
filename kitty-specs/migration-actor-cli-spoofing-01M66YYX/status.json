@@ -1,21 +1,21 @@
 {
-  "event_count": 10,
-  "last_event_id": "01M672Y1FKE3JQNGVGG2XMDY9C",
-  "materialized_at": "2026-10-30T19:00:08.799780+00:00",
+  "event_count": 18,
+  "last_event_id": "01M6751TGF98YS1CK9H6T2YHMV",
+  "materialized_at": "2026-10-30T19:37:09.903152+00:00",
   "mission_number": "",
   "mission_slug": "migration-actor-cli-spoofing-01M66YYX",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -53,27 +53,70 @@
       }
     },
     "WP02": {
-      "actor": "python-pedro",
-      "agent": "python-pedro",
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M672Y1FKE3JQNGVGG2XMDY9C",
-      "last_transition_at": "2026-10-30T19:00:08.799780+00:00",
+      "lane": "approved",
+      "last_event_id": "01M674GZWXCKW6JV14T7RZCCR7",
+      "last_transition_at": "2026-10-30T19:27:58.365236+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T19:20:07Z – python-pedro – shell_pid=705303 – Implemented: one _refuse_seed_actor_or_fail helper at the top of the four orchestrator-api lifecycle verbs (USAGE_ERROR, already allowlisted) and a guard for implement's hidden --actor beside the no-selector guard. Red-first proofs: orchestrator module failed on the base at policy validation (5 failed), implement module failed on the base by exiting 0 and creating the lane worktree (1 failed, 1 positive control passed). Green: 7 matrix tests, tests/specify_cli/orchestrator_api 227 passed, contract + implement suites 78 passed, -k implement sweep 531 passed.",
+        "Orchestrator-api + implement seed refusal; matrix green",
+        "- 2026-10-30T19:27:52Z – python-pedro – shell_pid=705303 – Review (reviewer-renata lens) PASS. (1) dead code none — _refuse_seed_actor_or_fail has 4 callers; (2) no synthetic fixtures — the tiers drive the real orchestrator app and the real implement command, plus a byte-identical-log arm on a real mission and a positive control; (3) no silent empty returns; (4) FR-003 asserted on all four verbs with the envelope shape, FR-004 asserted with 'no lane worktree' and a positive control, NFR-001 asserted on the log and the worktree; (5) no frozen surface and no contract artifact touched — upstream_contract.json is not in the diff, USAGE_ERROR is already allowlisted; (6) C-002 holds, the change only removes write paths; (7) no shared file with WP01; (8) the only new error path is a _fail (NoReturn) after a documented refusal. Diff is 195 added lines across 4 files, no deletions.",
+        "Review passed (reviewer-renata lens): orchestrator-api 4 verbs + implement hidden --actor refused, no partial state"
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
       "shell_pid": 705303,
-      "shell_pid_created_at": "1793386787.83"
+      "shell_pid_created_at": "1793386787.83",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M66Z6ZF0MF4PAZ86A67RAG92",
-      "last_transition_at": "2026-10-30T17:55:07.360250+00:00"
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M6751TGF98YS1CK9H6T2YHMV",
+      "last_transition_at": "2026-10-30T19:37:09.903152+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T19:31:20Z – python-pedro – shell_pid=224204 – Docs + changelog: status-model actor section gained 'Who may write a seed'; agent-subcommands.md's status emit --actor block follows the new help text verbatim (rendered from the lane-a code at 79 cols); changelog [Unreleased] Breaking entry with impact-first lead, before/after and remedy (1045 chars). Gates: check_docs_freshness errors=0 (6 pre-existing warnings: 3 HELP-DRIFT on charter/migrate, 3 404 links), test_no_legacy_terminology 98 passed.",
+        "Docs, help-text reference and changelog for #6754",
+        "- 2026-10-30T19:37:03Z – python-pedro – shell_pid=224204 – Review (reviewer-renata lens) PASS: the three claims match the code on lane-a (refused surfaces, --agent asymmetry, recorded replay), the help block is character-identical to the rendered --help, the changelog entry leads with impact, cites (#6754) and names the remedy under 1,200 chars; no ADR edited; terminology canon holds.",
+        "Review passed: docs and changelog for #6754"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 224204,
+      "shell_pid_created_at": "1793388492.9",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     }
   }
 }
