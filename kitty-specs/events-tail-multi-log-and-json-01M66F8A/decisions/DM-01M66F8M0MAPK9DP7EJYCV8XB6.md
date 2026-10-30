@@ -4,9 +4,9 @@
 - **Origin flow:** `specify`
 - **Step id:** `specify.scope_boundaries`
 - **Input key:** `scope_boundaries`
-- **Status:** `deferred`
+- **Status:** `resolved`
 - **Created:** `2026-10-30T13:16:23.956723+00:00`
-- **Resolved:** `2026-10-30T13:16:24.258664+00:00`
+- **Resolved:** `2026-10-30T13:21:33.257853+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -20,13 +20,13 @@ _(none)_
 
 ## Final answer
 
-_(none)_
+Out of scope (spec.md C-001/C-004): further log kinds (ops-index, op-closures, propagation-errors, policy audit, archive registry, encoding provenance), a --run-id selector, any EventBridge/write-side work, and any change to the core tail reader. The #5466 coordination-surface fix stays a distinct closed bug.
 
 ## Rationale
 
-owner deferred during specify interview
+_(none)_
 
 ## Change log
 
 - `2026-10-30T13:16:23.956723+00:00` — opened
-- `2026-10-30T13:16:24.258664+00:00` — deferred
+- `2026-10-30T13:21:33.257853+00:00` — resolved (final_answer="Out of scope (spec.md C-001/C-004): further log kinds (ops-index, op-closures, propagation-errors, policy audit, archive registry, encoding provenance), a --run-id selector, any EventBridge/write-side work, and any change to the core tail reader. The #5466 coordination-surface fix stays a distinct closed bug.")
