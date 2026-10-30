@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "mission_slug": "route-kitty-specs-walkers-through-the-mission-predicate-01M66YN5",
+  "mission_id": "01M66YN5JQ1MA9ACTFX7XHWGW6",
+  "mission_branch": "issue-6758-kitty-specs-walkers-mission-predicate",
+  "target_branch": "issue-6758-kitty-specs-walkers-mission-predicate",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/charter_activate.py",
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "src/specify_cli/cli/commands/_identity_audit.py",
+        "src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/cli/commands/materialize.py",
+        "src/specify_cli/release/changelog.py",
+        "tests/_support/mission_residue_fixture.py",
+        "tests/architectural/test_mission_resolver_walker_gate.py",
+        "tests/cli/test_charter_activate_warning.py",
+        "tests/release/test_release_prep.py",
+        "tests/specify_cli/cli/commands/test_coordination_doctor.py",
+        "tests/specify_cli/cli/commands/test_identity_audit.py",
+        "tests/specify_cli/cli/commands/test_materialize.py",
+        "tests/specify_cli/cli/commands/test_review_cycle_reconcile_doctor.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:51:19.738865+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "eda0f604aed5bfa74ffa1df130f59f8da6dc665b"
+}
