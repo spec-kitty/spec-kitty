@@ -54,11 +54,16 @@
     "WP02": {
       "actor": "maintainer-j",
       "agent": "maintainer-j",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "maintainer-j",
       "lane": "in_progress",
       "last_event_id": "01M66K71KHG2FEP25RP0VGWHSN",
       "last_transition_at": "2026-10-30T14:25:26.634653+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 698322,
       "shell_pid_created_at": "1793370317.37"
     }
