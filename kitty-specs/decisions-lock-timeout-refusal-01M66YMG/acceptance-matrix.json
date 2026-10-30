@@ -1,0 +1,86 @@
+{
+  "mission_slug": "decisions-lock-timeout-refusal-01M66YMG",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Every decisions-lock acquisition in doctor decisions --repair, owned next and agent decision repair-runtime-lock goes through decisions/service.py::_decisions_lock; no command keeps a local LockAcquireTimeout translation or a duplicated wait constant.",
+      "proof_type": "code_inspection_with_tests",
+      "evidence": "src/specify_cli/decisions/service.py::_decisions_lock is the only translation; _decisions_doctor.py imports the service's _LOCK_ACQUIRE_TIMEOUT_S (local copy deleted), next_cmd._commit_owned_next_mutations and decision._repair_runtime_lock call _decisions_lock. tests: test_decisions_reconciler.py, test_next_owned_lock_timeout.py, test_owned_decision_runtime_lock.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T20:00:00+00:00",
+      "notes": "Reviewed in the WP rounds; grep shows no remaining machine_file_lock acquisition for decisions/index.json.lock outside the seam."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "doctor decisions --repair reports a lock timeout as the C2 refusal (human and --json), exits 1 and writes nothing; a free lock still repairs and exits 0.",
+      "proof_type": "automated_test",
+      "evidence": "tests/decisions/test_decisions_reconciler.py::test_repair_lock_timeout_is_a_structured_refusal (json), ::test_repair_lock_timeout_refusal_human_mode, ::test_repair_with_a_free_lock_still_rebuilds_the_index",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T20:00:00+00:00",
+      "notes": "Pre-fix these raised LockAcquireTimeout (captured red), post-fix exit 1 with DECISION_LOCK_TIMEOUT and a byte-identical decisions tree."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The doctor's additive coordination-only ledger copy refuses through the same seam before copying a single DM-*.md.",
+      "proof_type": "automated_test",
+      "evidence": "tests/decisions/test_decisions_reconciler.py::test_coordination_only_ledger_copy_lock_timeout_is_the_seam_refusal",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T20:00:00+00:00",
+      "notes": "Asserts DecisionError code LOCK_TIMEOUT and an unchanged ledger tree."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "An owned next whose commit step cannot take the lock reports the refusal in next's own error contract (error_code + next_step, human and --json), exits 1, prints no decision; a free lock still commits and prints.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_next_owned_lock_timeout.py (3 rows) + tests/integration/test_owned_lifecycle_acceptance_next.py (35 passed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T20:00:00+00:00",
+      "notes": "Pre-fix the dispatch let LockAcquireTimeout escape with no document."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "agent decision repair-runtime-lock reports a lock timeout with code DECISION_LOCK_TIMEOUT in its {status, code, message} shape, exits 1 and leaves the checkout untouched; a free lock still repairs.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_owned_decision_runtime_lock.py::test_repair_lock_timeout_is_the_structured_refusal, ::test_repair_with_a_free_lock_still_repairs, ::test_tracked_lock_contention_is_refused_at_the_preflight",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T20:00:00+00:00",
+      "notes": "Acquire-time timeout path: untracked lock, byte-identical checkout and preserved lock inode. A busy tracked lock still refuses at the pre-existing preflight (characterisation row); follow-up #6836."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No command keeps a local `except LockAcquireTimeout` translation for the decisions sidecar lock; the one seam owns it.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rn 'except LockAcquireTimeout' src/specify_cli/cli/commands/_decisions_doctor.py src/specify_cli/cli/commands/next_cmd.py src/specify_cli/cli/commands/decision.py",
+      "result": "confirmed_absent",
+      "evidence": "only src/specify_cli/decisions/service.py maps LockAcquireTimeout to DecisionError(LOCK_TIMEOUT)",
+      "scope": "src/specify_cli"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "The doctor has no duplicated wait constant; the service's _LOCK_ACQUIRE_TIMEOUT_S is the single wait authority.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -n '^_LOCK_ACQUIRE_TIMEOUT_S' src/specify_cli/cli/commands/_decisions_doctor.py",
+      "result": "confirmed_absent",
+      "evidence": "the module imports the service constant; it defines none",
+      "scope": "src/specify_cli/cli/commands/_decisions_doctor.py"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "No new error code is introduced for these refusals.",
+      "verification_method": "custom_command",
+      "verification_command": "grep -rn 'DECISION_LOCK_TIMEOUT' src/specify_cli | grep -c DECISION_LOCK_TIMEOUT",
+      "result": "confirmed_absent",
+      "evidence": "the code is DecisionErrorCode.LOCK_TIMEOUT's existing value; tests assert it in all three commands"
+    }
+  ]
+}

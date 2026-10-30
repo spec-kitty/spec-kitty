@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "mission_slug": "decisions-lock-timeout-refusal-01M66YMG",
+  "mission_id": "01M66YMGK7KQE5B9BRXGFSJB53",
+  "mission_branch": "kitty/mission-decisions-lock-timeout-refusal-01M66YMG",
+  "target_branch": "issue-6763-decisions-lock-timeout-refusal",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_decisions_doctor.py",
+        "src/specify_cli/decisions/service.py",
+        "tests/decisions/test_decisions_reconciler.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/specify_cli/cli/commands/test_next_owned_lock_timeout.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/decision.py",
+        "tests/integration/test_owned_decision_runtime_lock.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T17:49:15.001597+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "295f3521fe23124c186fb66bb5d0af45affd1c77"
+}
