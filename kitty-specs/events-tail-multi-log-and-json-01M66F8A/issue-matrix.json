@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#5466": {
+      "evidence_ref": "Dependency #5466 (status surface resolution \u2014 the shared resolver every status writer uses) closed pre-mission; verified during grounding: events tail already routes through resolve_surface_dir_or_typed_error over resolve_status_surface, and this mission reuses that seam unchanged (C-002). No work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6603": {
+      "evidence_ref": "Dependency #6603 (EventBridge + locked appends) closed before this mission started; verified during grounding \u2014 the writers this mission tails (decision_log, lifecycle_events, run engine) all write through the #6603 seams. No work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6611": {
+      "evidence_ref": "Both gaps of #6611 are this mission's deliverables: multi-log --log selector (WP01 helper + WP02 wiring) and the meaningful --json flag (WP02). Spec issue-matrix row marks it in-scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
