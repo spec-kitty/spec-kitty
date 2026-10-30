@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -30,6 +31,19 @@ OP_CLOSURES_FILENAME = "op-closures.jsonl"
 OP_CLOSURES_RELATIVE_PATH = Path(EVENTS_DIR) / OP_CLOSURES_FILENAME
 #: Permission bits of a new Op-record file (owner read/write only).
 _RECORD_MODE = 0o600
+
+#: ``kitty-ops/`` entries that are not per-Op records: the Op index (the
+#: performance cache), the lifecycle pairing log, the propagation-error log and
+#: the closure spine. Their owners are this module, ``invocation.lifecycle`` and
+#: the propagator; none of them names an Op.
+_NON_OP_FILENAMES = frozenset(
+    {
+        Path(INDEX_PATH).name,
+        "lifecycle.jsonl",
+        "propagation-errors.jsonl",
+        OP_CLOSURES_FILENAME,
+    }
+)
 
 # RFC 3986 scheme followed by ``://``. Two or more characters so a Windows
 # drive letter (``C:/x``, ``C:\\x``) is never mistaken for a URL scheme (#5270).
@@ -86,6 +100,88 @@ def read_op_closures(repo_root: Path) -> list[OpCompletedEvent]:
 def closed_invocation_ids(repo_root: Path) -> set[str]:
     """Invocation ids already closed on the Op-closure spine."""
     return {event.invocation_id for event in read_op_closures(repo_root)}
+
+
+def _record_has_completed_event(path: Path) -> bool:
+    """True when the per-Op record carries a ``completed`` event (read-only, best effort)."""
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(event, dict) and event.get("event") == "completed":
+                    return True
+    except OSError:
+        return False
+    return False
+
+
+def open_invocation_ids(repo_root: Path) -> set[str]:
+    """Invocation ids of the Ops that are still open in *repo_root*.
+
+    An Op is open while its per-record file (``kitty-ops/<id>.jsonl``) exists,
+    carries no ``completed`` event, and its id is not on the closure spine
+    (``kitty-ops/op-closures.jsonl``). The doctor surface
+    (:func:`specify_cli.doctor.ops.list_orphan_ops`) and the local-retention
+    engine (:mod:`specify_cli.state.retention`, through :func:`read_ops_roster`)
+    read this one rule, so "what closes an Op" has a single owner (#6739).
+
+    A record that cannot be read counts as open: an unreadable file is not
+    evidence that the Op's work is over. Files under ``kitty-ops/`` that are not
+    per-Op records (the index, the lifecycle log, the propagation log and the
+    closure spine) contribute no ids.
+
+    Args:
+        repo_root: The project root holding ``kitty-ops/``.
+
+    Returns:
+        The open invocation ids; empty when ``kitty-ops/`` does not exist.
+    """
+    return set(read_ops_roster(repo_root).open)
+
+
+@dataclass(frozen=True)
+class OpRoster:
+    """The Ops of one checkout as their owner sees them (#6739).
+
+    ``recorded`` holds every invocation id that has a per-Op record; ``open``
+    holds the subset whose work is not over. One directory pass answers both, so
+    a scanner can judge an Op-scoped item — kept while its Op is open, eligible
+    once the Op is closed, unlinked when no record exists — without reading the
+    record set twice.
+    """
+
+    recorded: frozenset[str]
+    open: frozenset[str]
+
+
+def read_ops_roster(repo_root: Path) -> OpRoster:
+    """Read every per-Op record once and report which exist and which are open.
+
+    Args:
+        repo_root: The project root holding ``kitty-ops/``.
+
+    Returns:
+        The roster; both sets are empty when ``kitty-ops/`` does not exist.
+    """
+    ops_dir = repo_root / EVENTS_DIR
+    if not ops_dir.is_dir():
+        return OpRoster(recorded=frozenset(), open=frozenset())
+    closed = closed_invocation_ids(repo_root)
+    recorded: set[str] = set()
+    still_open: set[str] = set()
+    for path in ops_dir.glob("*.jsonl"):
+        if path.name in _NON_OP_FILENAMES:
+            continue
+        recorded.add(path.stem)
+        if path.stem not in closed and not _record_has_completed_event(path):
+            still_open.add(path.stem)
+    return OpRoster(recorded=frozenset(recorded), open=frozenset(still_open))
 
 
 def normalise_ref(ref: str, repo_root: Path) -> str:
