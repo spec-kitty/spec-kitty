@@ -732,3 +732,67 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
 - **A degraded probe only warns.** A non-timeout git failure of the tracked-path probe (for example a
   corrupt index) falls back to file-presence mode and logs one warning per checkout and run. A timeout
   is a retryable `failed` record, in the main checkout and in each worktree.
+
+## Amendment 2026-10-30 (#6613: the `runs_first` structural reselection, and the ledger lock)
+
+**Problem.** Two statements in this ADR did not match the code that implements it, so a reader
+taking them at face value would be wrong about when a migration runs again.
+
+- §1 says selection "collapses to 'is this id in the applicable ledger'". It does not, quite.
+  `BaseMigration.reselect_when_recorded` (`upgrade/migrations/base.py`) returns
+  `runs_first and structural_detect(project_path)`: a `runs_first` migration whose structural
+  predicate reports its old state present is re-selected **even though a `success` record exists**.
+  `structural_detect` appeared nowhere in this ADR or in its amendments, and the touchpoint list
+  below still describes `reselect_when_recorded` as one that "collapses to a ledger lookup".
+- §1 ("Atomic write, single-writer") said the ledger append takes no lock and that wrapping it in
+  `kernel.locks` was the named extension point, "deliberately **not** built now". #6613 built it.
+
+**Decision (recorded, not re-decided).**
+
+- **The selection rule is ledger-diff *plus* one structural reselection.** For every migration the
+  authority is its applicable partition: a `success` record settles it. For the single migration
+  allowed to set `runs_first`, a recorded migration is still re-selected when
+  `structural_detect(project_path)` reports the old state present — state a pulled `metadata.yaml`
+  or a merge can revive after the first application. `structural_detect` is therefore part of
+  selection, not an optimisation, and it must stay content-driven (never version-driven).
+- **It is bounded and it does not become a second authority.** At most one registered migration may
+  set `runs_first` (`registry.py`'s `_order_runs_first` guard). `detect()` remains the pre-`apply()`
+  idempotency guard and never the skip authority (C-003 of §3); a `runs_first` migration's `apply()`
+  must be idempotent, because reselection re-applies it. `clone_local_effect` is unaffected: it is
+  the ledger's routing key only, and clone-local reselection is plain ledger-diff (§3).
+- **Recording is not deciding.** Removing the reselection — making §1's "collapses to a ledger
+  lookup" literally true — is an **open operator decision**, filed as the other half of #6613. This
+  amendment documents the behaviour as shipped; it neither widens it nor removes it.
+- **The append is locked (supersedes the "deliberately not built now" sentence of §1).** Every
+  append holds a dedicated sidecar lock across its read and its `os.replace`, taken through
+  `kernel.locks.machine_file_lock` — the extension point §1 named — with a bounded wait
+  (`ledger.LEDGER_LOCK_TIMEOUT_S`, 30 s) that raises `ledger.MigrationLedgerLockTimeoutError`
+  having appended nothing. The lock file is
+  `<project root>/.kittify/migrations/<ledger file name>.lock`: a dedicated sidecar (never the
+  payload, which the primitive truncates on release) inside the already-IGNORED per-clone surface,
+  so a lock is never a `git status` entry and never reaches an upgrade autocommit.
+- **The lock is per ledger *file*, not per repository.** The file is the thing that can lose a
+  record; a git-common-dir key would over-serialize unrelated checkouts and would need a git
+  invocation on a path that must also run outside a repository (`init` outside git deliberately
+  leaves clone-local steps pending, #6431). No anchored-lock-path helper is added here: #6727 owns
+  consolidating that rule, and the ledger derives its path from a path it already holds.
+- **Durability is unchanged (NFR-001).** The write is still the full-file atomic rewrite of
+  `core/atomic.py`, never `O_APPEND`; the lock serialises the read-modify-write, it does not change
+  the write.
+
+**Accepted residuals.**
+
+- **A timed-out append aborts the run.** A lock still held after 30 s raises out of `runner` at the
+  point the record was to be written — which can be after `apply()` succeeded, or before it ran at
+  all when the record is a `skipped` one. Nothing is recorded for that migration, the run stops, and
+  the message says what happened and to retry. Re-running is safe because `apply()` is idempotent
+  (above) and the record is simply re-attempted; no false `success` is ever written.
+- **The duplicate pre-check is outside the lock.** `runner._record_ledger_result` reads the
+  partition to skip a `(id, result)` it already has, then appends. Two concurrent runs can both
+  decide "not recorded" and both append, so a partition may hold the same `(id, result)` twice.
+  `ledger._normalize_records` collapses by id on every read, so the authority is unaffected and the
+  duplicate never settles anything twice; only the raw line count can grow.
+- **Closure of gap-table row G-15 is deferred.** `docs/architecture/event-ledger-writers-and-readers.md`
+  (the "No lock" writer row and the G-15 row) is frozen by `tests/architectural/test_events_import_frozen.py`
+  (ADR 2026-10-29-1 D-9, blob `c2943d49…`). Correcting it needs an operator-approved re-pin of
+  `_FROZEN_OBJECTS`; this amendment carries the facts in the meantime.
