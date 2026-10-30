@@ -1,3 +1,11 @@
+---
+title: Owned checkout startup admission repair
+description: Evidence and decisions for correcting startup admission of explicitly selected migrated linked checkouts.
+doc_status: active
+type: reference
+audience: docs/context/audience/internal/system-architect.md
+updated: '2026-10-30'
+---
 # Owned checkout startup admission repair
 
 Status: Current, October 30, 2026; exact release-source repair under the parent

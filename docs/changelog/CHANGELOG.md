@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-29'
+updated: '2026-10-30'
 ---
 # Changelog
 
@@ -103,6 +103,8 @@ this section at publish._
 - **Status events written by agents and operators record a structured actor** (#6400, #6448, #6271). **Before:** `move-task`, `mark-status`, `add-history`, `agent action implement`/`review`, `agent status emit` and the `orchestrator-api` lifecycle commands stored a bare actor string. **After:** they store `{tool, role, profile, model}`: `role` comes from the action, `profile`/`model` from the dispatch invocation, `--profile` or a compact `tool:model:profile` value, else `null`. `move-task`, `mark-status` (new flag) and `add-history` parse `--agent` alike, refusing a malformed one. Claim checks, the board and displays use the bare tool. A free-text `--actor` with over 4 segments, or starting with `migration:`, is stored whole. Envelopes are unchanged; string actors read. Lanes come from `spec_kitty_events`; `status validate` uses the shared seed check. `profile_source` is planned (#6721).
 
 ### Fixed
+
+- **An explicit migrated owned checkout can create a Mission while the primary checkout remains legacy** (#6845). **Before:** startup inspected the primary checkout before validating `--owned-checkout` and refused with `LEGACY_CHARTER_STATE`. **After:** the canonical custody validator selects the explicit linked checkout for startup schema and legacy checks. Invalid claims still refuse, and command-level Mission and write custody checks remain in force. The validated basic claim is shared only within one command, preserving the existing Git-call budget.
 
 - **A work package with no committed work, or approved by its own implementer, is now refused on every topology** (#6715; #5939). **Before:** on a lanes or coordination Mission such a work package was approved, accepted and consolidated at exit 0, deliverable missing. **After:** `move-task`, `accept` (even `--lenient`), `consolidate` and `orchestrator-api` refuse with `IMPLEMENTATION_MISSING` or `REVIEW_NOT_INDEPENDENT` (`single_branch` keeps its `SINGLE_BRANCH_*` codes); a reviewer is independent only when its recorded identity provably differs. **What to do:** commit to the owned files, have someone else approve it, and pass the full `--agent <tool>:<model>:<profile>`. A work package with no deliverable by design: `--attest-no-implementation <WP> --attest-reason "<why>"` ([ADR 2026-10-04-5, Amendment 2026-10-29](../adr/4.x/2026-10-04-5-approval-stamp-bounds-the-approved-claim.md)).
 - **Review tests can use a project-owned execution budget** (#6746). Set `review.test_timeout_seconds` to a whole number from 1 to 86400; both baseline and candidate use it, while the default remains 300 seconds. Invalid values refuse execution, and a changed budget recaptures the baseline instead of reusing its old receipt.
