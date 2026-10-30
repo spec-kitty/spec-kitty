@@ -2,7 +2,7 @@
   "mission_slug": "birth-cutover-fixture-planning-commit-01M66MFQ",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP01 commit 4dd07b5b69: capture uses the production helper specify_cli.core.vcs.git.capture_branch_tip (imported function-locally), asserted non-None with a message naming #6715 EVIDENCE_WINDOW_UNCOMPUTABLE; production-parity with tasks_finalize._finalize_lanes verified by independent review (reviewer A, findings /tmp/review-wp01-findings.md)",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-k",
+      "verified_at": "2026-10-30T15:33:19.049426+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
