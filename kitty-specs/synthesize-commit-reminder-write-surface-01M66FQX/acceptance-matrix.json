@@ -37,11 +37,11 @@
     {
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
-      "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "proof_type": "manual_inspection",
+      "evidence": "WP02 lane-b commit be8b7aabcd: spk-charter-governance skill step 7 names .kittify/charter/synthesized-artifacts.yaml and defers to the printed command; charter-artifact-structure.md gains Derived authority row + Tracked git row",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-j",
+      "verified_at": "2026-10-30T14:40:24.525911+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
