@@ -96,12 +96,28 @@ class BackfillResult:
 # ---------------------------------------------------------------------------
 
 
+def _missing_tracked_meta(feature_dir: Path) -> str | None:
+    """The restore-command notice for a tracked-but-absent ``meta.json``, or ``None`` (#6673)."""
+    from specify_cli.core.paths import locate_project_root
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    repo_root = locate_project_root(feature_dir) or feature_dir
+    classified = classify_missing_tracked_meta(feature_dir, repo_root)
+    return None if classified is None else classified.notice
+
+
 def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillResult:
     """Idempotently write ``mission_id`` into ``<feature_dir>/meta.json``.
 
     If ``mission_id`` is already present and non-empty the call is a no-op
     (returns ``action="skip"``).  If missing or empty a fresh ULID is minted
     and written atomically.
+
+    A ``meta.json`` that is absent from the working tree but tracked by git is a
+    REFUSAL, not an identity source (#6673): git holds the identity the Mission's
+    history uses, so the call returns ``action="skip"`` with the restore command in
+    ``reason`` and writes nothing. That guard lives here so no caller can fork an
+    identity through this function.
 
     Also applies legacy ``mission_number`` type coercion (T020): a string
     value that parses as a positive integer (e.g. ``"042"``) is rewritten as
@@ -121,6 +137,18 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
 
     # --- missing meta.json ---------------------------------------------------
     if not meta_path.exists():
+        # A tracked-but-absent meta.json is a REFUSAL, not an identity source (#6673): git holds
+        # the Mission's identity, so minting a fresh ULID over it would fork the Mission. Every
+        # caller is covered here, not only the upgrade seams that run before this backfill.
+        missing = _missing_tracked_meta(feature_dir)
+        if missing is not None:
+            logger.debug("Skipping %s (tracked meta.json missing from the working tree)", slug)
+            return BackfillResult(
+                feature_dir=feature_dir,
+                slug=slug,
+                action="skip",
+                reason=missing,
+            )
         logger.debug("Skipping %s (no meta.json)", slug)
         return BackfillResult(
             feature_dir=feature_dir,
