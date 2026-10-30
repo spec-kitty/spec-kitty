@@ -9,6 +9,8 @@ both from the current target set and whole-file-swapping them in
 Public API
 ----------
 - ``SynthesizeMode`` — ``preserve`` (default) / ``prune`` / ``dry_run``.
+- ``RunScope`` — ``FULL`` / ``TOPIC_SCOPED``: how much of the project overlay a
+  run re-emits, which decides where a dead legacy edge is stripped (#6728).
 - ``ReconciliationConflict`` / ``ReconciliationDelta`` — the typed delta
   vocabulary (data-model.md "In-memory value objects").
 - ``merge_project_overlay`` / ``rewrite_manifest`` — the canonical merge
@@ -38,8 +40,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
-from types import EllipsisType
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, assert_never
 
 from charter.offering.drg.loader import DRGLoadError as DRGLoadError  # re-export (FR-007)
 from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
@@ -62,6 +63,7 @@ __all__ = [
     "ReconciliationConflict",
     "ReconciliationDelta",
     "SynthesizeMode",
+    "RunScope",
     "REACH_ONLY_KINDS",
     "apply_prune",
     "is_synthesized_source_edge",
@@ -84,6 +86,36 @@ class SynthesizeMode(enum.Enum):
     preserve = "preserve"
     prune = "prune"
     dry_run = "dry_run"
+
+
+class RunScope(enum.Enum):
+    """How much of the project overlay a reconcile run re-emits (#6728).
+
+    ``FULL`` re-emits every artifact, so the dead project-intent
+    ``requires --> mission_type:*`` edge (#6443) is stripped wherever it sits.
+    ``TOPIC_SCOPED`` re-emits only the targeted artifacts, so that edge is
+    stripped only where its owner was regenerated.
+
+    The scope owns that difference (rather than a caller passing a third,
+    sentinel-valued collection): :meth:`dead_edge_filter` is the one place a
+    scope becomes a URN filter. No member affects the legacy ``applies`` rule,
+    which is regenerated-owner-only in both (#6404, #6456).
+    """
+
+    FULL = "full"
+    TOPIC_SCOPED = "topic-scoped"
+
+    def dead_edge_filter(self, regenerated_urns: Collection[str] | None) -> Collection[str] | None:
+        """The URN set the dead-edge check filters on, or ``None`` for no filter.
+
+        Both members are spelled out so a new one cannot silently inherit ``FULL``'s
+        answer: ``assert_never`` makes an unhandled member a type error, not a default.
+        """
+        if self is RunScope.FULL:
+            return None
+        if self is RunScope.TOPIC_SCOPED:
+            return regenerated_urns
+        assert_never(self)
 
 
 # ---------------------------------------------------------------------------
@@ -314,7 +346,7 @@ def _is_legacy_applies(
     synthesized_urns: Collection[str],
     regenerated_urns: Collection[str] | None = None,
     *,
-    dead_edge_regenerated_urns: Collection[str] | None | EllipsisType = ...,
+    run_scope: RunScope,
 ) -> bool:
     """A legacy edge a run strips: ``<kind> --applies--> ...`` on a synthesized reach-only artifact
     (#6404, #6442) or the dead project-intent ``requires --> mission_type:*`` edge (#6443).
@@ -322,11 +354,11 @@ def _is_legacy_applies(
     Only sources of a kind in :data:`REACH_ONLY_KINDS` qualify for the ``applies`` case: the current
     shape links FROM the directive, so a source-side ``applies`` edge is legacy. With
     *regenerated_urns* given only an owner regenerated in this run qualifies; an untargeted node is
-    left untouched (a full run passes its regenerated set too, #6456). *dead_edge_regenerated_urns* filters the dead-edge case
-    separately (``...``, the default, means the same set as *regenerated_urns*).
+    left untouched (a full run passes its regenerated set too, #6456). *run_scope* decides the
+    dead-edge case only: a full run strips it wherever it sits, a topic-scoped run only where its
+    owner was regenerated (:meth:`RunScope.dead_edge_filter`).
     """
-    dead_filter = regenerated_urns if dead_edge_regenerated_urns is ... else dead_edge_regenerated_urns
-    if _is_dead_mission_type_edge(edge, dead_filter):
+    if _is_dead_mission_type_edge(edge, run_scope.dead_edge_filter(regenerated_urns)):
         return True
     return (
         edge.relation is Relation.APPLIES
@@ -352,13 +384,14 @@ def legacy_applies_edges(
     synthesized_urns: Collection[str],
     regenerated_urns: Collection[str] | None = None,
     *,
-    dead_edge_regenerated_urns: Collection[str] | None | EllipsisType = ...,
+    run_scope: RunScope,
 ) -> tuple[DRGEdge, ...]:
-    """Existing legacy ``applies`` edges a run strips (see :func:`_is_legacy_applies`) (#6404)."""
+    """Existing legacy edges a run strips: the ``applies`` ones plus the dead mission-type ones
+    (see :func:`_is_legacy_applies`; #6404, #6443)."""
     return tuple(
         e
         for e in existing_overlay.edges
-        if _is_legacy_applies(e, synthesized_urns, regenerated_urns, dead_edge_regenerated_urns=dead_edge_regenerated_urns)
+        if _is_legacy_applies(e, synthesized_urns, regenerated_urns, run_scope=run_scope)
     )
 
 
@@ -382,6 +415,7 @@ def merge_project_overlay(
     an artifact the run did not regenerate keeps its edge, and no successor is written for it.
     The dead project-intent ``requires --> mission_type:*`` edge (#6443) is dropped on a full
     run wherever it sits; a *topic_scoped* run drops only that of a regenerated directive.
+    ``topic_scoped`` is the boolean spelling of :class:`RunScope` and is converted here, once.
     """
     updated_urns = {node.urn for node in updated_overlay.nodes}
     updated_nodes_by_urn = {node.urn: node for node in updated_overlay.nodes}
@@ -404,7 +438,10 @@ def merge_project_overlay(
     inserted_owners: set[str] = set()
     for edge in existing_overlay.edges:
         if _is_legacy_applies(
-            edge, synthesized_urns, updated_urns, dead_edge_regenerated_urns=updated_urns if topic_scoped else None
+            edge,
+            synthesized_urns,
+            updated_urns,
+            run_scope=RunScope.TOPIC_SCOPED if topic_scoped else RunScope.FULL,
         ):
             continue
         owner = _owner(edge)
@@ -622,7 +659,9 @@ def _graph_delta(
 
     existing_node_urns = {n.urn for n in existing_overlay.nodes}
     overlay_urns = fresh_node_urns | existing_node_urns
-    legacy = legacy_applies_edges(existing_overlay, synthesized_urns, fresh_node_urns, dead_edge_regenerated_urns=None)
+    legacy = legacy_applies_edges(
+        existing_overlay, synthesized_urns, fresh_node_urns, run_scope=RunScope.FULL
+    )
 
     def _owner_in(edge: DRGEdge, urns: set[str]) -> bool:
         return edge_owner(edge, overlay_urns) in urns
@@ -633,7 +672,7 @@ def _graph_delta(
         _edge_ref(e, urn_to_path, overlay_urns)
         for e in existing_overlay.edges
         if not _owner_in(e, fresh_node_urns)
-        and not _is_legacy_applies(e, synthesized_urns, fresh_node_urns, dead_edge_regenerated_urns=None)
+        and not _is_legacy_applies(e, synthesized_urns, fresh_node_urns, run_scope=RunScope.FULL)
     )
     added_refs = tuple(
         _node_ref(n, urn_to_path) for n in fresh_overlay.nodes if n.urn not in existing_node_urns
