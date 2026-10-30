@@ -111,6 +111,30 @@ class TestRenderOpenOpsSection:
         section = render_open_ops_section(tmp_path, now=_NOW)
         assert "⚠ Open Ops (1000)" in section
 
+    def test_scan_stays_on_the_root_checkout_without_git(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The session boundary is a git-free, root-checkout scan (#6661).
+
+        Op records can live in a linked worktree since #6564, but listing those
+        here would need a ``git worktree list`` on every session start/stop. The
+        repository-wide surface is ``spec-kitty doctor ops``; this scan must not
+        grow a git call, and must not report another checkout's Op.
+        """
+        from specify_cli.invocation import op_custody
+
+        def _no_git(*args: object, **kwargs: object) -> None:
+            raise AssertionError("session presence must not spawn a git subprocess")
+
+        monkeypatch.setattr(op_custody, "_git_lines", _no_git)
+        _write_op(tmp_path / EVENTS_DIR, "01KTOOTOP0000000000000001")
+        _write_op(tmp_path / "lane" / EVENTS_DIR, "01KTLANEOP000000000000001")
+
+        section = render_open_ops_section(tmp_path, now=_NOW)
+
+        assert "01KTOOTOP0000000000000001" in section
+        assert "01KTLANEOP000000000000001" not in section
+
     @pytest.mark.performance
     def test_perf_1k_open_ops_under_half_second(self, tmp_path: Path) -> None:
         """NFR pro-rata budget: 1,000 Op files rendered in < 0.5 s, no git calls."""

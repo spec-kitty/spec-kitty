@@ -36,6 +36,7 @@ __all__ = [
     "OpWriteRefusal",
     "OpWriteRefused",
     "locate_op_record_root",
+    "repository_checkouts",
     "resolve_op_record_root",
 ]
 
@@ -90,8 +91,17 @@ def resolve_op_record_root(project_root: Path, start: Path | None = None) -> Pat
     return toplevel
 
 
-def _repository_checkouts(project_root: Path) -> Iterator[Path]:
-    """Every checkout ``git worktree list`` reports for the project's repository."""
+def repository_checkouts(project_root: Path) -> Iterator[Path]:
+    """Every checkout ``git worktree list`` reports for the project's repository.
+
+    The repository root checkout comes first, in ``git worktree list`` order,
+    followed by its linked worktrees, each resolved. Yields nothing when git is
+    unavailable, when *project_root* is not a git checkout, or when the command
+    fails — callers that need a checkout to read must fall back to
+    ``project_root`` themselves (which is what every Op surface did before
+    #6564). This is the single enumeration of checkouts: :func:`locate_op_record_root`
+    and the ``doctor ops`` sweep both read the set from here.
+    """
     for line in _git_lines(project_root, "worktree", "list", "--porcelain") or []:
         if line.startswith(_WORKTREE_LINE_PREFIX):
             yield Path(line[len(_WORKTREE_LINE_PREFIX) :]).resolve()
@@ -115,7 +125,7 @@ def locate_op_record_root(project_root: Path, invocation_id: str, *, preferred: 
     """
     seen: set[Path] = set()
     candidates = [path for path in (preferred, project_root) if path is not None]
-    for checkout in [*candidates, *_repository_checkouts(project_root)]:
+    for checkout in [*candidates, *repository_checkouts(project_root)]:
         key = checkout.resolve()
         if key in seen:
             continue
