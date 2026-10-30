@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "mission_slug": "charter-escape-report-convergence-01M66YM0",
+  "mission_id": "01M66YM00EGRCMN94MR99DSYE5",
+  "mission_branch": "kitty/mission-charter-escape-report-convergence-01M66YM0",
+  "target_branch": "issue-6733-charter-escape-report-convergence",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/_status_collectors.py",
+        "tests/specify_cli/cli/commands/charter/test_status_org_layer_path_escapes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/offering/packs/pack_validator.py",
+        "tests/charter/packs/test_pack_validator_body_path_escape.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "tests/charter/conformance/__init__.py",
+        "tests/charter/conformance/pack_containment_cases.yaml",
+        "tests/charter/conformance/test_pack_containment_conformance.py",
+        "tests/scenarios/charter/PROMISES.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T17:51:05.926364+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6c5e55916a6c02a8c90b60ac299dd854b767c612"
+}
