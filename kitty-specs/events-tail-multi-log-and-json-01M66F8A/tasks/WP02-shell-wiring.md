@@ -29,6 +29,7 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/events.py
 - tests/cli/test_events_tail_log_selector.py
+- tests/cli/test_events_tail_status_surface.py
 role: implementer
 tags: []
 tracker_refs:
@@ -103,10 +104,17 @@ assertions in the final file (they become the regression battery).
   choice validation over the seven kinds (unknown value → usage error, exit
   2, before any file access — contract row 8). The help text lists the kinds
   and names the default.
-- After `_resolve_event_log_dir` (unchanged — it already returns the surface
-  DIRECTORY), resolve the log path through WP01's `resolve_log_path(repo_root,
-  resolved, log, surface_dir)`. `status` keeps the exact existing behaviour
-  (NFR-004): the path is `mission_event_log_path(surface_dir)` as before.
+- Dispatch order (finding 2 from the post-tasks review): usage check →
+  repo root → mission resolve → KIND DISPATCH → surface resolution (only
+  for `status`/`decisions`, via the existing `_resolve_event_log_dir`)
+  → log path resolution (incl. the `run` kind's refusal) → resume
+  validation → stream. A broken coordination surface must NOT block the
+  project-scoped (`ops`, `canonical`, `glossary`) or primary-partition
+  (`mission`, `run`) kinds: `_resolve_event_log_dir` runs only when the
+  kind is `status` or `decisions`, and its result is passed as the optional
+  `surface_dir` to WP01's `resolve_log_path(repo_root, resolved, log,
+  surface_dir)`. `status` keeps the exact existing behaviour (NFR-004): the
+  path is `mission_event_log_path(surface_dir)` as before.
 - Wrap the `run` kind's resolution: catch `RunLogUnavailable` and `raise
   _refuse("run_log_unavailable", str(exc), 1)` — same envelope shape/channel
   as the existing refusals (contract row 5). Nothing on stdout.
@@ -128,6 +136,11 @@ assertions in the final file (they become the regression battery).
   C-001 scope-lock sentence and the `--json` mentions must describe the new
   surface (`--log` kinds, human default); keep the core/shell and
   stderr-envelope doctrine text intact.
+- Finding 1 from the post-tasks review: `tests/cli/test_events_tail_status_surface.py`
+  asserts JSON on stdout via its `_tail` helper WITHOUT passing `--json` —
+  after the flip those lines are human-rendered. Minimally update that
+  suite (its `_tail` helper gains `--json`) keeping every
+  surface-resolution assertion intact; this file is in `owned_files`.
 - The default flip is user-facing: changelog and docs are handled by the
   mission close-out (NOT this WP) — do not edit CHANGELOG.md here.
 
@@ -144,6 +157,12 @@ small `--max-events` only — never an unbounded stream):
   mission → `run_log_unavailable` envelope on stderr, exit 1, empty stdout.
 - Missing log (`glossary`/`ops`/`canonical` absent) → `--once` prints
   nothing, exit 0.
+- Lazy surface resolution: `--log ops` (or `glossary`/`canonical`/
+  `mission`/`run`) with a surface resolver that fails closed still tails the
+  log (no `status_surface_unavailable`); `--log status` with the same
+  broken surface still refuses with `status_surface_unavailable`.
+- Corrupt interior JSON line: NOT re-tested here — the core reader's
+  raise-on-corruption contract is unchanged (spec Edge Cases; finding 8).
 - `--log decisions --from-offset <out-of-range>` → `invalid_resume_offset`
   envelope, exit 2. `--from-invariant` alone (any kind) → `usage_error`,
   exit 2.
@@ -160,14 +179,19 @@ windows_ci"`). No real git fixtures needed — reuse `test_events_tail.py`'s
 monkeypatching of the surface resolver. Locally run:
 `uv run pytest tests/cli/test_events_tail_log_selector.py
 tests/cli/test_events_tail.py tests/cli/test_events_tail_status_surface.py`
-(existing suites must stay green), plus ruff/format and the repo's fast
+(existing suites stay green — `test_events_tail.py` untouched,
+`test_events_tail_status_surface.py` after its minimal owned `--json`
+update), plus ruff/format and the repo's fast
 type-check path for the touched module. No heavy suites
 (NO_FULL_HEAVY_SUITES_IN_MISSION).
 
 ## Definition of Done
 
-- The T005 red tests now pass, plus the full T008 battery; the three
-  pre-existing `tests/cli/test_events_tail*.py` suites stay green unchanged.
+- The T005 red tests now pass, plus the full T008 battery; the
+  pre-existing `tests/cli/test_events_tail.py` and
+  `tests/cli/test_events_tail_real_fixture.py` suites stay green unchanged,
+  and `tests/cli/test_events_tail_status_surface.py` stays green after its
+  minimal `--json` update (finding 1).
 - `events.py` carries the `--log` flag, the `run_log_unavailable` refusal, the
   `--json` flip, and an updated docstring; no loop, no direct `time.sleep`,
   stderr-only refusals, `--mission` only.
@@ -179,8 +203,9 @@ type-check path for the touched module. No heavy suites
 - Byte-stability: the `--json` path must print the identical
   `json.dumps(event)` line as before — any reordering or key change breaks
   scripted subscribers' cursor contract (NFR-004).
-- Ordering of checks: usage check → repo root → mission resolve → log path
-  resolution (incl. run refusal) → resume validation → stream. The
-  `run_log_unavailable` refusal must precede resume validation.
+- Ordering of checks: usage check → repo root → mission resolve → kind
+  dispatch → surface resolution (`status`/`decisions` only) → run resolution
+  → resume validation → stream. The `run_log_unavailable` refusal must
+  precede resume validation.
 - Default flip is deliberate (C-005) but must be visible in the changelog at
   close-out — reviewer confirms no changelog edit snuck into this WP.

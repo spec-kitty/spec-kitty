@@ -86,15 +86,21 @@ untouched by the whole mission (spec C-004).
   resolver) holding exactly: `status`, `decisions`, `mission`, `run`,
   `glossary`, `ops`, `canonical` (spec C-001 — closed set; no more, no less).
 - `resolve_log_path(repo_root: Path, resolved: ResolvedMission, kind: str,
-  surface_dir: Path) -> Path`:
+  surface_dir: Path | None) -> Path` (the surface dir is OPTIONAL — only the
+  `status` and `decisions` kinds consume it; the shell resolves it lazily,
+  only for those kinds, so a broken coordination surface never blocks a
+  project-scoped or primary-partition kind):
   - `status` → `mission_event_log_path(surface_dir)` (reuse the existing
     helper from `specify_cli.status`; do not re-spell the filename).
   - `decisions` → `surface_dir / "decisions.events.jsonl"` (same resolved
     surface — both streams are COORD-partition; see
-    `events/decision_log.py:144` for the writer's join).
+    `src/specify_cli/events/decision_log.py:144` for the writer's join).
   - `mission` → `resolved.feature_dir / "mission-events.jsonl"`.
   - `glossary` → `repo_root / ".kittify" / "events" / "glossary" /
-    f"{resolved.mission_id}.events.jsonl"`.
+    f"{resolved.mission_id}.events.jsonl"` (writer: `src/glossary/events.py`;
+    `sanitize_mission_id` is identity on `ResolvedMission.mission_id`'s
+    validated ULID — join directly, and do NOT reuse the writer's
+    `get_event_log_path`, which has an `mkdir` side effect).
   - `ops` → `repo_root / "kitty-ops" / "lifecycle.jsonl"`.
   - `canonical` → `repo_root / ".kittify" / "canonical-events.jsonl"`.
   - `run` → delegate to the T002 helper.
@@ -102,17 +108,20 @@ untouched by the whole mission (spec C-004).
     earlier; this is defense in depth, not the usage-error path).
 - No new resolution code: every rule is a join over `repo_root`,
   `resolved`, or the caller-provided `surface_dir` (C-002). The helper takes
-  `surface_dir` as a parameter precisely so the shell keeps owning the
-  topology-aware surface resolution and its failure modes.
+  `surface_dir` as an optional parameter precisely so the shell keeps owning
+  the topology-aware surface resolution and its failure modes, and only pays
+  it for the kinds that need it.
 
 ### T002 — Latest-run resolution and the typed refusal
 
 - `latest_run_journal(repo_root: Path, resolved: ResolvedMission) -> Path`
   raising `RunLogUnavailable` (a small local exception carrying a
   human-readable detail) when no run belongs to the mission.
-- Scan `<repo_root>/.kittify/runtime/runs/*/`: for each run dir, read
+- Scan `runs_root(repo_root)` — the canonical runs-dir helper from
+  `src/runtime/next/run_index.py`, never a literal re-spelling of the join —
+  for run dirs; for each, read
   `state.json` (the `MissionRunSnapshot` shape — see
-  `runtime/next/_internal_runtime/engine.py`); a run matches when its
+  `src/runtime/next/_internal_runtime/engine.py`); a run matches when its
   `mission_id` equals `resolved.mission_id`, OR (legacy rows where
   `mission_id` is null/absent) its `mission_slug` equals
   `resolved.mission_slug`. Among matching run dirs that have a
@@ -120,6 +129,12 @@ untouched by the whole mission (spec C-004).
   recent mtime. Skip unreadable/missing `state.json` silently (edge case in
   the spec: skipped, never fatal). Missing runs dir or no matches → raise
   `RunLogUnavailable` naming the mission and the runs dir.
+- Design note (single canonical authority): the run-index file
+  (`feature-runs.json`) is NOT consulted — it records the CURRENT run per
+  mission, while this subscriber wants the most recently modified journal
+  across ALL runs; the runs dir itself still comes from the canonical
+  `runs_root()` helper. See `research.md`'s post-tasks review round for the
+  divergence policy.
 - Never return a journal belonging to another mission (spec FR-007).
 
 ### T003 — Human renderer
