@@ -22,7 +22,6 @@ hierarchy is in that mission's ``design-notes/WP01-lock-rules.md``):
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import os
@@ -34,7 +33,7 @@ from typing import Any
 
 from kernel.clock import now_utc_iso
 from kernel.git_topology import GitTopologyError, git_common_dir
-from kernel.locks import machine_file_lock
+from kernel.locks import anchored_lock_path, machine_file_lock
 from specify_cli.core.checkout_file_lock import LOCK_DIRECTORY, acquire_or_raise
 from specify_cli.core.constants import KITTIFY_DIR
 
@@ -185,6 +184,11 @@ def feature_status_lock_path(repo_root: Path, lock_key: str) -> Path:
     slug over-serialized two missions with colliding slugs and, worse, let a
     bare legacy slug directory's writers lock on a file none of its ordinary
     writers used (serializing against nobody).
+
+    This lock is keyed by a name, not by an anchor path, so it joins the lock
+    directory directly instead of going through
+    :func:`kernel.locks.anchored_lock_path` (the one owner of the anchor-digest rule,
+    #6727). The checkout-claim lock is anchor-keyed and does use it.
     """
     common_dir = _git_common_dir(repo_root)
     return Path(common_dir / LOCK_DIRECTORY / f"{lock_key}.status.lock")
@@ -343,6 +347,9 @@ def project_event_log_lock(
     log has no mission to key on). Re-entrant per thread via the same shared
     bookkeeping. Serializes every writer of the project-level canonical event
     log, independently of any mission-level lock (F2-T1, F2.md section 3.3).
+
+    Keyed by a fixed sentinel rather than by a path, so it is not anchor-keyed and
+    does not use :func:`kernel.locks.anchored_lock_path` (#6727).
     """
     lock_path = _git_common_dir(repo_root) / LOCK_DIRECTORY / f"{_PROJECT_LOCK_SENTINEL}.status.lock"
     with _named_status_lock(lock_path, timeout=timeout) as held_path:
@@ -360,10 +367,21 @@ _CHECKOUT_DIGEST_LENGTH = 16
 
 
 def _checkout_claim_lock_path(write_checkout: Path) -> Path:
-    identity = os.path.normcase(str(write_checkout.resolve()))
-    digest = hashlib.sha1(identity.encode("utf-8"), usedforsecurity=False).hexdigest()[:_CHECKOUT_DIGEST_LENGTH]
-    key = f"{_CHECKOUT_LOCK_PREFIX}{digest}{_CHECKOUT_LOCK_SUFFIX}"
-    return Path(_git_common_dir(write_checkout) / LOCK_DIRECTORY / f"{key}{_STATUS_LOCK_SUFFIX}")
+    """Return the checkout-claim lock file for *write_checkout* (#5819).
+
+    The anchor digest and the placement under the lock directory are owned by
+    :func:`kernel.locks.anchored_lock_path` (#6727). This family passes the common dir it
+    resolved through :func:`_git_common_dir`, which degrades instead of raising, so the
+    helper never probes git and this function never raises for a non-git tree.
+    """
+    return anchored_lock_path(
+        write_checkout,
+        common_dir=_git_common_dir(write_checkout),
+        prefix=_CHECKOUT_LOCK_PREFIX,
+        suffix=f"{_CHECKOUT_LOCK_SUFFIX}{_STATUS_LOCK_SUFFIX}",
+        digest_algorithm="sha1",
+        digest_hex_length=_CHECKOUT_DIGEST_LENGTH,
+    )
 
 
 def _is_checkout_claim_lock_key(lock_key: str) -> bool:

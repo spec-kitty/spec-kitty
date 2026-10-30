@@ -1,0 +1,87 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M673M8FTNMRM7RRF99C9Q393",
+  "materialized_at": "2026-10-30T19:12:16.890371+00:00",
+  "mission_number": "244",
+  "mission_slug": "anchor-lock-path-single-authority-01M66YWP",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M673M71GV4TY390CBCRBC2VX",
+      "last_transition_at": "2026-10-30T19:12:15.408812+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Helper + pinned contract green; see commit 37ceb9372c",
+        "Review passed: helper reproduces all three copies; tests assert literal paths independently; three review findings fixed in ee3b548fc6; dead-symbol gate deferred to WP02 (analysis I1)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 113476,
+      "shell_pid_created_at": "1793382847.35",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M673M8FTNMRM7RRF99C9Q393",
+      "last_transition_at": "2026-10-30T19:12:16.890371+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Routing + gate + docs green; helper contract narrowed to a pure namer (common_dir required) after the family tests pinned the probe seam.",
+        "Review passed: all three families produce byte-identical names (the four untouched family suites pin them), the probe policy stayed with each family, and the helper is a pure namer. Two review findings fixed in d5724353ca (probe kept outside the helper call's try scope; docstring wording). WP01's helper contract was narrowed during this WP after the family tests pinned the probe seam at kernel.git_topology's caller - recorded in the PR."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 348719,
+      "shell_pid_created_at": "1793384327.25",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    }
+  }
+}
