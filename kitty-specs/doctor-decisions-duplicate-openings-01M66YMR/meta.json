@@ -1,0 +1,35 @@
+{
+  "accept_commit": "b76c1afdd3b51b99ca51e27f2ad7cb2fc9ec2e89",
+  "acceptance_history": [
+    {
+      "accept_commit": "b76c1afdd3b51b99ca51e27f2ad7cb2fc9ec2e89",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:54:32.453104+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "e4c464e575915bdc48de7ce1ca4f9dafe399049a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:54:32.453104+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "e4c464e575915bdc48de7ce1ca4f9dafe399049a",
+  "baseline_merge_commit": "5e9b303809fa3b4f2925b75a404a17b62023aa29",
+  "created_at": "2026-10-30T17:45:10.545533+00:00",
+  "flattened": true,
+  "friendly_name": "doctor decisions duplicate openings",
+  "merged_at": "2026-10-30T19:55:52.430738+00:00",
+  "merged_commit": "30026ccd982885b5fcb1b1faab1cec4f0d8e295b",
+  "mid8": "01M66YMR",
+  "mission_id": "01M66YMRG6FXGQNV0R4BBE3ZBN",
+  "mission_number": 244,
+  "mission_slug": "doctor-decisions-duplicate-openings-01M66YMR",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The decision ledger tolerates duplicate DecisionPointOpened rows written before #4848, but doctor decisions says nothing about them, so tolerated drift stays invisible to the operator.",
+  "purpose_tldr": "Report tolerated duplicate DecisionPointOpened rows as an informational doctor finding",
+  "slug": "doctor-decisions-duplicate-openings-01M66YMR",
+  "status_phase": "1",
+  "target_branch": "issue-6764-doctor-decisions-duplicate-openings",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T17:49:14.607920+00:00"
+}
