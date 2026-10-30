@@ -37,6 +37,7 @@
           "MINUTES_STAND_ALONE",
           "PROJECT_001",
           "RECONCILE_CHANGE_SCOPE_TENSIONS",
+          "RED_MAIN_RELEASE_DISCIPLINE",
           "USE_C4_MODEL_TECHNIQUES",
           "USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY"
         ],
@@ -212,6 +213,7 @@
           "MINUTES_STAND_ALONE",
           "PROJECT_001",
           "RECONCILE_CHANGE_SCOPE_TENSIONS",
+          "RED_MAIN_RELEASE_DISCIPLINE",
           "USE_C4_MODEL_TECHNIQUES",
           "USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY"
         ],
@@ -390,6 +392,7 @@
           "MINUTES_STAND_ALONE",
           "PROJECT_001",
           "RECONCILE_CHANGE_SCOPE_TENSIONS",
+          "RED_MAIN_RELEASE_DISCIPLINE",
           "USE_C4_MODEL_TECHNIQUES",
           "USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY"
         ],
@@ -561,6 +564,7 @@
           "MINUTES_STAND_ALONE",
           "PROJECT_001",
           "RECONCILE_CHANGE_SCOPE_TENSIONS",
+          "RED_MAIN_RELEASE_DISCIPLINE",
           "USE_C4_MODEL_TECHNIQUES",
           "USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY"
         ],
@@ -717,7 +721,7 @@
       },
       {
         "code": "CATALOG_DEFAULT_APPLIED",
-        "message": "No activated directive set configured; using built-in catalog default (38 directives)."
+        "message": "No activated directive set configured; using built-in catalog default (39 directives)."
       },
       {
         "code": "FALLBACK_APPLIED",
@@ -761,6 +765,7 @@
       "DISCIPLINED_REFACTORING",
       "MINUTES_STAND_ALONE",
       "RECONCILE_CHANGE_SCOPE_TENSIONS",
+      "RED_MAIN_RELEASE_DISCIPLINE",
       "USE_C4_MODEL_TECHNIQUES",
       "USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY"
     ],
