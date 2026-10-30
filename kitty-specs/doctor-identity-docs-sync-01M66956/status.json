@@ -2,10 +2,9 @@
   "event_count": 11,
   "last_event_id": "01M66CS1919XYSEV8P2MMRE78J",
   "materialized_at": "2026-10-30T12:32:56.097281+00:00",
-  "mission_number": "244",
+  "mission_number": "",
   "mission_slug": "doctor-identity-docs-sync-01M66956",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,38 +19,19 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "python-pedro",
       "force_count": 1,
       "implementer_of_record": "python-pedro",
       "lane": "done",
       "last_event_id": "01M66CS1919XYSEV8P2MMRE78J",
       "last_transition_at": "2026-10-30T12:32:56.097281+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-30T11:40:34Z – python-pedro – shell_pid=57612 – Red-first proof (T001): uv run pytest tests/docs/test_mission_id_migration_page.py fails 6/6 against the pre-fix page — documented states {'conflict','legacy','ok','residue'} != live IDENTITY_STATES {'assigned','pending','legacy','orphan','residue'}, and 0 JSON samples carry the live summary/missions report shape.",
-        "WP01 implemented red-first: 6/6 structural tests failed pre-fix, pass post-fix; docs gates green; changelog entry added",
-        "Review passed. Anti-pattern checklist: dead-code N/A (test-only WP); synthetic-fixture PASS (imports production contract, red-first); silent-empty-return N/A; FR coverage PASS (FR-001..FR-004 asserted, FR-003 covered in review round); frozen-surface PASS; locked-decisions PASS (no src/ edits); shared-file N/A; fragility N/A. Gates: 8/8 tests, ruff/format/mypy clean, four docs gates green, changelog style 0 errors.",
-        "Review-fix commits landed: FR-003 test coverage (transcript + stale tokens), docstring label cleanup, aggregate-review findings (residue triage framing, byte-for-byte wording). All gates green: 294 passed across pinning tests, docs index, ADR inventory, no-legacy-terminology, changelog style; ruff/format/mypy clean. Aggregate review by two independent reviewers: LAND."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261030",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 57612,
-      "shell_pid_created_at": "1793360186.76",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done"
-      }
+      "shell_pid_created_at": "1793360186.76"
     }
   }
 }
