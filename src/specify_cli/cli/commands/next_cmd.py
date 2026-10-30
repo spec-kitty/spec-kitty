@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
     from runtime.next.decision import AnalysisCurrency, AnalysisVerdict
     from specify_cli.context.mission_resolver import MissionListing
+    from specify_cli.decisions.service import DecisionError
 
 from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
@@ -492,7 +493,16 @@ def _dispatch_advancing_mode(
         owned=owned,
     )
     if owned is not None:
-        _commit_owned_next_mutations(owned)
+        from specify_cli.decisions.service import DecisionError
+
+        try:
+            _commit_owned_next_mutations(owned)
+        except DecisionError as _exc:
+            # #6763: the commit step could not take the decisions lock within
+            # the bounded wait. Refuse in ``next``'s own error contract rather
+            # than letting ``LockAcquireTimeout`` escape into the agent loop.
+            _emit_decisions_lock_timeout(_exc, json_output)
+            raise typer.Exit(1) from _exc
 
     _print_decision(decision, json_output, answered_id, answer, owned=owned, commit_warnings=commit_warnings)
 
@@ -512,16 +522,29 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     checkout clean and therefore commits only those two declared surfaces to
     the fact's own validated target branch (the primary-partition commit target).
     Every input is read straight off the fact -- no handle walk, no resolver.
+
+    #6763: the guard is the decisions sidecar lock taken through
+    :func:`~specify_cli.decisions.service._decisions_lock`, the single timeout
+    translation. A busy lock therefore raises ``DecisionError(LOCK_TIMEOUT)``
+    for :func:`_dispatch_advancing_mode` to render as a refusal; the error is
+    deliberately not caught here.
     """
     from contextlib import nullcontext
 
-    from kernel.locks import machine_file_lock
-    from specify_cli.decisions.service import _LOCK_ACQUIRE_TIMEOUT_S, _decisions_lock_path
+    from specify_cli.decisions.service import (
+        _LOCK_ACQUIRE_TIMEOUT_S,
+        _decisions_lock,
+        _decisions_lock_path,
+    )
 
     runtime_lock = _decisions_lock_path(owned.mission_dir)
     # The owner lock serialises the ignore provision/rollback with a concurrent
     # owned run or decision write; it only exists once the service created it.
-    guard = machine_file_lock(runtime_lock, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S) if runtime_lock.exists() else nullcontext()
+    guard = (
+        _decisions_lock(runtime_lock, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=owned.mission_slug, decision_id=None)
+        if runtime_lock.exists()
+        else nullcontext()
+    )
     with guard:
         _commit_owned_next_changeset(owned, runtime_lock)
 
@@ -1019,6 +1042,36 @@ def _emit_meta_read_error(exc: MissionMetaReadError, json_output: bool) -> None:
         print(json.dumps(payload, indent=2))
     else:
         print(f"Error: {message}", file=sys.stderr)
+        print(f"  Next: {remediation}", file=sys.stderr)
+
+
+def _emit_decisions_lock_timeout(exc: DecisionError, json_output: bool) -> None:
+    """Present a decisions-lock timeout as ``next``'s own refusal (#6763).
+
+    The owned advancement commits under the decisions sidecar lock; when the
+    bounded wait expires the seam raises ``DecisionError(LOCK_TIMEOUT)``. That
+    must reach the agent control loop as a typed, retryable result (the same
+    ``result``/``error_code``/``next_step`` envelope ``_emit_meta_read_error``
+    uses), never as a traceback. The advancement and its lifecycle record are
+    already durable at this point and the ordered commit did not run, so the
+    ``next_step`` says a retry is safe instead of implying nothing happened.
+    """
+    remediation = "Retry the command; the advancement is already recorded and nothing was left half-committed."
+    if json_output:
+        from specify_cli import __version__
+
+        payload: dict[str, object] = {
+            "result": "error",
+            "error_code": exc.code.value,
+            "error": str(exc),
+            "lock_path": exc.details.get("lock_path"),
+            "timeout_seconds": exc.details.get("timeout_seconds"),
+            "next_step": remediation,
+            "spec_kitty_version": __version__,
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        print(f"Error: [{exc.code.value}] {exc}", file=sys.stderr)
         print(f"  Next: {remediation}", file=sys.stderr)
 
 
