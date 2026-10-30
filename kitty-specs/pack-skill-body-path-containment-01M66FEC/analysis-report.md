@@ -4,15 +4,15 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: pack-skill-body-path-containment-01M66FEC
 mission_id: 01M66FECNVSH097T6M06F5DRAB
-generated_at: '2026-10-30T13:26:23.113983+00:00'
+generated_at: '2026-10-30T13:31:47.741528+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: kitty-specs/pack-skill-body-path-containment-01M66FEC/spec.md
-    sha256: 2bb9b400352806c407ef52d271169fb4bc0cf79145fba401c65643d0811c0a6c
+    sha256: ca2bb9138d4fc806f24af640af8d3933108a4f374a0f033c8ca0e99361585d7a
   plan.md:
     path: kitty-specs/pack-skill-body-path-containment-01M66FEC/plan.md
-    sha256: cdb645a53b859415bfaa5309a1bffdf5b7a366702a40b55f2ad1413f3c5e6f16
+    sha256: 8aa10b6e9be91165b1db2170f808f1f6d51fa7d5accf1ad743e31734f6898842
   tasks.md:
     path: kitty-specs/pack-skill-body-path-containment-01M66FEC/tasks.md
     sha256: ae738e2d9affda23204495c99d13e24b297f64ec6be53a1b1c8c4ebf6375537d
@@ -21,9 +21,9 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  critical: 0
   medium: 0
   low: 1
+  critical: 0
   high: 0
   info: 0
 findings:
