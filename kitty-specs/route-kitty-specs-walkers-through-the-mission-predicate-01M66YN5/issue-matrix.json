@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3194": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context citation only: _resolve_mission_dirs keeps safe_is_dir evaluated before the predicate, preserving #3194's raise; no work owed.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#5875": {
       "evidence_ref": "<link or commit>",
