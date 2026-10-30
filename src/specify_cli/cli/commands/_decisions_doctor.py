@@ -66,7 +66,6 @@ from typing import Any
 
 import typer
 
-from kernel.locks import machine_file_lock
 from mission_runtime import MissionArtifactKind, placement_seam
 from spec_kitty_events.decisionpoint import (
     DECISION_POINT_OPENED,
@@ -77,9 +76,14 @@ from specify_cli.decisions import fork as _fork
 from specify_cli.decisions import index_fold as _index_fold
 from specify_cli.decisions import store as _store
 from specify_cli.decisions.models import DecisionIndex, IndexEntry
-from specify_cli.decisions.service import _ledger_dir
+from specify_cli.decisions.service import (
+    _LOCK_ACQUIRE_TIMEOUT_S,
+    DecisionError,
+    _decisions_lock,
+    _ledger_dir,
+)
 
-from ._doctor_shared import console
+from ._doctor_shared import _json_error, console
 
 __all__ = [
     "run_decisions_reconciliation",
@@ -87,8 +91,6 @@ __all__ = [
 
 _EVENTS_FILENAME = "status.events.jsonl"
 _LOCK_FILENAME = "index.json.lock"
-#: Matches the write path's own acquire-wait bound (``decisions/service.py``).
-_LOCK_ACQUIRE_TIMEOUT_S = 10.0
 
 _DECISION_EVENT_TYPES = (DECISION_POINT_OPENED, DECISION_POINT_RESOLVED)
 
@@ -519,7 +521,7 @@ def _repair(
     caller can report both conditions loudly instead of crashing.
     """
     lock_path = _decisions_lock_path(ledger_dir)
-    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+    with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
         grouped = _read_decision_events(_events_path(events_dir))
         current = _store.load_index(ledger_dir)
         rebuilt, lossy_ids, malformed_ids = _rebuild_index_from_log(current, grouped)
@@ -547,7 +549,7 @@ def _copy_coordination_only_ledger(repo_root: Path, mission_slug: str, ledger_di
 
     index_document, dm_contents = _fork.read_coordination_ledger_raw(repo_root, mission_slug)
     lock_path = _decisions_lock_path(ledger_dir)
-    with machine_file_lock(lock_path, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+    with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=None):
         if index_document is not None:
             current_raw = _store.load_index(ledger_dir).model_dump(mode="json")
             merged_raw = union_decision_index(current_raw, index_document)
@@ -745,6 +747,16 @@ def run_decisions_reconciliation(
     reports it (exactly one report — human or JSON, never a second document)
     and then exits **1**; it exits 0 only when every decision the repair
     touched folds cleanly.
+
+    #6763: a decisions-lock wait that times out is a REFUSAL, not a report.
+    Both acquisitions (the ``--repair`` rebuild and the additive
+    coordination-only ledger copy) go through
+    :func:`~specify_cli.decisions.service._decisions_lock`, whose timeout is a
+    ``DecisionError(LOCK_TIMEOUT)``. That error is rendered as this family's
+    C2 envelope (``{"ok": false, "error": {...}}`` under ``--json``, a Rich
+    ``Error:`` line otherwise), the command exits 1, and nothing is written —
+    the critical section never ran. Never a raw ``LockAcquireTimeout``
+    traceback, and never a partial report followed by an error document.
     """
     # Function-local (H2/I-6 precedent, ``_review_cycle_reconcile_doctor.py``):
     # avoids a doctor <-> selector-resolution module-load cycle.
@@ -762,23 +774,35 @@ def run_decisions_reconciliation(
     report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
 
     if repair and not report.clean:
-        forked = report.fork_report is not None and report.fork_report.forked
-        ledger_only_coord = report.fork_report is not None and _fork.ledger_is_coordination_only(report.fork_report.ledger)
-        if forked:
-            # C-003: a forked stream is NEVER auto-merged or re-sequenced --
-            # no index rewrite for the forked decisions; the reconcile steps
-            # are printed instead (contract rule 2, US4.3).
-            lossy_ids: list[str] = []
-            malformed_ids = list(report.malformed_folds)
-        else:
-            # Positive control (US4.4): an unforked Mission still repairs a
-            # genuine orphan exactly as before.
-            lossy_ids, malformed_ids = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
-        if ledger_only_coord:
-            # FR-009c / contract rule 4: additive-only, independent of the
-            # stream-fork branch above (a coordination-only ledger can exist
-            # on an otherwise unforked Mission, e.g. NFR-002 fixture (d)).
-            _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
+        try:
+            forked = report.fork_report is not None and report.fork_report.forked
+            ledger_only_coord = report.fork_report is not None and _fork.ledger_is_coordination_only(report.fork_report.ledger)
+            if forked:
+                # C-003: a forked stream is NEVER auto-merged or re-sequenced --
+                # no index rewrite for the forked decisions; the reconcile steps
+                # are printed instead (contract rule 2, US4.3).
+                lossy_ids: list[str] = []
+                malformed_ids = list(report.malformed_folds)
+            else:
+                # Positive control (US4.4): an unforked Mission still repairs a
+                # genuine orphan exactly as before.
+                lossy_ids, malformed_ids = _repair(events_dir, ledger_dir, repo_root=repo_root, mission_slug=mission_slug)
+            if ledger_only_coord:
+                # FR-009c / contract rule 4: additive-only, independent of the
+                # stream-fork branch above (a coordination-only ledger can exist
+                # on an otherwise unforked Mission, e.g. NFR-002 fixture (d)).
+                _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
+        except DecisionError as exc:
+            # #6763: a lock timeout is a refusal, and it lands BEFORE any
+            # report is emitted, so ``--json`` callers get exactly one C2
+            # document and human callers exactly one error line.
+            if json_output:
+                console.emit_json(_json_error(exc.code.value, str(exc)))
+            else:
+                # Same ``Error: [CODE] message`` shape the owned-refusal path
+                # uses (#5445): the code is machine-matchable in both modes.
+                console.print(f"[red]Error:[/red] [{exc.code.value}] {exc}")
+            raise typer.Exit(1) from exc
         report, _grouped = _diagnose(events_dir, ledger_dir, mission_slug, repo_root=repo_root)
         report.repaired = True
         report.lossy_attribution = sorted(lossy_ids)
