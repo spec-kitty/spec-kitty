@@ -2,7 +2,7 @@
   "mission_slug": "post-4941-lamport-claim-sweep-01M66YJ6",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pass",
+  "overall_verdict": "pending",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -58,11 +58,11 @@
       "criterion_id": "FR-006",
       "description": "Gap G-3 in the event-ledger page records the closure and the residual",
       "proof_type": "automated_test",
-      "evidence": "test_gap_table_records_the_closure asserts 'Closed (#6604)' in docs/architecture/event-ledger-writers-and-readers.md",
-      "pass_fail": "pass",
+      "evidence": "Deferred: docs/architecture/event-ledger-writers-and-readers.md is frozen in core (ADR 2026-10-29-1 D-9; tests/architectural/test_events_import_frozen.py pins its object id). The row change needs either an operator-approved _FROZEN_OBJECTS re-pin or the edit in spec-kitty/spec-kitty-events. Filed as #6822 with the exact replacement row.",
+      "pass_fail": "pending",
       "verified_by": "reviewer-renata",
-      "verified_at": "2026-10-30T18:35:00Z",
-      "notes": "Verified by running the named test on the mission head."
+      "verified_at": "2026-10-30T19:20:00Z",
+      "notes": "Withdrawn from this PR after the architectural freeze gate refused it (the second CI round). The page was restored byte-for-byte and dropped from the guard corpus; the guard documents why. This is the one criterion the mission leaves open, and it needs a maintainer decision (re-pin the freeze here, or port the row to spec-kitty-events)."
     },
     {
       "criterion_id": "FR-007",
