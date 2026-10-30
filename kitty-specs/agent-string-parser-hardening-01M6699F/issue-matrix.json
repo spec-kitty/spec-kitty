@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2861": {
+      "evidence_ref": "Context-only citation: the thin non-synthesizing bare-tool rule stays intact; test_2861_causation_repro.py green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6400": {
+      "evidence_ref": "Context-only citation: this mission preserves #6400's lenient whole-value storage; actor_from_option untouched and its whole-value pins green in tests/status",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6755": {
+      "evidence_ref": "Red-first tests (commit 3dc5e1f259) now green: parser strips segments, blank-after-strip is None, >4 segments refused; CLI refusals verified on mark-status/add-history/move-task; 1753 passed targeted surface",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
