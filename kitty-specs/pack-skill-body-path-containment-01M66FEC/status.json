@@ -1,7 +1,7 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M66KYS6TFBKDRC4EK96Y9VEN",
-  "materialized_at": "2026-10-30T14:38:24.474490+00:00",
+  "event_count": 11,
+  "last_event_id": "01M66KZY19P0WB5J5JRNWBXPZF",
+  "materialized_at": "2026-10-30T14:39:02.167450+00:00",
   "mission_number": "",
   "mission_slug": "pack-skill-body-path-containment-01M66FEC",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -53,11 +53,15 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "pi:tokenfactory/glm-5.3:python-pedro",
+      "agent": "pi:tokenfactory/glm-5.3:python-pedro",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M66FRNE4MHZVD7V57WH1Q4H8",
-      "last_transition_at": "2026-10-30T13:25:09.700360+00:00"
+      "implementer_of_record": "pi:tokenfactory/glm-5.3:python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M66KZY19P0WB5J5JRNWBXPZF",
+      "last_transition_at": "2026-10-30T14:39:02.167450+00:00",
+      "shell_pid": 800936,
+      "shell_pid_created_at": "1793371125.68"
     }
   }
 }
