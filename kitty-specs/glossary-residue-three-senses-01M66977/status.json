@@ -1,0 +1,29 @@
+{
+  "event_count": 1,
+  "last_event_id": "01M669EFB2W2DR7S81F3C3S4N2",
+  "materialized_at": "2026-10-30T11:34:44.322359+00:00",
+  "mission_number": "",
+  "mission_slug": "glossary-residue-three-senses-01M66977",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M669EFB2W2DR7S81F3C3S4N2",
+      "last_transition_at": "2026-10-30T11:34:44.322359+00:00"
+    }
+  }
+}
