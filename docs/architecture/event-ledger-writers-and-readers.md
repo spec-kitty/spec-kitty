@@ -77,12 +77,8 @@ What holds today:
   `kitty-ops/<op>.jsonl`, on the family directory) at
   `<git-common-dir>/spec-kitty-locks/event-logs/<sha256[:32]>.lock`, refuses a log whose
   last byte is not LF, and writes the unit in one `O_APPEND` write plus `fsync`. It checks
-  line framing only, never row content. The anchor digest and the
-  `<git-common-dir>/spec-kitty-locks` placement are computed once, by
-  `kernel.locks.anchored_lock_path` (#6727); this module adds the `event-logs`
-  subdirectory, the sibling fallback outside git and the refusal. It retires per log at
-  the #6193 handover; `status.events.jsonl` and `canonical-events.jsonl` keep the Mission
-  status lock.
+  line framing only, never row content. It retires per log at the #6193 handover;
+  `status.events.jsonl` and `canonical-events.jsonl` keep the Mission status lock.
 
 - `status.events.jsonl` has a disciplined write funnel. Raw append primitives are
   importable only from the nine modules in `status/_unsafe.py:75-113`
