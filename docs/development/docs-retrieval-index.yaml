@@ -4526,7 +4526,6 @@ pages:
     - {slug: "spec-kitty-lint", text: "spec-kitty lint", level: 2}
     - {slug: "spec-kitty-materialize", text: "spec-kitty materialize", level: 2}
     - {slug: "spec-kitty-migrate", text: "spec-kitty migrate", level: 2}
-    - {slug: "spec-kitty-migrate-ledger", text: "spec-kitty migrate ledger", level: 2}
     - {slug: "spec-kitty-migrate-activation-ledger", text: "spec-kitty migrate activation-ledger", level: 2}
     - {slug: "spec-kitty-migrate-backfill-identity", text: "spec-kitty migrate backfill-identity", level: 2}
     - {slug: "spec-kitty-migrate-backfill-merge-commit", text: "spec-kitty migrate backfill-merge-commit", level: 2}
@@ -4536,6 +4535,7 @@ pages:
     - {slug: "spec-kitty-migrate-backfill-topology", text: "spec-kitty migrate backfill-topology", level: 2}
     - {slug: "spec-kitty-migrate-backfill-wp-status", text: "spec-kitty migrate backfill-wp-status", level: 2}
     - {slug: "spec-kitty-migrate-charter-encoding", text: "spec-kitty migrate charter-encoding", level: 2}
+    - {slug: "spec-kitty-migrate-ledger", text: "spec-kitty migrate ledger", level: 2}
     - {slug: "spec-kitty-migrate-normalize-lifecycle", text: "spec-kitty migrate normalize-lifecycle", level: 2}
     - {slug: "spec-kitty-migrate-rebaseline-dossier-hashes", text: "spec-kitty migrate rebaseline-dossier-hashes", level: 2}
     - {slug: "spec-kitty-migrate-repin-hooks", text: "spec-kitty migrate repin-hooks", level: 2}
