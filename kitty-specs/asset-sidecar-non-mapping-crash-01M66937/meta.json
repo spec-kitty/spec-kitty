@@ -1,19 +1,31 @@
 {
-  "contracts": "none",
-  "contracts_rationale": "Defect fix in an internal loader path (BaseArtifactRepository YAML skip envelope); no new or changed interfaces, endpoints or events.",
+  "accept_commit": "e4c6adb6fec73d511bf975a783bd68d4cad0a661",
+  "acceptance_history": [
+    {
+      "accept_commit": "e4c6adb6fec73d511bf975a783bd68d4cad0a661",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T12:04:37.655803+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "21f599a0ed37ce324514c6c308da64a30836d7b0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T12:04:37.655803+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "21f599a0ed37ce324514c6c308da64a30836d7b0",
   "coordination_branch": "kitty/mission-asset-sidecar-non-mapping-crash-01M66937",
   "created_at": "2026-10-30T11:28:35.803547+00:00",
   "flattened": false,
   "friendly_name": "asset sidecar non mapping crash",
   "mid8": "01M66937",
   "mission_id": "01M66937BPRRERJFR4F86S86QE",
-  "mission_number": null,
+  "mission_number": 244,
   "mission_slug": "asset-sidecar-non-mapping-crash-01M66937",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances asset sidecar non mapping crash on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "asset sidecar non mapping crash",
   "slug": "asset-sidecar-non-mapping-crash-01M66937",
-  "target_branch": "issue-6735-asset-sidecar-non-mapping-crash",
+  "target_branch": "main",
   "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-30T11:37:26.627253+00:00"
