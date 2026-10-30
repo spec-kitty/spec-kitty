@@ -1,0 +1,45 @@
+{
+  "event_count": 4,
+  "last_event_id": "01M66G3VJDWA7S5HSK0FH99241",
+  "materialized_at": "2026-10-30T13:31:16.426040+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-packs-refusal-code-convergence-01M66FC9",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "maintainer-a",
+      "agent": "maintainer-a",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "maintainer-a",
+      "lane": "in_progress",
+      "last_event_id": "01M66G3VJDWA7S5HSK0FH99241",
+      "last_transition_at": "2026-10-30T13:31:16.426040+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 395296,
+      "shell_pid_created_at": "1793367059.48"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M66FYFP11MPJT58EKYQKBFM7",
+      "last_transition_at": "2026-10-30T13:28:20.417156+00:00"
+    }
+  }
+}
