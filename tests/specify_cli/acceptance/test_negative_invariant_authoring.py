@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -801,3 +802,135 @@ class TestFullAcceptPassWithNegativeInvariantSC006:
         )
         assert reloaded_after_accept.negative_invariants[0].invariant_id == "NI-SC006"
         assert reloaded_after_accept.negative_invariants[0].result == "confirmed_absent"
+
+
+# ===========================================================================
+# #6761 — grep_absence must judge tracked text and record named evidence
+# ===========================================================================
+
+
+class TestGrepAbsenceBinaryAndEvidence:
+    """#6761: a stale ``.pyc`` under ``__pycache__/`` holding the pattern must
+    not keep a removed string ``still_present`` (FR-001), a non-absent verdict
+    must never record an empty match list (FR-002), and a tracked text match
+    must still block with named evidence (FR-003, positive control).
+
+    RED-FIRST: the stale-``.pyc`` and stderr-fallback cases fail on the
+    pre-fix matcher; the text-match case pins the behaviour the fix must not
+    weaken."""
+
+    def _register_and_execute(
+        self, repo_root: Path, slug: str, token: str, monkeypatch: pytest.MonkeyPatch
+    ) -> NegativeInvariant:
+        """Drive the real ``acceptance-verdict --negative-invariant --execute``
+        entry point and return the persisted invariant. Exit 0 means the
+        registration/write succeeded — it is not a verdict pass; the verdict
+        is asserted from the reloaded matrix."""
+        feature_dir = repo_root / "kitty-specs" / slug
+        monkeypatch.chdir(repo_root)
+        try:
+            acceptance_verdict(
+                mission=slug,
+                criterion=None,
+                result=None,
+                verification_method="grep_absence",
+                actor="tester",
+                evidence=None,
+                negative_invariant="NI-6761",
+                description="Legacy token must not reappear in tracked text",
+                verification_command=token,
+                scope=None,
+                execute=True,
+                json_output=True,
+            )
+        except typer.Exit as exc:
+            assert exc.exit_code in (0, None), f"command failed: exit {exc.exit_code}"
+        reloaded = read_acceptance_matrix(feature_dir)
+        assert reloaded is not None
+        ni = next(n for n in reloaded.negative_invariants if n.invariant_id == "NI-6761")
+        return ni
+
+    def test_stale_pyc_is_not_still_present(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-001 (SC-001): with every text file free of the pattern and a
+        stale ``.pyc`` under ``__pycache__/`` still containing it, the verdict
+        is ``confirmed_absent`` — binary files are not part of the text
+        surface the invariant judges (#6761)."""
+        import py_compile
+
+        slug = "ni-stale-pyc-mission"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        _seed_matrix(feature_dir, slug)
+        # Gitignored bytecode is the whole point: a .gitignore keeps the .pyc
+        # out of the tracked tree the seed commit snapshots.
+        (repo_root / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
+        token = "STALE_PYC_TOKEN_6761_zzq"
+        legacy_mod = repo_root / "legacy_mod.py"
+        legacy_mod.write_text(f'{token} = "captured in bytecode"\n', encoding="utf-8")
+        py_compile.compile(str(legacy_mod), doraise=True)
+        pyc = next((repo_root / "__pycache__").glob("legacy_mod*.pyc"))
+        assert token.encode() in pyc.read_bytes(), "fixture: the .pyc must hold the token"
+        # The offending text is removed from every tracked file...
+        legacy_mod.write_text("# token removed from source\n", encoding="utf-8")
+        _seed_commit(repo_root)
+        assert token.encode() not in legacy_mod.read_bytes()
+
+        ni = self._register_and_execute(repo_root, slug, token, monkeypatch)
+        assert ni.result == "confirmed_absent", (
+            f"#6761: stale .pyc must not keep the string present (evidence: {ni.evidence!r})"
+        )
+
+    def test_tracked_text_match_still_blocks_with_named_evidence(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-003 (SC-002), positive control on the same fixture style: a
+        pattern in a tracked text file still yields ``still_present`` with
+        evidence naming the matching file — binary skipping must not weaken
+        the text search."""
+        slug = "ni-text-match-mission"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        _seed_matrix(feature_dir, slug)
+        token = "TRACKED_TEXT_TOKEN_6761_zzq"
+        (repo_root / "notes.md").write_text(f"the string {token} lingers\n", encoding="utf-8")
+        _seed_commit(repo_root)
+
+        ni = self._register_and_execute(repo_root, slug, token, monkeypatch)
+        assert ni.result == "still_present"
+        assert "notes.md" in (ni.evidence or ""), (
+            "evidence must name the matching file, not be blank"
+        )
+
+    def test_exit0_empty_stdout_falls_back_to_stderr_evidence(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-002 (SC-003): when grep exits 0 with empty stdout (GNU grep >= 3.5
+        prints ``binary file matches`` on stderr), the recorded evidence
+        includes that stderr content instead of an empty match list."""
+        import specify_cli.acceptance.matrix as matrix_module
+
+        slug = "ni-stderr-evidence-mission"
+        repo_root, feature_dir = _init_flat_mission(tmp_path, slug)
+        _seed_matrix(feature_dir, slug)
+        _seed_commit(repo_root)
+
+        stderr_line = "grep: ./__pycache__/legacy_mod.pyc: binary file matches"
+        real_run = subprocess.run
+
+        def _grep_only_fake(args: object, *rest: object, **kw: object) -> object:
+            argv = args if isinstance(args, list) else []
+            if argv and argv[0] == "grep":
+                return subprocess.CompletedProcess(
+                    args, returncode=0, stdout="", stderr=stderr_line
+                )
+            return real_run(args, *rest, **kw)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(matrix_module.subprocess, "run", _grep_only_fake)
+
+        ni = self._register_and_execute(
+            repo_root, slug, "BINARY_ONLY_TOKEN_6761_zzq", monkeypatch
+        )
+        assert ni.result == "still_present"
+        assert stderr_line in (ni.evidence or ""), (
+            "evidence must carry the stderr content, not an empty match list"
+        )
