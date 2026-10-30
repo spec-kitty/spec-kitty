@@ -1,0 +1,50 @@
+{
+  "accept_commit": "d353512b84e50e066105785c339801198b03a87d",
+  "acceptance_history": [
+    {
+      "accept_commit": "3de40e4b7a85fdd9fde3bb237113aa16c965f230",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:03:02.834903+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f973e79e5d8dc600929a51d6c35372a3e6ca2e53"
+    },
+    {
+      "accept_commit": "2f455fc52975714f66d600e6713dfa61d0974769",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:03:16.442540+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f07e464cdac85571d3e2f7e59d69b7c1a1f2bf6e"
+    },
+    {
+      "accept_commit": "d353512b84e50e066105785c339801198b03a87d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:03:23.467561+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "a827776cfb878b0c7cde3cf1855ecb2f5f235e4f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T14:03:23.467561+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "a827776cfb878b0c7cde3cf1855ecb2f5f235e4f",
+  "baseline_merge_commit": "c201714d45090ff933a41be90a64aa18038d1c3e",
+  "contracts": "none",
+  "contracts_rationale": "Text-rendering and docs defect fix (#6633): no interfaces, payloads or external events are added or changed; the mission extends PathValidationResult (an in-memory value object) and the failure text it renders.",
+  "created_at": "2026-10-30T13:15:53.227715+00:00",
+  "flattened": true,
+  "friendly_name": "accept path conventions name overrides",
+  "merged_at": "2026-10-30T14:04:43.575364+00:00",
+  "merged_commit": "9f787179db192cc1a89b002946b6233427fec354",
+  "mid8": "01M66F7N",
+  "mission_id": "01M66F7NWDF15PWTEQ96V0HS4J",
+  "mission_number": 244,
+  "mission_slug": "accept-path-conventions-name-overrides-01M66F7N",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances accept path conventions name overrides on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "accept path conventions name overrides",
+  "slug": "accept-path-conventions-name-overrides-01M66F7N",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T13:23:55.577048+00:00"
+}
