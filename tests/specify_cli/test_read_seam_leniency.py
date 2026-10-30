@@ -1,10 +1,12 @@
 """WP06 — diagnostic-cluster read-seam migration + NFR-001 leniency pins.
 
-Ledger authority: ``docs/development/read-side-seam-classification.md`` (§ WP06).
+Ledger authority: ``docs/development/reference/read-side-seam-classification.md`` (§ WP06).
 
 - **migrate-fail-loud** (must route through ``placement_seam(...).read_dir``):
-  ``coordination/status_transition.py`` (3), ``decisions/service.py`` (1),
-  ``review/cycle.py`` (1).
+  ``coordination/status_transition.py`` (3), ``review/cycle.py`` (1)
+  (``decisions/service.py``'s read-side ``_mission_dir`` was removed in
+  #6766, caller-less since #6762; all STATUS_STATE access in that module is
+  write-side).
 - **stay-lenient** (leave bypass; WP08 allow-list descriptors below):
   ``status/aggregate.py``, ``retrospective/summary.py`` (``dashboard/scanner.py``
   and ``dossier/api.py`` left with the bundled dashboard, #5530). ``retrospective/writer.py`` has zero real call sites.
@@ -20,8 +22,6 @@ import pytest
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.coordination import status_transition
-from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
-from specify_cli.decisions import service as decisions_service
 from specify_cli.retrospective import summary as retrospective_summary
 from specify_cli.review import cycle as review_cycle
 from specify_cli.status import aggregate as status_aggregate
@@ -137,25 +137,5 @@ def test_status_transition_primary_anchor_preserves_healthy_resolution(
     fallback = mission_dir
 
     resolved = status_transition._canonical_primary_feature_dir(tmp_path, MISSION_DIR_NAME, fallback)
-
-    assert resolved.resolve() == mission_dir.resolve()
-
-
-def test_decisions_mission_dir_fails_loud_when_coord_deleted(tmp_path: Path) -> None:
-    """Migrated STATUS_STATE decisions read must raise CoordinationBranchDeleted."""
-    _seed_repo(tmp_path, deleted_coord=True)
-
-    with pytest.raises(CoordinationBranchDeleted) as exc_info:
-        decisions_service._mission_dir(tmp_path, MISSION_DIR_NAME)
-
-    assert exc_info.value.error_code == "COORDINATION_BRANCH_DELETED"
-    assert COORD_BRANCH in str(exc_info.value)
-
-
-def test_decisions_mission_dir_preserves_healthy_status_home(tmp_path: Path) -> None:
-    """Healthy (no coord topology) decisions STATUS read lands on the primary dir."""
-    mission_dir = _seed_repo(tmp_path, deleted_coord=False)
-
-    resolved = decisions_service._mission_dir(tmp_path, MISSION_DIR_NAME)
 
     assert resolved.resolve() == mission_dir.resolve()
