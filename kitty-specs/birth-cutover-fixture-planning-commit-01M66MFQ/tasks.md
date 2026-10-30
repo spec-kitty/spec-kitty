@@ -28,13 +28,14 @@ description: "Work package task list for mission birth-cutover-fixture-planning-
 **Goal**: Make `_write_single_lane` in `tests/migration/test_birth_cutover.py` record the `planning_commit_sha` the production `finalize-tasks` path would have recorded, so the #6715 evidence gate computes WP01's evidence window and the four anchor tests pass again on main.
 **Independent Test**: `uv run --frozen python -m pytest tests/migration/test_birth_cutover.py -q` reports 24 passed, 0 failed (was 4 failed, 20 passed on `main@512567eee7`), with the four tests' assertions byte-identical.
 **Prompt**: `/tasks/WP01-fixture-planning-commit-parity.md`
-**Requirement Refs**: FR-001, FR-002, NFR-001, NFR-002, C-001, C-002; SC-001, SC-002, SC-003
+**Requirement Refs**: FR-001, FR-002, FR-003, NFR-001, NFR-002, C-001, C-002; SC-001, SC-002, SC-003, SC-004
 
 ### Included Subtasks
 
 T001 Record the captured target-branch tip as `planning_commit_sha` in `_write_single_lane`'s `LanesManifest`, asserting the capture succeeded
 T002 Run the migration test file and confirm 24 passed with the four anchor tests' assertions unchanged and no xfail/skip introduced
 T003 Lint, format-check and type-check the touched test file
+T004 Record `_drive_claimed_through_approved`'s manufactured approval with distinct implementer/reviewer actors, mirroring `_seed_wp_approved`
 
 ### Implementation Notes
 
@@ -54,3 +55,4 @@ T003 Lint, format-check and type-check the touched test file
 
 - A silent `None` capture would recreate the red — mitigated by the FR-002 assertion with a message naming the #6715 rule.
 - Capture timing (before vs after the planning-content commit) changes the window contents; before-the-commit matches production semantics and keeps `src/a/foo.py` inside the window — verified by the four tests passing (SC-001).
+- A same-actor approval would recreate the red at the independence verdict — mitigated by FR-003's distinct-actor shape (verified during implementation: with only the planning commit recorded, the refusal moved from `EVIDENCE_WINDOW_UNCOMPUTABLE` to `REVIEW_NOT_INDEPENDENT`; with both facets fixed, all 24 pass).

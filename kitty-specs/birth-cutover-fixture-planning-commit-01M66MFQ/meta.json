@@ -11,5 +11,7 @@
   "purpose_tldr": "birth cutover fixture planning commit",
   "slug": "birth-cutover-fixture-planning-commit-01M66MFQ",
   "target_branch": "issue-6801-birth-cutover-fixture-planning-commit",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T14:53:27.102119+00:00"
 }

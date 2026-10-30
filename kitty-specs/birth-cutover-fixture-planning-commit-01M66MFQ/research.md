@@ -33,6 +33,22 @@ taken from the issue text.
    with `write_scope=("src/a/**",)`), and `computed_from="test-fixture"` is
    an input description the gate does not read.
 
+3. **Second facet, found red-first during implementation (WP01).** Recording
+   only the planning commit moved the refusal from
+   `EVIDENCE_WINDOW_UNCOMPUTABLE` to `REVIEW_NOT_INDEPENDENT`:
+   `_drive_claimed_through_approved` records every hop with the same actor
+   `"seed"` — including `in_progress` (which `latest_implementer_event`
+   reads as the implementer of record) and the final `approved` transition —
+   so the fixture manufactures a self-approval, exactly what #6715 refuses.
+   The suite's canonical `_seed_wp_approved`
+   (`tests/specify_cli/test_specify_topology_flag.py`), which this fixture's
+   own docstring claims to mirror, already uses distinct implementer
+   (`implementer-ivan`) / reviewer (`reviewer-renata`) actors for exactly
+   this axis (#5939/#6370). Fix: implementing hops by the claiming
+   implementer (`python-pedro`), review hops (`in_review`, `approved`) by
+   `reviewer-renata` — matching the `ReviewResult` the fixture already
+   records. Verified: with both facets fixed, all 24 tests pass.
+
 ## Evidence
 
 - Reproduction on pristine `main@512567eee7`:
