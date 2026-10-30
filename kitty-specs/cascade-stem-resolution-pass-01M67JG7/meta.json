@@ -11,6 +11,6 @@
   "purpose_context": "This mission advances cascade stem resolution pass on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "cascade stem resolution pass",
   "slug": "cascade-stem-resolution-pass-01M67JG7",
-  "target_branch": "main",
+  "target_branch": "issue-6777-cascade-stem-resolution-pass",
   "topology": "coord"
 }
