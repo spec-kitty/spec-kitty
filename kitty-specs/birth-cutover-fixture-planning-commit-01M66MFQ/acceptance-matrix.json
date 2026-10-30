@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP01 commit 4dd07b5b69: _write_single_lane records planning_commit_sha=capture_branch_tip(repo,'main') in the fixture LanesManifest; tests/migration/test_birth_cutover.py 24 passed on lane branch (was 4 failed, 20 passed on main@512567eee7); SC-001 verified by implementer and independent review squad",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-k",
+      "verified_at": "2026-10-30T15:33:15.280922+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
