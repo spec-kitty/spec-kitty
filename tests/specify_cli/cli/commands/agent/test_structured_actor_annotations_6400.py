@@ -188,6 +188,36 @@ def test_add_history_explicit_agent_with_an_empty_tool_is_refused_cleanly(lanes_
     assert _raw_events(feature_dir) == before
 
 
+def test_add_history_explicit_agent_with_more_than_four_segments_is_refused_cleanly(lanes_mission: tuple[Path, str, Path]) -> None:
+    """#6755: a compact string with more than four segments is not one — add-history refuses it before any write."""
+    _repo, slug, feature_dir = lanes_mission
+    _seed_lane(feature_dir, Lane.IN_PROGRESS)
+    before = _raw_events(feature_dir)
+
+    result = runner.invoke(
+        root_app,
+        ["agent", "tasks", "add-history", "WP01", "--note", "NOTE-6400", "--agent", "a:b:c:d:e", "--mission", slug],
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid --agent value" in result.output
+    assert "Traceback" not in result.output
+    assert _raw_events(feature_dir) == before
+
+
+def test_mark_status_explicit_agent_with_more_than_four_segments_is_refused_cleanly(lanes_mission: tuple[Path, str, Path]) -> None:
+    """#6755: mark-status refuses a ``--agent`` with more than four segments before any write, as it does an empty tool."""
+    _repo, slug, feature_dir = lanes_mission
+    before = _raw_events(feature_dir)
+
+    result = _mark_status(slug, "--agent", "a:b:c:d:e")
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid --agent value" in result.output
+    assert "Traceback" not in result.output
+    assert _raw_events(feature_dir) == before
+
+
 # ---------------------------------------------------------------------------
 # Claim harness (action implement / action review), git stubbed.
 # ---------------------------------------------------------------------------
