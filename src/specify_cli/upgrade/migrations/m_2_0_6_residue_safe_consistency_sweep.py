@@ -21,6 +21,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.runtime.doctor import check_stale_legacy_assets
 
 from ..registry import MigrationRegistry, settled_in_selection_view
+from ..tracked_meta_notice import MissingTrackedMeta, classify_missing_tracked_meta
 from ._residue_successor import partition_kitty_specs, residue_warnings
 from .base import BaseMigration, MigrationResult
 from .m_2_0_6_consistency_sweep import (
@@ -65,7 +66,12 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
         return False, "No .kittify/ or kitty-specs/ directory found"
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        """Run the 2.0.6 consistency sweep over the Mission folders; report each residue folder once."""
+        """Run the 2.0.6 consistency sweep over the Mission folders; report each residue folder once.
+
+        A Mission whose tracked ``meta.json`` is missing from the working tree is rebuilt from
+        the copy git holds, or refused with the restore command; either way the folder is
+        never given a second identity (#6673).
+        """
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
@@ -73,6 +79,14 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
         # Probe first: a git timeout must fail the run before any write, as the 0.9.x successors do (#6669).
         kitty_specs = project_path / KITTY_SPECS_DIR
         missions, residue = partition_kitty_specs(kitty_specs, project_path)
+        # One classification per Mission, before the first repair write, so a git failure surfaces
+        # while nothing has been changed yet (#6673, mission spec C-005).
+        missing_meta: dict[Path, MissingTrackedMeta] = {}
+        for mission_dir in missions:
+            classified = classify_missing_tracked_meta(mission_dir, project_path)
+            if classified is not None:
+                missing_meta[mission_dir] = classified
+                warnings.append(classified.notice)
 
         runtime_changes, runtime_warnings = _migrate_runtime_assets(project_path, dry_run)
         changes.extend(runtime_changes)
@@ -83,6 +97,11 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
         errors.extend(worktree_errors)
 
         for mission_dir in missions:
+            refusal = missing_meta.get(mission_dir)
+            if refusal is not None and refusal.refuse:
+                # git knows this Mission's meta.json but cannot give it back: repair nothing here, so no
+                # later step writes state (or an identity) for a Mission we could not identify (#6673).
+                continue
             feature_changes, feature_warnings = _repair_feature(mission_dir, project_path, dry_run)
             changes.extend(feature_changes)
             warnings.extend(feature_warnings)
