@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-30T17:46:26.684954Z",
+      "decision_id": "01M66YQ2ZWJ6KDAH59GTBB24YM",
+      "final_answer": "3 (latest + two prior)",
+      "input_key": "failed_staging_keep",
+      "mission_id": "01M66YPBP2GP6AJVGP2EZQP7KZ",
+      "mission_slug": "bound-failed-staging-retention-01M66YPB",
+      "opened_by": "python-pedro",
+      "options": [
+        "1 (latest only)",
+        "3 (latest + two prior)",
+        "5 (latest + four prior)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How many failed .staging/<run_id>.failed/ directories should be kept? The issue allows 'the most recent N' and requires the latest failure stay for diagnosis.",
+      "rationale": null,
+      "resolved_at": "2026-10-30T17:46:30.465388Z",
+      "resolved_by": null,
+      "slot_key": "specify.retention.bound",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M66YPBP2GP6AJVGP2EZQP7KZ",
+  "version": 1
+}

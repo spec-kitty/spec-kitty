@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "bound-failed-staging-retention-01M66YPB",
+  "mission_id": "01M66YPBP2GP6AJVGP2EZQP7KZ",
+  "mission_branch": "kitty/mission-bound-failed-staging-retention-01M66YPB",
+  "target_branch": "issue-6723-bound-failed-staging-retention",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-04-17-2-charter-synthesizer-atomicity.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/governance-files.md",
+        "src/charter/activation/synthesizer/staging.py",
+        "src/specify_cli/cli/commands/charter/synthesize.py",
+        "tests/charter/synthesizer/test_staging_retention_6723.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:49:33.505916+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "482dd1c2f3850a4f640c70a3b4bb75c404e45952"
+}

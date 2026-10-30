@@ -1,0 +1,42 @@
+{
+  "accept_commit": "9996cea4e5febbbaca1f1b91f4c29d5f58fcd72f",
+  "acceptance_history": [
+    {
+      "accept_commit": "a47b009364587165e12ed5a0a6d7e41d15406b9f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:31:08.043219+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "69e7b6a50ba7db63bb331324477a8766f11b8462"
+    },
+    {
+      "accept_commit": "9996cea4e5febbbaca1f1b91f4c29d5f58fcd72f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:31:20.344915+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "9efc8e0ec5903a54504dabe17b6b50f6413be590"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:31:20.344915+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "9efc8e0ec5903a54504dabe17b6b50f6413be590",
+  "baseline_merge_commit": "c9edb8f2255e59b6b63e5a48bc7d2b9596ca09d4",
+  "created_at": "2026-10-30T17:46:02.937587+00:00",
+  "flattened": true,
+  "friendly_name": "Bound failed-synthesis staging retention",
+  "merged_at": "2026-10-30T19:32:33.949844+00:00",
+  "merged_commit": "853cb29835d74bf596ca35d3333364326dc0cb65",
+  "mid8": "01M66YPB",
+  "mission_id": "01M66YPBP2GP6AJVGP2EZQP7KZ",
+  "mission_number": 244,
+  "mission_slug": "bound-failed-staging-retention-01M66YPB",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Every refused charter synthesize preserves its staging directory as .failed/ for diagnosis and nothing prunes them, so a project that keeps being refused accumulates junk without bound (#6723). This mission keeps the newest few failed staging directories and removes the rest, while always preserving the failure the current run just reported and never touching a live staging directory.",
+  "purpose_tldr": "Stop refused charter synthesize runs from accumulating unbounded .staging/<run_id>.failed/ directories.",
+  "slug": "bound-failed-staging-retention-01M66YPB",
+  "status_phase": "1",
+  "target_branch": "issue-6723-bound-failed-staging-retention",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T17:50:57.110379+00:00"
+}
