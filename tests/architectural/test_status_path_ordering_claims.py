@@ -173,10 +173,7 @@ def test_detector_flags_a_stale_sentence() -> None:
 
 def test_detector_accepts_a_negated_sentence() -> None:
     """Non-vacuity: the corrected, negated phrasing must not trip the detector."""
-    corrected = (
-        "CLI lane rows carry no Lamport clock, and the Lamport reducer "
-        "`reduce_status_events` is not on the CLI path."
-    )
+    corrected = "CLI lane rows carry no Lamport clock, and the Lamport reducer `reduce_status_events` is not on the CLI path."
     assert _violations(corrected) == []
 
 
@@ -197,12 +194,7 @@ def test_no_affirmative_lamport_status_path_claim() -> None:
     for relative in COVERED_PATHS:
         for line_number, sentence in _violations(_read(relative)):
             problems.append(f"{relative}:{line_number}: {sentence}")
-    assert not problems, (
-        "the CLI status path is described as Lamport-ordered again:\n  "
-        + "\n  ".join(problems)
-        + "\n"
-        + REMEDY
-    )
+    assert not problems, "the CLI status path is described as Lamport-ordered again:\n  " + "\n  ".join(problems) + "\n" + REMEDY
 
 
 def test_retired_phrases_are_gone() -> None:
@@ -221,12 +213,10 @@ def test_read_api_adr_keeps_history_and_records_the_amendment() -> None:
     text = _normalize(matches[0].read_text(encoding="utf-8"))
 
     assert ADR_HISTORICAL_SENTENCE in text, (
-        "the ADR's original D-5 sentence was rewritten. This record is corrected by a "
-        "dated amendment, not by editing its history."
+        "the ADR's original D-5 sentence was rewritten. This record is corrected by a dated amendment, not by editing its history."
     )
     assert ADR_AMENDMENT_HEADING in text, (
-        f"ADR {matches[0].name} is missing '{ADR_AMENDMENT_HEADING}'; the accepted current "
-        "ordering (wall clock) is recorded there."
+        f"ADR {matches[0].name} is missing '{ADR_AMENDMENT_HEADING}'; the accepted current ordering (wall clock) is recorded there."
     )
     amendment = _normalize(text.split(ADR_AMENDMENT_HEADING, 1)[1])
     missing = [marker for marker in ADR_AMENDMENT_MARKERS if marker not in amendment]
@@ -246,6 +236,5 @@ def test_residual_stays_visible() -> None:
 def test_gap_table_records_the_closure() -> None:
     text = _normalize(_read(GAP_TABLE_PATH))
     assert GAP_TABLE_CLOSURE in text, (
-        f"{GAP_TABLE_PATH} does not record '{GAP_TABLE_CLOSURE}' for gap G-3; leaving it "
-        "saying 'file new' re-opens the same sweep for a fourth time."
+        f"{GAP_TABLE_PATH} does not record '{GAP_TABLE_CLOSURE}' for gap G-3; leaving it saying 'file new' re-opens the same sweep for a fourth time."
     )
