@@ -60,7 +60,7 @@ from charter.activation.synthesizer.reconcile import (
 )
 from charter.activation.synthesizer.project_drg import apply_post_condition
 from charter.offering.drg.loader import DRGLoadError
-from charter.offering.drg.models import DRGGraph
+from charter.offering.drg.models import DRGEdge, DRGGraph, Relation
 
 pytestmark = [pytest.mark.unit]
 
@@ -779,7 +779,7 @@ def test_edge_ref_of_directive_sourced_edge_resolves_backing_artifact_through_ow
 def test_merge_does_not_duplicate_or_prune_edge_of_untargeted_tactic() -> None:
     """Partial-run shape: an untouched tactic keeps its edge; a regenerated one is replaced once."""
     from charter.activation.synthesizer.reconcile import merge_project_overlay
-    from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind
+    from charter.offering.drg.models import DRGNode, NodeKind
 
     def _tac(slug: str) -> DRGNode:
         return DRGNode(urn=f"tactic:{slug}", kind=NodeKind.TACTIC, label=slug)
@@ -901,7 +901,7 @@ def test_legacy_applies_strip_is_limited_to_regenerated_reach_only_sources() -> 
     both a topic-scoped and a full run strip it only from an owner they regenerated and leave an untargeted
     node's edge untouched (#6456 reverses the earlier "a full run strips every synthesized one"). A node
     synthesis does not own keeps its edge."""
-    from charter.activation.synthesizer.reconcile import legacy_applies_edges, merge_project_overlay
+    from charter.activation.synthesizer.reconcile import RunScope, legacy_applies_edges, merge_project_overlay
     from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation
 
     def _graph(nodes: list[DRGNode], edges: list[DRGEdge]) -> DRGGraph:
@@ -927,9 +927,13 @@ def test_legacy_applies_strip_is_limited_to_regenerated_reach_only_sources() -> 
 
     full = merge_project_overlay(existing_overlay=existing, updated_overlay=updated, synthesized_urns=synthesized)
     assert {e.source for e in full.edges} == {"tactic:untargeted", "styleguide:style", "styleguide:hand-authored"}
-    stripped = legacy_applies_edges(existing, synthesized, {"tactic:regen"})
+    stripped = legacy_applies_edges(existing, synthesized, {"tactic:regen"}, run_scope=RunScope.TOPIC_SCOPED)
     assert [e.source for e in stripped] == ["tactic:regen"]
-    assert {e.source for e in legacy_applies_edges(existing, synthesized)} == {"tactic:regen", "tactic:untargeted", "styleguide:style"}
+    assert {e.source for e in legacy_applies_edges(existing, synthesized, run_scope=RunScope.TOPIC_SCOPED)} == {
+        "tactic:regen",
+        "tactic:untargeted",
+        "styleguide:style",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1130,3 +1134,173 @@ def test_kept_legacy_applies_edge_does_not_change_reach_only_ids(
     _dump_graph(graph_path, graph)
 
     assert reach_only_ids(tmp_path, "tactic") == without_edge
+
+
+# ---------------------------------------------------------------------------
+# #6728 -- explicit run scope: the legacy-edge rules name the run, not a sentinel
+#
+# ``RunScope`` is imported inside each test on purpose: a module-level import would turn
+# the pre-fix tree into one collection error for the whole file instead of a red per
+# scope test, which would hide which assertions are the new ones.
+# ---------------------------------------------------------------------------
+
+
+def _scope_fixture() -> tuple[DRGGraph, set[str], DRGEdge, DRGEdge, DRGEdge, DRGEdge]:
+    """One fixture for every scope assertion (#6728).
+
+    Returns ``(existing_overlay, synthesized_urns, dead_regenerated, dead_untouched,
+    applies_regenerated, applies_untargeted)``: two dead project-intent
+    ``requires --> mission_type:*`` edges (one on a directive the run regenerated, one on a
+    directive it did not) and two legacy ``applies`` edges (one on a synthesized owner the run
+    regenerated, one on a synthesized owner it did not).
+    """
+    from charter.offering.drg.models import DRGEdge as Edge
+    from charter.offering.drg.models import DRGNode as Node
+    from charter.offering.drg.models import NodeKind, Relation
+
+    regenerated_directive = Node(urn="directive:PROJECT_001", kind=NodeKind.DIRECTIVE, label="regen")
+    untouched_directive = Node(urn="directive:PROJECT_002", kind=NodeKind.DIRECTIVE, label="untouched")
+    regenerated_tactic = Node(urn="tactic:regen", kind=NodeKind.TACTIC, label="regen")
+    untargeted_tactic = Node(urn="tactic:untargeted", kind=NodeKind.TACTIC, label="untargeted")
+    hand_authored_styleguide = Node(urn="styleguide:hand-authored", kind=NodeKind.STYLEGUIDE, label="hand")
+
+    dead_regenerated = Edge(
+        source=regenerated_directive.urn, target="mission_type:software-dev", relation=Relation.REQUIRES
+    )
+    dead_untouched = Edge(
+        source=untouched_directive.urn, target="mission_type:software-dev", relation=Relation.REQUIRES
+    )
+    applies_regenerated = Edge(
+        source=regenerated_tactic.urn, target=_LEGACY_EDGE_TARGET, relation=Relation.APPLIES
+    )
+    applies_untargeted = Edge(
+        source=untargeted_tactic.urn, target=_LEGACY_EDGE_TARGET, relation=Relation.APPLIES
+    )
+    applies_hand_authored = Edge(
+        source=hand_authored_styleguide.urn, target=_LEGACY_EDGE_TARGET, relation=Relation.APPLIES
+    )
+    existing = DRGGraph(
+        schema_version="1.0",
+        generated_at="S",
+        generated_by="t",
+        nodes=[regenerated_directive, untouched_directive, regenerated_tactic, untargeted_tactic, hand_authored_styleguide],
+        edges=[dead_regenerated, dead_untouched, applies_regenerated, applies_untargeted, applies_hand_authored],
+    )
+    synthesized = {regenerated_tactic.urn, untargeted_tactic.urn}
+    return (
+        existing,
+        synthesized,
+        dead_regenerated,
+        dead_untouched,
+        applies_regenerated,
+        applies_untargeted,
+    )
+
+
+def test_reconcile_legacy_edge_signatures_carry_no_ellipsis_sentinel() -> None:
+    """#6728: the run scope is a parameter, not a magic literal.
+
+    Guards the standing invariant the issue states: neither function advertises a fourth
+    state (``...``) that no caller passes, and the scope cannot be omitted.
+    """
+    import inspect
+
+    from charter.activation.synthesizer.reconcile import _is_legacy_applies, legacy_applies_edges
+
+    for func in (_is_legacy_applies, legacy_applies_edges):
+        params = inspect.signature(func).parameters
+        assert "dead_edge_regenerated_urns" not in params, func.__name__
+        assert "run_scope" in params, func.__name__
+        scope = params["run_scope"]
+        assert scope.kind is inspect.Parameter.KEYWORD_ONLY, func.__name__
+        assert scope.default is inspect.Parameter.empty, func.__name__
+        assert all(value.default is not Ellipsis for value in params.values()), func.__name__
+        assert not any("Ellipsis" in str(value.annotation) for value in params.values()), func.__name__
+
+
+def test_full_scope_strips_the_dead_edge_of_a_directive_it_did_not_regenerate() -> None:
+    """#6728 / #6456: a full run strips the dead ``requires --> mission_type:*`` edge wherever it sits."""
+    from charter.activation.synthesizer.reconcile import RunScope, legacy_applies_edges
+
+    existing, synthesized, dead_regenerated, dead_untouched, *_ = _scope_fixture()
+
+    stripped = legacy_applies_edges(existing, synthesized, {dead_regenerated.source}, run_scope=RunScope.FULL)
+
+    assert tuple(stripped) == (dead_regenerated, dead_untouched)
+
+
+def test_topic_scoped_scope_keeps_the_dead_edge_of_a_directive_it_did_not_regenerate() -> None:
+    """#6728 / #6456: partner of the full-run case on the same fixture -- the scope is what differs."""
+    from charter.activation.synthesizer.reconcile import RunScope, legacy_applies_edges
+
+    existing, synthesized, dead_regenerated, dead_untouched, *_ = _scope_fixture()
+
+    stripped = legacy_applies_edges(existing, synthesized, {dead_regenerated.source}, run_scope=RunScope.TOPIC_SCOPED)
+
+    assert tuple(stripped) == (dead_regenerated,)
+
+
+@pytest.mark.parametrize("run_scope", ["FULL", "TOPIC_SCOPED"])
+def test_both_scopes_strip_the_dead_edge_of_a_directive_they_regenerated(run_scope: str) -> None:
+    """#6728: the regenerated case is the shared positive control for the two scope tests above."""
+    from charter.activation.synthesizer import reconcile as reconcile_module
+    from charter.activation.synthesizer.reconcile import legacy_applies_edges
+
+    existing, synthesized, dead_regenerated, dead_untouched, *_ = _scope_fixture()
+    scope = getattr(reconcile_module.RunScope, run_scope)
+
+    stripped = legacy_applies_edges(
+        existing, synthesized, {dead_regenerated.source, dead_untouched.source}, run_scope=scope
+    )
+
+    assert tuple(stripped) == (dead_regenerated, dead_untouched)
+
+
+@pytest.mark.parametrize("run_scope", ["FULL", "TOPIC_SCOPED"])
+@pytest.mark.parametrize("filtered", [True, False])
+def test_run_scope_does_not_change_which_legacy_applies_edges_are_stripped(run_scope: str, filtered: bool) -> None:
+    """#6728 / #6456: the ``applies`` rule is scope-independent -- only a regenerated owner is stripped."""
+    from charter.activation.synthesizer import reconcile as reconcile_module
+    from charter.activation.synthesizer.reconcile import legacy_applies_edges
+
+    existing, synthesized, dead_regenerated, dead_untouched, applies_regenerated, applies_untargeted = _scope_fixture()
+    scope = getattr(reconcile_module.RunScope, run_scope)
+    regenerated_urns = {applies_regenerated.source} if filtered else None
+
+    stripped = legacy_applies_edges(existing, synthesized, regenerated_urns, run_scope=scope)
+
+    stripped_owners = {e.source for e in stripped if e.relation is Relation.APPLIES}
+    expected = {applies_regenerated.source} if filtered else {applies_regenerated.source, applies_untargeted.source}
+    assert stripped_owners == expected
+    assert "styleguide:hand-authored" not in stripped_owners
+
+
+@pytest.mark.parametrize("topic_scoped", [False, True])
+def test_merge_project_overlay_scopes_match_the_explicit_run_scope(topic_scoped: bool) -> None:
+    """#6728 (SC-002): the exported ``topic_scoped`` bool and the typed scope cannot drift apart."""
+    from charter.activation.synthesizer.reconcile import RunScope, legacy_applies_edges, merge_project_overlay
+
+    existing, synthesized, dead_regenerated, dead_untouched, *_ = _scope_fixture()
+    # An empty updated overlay keeps the comparison to the legacy-strip rules alone: with any
+    # updated node, merge_project_overlay would also drop that owner's edges by replacement, and
+    # the two paths would differ for a reason that is not the run scope.
+    updated = DRGGraph(
+        schema_version=existing.schema_version,
+        generated_at=existing.generated_at,
+        generated_by=existing.generated_by,
+        nodes=[],
+        edges=[],
+    )
+    scope = RunScope.TOPIC_SCOPED if topic_scoped else RunScope.FULL
+
+    merged = merge_project_overlay(
+        existing_overlay=existing,
+        updated_overlay=updated,
+        synthesized_urns=synthesized,
+        topic_scoped=topic_scoped,
+    )
+    reported = legacy_applies_edges(existing, synthesized, set(), run_scope=scope)
+
+    surviving_sources = {e.source for e in merged.edges}
+    stripped_sources = {e.source for e in reported}
+    assert surviving_sources == {e.source for e in existing.edges} - stripped_sources

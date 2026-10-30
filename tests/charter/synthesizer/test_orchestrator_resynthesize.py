@@ -817,3 +817,67 @@ class TestBundleContentHashRecomputesOnDrift:
         assert manifest_2 is not None
         assert manifest_2 != manifest_1
         assert manifest_2 == compute_bundle_content_hash(tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# #6728 -- the pipeline names its run scope, so a bounded run's legacy-strip
+# notice matches what it actually did
+# ---------------------------------------------------------------------------
+
+
+class TestTopicScopedRunScope:
+    """#6728: ``resynthesize_pipeline`` is a topic-scoped run, and it must say so.
+
+    The scope is a parameter, not a default: if the pipeline ever passes
+    ``RunScope.FULL``, ``merge_project_overlay(topic_scoped=True)`` still keeps the dead
+    edge of a directive this run did not regenerate, but the run reports it as stripped --
+    an operator-facing lie that no other test would catch (#6456/#6443).
+    """
+
+    _DEAD_SOURCE = "directive:PROJECT_002"
+    _DEAD_TARGET = "mission_type:software-dev"
+
+    def _inject_dead_edge_of_a_directive_the_run_will_not_regenerate(self, repo: Path) -> None:
+        """Add ``directive:PROJECT_002 --requires--> mission_type:software-dev`` to the on-disk overlay."""
+        from ruamel.yaml import YAML
+
+        graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
+        yaml = YAML()
+        graph = yaml.load(graph_path.read_text(encoding="utf-8"))
+        graph["nodes"].append({"urn": self._DEAD_SOURCE, "kind": "directive", "label": "Other Project Directive"})
+        if not any(node["urn"] == self._DEAD_TARGET for node in graph["nodes"]):
+            graph["nodes"].append({"urn": self._DEAD_TARGET, "kind": "mission_type", "label": "Software Dev"})
+        graph["edges"].append(
+            {"source": self._DEAD_SOURCE, "target": self._DEAD_TARGET, "relation": "requires", "reason": "dead"},
+        )
+        with graph_path.open("w", encoding="utf-8") as handle:
+            yaml.dump(graph, handle)
+
+    def _dead_edge_sources(self, repo: Path) -> set[str]:
+        graph = load_graph(repo / ".kittify" / "charter-packs" / "graph.yaml")
+        return {
+            edge.source
+            for edge in graph.edges
+            if edge.source == self._DEAD_SOURCE and edge.target == self._DEAD_TARGET
+        }
+
+    def test_a_bounded_run_keeps_and_does_not_report_the_dead_edge_it_left_alone(
+        self,
+        base_request: SynthesisRequest,
+        adapter: FixtureAdapter,
+        repo_with_prior_synthesis: Path,
+    ) -> None:
+        repo = repo_with_prior_synthesis
+        self._inject_dead_edge_of_a_directive_the_run_will_not_regenerate(repo)
+
+        result = resynthesize_run(
+            request=base_request,
+            adapter=adapter,
+            topic="directive:PROJECT_001",
+            repo_root=repo,
+        )
+
+        assert not result.is_noop
+        assert self._dead_edge_sources(repo) == {self._DEAD_SOURCE}, "the untouched directive keeps its dead edge"
+        dead_edge_notices = [w for w in result.reference_warnings if self._DEAD_SOURCE in w]
+        assert dead_edge_notices == [], f"a run that kept the edge must not report stripping it: {dead_edge_notices}"

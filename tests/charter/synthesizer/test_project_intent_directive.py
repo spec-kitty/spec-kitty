@@ -13,6 +13,7 @@ import pytest
 from charter.activation.synthesizer.interview_mapping import resolve_sections
 from charter.activation.synthesizer.project_drg import emit_project_layer
 from charter.activation.synthesizer.reconcile import (
+    RunScope,
     legacy_applies_edges,
     legacy_strip_notice,
     merge_project_overlay,
@@ -65,7 +66,7 @@ def test_reconcile_strips_an_existing_dead_edge_and_names_it() -> None:
     existing = _graph([directive], [_DEAD_EDGE])
     updated = _graph([directive], [])
 
-    assert legacy_applies_edges(existing, ()) == (_DEAD_EDGE,)
+    assert legacy_applies_edges(existing, (), run_scope=RunScope.TOPIC_SCOPED) == (_DEAD_EDGE,)
     merged = merge_project_overlay(existing_overlay=existing, updated_overlay=updated)
     assert merged.edges == []
     assert "mission_type:software-dev" in legacy_strip_notice(_DEAD_EDGE)
@@ -73,4 +74,4 @@ def test_reconcile_strips_an_existing_dead_edge_and_names_it() -> None:
 
 def test_a_hand_authored_directive_edge_to_a_mission_type_is_not_stripped() -> None:
     hand = DRGEdge(source="directive:DIRECTIVE_003", target="mission_type:software-dev", relation=Relation.REQUIRES)
-    assert legacy_applies_edges(_graph([], [hand]), ()) == ()
+    assert legacy_applies_edges(_graph([], [hand]), (), run_scope=RunScope.TOPIC_SCOPED) == ()
