@@ -1,0 +1,149 @@
+{
+  "mission_slug": "prune-unlinked-runs-and-op-logs-01M66YMR",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_an_unindexed_run_linked_only_by_its_recorded_input_slug_follows_its_mission; ::test_a_run_started_by_the_real_writer_follows_its_mission_after_its_index_entry_is_lost",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:27.669068+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_a_run_that_records_no_mission_is_judged_on_age",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:30.437819+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_a_run_whose_recorded_mission_is_unknown_is_kept; ::test_a_run_with_an_unreadable_snapshot_is_kept",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:33.415516+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_a_mission_id_shared_by_two_mission_dirs_is_ambiguous_and_not_found; ::test_index_entries_that_disagree_read_as_mission_not_found",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:36.398876+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_an_op_log_of_a_completed_op_is_a_candidate; ::test_an_op_log_closed_on_the_spine_is_a_candidate",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:39.242725+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_an_op_log_of_an_open_op_is_kept; ::test_an_op_log_with_a_live_checkpoint_is_kept_while_its_op_is_open",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:42.207548+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_an_op_log_with_no_op_record_is_judged_on_age",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:45.030887+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_doctor_event_logs.py::test_preview_renders_the_op_log_verdicts (human + --json)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:47.834495+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_op_logs_rank_among_their_own_kind",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:50.583597+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_apply_deletes_only_candidates_and_keeps_the_index_consistent; tests/cli/commands/test_doctor_event_logs.py::test_apply_json_deletes_the_candidates_and_their_index_entries",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:53.422115+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_held_run_cursor_lock_keeps_the_run_at_apply_time; ::test_held_event_log_lock_keeps_the_glossary_log; ::test_held_run_cursor_lock_is_reported_in_preview",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:56.291950+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/core/test_event_log_retention.py::test_the_op_index_is_never_listed_or_removed; ::test_glossary_logs_follow_their_mission_and_non_mission_logs_are_never_listed",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:39:59.113866+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_doctor_ops.py::test_list_orphan_ops_agrees_with_open_invocation_ids",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:40:02.159528+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "uv run python -m scripts.docs.check_docs_freshness --ci (errors=0); tests/docs/test_build_cli_reference.py 40 passed; docs/guides/how-to/monitoring/clean-up-local-event-logs.md updated",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:40:05.800532+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

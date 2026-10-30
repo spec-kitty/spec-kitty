@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5212": {
+      "evidence_ref": "Context citation: #6610's parent retention issue; no work is owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6610": {
+      "evidence_ref": "Context citation: this mission is a follow-up to the released doctor event-logs command (#6610); the parent issue owes this mission no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6682": {
+      "evidence_ref": "Context citation in tasks/WP02: the owned-checkout custody of Op records is background for the documented residual, not work this mission owes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#6739": {
+      "evidence_ref": "WP01 (open-Op predicate), WP02 (link states + Op-log family), WP03 (help, how-to, changelog); engine + command tests green, analysis report ready.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
