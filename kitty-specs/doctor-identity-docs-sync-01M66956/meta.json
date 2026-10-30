@@ -1,16 +1,32 @@
 {
+  "accept_commit": "1198fcda35d10d29dad42e8625dff4796dfbe9d3",
+  "acceptance_history": [
+    {
+      "accept_commit": "1198fcda35d10d29dad42e8625dff4796dfbe9d3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T12:08:14.400180+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "793435baa138d0b5e77ae78eaeb20d4abb943847"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T12:08:14.400180+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "793435baa138d0b5e77ae78eaeb20d4abb943847",
   "coordination_branch": "kitty/mission-doctor-identity-docs-sync-01M66956",
   "created_at": "2026-10-30T11:29:40.365818+00:00",
   "flattened": false,
   "friendly_name": "doctor identity docs sync",
   "mid8": "01M66956",
   "mission_id": "01M66956D0MR7JZ2CR6FXSA927",
-  "mission_number": null,
+  "mission_number": 244,
   "mission_slug": "doctor-identity-docs-sync-01M66956",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances doctor identity docs sync on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "doctor identity docs sync",
   "slug": "doctor-identity-docs-sync-01M66956",
-  "target_branch": "issue-6760-doctor-identity-docs-sync",
-  "topology": "coord"
+  "target_branch": "main",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T11:36:30.996979+00:00"
 }

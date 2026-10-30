@@ -17,6 +17,9 @@ requirement_refs:
 planning_base_branch: issue-6760-doctor-identity-docs-sync
 merge_target_branch: issue-6760-doctor-identity-docs-sync
 branch_strategy: Planning artifacts for this mission were generated on issue-6760-doctor-identity-docs-sync. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6760-doctor-identity-docs-sync unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-doctor-identity-docs-sync-01M66956
+base_commit: 577e13d81d7bf0ab4b79e2303aa54ea38c349674
+created_at: '2026-10-30T11:36:38.475100+00:00'
 subtasks:
 - T001
 - T002
