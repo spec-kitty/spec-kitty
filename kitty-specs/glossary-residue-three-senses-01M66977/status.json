@@ -27,6 +27,9 @@
       "last_event_id": "01M66ARDSYRN62Q1X7QB1K18H7",
       "last_transition_at": "2026-10-30T11:57:39.006787+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Implement WP01 in the root checkout (single_branch)"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "subtasks": {
