@@ -1,7 +1,7 @@
 ---
 title: Owned checkout startup admission repair
 description: Evidence and decisions for correcting startup admission of explicitly selected migrated linked checkouts.
-doc_status: active
+doc_status: point_in_time
 type: reference
 audience: docs/context/audience/internal/system-architect.md
 updated: '2026-10-30'
@@ -74,3 +74,12 @@ The shared repository configuration points at an absent `.githooks` directory in
 the release source. No hook was disabled or skipped. The canonical task-workflow
 pre-commit script, UTF-8 decoding, diff checks, formatter, linter and relevant
 strict checks are executed explicitly before source publication.
+
+## Publication documentation repair
+
+The upstream documentation module rejected the initial placement under
+`docs/implementation-log/`: dated implementation records belong under
+`docs/plans/engineering-notes/`. The record moved here without changing the
+qualified runtime source. The canonical retrieval-index generator updates the
+reviewed index, and the docs module validates both placement and freshness.
+The private rc7 producer checkouts and their sealed receipts remain unchanged.

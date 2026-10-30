@@ -52,6 +52,8 @@ pages are kept as a record and are not current guidance. The active cycle is 4.0
 
 ### Field reports
 
+- [Owned checkout startup admission repair](2026-10-30-owned-startup-project-gates.md) — runtime custody decisions, qualification and upstream publication record (#6845).
+
 Narratives of a full run under the doctrine: process, operator decisions, and where the
 charter, ADRs or guides changed the outcome.
 
