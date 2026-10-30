@@ -1,7 +1,7 @@
 {
   "rows": {
     "#3946": {
-      "evidence_ref": "Third claim path now routes through refresh_reused_lane_context (call-site count 2\u21923), completing #3946's every-claim-path acceptance; see also PR #4584",
+      "evidence_ref": "Merged via mission #244 (commit e43cd20): all three claim paths now route through refresh_reused_lane_context (call-site count 3), completing #3946's every-claim-path acceptance beyond PR #4584's two",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     },
     "#4584": {
