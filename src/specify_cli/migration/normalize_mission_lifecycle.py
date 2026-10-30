@@ -69,9 +69,23 @@ def _needs_derived_refresh(feature_dir: Path, derived_dir: Path) -> bool:
     )
 
 
+def _missing_meta_notice(feature_dir: Path, repo_root: Path) -> str | None:
+    """The operator notice for a Mission whose ``meta.json`` is absent on disk, or ``None`` (#6673).
+
+    Only a Mission git knows something about gets the actionable text; a folder git holds
+    nothing for keeps the short "skipped" line (it is a pre-identity folder, not a repair
+    this step can do).
+    """
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    classified = classify_missing_tracked_meta(feature_dir, repo_root)
+    return None if classified is None else classified.notice
+
+
 def _load_meta_for_normalization(
     feature_dir: Path,
     result: NormalizeMissionLifecycleResult,
+    repo_root: Path,
 ) -> dict[str, Any] | None:
     from specify_cli.core.paths import load_meta_fail_closed, MissionMetaReadError
     try:
@@ -81,7 +95,10 @@ def _load_meta_for_normalization(
         result.error = f"Could not read meta.json: {exc}"
         return None
     if meta is None:
-        result.warnings.append("meta.json missing; mission skipped")
+        # A tracked meta.json that is missing from the working tree is #6673: report the
+        # restore command and never derive an identity for the folder.
+        notice = _missing_meta_notice(feature_dir, repo_root)
+        result.warnings.append(notice or "meta.json missing; mission skipped")
         return None
     return meta
 
@@ -222,7 +239,7 @@ def normalize_repo(
             result.warnings.append(residue_notice(_repo_relative(feature_dir, repo_root)))
             results.append(result)
             continue
-        meta = _load_meta_for_normalization(feature_dir, result)
+        meta = _load_meta_for_normalization(feature_dir, result, repo_root)
         if meta is None:
             results.append(result)
             continue
