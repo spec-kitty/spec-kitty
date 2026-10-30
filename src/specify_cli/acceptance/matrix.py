@@ -1331,6 +1331,12 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             [
                 "grep",
                 "-r",
+                # #6761: judge text files only. Without ``-I`` a stale
+                # ``.pyc`` under ``__pycache__/`` makes GNU grep >= 3.5 print
+                # ``binary file matches`` (on stderr) and exit 0 after the
+                # offending text is gone from every text file, keeping the
+                # invariant ``still_present``.
+                "-I",
                 "--exclude=acceptance-matrix.json",
                 "--exclude-dir=.git",
                 "--",
@@ -1365,7 +1371,17 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             extras=ni.extras,
         )
     if result.returncode == 0:
-        matches = result.stdout.strip().splitlines()[:5]
+        stdout_lines = [line for line in result.stdout.strip().splitlines() if line.strip()]
+        # #6761: grep can exit 0 with empty stdout when the only match is a
+        # binary file (GNU grep >= 3.5 reports ``binary file matches`` on
+        # stderr). Fall back to stderr so the evidence names what grep saw
+        # instead of recording an empty match list.
+        if not stdout_lines:
+            stdout_lines = [line for line in result.stderr.strip().splitlines() if line.strip()]
+        # #6761: a non-absent verdict must never record an empty match list.
+        # Unreachable with real grep, but exotic greps or future changes
+        # could exit 0 with no capturable output — keep the evidence named.
+        matches = stdout_lines[:5] or ["(no grep output captured)"]
         return NegativeInvariant(
             invariant_id=ni.invariant_id,
             description=ni.description,
