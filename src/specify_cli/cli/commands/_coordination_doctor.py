@@ -922,7 +922,12 @@ def _resolve_mission_dirs(repo_root: Path, mission_filter: str | None) -> list[P
 
     ``safe_is_dir`` is evaluated per candidate exactly as the previous inline
     loop did (``#3194``: an unstattable candidate RAISES rather than being
-    silently dropped).
+    silently dropped), then the shared read-side Mission rule (#6758) decides:
+    a child that
+    :func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir`
+    rejects is read-side residue, so no finding is reported for a folder that is
+    not a Mission. One ``TrackedMissionPaths`` memo per call keeps the git probe
+    to at most one.
     """
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not safe_is_dir(specs_dir):
@@ -931,10 +936,14 @@ def _resolve_mission_dirs(repo_root: Path, mission_filter: str | None) -> list[P
         from specify_cli.context.mission_resolver import resolve_mission
 
         return [resolve_mission(mission_filter, repo_root).feature_dir]
+    from specify_cli.context.mission_resolver import TrackedMissionPaths, is_selectable_mission_dir
+
+    tracked = TrackedMissionPaths(repo_root)
     return [
         mission_dir
         for mission_dir in sorted(specs_dir.iterdir())
         if safe_is_dir(mission_dir)
+        and is_selectable_mission_dir(mission_dir, repo_root=repo_root, tracked=tracked)
     ]
 
 
