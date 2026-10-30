@@ -29,10 +29,19 @@
       "last_event_id": "01M66MTDDYVFQ39HSX79M19C8P",
       "last_transition_at": "2026-10-30T14:53:29.912610+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T15:05:22Z – python-pedro – shell_pid=865670 – T001: planning_commit_sha captured via capture_branch_tip at lanes.json-write time, asserted non-None; T002: file run 24 passed (was 4 failed, 20 passed on main@512567eee7), assertions byte-identical, no xfail/skip; T003: ruff check + format clean, mypy not configured for tests (Makefile typecheck targets two src files only) so skipped per WP note; T004: distinct implementer/reviewer actors in _drive_claimed_through_approved (found red-first: refusal moved EVIDENCE_WINDOW_UNCOMPUTABLE -> REVIEW_NOT_INDEPENDENT with only the planning commit recorded)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 865670,
-      "shell_pid_created_at": "1793372003.67"
+      "shell_pid_created_at": "1793372003.67",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     }
   }
 }
