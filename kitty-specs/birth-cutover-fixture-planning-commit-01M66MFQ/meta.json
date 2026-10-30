@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances birth cutover fixture planning commit on issue-6801-birth-cutover-fixture-planning-commit so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "birth cutover fixture planning commit",
   "slug": "birth-cutover-fixture-planning-commit-01M66MFQ",
+  "status_phase": "1",
   "target_branch": "issue-6801-birth-cutover-fixture-planning-commit",
   "topology": "lanes",
   "vcs": "git",
