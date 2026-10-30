@@ -12,6 +12,18 @@
       "verdict": "not-applicable",
       "wp": "WP01"
     },
+    "#6731": {
+      "evidence_ref": "Sibling issue, disjoint surface (grounding in research.md: no overlap with this mission's pack_skills read paths).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6734": {
       "evidence_ref": "Both pack-skill body_path read paths (validation._read_body, repository.body_text) now route through resolve_relative_path_within_root via shared resolve_body_path helper; fail-closed PackSkillViolation on absolute/../symlink escapes; red-first tests on both paths (8 new tests, red reproduced independently on base cab1be39f6).",
       "fr": null,
