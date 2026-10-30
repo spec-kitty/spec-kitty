@@ -2,7 +2,7 @@
 title: Event Ledger Writers and Readers
 description: 'Current-state map of every event log and ledger core writes and reads, the target the event ADRs set, and a cited gap table with remedies and tracker items.'
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-10-28'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -118,11 +118,11 @@ What does not hold:
 | `reduce` | `status/reducer.py:200` (`:205` calls `reduce_parsed`) | typed `StatusEvent` list | `spec_kitty_events.diary.reduce_parsed` | wall clock `at`, then `event_id`, with the approved-departure lift |
 | `materialize_snapshot` / `materialize` | `status/reducer.py:397` (`:401`), `:435` | the log, read twice (stream + raw) | `spec_kitty_events.status.reduce`, a re-export of `diary.reduce` (`parse_diary` then `reduce_parsed`) | same |
 | lane reader, views, aggregate | `status/lane_reader.py`, `status/views.py`, `status/aggregate.py` | `store.read_events` | `reduce` | same |
-| changelog acceptance | `release/changelog.py` `_resolve_status_read_dir` / `_wp_lanes_from_event_log` | the log on the mission's resolved status surface (the placement seam; the coordination branch under coordination topology) | `store.read_events` via `get_all_wp_lanes`, once per mission | same |
 | orchestrator-api | `orchestrator_api/commands.py`, `wp_lifecycle.py`, `consolidation.py` | store | `reduce` / `materialize` | same |
 | consolidation gate | `consolidation/reconciliation.py` `build_approved_wp_set` | store | `materialize_snapshot` | same |
 | tail | `status/tail_reader.py` `poll_once`; CLI `cli/commands/events.py` (`events tail`, only `status.events.jsonl`) | raw bytes with a cursor | none (stream) | file offset |
 | preflight actor lookup | `consolidation/preflight.py` `_latest_actor_for_transition` | `read_events_lenient` | none | **append order** (documented as deliberate) |
+| changelog acceptance | `release/changelog.py:129-155` `_wp_lane_from_event_log` | raw `json.loads` loop over `mission_dir` | none | **last `to_lane` in file order** |
 | status-surface guard | `coordination/status_surface_guard.py` | raw lines, event ids only | none | set membership |
 | retrospective readers | `retrospective/summary.py`, `gate.py`, `generator.py` | raw rows | own fold | own `lamport` field |
 | Mission Status Read API (Java) | `services/mission-status-api/.../reducer/StatusReducer.java`, ordering `AtThenEventId.java` | the log | own port of `reduce_parsed` | plain `(at, event_id)`, **no approved-departure lift** |
@@ -130,8 +130,7 @@ What does not hold:
 | migration ledger | `upgrade/ledger.py`, `registry.py` `migration_settled`, `spec-kitty migrate ledger` | both partitions | own normalizer | last record per id in file order |
 
 **There is one reducer, not two.** Every reducer-based CLI lane read (`reduce`, `materialize_snapshot`, `materialize`) reaches the same wall-clock fold,
-`diary.reduce_parsed`, through two parsers. The raw readers in the table (the preflight
-actor lookup, the retrospective folds) bypass it; see G-13. The ordering key is the writer's `at`, then
+`diary.reduce_parsed`, through two parsers. The raw readers in the table (changelog acceptance, the preflight actor lookup, the retrospective folds) bypass it; see G-13. The ordering key is the writer's `at`, then
 `event_id`; since `spec-kitty-events` 10.5.1 a non-seed departure from `approved` is lifted
 to sort after the approval it followed (the #4941 fix, PR #6261). The Lamport reducer
 `spec_kitty_events.status.reduce_status_events` is not on the CLI path, and CLI lane rows
@@ -173,9 +172,9 @@ flowchart LR
   OTHER --> OL
   EMIT & TX & LC & DP -.fire_*.-> SEAM["status/adapters.py<br/>(no handler registered)"]
   SEL --> RED["diary.reduce_parsed<br/>(wall clock)"]
-  RED --> CLI["CLI readers,<br/>orchestrator-api,<br/>consolidation gate,<br/>changelog acceptance"]
+  RED --> CLI["CLI readers,<br/>orchestrator-api,<br/>consolidation gate"]
   SEL --> JAVA["Java read API<br/>(at, event_id), no lift"]
-  SEL --> RAW["raw readers:<br/>preflight, tail"]
+  SEL --> RAW["raw readers:<br/>release/changelog.py,<br/>preflight, tail"]
 ```
 
 ## Target, as the ADRs set it
@@ -227,7 +226,7 @@ flowchart LR
 | G-10 | `events tail` tails only `status.events.jsonl`; `--json` has no effect | `cli/commands/events.py:71` (`noqa: ARG001`) | 2026-10-13-2 D-2 | Extend tail to the other logs once G-1 names them | file new (low) |
 | G-11 | ~~Produce-seam names still say "saas"~~ **Closed 2026-10-22 (#6607)** | The seam in `status/adapters.py` now reads `register_status_fanout_handler`, `register_lifecycle_fanout_handler`, `fire_status_fanout` and `fire_lifecycle_fanout`; `emit._status_fan_out`, `outbound.queue_fanout_emission` and `lifecycle_events.fanout_lifecycle_event` follow; the timeout variable is `SPEC_KITTY_STATUS_FANOUT_TIMEOUT`. There is no alias for any old name or for the old variable (operator ruling 2026-10-22, which supersedes this row's earlier "with an env alias" proposal). Contract test: `tests/status/test_adapters_contract.py` (stub handlers; open-core registers none), with the sink plugin `tests/conftest_fanout_sink.py` | 2026-10-13-2 follow-up debt (rename the `saas_fanout` slots); discharged by its Amendment 2026-10-22 | None open | #6607 |
 | G-12 | CLI status reads do not go through one read port | `orchestrator_api/commands.py` and `tasks_status_cmd.py` call `reduce(...)` themselves; no read-port module | 2026-10-01-2 D-5 (amended: every CLI status read calls only that port) | Introduce the port, gate direct `reduce` callers | #5528 |
-| G-13 | **Partly closed (#6612):** the changelog acceptance read now goes through the reducer and the placement seam | `release/changelog.py` `_resolve_status_read_dir` + `_wp_lanes_from_event_log` (`get_all_wp_lanes`, once per mission, on the resolved status surface; a corrupt log or a deleted coordination branch fails `release prep` loudly instead of being skipped); remaining raw reader: `consolidation/preflight.py` append order | 2026-10-01-2 D-5 | Record the preflight order in the ordering ADR or align it | file new (preflight) |
+| G-13 | Raw readers that bypass the reducer | `release/changelog.py:129-155` (last `to_lane` in file order, skips corrupt lines, reads `mission_dir` not the resolved status surface); `consolidation/preflight.py` append order | 2026-10-01-2 D-5 | Changelog through `get_wp_lane` and the placement seam; record the preflight order in the ordering ADR or align it | file new (changelog) |
 | G-14 | ~~Core locks `spec-kitty-events` 11.0.0; upstream is 11.2.1~~ **Closed 2026-10-28 (#6602):** core locks 11.3.0 and declares `>=11.3.0,<12` (11.1.0, 11.2.0 and 11.2.1 never reached PyPI, spec-kitty-events#143) | `uv.lock`; `pyproject.toml:80`; `.kittify/release/shared-package-compatibility.json`; envelope snapshot `tests/contract/snapshots/spec-kitty-events-11.3.0.json` | 2026-10-13-2 D-1 (release order) | None open: done through the safe-adoption steps in the [contributor note](../development/reference/events-in-core.md#adopting-a-new-spec-kitty-events-release); #6445 adopted the models; #6446 stays blocked on an EventBridge door for run-log decision events | #6602 |
 | G-15 | Migration ledger behaviour the ADR does not record | `upgrade/migrations/base.py` keeps reselection for a `runs_first` migration whose `structural_detect` fires; `upgrade/ledger.py` read-modify-write takes no lock | 2026-10-17-1 ("collapses to 'is this id in the applicable ledger'") | Factual amendment recording the structural reselection, or an operator decision to remove it | file new (low) |
 | G-16 | ~~Dead or duplicate write code~~ **Closed 2026-10-22 (#6614)** | Deleted: `store.append_event`, `store.append_event_verified`, `store.append_primary_checkout_event_verified`, `coordination.status_service.append_event_log`, `kernel.atomic.notify_file_written` and `invocations_cmd.append_to_index`. Tests seed `status.events.jsonl` through `tests/_support/status_seed.py`, which calls `store.append_events_atomic`. Enforced by `tests/architectural/test_status_unsafe_allowlist.py` (re-pinned `STORE_APPEND_PRIMITIVES` and `COORD_WRAPPER_DOORS`), `tests/architectural/test_status_events_writes_gate.py` (the store write set is `os.replace` only, plus a single-writer census for `kitty-ops/ops-index.jsonl`), `tests/architectural/test_no_dead_symbols.py` (allowlist entries removed) and a `hasattr` ban in `test_1622_dead_symbol_retirement.py` | 2026-10-14-1 D-1 ("the low-level append primitives become private to it") | None open | #6614 |
