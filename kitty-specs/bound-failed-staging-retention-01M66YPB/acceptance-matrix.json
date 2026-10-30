@@ -1,0 +1,99 @@
+{
+  "mission_slug": "bound-failed-staging-retention-01M66YPB",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_six_refusals_leave_the_retention_bound + test_repeated_cli_refusals_keep_the_bound_and_a_readable_latest_cause",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:30:52.913560+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_latest_failure_and_its_cause_survive + CLI refusal names a surviving dir with its cause.yaml",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:29:13.029160+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_live_staging_directory_is_never_removed",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:29:19.305548+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_existing_overflow_is_reduced_not_frozen",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:29:24.826624+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_removal_failure_does_not_raise_and_leaves_the_dir (PathGuard.rmtree patched) + test_path_guard.py unchanged",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:29:30.055526+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_unreadable_staging_root_is_not_an_error + test_entry_whose_metadata_cannot_be_read_is_skipped + test_removal_failure_does_not_raise_and_leaves_the_dir",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:29:35.614047+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_refusal_text_states_the_enforced_bound",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:30:57.242712+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_refusal_text_states_the_enforced_bound + one DEFAULT_KEEP_FAILED_RUNS constant read by staging, errors and the CLI",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:29:43.669531+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/context/governance-files.md .staging row + docs/adr/3.x/2026-04-17-2-charter-synthesizer-atomicity.md retention section",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-30T19:29:48.960502+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
