@@ -25,7 +25,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.status import feature_status_lock, mission_lock_key
 from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
-from specify_cli.status import normalize_wp_id, parse_review_result_json
+from specify_cli.status import normalize_wp_id, parse_review_result_json, refuse_seed_shaped_identity
 
 if TYPE_CHECKING:
     from specify_cli.status import MissionStatus
@@ -312,8 +312,9 @@ def _emit_actor(ms: MissionStatus, wp_id: str, to_lane: str, actor: str) -> dict
     ``--actor`` is free text: its bare tool fills ``tool`` and a compact
     ``tool:model:profile`` segment fills ``model``/``profile``; ``role`` comes from the
     hop out of the WP's current lane (:func:`~specify_cli.status.role_for_wp`). A value
-    the compact parser rejects, one with more than four segments or a ``migration:``
-    value is stored whole as ``tool``, as before (``actor_from_option``).
+    the compact parser rejects or one with more than four segments is stored whole as
+    ``tool``, as before (``actor_from_option``). A ``migration:``-shaped value never
+    reaches this builder: ``emit`` refuses it up front (#6754).
     """
     from specify_cli.status import actor_from_option, role_for_wp
 
@@ -331,7 +332,16 @@ def emit(
             help="Target lane (e.g., claimed, in_progress, for_review, approved, done)",
         ),
     ] = ...,
-    actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
+    actor: Annotated[
+        str,
+        typer.Option(
+            "--actor",
+            help=(
+                "Who is making this transition (a 'migration:'-prefixed identity is refused: "
+                "reconstruction seeds are written in-process by migrations only)"
+            ),
+        ),
+    ] = ...,
     mission: Annotated[
         str | None,
         typer.Option("--mission", help="Mission slug (required in multi-mission repos)"),
@@ -386,6 +396,9 @@ def emit(
         spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"
     """
     try:
+        # #6754: a caller-supplied reconstruction-seed identity is refused before anything is
+        # read, locked, allocated or appended. Only an in-process migration writes a seed.
+        refuse_seed_shaped_identity(actor, option="--actor")
         wp_id = _resolve_wp_arg(wp_id, wp)
         # Resolve repo root
         cwd = Path.cwd().resolve()
