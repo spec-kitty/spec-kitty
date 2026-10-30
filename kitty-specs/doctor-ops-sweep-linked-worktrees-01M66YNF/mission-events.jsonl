@@ -1,0 +1,2 @@
+{"mission": "software-dev", "payload": {"action": "research", "agent": "planner-priti", "decision_kind": "step", "mission_state": "discovery", "result_input": "success", "wp_id": null}, "timestamp": "2026-10-30T17:45:47.110725+00:00", "type": "MissionNextInvoked"}
+{"mission": "software-dev", "payload": {"action": "specify", "agent": "planner-priti", "decision_kind": "step", "mission_state": "specify", "result_input": "success", "wp_id": null}, "timestamp": "2026-10-30T17:46:04.179471+00:00", "type": "MissionNextInvoked"}
