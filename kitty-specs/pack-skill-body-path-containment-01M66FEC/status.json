@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01M66KYJX92YN0ZSE19QZSTSVJ",
-  "materialized_at": "2026-10-30T14:38:18.025054+00:00",
+  "event_count": 8,
+  "last_event_id": "01M66KYQEVTFE2JXZY91CV9S1G",
+  "materialized_at": "2026-10-30T14:38:22.683585+00:00",
   "mission_number": "",
   "mission_slug": "pack-skill-body-path-containment-01M66FEC",
   "mission_type": "software-dev",
@@ -12,28 +12,29 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
     "WP01": {
       "actor": "pi",
-      "agent": "pi",
+      "agent": "pi:tokenfactory/glm-5.3:python-pedro",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "pi",
-      "lane": "for_review",
-      "last_event_id": "01M66KYJX92YN0ZSE19QZSTSVJ",
-      "last_transition_at": "2026-10-30T14:38:18.025054+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M66KYQEVTFE2JXZY91CV9S1G",
+      "last_transition_at": "2026-10-30T14:38:22.683585+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: both read paths routed through resolve_relative_path_within_root via shared resolve_body_path helper; red-first tests on both paths; full gates green."
+        "Ready for review: both read paths routed through resolve_relative_path_within_root via shared resolve_body_path helper; red-first tests on both paths; full gates green.",
+        "Ready for review (identity re-record; diff unchanged, all gates green, review report on file)"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "role": "reviewer",
       "shell_pid": 372847,
       "shell_pid_created_at": "1793366814.29",
       "subtasks": {
