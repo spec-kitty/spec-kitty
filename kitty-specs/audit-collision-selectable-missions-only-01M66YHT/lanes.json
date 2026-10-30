@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "audit-collision-selectable-missions-only-01M66YHT",
+  "mission_id": "01M66YHTFARS9969Z6BRJ9KYTA",
+  "mission_branch": "kitty/mission-audit-collision-selectable-missions-only-01M66YHT",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/audit/engine.py",
+        "src/specify_cli/status/identity_audit.py",
+        "tests/audit/test_engine_keeps_its_mission_rule.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:52:16.279193+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "512567eee71e31bb39f580c4f7acf8b865e9d1b2"
+}
