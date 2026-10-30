@@ -68,6 +68,17 @@ One plain-`print` line per event (no Rich markup, no ANSI on stdout):
   `log truncated (<reason>) at offset <n> — resynced from offset 0`.
 - Rendering is deterministic: the same event dict always renders to the same
   line.
+- Line length is capped at 400 characters; an over-long line is truncated
+  to 400 characters plus a trailing `...` (bounds terminal noise on large
+  payloads; the `--json` stream is never truncated).
+
+## Dispatch order
+
+usage check → repo root → mission resolve → kind dispatch → status-surface
+resolution (only `status`/`decisions`) → log path resolution (incl. the
+`run` kind's refusal) → resume validation → stream. A broken coordination
+surface never blocks the project-scoped (`ops`, `canonical`, `glossary`) or
+primary-partition (`mission`, `run`) kinds.
 
 ## Error envelopes (stderr, unchanged channel and shape)
 
@@ -96,3 +107,4 @@ there either.
 | 7 | `--log decisions --from-offset 999999` | `... --once` | `invalid_resume_offset` envelope on stderr, exit 2 |
 | 8 | `--log bogus` | any invocation | Typer usage error, exit 2, no file access |
 | 9 | `--from-invariant` without `--from-offset`, any kind | any invocation | `usage_error` envelope, exit 2, before file access |
+| 10 | surface resolver fails closed | `... --log ops --once` | tails `kitty-ops/lifecycle.jsonl` normally (lazy surface resolution); with `--log status`/`decisions` the `status_surface_unavailable` refusal applies |
