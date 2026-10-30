@@ -2,7 +2,7 @@
 title: Upgrade an existing Spec Kitty project
 description: Upgrade an existing project to the Spec Kitty 3.2 schema after installing the current CLI, with validation and recovery steps.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-30'
 type: how-to
 related:
 - docs/guides/how-to/installation/install-and-upgrade.md
@@ -111,6 +111,18 @@ git commit -m "chore: upgrade Spec Kitty project to <version>"
 Or use `spec-kitty safe-commit <those files> -m "chore: upgrade Spec Kitty project to <version>"`.
 
 > Files under `kitty-specs/` are version-controlled and contain your mission history. Migrations should not touch them; if `git diff` shows changes there, stop and investigate.
+
+### If a Mission's `meta.json` is missing
+
+Each Mission's `kitty-specs/<slug>/meta.json` carries its immutable `mission_id`. If git tracks that file but it is missing from your working tree — an accidental delete, or a partial/sparse checkout that excludes it — the upgrade rebuilds it from the copy git holds, so the Mission keeps the identity its history uses. Nothing is re-identified.
+
+When the tracked copy cannot be read, the upgrade writes nothing for that Mission and names it, for example:
+
+```text
+kitty-specs/<slug>/meta.json: tracked meta.json is missing from the working tree and git holds no readable copy; no identity was minted — restore it with `git checkout -- kitty-specs/<slug>/meta.json` and re-run the upgrade
+```
+
+Run the printed `git checkout -- <path>` and upgrade again. A `meta.json` git holds only in the index (staged, never committed) is reported the same way, with a note to commit it: its content is your working copy, not history's identity.
 
 ## Exit codes
 
