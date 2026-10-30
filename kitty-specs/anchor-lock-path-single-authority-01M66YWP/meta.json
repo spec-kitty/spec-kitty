@@ -21,7 +21,7 @@
   "friendly_name": "One kernel helper for anchor-keyed lock paths",
   "mid8": "01M66YWP",
   "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0",
-  "mission_number": null,
+  "mission_number": 244,
   "mission_slug": "anchor-lock-path-single-authority-01M66YWP",
   "mission_type": "software-dev",
   "pr_bound": true,

@@ -7,7 +7,8 @@ one lock a writing run holds from just after the charter soundness gate to the
 end of the command, so a second run waits a bounded time and then refuses with
 ``CHARTER_SYNTHESIS_LOCK_HELD`` instead of writing.
 
-Placement follows the interim event-log lock (``kernel.event_log_append``):
+Placement follows the interim event-log lock (``kernel.event_log_append``), and both are
+served by the one owner of the rule, :func:`kernel.locks.anchored_lock_path` (#6727):
 
 - Inside a git repository the lock file is
   ``<git-common-dir>/spec-kitty-locks/charter-synthesis/<digest>.lock``, where
@@ -26,15 +27,13 @@ inside a run. It dies with its holder: a crashed run never leaves it held.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager, nullcontext
 from pathlib import Path
 
-from kernel.content_digest import sha256_digest
 from kernel.errors import KittyInternalConsistencyError
 from kernel.git_topology import GitTopologyUnavailableError, NotAGitRepositoryError, git_common_dir
-from kernel.locks import LOCK_DIRECTORY, LockAcquireTimeout, machine_file_lock
+from kernel.locks import LockAcquireTimeout, anchored_lock_path, machine_file_lock
 
 __all__ = [
     "SynthesisLockHeldError",
@@ -52,9 +51,6 @@ _SYNTHESIS_LOCK_TIMEOUT_S = 10.0
 
 #: Lock file relative to the repository root when there is no git repository.
 _NON_GIT_LOCK_PATH = Path(".kittify/runtime/locks/charter-synthesis.lock")
-
-_DIGEST_LENGTH = 32
-_DIGEST_PREFIX = "sha256:"
 
 
 class SynthesisLockHeldError(KittyInternalConsistencyError):
@@ -82,6 +78,10 @@ class SynthesisLockUnavailableError(KittyInternalConsistencyError):
 def synthesis_lock_path(repo_root: Path) -> Path:
     """Return the synthesis lock file for the worktree rooted at *repo_root*.
 
+    The anchor digest and the placement under the git common dir are owned by
+    :func:`kernel.locks.anchored_lock_path`; this function adds only the
+    ``charter-synthesis`` subdirectory, the non-git fallback and the refusal.
+
     Raises:
         SynthesisLockUnavailableError: git could not be invoked.
     """
@@ -92,8 +92,7 @@ def synthesis_lock_path(repo_root: Path) -> Path:
         return resolved / _NON_GIT_LOCK_PATH
     except GitTopologyUnavailableError as exc:
         raise SynthesisLockUnavailableError(repo_root, exc) from exc
-    digest = sha256_digest(os.path.normcase(str(resolved)).encode("utf-8")).removeprefix(_DIGEST_PREFIX)[:_DIGEST_LENGTH]
-    return common_dir / LOCK_DIRECTORY / _SYNTHESIS_LOCK_SUBDIRECTORY / f"{digest}.lock"
+    return anchored_lock_path(resolved, common_dir=common_dir, subdirectory=_SYNTHESIS_LOCK_SUBDIRECTORY)
 
 
 @contextmanager

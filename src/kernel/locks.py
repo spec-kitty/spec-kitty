@@ -62,6 +62,7 @@ import asyncio
 import contextlib
 import errno
 import functools
+import hashlib
 import json
 import os
 import socket
@@ -102,6 +103,7 @@ else:
 __all__ = [
     "LOCK_DIRECTORY",
     "STALE_AFTER_S_DEFAULT",
+    "anchored_lock_path",
     "LockAcquireTimeout",
     "LockNotAcquired",
     "LockRecord",
@@ -131,6 +133,94 @@ _ACQUIRE_TIMEOUT_DEFAULT: float = 10.0
 _MAX_HOLD_DEFAULT: float = 10.0
 _RETRY_SLEEP_S: float = 0.1
 _SCHEMA_VERSION: int = 1
+
+#: Digest algorithms an anchored lock file name may use. An allowlist rather than a
+#: pass-through to :func:`hashlib.new` so the set stays small and reviewable.
+_ANCHOR_DIGEST_ALGORITHMS = frozenset({"sha1", "sha256"})
+
+#: Bounds of the truncated hex digest an anchored lock file name carries.
+_MIN_ANCHOR_DIGEST_HEX_LENGTH = 1
+_MAX_ANCHOR_DIGEST_HEX_LENGTH = 64
+
+#: Default truncation: 32 hex characters, as the event-log and synthesis families use.
+_DEFAULT_ANCHOR_DIGEST_HEX_LENGTH = 32
+
+
+# ---------------------------------------------------------------------------
+# Lock paths
+# ---------------------------------------------------------------------------
+
+
+def anchored_lock_path(
+    anchor: Path,
+    *,
+    common_dir: Path,
+    subdirectory: str | None = None,
+    prefix: str = "",
+    suffix: str = ".lock",
+    digest_algorithm: str = "sha256",
+    digest_hex_length: int = _DEFAULT_ANCHOR_DIGEST_HEX_LENGTH,
+) -> Path:
+    """Return the lock file for *anchor* under the repository's lock directory.
+
+    The ONE implementation of the anchor-keyed lock-path rule (#6727): resolve the
+    anchor, ``os.path.normcase`` the resolved path, digest it, and place the result at
+    ``<common dir>/spec-kitty-locks[/<subdirectory>]/<prefix><digest><suffix>``. Every
+    worktree of a repository shares the git common dir, so every writer of one anchor
+    takes one lock. The rule used to be written out three times (the event-log append,
+    the charter synthesis run and the Mission checkout claim); those families now call
+    this function and keep only their own probe policy, non-git fallback and refusal.
+
+    Args:
+        anchor: The path the lock is keyed on. Resolved once; the same anchor reached
+            through a symlink or a relative path gets the same lock.
+        common_dir: The repository's git common dir, resolved by the caller. Required,
+            and deliberately so: the three families resolve it with three different
+            failure policies (refuse, or degrade to a non-git home), so the probe and
+            its policy stay with the family that owns them. This function never runs
+            git, so it cannot raise a probe error or take a policy decision.
+        subdirectory: Directory under ``spec-kitty-locks`` holding the family's locks;
+            ``None`` to place the file directly there.
+        prefix: Text before the digest in the file name.
+        suffix: Text after the digest in the file name.
+        digest_algorithm: ``"sha256"`` (the default) or ``"sha1"``.
+        digest_hex_length: How many hex characters of the digest to keep, 1 to 64.
+
+    Returns:
+        The lock file path. Nothing is created, and no lock is taken: this function is
+        pure with respect to the filesystem apart from resolving paths and probing git.
+
+    Raises:
+        ValueError: *digest_algorithm* is not a supported algorithm, or
+            *digest_hex_length* is outside 1..64. The helper refuses to mint a name it
+            cannot reproduce.
+    """
+    if digest_algorithm not in _ANCHOR_DIGEST_ALGORITHMS:
+        raise ValueError(f"unsupported digest algorithm {digest_algorithm!r}; expected one of {sorted(_ANCHOR_DIGEST_ALGORITHMS)}")
+    if not _MIN_ANCHOR_DIGEST_HEX_LENGTH <= digest_hex_length <= _MAX_ANCHOR_DIGEST_HEX_LENGTH:
+        raise ValueError(f"digest length {digest_hex_length} is outside the supported range {_MIN_ANCHOR_DIGEST_HEX_LENGTH}..{_MAX_ANCHOR_DIGEST_HEX_LENGTH}")
+    resolved = anchor.resolve()
+    digest = _anchor_digest(resolved, algorithm=digest_algorithm, hex_length=digest_hex_length)
+    locks_directory = Path(common_dir) / LOCK_DIRECTORY
+    parts = [locks_directory]
+    if subdirectory is not None:
+        parts.append(Path(subdirectory))
+    parts.append(Path(f"{prefix}{digest}{suffix}"))
+    return Path(*parts)
+
+
+def _anchor_digest(anchor: Path, *, algorithm: str, hex_length: int) -> str:
+    """Digest the resolved, case-normalised *anchor* path (UTF-8) to *hex_length* hex.
+
+    ``normcase`` is the identity on POSIX and lower-cases plus backslash-normalises on
+    Windows, so one checkout reached with different letter case still names one lock.
+    """
+    identity = os.path.normcase(str(anchor)).encode("utf-8")
+    if algorithm == "sha1":
+        # File-name discriminator, not a security primitive (the Mission checkout-claim
+        # lock has used this name since #5819; renaming it would move every live lock).
+        return hashlib.sha1(identity, usedforsecurity=False).hexdigest()[:hex_length]
+    return hashlib.sha256(identity).hexdigest()[:hex_length]  # noqa: TID251 — anchor lock-name digest, not the charter hash
 
 
 class LockAcquireTimeout(Exception):
