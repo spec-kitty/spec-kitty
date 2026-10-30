@@ -136,9 +136,11 @@ class MissionListing:
     """One row per existing mission, for selection/discovery surfaces.
 
     Distinct from :class:`ResolvedMission`: a listing is legacy-tolerant (it
-    counts missions that lack a ``mission_id`` and so cannot be resolved by
-    identity), and it carries the human ``friendly_name`` that
-    :class:`ResolvedMission` does not.
+    counts a mission that lacks a ``mission_id`` and so cannot be resolved by
+    identity -- but only once :func:`is_selectable_mission_dir` accepts it, so a
+    legacy mission must be git-tracked; an untracked id-less ``meta.json`` is
+    read-side residue, #5875/#6798), and it carries the human ``friendly_name``
+    that :class:`ResolvedMission` does not.
 
     Attributes:
         mission_slug: Directory name in ``kitty-specs/`` -- the copy-pasteable

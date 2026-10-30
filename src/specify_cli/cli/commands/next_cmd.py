@@ -731,7 +731,10 @@ class MissingHandleDiscovery(Exception):
     Attributes:
         listings: The discovered mission population (empty for the
             zero-mission case; two or more entries for the ambiguous case),
-            legacy-tolerant via :func:`list_missions_for_selection`.
+            legacy-tolerant via :func:`list_missions_for_selection`: a legacy
+            mission (no ``mission_id``) counts once git tracks its ``spec.md``
+            or ``meta.json``, since an untracked id-less ``meta.json`` is
+            read-side residue (#5875, #6798).
     """
 
     def __init__(self, listings: list[MissionListing]) -> None:

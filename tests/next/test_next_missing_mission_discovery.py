@@ -83,6 +83,19 @@ def _add_mission(
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
+def _track_missions(repo_root: Path) -> None:
+    """Commit the fixture's ``kitty-specs/`` tree.
+
+    Since #5875 an id-less ``meta.json`` is read-side residue unless git tracks the
+    mission's ``spec.md`` or ``meta.json`` (``is_selectable_mission_dir`` rule 3), so a
+    legacy mission only counts toward discovery once it is committed -- which is what a
+    real repository looks like. An uncommitted fixture would silently model a scratch
+    folder, not a mission (see #6798).
+    """
+    subprocess.run(["git", "add", "-A"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "missions"], cwd=repo_root, check=True, capture_output=True)
+
+
 @pytest.fixture
 def _bypass_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     """Patch the charter preflight hook so tests reach the discovery logic.
@@ -181,6 +194,7 @@ def test_multiple_missions_backfill_nudge_when_legacy_present(tmp_path: Path, mo
     repo_root = _new_repo(tmp_path)
     _add_mission(repo_root, "042-alpha", mission_id=_ULID_A)
     _add_mission(repo_root, "043-legacy")  # no mission_id
+    _track_missions(repo_root)
     monkeypatch.chdir(repo_root)
 
     result = runner.invoke(cli_app, ["next"])
@@ -226,6 +240,7 @@ def test_zero_missions_nudge_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 def test_sole_legacy_mission_auto_selected_with_backfill_nudge(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _bypass_preflight: None) -> None:
     repo_root = _new_repo(tmp_path, charter=True)
     _add_mission(repo_root, "042-legacy-only")  # no mission_id -> legacy
+    _track_missions(repo_root)
     monkeypatch.chdir(repo_root)
 
     result = runner.invoke(cli_app, ["next"])
