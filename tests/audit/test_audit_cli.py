@@ -7,6 +7,7 @@ Monkeypatches locate_project_root so tests run without a real kitty project.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -295,3 +296,61 @@ def test_cli_include_fixtures_rejects_fixture_dir(
         ],
     )
     assert result.exit_code == 2
+
+
+# ---------------------------------------------------------------------------
+# #6757: the operator gate still fires on the folder's own identity finding
+# ---------------------------------------------------------------------------
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
+
+
+def _git_repo_root(tmp_path: Path) -> Path:
+    """A git repo whose default scan root is ``kitty-specs/``."""
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "config", "user.email", "t@example.com")
+    _git(tmp_path, "config", "user.name", "T")
+    (tmp_path / "kitty-specs").mkdir()
+    return tmp_path
+
+
+def _commit(repo: Path) -> None:
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "fixture")
+
+
+def test_cli_fail_on_error_ignores_the_fake_collision_but_keeps_the_identity_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#6757: a spec.md-only folder does not collide, but its IDENTITY_MISSING still fails the gate."""
+    repo = _git_repo_root(tmp_path)
+    specs = repo / "kitty-specs"
+    _make_clean_mission(specs, slug="001-real")
+    (specs / "001-tracked-spec-only").mkdir()
+    (specs / "001-tracked-spec-only" / "spec.md").write_text("# s\n", encoding="utf-8")
+    _commit(repo)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo)
+
+    result = runner.invoke(app, ["mission-state", "--audit", "--fail-on", "error", "--json"])
+
+    assert result.exit_code == 1, result.output
+    data = json.loads(result.output)
+    by_slug = {mission["mission_slug"]: mission for mission in data["missions"]}
+    assert [f["code"] for f in by_slug["001-real"]["findings"]] == []
+    assert [f["code"] for f in by_slug["001-tracked-spec-only"]["findings"]] == ["IDENTITY_MISSING"]
+
+
+def test_cli_fail_on_error_exits_0_for_a_repo_with_one_healthy_mission(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Positive control for the gate: a clean repository passes it."""
+    repo = _git_repo_root(tmp_path)
+    _make_clean_mission(repo / "kitty-specs", slug="001-real")
+    _commit(repo)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo)
+
+    result = runner.invoke(app, ["mission-state", "--audit", "--fail-on", "error"])
+
+    assert result.exit_code == 0, result.output
