@@ -32,6 +32,7 @@ TEAMSPACE_BLOCKER_CODES: frozenset[str] = frozenset(
 
 #: A ``kitty-specs/`` child holding only untracked or gitignored residue (#5812).
 #: Reported at INFO and deliberately absent from ``TEAMSPACE_BLOCKER_CODES``.
+#: Glossary: ``docs/context/orchestration.md#residue`` (audit-engine sense).
 RESIDUE_DIRECTORY = "RESIDUE_DIRECTORY"
 
 #: A committed ``meta.json`` that looks fabricated by a baseline writer: allow-listed
