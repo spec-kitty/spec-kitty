@@ -10,9 +10,12 @@ Covers:
   ``models.py:82-91``) or the promoted YAML fails to load (brownfield risk
   this test guards against directly).
 - ``test_shipped_corpus_enforcement_histogram``: SC-005 -- the enforcement
-  histogram is exactly ``25/6/3 -> 27/7/3`` (required/lenient-adherence/
-  advisory); the two additional required directives are new minutes doctrine
-  and DIRECTIVE_052 adds one advisory, not promotions of existing directives.
+  histogram is exactly ``25/6/3 -> 28/7/3`` (required/lenient-adherence/
+  advisory); the additional required directives are new minutes doctrine,
+  DIRECTIVE_053, and (from ``spec-kitty-open-packs#74``, #6693) the built-in
+  red-main rule that moved from a required *procedure* to the required
+  ``RED_MAIN_RELEASE_DISCIPLINE`` *directive*; DIRECTIVE_052 adds one
+  advisory. None is a promotion of an existing directive.
 - ``test_only_the_reconciler_yaml_value_changed``: NFR-001 boundary --
   ``reconcile-change-scope-tensions`` is the only directive whose
   enforcement differs from the ``25/6/3`` baseline snapshot.
@@ -35,6 +38,12 @@ _ADDED_REQUIRED_DIRECTIVES = {
     # is the binding Op-vs-Mission choice rule promoted from
     # docs/context/ops-vs-missions.md.
     "DIRECTIVE_053",
+    # RED_MAIN_RELEASE_DISCIPLINE ships required because the rule did not
+    # change level: spec-kitty-open-packs#74 moved the rule-shaped artifact
+    # from the required ``red-main-release-discipline`` PROCEDURE to a required
+    # DIRECTIVE of the same stem (#6693, open-packs pin 72cb7dbc). It is a
+    # directive-count increase at unchanged enforcement, not a promotion.
+    "RED_MAIN_RELEASE_DISCIPLINE",
 }
 # Advisory directives added to the shipped corpus after the SC-005 baseline
 # snapshot (post-FR-003). DIRECTIVE_052 "Prefer Durable Fixes" ships advisory
@@ -74,7 +83,7 @@ def test_promoted_reconciler_loads() -> None:
 
 
 def test_shipped_corpus_enforcement_histogram() -> None:
-    """SC-005: histogram is 27/7/3; no existing directive is newly required."""
+    """SC-005: histogram is 28/7/3; no existing directive is newly required."""
     directives = _shipped_directives()
 
     histogram = dict.fromkeys(Enforcement, 0)
