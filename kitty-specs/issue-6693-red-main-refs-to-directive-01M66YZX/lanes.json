@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "mission_slug": "issue-6693-red-main-refs-to-directive-01M66YZX",
+  "mission_id": "01M66YZXX85Q4GEC0R3D77D440",
+  "mission_branch": "issue-6693-red-main-refs-to-directive",
+  "target_branch": "issue-6693-red-main-refs-to-directive",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        ".kittify/charter-packs/graph.yaml",
+        ".kittify/charter/activation.yaml",
+        ".kittify/charter/charter.md",
+        ".kittify/charter/charter.yaml",
+        ".kittify/charter/synthesis-manifest.yaml",
+        "docs/changelog/CHANGELOG.md",
+        "packs/built-in.source.yaml",
+        "packs/internal.source.yaml",
+        "src/charter/offering/drg/migration/extractor.py",
+        "tests/charter_offering/drg/migration/test_extractor_projection.py",
+        "tests/charter_offering/drg/test_single_owner_edges.py",
+        "tests/charter_offering/fixtures/minimal_org_pack_2/drg/fragment.yaml",
+        "tests/charter_offering/test_red_main_ledger_resolution.py",
+        "tests/charter_offering/test_testing_doctrine_single_owner.py",
+        "tests/integration/test_org_pack_chain_delivery.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:56:58.244932+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1334b36f7c784b7da154fe2aac6776fb7205563b"
+}

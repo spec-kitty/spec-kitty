@@ -1,0 +1,34 @@
+{
+  "accept_commit": "08f53ce0ac10df6b684b9048b476c59ef3f80ee8",
+  "acceptance_history": [
+    {
+      "accept_commit": "08f53ce0ac10df6b684b9048b476c59ef3f80ee8",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T18:58:51.328199+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "aa466b3596df6931025e6d641e6dd4189e0b0565"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T18:58:51.328199+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "aa466b3596df6931025e6d641e6dd4189e0b0565",
+  "baseline_merge_commit": "2c2a6320c14aec7e12a428535bfdf5b37da82624",
+  "change_mode": "bulk_edit",
+  "created_at": "2026-10-30T17:51:16.770548+00:00",
+  "flattened": false,
+  "friendly_name": "issue 6693 red main refs to directive",
+  "merged_at": "2026-10-30T19:00:18.106680+00:00",
+  "merged_commit": "2c2a6320c14aec7e12a428535bfdf5b37da82624",
+  "mid8": "01M66YZX",
+  "mission_id": "01M66YZXX85Q4GEC0R3D77D440",
+  "mission_number": 244,
+  "mission_slug": "issue-6693-red-main-refs-to-directive-01M66YZX",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances issue 6693 red main refs to directive on issue-6693-red-main-refs-to-directive so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "issue 6693 red main refs to directive",
+  "slug": "issue-6693-red-main-refs-to-directive-01M66YZX",
+  "status_phase": "1",
+  "target_branch": "issue-6693-red-main-refs-to-directive",
+  "topology": "single_branch"
+}
