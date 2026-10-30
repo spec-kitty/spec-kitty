@@ -27,7 +27,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from kernel.pack_tiers import BUILT_IN
 
@@ -39,7 +39,9 @@ from charter.offering.drg.org_pack_config import (
     OrgPackSubdirEscapeError,
     resolve_relative_path_within_root,
 )
-from charter.offering.drg.org_pack_loader import OrgDRGFragment
+
+if TYPE_CHECKING:  # type-only: this module is on the build hook's import path and must stay light
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 __all__ = [
     "AssetNotFoundError",
