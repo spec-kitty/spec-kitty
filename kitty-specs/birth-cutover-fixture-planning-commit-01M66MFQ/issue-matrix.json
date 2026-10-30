@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6715": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Gate verified fail-closed and correct, unchanged by this mission (reviewer B: 'relaxing the product would have been fail-open; fixture fix is the right layer'); refusal recovery text points at finalize-tasks, which the fixture now mirrors",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "verified-already-fixed",
       "wp": null
     },
     "#6795": {
