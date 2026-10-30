@@ -17,7 +17,13 @@ from typing import Any
 from specify_cli.context.mission_resolver import is_kitty_specs_residue
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
-from specify_cli.mission_metadata import baseline_slug_fields, write_meta
+from specify_cli.mission_metadata import (
+    META_FILENAME,
+    TrackedMeta,
+    baseline_slug_fields,
+    read_tracked_meta,
+    write_meta,
+)
 from specify_cli.status import mission_write_lock
 
 _BRANCH_PATTERNS = (
@@ -152,9 +158,21 @@ def build_baseline_feature_meta(
     baseline: *existing_meta* comes back unchanged (``None``, since residue has
     no ``meta.json``), so a caller that writes only on a difference writes
     nothing and no identity is fabricated for it (#6627).
+
+    A Mission whose ``meta.json`` is missing from the working tree is rebuilt from the
+    tracked copy git holds (:func:`~specify_cli.mission_metadata.read_tracked_meta`),
+    never from the directory name alone: the identity in the rebuilt file is the one the
+    Mission's history uses (#6673). When git holds the path but cannot give its content
+    back, the answer is ``existing_meta`` (``None``), so the caller writes nothing —
+    fabricating an identity over an unreadable tracked one is the defect, not the repair.
+    A present copy that has lost its ``mission_id`` takes the tracked one back; no other
+    field of a present copy is overwritten.
     """
     if is_kitty_specs_residue(feature_dir, repo_root=repo_root):
         return existing_meta
+    existing_meta, tracked_unavailable = _seed_tracked_meta(feature_dir, existing_meta)
+    if tracked_unavailable:
+        return None
     meta = dict(existing_meta or {})
 
     for key, value in baseline_slug_fields(feature_dir.name).items():
@@ -167,6 +185,37 @@ def build_baseline_feature_meta(
     )
     _set_if_blank(meta, "created_at", infer_created_at(feature_dir))
     return meta
+
+
+def _seed_tracked_meta(
+    feature_dir: Path,
+    existing_meta: dict[str, Any] | None,
+) -> tuple[dict[str, Any] | None, bool]:
+    """Seed *existing_meta* from the copy git holds, for a Mission whose identity is at risk (#6673).
+
+    Two cases read git, and only those two (a healthy Mission costs no git read): the
+    working-tree copy is absent, or it is present but carries no ``mission_id`` while the
+    tracked copy does. Returns ``(meta, tracked_unavailable)``; ``tracked_unavailable``
+    means git knows the path but its content cannot be read, so nothing may be written.
+    """
+    has_id = _has_mission_id(existing_meta)
+    if (feature_dir / META_FILENAME).exists() and has_id:
+        return existing_meta, False
+    tracked: TrackedMeta = read_tracked_meta(feature_dir)
+    if tracked.unavailable:
+        return None, True
+    if not (feature_dir / META_FILENAME).exists():
+        return tracked.meta, False
+    tracked_id = (tracked.meta or {}).get("mission_id")
+    if not has_id and isinstance(tracked_id, str) and tracked_id.strip():
+        return {**(existing_meta or {}), "mission_id": tracked_id}, False
+    return existing_meta, False
+
+
+def _has_mission_id(meta: dict[str, Any] | None) -> bool:
+    """Whether *meta* records a non-empty string ``mission_id``."""
+    mission_id = (meta or {}).get("mission_id")
+    return isinstance(mission_id, str) and bool(mission_id.strip())
 
 
 def _normalize_branch_candidate(value: str) -> str | None:
