@@ -402,7 +402,6 @@ exclude = [
     "src/charter/offering/agent_profiles/schema_models.py",
     "src/charter/offering/agent_profiles/validation.py",
     "src/charter/offering/assets/repository.py",
-    "src/charter/offering/base.py",
     "src/charter/offering/directives/models.py",
     "src/charter/offering/drg/loader.py",
     "src/charter/offering/drg/merge.py",
