@@ -28,7 +28,8 @@
       "last_transition_at": "2026-10-30T12:01:46.473268+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Implement WP01 in the root checkout (single_branch)"
+        "Implement WP01 in the root checkout (single_branch)",
+        "Ready for review: entry + links + canon bullet + contextive + changelog + red-first test; docs gates and make test-fast green"
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
