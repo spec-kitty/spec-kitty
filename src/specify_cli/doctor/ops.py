@@ -8,36 +8,11 @@ from kernel.clock import datetime, UTC, parse_iso
 from pathlib import Path
 
 from specify_cli.invocation.errors import AlreadyClosedError
-from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_FILENAME, OP_CLOSURES_RELATIVE_PATH, closed_invocation_ids
+from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_RELATIVE_PATH, open_invocation_ids
 
 #: ``SweepOpEntry.commit`` prefix for a sweep close whose spine commit was
 #: deliberately skipped (#6410): the closure stays on disk, uncommitted.
 SWEEP_COMMIT_SKIPPED_PREFIX = "skipped:"
-
-_NON_OP_JSONL = {
-    "ops-index.jsonl",
-    "lifecycle.jsonl",
-    "propagation-errors.jsonl",
-    OP_CLOSURES_FILENAME,
-}
-
-
-def _has_completed_event(path: Path) -> bool:
-    try:
-        with path.open("r", encoding="utf-8") as handle:
-            for raw_line in handle:
-                line = raw_line.strip()
-                if not line:
-                    continue
-                try:
-                    event = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                if isinstance(event, dict) and event.get("event") == "completed":
-                    return True
-    except OSError:
-        return False
-    return False
 
 
 def list_orphan_ops(repo_root: Path) -> list[Path]:
@@ -46,15 +21,14 @@ def list_orphan_ops(repo_root: Path) -> list[Path]:
     An Op counts as closed when its per-record file carries a ``completed``
     event OR the append-only closure spine (#4397) carries a closure for its
     invocation id — the doctor sweep closes pre-existing records on the spine,
-    never by mutating the byte-frozen per-record file.
+    never by mutating the byte-frozen per-record file. Both halves of that rule
+    live in :func:`specify_cli.invocation.writer.open_invocation_ids`, so this
+    surface and the local-retention engine cannot disagree about it (#6739).
     """
     ops_dir = repo_root / EVENTS_DIR
-    if not ops_dir.exists():
+    if not ops_dir.is_dir():
         return []
-    closed_on_spine = closed_invocation_ids(repo_root)
-    return [
-        path for path in sorted(ops_dir.glob("*.jsonl")) if path.name not in _NON_OP_JSONL and path.stem not in closed_on_spine and not _has_completed_event(path)
-    ]
+    return [ops_dir / f"{invocation_id}.jsonl" for invocation_id in sorted(open_invocation_ids(repo_root))]
 
 
 @dataclass
