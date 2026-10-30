@@ -350,7 +350,8 @@ def test_synthesis_never_adds_a_denied_tactic_even_on_first_creation(tmp_path: P
         tmp_path, mission_type_activations=["software-dev"], activated_tactics=["adversarial-qa-handoff"], deactivated_tactics=[_REACH_ONLY, "how-we-apply-other"]
     )
 
-    warnings = append_synthesized_activations(tmp_path, {"tactic": [_REACH_ONLY, "how-we-apply-fresh"]})
+    append_result = append_synthesized_activations(tmp_path, {"tactic": [_REACH_ONLY, "how-we-apply-fresh"]})
+    warnings = append_result.warnings
 
     ledger = read_activation_ledger(tmp_path)
     assert ledger["activated_tactics"] == ["adversarial-qa-handoff", "how-we-apply-fresh"]

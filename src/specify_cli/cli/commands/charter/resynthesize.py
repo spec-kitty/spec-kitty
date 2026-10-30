@@ -215,7 +215,7 @@ def charter_resynthesize(  # noqa: C901
         # ``activated_<kind>s`` list (a regenerated one an operator removed stays removed).
         from charter.activation.api import append_synthesized_activations
 
-        activation_warnings = append_synthesized_activations(repo_root, getattr(result, "created_slugs", {}))
+        activation_warnings = append_synthesized_activations(repo_root, getattr(result, "created_slugs", {})).warnings
         warnings_collected.extend(activation_warnings)
         if not json_output:
             for warning in activation_warnings:

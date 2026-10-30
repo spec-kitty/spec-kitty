@@ -785,7 +785,6 @@ exclude = [
     "tests/agent/cli/commands/test_agent_config.py",
     "tests/agent/cli/commands/test_charter_cli.py",
     "tests/agent/cli/commands/test_charter_status_cli.py",
-    "tests/agent/cli/commands/test_charter_synthesize_cli.py",
     "tests/agent/cli/commands/test_feature_slug_validation.py",
     "tests/agent/cli/commands/test_glossary.py",
     "tests/agent/cli/commands/test_implement_help.py",
