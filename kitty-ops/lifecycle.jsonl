@@ -114,3 +114,12 @@
 {"agent": "python-pedro", "at": "2026-10-30T23:30:03.475858+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
 {"agent": "python-pedro", "at": "2026-10-30T23:31:29.851507+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "completed", "reason": null, "wp_id": null}
 {"agent": "python-pedro", "at": "2026-10-30T23:31:46.623080+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:21:08.379872+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:21:11.765085+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:21:14.558800+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:21:17.636068+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:21:41.053106+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:23:50.777506+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:24:12.396002+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:26:03.410426+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-30T13:26:18.921354+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M66FF3ZWSZCY7HASJXYB5P0A", "phase": "started", "reason": null, "wp_id": null}
