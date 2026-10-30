@@ -86,6 +86,7 @@ __all__ = [
     "LedgerMigrationRefusal",
     "LedgerMigrationRefused",
     "LedgerMove",
+    "OrgPackRegistryUnreadableError",
     "RequiredOmission",
     "apply_ledger_migration",
     "config_error",
@@ -121,6 +122,43 @@ class ActiveCharterConfigError(KittyInternalConsistencyError):
 
     def __init__(self, body: str) -> None:
         super().__init__("ACTIVE_CHARTER_CONFIG_INVALID", body)
+
+
+class OrgPackRegistryUnreadableError(ActiveCharterConfigError, ValueError):
+    """Raised when the org pack registry in ``.kittify/config.yaml`` cannot be read.
+
+    The unreadable-or-malformed ``charter_packs`` registry refusal of the ONE
+    fail-closed registry read behind every strict org-chain consumer
+    (:func:`charter.offering.drg.org_pack_config.require_declared_org_roots`,
+    whose offering-owned ``UnreadableOrgPackRegistry`` is mapped onto this
+    error by ``resolve_pack_chain(strict=True)`` — the one offering→activation
+    seam point, keeping ``charter.offering`` free of any
+    ``charter.activation`` import), so ``charter activate`` and ``charter
+    deactivate`` report the SAME code for the same broken file (issue #6772):
+    it subclasses :class:`ActiveCharterConfigError`
+    (code ``ACTIVE_CHARTER_CONFIG_INVALID``), so the CLI's existing
+    ``except ActiveCharterConfigError`` arms render it as a config refusal
+    without any per-verb mapping.
+
+    It ALSO subclasses ``ValueError`` — deliberately, and pinned by test —
+    because the fail-closed org-chain readers that document ``except
+    ValueError`` (``charter.activation.effective_set``, ``charter.activation.preset_application``
+    and ``charter.activation.manifest_loader``) must keep their refusal
+    behaviour unchanged when the registry is unreadable.
+
+    The "declared pack not fetched" refusal of the same seam stays a plain
+    ``ValueError`` so the two causes remain distinguishable (the fetch remedy
+    is only correct for the second).
+
+    :meth:`__str__` returns the body, not the code: the strict org-chain
+    readers that document ``except ValueError`` interpolate ``str(exc)`` into
+    their own refusal text (``effective_set``'s ``_UnresolvableError(str(exc))``
+    among them), so the human message must survive the ``ValueError`` view of
+    this error unchanged.
+    """
+
+    def __str__(self) -> str:
+        return self.body
 
 
 def config_error(message: str) -> ActiveCharterConfigError:
