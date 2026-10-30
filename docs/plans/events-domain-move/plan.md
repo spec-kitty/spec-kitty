@@ -128,8 +128,8 @@ tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-he
 
 ## 4. Cut-over runbook (ordered; each step gated on the previous)
 
-0. **Now (prep, this branch only):** this plan, the ADR draft, the charter/CLAUDE.md/AGENTS.md drafts, the pin schema. No `main` change.
-1. **Freeze, on a go signal:** the `tests/architectural/test_events_import_frozen.py` gate on the always-on fast roster (fails on any change to `services/`, the moving `contracts/` modules and tools, or `docs/architecture/event-ledger-writers-and-readers.md`, against the git object ids at the freeze; planted-violation non-vacuity tests) plus a CODEOWNERS note. Announce on #6409, #6676 and #6117 (comment text drafted for approval).
+0. **Done in this PR (prep):** this plan, the ADR, the charter/CLAUDE.md/AGENTS.md amendments, the pin schema.
+1. **Freeze (done in this PR; the go was given 2026-10-29):** the `tests/architectural/test_events_import_frozen.py` gate on the always-on fast roster (fails on any change to `services/`, the moving `contracts/` modules and tools, or `docs/architecture/event-ledger-writers-and-readers.md`, against the git object ids at the freeze; planted-violation non-vacuity tests) plus a CODEOWNERS note. The gate's exit (removal with `services/` at the cut-over) is tracked by #6117, owner Stijn Dejongh; an operator-approved change re-pins `_FROZEN_OBJECTS` in the same PR and is ported to spec-kitty-events (ADR D-9). Announce on #6409, #6676 and #6117 (comment text drafted for approval).
 2. **All in-flight sessions merged** (§2); confirm that no live session holds unpushed `services/` or `contracts/` work.
 3. **spec-kitty-events side:** filter-repo import (`service/` plus `contracts/`), Gradle unification, CI (pinned to the frozen core SHA), and the first `service-v*` pre-release with per-OS assets, the jar, the contract-bundles and conformance-fixtures assets, `SHA256SUMS` and attestation.
 4. **Core PR 1 (pre-cut-over, can merge while `services/` still exists):** the pin mechanism (`kernel.service_artifacts`, `sync-services`, the composite action, `service vendor`), the launcher skeleton with fail-closed codes, and the ADR plus charter/CLAUDE.md amendments. The pins point at A's pre-release. CI fetches and verifies the pin.
@@ -160,7 +160,7 @@ tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-he
 
 The spec-kitty-events side owns the events-side list; this is the core-side cross-check.
 
-## 6. ADR and governance drafts (to write after the Q answers)
+## 6. ADR and governance drafts (done in this PR)
 - New ADR `docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md`. It amends 2026-10-01-2 (D-7, D-9 to D-12: in-repo becomes external), 2026-10-22-1 (D-5: where the binary comes from), 2026-10-27-1 (the launcher's binary source), 2026-10-14-1 (the writer's home), and 3.x 2026-04-25-1 (events = PyPI package **plus** a pinned service binary). Modelled on the charter precedents.
 - Charter "Shared Package Boundaries" amendment, plus CLAUDE.md/AGENTS.md pointer updates (Team Kitty producer line, Shared Package Boundary, Modularity SSOT).
 

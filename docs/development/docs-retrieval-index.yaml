@@ -14925,7 +14925,7 @@ pages:
     - {slug: "3-4-shipping-the-binary-to-users-the-open-decision-q1", text: "3.4 Shipping the binary to users: the open decision (Q1)", level: 3}
     - {slug: "4-cut-over-runbook-ordered-each-step-gated-on-the-previous", text: "4. Cut-over runbook (ordered; each step gated on the previous)", level: 2}
     - {slug: "5-issue-retarget-proposals-none-actioned", text: "5. Issue retarget proposals (none actioned)", level: 2}
-    - {slug: "6-adr-and-governance-drafts-to-write-after-the-q-answers", text: "6. ADR and governance drafts (to write after the Q answers)", level: 2}
+    - {slug: "6-adr-and-governance-drafts-done-in-this-pr", text: "6. ADR and governance drafts (done in this PR)", level: 2}
     - {slug: "7-operator-decisions-2026-10-29", text: "7. Operator decisions (2026-10-29)", level: 2}
   - path: "docs/plans/glossary-doctrine-overhaul-program.md"
     title: "Glossary Doctrine Overhaul — Program Plan"
