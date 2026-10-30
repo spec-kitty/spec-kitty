@@ -71,7 +71,7 @@ def list_orphan_ops(repo_root: Path) -> list[Path]:
     A single-directory scan of ``<repo_root>/kitty-ops`` — no git calls — because
     the session-start/stop reminder calls it on every session boundary under a
     < 0.5 s budget. It therefore sees the checkout it is handed and nothing else:
-    use :func:`list_orphan_ops_across_checkouts` for the repository-wide sweep.
+    use :func:`scan_op_records` for the repository-wide sweep.
 
     An Op counts as closed when its per-record file carries a ``completed``
     event OR the append-only closure spine (#4397) carries a closure for its
@@ -100,28 +100,19 @@ def _checkouts(repo_root: Path) -> list[Path]:
     return checkouts
 
 
-def list_orphan_ops_across_checkouts(repo_root: Path) -> list[Path]:
-    """List open Op records in every checkout of the repository (#6661).
-
-    Op records are written in the checkout the command runs in (#6564), so a
-    record can live in a linked worktree. The checkout set is the shared
-    enumeration in :mod:`specify_cli.invocation.op_custody` (one
-    ``git worktree list`` per call); each checkout is read with its own
-    :func:`list_orphan_ops`, so its own closure spine decides what is still open.
-    Ordering is the project root first, then ``git worktree list`` order, and
-    file-name order inside a checkout.
-
-    Without git (not a checkout, or the command fails) the set is the project
-    root alone, which is the behavior before #6661. A checkout whose Op store
-    cannot be read is logged and skipped, so one broken worktree cannot hide the
-    records of every other checkout; see :func:`scan_op_records` for the same scan
-    that also names the checkouts it could not read.
-    """
-    return [record for _checkout, record in scan_op_records(repo_root)[0]]
-
-
 def scan_op_records(repo_root: Path) -> tuple[list[tuple[Path, Path]], list[Path]]:
     """Orphan Op records as ``(owning checkout, record path)`` pairs, and unreadable checkouts.
+
+    Reads every checkout of the repository (#6661): Op records are written in the
+    checkout the command runs in (#6564), so a record can live in a linked worktree.
+    The checkout set is the shared enumeration in
+    :mod:`specify_cli.invocation.op_custody` (one ``git worktree list`` per call); each
+    checkout is read with its own :func:`list_orphan_ops`, so its own closure spine
+    decides what is still open. Ordering is the project root first, then
+    ``git worktree list`` order, and file-name order inside a checkout.
+
+    Without git (not a checkout, or the command fails) the set is the project root
+    alone, which is the behavior before #6661.
 
     The owning checkout is the one the record was read from, never re-derived from the
     record's path shape, so a sweep closes a record through the checkout that produced

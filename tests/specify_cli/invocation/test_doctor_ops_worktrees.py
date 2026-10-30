@@ -29,7 +29,7 @@ from specify_cli import app as cli_app
 from specify_cli.invocation import op_custody
 from specify_cli.invocation.writer import EVENTS_DIR, read_op_closures
 from specify_cli.doctor import ops as ops_module
-from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops, list_orphan_ops_across_checkouts
+from specify_cli.doctor.ops import close_stale_ops, list_orphan_ops, scan_op_records
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -257,7 +257,10 @@ def test_checkout_enumeration_degrades_to_the_project_root(tmp_path: Path, monke
     monkeypatch.setattr(op_custody, "_git_lines", lambda cwd, *args: None)
 
     assert list(op_custody.repository_checkouts(root)) == []
-    assert list_orphan_ops_across_checkouts(root) == list_orphan_ops(root) == [root / EVENTS_DIR / f"{_ROOT_OP}.jsonl"]
+    pairs, unreadable = scan_op_records(root)
+    assert [record for _checkout, record in pairs] == list_orphan_ops(root)
+    assert [record for _checkout, record in pairs] == [root / EVENTS_DIR / f"{_ROOT_OP}.jsonl"]
+    assert unreadable == []
 
 
 def test_unreadable_checkout_does_not_hide_the_others(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
@@ -276,9 +279,10 @@ def test_unreadable_checkout_does_not_hide_the_others(tmp_path: Path, monkeypatc
     monkeypatch.setattr(ops_module, "closed_invocation_ids", broken_spine)
 
     with caplog.at_level("WARNING", logger="specify_cli.doctor.ops"):
-        orphans = list_orphan_ops_across_checkouts(root)
+        pairs, unreadable = scan_op_records(root)
 
-    assert orphans == [root / EVENTS_DIR / f"{_ROOT_OP}.jsonl"]
+    assert [record for _checkout, record in pairs] == [root / EVENTS_DIR / f"{_ROOT_OP}.jsonl"]
+    assert unreadable == [lane]
     assert any(str(lane) in record.getMessage() for record in caplog.records)
 
     # The operator is told, on stderr, that a checkout was skipped: `--json` stdout
