@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-30T14:47:39.382192+00:00",
+  "flattened": false,
+  "friendly_name": "birth cutover fixture planning commit",
+  "mid8": "01M66MFQ",
+  "mission_id": "01M66MFQ05B1KP8ABVFZ0HYS5V",
+  "mission_number": null,
+  "mission_slug": "birth-cutover-fixture-planning-commit-01M66MFQ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances birth cutover fixture planning commit on issue-6801-birth-cutover-fixture-planning-commit so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "birth cutover fixture planning commit",
+  "slug": "birth-cutover-fixture-planning-commit-01M66MFQ",
+  "target_branch": "issue-6801-birth-cutover-fixture-planning-commit",
+  "topology": "lanes"
+}
