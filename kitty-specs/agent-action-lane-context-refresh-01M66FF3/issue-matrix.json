@@ -25,7 +25,7 @@
       "wp": null
     },
     "#6650": {
-      "evidence_ref": "tests/agent/test_agent_action_lane_context_refresh.py \u2014 red-first regression through the real agent action implement CLI; fix at workflow.py _reenter_self_heal",
+      "evidence_ref": "Merged via mission #244 (commit e43cd20): agent action implement exists-path now calls refresh_reused_lane_context; regression test tests/agent/test_agent_action_lane_context_refresh.py red-first then green",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
