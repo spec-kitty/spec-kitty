@@ -1,0 +1,122 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M6758WZSCSNP0VT9KVHZ0PYP",
+  "materialized_at": "2026-10-30T19:41:01.817466+00:00",
+  "mission_number": "244",
+  "mission_slug": "prune-unlinked-runs-and-op-logs-01M66YMR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6758W7D2K5W7K88CEZ059MY",
+      "last_transition_at": "2026-10-30T19:41:01.037336+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T17:58:42Z – unknown – T001-T004: red-first tests for open_invocation_ids (ImportError on the missing name), then the predicate in invocation/writer.py; doctor/ops.list_orphan_ops now delegates to it. test_doctor_ops.py 24 passed 3 skipped; mypy --strict and ruff clean.",
+        "- 2026-10-30T17:59:53Z – python-pedro – shell_pid=139600 – Transition note: the implement action was driven from 'next' (which returns the implement step) before the WP was claimed, so both WP01 commits predate the claim base. Moving to for_review with --force; the work is committed as 87d2093565 (red test) and b7f32ccfae (impl).",
+        "Review passed. open_invocation_ids reads the two durable traces once and treats an unreadable record as open; list_orphan_ops keeps its sorted list[Path], exclusions and closure definition; test_doctor_ops.py 24 passed 3 skipped with pre-existing tests unmodified; red-first held (ImportError at the test commit); mypy --strict and ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 139600,
+      "shell_pid_created_at": "1793383167.73",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6758WN57YYEA2MB18SR7B8Y",
+      "last_transition_at": "2026-10-30T19:41:01.477109+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T18:36:17Z – python-pedro – shell_pid=249558 – T005-T013: engine link states (owned/unlinked/unknown), snapshot inputs.mission_slug fallback, Op-log family with KIND_OP_LOG and its own keep_runs ranking, plus the OpRoster one-pass roster in invocation/writer.py (WP02 now owns that file alongside WP01) and the scale assertion. Tests: tests/core/test_event_log_retention.py + tests/specify_cli/invocation/test_doctor_ops.py 107 passed 3 skipped; tests/cli/commands/test_doctor_event_logs.py 16 passed; mypy --strict and ruff clean.",
+        "Review passed. Verdict ladder matches data-model.md (rank -> age -> link -> work-over -> lock -> candidate); inputs.mission_slug is read only when neither mission_id nor mission_slug is recorded, so C-001 holds; an unreadable snapshot and an ambiguous identity still read as unknown and stay kept; the Op roster is one pass per scan and both families share one deletion rule while ranking separately (KIND_OP_LOG); drift gate and never-removed guarantees unchanged. Tests: 107 passed 3 skipped (engine + doctor ops), 16 passed (command), architectural dead-symbol 37 passed, mission write discipline 132 passed 1 xfailed. mypy --strict and ruff clean. Non-blocking observation: _collect_op_logs reads the roster even when no Op log exists; cost is one directory pass and does not affect the 2 s budget."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 249558,
+      "shell_pid_created_at": "1793383884.71",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6758WZSCSNP0VT9KVHZ0PYP",
+      "last_transition_at": "2026-10-30T19:41:01.817466+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T19:31:40Z – python-pedro – shell_pid=660563 – T014-T018: event-logs docstring refreshed, docs/api/cli-commands.md block regenerated with the builder's own normalizer (bulk regen is unreliable here: the global slash-command asset cache is being rewritten by the parallel agent pool, so the other 262 blocks were left untouched), how-to reasons table + eligibility prose + never-removed list, changelog entry under [Unreleased]/Fixed (1,137 chars). check_docs_freshness --ci errors=0; tests/docs 1804 passed 2 skipped; terminology 98 passed; CLI reference builder tests 40 passed. The CLI reference freshness checker reports 3 pre-existing HELP-DRIFT warnings (charter activate, migrate activation-ledger, migrate ledger) that predate this branch and none for doctor event-logs.",
+        "Review passed. The docstring, the regenerated CLI-reference block and the how-to now state the unlinked and Op-scoped rules exactly as data-model.md defines them (three candidate reasons, Op is open kept reason, op_log kind); every new reason appears in both the help text and the guide's reasons table, and the never-removed list keeps the unknown-Mission protection intact. Changelog entry sits in [Unreleased]/Fixed, names #6739, is 1,137 characters and claims nothing the engine does not do. Verified: check_docs_freshness --ci errors=0; tests/docs 1804 passed 2 skipped; terminology 98 passed; CLI reference builder 40 passed; the reference freshness checker reports no drift for doctor event-logs (its 3 HELP-DRIFT warnings are pre-existing on main for charter activate and the migrate commands). One finding fixed in review: the how-to intro still said the glossary keeps only one log per Mission."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 660563,
+      "shell_pid_created_at": "1793386493.53",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    }
+  }
+}

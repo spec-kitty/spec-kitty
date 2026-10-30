@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "prune-unlinked-runs-and-op-logs-01M66YMR",
+  "mission_id": "01M66YMRTNJAE9ACSN1RQSFTEQ",
+  "mission_branch": "issue-6739-prune-unlinked-runs-and-op-logs",
+  "target_branch": "issue-6739-prune-unlinked-runs-and-op-logs",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/monitoring/clean-up-local-event-logs.md",
+        "src/specify_cli/cli/commands/_event_logs_doctor.py",
+        "src/specify_cli/doctor/ops.py",
+        "src/specify_cli/invocation/writer.py",
+        "src/specify_cli/state/retention.py",
+        "tests/cli/commands/test_doctor_event_logs.py",
+        "tests/core/test_event_log_retention.py",
+        "tests/specify_cli/invocation/test_doctor_ops.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:53:43.806074+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "705218bb3b355508985f26e64243f1a3955e1146"
+}
