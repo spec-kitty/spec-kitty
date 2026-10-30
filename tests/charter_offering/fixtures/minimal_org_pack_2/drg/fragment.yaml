@@ -29,6 +29,6 @@ edges:
   # endpoint). The distinctive source node is what the class-a test asserts
   # reached the merged graph from the SECOND pack in the chain.
   - source: MINIMAL_ORG_2_MARKER
-    target: "procedure:red-main-release-discipline"
+    target: "directive:RED_MAIN_RELEASE_DISCIPLINE"
     relation: refines
     reason: "Marker refines a shipped built-in procedure so pack #2 folds clean"

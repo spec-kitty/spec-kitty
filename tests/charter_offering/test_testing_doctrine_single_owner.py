@@ -120,8 +120,8 @@ class TestTestFirstBugFixingTopologyAndRefactor:
         assert "DIRECTIVE_025" in ref_ids, "test-first-bug-fixing must cite DIRECTIVE_025 for the tidy-first rule instead of restating it"
 
     def test_states_commit_topology_carve_out(self) -> None:
-        content = _text(_PROCEDURES / "test-first-bug-fixing.procedure.yaml").lower()
-        assert "red-main-release-discipline" in content or "already landed" in content, (
+        content = _text(_PROCEDURES / "test-first-bug-fixing.procedure.yaml")
+        assert "RED_MAIN_RELEASE_DISCIPLINE" in content and "already landed" in content, (
             "test-first-bug-fixing must state the commit-topology carve-out: test+fix commit together, unless a failing reproduction already landed on the mainline"
         )
 
@@ -132,7 +132,7 @@ class TestTestFirstBugFixingTopologyAndRefactor:
         # the bug" step, and the reverse edge is a curated suggests.
         procedure = _yaml(_PROCEDURES / "test-first-bug-fixing.procedure.yaml")
         ref_ids = {ref["id"] for ref in procedure.get("references", [])}
-        expected = {"DIRECTIVE_034", "red-main-release-discipline"}
+        expected = {"DIRECTIVE_034", "RED_MAIN_RELEASE_DISCIPLINE"}
         missing = expected - ref_ids
         assert not missing, f"test-first-bug-fixing must reference {expected}, missing: {missing}"
 
