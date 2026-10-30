@@ -1442,7 +1442,7 @@ def _check_asset_path_containment(
     Delegates to
     :func:`charter.offering.drg.org_pack_config.resolve_relative_path_within_root` —
     the same primitive :meth:`OrgPackConfig.effective_root` uses for
-    ``subdir`` containment — rather than a sixth hand-rolled
+    ``subdir`` containment — rather than another hand-rolled
     resolve-then-``relative_to`` implementation.
 
     Returns an ``asset_path_escape`` error issue when *raw_path* is absolute,
