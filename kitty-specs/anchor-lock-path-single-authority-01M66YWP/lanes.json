@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "anchor-lock-path-single-authority-01M66YWP",
+  "mission_id": "01M66YWPGPC0G2BV0YBWARDAV0",
+  "mission_branch": "kitty/mission-anchor-lock-path-single-authority-01M66YWP",
+  "target_branch": "issue-6727-anchor-lock-paths",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/locks.py",
+        "tests/kernel/test_lock_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/event-ledger-writers-and-readers.md",
+        "docs/development/reference/lock-interop-spike.md",
+        "src/charter/activation/synthesizer/synthesis_lock.py",
+        "src/kernel/event_log_append.py",
+        "src/specify_cli/status/locking.py",
+        "tests/architectural/test_anchor_lock_path_single_owner.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T17:52:37.069666+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8f305f06d76b2c920fb165b38c6ffea37c013f59"
+}
