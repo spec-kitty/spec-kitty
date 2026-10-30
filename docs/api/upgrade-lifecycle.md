@@ -2,7 +2,7 @@
 title: spec-kitty upgrade lifecycle
 description: Reference for the spec-kitty upgrade command lifecycle. Understand the project schema check, CLI migrations, and agent command synchronization.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-30'
 type: reference
 related:
 - docs/api/cli-commands.md
@@ -53,6 +53,13 @@ Project upgrade walks pending migrations in version order. For each migration, i
 3. **Update `.kittify/` scaffold files** — `memory/`, `command-skills-manifest.json`, and config schemas — to the new layout.
 4. **Bump `.kittify/metadata.yaml`** to record the new schema version after each migration step.
 5. **Leave user data alone** — `kitty-specs/`, `architecture/`, `docs/`, `src/`, and anything else you author is untouched.
+
+One exception inside `kitty-specs/` is a repair, not a rewrite: when git tracks a Mission's
+`kitty-specs/<slug>/meta.json` and the working tree has lost it, the upgrade rebuilds the file from
+the copy git holds so the Mission keeps its `mission_id`. When that tracked copy cannot be read,
+nothing is written for the Mission and the output names `git checkout -- <path>`. An upgrade never
+mints a second identity for a Mission git already holds, and it never creates the phase-flip stub
+metadata a Mission's absent file used to attract.
 
 Migrations are idempotent: re-running `spec-kitty upgrade` is a no-op when the schema is current.
 
