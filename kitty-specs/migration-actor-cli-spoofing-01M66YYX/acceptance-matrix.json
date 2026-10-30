@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "A migration: identity re-recorded from the log (recorded=True) keeps its reconstruction-seed status.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_actor_from_option_replays_a_recorded_seed_unchanged; tests/specify_cli/cli/commands/agent/test_move_task_structured_actor_6400.py::test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:07.642102+00:00",
       "notes": ""
     },
     {
