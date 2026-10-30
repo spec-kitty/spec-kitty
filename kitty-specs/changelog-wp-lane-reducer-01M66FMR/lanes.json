@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "changelog-wp-lane-reducer-01M66FMR",
+  "mission_id": "01M66FMRX1Q8WXYAE32SHM5M07",
+  "mission_branch": "kitty/mission-changelog-wp-lane-reducer-01M66FMR",
+  "target_branch": "issue-6612-changelog-wp-lane-reducer",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/release/changelog.py",
+        "tests/release/test_release_prep.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/event-ledger-writers-and-readers.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T13:28:57.898668+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "2ea86a2637e77c2e5314d2e7555b5055f802ea83"
+}
