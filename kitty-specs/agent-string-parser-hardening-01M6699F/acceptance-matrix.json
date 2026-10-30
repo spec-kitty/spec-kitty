@@ -1,0 +1,49 @@
+{
+  "mission_slug": "agent-string-parser-hardening-01M6699F",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "targeted pytest: tests/status/test_actor_boundary_normalize.py + the three #6400 CLI refusal tests; red on 3dc5e1f259, green on 326264d78e",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T12:04:21.551823+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "targeted pytest: tests/status/test_actor_boundary_normalize.py + the three #6400 CLI refusal tests; red on 3dc5e1f259, green on 326264d78e",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T12:04:25.430634+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "targeted pytest: tests/status/test_actor_boundary_normalize.py + the three #6400 CLI refusal tests; red on 3dc5e1f259, green on 326264d78e",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T12:04:29.069138+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "targeted pytest: tests/status/test_actor_boundary_normalize.py + the three #6400 CLI refusal tests; red on 3dc5e1f259, green on 326264d78e",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T12:04:32.877897+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
