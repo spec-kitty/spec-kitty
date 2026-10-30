@@ -18,7 +18,6 @@ from specify_cli.agent_tasks_ports import (
 )
 from specify_cli.coordination.commit_outcome import SurfaceOutcome, commit_outcome_exit_code, render_commit_outcome
 from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 from specify_cli.git.protection_policy import ProtectionPolicy
 import logging
 import re
@@ -1321,29 +1320,27 @@ def _mission_dirs_for_feedback_source(
     main_repo_root: Path,
     mission_slug: str,
     *,
-    surface_root: Path,
     owned: OwnedCheckout | None = None,
 ) -> tuple[Path, ...]:
-    """Return every ``kitty-specs/<mission_slug>`` tree a draft may live in (#6632).
+    """Return the mission directory a reviewer's feedback draft may live in (#6632).
 
-    A reviewer writes the draft in the checkout the review prompt told them to
-    work in, which is not always the checkout the review-cycle record lands in:
-    under a coordination topology the record is COORD-partition (coordination
-    worktree) while the reviewer's repository root checkout is the primary one.
-    All three roots are candidates, resolved and deduplicated so a path check is
-    a plain containment test rather than a string comparison.
+    Derived through the ONE placement seam every other review-cycle read uses --
+    ``read_dir(WORK_PACKAGE_TASK)``, the PRIMARY-partition mission directory that
+    owns ``tasks/<wp>/`` -- never a hand ``kitty-specs/<slug>`` join (the second
+    authority ``tests/architectural/test_single_mission_surface_resolver.py``
+    forbids, FR-004) and never the kind-blind ``candidate_feature_dir_for_mission``
+    fold (the read-side bypass ``tests/architectural/test_no_read_side_bypass.py``
+    forbids, FR-005 / IC-06).
+
+    The reviewer writes the draft in the checkout the review prompt told them to
+    work in. Under a coordination topology the review-cycle RECORD is
+    COORD-partition (coordination worktree) while that draft is in the repository
+    root checkout -- which is exactly the PRIMARY mission directory this seam call
+    returns, so one candidate covers both. An owned checkout contributes its own
+    mission directory.
     """
-    roots = {main_repo_root, surface_root}
-    if owned is not None:
-        roots.add(owned.owned_root)
-    # The mission directory is derived through the canonical read-path primitive,
-    # never a hand `kitty-specs/<slug>` join: that join is the second authority
-    # `tests/architectural/test_single_mission_surface_resolver.py` forbids
-    # (FR-004 of single-planning-surface-authority-01KVPR00). The primitive is a
-    # candidate resolver -- it does not require the directory to exist -- so a
-    # root with no Mission simply yields a path that fails the containment test.
-    candidates = {candidate_feature_dir_for_mission(root, mission_slug).resolve() for root in roots}
-    return tuple(sorted(candidates))
+    seam = placement_seam(main_repo_root, mission_slug, owned=owned)
+    return (seam.read_dir(MissionArtifactKind.WORK_PACKAGE_TASK).resolve(),)
 
 
 def _retire_consumed_feedback_source(
@@ -1644,19 +1641,31 @@ def create_rejected_review_cycle(
     retired_feedback_source: Path | None = None
     retirement_warnings: tuple[str, ...] = ()
     if feedback_source is not None and persistence.verdict_durably_persisted:
-        retired_feedback_source, retirement_warning = _retire_consumed_feedback_source(
-            feedback_source=feedback_source,
-            recorded_source_text=recorded_source_text,
-            record_name=filename,
-            mission_dirs=_mission_dirs_for_feedback_source(
-                main_repo_root,
-                safe_mission_slug,
-                surface_root=surface_root,
-                owned=owned,
-            ),
-        )
-        if retirement_warning is not None:
-            retirement_warnings = (retirement_warning,)
+        # NFR-002, at its widest: not just the unlink but the whole retirement --
+        # including resolving the mission directory -- is best-effort. The verdict
+        # is already committed; nothing in this block may fail the rejection, so an
+        # unexpected error becomes a warning like any other kept-draft reason.
+        try:
+            retired_feedback_source, retirement_warning = _retire_consumed_feedback_source(
+                feedback_source=feedback_source,
+                recorded_source_text=recorded_source_text,
+                record_name=filename,
+                mission_dirs=_mission_dirs_for_feedback_source(
+                    main_repo_root,
+                    safe_mission_slug,
+                    owned=owned,
+                ),
+            )
+        except Exception:  # noqa: BLE001 - NFR-002: a committed verdict never fails here
+            logger.warning(
+                "Could not retire review feedback draft %s for %s; the recorded verdict stands.",
+                feedback_source,
+                safe_wp_id,
+                exc_info=True,
+            )
+        else:
+            if retirement_warning is not None:
+                retirement_warnings = (retirement_warning,)
 
     review_result = ReviewResult(
         reviewer=artifact.reviewer_agent,
