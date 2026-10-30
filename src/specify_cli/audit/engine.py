@@ -4,9 +4,12 @@ This module is the integration point for the read-only mission-state audit.  It:
 
 1. Discovers mission directories under ``scan_root`` in lexicographic order.
 2. Dispatches the 7 per-artifact classifiers for each mission.
-3. Calls ``audit_repo()`` once and indexes ``IdentityState`` results by slug.
+3. Calls ``audit_repo()`` and indexes ``IdentityState`` results by slug: the
+   default walk, plus — on the default ``kitty-specs/`` scan only — the
+   residue-aware walk (#6757).
 4. Calls ``find_duplicate_prefixes()`` and ``find_ambiguous_selectors()`` for
-   repo-level findings.
+   repo-level findings, on the *selectable* Missions population when that
+   second walk ran (#6757).
 5. Sorts findings by ``(artifact_path, code)`` within each mission.
 6. Assembles ``RepoAuditReport`` with sorted missions and shape counters.
 
@@ -237,20 +240,51 @@ def _residue_result(candidate: Path) -> MissionAuditResult:
 # ---------------------------------------------------------------------------
 
 
+def _collision_groups(
+    repo_root: Path,
+    identity_states: list[IdentityState],
+    collision_states: list[IdentityState] | None,
+) -> tuple[dict[str, list[IdentityState]], dict[str, list[IdentityState]]]:
+    """The prefix and selector groups the collision reports are built from (#6757).
+
+    *collision_states* is the residue-aware walk (the Missions selection can
+    reach); ``None`` (a custom scan root: the audit fixtures) keeps the engine's
+    own population and the default walk, so that mode is unchanged.
+    """
+    if collision_states is None:
+        return find_duplicate_prefixes(repo_root), find_ambiguous_selectors(identity_states)
+    return (
+        find_duplicate_prefixes(repo_root, residue_aware=True),
+        find_ambiguous_selectors(collision_states),
+    )
+
+
 def _compute_repo_findings_by_slug(
     repo_root: Path,
     identity_states: list[IdentityState],
     mission_results: list[MissionAuditResult],
+    *,
+    collision_states: list[IdentityState] | None,
 ) -> dict[str, list[MissionFinding]]:
     """Compute cross-mission (repo-level) findings, attributed by slug.
 
     Calls the three repo-level identity functions and returns a dict mapping
     each mission slug to any findings that belong to that mission.
 
-    Three sources:
-    - Duplicate 3-digit numeric prefixes (``DUPLICATE_PREFIX`` warning)
-    - Ambiguous selector handles (``AMBIGUOUS_SELECTOR`` warning)
-    - Duplicate ``mission_id`` values (``DUPLICATE_MISSION_ID`` error)
+    Two populations, on purpose (#6757):
+
+    - **Collisions** (``DUPLICATE_PREFIX``, ``AMBIGUOUS_SELECTOR``) are judged on
+      *collision_states* — the residue-aware walk (``audit_repo(...
+      residue_aware=True)`` / ``find_duplicate_prefixes(...,
+      residue_aware=True)``). A ``kitty-specs/`` folder that Mission selection
+      cannot reach is not a Mission, so it can neither fake a collision on a
+      healthy Mission nor silence one between two real Missions. ``None`` (a
+      custom scan root: the audit fixtures) keeps the engine's own population,
+      so that mode's findings and its no-git-probe behaviour are unchanged.
+    - **``DUPLICATE_MISSION_ID``** groups *identity_states* — the engine's own
+      ``is_mission_dir`` population. Residue rows never carry a ``mission_id``,
+      so the two populations agree here; keeping the engine's population leaves
+      the finding exactly as it was.
 
     All three identity functions use *repo_root* (not ``scan_root``) because
     they internally append ``/kitty-specs``.
@@ -261,15 +295,18 @@ def _compute_repo_findings_by_slug(
 
     Args:
         repo_root: Repository root.
-        identity_states: All ``IdentityState`` objects from ``audit_repo()``.
+        identity_states: All ``IdentityState`` objects from the engine's default
+            ``audit_repo()`` walk (the ``is_mission_dir`` population).
         mission_results: Per-mission results (used to build ``slug_to_dir``).
+        collision_states: The population Mission selection can reach, from the
+            residue-aware ``audit_repo(..., residue_aware=True)`` walk; ``None``
+            for a non-default scan root, which keeps ``identity_states``.
 
     Returns:
         Dict mapping ``{mission_slug: [MissionFinding, ...]}`` for all
         missions that have any repo-level findings.
     """
-    prefix_groups = find_duplicate_prefixes(repo_root)
-    selector_groups = find_ambiguous_selectors(identity_states)
+    prefix_groups, selector_groups = _collision_groups(repo_root, identity_states, collision_states)
     slug_to_dir = {r.mission_slug: r.mission_dir for r in mission_results}
 
     attributed: dict[str, list[MissionFinding]] = {}
@@ -477,13 +514,28 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
     # repo_root and internally append /kitty-specs.  They must NOT receive
     # scan_root, which would cause them to look for scan_root/kitty-specs —
     # a path that does not exist — and silently return zero identity states.
-    # #5875 / FR-008: the default (not residue-aware) walk on purpose. The engine
-    # keeps its own, looser Mission rule (``is_mission_dir`` in ``_scan_missions``):
-    # a tracked spec.md, or any marker on a non-git root, makes a Mission here, so
-    # its IDENTITY_MISSING / DUPLICATE_PREFIX / AMBIGUOUS_SELECTOR findings must
-    # stay. Only ``doctor identity`` opts in to the ``residue`` state.
+    # #5875 / FR-008: this default (not residue-aware) walk is the engine's own,
+    # looser Mission rule (``is_mission_dir`` in ``_scan_missions``): a tracked
+    # spec.md, or any marker on a non-git root, makes a Mission here, so its
+    # IDENTITY_MISSING / DUPLICATE_MISSION_ID findings must stay. Only
+    # ``doctor identity`` opts in to the ``residue`` state.
     identity_states = audit_repo(options.repo_root)
     identity_index: dict[str, Any] = {s.slug: s for s in identity_states}
+
+    default_scan = scan_root.resolve() == (options.repo_root / KITTY_SPECS_DIR).resolve()
+
+    # #6757: on the default kitty-specs/ scan the *collision* reports are judged
+    # on the Missions selection can reach, not on the engine's looser
+    # population. A kitty-specs/ folder no selector can reach (a spec.md-only
+    # folder, say) is residue, so it must not fake a DUPLICATE_PREFIX /
+    # AMBIGUOUS_SELECTOR on a healthy Mission. The residue-aware walk is the
+    # read-side rule from #5875; it routes every git probe through one batch
+    # ``tracked_mission_paths`` call per walk (this call and the one inside
+    # ``_collision_groups``, so at most two probes), never one git call per
+    # Mission. A custom scan root (the audit
+    # fixtures) is left on the default walk: its findings and its no-git-probe
+    # behaviour are unchanged.
+    selectable_states = audit_repo(options.repo_root, residue_aware=True) if default_scan else None
 
     # Mission filter: resolve handle → allowed_dirs set (may raise on bad handle)
     allowed_dirs = _resolve_mission_filter(
@@ -491,12 +543,11 @@ def run_audit(options: AuditOptions) -> RepoAuditReport:
     )
 
     # Per-mission classification
-    default_scan = scan_root.resolve() == (options.repo_root / KITTY_SPECS_DIR).resolve()
     mission_results = _scan_missions(scan_root, allowed_dirs, identity_index, repo_root=options.repo_root if default_scan else None)
 
     # Repo-level findings with explicit slug attribution
     attributed = _compute_repo_findings_by_slug(
-        options.repo_root, identity_states, mission_results
+        options.repo_root, identity_states, mission_results, collision_states=selectable_states
     )
 
     # Merge attributed repo-level findings into per-mission results
