@@ -95,3 +95,16 @@ reads local files only and asserts on ids.
 
 **Verdict: releasable.** No blocking finding; the three readiness-gate findings (A1–A3)
 remain prose-only documentation debt, named in the PR's `## Deferred`.
+
+### Deviation recorded after consolidation
+
+- 2026-10-30 · review round 2 · The CI `charter` module shards were **cancelled** (not failed) behind the
+  pre-existing `next`-shard red (#6798), so I ran the module locally as the shard's
+  equivalent: `pytest -q -p no:randomly -m "not performance and not stress" tests/charter tests/charter_offering`
+  → `3 failed, 9161 passed`. All three failures are the same one-line consequence the
+  issue did not enumerate: one required *procedure* becoming one required *directive*
+  moves `test_reconciler_promotion`'s required-directive histogram (28 → 29) and both
+  in-force goldens. Fixed in `7b0bb69944` (histogram entry with its rationale, plus the
+  documented `UPDATE_SNAPSHOT=1` regeneration whose diff is additive only). Re-ran the
+  module: `9164 passed, 11 skipped, 0 failed`. The three tests pass on pristine
+  `origin/main`, so they were green before this pin moved.
