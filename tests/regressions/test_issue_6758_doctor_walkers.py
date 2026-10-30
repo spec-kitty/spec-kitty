@@ -25,28 +25,15 @@ import pytest
 from specify_cli.cli.commands import _coordination_doctor as coordination
 from specify_cli.cli.commands import _identity_audit as identity_audit
 from specify_cli.cli.commands import _review_cycle_reconcile_doctor as review_cycle
-from specify_cli.context import mission_resolver
 from tests._support.mission_residue_fixture import (
     MISSION_SLUG,
     RESIDUE_SLUG,
     seed_mission_and_residue,
     seed_tracked_idless_missions,
+    spy_on_tracked_paths,
 )
 
 pytestmark = [pytest.mark.regression, pytest.mark.integration, pytest.mark.git_repo]
-
-
-def _spy_on_tracked_paths(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
-    """Count the ``git ls-files`` probes ``tracked_mission_paths`` makes, keyed by repo root."""
-    calls: list[Path] = []
-    real = mission_resolver.tracked_paths
-
-    def _counting(cwd: Path, **kwargs: object) -> tuple[str, ...]:
-        calls.append(cwd)
-        return real(cwd, **kwargs)  # type: ignore[arg-type]
-
-    monkeypatch.setattr(mission_resolver, "tracked_paths", _counting)
-    return calls
 
 
 def test_collect_topology_rows_skips_residue(tmp_path: Path) -> None:
@@ -74,7 +61,7 @@ def test_run_topology_audit_json_excludes_residue(tmp_path: Path, capsys: pytest
 def test_collect_topology_rows_keeps_tracked_idless_missions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An id-less Mission git tracks is still listed, and the walk probes git at most once."""
     children = seed_tracked_idless_missions(tmp_path)
-    calls = _spy_on_tracked_paths(monkeypatch)
+    calls = spy_on_tracked_paths(monkeypatch)
 
     rows = identity_audit._collect_topology_rows(tmp_path, None)
 
@@ -85,7 +72,7 @@ def test_collect_topology_rows_keeps_tracked_idless_missions(tmp_path: Path, mon
 def test_collect_topology_rows_probes_git_at_all_only_when_needed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A walk whose children all carry a ``mission_id`` (or none at all) makes no git call."""
     seed_mission_and_residue(tmp_path)
-    calls = _spy_on_tracked_paths(monkeypatch)
+    calls = spy_on_tracked_paths(monkeypatch)
 
     identity_audit._collect_topology_rows(tmp_path, None)
 

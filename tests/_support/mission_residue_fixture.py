@@ -34,6 +34,9 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
+from specify_cli.context import mission_resolver
 from specify_cli.status.models import Lane, StatusEvent
 
 from tests._support.activation_cli import git, init_git_repo
@@ -46,6 +49,7 @@ __all__ = [
     "ResidueFixture",
     "seed_mission_and_residue",
     "seed_tracked_idless_missions",
+    "spy_on_tracked_paths",
 ]
 
 #: The one Mission's slug and identity.
@@ -103,6 +107,24 @@ def seed_tracked_idless_missions(repo_root: Path, slugs: tuple[str, ...] = ("010
     git(repo_root, "add", "-A")
     git(repo_root, "commit", "-q", "-m", "seed tracked id-less Missions")
     return children
+
+
+def spy_on_tracked_paths(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
+    """Record every ``git ls-files`` probe ``tracked_mission_paths`` makes, keyed by repo root.
+
+    The walkers' per-walk :class:`~specify_cli.context.mission_resolver.TrackedMissionPaths`
+    memo calls this module-level function, so patching it counts the probes a single walk
+    performs without mocking git itself (NFR-001).
+    """
+    calls: list[Path] = []
+    real = mission_resolver.tracked_paths
+
+    def _counting(cwd: Path, **kwargs: object) -> tuple[str, ...]:
+        calls.append(cwd)
+        return real(cwd, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(mission_resolver, "tracked_paths", _counting)
+    return calls
 
 
 def _mission_meta() -> dict[str, object]:
