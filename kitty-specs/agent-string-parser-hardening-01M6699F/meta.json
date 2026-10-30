@@ -1,0 +1,42 @@
+{
+  "accept_commit": "3485123f1593dc8999f70f564b2d197de11c8249",
+  "acceptance_history": [
+    {
+      "accept_commit": "6ef296f86516367932cff4110190572bce1fafb4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T12:04:43.492933+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "1ad4d71c42f5cf0a318a619539f661b6c5a05cf4"
+    },
+    {
+      "accept_commit": "3485123f1593dc8999f70f564b2d197de11c8249",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T12:04:52.227596+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "63235965eeb41da43bed03741be5b52077c94a40"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T12:04:52.227596+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "63235965eeb41da43bed03741be5b52077c94a40",
+  "baseline_merge_commit": "036a2f941e8f288823b891ecbcb730c9356cdec2",
+  "created_at": "2026-10-30T11:32:00.517762+00:00",
+  "flattened": true,
+  "friendly_name": "Agent string parser hardening",
+  "merged_at": "2026-10-30T12:05:53.016984+00:00",
+  "merged_commit": "0dc3c34477a799af8565011dd219ae72a1821ada",
+  "mid8": "01M6699F",
+  "mission_id": "01M6699F82NW47GQ0KV3GRBD3V",
+  "mission_number": 244,
+  "mission_slug": "agent-string-parser-hardening-01M6699F",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Issue #6755: since #6400 the compact --agent parser shapes the stored actor on every agent and operator status write. This mission strips every segment, treats a blank-after-strip segment as absent, refuses more than four segments on the explicit --agent paths with the existing clean refusal, and keeps the lenient free-text paths storing such values whole.",
+  "purpose_tldr": "Harden the compact agent-string parser: stripped segments, blank segments as absent, refusal beyond four segments",
+  "slug": "agent-string-parser-hardening-01M6699F",
+  "status_phase": "1",
+  "target_branch": "issue-6755-agent-string-parser-hardening",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T11:37:05.729448+00:00"
+}
