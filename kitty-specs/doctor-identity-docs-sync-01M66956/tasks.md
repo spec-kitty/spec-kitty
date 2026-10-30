@@ -4,7 +4,7 @@ description: "Work package task list for mission doctor-identity-docs-sync-01M66
 
 # Work Packages: doctor identity docs sync
 
-**Inputs**: Design documents from `/home/exedev/work/sk-6760/kitty-specs/doctor-identity-docs-sync-01M66956/`
+**Inputs**: Design documents from `kitty-specs/doctor-identity-docs-sync-01M66956/`
 **Prerequisites**: plan.md (required), spec.md (user stories), research.md (grounding evidence)
 
 **Tests**: The spec explicitly demands a red-first structural test (FR-004), so testing work is in scope.
