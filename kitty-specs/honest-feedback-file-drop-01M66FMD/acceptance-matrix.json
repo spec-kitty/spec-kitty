@@ -1,0 +1,49 @@
+{
+  "mission_slug": "honest-feedback-file-drop-01M66FMD",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "SC-001: e2e refusals in test_issue_6699_feedback_file_edges.py (in_progress->for_review, for_review->in_review): exit 1, edge-naming message, no lane hop, review_cycle_files == []; unit matrix covers planned->claimed, claimed->in_progress, for_review->in_progress, ->blocked, ->canceled. Red-first: 9 failed on pre-fix tree (WP history).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T14:19:30.424393+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "SC-002/SC-003: same-fixture positive controls (no-flag moves succeed); rejection edge still requires the file; approval edges unchanged \u2014 test_tasks_move_task_seam.py (#6652) green unmodified, test_tasks_transition_core.py 175 passed with re-pinned path-check messages.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T14:19:33.975252+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "SC-004: test_arbiter_override_with_feedback_file_warns_and_records_only_the_note \u2014 exit 0, 'was not recorded' + 'arbiter override' in output, note-derived ReviewOverride reason ([custom] shape pinned via get_arbiter_overrides_for_wp), only the rejection cycle on disk; no-flag control silent.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T14:19:37.610035+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "SC-005: move-task --help states the refusal on non-review edges; golden fixture regenerated in commit 4a98f577dd; test_tasks_cli_contract.py 30 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T14:19:40.860205+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
