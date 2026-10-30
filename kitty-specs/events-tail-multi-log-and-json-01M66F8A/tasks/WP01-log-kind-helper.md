@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: issue-6611-events-tail-multi-log-and-json
 merge_target_branch: issue-6611-events-tail-multi-log-and-json
 branch_strategy: Planning artifacts for this mission were generated on issue-6611-events-tail-multi-log-and-json. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6611-events-tail-multi-log-and-json unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-events-tail-multi-log-and-json-01M66F8A
+base_commit: 99403a465bd83a91a17bc9aa464b6033d9a34df0
+created_at: '2026-10-30T13:39:22.879348+00:00'
 subtasks:
 - T001
 - T002
