@@ -493,14 +493,18 @@ def _dispatch_advancing_mode(
         owned=owned,
     )
     if owned is not None:
+        from specify_cli.decisions.models import DecisionErrorCode
         from specify_cli.decisions.service import DecisionError
 
         try:
             _commit_owned_next_mutations(owned)
         except DecisionError as _exc:
-            # #6763: the commit step could not take the decisions lock within
-            # the bounded wait. Refuse in ``next``'s own error contract rather
-            # than letting ``LockAcquireTimeout`` escape into the agent loop.
+            # #6763: only the seam's lock timeout becomes this refusal; any
+            # other DecisionError keeps propagating unchanged.
+            if _exc.code is not DecisionErrorCode.LOCK_TIMEOUT:
+                raise
+            # Refuse in ``next``'s own error contract rather than letting
+            # ``LockAcquireTimeout`` escape into the agent loop.
             _emit_decisions_lock_timeout(_exc, json_output)
             raise typer.Exit(1) from _exc
 
