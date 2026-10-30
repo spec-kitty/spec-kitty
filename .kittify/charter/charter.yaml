@@ -719,6 +719,12 @@ catalog:
     summary: "Locality of Change (DIRECTIVE_024), the Boy Scout Rule (DIRECTIVE_025), and the Change Apply Smallest Viable Diff tactic each bound the size of a change from a different angle, and by design they are not fully compatible: Locality of Change minimizes blast radius, Boy Scout Rule licenses opportunistic in-place improvement of touched areas, and smallest-viable-diff minimizes the diff itself. This directive gives an operator or agent a single place to weigh the three together on a given change, instead of applying each in isolation, so the default doctrine pack stays coherent even though the underlying tension between the three rules is real and intentionally left unresolved at the rule level.\n"
     source_path: ''
     local_path: _LIBRARY/directive-reconcile-change-scope-tensions.md
+  - id: DIRECTIVE:RED_MAIN_RELEASE_DISCIPLINE
+    kind: directive
+    title: Red Main & Release Discipline
+    summary: "Keep the mainline CI signal honest and authoritative for release. A red main is a true signal of known release-blocking (P0) defects, never something to hide by reverting an honest failure or declining a bug's reproduction test. Mainline CI status is the single authoritative release gate; expensive QA and manual testing are not spent on a known-broken base; and red main is worked down as top priority. Adopt it as a team-wide agreement (product owner, QA, and maintainers) and record the project's own decision and runbook alongside it.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-red-main-release-discipline.md
   - id: DIRECTIVE:USE_C4_MODEL_TECHNIQUES
     kind: directive
     title: Use C4 Model Techniques
@@ -959,12 +965,6 @@ catalog:
     summary: "The maintainer workflow for producing a project-technical-evolution postmortem: a report that describes how the project moved over a cycle — architecture and roadmap currency, code and design quality, bug trend, contribution distribution, velocity, community-versus-maintainer authorship, and the friction the Missions themselves surfaced. It is driven by parallel profile-loaded research squads whose outputs are synthesized into one least-technical-first report addressed to maintainers, stakeholders, and investors at once. The deliverable is an evidence-backed narrative every figure of which is attributed to its source; it is not a status dump and not a roadmap.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-project-evolution-postmortem.md
-  - id: PROCEDURE:red-main-release-discipline
-    kind: procedure
-    title: Red Main & Release Discipline
-    summary: "Keep the mainline CI signal honest and authoritative for release. A red main is a true signal of known release-blocking (P0) defects, never something to hide by reverting an honest failure or declining a bug's reproduction test. Mainline CI status is the single authoritative release gate; expensive QA and manual testing are not spent on a known-broken base; and red main is worked down as top priority. Adopt it as a team-wide agreement (product owner, QA, and maintainers) and record the project's own decision and runbook alongside it.\n"
-    source_path: ''
-    local_path: _LIBRARY/procedure-red-main-release-discipline.md
   - id: PROCEDURE:refactoring
     kind: procedure
     title: Refactoring
@@ -1939,5 +1939,5 @@ catalog:
     local_path: _LIBRARY/user-project-profile.md
 overrides: {}
 metadata:
-  generated_at: '2026-10-21T20:16:32Z'
+  generated_at: '2026-10-30T18:36:41Z'
   bundle_schema_version: 2
