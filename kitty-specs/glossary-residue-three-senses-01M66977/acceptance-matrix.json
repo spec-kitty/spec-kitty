@@ -2,7 +2,7 @@
   "mission_slug": "glossary-residue-three-senses-01M66977",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "python scripts/generate_contextive_glossaries.py check -> All 13 generated file(s) are up-to-date (exit 0); orchestration.yml carries the Residue term",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T12:03:53.268221+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
