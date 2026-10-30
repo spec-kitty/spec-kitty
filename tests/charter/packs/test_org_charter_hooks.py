@@ -247,3 +247,72 @@ def test_cli_assembly_reaches_the_org_charter_legs(tmp_path: Path, monkeypatch: 
     assert result.exit_code == 1, result.output
     assert "SENTINEL org-charter leg ran" in result.output
     assert "no merger supplied" not in result.output
+
+
+# --------------------------------------------------------------------------------------
+# File-name collisions across layers (#6743, FR-002/FR-006)
+# --------------------------------------------------------------------------------------
+
+_FILE_NAME = "024-locality-of-change"
+_BUILT_IN_ID = "DIRECTIVE_024"
+
+
+def _colliding_pack(root: Path, *, file_name: str = _FILE_NAME, declared: str = "ACME_024", name: str = "acme") -> Path:
+    """A pack whose directive file name is (or is not) the built-in one, declaring *declared*."""
+    pack = root / name
+    (pack / "directives").mkdir(parents=True)
+    (pack / "directives" / f"{file_name}.directive.yaml").write_text(
+        textwrap.dedent(
+            f"""\
+            schema_version: "1.0"
+            id: {declared}
+            title: Locality
+            intent: Keep changes local.
+            enforcement: required
+            """
+        ),
+        encoding="utf-8",
+    )
+    return pack
+
+
+def _file_name_collisions(result) -> list[ValidationIssue]:
+    return [issue for issue in result.errors if issue.category == "file_name_collision"]
+
+
+def test_validate_reports_a_file_name_collision_with_the_built_in_layer(tmp_path: Path) -> None:
+    """#6743: the issue's own example is a pack-content error, not a silent shadow."""
+    pack = _colliding_pack(tmp_path)
+
+    result = org_charter.validate_pack_with_org_charter(pack)
+
+    assert result.ok is False
+    (collision,) = _file_name_collisions(result)
+    assert collision.file == str(pack / "directives" / f"{_FILE_NAME}.directive.yaml")
+    assert collision.artifact_type == "directives"
+    assert _FILE_NAME in collision.message
+    assert "ACME_024" in collision.message and _BUILT_IN_ID in collision.message
+    assert "Rename the org file" in collision.message, collision.message
+    assert str(pack / "directives" / f"{_FILE_NAME}.directive.yaml") in collision.message
+
+
+def test_validate_leaves_a_deliberate_same_id_override_and_a_renamed_file_alone(tmp_path: Path) -> None:
+    """FR-006 control on the same fixture family: only a *different* id under a taken name is an error."""
+    same_id = _colliding_pack(tmp_path, declared=_BUILT_IN_ID, name="override")
+    renamed = _colliding_pack(tmp_path, file_name="acme-024-local-strictness", declared="ACME_024", name="renamed")
+
+    for pack in (same_id, renamed):
+        result = org_charter.validate_pack_with_org_charter(pack)
+        assert _file_name_collisions(result) == [], [issue.message for issue in result.errors]
+
+
+def test_validate_collision_reporting_does_not_depend_on_a_repository(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """C-004: a bare pack path outside any repo is reported identically."""
+    pack = _colliding_pack(tmp_path)
+    outside = tmp_path / "nowhere"
+    outside.mkdir()
+    monkeypatch.chdir(outside)
+
+    result = org_charter.validate_pack_with_org_charter(pack)
+
+    assert len(_file_name_collisions(result)) == 1

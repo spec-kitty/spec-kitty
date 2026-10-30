@@ -89,6 +89,7 @@ from ._charter_pack_collect import (  # noqa: E402
     _collect_layer_collisions,
     _run_activation_ledger_check,
     _run_cross_grain_check,
+    _run_file_name_collision_check,
     _run_operating_procedures_check,
     _run_retired_governance_key_check,
     _run_retired_layout_check,
@@ -1159,6 +1160,11 @@ def charter_packs_check(
     # Folded in before ``exit_code`` is derived, same as the cross-grain scan.
     _run_operating_procedures_check(report)
 
+    # #6743: a file name the configured chain binds to two different declared ids
+    # is a pack-content error no activation writer can store. Folded in before
+    # ``exit_code`` is derived, so a colliding chain is never reported healthy.
+    _run_file_name_collision_check(report, repo_root)
+
     # #3732 FR-011: a retired ``governance.doctrine`` key in charter.yaml is a
     # finding (the CLI-root gate does not read charter.yaml).
     _run_retired_governance_key_check(report, repo_root)
@@ -1178,6 +1184,7 @@ def charter_packs_check(
         _emit_charter_packs_no_packs(report, selection_block, json_output=json_output)
         if not json_output:
             _render_cross_grain_findings(report)
+            _render_file_name_collision_findings(report)
             _render_retired_governance_key_finding(report)
             _render_retired_layout_findings(report)
             _render_activation_ledger_findings(report)
@@ -1217,6 +1224,7 @@ def charter_packs_check(
     # WP05 (#2666): surface FR-013 built-in cross-grain collisions loudly (the
     # JSON surface already carries them via the ``org_drg`` passthrough).
     _render_cross_grain_findings(report)
+    _render_file_name_collision_findings(report)
     _render_retired_governance_key_finding(report)
     _render_retired_layout_findings(report)
     _render_activation_ledger_findings(report)
@@ -1396,6 +1404,28 @@ def _render_cross_grain_findings(report: CharterPackHealthReport) -> None:
             f"  • [red]{finding.get('artifact')}[/red] ({finding.get('kind')}): declared in both the type grain and an action grain for a shipped mission type."
         )
     console.print("  [dim]Remove the duplicate declaration — an artifact may appear in at most one grain.[/dim]")
+
+
+def _render_file_name_collision_findings(report: CharterPackHealthReport) -> None:
+    """Render the ``File-name collisions`` block for a chain that binds one name to two ids (#6743).
+
+    Reads the structured ``org_drg['file_name_collisions']`` list assembled by
+    :func:`._charter_pack_collect._run_file_name_collision_check`; a no-op when the
+    chain is clean, so an unaffected run's output is unchanged. Every interpolated
+    value is escaped for the console markup renderer (NFR-005).
+    """
+    findings = [finding for finding in _org_drg_list(report, "file_name_collisions") if isinstance(finding, dict)]
+    if not findings:
+        return
+    console.print(f"\n[bold red]File-name collisions[/bold red] — {len(findings)} file name(s) stand for more than one declared id\n")
+    for finding in findings:
+        declarations = "; ".join(
+            f"{entry.get('layer')} file {entry.get('path')} declares {entry.get('declared_id')!r}"
+            for entry in finding.get("declarations", [])
+            if isinstance(entry, dict)
+        )
+        console.print(f"  • [red]{escape(str(finding.get('kind')))} {escape(str(finding.get('file_name')))}[/red]: {escape(declarations)}", soft_wrap=True)
+    console.print("  [dim]Rename one of the files so each id has its own file name.[/dim]")
 
 
 # ---------------------------------------------------------------------------

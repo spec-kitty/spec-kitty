@@ -163,3 +163,60 @@ def test_charter_homes_register_the_moved_handler_objects() -> None:
     assert pack["assemble"] is pack_tooling.pack_assemble
     assert _callbacks(charter_app, "org") == _callbacks(org.org_app)
     assert _callbacks(charter_pack_app, "asset") == _callbacks(asset_app)
+
+
+# --------------------------------------------------------------------------------------
+# file-name collisions across layers (#6743)
+# --------------------------------------------------------------------------------------
+
+_FILE_NAME = "024-locality-of-change"
+
+
+def _colliding_pack(tmp_path: Path, *, file_name: str = _FILE_NAME, declared: str = "ACME_024", name: str = "collide") -> Path:
+    pack = _scaffold_pack(tmp_path, name)
+    for existing in (pack / "directives").glob("*.directive.yaml"):
+        existing.unlink()
+    (pack / "directives").mkdir(parents=True, exist_ok=True)
+    (pack / "directives" / f"{file_name}.directive.yaml").write_text(
+        'schema_version: "1.0"\nid: ' + declared + "\ntitle: Locality\nintent: Keep changes local.\nenforcement: required\n",
+        encoding="utf-8",
+    )
+    return pack
+
+
+def test_pack_validate_reports_a_file_name_collision_with_the_built_in_layer(tmp_path: Path) -> None:
+    """The issue's example (#6743): a reused file name with another id is an error, not a silent shadow."""
+    pack = _colliding_pack(tmp_path)
+
+    result = runner.invoke(charter_app, ["pack", "validate", str(pack)])
+
+    assert result.exit_code == 1, result.output
+    output = " ".join(result.output.split())  # rich wraps at the runner's console width
+    assert _FILE_NAME in output
+    assert "ACME_024" in output and "DIRECTIVE_024" in output
+    assert "Rename the org file" in output
+
+
+def test_pack_validate_json_carries_the_file_name_collision_category(tmp_path: Path) -> None:
+    """FR-007: the existing ValidationIssue shape carries the finding, with no schema change."""
+    pack = _colliding_pack(tmp_path)
+
+    result = runner.invoke(charter_app, ["pack", "validate", str(pack), "--json"])
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["ok"] is False
+    collisions = [issue for issue in payload["errors"] if issue.get("category") == "file_name_collision"]
+    assert len(collisions) == 1
+    assert collisions[0]["file"].endswith(f"{_FILE_NAME}.directive.yaml")
+    assert collisions[0]["artifact_type"] == "directives"
+
+
+def test_pack_validate_accepts_a_pack_that_renames_the_file(tmp_path: Path) -> None:
+    """The control on the same fixture: renaming the file clears the finding."""
+    pack = _colliding_pack(tmp_path, file_name="acme-024-local-strictness")
+
+    result = runner.invoke(charter_app, ["pack", "validate", str(pack)])
+
+    assert result.exit_code == 0, result.output
+    assert "0 errors" in " ".join(result.output.split())
