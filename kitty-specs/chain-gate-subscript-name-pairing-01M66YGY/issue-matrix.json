@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#6006": {
+      "evidence_ref": "Historic: mission that created the chain single-authority gate (commit 6a74d164a6). This mission refines its Rule 2 classifier; it owes that issue no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6012": {
+      "evidence_ref": "Historic: mission that routed the remaining chain callers through the authority and added the name-paired rule (commit 904ca4241d). This mission refines that rule's classifier.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6418": {
+      "evidence_ref": "Parent issue, already landed as PR #6756; cited for context only. Its workaround (a for loop instead of a name-keyed DictComp) is what this mission removes the need for.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6732": {
+      "evidence_ref": "tests/architectural/test_org_pack_chain_single_authority.py (WP01 commit) + changelog entry; both reported idioms pinned by planted violation and non-violation",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
