@@ -1,0 +1,79 @@
+{
+  "mission_slug": "events-tail-multi-log-and-json-01M66F8A",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_events_tail_log_selector.py::test_every_kind_tails_its_canonical_path (table-driven, all six non-run kinds) + test_log_decisions_streams_rows_as_json \u2014 the --log choice is built from SUPPORTED_LOG_KINDS (Typer rejects unknown kinds, exit 2, before file access)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T15:14:27.571544+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_events_tail_logs_unit.py::test_resolve_log_path_per_kind + test_resolve_log_path_status_uses_surface_dir_not_feature_dir \u2014 each kind resolves to its canonical path via existing seams (mission_event_log_path, project_event_log_path, runs_root, feature_dir)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T15:14:32.035477+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_events_tail_log_selector.py::test_log_run_tails_the_newest_run_journal + tests/cli/test_events_tail_logs_unit.py::test_latest_run_journal_* (newest mtime wins, legacy slug fallback, unreadable state.json skipped)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T15:14:36.416203+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_events_tail_log_selector.py::test_default_output_differs_from_json_output + test_human_mode_renders_the_deterministic_line \u2014 human default via render_event_line, deterministic, no ANSI",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T15:14:40.612038+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_events_tail_log_selector.py::test_status_kind_json_is_byte_identical_to_prechange_shape \u2014 frozen-literal pin (row + reader-injected tail_offset/tail_invariant, exact json.dumps bytes); plus tests/cli/test_events_tail_real_fixture.py",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T15:14:44.447208+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_events_tail_log_selector.py::test_resume_offset_validates_against_the_selected_log (invalid_resume_offset on decisions) + test_log_run_resume_validates_against_the_selected_run_journal (run kind)",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T15:14:48.362872+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_events_tail_log_selector.py::test_log_run_refuses_when_only_other_missions_have_runs \u2014 typed run_log_unavailable stderr envelope, exit 1, empty stdout; never another mission's journal",
+      "pass_fail": "pass",
+      "verified_by": null,
+      "verified_at": "2026-10-30T15:14:52.356454+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

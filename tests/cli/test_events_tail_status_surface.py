@@ -44,9 +44,11 @@ _STATUS_LOG = "status.events.jsonl"
 
 
 def _tail(repo_root: Path, mission: str, *extra: str) -> Result:
+    # `--json` is passed explicitly: since #6611 the default output is the
+    # human-readable renderer, and this suite asserts JSON rows on stdout.
     return runner.invoke(
         _root_app,
-        ["events", "tail", "--mission", mission, *extra],
+        ["events", "tail", "--mission", mission, "--json", *extra],
         env={"SPECIFY_REPO_ROOT": str(repo_root)},
     )
 
