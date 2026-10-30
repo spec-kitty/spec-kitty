@@ -1,20 +1,20 @@
 {
-  "event_count": 13,
-  "last_event_id": "01M66MXQ9VKGMBBZF6HAPV00MZ",
-  "materialized_at": "2026-10-30T14:55:18.331579+00:00",
+  "event_count": 14,
+  "last_event_id": "01M66MXRRD0MJ3GA6TREEM3ABR",
+  "materialized_at": "2026-10-30T14:55:19.821838+00:00",
   "mission_number": "",
   "mission_slug": "pack-skill-body-path-containment-01M66FEC",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
@@ -59,14 +59,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "pi:tokenfactory/glm-5.3:python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M66MXQ9VKGMBBZF6HAPV00MZ",
-      "last_transition_at": "2026-10-30T14:55:18.331579+00:00",
+      "lane": "approved",
+      "last_event_id": "01M66MXRRD0MJ3GA6TREEM3ABR",
+      "last_transition_at": "2026-10-30T14:55:19.821838+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: claims corrected, changelog entry added, docs-lint 0 errors, pack_skills + identity + wheel tests green."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 800936,
       "shell_pid_created_at": "1793371125.68",
