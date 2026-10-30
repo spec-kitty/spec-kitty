@@ -132,6 +132,16 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("OrgPackParseError", "charter.offering.drg.org_pack_loader"),
         ("OrgPackSchemaError", "charter.offering.drg.org_pack_loader"),
         ("load_org_pack", "charter.offering.drg.org_pack_loader"),
+        # Added by #6731: the doctor's two containment halves reach the offering-layer
+        # predicates through this facade instead of a ``charter.activation`` internal
+        # wrapper. ``OrgPackRootUnavailableError`` is the typed refusal the carried-root
+        # accessor raises. All FACADE-ONLY; identity verified by the parametrized gate.
+        ("find_body_path_escapes", "charter.offering.drg.org_pack_loader"),
+        # The typed finding the body-path predicate returns; the doctor's JSON half
+        # annotates its aggregate with it (#6731).
+        ("BodyPathEscape", "charter.offering.drg.org_pack_loader"),
+        ("find_asset_path_escapes", "charter.offering.assets"),
+        ("OrgPackRootUnavailableError", "charter.offering.drg.org_pack_loader"),
         ("OrgPackSubdirEscapeError", "charter.offering.drg.org_pack_config"),
         ("UnknownRelationError", "charter.offering.drg.merge"),
         ("graph_document_to_dict", "charter.offering.drg.migration.extractor"),
