@@ -1138,7 +1138,9 @@ def _add_history_actor(status_dir: Path, wp_id: str, agent: str | None, recorded
     ``role`` follows the WP's current lane (:func:`~specify_cli.status.role_for_wp`):
     ``reviewer`` while it is ``in_review``, else ``implementer``. An explicit ``--agent``
     was already checked upfront and is parsed strictly (compact form accepted); without
-    it the WP's recorded agent (or ``unknown``) goes through the lenient builder.
+    it the WP's recorded agent (or ``unknown``) goes through the lenient builder as a
+    recorded identity (``recorded=True``), so a recorded seed keeps its seed status
+    (``#6754``).
     """
     from specify_cli.status import actor_from_option, build_status_actor, role_for_wp
 
@@ -1147,7 +1149,9 @@ def _add_history_actor(status_dir: Path, wp_id: str, agent: str | None, recorded
     if agent:
         actor = build_status_actor(role=role, agent=agent, fallback_tool="user", binding=None)
     else:
-        actor = actor_from_option(recorded_agent, role)
+        # The identity came out of the log, not from a caller flag: replay it verbatim so a
+        # recorded reconstruction seed keeps its seed status (#6754).
+        actor = actor_from_option(recorded_agent, role, recorded=True)
     return actor
 
 
