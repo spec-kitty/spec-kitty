@@ -17,7 +17,7 @@ from tests.specify_cli.invocation._op_git import checkout_issue_branch, track_op
 
 from specify_cli import app as cli_app
 from specify_cli.doctor import ops as ops_module
-from specify_cli.doctor.ops import close_stale_ops, display_path, list_orphan_ops, list_orphan_ops_across_checkouts
+from specify_cli.doctor.ops import close_stale_ops, display_path, list_orphan_ops, scan_op_records
 from specify_cli.invocation import writer as writer_module
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.record import OpCompletedEvent
@@ -108,16 +108,17 @@ def test_display_path_falls_back_to_the_absolute_form(
     assert display_path(record, tmp_path) == record.as_posix()
 
 
-def test_list_orphan_ops_across_checkouts_matches_one_directory_outside_git(
-    tmp_path: Path,
-) -> None:
-    """Outside a git checkout the repository-wide enumeration is today's scan (#6661)."""
+def test_scan_op_records_matches_one_directory_outside_git(tmp_path: Path) -> None:
+    """Outside a git checkout the repository-wide scan is today's single scan (#6661)."""
     ops_dir = _ops_dir(tmp_path)
     orphan = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRQ.jsonl"
     _write_op(orphan, completed=False)
 
-    assert list_orphan_ops_across_checkouts(tmp_path) == [orphan]
-    assert list_orphan_ops_across_checkouts(tmp_path) == list_orphan_ops(tmp_path)
+    pairs, unreadable = scan_op_records(tmp_path)
+
+    assert pairs == [(tmp_path, orphan)]
+    assert [record for _checkout, record in pairs] == list_orphan_ops(tmp_path)
+    assert unreadable == []
 
 
 def test_doctor_ops_json_reports_orphan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
