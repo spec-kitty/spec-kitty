@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "src/charter/offering/pack_skills/validation.py::resolve_body_path delegates to resolve_relative_path_within_root; _read_body rewired (hand-roll deleted); tests/charter_offering/pack_skills/test_validation.py::test_escaping_body_path_kinds_refused (POSIX/Windows/UNC absolute, ..-component, string-level nested/../) + ::test_symlink_escape_refused; suite green",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/glm-5.3:python-pedro",
+      "verified_at": "2026-10-30T14:57:17.056100+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
