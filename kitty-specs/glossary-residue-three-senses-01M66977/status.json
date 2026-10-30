@@ -20,6 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "kimi-k3",
+      "agent": "kimi-k3",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -29,7 +30,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Implement WP01 in the root checkout (single_branch)",
-        "Ready for review: entry + links + canon bullet + contextive + changelog + red-first test; docs gates and make test-fast green"
+        "Ready for review: entry + links + canon bullet + contextive + changelog + red-first test; docs gates and make test-fast green",
+        "Re-review APPROVE (reviewer-renata profile, kimi-k3): all findings resolved, verified against live code; fix commit 5e57de97"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
