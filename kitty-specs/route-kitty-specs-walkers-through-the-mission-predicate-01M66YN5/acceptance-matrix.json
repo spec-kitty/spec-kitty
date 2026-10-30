@@ -78,10 +78,10 @@
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/architectural/test_mission_resolver_walker_gate.py::test_named_walker_asks_the_selectable_predicate + ::test_predicate_ledger_checker_can_fail; verified red by temporarily dropping the predicate call from release/changelog.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:47:03.968581+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
