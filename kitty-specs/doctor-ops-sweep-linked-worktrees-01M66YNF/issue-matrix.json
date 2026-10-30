@@ -1,5 +1,41 @@
 {
   "rows": {
+    "#4397": {
+      "evidence_ref": "Closure-on-spine design this mission preserves (C-004); no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4424": {
+      "evidence_ref": "Linear-time sweep property preserved by per-checkout executors; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6410": {
+      "evidence_ref": "Auto-commit skip policy reused unchanged by the worktree sweep fixtures; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6564": {
       "evidence_ref": "Prior custody change this mission follows up; its fix already landed and is not reopened here (see spec.md Context).",
       "fr": null,
