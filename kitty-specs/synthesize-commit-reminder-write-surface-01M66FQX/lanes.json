@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "mission_slug": "synthesize-commit-reminder-write-surface-01M66FQX",
+  "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV",
+  "mission_branch": "kitty/mission-synthesize-commit-reminder-write-surface-01M66FQX",
+  "target_branch": "issue-6631-synthesize-reminder-write-surface",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/api.py",
+        "src/charter/activation/synthesizer/reach_only.py",
+        "src/specify_cli/cli/commands/charter/_synthesis.py",
+        "src/specify_cli/cli/commands/charter/resynthesize.py",
+        "src/specify_cli/cli/commands/charter/synthesize.py",
+        "tests/acceptance/test_persistent_deactivation.py",
+        "tests/agent/cli/commands/test_charter_synthesize_cli.py",
+        "tests/charter/synthesizer/test_reach_only_delivery.py",
+        "tests/charter/synthesizer/test_styleguide_reach_only.py",
+        "tests/charter/synthesizer/test_synthesize_activation_append.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/offering/skills/spk-charter-governance/references/charter-artifact-structure.md",
+        "src/charter/offering/skills/spk-charter-governance/references/charter-governance-workflow.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T13:29:11.533050+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "bd62d32e7b89df7da64bbbb1f7727cab8e595ab6"
+}
