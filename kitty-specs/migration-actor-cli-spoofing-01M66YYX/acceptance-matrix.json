@@ -78,10 +78,10 @@
       "criterion_id": "FR-008",
       "description": "The in-process migration writers still build migration:-actor rows (they bypass the emit shell).",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_the_backfill_writer_still_builds_a_seed_row",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:15.961410+00:00",
       "notes": ""
     },
     {
