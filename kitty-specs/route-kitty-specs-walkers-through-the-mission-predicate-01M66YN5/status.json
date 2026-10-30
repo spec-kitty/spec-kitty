@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "reviewer-renata",
-      "agent": "pi",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -30,7 +30,8 @@
       "last_transition_at": "2026-10-30T18:41:27.571884+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "All three doctor walkers route through is_selectable_mission_dir; 6 new tests green (4 failed before the change); blast radius 977 passed."
+        "All three doctor walkers route through is_selectable_mission_dir; 6 new tests green (4 failed before the change); blast radius 977 passed.",
+        "Review passed under reviewer-renata: 8-item anti-pattern checklist PASS; audit engine untouched; predicate semantics unchanged; the 4 new walker tests failed before the fix and pass after."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
