@@ -1,0 +1,32 @@
+{
+  "accept_commit": "f7fc1089c471db06cf184eb5ce2c70c1998627b3",
+  "acceptance_history": [
+    {
+      "accept_commit": "f7fc1089c471db06cf184eb5ce2c70c1998627b3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:42:15.545535+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "ed05564ca096c7722fa84e222e05755b7e7218f7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:42:15.545535+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "ed05564ca096c7722fa84e222e05755b7e7218f7",
+  "baseline_merge_commit": "512567eee71e31bb39f580c4f7acf8b865e9d1b2",
+  "created_at": "2026-10-30T17:43:56.775259+00:00",
+  "flattened": false,
+  "friendly_name": "org drg fragment pack root",
+  "merged_at": "2026-10-30T19:44:07.897917+00:00",
+  "merged_commit": "3041162bc544c8d82bfd2380412b0f32334b92ea",
+  "mid8": "01M66YJG",
+  "mission_id": "01M66YJGET56T5D72AYS3R6QDD",
+  "mission_number": 244,
+  "mission_slug": "org-drg-fragment-pack-root-01M66YJG",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances org drg fragment pack root on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "org drg fragment pack root",
+  "slug": "org-drg-fragment-pack-root-01M66YJG",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

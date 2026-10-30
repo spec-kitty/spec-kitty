@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "org-drg-fragment-pack-root-01M66YJG",
+  "mission_id": "01M66YJGET56T5D72AYS3R6QDD",
+  "mission_branch": "kitty/mission-org-drg-fragment-pack-root-01M66YJG",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/drg_activation.py",
+        "src/charter/drg.py",
+        "src/charter/offering/assets/__init__.py",
+        "src/charter/offering/assets/repository.py",
+        "src/charter/offering/drg/org_pack_loader.py",
+        "src/specify_cli/cli/commands/_charter_pack_collect.py",
+        "src/specify_cli/cli/commands/_profile_health_render.py",
+        "tests/architectural/test_charter_facades_reexport_offering.py",
+        "tests/charter_offering/assets/test_org_asset_path_escapes.py",
+        "tests/charter_offering/drg/test_org_body_path_escapes.py",
+        "tests/specify_cli/cli/commands/test_doctor_charter_packs_org_layer.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T18:24:05.133064+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "512567eee71e31bb39f580c4f7acf8b865e9d1b2"
+}

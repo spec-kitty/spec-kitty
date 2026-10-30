@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6418": {
+      "evidence_ref": "Parent defect #6418's fix shipped in a4369f9b6d and be40bb42cc; this mission removes the registry re-read those PRs introduced and changes no #6418 behaviour.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6731": {
+      "evidence_ref": "Mitigation landed on the mission branch: org_pack_loader.OrgDRGFragment carries the effective pack root (PrivateAttr, stamped once by load_org_pack), find_body_path_escapes/find_asset_path_escapes take only the fragment, the two charter.activation wrappers and _org_pack_roots_by_name are deleted, and both doctor halves read the offering predicates through charter.drg. Registry reads per doctor run: 3 -> 1 (counting tests). Doctor findings/messages/JSON/RC pinned unchanged by the #6418 tests.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
