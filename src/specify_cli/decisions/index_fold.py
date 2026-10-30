@@ -64,6 +64,7 @@ __all__ = [
     "build_opened_entry",
     "apply_terminal",
     "fold_events",
+    "tolerated_duplicate_openings",
 ]
 
 
@@ -318,6 +319,32 @@ def _select_opened_event(opened_events: list[Mapping[str, Any]]) -> Mapping[str,
         opened_events,
         key=lambda e: (str(e["payload"].get(_OPENED_VOLATILE_FIELD, "")), str(e.get("event_id", ""))),
     )
+
+
+def tolerated_duplicate_openings(events: Iterable[Mapping[str, Any]]) -> int:
+    """How many ``DecisionPointOpened`` rows *events* holds beyond the one folded.
+
+    ``0`` means "nothing tolerated": fewer than two openings, or openings the fold
+    REFUSES (their payloads differ in a field other than
+    :data:`_OPENED_VOLATILE_FIELD`). A positive count is the number of rows
+    :func:`_select_opened_event` accepts alongside the earliest one (#4848).
+
+    The tolerance rule is NOT restated here: this shares :func:`_opened_identity`
+    and :data:`_OPENED_VOLATILE_FIELD` with :func:`_select_opened_event`, so the
+    report a consumer builds from it (``doctor decisions``, #6764) can never drift
+    from what the fold actually accepts.
+
+    Deliberately does NOT raise :class:`FoldError`: a differing-payload duplicate is
+    the FOLD's refusal, reported through :func:`fold_events`, and must never be
+    reported as a tolerated duplicate. Read-only; *events* is not mutated.
+    """
+    opened = [e for e in events if e.get("event_type") == DECISION_POINT_OPENED]
+    if len(opened) < 2:
+        return 0
+    first_identity = _opened_identity(opened[0])
+    if any(_opened_identity(e) != first_identity for e in opened[1:]):
+        return 0
+    return len(opened) - 1
 
 
 #: Errors a malformed on-disk PAYLOAD raises inside the fold (a missing key,
