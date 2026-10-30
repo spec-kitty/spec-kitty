@@ -2,7 +2,7 @@
   "mission_slug": "migration-actor-cli-spoofing-01M66YYX",
   "mission_number": "",
   "mission_type": "",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -108,10 +108,10 @@
       "criterion_id": "FR-011",
       "description": "The architecture doc, the recorded --actor help body and the changelog entry state the refusal and its compatibility consequence.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "docs/architecture/status-model.md 'Who may write a seed'; docs/api/agent-subcommands.md status emit --actor block; docs/changelog/CHANGELOG.md [Unreleased] Breaking (#6754)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:28.605177+00:00",
       "notes": ""
     }
   ],
