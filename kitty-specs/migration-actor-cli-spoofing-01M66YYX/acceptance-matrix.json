@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "actor_from_option fails closed: a seed-shaped value is refused unless the caller passes recorded=True.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_actor_from_option_refuses_a_caller_supplied_seed",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:03.351115+00:00",
       "notes": ""
     },
     {
