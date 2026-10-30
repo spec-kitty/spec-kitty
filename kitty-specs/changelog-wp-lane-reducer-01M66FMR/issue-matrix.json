@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#1735": {
+      "evidence_ref": "Context-only citation: the split-brain bug class this fix avoids; no work owed to #1735",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#1848": {
+      "evidence_ref": "Context-only citation: the deleted-coord-branch data-loss guard this fix preserves; no work owed to #1848",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6612": {
+      "evidence_ref": "spec-kitty/spec-kitty#6612: changelog WP lane read bypasses the reducer; fixed by WP01",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
