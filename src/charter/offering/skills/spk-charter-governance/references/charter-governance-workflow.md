@@ -187,8 +187,13 @@ adapter and promotes the validated outputs into:
 
 ```bash
 spec-kitty safe-commit .kittify/charter-packs/ .kittify/charter/provenance/ .kittify/charter/synthesis-manifest.yaml \
+  .kittify/charter/synthesized-artifacts.yaml \
   -m "feat(charter): promote project-local doctrine from generated inputs"
 ```
+
+The exact command is printed by `charter synthesize` itself at the end of a
+successful run, naming every path that run wrote — prefer running that printed
+command over copying this list.
 
 ---
 

@@ -100,6 +100,7 @@ from charter.activation.synthesizer.legacy_rename import (
 # styleguides a run created to an explicit ``activated_<kind>s`` list. Public per
 # charter.activation.synthesizer.reach_only.__all__.
 from charter.activation.synthesizer.reach_only import (
+    SynthesizedActivationAppend as SynthesizedActivationAppend,
     append_synthesized_activations as append_synthesized_activations,
     created_slugs_by_kind as created_slugs_by_kind,
 )
@@ -300,6 +301,7 @@ __all__ = [
     "UnrepresentableDirectiveIdError",
     "UnresolvedSelection",
     "absent_key_stays_implicit",
+    "SynthesizedActivationAppend",
     "append_synthesized_activations",
     "apply_ledger_migration",
     "canonical_mission_type_key",

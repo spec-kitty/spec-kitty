@@ -346,7 +346,7 @@ def _append(repo: Path, **created: list[str]) -> list[str]:
     from charter.activation.synthesizer.reach_only import append_synthesized_activations
 
     with patch("charter.activation.bundle_restamp.restamp_bundle_hash"):
-        return append_synthesized_activations(repo, created)
+        return list(append_synthesized_activations(repo, created).warnings)
 
 
 def test_first_creation_appends_to_an_explicit_styleguide_list(tmp_path: Path) -> None:

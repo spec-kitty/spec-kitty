@@ -61,6 +61,7 @@ Each file (or `charter.yaml` section) has an authority class that determines how
 | `context-state.json` | **Runtime** | Tracks which actions have loaded context. Safe to delete (resets first-load state). |
 | `generated/*` | **Agent-authored input** | Written by the harness during synthesis; validated/promoted by `charter synthesize`. |
 | `provenance/*.yaml`, `synthesis-manifest.yaml` | **Derived** | Written by `charter synthesize`. Do not edit directly. |
+| `synthesized-artifacts.yaml` | **Derived** | Written by `charter synthesize` (the created-artifacts record). Do not edit; restore from version control if damaged. |
 
 **Rule:** Only edit sections/files with **Authoritative** authority. `catalog`/`metadata` inside
 `charter.yaml` and everything under `provenance/`/`synthesis-manifest.yaml` are overwritten by
@@ -186,6 +187,7 @@ hash is computed externally, over the whole file.
 | `.kittify/charter/charter.md` | Tracked | Curated companion, shared across team; not a runtime input |
 | `.kittify/config.yaml` | Tracked | Holds the `charter:` pointer plus agent/pack config |
 | `.kittify/charter/interview/answers.yaml` | Tracked | Authoritative interview input, shared across team |
+| `.kittify/charter/synthesized-artifacts.yaml` | Tracked | The per-kind record of artifacts synthesis created; sharing it across clones keeps artifact removals sticking |
 | `.kittify/charter/context-state.json` | Ignored | Local runtime state, not shared |
 | `.kittify/charter/provenance/*`, `synthesis-manifest.yaml` | Ignored | Regenerated synthesis state |
 
