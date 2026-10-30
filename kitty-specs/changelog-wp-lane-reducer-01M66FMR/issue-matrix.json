@@ -1,41 +1,41 @@
 {
-  "rows": {
-    "#1735": {
-      "evidence_ref": "Context-only citation: the split-brain bug class this fix avoids; no work owed to #1735",
-      "fr": null,
-      "nfr": null,
-      "repo": null,
-      "sc": null,
-      "scope": null,
-      "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "not-applicable",
-      "wp": null
-    },
-    "#1848": {
-      "evidence_ref": "Context-only citation: the deleted-coord-branch data-loss guard this fix preserves; no work owed to #1848",
-      "fr": null,
-      "nfr": null,
-      "repo": null,
-      "sc": null,
-      "scope": null,
-      "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "not-applicable",
-      "wp": null
-    },
-    "#6612": {
-      "evidence_ref": "commit d8dcabb620 (WP01 lane squash) + tests/release/test_release_prep.py coord-surface tests",
-      "fr": null,
-      "nfr": null,
-      "repo": null,
-      "sc": null,
-      "scope": null,
-      "source_file": null,
-      "title": null,
-      "verdict": "fixed",
-      "wp": "WP01"
-    }
+ "rows": {
+  "#1735": {
+   "evidence_ref": "Context-only citation: the split-brain bug class this fix avoids; no work owed to #1735",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": null,
+   "verdict": "not-applicable",
+   "wp": null
   },
-  "schema_version": 1
+  "#1848": {
+   "evidence_ref": "Context-only citation: the deleted-coord-branch data-loss guard this fix preserves; no work owed to #1848",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": null,
+   "verdict": "not-applicable",
+   "wp": null
+  },
+  "#6612": {
+   "evidence_ref": "commit d8dcabb620 (WP01 lane squash) + tests/release/test_release_prep.py coord-surface tests",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": null,
+   "title": null,
+   "verdict": "fixed",
+   "wp": "WP01"
+  }
+ },
+ "schema_version": 1
 }
