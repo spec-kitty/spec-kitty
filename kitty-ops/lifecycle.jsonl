@@ -168,3 +168,10 @@
 {"agent": "pi", "at": "2026-10-30T20:03:24.135662+00:00", "canonical_action_id": "review::review", "mission_id": "01M66YMC8061RKCHH6X6YHFD66", "phase": "started", "reason": null, "wp_id": null}
 {"agent": "pi", "at": "2026-10-30T20:03:27.971146+00:00", "canonical_action_id": "review::review", "mission_id": "01M66YMC8061RKCHH6X6YHFD66", "phase": "completed", "reason": null, "wp_id": null}
 {"agent": "pi", "at": "2026-10-30T20:04:04.126427+00:00", "canonical_action_id": "accept::accept", "mission_id": "01M66YMC8061RKCHH6X6YHFD66", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:16.504527+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:19.574986+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:24.503509+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:27.631464+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:50.489998+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:26:42.791801+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:27:06.552256+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "started", "reason": null, "wp_id": null}
