@@ -80,20 +80,29 @@ src/specify_cli/
 
 tests/
 ├── _support/mission_residue_fixture.py    # the shared git-aware fixture (Mission + residue)
-├── specify_cli/cli/commands/test_identity_audit.py
-├── specify_cli/cli/commands/test_coordination_doctor.py
-├── specify_cli/cli/commands/test_review_cycle_reconcile_doctor.py
-├── specify_cli/cli/commands/test_materialize.py
-├── cli/test_charter_activate_warning.py
-├── release/test_release_prep.py
+├── regressions/test_issue_6758_doctor_walkers.py       # doctor topology, coordination, review-cycle-reconcile
+├── regressions/test_issue_6758_read_surfaces.py        # materialize, charter activate, release changelog
 └── architectural/test_mission_resolver_walker_gate.py
 ```
+
+**Why one issue-pinned regression file per surface group, not one test per owning module
+test file.** The fixture is a real git repository (`git init` + commit), and this repository
+requires any test that drives git through subprocess to carry `git_repo` and to stay out of
+the `fast` tier. Three of the owning test files are `fast`-tier (`test_identity_audit.py`,
+`test_materialize.py`, `test_release_prep.py`), so adding a git fixture there would either
+break the tier contract or force a whole file out of the fast tier. The two issue-pinned
+files keep the git fixture in one place, carry `integration` + `git_repo` + `regression`, and
+still give one test per changed walker (FR-009). The owning suite's existing tests remain the
+regression guard for non-residue behaviour.
 
 **Structure Decision**: keep every edit inside the module that owns the walk. The
 predicate and its memo already live in `specify_cli/context/mission_resolver.py` (a lower
 layer that `specify_cli` may import), so no new module and no layer rule changes.
 
 ## Per-walker change and proof
+
+Tests live in `tests/regressions/test_issue_6758_doctor_walkers.py` (WP01) and
+`tests/regressions/test_issue_6758_read_surfaces.py` (WP02), both on the shared fixture.
 
 | Walker | Change | Test (red first) |
 | --- | --- | --- |
@@ -128,8 +137,8 @@ assertion cannot drift (acceptance-criteria-non-vacuity).
 - **Purpose**: give each changed walker a red-first proof with a residue child and a
   Mission child on one git-aware fixture.
 - **Relevant requirements**: FR-009, SC-002, SC-004
-- **Affected surfaces**: `tests/_support/mission_residue_fixture.py` and the six owning
-  test files
+- **Affected surfaces**: `tests/_support/mission_residue_fixture.py` and the two issue-pinned
+  regression files
 - **Sequencing/depends-on**: IC-01 (the tests are written first, then made green)
 - **Risks**: a fixture that is not git-aware cannot exercise the git-tracked-id-less case;
   the helper must commit the Mission's `meta.json` so only the residue child is untracked.
@@ -153,7 +162,7 @@ assertion cannot drift (acceptance-criteria-non-vacuity).
 2. Change the six walkers; rerun to green.
 3. Add the architectural pin; run it against the changed tree, then against a temporarily
    planted walker without the predicate (must fail).
-4. Run the blast radius: the seven test files above, plus
-   `tests/specify_cli/cli/commands/`, `tests/cli/`, `tests/release/`, `tests/charter/`,
-   and `make test-fast`.
+4. Run the blast radius: the two new regression files plus the architectural gate, then
+   `tests/specify_cli/cli/commands/`, `tests/cli/`, `tests/release/`, `tests/charter/`, and
+   `make test-fast`.
 5. `ruff check .` and `ruff format --check .` on the touched files.

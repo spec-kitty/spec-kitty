@@ -23,12 +23,12 @@
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
 | T001 | Add the shared git-aware Mission + residue fixture helper | WP01 | |
-| T002 | Write red-first tests for the three doctor walkers, including the one-probe memo assertion | WP01 | [P] |
+| T002 | Write red-first tests for the three doctor walkers in one issue-pinned regression file, including the one-probe memo assertion | WP01 | [P] |
 | T003 | Route `_collect_topology_rows` (`doctor topology`) through the shared walk and predicate | WP01 | |
 | T004 | Route `_resolve_mission_dirs` (`doctor coordination`) through the predicate | WP01 | |
 | T005 | Route `_mission_dirs_for` (`doctor review-cycle-reconcile`) through the predicate | WP01 | |
 | T006 | Prove red-first and run the doctor blast radius | WP01 | |
-| T007 | Write red-first tests for materialize, charter-activate and the release changelog | WP02 | [P] |
+| T007 | Write red-first tests for materialize, charter-activate and the release changelog in a second regression file | WP02 | [P] |
 | T008 | Route `_mission_dirs_to_process` (materialize) through the predicate | WP02 | |
 | T009 | Route `_collect_inflight_missions` (charter activate) through the predicate | WP02 | |
 | T010 | Route `build_changelog_block` (release changelog) through the predicate | WP02 | |
@@ -51,7 +51,7 @@
 ### Included Subtasks
 
 T001 Add the shared git-aware Mission + residue fixture helper
-T002 [P] Write red-first tests for the three doctor walkers
+T002 [P] Write red-first tests for the three doctor walkers (`tests/regressions/test_issue_6758_doctor_walkers.py`)
 T003 Route `_collect_topology_rows` (`doctor topology`) through the shared walk and predicate
 T004 Route `_resolve_mission_dirs` (`doctor coordination`) through the predicate
 T005 Route `_mission_dirs_for` (`doctor review-cycle-reconcile`) through the predicate
@@ -68,8 +68,12 @@ T006 Prove red-first and run the doctor blast radius
   `TrackedMissionPaths` memo; the `--mission` branch is untouched.
 - T004 keeps `safe_is_dir` evaluated first so an unstattable child still raises (`#3194`).
 - T005 keeps the existing comprehension and filters it.
-- T006: `pytest tests/specify_cli/cli/commands/test_identity_audit.py test_coordination_doctor.py
+- T006: `pytest tests/regressions/test_issue_6758_doctor_walkers.py
+  tests/specify_cli/cli/commands/test_identity_audit.py test_coordination_doctor.py
   test_review_cycle_reconcile_doctor.py test_doctor_coordination.py -q`.
+- The git fixture (real `git init` + commit) means these are the only files in the mission that
+  carry `git_repo`; the owning module test files stay `fast`-tier and unchanged as the
+  non-residue regression guard (see plan.md, "Why one issue-pinned regression file").
 
 ### Dependencies
 
@@ -92,7 +96,7 @@ T006 Prove red-first and run the doctor blast radius
 
 ### Included Subtasks
 
-T007 [P] Write red-first tests for materialize, charter-activate and the release changelog
+T007 [P] Write red-first tests for materialize, charter-activate and the release changelog (`tests/regressions/test_issue_6758_read_surfaces.py`)
 T008 Route `_mission_dirs_to_process` (materialize) through the predicate
 T009 Route `_collect_inflight_missions` (charter activate) through the predicate
 T010 Route `build_changelog_block` (release changelog) through the predicate
@@ -100,8 +104,8 @@ T011 Run the WP02 blast radius
 
 ### Implementation Notes
 
-- T007 reuses `tests/_support/mission_residue_fixture.py` from WP01; keep the existing non-residue
-  assertions in the same files as positive controls.
+- T007 reuses `tests/_support/mission_residue_fixture.py` from WP01 in a second issue-pinned
+  regression file; the owning module test files stay untouched as the non-residue guard.
 - T008 keeps the dot-directory skip and the `errors[]` contract; a residue child must produce neither a
   target nor an error entry.
 - T009 derives `repo_root` as the parent of the `kitty-specs/` argument and keeps the best-effort posture.
