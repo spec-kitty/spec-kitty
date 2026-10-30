@@ -1,7 +1,7 @@
 {
-  "event_count": 3,
-  "last_event_id": "01M66Z00WKPQ0HBRTPCHZAZZBX",
-  "materialized_at": "2026-10-30T17:51:19.443984+00:00",
+  "event_count": 5,
+  "last_event_id": "01M66Z36PGSFZ5P8MRQKCFFGQN",
+  "materialized_at": "2026-10-30T17:53:03.694241+00:00",
   "mission_number": "",
   "mission_slug": "route-kitty-specs-walkers-through-the-mission-predicate-01M66YN5",
   "mission_type": "software-dev",
@@ -13,17 +13,26 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "pi",
+      "agent": "pi",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M66YZZW8KBZTAXDWAZ64P7E5",
-      "last_transition_at": "2026-10-30T17:51:18.408626+00:00"
+      "implementer_of_record": "pi",
+      "lane": "in_progress",
+      "last_event_id": "01M66Z36PGSFZ5P8MRQKCFFGQN",
+      "last_transition_at": "2026-10-30T17:53:03.694241+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 104033,
+      "shell_pid_created_at": "1793382775.33"
     },
     "WP02": {
       "actor": "finalize-tasks",
