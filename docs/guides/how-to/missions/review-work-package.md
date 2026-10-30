@@ -126,9 +126,18 @@ spec-kitty agent tasks move-task WP01 --to approved --mission <slug> --note "Rev
 If changes are required:
 1. Write feedback to a temporary file (the review prompt shows a unique suggested path).
 2. Move the WP back to `planned` with `--review-feedback-file`.
-3. The command persists feedback in shared git common-dir and stores a pointer in frontmatter `review_feedback`.
+3. The command writes the feedback into `review-cycle-N.md` next to the WP, commits it, and stores a pointer in the event log and frontmatter `review_feedback`.
 
 Every blocking finding must map to a specific, verifiable remediation action.
+
+When the rejection advertises a path inside the Mission (`kitty-specs/<slug>/tasks/<wp>/review-feedback-N.md`),
+that file is a **draft**: the committed `review-cycle-N.md` carries its text verbatim, so the rejection
+removes the draft once that record is durable. Otherwise the draft would be left untracked and the WP's
+next `move-task --to for_review` would refuse on it. The draft is **kept** — silently, because nothing
+is wrong with it — when the record is not committed (`--no-auto-commit`), when you already committed
+the draft yourself, or when it lies outside the Mission directory (a scratch note under `/tmp`, as
+below, is never removed). It is kept **with a warning on stderr** when it could not be removed safely:
+it changed after the record was written, it could not be re-read, or the unlink failed.
 
 In your terminal:
 
