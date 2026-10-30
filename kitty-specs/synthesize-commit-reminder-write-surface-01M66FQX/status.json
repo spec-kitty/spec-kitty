@@ -62,6 +62,9 @@
       "last_event_id": "01M66KWJXA2DCM6MJTGMQSWE4Y",
       "last_transition_at": "2026-10-30T14:37:12.490741+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: skill step 7 + artifact-structure rows + changelog entry; changelog style and spelling gates green; docs structural-lint failures pre-exist on the lane base (verified by stash)"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 698322,
