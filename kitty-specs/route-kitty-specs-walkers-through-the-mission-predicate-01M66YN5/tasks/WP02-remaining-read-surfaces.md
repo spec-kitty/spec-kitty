@@ -28,7 +28,6 @@ history:
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/
-create_intent: []
 create_intent:
 - tests/regressions/test_issue_6758_read_surfaces.py
 execution_mode: code_change

@@ -24,20 +24,16 @@
         "src/specify_cli/release/changelog.py",
         "tests/_support/mission_residue_fixture.py",
         "tests/architectural/test_mission_resolver_walker_gate.py",
-        "tests/cli/test_charter_activate_warning.py",
-        "tests/release/test_release_prep.py",
-        "tests/specify_cli/cli/commands/test_coordination_doctor.py",
-        "tests/specify_cli/cli/commands/test_identity_audit.py",
-        "tests/specify_cli/cli/commands/test_materialize.py",
-        "tests/specify_cli/cli/commands/test_review_cycle_reconcile_doctor.py"
+        "tests/regressions/test_issue_6758_doctor_walkers.py",
+        "tests/regressions/test_issue_6758_read_surfaces.py"
       ],
       "predicted_surfaces": [],
       "depends_on_lanes": [],
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-10-30T17:53:49.450249+00:00",
+  "computed_at": "2026-10-30T17:54:19.657265+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "90cca57d01f6e3522b35ce6e1f5b08d82743bbba"
+  "planning_commit_sha": "1f68e5e4aa604a41efdbab45c9bd498da860e25e"
 }
