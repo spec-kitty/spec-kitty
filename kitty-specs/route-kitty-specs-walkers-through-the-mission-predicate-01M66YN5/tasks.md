@@ -23,7 +23,7 @@
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
 | T001 | Add the shared git-aware Mission + residue fixture helper | WP01 | |
-| T002 | Write red-first tests for the three doctor walkers | WP01 | [P] |
+| T002 | Write red-first tests for the three doctor walkers, including the one-probe memo assertion | WP01 | [P] |
 | T003 | Route `_collect_topology_rows` (`doctor topology`) through the shared walk and predicate | WP01 | |
 | T004 | Route `_resolve_mission_dirs` (`doctor coordination`) through the predicate | WP01 | |
 | T005 | Route `_mission_dirs_for` (`doctor review-cycle-reconcile`) through the predicate | WP01 | |
