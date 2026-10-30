@@ -1,0 +1,14 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-10-30T19:04:14Z",
+  "base_branch": "c8fb16dc250a1029f1b25c4e51d65b804f311104",
+  "base_commit": "c8fb16dc250a1029f1b25c4e51d65b804f311104",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 3600
+}
