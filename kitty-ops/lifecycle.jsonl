@@ -135,3 +135,5 @@
 {"agent": "pi", "at": "2026-10-30T12:34:17.103151+00:00", "canonical_action_id": "review::review", "mission_id": "01M66977022EWZ5R0K0XXE98C1", "phase": "started", "reason": null, "wp_id": "WP01"}
 {"agent": "pi", "at": "2026-10-30T12:34:48.785781+00:00", "canonical_action_id": "review::review", "mission_id": "01M66977022EWZ5R0K0XXE98C1", "phase": "completed", "reason": null, "wp_id": "WP01"}
 {"agent": "pi", "at": "2026-10-30T12:34:54.369402+00:00", "canonical_action_id": "review::review", "mission_id": "01M66977022EWZ5R0K0XXE98C1", "phase": "started", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-30T12:35:03.526816+00:00", "canonical_action_id": "review::review", "mission_id": "01M66977022EWZ5R0K0XXE98C1", "phase": "completed", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-30T12:35:25.809774+00:00", "canonical_action_id": "accept::accept", "mission_id": "01M66977022EWZ5R0K0XXE98C1", "phase": "started", "reason": null, "wp_id": null}
