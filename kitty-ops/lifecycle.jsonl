@@ -114,3 +114,10 @@
 {"agent": "python-pedro", "at": "2026-10-30T23:30:03.475858+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
 {"agent": "python-pedro", "at": "2026-10-30T23:31:29.851507+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "completed", "reason": null, "wp_id": null}
 {"agent": "python-pedro", "at": "2026-10-30T23:31:46.623080+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:16.504527+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:19.574986+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:24.503509+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:27.631464+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:25:50.489998+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:26:42.791801+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-j", "at": "2026-10-30T13:27:06.552256+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV", "phase": "started", "reason": null, "wp_id": null}
