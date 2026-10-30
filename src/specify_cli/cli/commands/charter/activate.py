@@ -38,7 +38,7 @@ from rich.markup import escape
 from specify_cli.cli.console import console, sanitize_terminal_text
 from specify_cli.cli.helpers import parameter_source_name
 
-from charter.activation.api import DenyListChoice, deny_delta
+from charter.activation.api import DenyListChoice, deny_delta, load_activation_ledger
 from charter.activation.cascade import (
     CascadeActivationResult,
     CascadeScope,
@@ -80,6 +80,7 @@ from specify_cli.cli.commands.charter._activation_report import (
     CascadeEntry,
     CascadeOutcome,
     CascadeReport,
+    InForceRef,
     NoCascadeReport,
 )
 from specify_cli.cli.commands.charter._cascade_shared import (
@@ -612,13 +613,78 @@ def _tension_warnings(repo_root: Path) -> list[str]:
     return warnings
 
 
+#: FR-001 (#6742): the note a referenced artifact that is already in force gets. Never
+#: phrased as a warning/error: the command did what was asked, and the referenced
+#: artifact is in force because the project's activation state already admits it.
+IN_FORCE_NOTE = "[dim]Note[/dim]: referenced {label} is already in force ({reason}); not added by this command."
+
+#: Why an artifact is in force without having been activated by this command: its
+#: kind has no explicit allow list, so ``effective_when_absent`` decides.
+_NO_EXPLICIT_LIST = "no explicit list"
+
+
+def _in_force_reason(kind: ArtifactKind, allow: tuple[str, ...] | None) -> str:
+    """The note's parenthetical for an in-force reference: why it is in force (#6742).
+
+    ``allow`` is the ledger's three-state allow for *kind*: ``None`` means the
+    activation key is absent, so the kind's ``effective_when_absent`` rule decides
+    (every available artifact for ``all``, the org-required floor for ``required``) —
+    either way, no explicit list names it. A present list names it, which is what the
+    operator can grep for.
+    """
+    if allow is None:
+        return _NO_EXPLICIT_LIST
+    return f"listed in {YAML_KEY_MAP[kind.operator_token]}"
+
+
+def _split_already_in_force(refs: tuple[ArtifactRef, ...], repo_root: Path) -> tuple[tuple[InForceRef, ...], tuple[ArtifactRef, ...]]:
+    """Partition referenced artifacts into (already in force, still not in force) (FR-001/FR-002).
+
+    The verdict is the activation layer's own membership rule —
+    :meth:`~charter.activation.pack_context.PackContext.admits`, which nets the deny
+    list first — so this report can never disagree with what the runtime enforces
+    (NFR-001). ``available`` carries the artifact's own id because the artifact is a
+    node of the merged DRG, which is the only condition ``admits`` consults it for.
+
+    Called AFTER the direct write, so ``--only`` narrowing is reflected: a reference
+    the command's own list no longer names is genuinely not in force (FR-004).
+
+    A project whose activation state cannot be read keeps the pre-existing report —
+    every reference stays "not in force" — rather than claiming force it cannot see.
+    """
+    try:
+        context = PackContext.from_config(repo_root)
+        allow = dict(load_activation_ledger(repo_root).allow)
+    except (ActiveCharterConfigError, OSError):
+        return (), refs
+    in_force: list[InForceRef] = []
+    remaining: list[ArtifactRef] = []
+    for ref in refs:
+        try:
+            kind = ArtifactKind.from_operator_token(ref.kind)
+        except ValueError:  # an unknown token, or ``mission-type`` (not an artifact kind)
+            remaining.append(ref)
+            continue
+        if context.admits(kind, ref.id, available=frozenset({ref.id})):
+            in_force.append(InForceRef(ref, _in_force_reason(kind, allow.get(kind))))
+        else:
+            remaining.append(ref)
+    return tuple(in_force), tuple(remaining)
+
+
 def _no_cascade_report(
     source_urn: str,
     repo_root: Path,
     layer_roots: dict[str, Path] | None,
     deactivated: frozenset[str] = frozenset(),
 ) -> NoCascadeReport:
-    """Collect referenced-but-not-cascaded artifacts (FR-013, Contract C3.2).
+    """Collect referenced artifacts the run did not cascade (FR-013, Contract C3.2).
+
+    The references are split three ways: the ones the project's activation state
+    already admits (reported as notes, FR-001/#6742), the ones it does not (the
+    existing ``Warning: referenced …`` lines), and the structurally non-activatable
+    ones (``Not cascaded: …``). The recovery hint survives only while something is
+    left to recover (FR-006).
 
     T009: threads the full org-pack chain into the DRG load and the ID
     mapping below, same rationale as ``_cascade_activation_report`` — an
@@ -644,24 +710,30 @@ def _no_cascade_report(
         return tuple(entry.ref for entry in _bucket_entries(bucket, ids, CascadeOutcome.SKIPPED_KIND_FILTERED))
 
     skipped = refs(report.skipped)
+    already_in_force, not_in_force = _split_already_in_force(skipped, repo_root)
     return NoCascadeReport(
-        skipped=skipped,
+        skipped=not_in_force,
+        already_in_force=already_in_force,
         deactivated=refs(report.deactivated),
         kind_filtered=refs(report.not_cascaded_kind_filtered),
-        # FR-005a: gated on `report.skipped` specifically (not the broader
-        # `has_skipped`) -- `recovery_hint` literally says "to activate the
-        # referenced artifacts", which is only true of `skipped` entries.
-        hint=report.recovery_hint if report.skipped else None,
+        # FR-006/#6742: the hint says "to activate the referenced artifacts", which is
+        # only true of the references that are NOT in force. Gating it on the engine's
+        # pre-split bucket would advertise a no-op whenever they all are in force.
+        hint=report.recovery_hint if not_in_force else None,
     )
 
 
 def render_no_cascade_warning(report: NoCascadeReport) -> None:
-    """Print the referenced-but-not-cascaded warning (FR-013/FR-005).
+    """Print the no-``--cascade`` report (FR-001/FR-005/FR-013).
 
-    The kind-filtered lines use the SAME shared helper as the cascade render
-    (FR-009) and never suggest ``--cascade``: re-running with ``--cascade``
-    would NOT activate an asset/template.
+    The in-force references come first, as notes in the position the pre-#6742
+    warnings occupied; then the warnings for the references that really are not in
+    force, the hint, and the kind-filtered lines. The kind-filtered lines use the
+    SAME shared helper as the cascade render (FR-009) and never suggest
+    ``--cascade``: re-running with ``--cascade`` would NOT activate an asset/template.
     """
+    for entry in report.already_in_force:
+        console.print(IN_FORCE_NOTE.format(label=entry.ref.label, reason=escape(entry.reason)))
     for ref in report.skipped:
         console.print(f"[yellow]Warning[/yellow]: referenced {ref.label} was not activated (no --cascade).")
     for ref in report.deactivated:
