@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.offering.pack_skills import PackSkillConflictError, PackSkillRepository
+from charter.offering.pack_skills import PackSkillConflictError, PackSkillRepository, PackSkillViolation
+from charter.offering.pack_skills.models import PackSkill
 
 from .conftest import prompt_skill, wrapper_skill, write_skill
 
@@ -161,8 +162,6 @@ def test_body_text_refuses_symlink_swapped_after_load(skill_dirs: dict[str, Path
     # TOCTOU through the public entry point: the body passes load-time
     # validation (the link still resolves inside the skill directory), then is
     # repointed outside before the read.
-    from charter.offering.pack_skills import PackSkillViolation
-
     skill_dir = skill_dirs["org_a"] / "team"
     data = prompt_skill("land-pr", body_path="link.md")
     write_skill(skill_dir, data, body=None)
@@ -186,9 +185,6 @@ def test_body_text_refuses_escaping_body_path(skill_dirs: dict[str, Path], body_
     # Injected record: load-time validation skips a file with an escaping
     # body_path, so the catalog cannot hold one through loading -- the read-time
     # guard is defense-in-depth for records that reach it any other way.
-    from charter.offering.pack_skills import PackSkillViolation
-    from charter.offering.pack_skills.models import PackSkill
-
     (skill_dirs["org_a"].parent / "outside.md").write_text("SECRET OUTSIDE\n", encoding="utf-8")
     repo, _ = _load(skill_dirs)
     escaped = PackSkill.model_validate(prompt_skill("escaped", body_path=body_path))
