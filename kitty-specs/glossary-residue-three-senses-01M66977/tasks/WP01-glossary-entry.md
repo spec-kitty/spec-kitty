@@ -32,7 +32,10 @@ owned_files:
 - docs/changelog/CHANGELOG.md
 - src/specify_cli/context/mission_resolver.py
 - src/specify_cli/audit/models.py
+- src/specify_cli/status/identity_audit.py
 - src/specify_cli/.contextive/orchestration.yml
+- src/specify_cli/.contextive/execution.yml
+- src/specify_cli/.contextive/governance.yml
 create_intent:
 - tests/docs/test_glossary_residue_entry.py
 authoritative_surface: docs/context/
@@ -136,3 +139,4 @@ Reviewer: verify the three sense definitions match the code docstrings exactly i
 - 2026-10-30T11:35:00Z – pi – Prompt created.
 - 2026-10-30T11:45:00Z – pi (python-pedro) – T001 red first: `uv run --frozen pytest tests/docs/test_glossary_residue_entry.py -q` → 5 failed (entry, three docstring links, canon bullet), 1 passed (the positive control on the known target-owned-bookkeeping link, proving the probe is non-vacuous). Red on the planning base as required.
 - 2026-10-30T12:20:00Z – pi (python-pedro) – T002-T006 green: entry `### Residue` in docs/context/orchestration.md (three senses + guards + related terms, page `updated` bumped); glossary links added to `is_kitty_specs_residue`, `is_selectable_mission_dir` docstrings, the `RESIDUE_DIRECTORY` `#:` doc-comment, and (analysis finding C1, extension of the issue's three) the `identity_audit.py` module docstring; AGENTS.md Terminology Canon bullet after `routing`; Contextive regenerated (orchestration gains `Residue`; execution/governance also freshen — main's committed YAML was stale); docs gates green (docs_index 0 drift, ADR inventory unchanged, check_docs_freshness --ci exit 0, no-legacy-terminology 98 passed); changelog `[Unreleased]` Added entry. `uv run --frozen pytest tests/docs/ -q` → 1810 passed incl. the 6 new; residue/status suites green; ruff+mypy clean.
+- 2026-10-30T12:55:00Z – pi – Review-squad (planning-artifact challenge, reviewer-renata via kimi-k3) verdict: SOUND with findings. Folded: (1) sense-3 wording fixed — an unreadable `meta.json` is residue only when git tracks no marker (matches `is_selectable_mission_dir` docstring rule 3); (4) write-seam provenance aligned to the docstring's own citations (#6627, #6668); (5) `owned_files` extended with `identity_audit.py` (analysis finding C1 surface) and the collateral `.contextive/execution.yml`/`governance.yml` (finding 2 — the generator rewrites all 13 mapped contexts; the collateral churn is main's stale YAML freshened, called out in the PR body). Not actioned: finding 3 (shipped entry already uses `4.x` with deliberate deviation), finding 6 (markdown-only scope: `residue` is not a gate term, so `test_gate_terms.py` pack parity does not apply — noted for the PR body), finding 7 (mistaken: the red test landed alone in 0c6757f539; docstring links landed in 7b6f7c730; the red run is recorded above). Gates re-run green: contextive check up-to-date, structural tests 6/6, check_docs_freshness --ci exit 0.
