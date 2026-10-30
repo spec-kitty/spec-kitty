@@ -1,7 +1,7 @@
 {
   "rows": {
     "#5446": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "ADR 2026-10-07-3; exemption semantics unchanged, only production narrowed",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#6400": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "PR #6774 merged; #6754 is the follow-up it deliberately left open",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,20 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6754": {
+      "evidence_ref": "PR branch issue-6754-migration-actor-cli-spoofing: refusal authority + 5 guarded surfaces; matrix tests in tests/status, tests/specify_cli/orchestrator_api, tests/specify_cli/cli/commands; changelog Breaking entry",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP03"
     }
   },
   "schema_version": 1
