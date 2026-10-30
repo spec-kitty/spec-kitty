@@ -598,9 +598,22 @@ command and reported as `LEGACY_KEYS_PRESENT`.
 - **The cascade stops at a deactivated artifact.** It is reported, and nothing reachable only
   through it is activated. `--include-deactivated` (in its own *Cascade options* help panel,
   only with `--cascade`) walks through, activates those artifacts and clears their exclusions.
-- Without `--cascade`, every referenced artifact is named in a warning, which can be long for
-  a mission type. A deactivated one reads:
+- Without `--cascade`, every referenced artifact the run leaves alone is named, which can be
+  long for a mission type. Two cases, and the report says which is which (#6742):
+  - **Already in force** — the project's activation state admits it (its kind has no
+    `activated_<kind>` list, that list already names it, or an org pack requires it). It
+    reads `Note: referenced kind/id is already in force (<reason>); not added by this
+    command.`, where `<reason>` is `no explicit list` or `listed in activated_<plural>`.
+  - **Not in force** — the kind has an explicit list that omits it. It reads
+    `Warning: referenced kind/id was not activated (no --cascade).`
+
+  A deactivated reference is always a warning, whatever its kind's list says:
   `Warning: referenced kind/id is deactivated and was not activated.`
+
+  The `Hint: Re-run with \`--cascade <scope>\` … to activate the referenced artifacts` line
+  follows only while at least one reference is still not in force: when they are all in
+  force, `--cascade` would change nothing. The verdict is taken from the state the command
+  leaves behind, so `--only` narrowing still reports the references it dropped.
 
 **Cascade output**, one line per node:
 
@@ -640,7 +653,8 @@ change report is built from the same value the text output prints, so the two ne
 | `no_longer_in_force` | `[string]` \| `null` | `activate --only`: the ids the narrowed list dropped. `null` when that cannot be determined (the effective set could not be resolved; a warning says why and the text footer reads `No longer in force: unknown`). `[]` without `--only` |
 | `warnings` | `[string]` | Every warning the run printed, in print order (see below) |
 | `notices` | `[string]` | The lines the steps after the change printed (see [After the change](#after-the-change)), in print order |
-| `referenced_not_cascaded` | `[ArtifactRef]` | Without `--cascade`: the referenced artifacts the `Warning: referenced ...` lines name; `[]` with `--cascade` |
+| `referenced_not_cascaded` | `[ArtifactRef]` | Without `--cascade`: the referenced artifacts the `Warning: referenced ...` lines name — the ones that are *not* in force; `[]` with `--cascade` |
+| `referenced_already_in_force` | `[ArtifactRef]` | Without `--cascade`: the referenced artifacts the `Note: referenced ... is already in force` lines name — the ones the project's activation state already admits; `[]` with `--cascade` |
 | `referenced_kind_filtered` | `[ArtifactRef]` | Without `--cascade`: the referenced artifacts of a kind that cannot be activated, which the `Not cascaded: ...` lines name; `[]` with `--cascade`, where `cascade.skipped_kind_filtered` carries them |
 | `cascade` | object \| `null` | The cascade report; `null` without `--cascade` |
 
@@ -654,9 +668,11 @@ warnings, such as the warning that an explicit `skill` list freezes the org pack
 skills (for `deactivate`, also the mission-step default warning of a named agent profile);
 then the tension findings of `activate`; then the advisory warnings of cascaded artifacts.
 
-`referenced_not_cascaded` lists the artifacts that were skipped and those that are deactivated.
-Referenced artifacts of a kind that cannot be activated (an `asset` or a `template`, for example)
-are in `referenced_kind_filtered` instead.
+`referenced_not_cascaded` lists the artifacts that are not in force: the ones that were skipped
+and those that are deactivated. `referenced_already_in_force` lists the ones the project's
+activation state already admits, so `--cascade` has nothing to do for them. An artifact
+appears in at most one of the two lists. Referenced artifacts of a kind that cannot be
+activated (an `asset` or a `template`, for example) are in `referenced_kind_filtered` instead.
 
 **Cascade report** (`cascade`, with `--cascade`). Each artifact a cascade line names appears in
 exactly one list, in the order the text output prints it.
@@ -694,7 +710,8 @@ those of the test fixture project):
   "notices": [
     "Catalog not recompiled (--no-compile): catalog.references may go stale until the next `charter generate` or `charter activate --resynthesize`."
   ],
-  "referenced_not_cascaded": [
+  "referenced_not_cascaded": [],
+  "referenced_already_in_force": [
     {
       "kind": "procedure",
       "id": "g-proc",
@@ -723,8 +740,11 @@ those of the test fixture project):
 ```
 
 With `--cascade all` the same three artifacts land in `cascade.cascaded`,
-`referenced_not_cascaded` and `referenced_kind_filtered` are `[]`, and the asset the directive
-references is in `cascade.skipped_kind_filtered`.
+`referenced_not_cascaded`, `referenced_already_in_force` and `referenced_kind_filtered` are
+`[]`, and the asset the directive references is in `cascade.skipped_kind_filtered`.
+
+Read the two lists together: `referenced_already_in_force` is the set `--cascade` would
+have found nothing to do for, `referenced_not_cascaded` the set it would have activated.
 
 Example, `charter deactivate directive p1-dir --cascade all --no-compile --json`:
 
