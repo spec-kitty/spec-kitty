@@ -35,6 +35,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "not-applicable",
       "wp": "WP03"
+    },
+    "#6758": {
+      "evidence_ref": "This mission's own issue; routed walkers land with this PR and the verdict flips to fixed at wrap-up.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
