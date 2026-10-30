@@ -40,6 +40,16 @@ The parent mission owns this blocker and its runtime custody. Standalone dispatc
 in the release has no owned-checkout option and would select the protected legacy
 primary, so no Op or lifecycle record is fabricated there.
 
+The publication port also preserves the existing exact Git-call controls. Startup
+and the leaf share only the canonical minter's successful immutable basic custody
+claim within one root context. A lightweight private lifetime module starts a fresh
+scope for every root invocation, including nested invocations, and resets it on
+normal and error exit. Mission identity, topology, protection and write-branch
+validation remain fresh. Normal/error sequential invocation controls replace the
+selected path with a foreign repository and require fresh refusal; nested-error
+and changed-branch controls check the corresponding lifetime boundaries. No
+Git-call pin is raised to conceal duplicated registry work.
+
 ## Known Limitations
 
 The candidate is a private, explicitly addressed patched 4.0.0rc7 runtime linked
