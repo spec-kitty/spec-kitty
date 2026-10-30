@@ -1727,6 +1727,22 @@ def implement(
 
         def _reenter_self_heal() -> None:
             reenter_lane_self_heal(main_repo_root, mission_slug, normalized_wp_id)
+            # #6650/#3946 (F-78): the third claim path (``agent action
+            # implement`` over an existing lane worktree) must land on the
+            # SAME shared context refresh the native implement reuse arm and
+            # the orchestrator's start-implementation already run, so a later
+            # WP claimed into a reused lane does not leave the context
+            # pointing at the lane's first WP (ACTIVE_WP_CONTEXT_STALE).
+            from specify_cli.core.dependency_graph import parse_wp_dependencies
+            from specify_cli.lanes.implement_support import refresh_reused_lane_context
+
+            refresh_reused_lane_context(
+                main_repo_root,
+                mission_slug,
+                workspace.lane_id,
+                normalized_wp_id,
+                parse_wp_dependencies(wp.path),
+            )
 
         # #5459: a repo-root lane (every single_branch WP) executes in the
         # repository root checkout, which always exists, so it never reaches
