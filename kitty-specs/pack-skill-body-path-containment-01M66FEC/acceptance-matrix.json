@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "Both read paths assert PackSkillViolation match='escapes' from the one shared resolve_body_path helper (test_validation.py + test_repository.py refusal tests); identical refusal kinds on both paths; reviewer-renata independently reproduced identical reds on base cab1be39f6",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/glm-5.3:python-pedro",
+      "verified_at": "2026-10-30T14:57:21.377686+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
