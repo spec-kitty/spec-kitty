@@ -12,9 +12,9 @@ requirement_refs:
 planning_base_branch: issue-6754-migration-actor-cli-spoofing
 merge_target_branch: issue-6754-migration-actor-cli-spoofing
 branch_strategy: Planning artifacts for this mission were generated on issue-6754-migration-actor-cli-spoofing. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6754-migration-actor-cli-spoofing unless the human explicitly redirects the landing branch.
-base_branch: issue-6754-migration-actor-cli-spoofing
-base_commit: 7a829c3eb90dd746c1ef52cf4fdfd54a1347e457
-created_at: '2026-10-30T17:54:15+00:00'
+base_branch: kitty/mission-migration-actor-cli-spoofing-01M66YYX
+base_commit: 0859946639fdbee90d8b695c55a3c690dd504992
+created_at: '2026-10-30T19:00:08.303601+00:00'
 subtasks:
 - T006
 - T007

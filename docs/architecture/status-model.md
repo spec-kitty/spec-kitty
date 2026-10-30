@@ -533,6 +533,18 @@ written before this change and the structured rows written after it are the same
 seed. An attestation is still identified by `policy_metadata.attestation`, never
 by its `role`.
 
+**Who may write a seed.** A `migration:` actor means exactly one thing: an
+in-process migration reconstructed that event. It is never a live decision, so a
+caller can no longer produce one (#6754). `agent status emit --actor`, the four
+`orchestrator-api` lifecycle verbs (`start-implementation`, `start-review`,
+`transition`, `append-history`, refused as `USAGE_ERROR`) and the hidden
+`implement --actor` refuse a caller-supplied identity that starts with
+`migration:`, exit non-zero and write nothing; the value is never rewritten into
+a live-looking actor. An explicit `--agent migration:x` is **not** refused: it is
+read as the compact `tool:model:profile` form, so its tool is `migration` and it
+is not a seed. A `migration:` identity already recorded keeps its seed status
+when a later command re-records it with no caller option.
+
 > **Planned (follow-up #6721).** A later release adds `profile_source` (where the
 > profile came from) to the written actor and fills `profile` from the WP
 > frontmatter when nothing else gives one. Readers already accept that 5-key
