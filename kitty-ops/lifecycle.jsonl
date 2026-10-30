@@ -114,3 +114,12 @@
 {"agent": "python-pedro", "at": "2026-10-30T23:30:03.475858+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
 {"agent": "python-pedro", "at": "2026-10-30T23:31:29.851507+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "completed", "reason": null, "wp_id": null}
 {"agent": "python-pedro", "at": "2026-10-30T23:31:46.623080+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:19:30.079817+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:22:25.128820+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:22:30.462533+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:24:41.527516+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:25:03.343090+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:25:41.514453+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:26:04.508541+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:29:00.625184+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "maintainer-a", "at": "2026-10-30T13:29:17.462137+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY", "phase": "started", "reason": null, "wp_id": null}
