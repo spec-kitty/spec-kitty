@@ -2,7 +2,7 @@
   "mission_slug": "synthesize-commit-reminder-write-surface-01M66FQX",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP02 lane-b commit be8b7aabcd: docs/changelog/CHANGELOG.md Fixed section entry (#6631), 1196 chars; tests/docs/test_changelog_style.py + test_check_spelling.py 202 passed",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-j",
+      "verified_at": "2026-10-30T14:40:28.594460+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
