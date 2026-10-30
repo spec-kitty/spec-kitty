@@ -122,7 +122,7 @@ def test_testing_principles_requires_quadruple_a(built_in_graph: DRGGraph) -> No
     [
         ("directive:DIRECTIVE_034", Relation.REQUIRES),
         ("directive:DIRECTIVE_025", Relation.REQUIRES),
-        ("procedure:red-main-release-discipline", Relation.REQUIRES),
+        ("directive:RED_MAIN_RELEASE_DISCIPLINE", Relation.REQUIRES),
         ("directive:DIRECTIVE_052", Relation.SUGGESTS),
         ("procedure:disciplined-defect-diagnosis", Relation.SUGGESTS),
     ],

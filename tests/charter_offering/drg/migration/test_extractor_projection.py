@@ -66,7 +66,8 @@ OFFERING_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #: the authored ``iter_template_refs`` refs, not hand-picked). Every new
 #: template node gets an ``instantiates`` in-edge (S-C adds 0 orphans).
 #: Re-baselined after rebase onto upstream/main: the base advanced by +1 node
-#: / +1 orphan -- ``procedure:red-main-release-discipline`` was present in the
+#: / +1 orphan -- the artifact that is now
+#: ``directive:RED_MAIN_RELEASE_DISCIPLINE`` was present in the
 #: upstream doctrine source but missing from upstream's shipped graph (a
 #: pre-existing upstream freshness drift this regeneration incidentally fixes).
 #: So the counts are (upstream-source-truth 281/757/11) + S-C's intentional
@@ -959,9 +960,11 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 #: all, so ``charter activate --cascade`` pulls in nothing for it, deactivation
 #: frees nothing, and no action's context resolution can surface it. The
 #: charter says these are live doctrine; the DRG says they reach nobody.
-#: ``procedure:red-main-release-discipline`` is the procedure behind charter
-#: standing order #9; ``tactic:occurrence-classification-workflow`` is the
-#: workflow behind DIRECTIVE_035 -- and DIRECTIVE_035 is itself on this list.
+#: ``directive:RED_MAIN_RELEASE_DISCIPLINE`` is the rule behind charter
+#: standing order #9 (a procedure when this ledger entry was written;
+#: ``spec-kitty-open-packs#74`` later moved it to a directive, #6693);
+#: ``tactic:occurrence-classification-workflow`` is the workflow behind
+#: DIRECTIVE_035 -- and DIRECTIVE_035 is itself on this list.
 #:
 #: This is the same failure WP09 fixed once for
 #: ``procedure:onboard-external-agent-to-pack`` (there: an edge typed
