@@ -20,8 +20,6 @@ from __future__ import annotations
 import ast
 import re
 from pathlib import Path
-from typing import Union
-
 import pytest
 
 pytestmark = [pytest.mark.unit]
@@ -49,7 +47,7 @@ RESIDUE_SENSE_SYMBOLS: tuple[str, ...] = (
     "is_selectable_mission_dir",
 )
 
-AstNode = Union[ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Module]
+AstNode = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Module
 
 
 def _section_body(text: str, heading: str, *, heading_level: str = "###") -> str:
@@ -91,9 +89,7 @@ def _assignment_preceding_comment(path: Path, target_name: str, *, window_lines:
 def test_residue_entry_present_in_orchestration_glossary() -> None:
     """The glossary carries a ``### Residue`` entry naming all three senses with guards."""
     text = ORCHESTRATION_PATH.read_text(encoding="utf-8")
-    assert re.search(r"^###\s+Residue\s*$", text, re.MULTILINE), (
-        "docs/context/orchestration.md must carry a 'Residue' disambiguation entry (#6759)"
-    )
+    assert re.search(r"^###\s+Residue\s*$", text, re.MULTILINE), "docs/context/orchestration.md must carry a 'Residue' disambiguation entry (#6759)"
     section = _section_body(text, "Residue")
     for sense in RESIDUE_SENSES:
         assert sense in section, f"Residue entry is missing the sense {sense!r}"
@@ -122,8 +118,7 @@ def test_terminology_canon_links_entry() -> None:
     text = AGENTS_PATH.read_text(encoding="utf-8")
     canon = _section_body(text, "Terminology Canon", heading_level="##")
     assert ENTRY_ANCHOR in canon, (
-        "AGENTS.md Terminology Canon must link docs/context/orchestration.md#residue "
-        "alongside the primary/merge/routing footgun bullets (#6759)"
+        "AGENTS.md Terminology Canon must link docs/context/orchestration.md#residue alongside the primary/merge/routing footgun bullets (#6759)"
     )
 
 
