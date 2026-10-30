@@ -1681,6 +1681,11 @@ _Canonical status management commands_
 │                                                approved, done)               │
 │                                                [required]                    │
 │ *  --actor                              <str>  Who is making this transition │
+│                                                (a 'migration:'-prefixed      │
+│                                                identity is refused:          │
+│                                                reconstruction seeds are      │
+│                                                written in-process by         │
+│                                                migrations only)              │
 │                                                [required]                    │
 │    --mission                            <str>  Mission slug (required in     │
 │                                                multi-mission repos)          │
