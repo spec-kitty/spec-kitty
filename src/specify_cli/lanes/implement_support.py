@@ -341,12 +341,13 @@ def refresh_reused_lane_context(
     advances the canonical active WP, but the lane's persisted workspace context
     keeps ``current_wp`` from the earlier WP until something refreshes it —
     every later lane commit then warns ``ACTIVE_WP_CONTEXT_STALE`` and scopes
-    against the prior WP's ownership (F-78). Both WP writers that reuse a lane
-    — the native ``implement`` flow and the orchestrator API's
-    ``start-implementation`` — route through this helper so the refresh cannot
-    drift between them. No-op (returns ``False``) when the lane has no
-    persisted context: an orchestrator-driven mission that never created one
-    keeps that shape.
+    against the prior WP's ownership (F-78). All three WP claim paths that
+    reuse a lane — the native ``implement`` flow, the orchestrator API's
+    ``start-implementation``, and ``agent action implement``'s
+    reenter-self-heal arm (#6650) — route through this helper so the
+    refresh cannot drift between them. No-op (returns ``False``) when the
+    lane has no persisted context: an orchestrator-driven mission that
+    never created one keeps that shape.
 
     Args:
         repo_root: Main repository root.
@@ -502,7 +503,11 @@ def create_lane_workspace(
 
     wp_stamped = False
     if is_reuse:
-        # Reuse — refresh context to reflect the new active WP (#3946).
+        # Reuse — refresh context to reflect the new active WP (#3946). One
+        # of the three claim paths that land here: the native ``implement``
+        # reuse arm; the orchestrator's start-implementation and ``agent
+        # action implement``'s reenter-self-heal arm call the same helper
+        # directly (#6650).
         refresh_reused_lane_context(repo_root, mission_slug, lane_id, wp_id, declared_deps)
     else:
         # Fresh creation — update frontmatter and create context.

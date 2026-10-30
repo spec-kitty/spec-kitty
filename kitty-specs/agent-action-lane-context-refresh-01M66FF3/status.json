@@ -1,0 +1,85 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M66JSX4GXX3GEBE2Q8RVTJTC",
+  "materialized_at": "2026-10-30T14:18:16.080192+00:00",
+  "mission_number": "244",
+  "mission_slug": "agent-action-lane-context-refresh-01M66FF3",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M66JSVSHKQ838FM4MB2ZQTW8",
+      "last_transition_at": "2026-10-30T14:18:14.706030+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T13:39:15Z – pi – shell_pid=374209 – RED witnessed on the unfixed tree: agent action implement WP02 exits 0 but load_context reports current_wp='WP01' (assert 'WP02' == 'WP01' failure) — the #6650 defect through the real CLI entry point.",
+        "- 2026-10-30T13:41:50Z – pi – shell_pid=374209 – GREEN: red-first test passes after routing the exists-path onto refresh_reused_lane_context; blast radius green (test_implement_single_resolution, test_orchestrator_lane_context_refresh, test_lane_context_refresh, test_lane_tip_record_points, test_planning_claim_self_heal); ruff+mypy clean.",
+        "Red-first regression test + shared-helper fix implemented; all blast-radius suites green; ruff/mypy clean",
+        "- 2026-10-30T14:00:47Z – pi – shell_pid=374209 – T003 completed fully: reuse-arm comment at implement_support.py now names all three claim paths; ruff format applied to the test; test re-run green (1 passed). T004 evidence: pytest tests/agent/test_agent_action_lane_context_refresh.py + test_orchestrator_lane_context_refresh.py + test_implement_single_resolution.py (7 passed); tests/specify_cli/lanes/test_lane_context_refresh.py + tests/lanes/test_lane_tip_record_points.py + test_planning_claim_self_heal.py (20 passed); ruff check clean; ruff format --check clean; mypy clean on both touched modules.",
+        "Review passed (reviewer renata; review performed over the full WP diff and test evidence). Checklist: (1) dead code PASS — no new public symbol, one call to existing helper; (2) synthetic-fixture PASS — drives the real agent action implement CLI over a real coord-topology git repo, RED witnessed on the unfixed tree (current_wp stayed 'WP01'); (3) silent returns PASS — none added; (4) FR coverage PASS — FR-001/FR-002 asserted via current_wp/wp_id/dependencies and resolver with no ACTIVE_WP_CONTEXT_STALE; (5) frozen surface PASS — only the three owned files; (6) locked decisions PASS — C-001 pinned invariant green, NFR-001 call-site count 2->3 exactly, NFR-002 no new git subprocess (file read only); (7) shared-file ownership PASS — no cross-WP overlap; (8) fragility PASS — no new raise. Red->green ordering verified: test commit 9107f42818 precedes fix 2818b003fb. Blast radius green (7+20 passed), ruff/format/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 374209,
+      "shell_pid_created_at": "1793366824.81",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M66JSX4GXX3GEBE2Q8RVTJTC",
+      "last_transition_at": "2026-10-30T14:18:16.080192+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T14:03:04Z – pi – shell_pid=563737 – Changelog entry added under [Unreleased] > Fixed: 1046 chars, bold impact-first lead naming the removed false warning, (#6650) ref, before/after; git diff shows only this entry.",
+        "Changelog entry under [Unreleased] > Fixed: 1046 chars, bold impact-first lead, (#6650), before/after; diff is exactly one line. Gate skipped: docs-only WP (owned file docs/changelog/CHANGELOG.md maps to no test targets; scope normalized to empty and the declared repo command make test-fast exceeds the 300s budget on its own); WP test strategy is explicitly None.",
+        "Review passed (reviewer renata). Docs-only WP: single changelog entry under [Unreleased] > Fixed; bold impact-first lead naming the removed false warning; (#6650) with (#3946) lineage; before/after both present and match the witnessed red/green; 1046 chars (<1200); terminology canon intact (Mission, no --feature); git diff verified to be exactly the one entry; no test coverage claimed. Gate skip justified and recorded: docs-only scope, make test-fast exceeds the 300s budget alone."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 563737,
+      "shell_pid_created_at": "1793368943.53",
+      "subtasks": {
+        "T005": "done"
+      }
+    }
+  }
+}
