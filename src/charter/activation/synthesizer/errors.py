@@ -296,10 +296,15 @@ class StagingPromoteError(SynthesisError):
     cause: str
 
     def __str__(self) -> str:
+        # Deferred import: ``staging`` imports this module, so the retention
+        # hint is resolved at call time and the number stays in one place (#6723).
+        from .staging import retention_hint
+
         return (
             f"Synthesis promote failed for run {self.run_id} "
             f"(staging: {self.staging_dir}): {self.cause}. "
-            f"Staging directory preserved as {self.staging_dir}.failed/ for diagnosis."
+            f"Staging directory preserved as {self.staging_dir}.failed/ for diagnosis. "
+            f"{retention_hint()}"
         )
 
 
@@ -361,11 +366,16 @@ class NeutralityGateViolation(SynthesisError):
     staging_dir: Path  # preserved staging directory path
 
     def __str__(self) -> str:
+        # Deferred import: ``staging`` imports this module, so the retention
+        # hint is resolved at call time and the number stays in one place (#6723).
+        from .staging import retention_hint
+
         terms = ", ".join(f"'{t}'" for t in self.detected_terms)
         return (
             f"Neutrality gate blocked promotion of {self.artifact_urn}.\n"
             f"Language-specific terms detected in a generic-scoped artifact: {terms}.\n"
-            f"Inspect the staged artifact at: {self.staging_dir}"
+            f"Inspect the staged artifact at: {self.staging_dir}\n"
+            f"{retention_hint()}"
         )
 
 
