@@ -112,7 +112,7 @@ tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-he
   - write service: scope = git common dir, endpoint file per ADR 2026-10-27-1, launch-when-down;
   - read service: per worktree, loopback, read-only; started by a consumer, not by the CLI write path;
   - charter service: per worktree, token (ADR 2026-10-03-1).
-- Resolution order: `SPEC_KITTY_<SERVICE>_BINARY` (an explicit path, still digest-checked against the pin unless `--unpinned-dev` is set), then the cached native asset for the host target, then the JVM jar if a JDK 25 is present (D-5), then a refusal.
+- Resolution order, as ADR D-5: (1) `SPEC_KITTY_<SERVICE>_BINARY`, an explicit path, still digest-checked against the pin; (2) the install-provided slot (D-4); (3) the cached native asset for the host target; (4) the JVM jar if a JDK 25 is present; (5) a refusal. The only way to skip the digest check in (1) is the dev-only `--unpinned-dev` bypass of D-5: opt-in flag only, a visible warning on every use, never the default, never used by CI or release paths.
 - Fail-closed codes, each with a remedy: `SERVICE_BINARY_MISSING`, `SERVICE_BINARY_DIGEST_MISMATCH`, `SERVICE_UNSUPPORTED_PLATFORM`, `SERVICE_UNHEALTHY`, `SERVICE_VERSION_MISMATCH` (protocol or instance), plus the existing `WRITE_SERVICE_ENDPOINT_*`. **No Python fallback writer.** Reads keep working with no binary present (2026-10-01-2 D-5).
 - Process identity is recorded (pid plus start time plus instance_id), not the pid alone. Stale-daemon recovery follows `service.lock`.
 

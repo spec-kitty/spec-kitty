@@ -115,6 +115,10 @@ Chosen option: **2**.
   3. the cached native asset;
   4. the JVM jar on a local JDK 25;
   5. otherwise a refusal.
+- Dev-only digest bypass (operator ruling, 2026-10-29): an explicit binary path may skip the digest check only when the developer passes an opt-in flag (`--unpinned-dev`).
+  - It is never the default.
+  - Every use prints a visible warning.
+  - CI and release paths never use it.
 - Refusals carry a named code and a remedy: `SERVICE_BINARY_MISSING`, `SERVICE_BINARY_DIGEST_MISMATCH`, `SERVICE_UNSUPPORTED_PLATFORM`, `SERVICE_UNHEALTHY`, `SERVICE_VERSION_MISMATCH`, plus the existing `WRITE_SERVICE_ENDPOINT_*`.
 - There is no Python fallback writer. Reads keep working with no binary present.
 - The launcher's start, health and stop half of #6676 lives here. The native-image build half moves to spec-kitty-events.
