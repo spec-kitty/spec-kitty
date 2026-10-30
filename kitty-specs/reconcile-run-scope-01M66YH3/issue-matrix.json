@@ -1,0 +1,173 @@
+{
+  "rows": {
+    "#4562": {
+      "evidence_ref": "Cited in spec.md C-004 only: the root occurrence_map.yaml from the #4562 bulk edit is untouched by this mission (no bulk edit here); the parameter is removed at six call sites, not migrated across the tree.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5476": {
+      "evidence_ref": "Unrelated merged test-audit PR, a search hit in the discovery research only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5695": {
+      "evidence_ref": "Changelog precedent for a no-product-behaviour-change entry (WP02 prompt), not a defect in scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6404": {
+      "evidence_ref": "Prior fix whose applies-edge rule this mission preserves and pins (FR-005); nothing about #6404 changes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6442": {
+      "evidence_ref": "Prior fix cited as the applies-edge provenance; behaviour unchanged and pinned by FR-005.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6443": {
+      "evidence_ref": "Prior fix whose dead mission-type edge rule this mission names as RunScope's scope; behaviour unchanged and pinned by FR-003/FR-004.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6456": {
+      "evidence_ref": "The fix that introduced the sentinel this mission replaces; its behaviour is preserved and pinned, not re-fixed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6543": {
+      "evidence_ref": "Pre-existing section of test_synthesize_reconcile.py cited for placement only; its tests stay green unedited.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6614": {
+      "evidence_ref": "Changelog precedent for a no-user-visible-behaviour-change entry (WP02 prompt), not a defect in scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6728": {
+      "evidence_ref": "src/charter/activation/synthesizer/reconcile.py: RunScope (FULL | TOPIC_SCOPED) replaces dead_edge_regenerated_urns: ... | EllipsisType = ... on _is_legacy_applies/legacy_applies_edges; behavioural pins in tests/charter/synthesizer/test_synthesize_reconcile.py (#6728 section) and test_orchestrator_resynthesize.py (TestTopicScopedRunScope)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6737": {
+      "evidence_ref": "The merged #6456 PR cited in the grounding as the origin of the sentinel; already shipped.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6798": {
+      "evidence_ref": "Tracked pre-existing red on main (tests/next legacy-mission discovery) named in the batch brief; outside this diff, not touched, not suppressed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Tracked pre-existing red on main (tests/migration/test_birth_cutover.py) named in the batch brief; outside this diff, not touched, not suppressed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Tracked CI router false-red (duplicate-named sibling job) named in the batch brief; outside this diff, not touched, not suppressed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

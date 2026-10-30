@@ -1,0 +1,36 @@
+{
+  "accept_commit": "881ae77256bbbad55df1223cff6f8eb8711fc72a",
+  "acceptance_history": [
+    {
+      "accept_commit": "881ae77256bbbad55df1223cff6f8eb8711fc72a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:12:35.077842+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "21b532d53b91a63c2ec15beac2a8ecb260038f05"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:12:35.077842+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "21b532d53b91a63c2ec15beac2a8ecb260038f05",
+  "baseline_merge_commit": "fb23aaee36b072cbfe17d55fba958df4668afb21",
+  "contracts": "none",
+  "contracts_rationale": "Internal library change only: the two reconcile helpers and the RunScope enum live in src/charter/activation/synthesizer/reconcile.py, reached from specify_cli only through charter.activation.api, which this mission does not touch. No CLI flag, exit code, JSON envelope, DRG file format or serialized key changes.",
+  "created_at": "2026-10-30T17:43:10.541770+00:00",
+  "flattened": true,
+  "friendly_name": "reconcile run scope",
+  "merged_at": "2026-10-30T19:15:42.121295+00:00",
+  "merged_commit": "cea8ba0c9c6426975c67ade8ec0274d01a05a9e6",
+  "mid8": "01M66YH3",
+  "mission_id": "01M66YH3BGHVBBZSV1RG9RD8R6",
+  "mission_number": 244,
+  "mission_slug": "reconcile-run-scope-01M66YH3",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances reconcile run scope on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "reconcile run scope",
+  "slug": "reconcile-run-scope-01M66YH3",
+  "status_phase": "1",
+  "target_branch": "issue-6728-reconcile-run-scope",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T17:52:37.682067+00:00"
+}
