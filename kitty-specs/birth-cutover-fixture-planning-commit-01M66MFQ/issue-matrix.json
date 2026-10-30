@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6370": {
+      "evidence_ref": "Context reference: independent-review precedent behind _seed_wp_approved's distinct actors; FR-003 mirrors that shape in the birth-cutover fixture",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6715": {
       "evidence_ref": "Gate verified fail-closed and correct, unchanged by this mission (reviewer B: 'relaxing the product would have been fail-open; fixture fix is the right layer'); refusal recovery text points at finalize-tasks, which the fixture now mirrors",
       "fr": null,
