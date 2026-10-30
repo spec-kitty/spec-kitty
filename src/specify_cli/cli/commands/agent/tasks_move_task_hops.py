@@ -175,10 +175,11 @@ def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> d
     add-history: ``migration:x`` is tool ``migration``, never a seed. Without it,
     ``tool_identity`` is the recorded identity the caller chose (the implementer
     handoff, the recorded reviewer, ``"user"`` or ``"operator"``) and goes through the
-    lenient builder (:func:`~specify_cli.status.actor_from_option`): a compact string
-    keeps its ``tool:model:profile``; a value that does not parse, has more than four
-    segments or is a ``migration:`` seed is kept whole as ``tool``. A reviewer recorded
-    as a structured actor reaches here as its bare tool (``actor_identity_str``). The
+    lenient builder (:func:`~specify_cli.status.actor_from_option`) as a recorded value
+    (``recorded=True``): a compact string keeps its ``tool:model:profile``; a value that
+    does not parse, has more than four segments or is a ``migration:`` seed is kept whole
+    as ``tool``. A caller-supplied seed-shaped value is refused by the builder (#6754);
+    the recorded path above is the only place a ``migration:`` identity is replayed. The
     dispatch binding (``--invocation-id`` / ``--profile``) wins for ``profile``/``model``.
     No WP file is read: the frontmatter profile is never filled in (phase split, spec C-006).
     """
@@ -187,7 +188,9 @@ def _mt_structured_actor(st: _MoveTaskState, role: str, tool_identity: str) -> d
     if st.agent:
         actor = build_status_actor(role=role, agent=st.agent, fallback_tool=None, binding=st.resolved_binding)
     else:
-        actor = actor_from_option(tool_identity, role, binding=st.resolved_binding)
+        # The identity came out of the log, not from a caller flag: replay it verbatim so a
+        # recorded reconstruction seed keeps its seed status (#6754, #6400 review F3).
+        actor = actor_from_option(tool_identity, role, binding=st.resolved_binding, recorded=True)
     return actor
 
 
