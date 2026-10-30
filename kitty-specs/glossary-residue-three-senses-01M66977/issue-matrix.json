@@ -49,7 +49,7 @@
       "wp": "WP01"
     },
     "#6680": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "issue 6759's own reference for the write-seam seam; context only",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,8 +57,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
