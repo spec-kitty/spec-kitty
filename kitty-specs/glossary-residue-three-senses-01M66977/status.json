@@ -32,7 +32,8 @@
         "Implement WP01 in the root checkout (single_branch)",
         "Ready for review: entry + links + canon bullet + contextive + changelog + red-first test; docs gates and make test-fast green",
         "Re-review APPROVE (reviewer-renata profile, kimi-k3): all findings resolved, verified against live code; fix commit 5e57de97",
-        "Re-claim with recorded implementer identity pi (python-pedro); prior claim recorded actor 'user' with no model, so review independence could not be confirmed"
+        "Re-claim with recorded implementer identity pi (python-pedro); prior claim recorded actor 'user' with no model, so review independence could not be confirmed",
+        "Implementation complete (unchanged since approved state); re-entering review to record a confirmable independent approval"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
