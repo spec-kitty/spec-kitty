@@ -1,0 +1,89 @@
+{
+  "mission_slug": "issue-6673-upgrade-tracked-meta-identity-01M66YQ9",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "restored from git: tests/integration/migration/test_upgrade_tracked_meta_identity_6673.py::test_upgrade_keeps_the_tracked_identity_and_refuses_an_unreadable_one; tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_committed_meta_is_read_back_after_the_working_tree_copy_is_deleted",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:41:53.172272+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "no mint over a tracked identity: tests/specify_cli/upgrade/test_read_tracked_meta_6673.py::test_a_present_copy_that_lost_its_identity_gets_the_tracked_one_back; half-by-half revert of T005 reddens test_the_consistency_sweep_skips_a_refused_mission",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:41:57.644185+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "refusal: integration corrupt-mission assertions; tests/specify_cli/upgrade/test_runtime_state_cutover_skips_absent_meta_6673.py::test_the_cutover_skips_a_mission_with_a_tracked_absent_meta",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:42:01.854141+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "legacy control: integration test_upgrade_keeps_the_tracked_identity_and_refuses_an_unreadable_one legacy assertions; test_the_baseline_builder_still_repairs_a_pre_identity_mission",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:42:05.852302+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "message: tests/integration/migration/test_upgrade_tracked_meta_identity_6673.py::test_the_lifecycle_normalization_reports_the_restore_command",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:42:10.012589+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "backfill guard: tests/specify_cli/migration/test_backfill_identity_tracked_absent_6673.py",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:42:14.434016+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "one reader: src/specify_cli/mission_metadata.py::read_tracked_meta consumed by the 2.0.6 successor, the 3.2.0a4 normalization, the runtime-state cutover and backfill_mission",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:42:18.625309+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "cutover skip: tests/specify_cli/upgrade/test_runtime_state_cutover_skips_absent_meta_6673.py",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:42:23.670695+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
