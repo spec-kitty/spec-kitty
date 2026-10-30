@@ -1,7 +1,7 @@
 {
   "rows": {
     "#4857": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Context reference: capture_branch_tip is the canonical tip-capture authority from #4857; the fixture now uses that production helper (NFR-002)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6715": {
