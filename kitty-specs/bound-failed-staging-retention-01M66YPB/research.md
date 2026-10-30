@@ -46,10 +46,12 @@ explicitly promises `PathGuard` as the only mutation seam, so a bare
 ## Reproduction on current `main`
 
 Direct exercise of the pre-existing lifecycle seam (`StagingDir.create` +
-`commit_to_failed`, six refused runs):
+`commit_to_failed`, six refused runs, in a scratch temp directory):
 
 ```text
-$ uv run --frozen python /tmp/repro_6723.py
+$ uv run --frozen python - <<'PY'   # create + commit_to_failed six times
+...
+PY
 ['01M66YJ3TESTRUN0000000000.failed', ..., '01M66YJ3TESTRUN0000000005.failed']
 failed dirs: 6
 ```
