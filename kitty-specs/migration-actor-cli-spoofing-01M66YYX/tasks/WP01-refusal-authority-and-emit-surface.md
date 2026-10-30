@@ -16,6 +16,7 @@ requirement_refs:
 - SC-002
 - SC-003
 - SC-004
+- NFR-004
 planning_base_branch: issue-6754-migration-actor-cli-spoofing
 merge_target_branch: issue-6754-migration-actor-cli-spoofing
 branch_strategy: Planning artifacts for this mission were generated on issue-6754-migration-actor-cli-spoofing. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6754-migration-actor-cli-spoofing unless the human explicitly redirects the landing branch.
@@ -160,10 +161,9 @@ spec-kitty agent action implement WP01 --agent claude --mission migration-actor-
   3. Run the targeted suites and fix only real regressions:
      ```bash
      uv run --frozen pytest tests/status -q
-     uv run --frozen pytest tests/specify_cli/cli/commands/agent/test_move_task_structured_actor_6400.py tests/specify_cli/cli/commands/agent/test_status_emit.py -q
+     uv run --frozen pytest tests/specify_cli/cli/commands/agent/test_move_task_structured_actor_6400.py tests/status/test_agent_status_emit_cli.py -q
      uv run --frozen pytest tests/architectural/test_status_unsafe_allowlist.py tests/architectural/test_status_events_writes_gate.py -q
      ```
-     (`tests/specify_cli/cli/commands/agent/test_status_emit.py` may be named differently — pick the module that owns `agent status emit` and run it.)
   4. `uv run --frozen ruff check` + `ruff format --check --force-exclude` on the touched files, and `uv run --frozen mypy` on the touched source modules.
 
 ## Test Strategy

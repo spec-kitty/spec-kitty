@@ -26,7 +26,7 @@ decoder and no reader-side rule changes.
 **Project Type**: single project — `src/specify_cli/`
 **Performance Goals**: the guard is one string predicate over an already-parsed option; no file read, no lock, no git call; a successful command's wall time is unchanged on the fixture (NFR-002)
 **Constraints**: no events-contract change (C-001); no new append path (C-002); reader side untouched (C-003); refusal never rewrites the value (FR-010)
-**Scale/Scope**: 3 refusing surfaces, 2 lenient-builder call sites switched to an explicit `recorded=True`, 1 new leaf predicate, 1 new matrix test module, 1 changelog entry + 1 architecture doc paragraph
+**Scale/Scope**: 3 refusing surfaces, 2 lenient-builder call sites switched to an explicit `recorded=True`, 1 new leaf predicate, 1 matrix test module per surface family, 1 changelog entry + 1 architecture doc paragraph; 8 source files in the ownership map
 
 ## Charter Check
 
