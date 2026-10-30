@@ -49,18 +49,24 @@ test file, changelog + one docs page touch. Small mission, single lane.
    stays the thin shell (flag surface, dispatch). Mirrors the
    `cli/commands/_<name>.py` private-helper convention. The core stays
    path-generic and untouched (C-004).
-2. **Resolution rules** (all joins, no new resolution code, C-002):
+2. **Resolution rules** (all joins, no new resolution code, C-002; the
+   status surface is resolved LAZILY — only `status`/`decisions` consume
+   it, so a broken coordination surface never blocks the other kinds):
    - `status` (default): resolved status surface dir + `status.events.jsonl`
      (unchanged — `mission_event_log_path`).
    - `decisions`: the same resolved surface dir + `decisions.events.jsonl`
      (both streams are COORD-partition; the existing shell docstring
      anticipates joining onto the same resolution).
    - `mission`: `resolved.feature_dir` + `mission-events.jsonl` (Mission v1).
-   - `run`: scan `<repo_root>/.kittify/runtime/runs/*/state.json` for
+   - `run`: scan `runs_root(repo_root)` (canonical helper from
+     `src/runtime/next/run_index.py`) for each run dir's `state.json` for
      `mission_id` (fallback `mission_slug` for legacy rows), take the most
      recently modified `run.events.jsonl` among matches; skip unreadable
      state.json; typed `run_log_unavailable` refusal (stderr envelope, exit 1)
      when no run belongs to the mission. Never tail another mission's run.
+     The `feature-runs.json` index is NOT consulted (it records only the
+     current run; this subscriber wants latest-by-mtime across all runs —
+     see research.md's review round for the divergence policy).
    - `glossary`: `<repo_root>/.kittify/events/glossary/<mission_id>.events.jsonl`.
    - `ops`: `<repo_root>/kitty-ops/lifecycle.jsonl` (Op lifecycle log).
    - `canonical`: `<repo_root>/.kittify/canonical-events.jsonl`.
@@ -166,11 +172,15 @@ mission-scoped doctrine header untouched.
 - **Relevant requirements**: FR-004, FR-005; NFR-002, NFR-003, NFR-004; C-005.
 - **Affected surfaces**: `src/specify_cli/cli/commands/events.py` (print
   sites), `src/specify_cli/cli/commands/_events_tail_logs.py` (renderer),
-  `tests/cli/test_events_tail_log_selector.py`.
+  `tests/cli/test_events_tail_log_selector.py`, plus the minimal owned
+  `--json` update to `tests/cli/test_events_tail_status_surface.py` (its
+  `_tail` helper asserts JSON on stdout without the flag).
 - **Sequencing/depends-on**: IC-01 (the renderer is exercised through kinds,
   but is independent of resolution; same files → same lane, sequential edits).
 - **Risks**: default output flip is user-visible (changelog before/after);
-  `--json` must stay byte-identical for scripted consumers (pinned by test).
+  `--json` must stay byte-identical for scripted consumers (pinned by test);
+  the generated `docs/api/cli-commands.md` pins the current `--json` help
+  and must be regenerated at close-out (HELP-DRIFT gate).
 
 ### IC-03 — Resume and refusal semantics on every kind
 
