@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "test_write_seam_docstring_links_entry + test_read_side_docstring_links_entry + test_audit_engine_docstring_links_entry; identity_audit.py module docstring link is the approved C1 extension",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T12:03:47.382325+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
