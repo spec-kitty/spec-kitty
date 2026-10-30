@@ -151,7 +151,7 @@ per-test `timeout` mark; assert it carries `slow`. Then run the case with the de
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Measured improvement with margin | On this host, the fixed `[cascade]` case measures at most 60 s wall clock (median of at least two runs), down from the 70.9–80.3 s baselines, so that a 2.2× slower runner stays well under the 240 s backstop. | Performance | High | Open |
+| NFR-001 | Measured improvement with margin | The fixed cascade writer costs at most 0.8× the pre-fix path measured **interleaved** in the same process and load window (absolute seconds on a saturated shared host are not evidence; the repo's policy accepts only runner-relative measures). Observed: 0.62× (80.3 s → 49.8 s, load ≈ 21) and 0.70× (95.2 s → 66.4 s interleaved medians, load 44–91). | Performance | High | Open |
 | NFR-002 | Artifact parses bounded | For a cascade of N targets, the stem lookups create exactly one `ResolutionPass`, so artifact-file parses for URN resolution are independent of N rather than proportional to N. | Performance | High | Open |
 | NFR-003 | No timing assertion added | The regression guard must not assert wall-clock seconds (repo policy: absolute seconds are not accepted evidence); it asserts pass counts and marker state. | Reliability | Medium | Open |
 
@@ -175,6 +175,6 @@ per-test `timeout` mark; assert it carries `slow`. Then run the case with the de
 ### Measurable Outcomes
 
 - **SC-001**: The `[cascade]` case passes under the default 240 s `pytest.ini` timeout with no per-test override, on this host under concurrent agent load. — [build] · no-op passable: no
-- **SC-002**: The fixed `[cascade]` writer measures ≤60 s on this host (median of ≥2 runs) against a 70.9–80.3 s baseline. — [ratchet] · no-op passable: no
+- **SC-002**: The fixed cascade writer's URN resolution performs ≤5% of the pre-fix artifact-file parses (5028 → 240 measured, independent of host load) and its interleaved wall-clock ratio is ≤0.8. — [ratchet] · no-op passable: no
 - **SC-003**: A cascade of 114 targets creates exactly one `ResolutionPass` for its stem lookups, all of them before the first activation write. — [build] · no-op passable: no
 - **SC-004**: Every other test in `tests/charter/activation/test_stored_spelling_6527.py` still passes unchanged, and the `[cascade]` case's stored lists are unchanged. — [ratchet] · no-op passable: no
