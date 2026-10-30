@@ -28,6 +28,7 @@
   "purpose_context": "The event-log, charter synthesis and Mission status lock families each re-derive the anchor-keyed lock path with their own copy of the digest and common-dir logic (#6727). Route all three through one kernel helper with byte-identical lock names.",
   "purpose_tldr": "Extract one kernel helper for anchor-keyed lock paths",
   "slug": "anchor-lock-path-single-authority-01M66YWP",
+  "status_phase": "1",
   "target_branch": "issue-6727-anchor-lock-paths",
   "topology": "coord",
   "vcs": "git",
