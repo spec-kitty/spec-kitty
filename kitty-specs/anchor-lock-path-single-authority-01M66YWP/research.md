@@ -67,17 +67,27 @@ inverted dependency. This also matches the issue's proposed `kernel.locks.anchor
 `kernel.locks` stays dependency-free apart from `kernel.clock` and `kernel.git_topology`
 (intra-kernel, stdlib-only), so the C-001 "kernel has no third-party deps" rule holds.
 
-**D2 — one helper owns the rule; each family keeps its own policy.**
-`anchored_lock_path(anchor, *, common_dir, probe_dir, subdirectory, prefix, suffix,
-digest_algorithm, digest_hex_length)` performs exactly the repeated part: resolve the anchor,
-`os.path.normcase` it, digest it, join `<common dir>/spec-kitty-locks[/<subdir>]/<prefix><digest><suffix>`.
-It **propagates** `NotAGitRepositoryError` / `GitTopologyUnavailableError` instead of deciding
-what to do, because the two policies genuinely differ (refuse vs degrade) and the issue's
-acceptance criterion is that each lock keeps its behaviour and error handling. `common_dir=`
-is the seam for a caller that resolves (and degrades) the common dir itself; when it is
-given the helper runs no git probe. `probe_dir=` exists because the event-log anchor is a
-*file* that may not exist yet, so the probe has to run in its parent directory
-(`kernel.git_topology._probe_dir` only normalises an *existing* file).
+**D2 — one helper owns the name; each family keeps its probe and its policy.**
+`anchored_lock_path(anchor, *, common_dir, subdirectory, prefix, suffix, digest_algorithm,
+digest_hex_length)` performs exactly the repeated part: resolve the anchor, `os.path.normcase`
+it, digest it, join `<common dir>/spec-kitty-locks[/<subdir>]/<prefix><digest><suffix>`.
+`common_dir` is **required**, and the helper runs no git probe.
+
+*Revised 2026-10-30 during WP02.* The first cut had the helper probe `git_common_dir` itself
+(with a `probe_dir=` override) and propagate the two probe errors. Routing the families broke
+five existing family tests, all of them at one line each: they patch
+`event_log_append.git_common_dir` / `synthesis_lock.git_common_dir` to simulate "not a repo"
+and "git unusable". Those patches mark the seam the codebase already treats as the family's
+own — the probe policy genuinely differs per family (event-log and synthesis refuse with
+their own error type; the Mission status lock degrades and never raises), and the event-log
+probe must run in the anchor's *parent* because the log may not exist yet
+(`kernel.git_topology._probe_dir` normalises an existing file only). Keeping the probe in the
+family therefore (a) preserves every test seam with zero test edits — the strongest available
+proof that behaviour did not move — (b) keeps `kernel.locks` free of a `kernel.git_topology`
+edge and of any policy, and (c) leaves the helper a pure function of `(anchor, common dir)`.
+The duplication the issue reports is gone either way: the digest, the normalisation order and
+the `LOCK_DIRECTORY` join exist once.
+
 Parameters are keyword-only and every one is exercised by a caller, so none is a dead knob.
 
 **D3 — the status family moves too, and its file names do not change.**
