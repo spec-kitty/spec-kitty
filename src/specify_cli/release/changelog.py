@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.mission_metadata import load_meta_or_empty
-import json
+from specify_cli.status import Lane, StoreError
 import subprocess
 from pathlib import Path
 
 # Accepted lanes in the 3.x event-log model (FR-605)
-_ACCEPTED_LANES: frozenset[str] = frozenset({"approved", "done"})
+_ACCEPTED_LANES: frozenset[Lane] = frozenset({Lane.APPROVED, Lane.DONE})
 
 
 def _run_git(args: list[str], cwd: Path) -> str:
@@ -126,50 +126,109 @@ def _parse_wp_id(wp_file: Path) -> str:
     return wp_file.stem
 
 
-def _wp_lane_from_event_log(mission_dir: Path, wp_id: str) -> str | None:
-    """Return the current lane for *wp_id* from the event log, or None.
+def _resolve_status_read_dir(repo_root: Path, mission_dir: Path) -> Path | None:
+    """Resolve the mission's status-surface read dir (#6612 / G-13), or None.
 
-    Uses the event log (status.events.jsonl) as the canonical source per the
-    3.x status model (FR-605).  Falls back gracefully when the event log is
-    absent (pre-3.x features) or the WP has no events yet.
+    Routes the read through the placement seam
+    (``placement_seam(...).read_dir(MissionArtifactKind.STATUS_STATE)``), so
+    under a coordination topology the coordination branch's mission dir is
+    returned, never the primary checkout's possibly-stale copy (the #1735
+    split-brain class).
+
+    Returns None when no authoritative log is readable anywhere (the
+    coordination worktree is not materialized — the fresh-clone window
+    #4959), leaving the caller's legacy frontmatter fallback in charge.
+    Returns the mission dir itself when the placement is unresolvable
+    (``StatusReadPathNotFound`` without a coordination verdict), which is
+    the historical surface for pre-3.x features.
+
+    A deleted coordination branch raises ``CoordinationBranchDeleted`` —
+    the #1848 data-loss guard — and any other seam failure (e.g.
+    ``WorktreeRegistryUnavailable``) propagates: those are loud failures
+    every other reader of the surface shares, never a silent fallback to
+    the stale primary copy.
     """
-    events_path = mission_dir / "status.events.jsonl"
-    if not events_path.exists():
+    from mission_runtime import MissionArtifactKind, placement_seam  # noqa: PLC0415
+    from specify_cli.coordination.surface_resolver import (  # noqa: PLC0415
+        CoordinationBranchDeleted,
+        CoordinationWorktreeUnmaterialized,
+        StatusReadPathNotFound,
+    )
+
+    try:
+        return placement_seam(repo_root, mission_dir.name).read_dir(MissionArtifactKind.STATUS_STATE)
+    except CoordinationWorktreeUnmaterialized:
+        # Fresh-clone window (#4959): the coordination branch is declared and
+        # present, but its worktree is not materialized, so the authoritative
+        # log is not readable anywhere. No lane answer — the caller's legacy
+        # frontmatter fallback applies. NEVER read the stale primary copy
+        # (the split-brain class this function exists to stop reading).
+        return None
+    except CoordinationBranchDeleted:
+        # #1848 data-loss guard: the mission's authoritative surface was
+        # deleted mid-flight. Propagate — a release-prep changelog must not
+        # silently classify WPs off the stale primary copy.
+        raise
+    except StatusReadPathNotFound:
+        # Unresolvable placement: a legacy mission the seam cannot resolve
+        # keeps its historical surface, the mission dir itself. (Both
+        # coordination-specific subclasses are handled above.)
+        return mission_dir
+
+
+def _wp_lanes_from_event_log(read_dir: Path | None) -> dict[str, Lane] | None:
+    """Return the reduced lane map for every WP on the resolved status surface.
+
+    Reads through the canonical lane reader
+    (``status.lane_reader.get_all_wp_lanes``), so each lane is the REDUCED
+    lane every other CLI lane read sees (ordered by ``at`` then ``event_id``
+    with from-lane continuity and the approved-departure lift), never the
+    last ``to_lane`` in file order (#6612 / G-13). Reading the whole map
+    once per mission (not per WP) reads and reduces the log once.
+
+    Returns None when *read_dir* is None (no readable authoritative
+    surface), there is no event log to consult (pre-3.x features), or the
+    log is unreadable (``OSError`` — the legacy reader's behavior: fall
+    back to the frontmatter, never crash release prep on one bad
+    permission bit), so the caller can fall back to the legacy frontmatter
+    ``status`` field. A corrupt log raises ``StoreError`` — the same loud
+    failure every other reader of the log shares.
+    """
+    from specify_cli.status import (  # noqa: PLC0415
+        CanonicalStatusNotFoundError,
+        get_all_wp_lanes,
+    )
+
+    if read_dir is None:
         return None
     try:
-        last_lane: str | None = None
-        with events_path.open(encoding="utf-8") as fh:
-            for raw_line in fh:
-                raw_line = raw_line.strip()
-                if not raw_line:
-                    continue
-                try:
-                    event = json.loads(raw_line)
-                except json.JSONDecodeError:
-                    continue
-                if event.get("wp_id") == wp_id:
-                    to_lane = event.get("to_lane")
-                    if to_lane:
-                        last_lane = str(to_lane)
-        return last_lane
+        lanes: dict[str, Lane] = get_all_wp_lanes(read_dir)
+        return lanes
+    except CanonicalStatusNotFoundError:
+        # No event log on the resolved surface (pre-3.x feature).
+        return None
     except OSError:
+        # Legacy parity: the pre-#6612 reader fell back to the frontmatter
+        # when the log file could not be read (permissions and the like).
         return None
 
 
-def _is_accepted_wp(wp_file: Path) -> bool:
+def _is_accepted_wp(wp_lanes: dict[str, Lane] | None, wp_file: Path) -> bool:
     """Return True if the WP is in an accepted/done state.
 
-    Checks the 3.x event-log first (canonical source per FR-605).  Falls back
-    to the legacy YAML frontmatter ``status`` field for pre-3.x features that
-    have not been migrated to the event-log model.
+    Checks the 3.x canonical lane first: the reduced lane from the event log
+    on the mission's resolved status surface (the coordination branch under
+    coordination topology), read through the canonical lane reader
+    (FR-605, #6612). Falls back to the legacy YAML frontmatter ``status``
+    field for pre-3.x features that have not been migrated to the
+    event-log model.
     """
-    # 3.x path: check event log (status.events.jsonl lives in mission_dir, the
-    # parent of the tasks/ directory that contains wp_file).
-    mission_dir = wp_file.parent.parent
-    wp_id = _parse_wp_id(wp_file)
-    event_log_lane = _wp_lane_from_event_log(mission_dir, wp_id)
-    if event_log_lane is not None:
-        return event_log_lane in _ACCEPTED_LANES
+    if wp_lanes is not None:
+        # A WP absent from the reduced snapshot has no lane answer (the
+        # reader treats it as uninitialized), like a log with no events.
+        event_log_lane = wp_lanes.get(_parse_wp_id(wp_file))
+        if event_log_lane is not None:
+            return event_log_lane in _ACCEPTED_LANES
 
     # Legacy fallback: check YAML frontmatter ``status`` field.
     status = _parse_wp_frontmatter_status(wp_file)
@@ -207,7 +266,15 @@ def build_changelog_block(
     if since_tag is not None:
         since_date = _tag_commit_date(repo_root, since_tag)
 
-    mission_specs_dir = repo_root / KITTY_SPECS_DIR
+    # The placement seam anchors at the MAIN checkout's root
+    # (mission_runtime resolution), not at the passed root: scanning a
+    # linked worktree's kitty-specs while lanes resolve against the primary
+    # checkout would mix two checkouts' state. Scan the same root the seam
+    # reads (no-op for the primary checkout itself).
+    from specify_cli.core.paths import get_main_repo_root  # noqa: PLC0415
+
+    scan_root = get_main_repo_root(repo_root)
+    mission_specs_dir = scan_root / KITTY_SPECS_DIR
     if not mission_specs_dir.exists():
         return ("", [])
 
@@ -232,13 +299,22 @@ def build_changelog_block(
                 # as the cheap proxy. If it's older, skip.
                 pass  # fall through to WP scan
 
-        # Collect accepted WPs
+        # Collect accepted WPs. Resolve the canonical status surface and
+        # reduce the log ONCE per mission (the seam probes git; resolving
+        # per WP would repeat the probe for every WP file in the mission).
+        status_read_dir = _resolve_status_read_dir(repo_root, mission_dir)
+        try:
+            wp_lanes = _wp_lanes_from_event_log(status_read_dir)
+        except StoreError as exc:
+            # Name the mission: a bare "Invalid JSON on line 2" over
+            # hundreds of scanned missions is undiagnosable (#6612 review).
+            raise StoreError(f"{mission_slug}: {exc}") from exc
         tasks_dir = mission_dir / "tasks"
         accepted_wps: list[str] = []
         if tasks_dir.exists():
             wp_files = sorted(tasks_dir.glob("WP*.md"), key=lambda f: f.name)
             for wp_file in wp_files:
-                if _is_accepted_wp(wp_file):
+                if _is_accepted_wp(wp_lanes, wp_file):
                     wp_id = _parse_wp_id(wp_file)
                     title = _parse_wp_title(wp_file)
                     accepted_wps.append(f"{wp_id}: {title}")
