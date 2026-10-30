@@ -75,7 +75,7 @@ from spec_kitty_events.decisionpoint import (
 from specify_cli.decisions import fork as _fork
 from specify_cli.decisions import index_fold as _index_fold
 from specify_cli.decisions import store as _store
-from specify_cli.decisions.models import DecisionIndex, IndexEntry
+from specify_cli.decisions.models import DecisionErrorCode, DecisionIndex, IndexEntry
 from specify_cli.decisions.service import (
     _LOCK_ACQUIRE_TIMEOUT_S,
     DecisionError,
@@ -793,9 +793,14 @@ def run_decisions_reconciliation(
                 # on an otherwise unforked Mission, e.g. NFR-002 fixture (d)).
                 _copy_coordination_only_ledger(repo_root, mission_slug, ledger_dir)
         except DecisionError as exc:
-            # #6763: a lock timeout is a refusal, and it lands BEFORE any
-            # report is emitted, so ``--json`` callers get exactly one C2
-            # document and human callers exactly one error line.
+            # #6763: only the seam's lock timeout is this command's refusal;
+            # any other DecisionError is not ours to reinterpret, so it keeps
+            # propagating unchanged.
+            if exc.code is not DecisionErrorCode.LOCK_TIMEOUT:
+                raise
+            # The refusal lands BEFORE any report is emitted, so ``--json``
+            # callers get exactly one C2 document and human callers exactly one
+            # error line.
             if json_output:
                 console.emit_json(_json_error(exc.code.value, str(exc)))
             else:

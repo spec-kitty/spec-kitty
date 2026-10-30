@@ -1153,3 +1153,23 @@ def test_coordination_only_ledger_copy_lock_timeout_is_the_seam_refusal(tmp_path
     assert str(lock_path) in str(excinfo.value)
     assert "retry" in str(excinfo.value).lower()
     assert _tree_bytes(mission_dir / "decisions") == before, "a timed-out copy must not write"
+
+
+def test_repair_lets_a_non_lock_decision_error_propagate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The C2 refusal is scoped to the lock timeout, not to every DecisionError."""
+    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    _diverged_mission(tmp_path)
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise DecisionError(DecisionErrorCode.MISSION_NOT_FOUND, message="not ours to reinterpret")
+
+    monkeypatch.setattr(_doctor_mod, "_repair", boom)
+
+    exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True)
+
+    assert isinstance(exception, DecisionError), repr(exception)
+    assert str(exception) == "not ours to reinterpret"
+    assert "DECISION_LOCK_TIMEOUT" not in output
