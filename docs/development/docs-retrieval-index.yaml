@@ -4013,7 +4013,7 @@ pages:
   - path: "docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md"
     title: "ADR: the events domain and its Java services live in spec-kitty-events; core consumes a released, pinned service"
     divio_type: "none"
-    abstract: "The Java read and write services and the events contracts move to spec-kitty-events with their history; core pins a service-v* release by tag and per-asset sha256, fetches it on first use, and fails closed without it."
+    abstract: "The Java event services and contracts move to spec-kitty-events; core pins a service-v* release by tag and sha256, fetches it on first use, and fails closed."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -14909,9 +14909,9 @@ pages:
     abstract: "Redirect stub: the runtime and state overhaul domains-and-splits note moved to the docs archive; kept so old links, including ADR links, resolve."
     anchors: []
   - path: "docs/plans/events-domain-move/plan.md"
-    title: "Events domain move: core-side plan (session B)"
-    divio_type: "none"
-    abstract: "**Status:** DRAFT for operator sign-off. Planning and preparation only (operator update 2026-10-29). Nothing below has been applied to `main`. No issue comments, no PRs."
+    title: "Events domain move — core-side plan"
+    divio_type: "explanation"
+    abstract: "Core-side inventory, pin/fetch/launcher design and cut-over runbook for moving the Java event services to spec-kitty-events (ADR 2026-10-29-1)."
     anchors:
     - {slug: "1-what-core-holds-today-phase-0-inventory", text: "1. What core holds today (Phase 0 inventory)", level: 2}
     - {slug: "1-1-the-service-tree", text: "1.1 The service tree", level: 3}
