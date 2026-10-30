@@ -60,9 +60,10 @@ holds with no hand-rolled copies beside the primitive.
 **Why this priority**: The campsite cleanup is the reason the issue was filed;
 without it the fix would be a second hand-rolled check.
 
-**Independent Test**: `grep` finds no `is_relative_to`-based containment in
-`pack_skills/`; both read paths call the shared primitive; docstrings/docs that
-describe containment name the primitive truthfully.
+**Independent Test**: `grep` finds no resolve-then-`is_relative_to`
+containment in `pack_skills/` (tier-bookkeeping uses of `is_relative_to` are
+not containment and stay); both read paths call the shared primitive;
+docstrings/docs that describe containment name the primitive truthfully.
 
 **Acceptance Scenarios**:
 
@@ -81,9 +82,10 @@ describe containment name the primitive truthfully.
   requires prompt-form skills to declare a non-empty `body_path`; the
   repository accessor returns `None` for a missing/empty one — before any
   containment decision).
-- A `body_path` that cannot be resolved at all (NUL byte, symlink loop): the
-  primitive raises its escape error; the refusal is reported as a violation, not
-  a crash.
+- A `body_path` that cannot be resolved at all: a symlink loop becomes the
+  primitive's escape error (the primitive converts loops to a refusal); a raw
+  resolve `ValueError` (an embedded NUL byte, unreachable through YAML) is
+  caught by the shared helper and reported as a violation, not a crash.
 - Windows-style absolute paths (`C:\x`, UNC): the primitive refuses them; both
   paths inherit that refusal unchanged.
 - A string-level `..` that resolves back inside (e.g. `sub/../body.md`): the
@@ -112,7 +114,7 @@ describe containment name the primitive truthfully.
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | No new authority | No new containment implementation is introduced: both read paths call `resolve_relative_path_within_root`; `pack_skills/` contains no hand-rolled resolve-then-`relative_to` containment after the change (0 occurrences). | Maintainability | High | Open |
+| NFR-001 | No new authority | No new containment implementation is introduced: both read paths call `resolve_relative_path_within_root`; `pack_skills/` contains no resolve-then-`relative_to` containment after the change (0 occurrences; the package's tier-bookkeeping `is_relative_to` uses are not containment and remain). | Maintainability | High | Open |
 | NFR-002 | Semantics preserved | Every existing test in `tests/charter_offering/pack_skills/` passes unchanged; skill-directory-relative anchoring and the `PackSkillViolation` refusal surface are preserved (the primitive's stricter `..`-component rule applies, per the edge cases). | Compatibility | High | Open |
 | NFR-003 | Coverage | The new branches (repository-path refusal, primitive delegation) are covered by focused tests in the same PR (diff-cover gate ≥90% on changed lines). | Quality | High | Open |
 

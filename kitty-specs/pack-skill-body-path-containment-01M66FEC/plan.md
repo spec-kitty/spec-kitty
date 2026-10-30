@@ -98,9 +98,13 @@ created.
 - **Affected surfaces**: `src/charter/offering/pack_skills/validation.py`
 - **Sequencing/depends-on**: none
 - **Risks**: the primitive is stricter than the hand-roll at the `..` edge
-  (accepted deliberately, recorded in spec edge cases and changelog); a
-  contained-but-missing body must keep the separate "not found" finding, not
-  an escape refusal.
+  (accepted deliberately, recorded in spec edge cases and changelog); refusal
+  message wording is pinned — the helper composes `skill {id!r}: body_path
+  {body_path!r} escapes the skill directory ({reason})` so the existing
+  `match="escapes"` assertions hold, and a contained-but-missing body keeps
+  the separate `not found` finding via a post-containment `is_file()` check
+  (the primitive never checks existence, `strict=False`). A raw resolve
+  `ValueError` (embedded NUL byte) is also wrapped by the helper.
 
 ### IC-02 — Repository read path (body_text) containment
 
@@ -111,10 +115,13 @@ created.
 - **Relevant requirements**: FR-001, FR-003, C-001, C-002
 - **Affected surfaces**: `src/charter/offering/pack_skills/repository.py`
 - **Sequencing/depends-on**: IC-01
-- **Risks**: callers of `body_text` (only
-  `charter/activation/skill_preparation.py::_prepare_one`) must see a
-  `PackSkillViolation` (a `ValueError`) rather than a silent outside read —
-  fail-closed is the intended behaviour; `None` stays reserved for a
+- **Risks**: callers of `body_text` — verified: the sole production caller is
+  `charter/activation/skill_preparation.py::_prepare_one`, and the raise
+  propagates to `specify_cli/skills/catalog.py`'s stage-2 boundary, which
+  classifies any exception as a controlled `PackSkillCatalogError` with
+  `__cause__` preserved — a `PackSkillViolation` surfaces as a clean refusal,
+  so NO `SkillPreparationError` conversion is added; the `_SkillSource`
+  Protocol contract now permits a raise. `None` stays reserved for a
   non-prompt-form skill or an unknown id.
 
 ### IC-03 — Tests proving identical refusal on both paths
@@ -130,14 +137,20 @@ created.
 - **Risks**: the repository-path tests need a record with an escaping
   `body_path` in the catalog — load-time validation skips those files, so the
   tests use the TOCTOU symlink swap (public entry point) and a directly
-  injected record for the absolute/`..` kinds, with a comment saying why.
+  injected record for the absolute/`..` kinds, with a comment saying why;
+  symlink tests carry the repo's `skipif(not hasattr(os, "symlink"))`
+  convention (`tests/charter/test_symlink_loop_guards.py`); the Windows
+  absolute-form refusals are platform-independent (pure `PureWindowsPath`
+  checks in the primitive).
 
 ### IC-04 — Claim corrections and changelog
 
 - **Purpose**: Correct containment-authority claims that the mission makes
   true or stale: the primitive's "single canonical escape-detection"
   docstring and the pack validator's hand-rolled-count ordinal
-  ("a sixth hand-rolled") after `_read_body` is routed; one `[Unreleased]`
+  ("a sixth hand-rolled") after `_read_body` is routed; keep (deliberately,
+  recorded here) the one-line read-time clarification in
+  `docs/development/how-to/create-a-pack-skill.md`; one `[Unreleased]`
   changelog entry with the before/after and the tightened `..` edge.
 - **Relevant requirements**: FR-004, C-003
 - **Affected surfaces**: `src/charter/offering/drg/org_pack_config.py`
