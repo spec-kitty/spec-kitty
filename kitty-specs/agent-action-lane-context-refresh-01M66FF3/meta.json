@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:17:14.374530+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "a6051d379c17d0cfbbb49ecf7738c2a584493792"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T14:17:14.374530+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "a6051d379c17d0cfbbb49ecf7738c2a584493792",
   "contracts": "none",
   "contracts_rationale": "No interface is added or changed: the CLI surface is byte-identical and only stale-warning stderr noise disappears; the fix routes an existing internal helper onto a third internal call site.",
   "coordination_branch": "kitty/mission-agent-action-lane-context-refresh-01M66FF3",
