@@ -192,3 +192,11 @@ Additional cut-over item: close #6692 as done, citing core ADR 2026-10-22-1 and 
 - A release uploads exactly the assets listed in `SHA256SUMS`, plus their `.sha256` files.
 - From the cut-over on, `contracts/` is part of spec-kitty-events' root Gradle build as `:contracts`.
 - The first tag will be `service-v0.1.0-rc.1`. It waits for the spec-kitty-events operator's cut-over go.
+
+### 8.2 spec-kitty-events #148 merged (2026-10-30)
+
+- ADR 0002 (cite it when closing #6692): https://github.com/spec-kitty/spec-kitty-events/blob/main/docs/adr/0002-events-domain-owns-its-services.md
+- ADR 0003 (asset names; the write deployable prefix is `command-cli`): https://github.com/spec-kitty/spec-kitty-events/blob/main/docs/adr/0003-gradle-build-and-service-release-line.md
+- spec-kitty-events cut-over runbook: https://github.com/spec-kitty/spec-kitty-events/blob/main/docs/guides/service-cutover-runbook.md
+- Release workflow rehearsals: spec-kitty-events #149.
+- Still waiting for the events operator's go: the import, the `service-v0.1.0-rc.1` tag and the issue moves. When core #6782 merges, send session A the frozen core SHA.
