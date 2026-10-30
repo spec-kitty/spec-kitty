@@ -17,8 +17,8 @@ from specify_cli.agent_tasks_ports import (
     MissionHandle,
 )
 from specify_cli.coordination.commit_outcome import SurfaceOutcome, commit_outcome_exit_code, render_commit_outcome
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 from specify_cli.git.protection_policy import ProtectionPolicy
 import logging
 import re
@@ -1336,7 +1336,13 @@ def _mission_dirs_for_feedback_source(
     roots = {main_repo_root, surface_root}
     if owned is not None:
         roots.add(owned.owned_root)
-    candidates = {(root / KITTY_SPECS_DIR / mission_slug).resolve() for root in roots}
+    # The mission directory is derived through the canonical read-path primitive,
+    # never a hand `kitty-specs/<slug>` join: that join is the second authority
+    # `tests/architectural/test_single_mission_surface_resolver.py` forbids
+    # (FR-004 of single-planning-surface-authority-01KVPR00). The primitive is a
+    # candidate resolver -- it does not require the directory to exist -- so a
+    # root with no Mission simply yields a path that fails the containment test.
+    candidates = {candidate_feature_dir_for_mission(root, mission_slug).resolve() for root in roots}
     return tuple(sorted(candidates))
 
 
