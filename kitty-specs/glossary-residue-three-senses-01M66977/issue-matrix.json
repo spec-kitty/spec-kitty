@@ -13,7 +13,7 @@
       "wp": "WP01"
     },
     "#5875": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "read-side/doctor-identity residue sense + walker FR-008 documented in docs/context/orchestration.md#residue; cited for context, no work owed",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#6627": {
       "evidence_ref": "<link or commit>",
