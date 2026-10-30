@@ -26,6 +26,13 @@ What it deliberately does NOT do:
   says what the code does now. Both halves are asserted below.
 * It does not scan historical trees (``docs/archive/``, ``docs/reports/``,
   ``research/``, ``kitty-specs/**``) - those are records, not claims about today.
+* It does not scan ``docs/architecture/event-ledger-writers-and-readers.md`` either.
+  That page is frozen in core (ADR 2026-10-29-1 D-9,
+  ``tests/architectural/test_events_import_frozen.py``): it moves to
+  ``spec-kitty/spec-kitty-events`` with its history, so its gap-table G-3 row has to
+  be updated there, or here under the freeze's operator-approved re-pin route. A
+  sweep of this page has to land through one of those two doors, not through a guard
+  exception.
 
 Non-vacuity is asserted too: the detector is fed a synthetic stale sentence (must
 report exactly one violation) and a synthetic negated sentence (must report none), so
@@ -53,7 +60,6 @@ COVERED_PATHS: tuple[str, ...] = (
     "AGENTS.md",
     "docs/architecture/diagrams/01_context/README.md",
     "docs/architecture/diagrams/02_containers/README.md",
-    "docs/architecture/event-ledger-writers-and-readers.md",
     "docs/architecture/status-model.md",
     "docs/plans/domains/api-dashboard-domain-plan.md",
     "src/specify_cli/consolidation/preflight.py",
@@ -123,9 +129,6 @@ ADR_AMENDMENT_MARKERS: tuple[str, ...] = ("(at, event_id)", "lift", "#6609")
 #: Where the surviving, narrower residual must stay visible.
 RESIDUAL_PATH = "AGENTS.md"
 RESIDUAL_MARKERS: tuple[str, ...] = ("non-approval", "clock be")
-GAP_TABLE_PATH = "docs/architecture/event-ledger-writers-and-readers.md"
-GAP_TABLE_CLOSURE = "Closed (#6604)"
-
 REMEDY = (
     "State the current fact instead: the status path is ordered by wall clock "
     "`(at, event_id)` with the approved-departure lift; `status.reducer.reduce` and "
@@ -230,11 +233,4 @@ def test_residual_stays_visible() -> None:
         "AGENTS.md must keep the narrower, surviving residual (a non-approval transition "
         f"minted on a clock behind the event it follows sorts before it); missing {missing}. "
         "Deleting the caveat is not a fix for the retired claim."
-    )
-
-
-def test_gap_table_records_the_closure() -> None:
-    text = _normalize(_read(GAP_TABLE_PATH))
-    assert GAP_TABLE_CLOSURE in text, (
-        f"{GAP_TABLE_PATH} does not record '{GAP_TABLE_CLOSURE}' for gap G-3; leaving it saying 'file new' re-opens the same sweep for a fourth time."
     )
