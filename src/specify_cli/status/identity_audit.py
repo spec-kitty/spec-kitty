@@ -28,15 +28,18 @@ rejects it, so Mission selection does not list it) is ``residue`` (#5875):
     Not a Mission: no ``meta.json`` on disk; or, in a git repository, a
     ``meta.json`` without a ``mission_id`` that git does not track (nor the
     ``spec.md``), or an unreadable one. Its ``residue_reason`` names which
-    (:data:`RESIDUE_REASONS`). Set only by the walk, and
-    only on request (``residue_aware=True``, ``doctor identity``), never by
-    :func:`classify_mission`. Residue is left out of the duplicate-prefix and
-    selector-ambiguity reports. The default walk keeps the pre-#5875 contract
-    because the audit engine (``specify_cli.audit.engine``) consumes it and
-    keeps its own, looser Mission rule, ``is_mission_dir`` (FR-008): there a
-    tracked ``spec.md``, or any marker on a non-git root, makes a Mission, so
-    its ``IDENTITY_MISSING`` / ``DUPLICATE_PREFIX`` / ``AMBIGUOUS_SELECTOR``
-    findings must not disappear.
+    (:data:`RESIDUE_REASONS`). Set only by the walk, and only on request
+    (``residue_aware=True``), never by :func:`classify_mission`. Residue is left
+    out of the duplicate-prefix and selector-ambiguity reports.
+
+    Two callers take the two populations (FR-008 / C-004, #5875, #6757):
+    ``doctor identity`` opts in (``residue_aware=True``) for every row, and the
+    audit engine (``specify_cli.audit.engine``) takes the *default* walk for its
+    per-folder ``IDENTITY_MISSING`` population — it keeps its own, looser Mission
+    rule, ``is_mission_dir``, where a tracked ``spec.md``, or any marker on a
+    non-git root, makes a Mission — and the *residue-aware* walk for its two
+    collision reports, so a folder no selector can reach can neither fake nor
+    silence a ``DUPLICATE_PREFIX`` / ``AMBIGUOUS_SELECTOR``.
 
 Duplicate-prefix report (FR-011)
 ---------------------------------
@@ -282,10 +285,12 @@ def audit_repo(repo_root: Path, *, residue_aware: bool = False) -> list[Identity
 
     By default every directory is classified by :func:`classify_mission`
     (one without a ``meta.json`` is ``orphan``): the audit engine consumes this
-    and keeps its own, looser Mission rule (``is_mission_dir``, FR-008), so its
-    findings must not change. With ``residue_aware=True`` (``doctor identity``
-    only, #5875) a child that is not a Mission (no ``meta.json``, or an
-    untracked id-less one in a git repository) is ``residue`` instead.
+    for the per-folder ``IDENTITY_MISSING`` population, because it keeps its own,
+    looser Mission rule (``is_mission_dir``, FR-008), so those findings must not
+    change. With ``residue_aware=True`` (#5875) a child that is not a Mission
+    (no ``meta.json``, or an untracked id-less one in a git repository) is
+    ``residue`` instead. ``doctor identity`` opts in for every row; the audit
+    engine opts in for its two collision reports only (#6757).
     Entries that are not directories (e.g. ``README.md``) are silently skipped —
     including entries that cannot be examined at all (`#3194`: an unreadable
     ancestor or an unstattable candidate, most commonly `EACCES` behind a
@@ -297,7 +302,8 @@ def audit_repo(repo_root: Path, *, residue_aware: bool = False) -> list[Identity
 
     Args:
         repo_root: Path to the repository root (contains ``kitty-specs/``).
-        residue_aware: Classify non-Missions as ``residue`` (``doctor identity``).
+        residue_aware: Classify non-Missions as ``residue`` (``doctor identity``
+            for every row; the audit engine for its collision reports).
 
     Returns:
         Sorted list of :class:`IdentityState` objects, one per mission directory.
@@ -352,14 +358,15 @@ def find_duplicate_prefixes(repo_root: Path, *, residue_aware: bool = False) -> 
 
     Directories without a leading numeric prefix are silently skipped — as is,
     per `#3194`, an entry that cannot be examined at all (see the matching note
-    on :func:`audit_repo`). With ``residue_aware=True`` (``doctor identity``
-    only, #5875) a ``residue`` folder is skipped too: it is not a Mission, so
-    it cannot collide with one. The default keeps the audit engine's findings
-    unchanged (FR-008).
+    on :func:`audit_repo`). With ``residue_aware=True`` a ``residue`` folder is
+    skipped too: it is not a Mission, so it cannot collide with one (#5875,
+    #6757). The default keeps the pre-#5875 population, which is what
+    ``doctor identity``'s own callers used before it opted in.
 
     Args:
         repo_root: Path to the repository root.
-        residue_aware: Leave ``residue`` folders out (``doctor identity``).
+        residue_aware: Leave ``residue`` folders out (``doctor identity``; the
+            audit engine's collision report).
 
     Returns:
         ``{"NNN": [<IdentityState>, ...]}`` for every duplicated prefix.
@@ -395,8 +402,9 @@ def find_ambiguous_selectors(
 
     Any handle that maps to ≥ 2 distinct missions is an ambiguity. ``residue``
     rows are skipped (#5875): Mission selection does not list them, so they
-    cannot make a handle ambiguous. Only ``audit_repo(..., residue_aware=True)``
-    produces them, so the audit engine's input, and its findings, are unchanged.
+    cannot make a handle ambiguous. Pass the residue-aware walk's states
+    (``audit_repo(..., residue_aware=True)``) to reproduce that rule; the audit
+    engine does so for its ``AMBIGUOUS_SELECTOR`` report (#6757).
 
     A handle is an *exact* match — the handle ``"foo"`` does not ambiguate
     with ``"foobar"`` unless ``"foobar"`` is itself used as a full-slug
