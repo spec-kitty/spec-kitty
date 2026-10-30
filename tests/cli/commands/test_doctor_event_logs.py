@@ -142,6 +142,45 @@ def test_json_preview_matches_the_contract_shape(project: Path, runs: dict[str, 
     assert _tree_digest(project) == before
 
 
+OP_CLOSED_ID = "01M6739000000000000000000A"
+OP_OPEN_ID = "01M6739000000000000000000B"
+
+
+def _op_record(repo: Path, invocation_id: str, *, completed: bool) -> Path:
+    lines: list[dict[str, object]] = [
+        {"event": "started", "invocation_id": invocation_id, "profile_id": "implementer-fixture", "action": "implement", "started_at": "2026-06-05T00:00:00+00:00"}
+    ]
+    if completed:
+        lines.append({"event": "completed", "invocation_id": invocation_id, "action": "", "completed_at": "2026-06-05T00:01:00+00:00"})
+    return _write(repo / "kitty-ops" / f"{invocation_id}.jsonl", "\n".join(json.dumps(line) for line in lines) + "\n")
+
+
+def test_preview_renders_the_op_log_verdicts(project: Path) -> None:
+    """#6739: an Op-scoped log is reported by its Op's state, in both channels."""
+    _write(project / ".kittify" / "config.yaml", "ledger:\n  retention:\n    keep_runs: 0\n    max_age_days: 30\n")
+    _op_record(project, OP_CLOSED_ID, completed=True)
+    _op_record(project, OP_OPEN_ID, completed=False)
+    closed_log = _write(project / ".kittify" / "events" / "glossary" / f"profile-invocation-{OP_CLOSED_ID}.events.jsonl", '{"event_type": "TermCaptured"}\n')
+    open_log = _write(project / ".kittify" / "events" / "glossary" / f"profile-invocation-{OP_OPEN_ID}.events.jsonl", '{"event_type": "TermCaptured"}\n')
+    for log, age_days in ((closed_log, 60), (open_log, 400)):
+        stamp = now_epoch() - age_days * 86400
+        os.utime(log, (stamp, stamp))
+
+    human = _invoke()
+
+    assert human.exit_code == 0, human.output
+    assert retention.REASON_OP_OPEN in human.output
+    assert _rel(closed_log, project) in human.output
+
+    payload = json.loads(_invoke(JSON_FLAG).stdout)
+    candidates = {item["path"]: item for item in payload["candidates"]}
+    kept = {item["path"]: item for item in payload["kept"]}
+    assert candidates[_rel(closed_log, project)]["kind"] == "op_log"
+    assert candidates[_rel(closed_log, project)]["reason"] == retention.REASON_OP_COMPLETED
+    assert candidates[_rel(closed_log, project)]["mission"] is None
+    assert kept[_rel(open_log, project)]["reason"] == retention.REASON_OP_OPEN
+
+
 def test_apply_json_deletes_the_candidates_and_their_index_entries(project: Path, runs: dict[str, Path]) -> None:
     result = _invoke(APPLY_FLAG, JSON_FLAG)
 
