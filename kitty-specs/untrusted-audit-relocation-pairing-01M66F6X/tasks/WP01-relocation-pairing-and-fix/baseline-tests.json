@@ -1,0 +1,15 @@
+{
+  "wp_id": "WP01",
+  "captured_at": "2026-10-30T14:20:17Z",
+  "base_branch": "f0a3d1ff4b85ea86a78a0edf711a9f6a7a4a764c",
+  "base_commit": "f0a3d1ff4b85ea86a78a0edf711a9f6a7a4a764c",
+  "test_runner": "pytest",
+  "total": 30,
+  "passed": 30,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300,
+  "notes": "Baseline captured on lane base (pristine tree) via `uv run --frozen pytest tests/architectural/test_untrusted_path_containment.py -q` before the WP01 red tests were appended: 30 passed. The custom junit_xml capture reported 0 because the runner invocation predated the test additions; counts backfilled from the recorded run (see WP01 history block). Post-fix suite: 36 passed."
+}
