@@ -12,5 +12,7 @@
   "purpose_tldr": "changelog wp lane reducer",
   "slug": "changelog-wp-lane-reducer-01M66FMR",
   "target_branch": "issue-6612-changelog-wp-lane-reducer",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T13:31:06.062720+00:00"
 }
