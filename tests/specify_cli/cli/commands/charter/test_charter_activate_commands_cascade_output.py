@@ -16,11 +16,14 @@ Covers:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
 import yaml
 from typer.testing import CliRunner
+
+from tests._factories.activation_ledger import seed_activation_ledger
 
 from charter.activation.cascade import (
     CascadeScope,
@@ -482,6 +485,10 @@ class TestNoCascadeKindFilteredRendering:
             ],
         )
         _write_org_pack_config(project_root, [("nc-pack1", "org-packs/nc-pack1")])
+        # #6742: an explicit (empty) ``activated_tactics`` list keeps the tactic OUT of
+        # force, so this test still exercises the warning line next to the kind-filtered
+        # one. With the key absent the tactic would be in force and reported as a note.
+        seed_activation_ledger(project_root, activated_tactics=[])
 
         result = _activate_kind_filtered_fixture(
             project_root, "directive", "nc-source"
@@ -623,3 +630,156 @@ class TestNoCascadeKindFilteredRendering:
             in result.output
         )
         assert "ASSET_NC_RAW_BARE_ID" not in result.output
+
+
+# ---------------------------------------------------------------------------
+# Issue #6742 — the no-cascade report distinguishes "already in force" from
+# "not activated". A referenced artifact whose kind has no explicit allow list
+# (``ArtifactKind.effective_when_absent == "all"``) is in force, so the report
+# must not tell the operator it "was not activated". Fixtures reuse the
+# module's own builders (``_write_artifact`` / ``_write_graph_fragment`` /
+# ``_write_org_pack_config``) plus the ledger factory the golden tests use, so
+# the allow lists are seeded exactly as production writes them.
+# ---------------------------------------------------------------------------
+
+#: The note the report prints for a referenced artifact that is already in force.
+_IN_FORCE_NOTE = "Note: referenced {label} is already in force ({reason}); not added by this command."
+
+
+def _in_force_project(project_root: Path, **ledger_lists: list[str]) -> Path:
+    """A one-directive org pack whose directive ``suggests`` one tactic (and one directive)."""
+    pack_root = project_root / "org-packs" / "if-pack"
+    _write_artifact(pack_root, "directives", "directive", "if-source", "DIRECTIVE_IF_SRC")
+    _write_artifact(pack_root, "tactics", "tactic", "if-tactic", "TACTIC_IF_ONE")
+    _write_artifact(pack_root, "directives", "directive", "if-other", "DIRECTIVE_IF_OTHER")
+    _write_graph_fragment(
+        pack_root,
+        "fixture.graph.yaml",
+        nodes=[
+            ("directive:DIRECTIVE_IF_SRC", "directive"),
+            ("tactic:TACTIC_IF_ONE", "tactic"),
+            ("directive:DIRECTIVE_IF_OTHER", "directive"),
+        ],
+        edges=[
+            ("directive:DIRECTIVE_IF_SRC", "tactic:TACTIC_IF_ONE", "requires"),
+            ("directive:DIRECTIVE_IF_SRC", "directive:DIRECTIVE_IF_OTHER", "suggests"),
+        ],
+    )
+    _write_org_pack_config(project_root, [("if-pack", "org-packs/if-pack")])
+    seed_activation_ledger(project_root, **{"mission_type_activations": ["software-dev"], **ledger_lists})
+    return project_root
+
+
+class TestNoCascadeAlreadyInForce:
+    """FR-001/FR-002: an in-force reference is named as in force, not as "not activated"."""
+
+    def test_absent_activation_key_reports_the_reference_as_already_in_force(
+        self, project_root: Path
+    ) -> None:
+        """The issue's own case: no ``activated_<kind>`` key, so the reference is in force."""
+        root = _in_force_project(project_root)
+
+        result = _activate_kind_filtered_fixture(root, "directive", "if-source")
+
+        assert result.exit_code == 0, result.output
+        output = " ".join(result.output.split())
+        assert _IN_FORCE_NOTE.format(label="tactic/if-tactic", reason="no explicit list") in output
+        assert "referenced tactic/if-tactic was not activated" not in output
+        # The referenced directive of the same kind is in force too, but for a
+        # different reason: activating a directive on a project with no
+        # ``activated_directives`` key initializes that list from the effective set, so
+        # by the time the report is built the artifact is *listed* rather than absent.
+        assert _IN_FORCE_NOTE.format(label="directive/if-other", reason="listed in activated_directives") in output
+        # Nothing is left to recover, so the --cascade hint must not be printed.
+        assert "Hint:" not in output
+
+    def test_explicit_list_that_omits_the_reference_keeps_the_warning(
+        self, project_root: Path
+    ) -> None:
+        """Negative control: a present allow list that does not name the reference."""
+        root = _in_force_project(
+            project_root, activated_directives=["if-source"], activated_tactics=["some-other-tactic"]
+        )
+
+        result = _activate_kind_filtered_fixture(root, "directive", "if-source")
+
+        assert result.exit_code == 0, result.output
+        output = " ".join(result.output.split())
+        assert "Warning: referenced tactic/if-tactic was not activated (no --cascade)." in output
+        assert "Warning: referenced directive/if-other was not activated (no --cascade)." in output
+        assert "already in force" not in output
+        # Something is still not in force, so the hint survives.
+        assert "Hint: Re-run with" in output
+
+    def test_explicit_list_that_already_names_the_reference_reports_it_in_force(
+        self, project_root: Path
+    ) -> None:
+        """A present allow list that names the reference: it is in force before the command runs."""
+        root = _in_force_project(
+            project_root,
+            activated_directives=["if-source"],
+            activated_tactics=["if-tactic"],
+        )
+
+        result = _activate_kind_filtered_fixture(root, "directive", "if-source")
+
+        assert result.exit_code == 0, result.output
+        output = " ".join(result.output.split())
+        assert _IN_FORCE_NOTE.format(label="tactic/if-tactic", reason="listed in activated_tactics") in output
+        assert "referenced tactic/if-tactic was not activated" not in output
+        # The directive the list omits is still a warning.
+        assert "Warning: referenced directive/if-other was not activated (no --cascade)." in output
+
+    def test_only_narrowing_keeps_the_warning_for_the_reference_it_dropped(
+        self, project_root: Path
+    ) -> None:
+        """FR-004: the verdict follows the state the command leaves behind.
+
+        ``--only`` narrows ``activated_directives`` to the selection, so the
+        referenced directive is NOT in force afterwards even though it was
+        listed before the command ran.
+        """
+        root = _in_force_project(
+            project_root,
+            activated_directives=["if-source", "if-other"],
+            activated_tactics=["if-tactic"],
+        )
+
+        result = _activate_kind_filtered_fixture(root, "--only", "directive", "if-source")
+
+        assert result.exit_code == 0, result.output
+        output = " ".join(result.output.split())
+        assert "Warning: referenced directive/if-other was not activated (no --cascade)." in output
+        assert "referenced directive/if-other is already in force" not in output
+
+    def test_deactivated_reference_keeps_its_warning_even_without_an_allow_list(
+        self, project_root: Path
+    ) -> None:
+        """FR-007: the deny list wins over "effective when absent"."""
+        root = _in_force_project(project_root, deactivated_tactics=["if-tactic"])
+
+        result = _activate_kind_filtered_fixture(root, "directive", "if-source")
+
+        assert result.exit_code == 0, result.output
+        output = " ".join(result.output.split())
+        assert "Warning: referenced tactic/if-tactic is deactivated and was not activated." in output
+        assert "referenced tactic/if-tactic is already in force" not in output
+
+    def test_json_separates_already_in_force_from_not_cascaded(self, project_root: Path) -> None:
+        """FR-005: the machine surface keeps the same distinction."""
+        root = _in_force_project(project_root, activated_tactics=["some-other-tactic"])
+
+        result = _activate_kind_filtered_fixture(root, "--json", "directive", "if-source")
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.stdout)
+        assert payload["referenced_already_in_force"] == [
+            {"kind": "directive", "id": "if-other", "urn": "directive:DIRECTIVE_IF_OTHER"}
+        ]
+        assert payload["referenced_not_cascaded"] == [
+            {"kind": "tactic", "id": "if-tactic", "urn": "tactic:TACTIC_IF_ONE"}
+        ]
+        # No artifact is counted in both lists.
+        already = {(ref["kind"], ref["id"]) for ref in payload["referenced_already_in_force"]}
+        skipped = {(ref["kind"], ref["id"]) for ref in payload["referenced_not_cascaded"]}
+        assert already.isdisjoint(skipped)

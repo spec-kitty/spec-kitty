@@ -130,10 +130,13 @@ def normalized(result: Result, root: Path) -> str:
 
 _NO_COMPILE = "Catalog not recompiled (--no-compile): catalog.references may go stale until the next `charter generate` or `charter activate --resynthesize`.\n"
 
-_CASCADE_HINT = (
-    "Hint: Re-run with `--cascade <scope>` (e.g. `--cascade all` for every referenced kind) to activate the referenced artifacts, "
-    "or run `charter consistency-check` to confirm the activation set is coherent.\n"
-)
+# #6742: an absent ``activated_<kind>`` key leaves the kind's artifacts in force, so a
+# referenced artifact of that kind is reported as already in force, not as "was not
+# activated". One line per referenced artifact the activation case reaches.
+_IN_FORCE_NOTE = "Note: referenced {kind}/{artifact_id} is already in force (no explicit list); not added by this command.\n"
+_IN_FORCE_G_PROC = _IN_FORCE_NOTE.format(kind="procedure", artifact_id="g-proc")
+_IN_FORCE_S_STYLE = _IN_FORCE_NOTE.format(kind="styleguide", artifact_id="s-style")
+_IN_FORCE_C_TAC = _IN_FORCE_NOTE.format(kind="tactic", artifact_id="c-tac")
 
 #: name -> (fixture, command, args, ledger seed for the activation fixture, expected output)
 CASES: dict[str, tuple[str, str, tuple[str, ...], dict[str, list[str]], str]] = {
@@ -212,10 +215,12 @@ CASES: dict[str, tuple[str, str, tuple[str, ...], dict[str, list[str]], str]] = 
         {},
         (
             "Activated: p-dir\n"
-            "Warning: referenced procedure/g-proc was not activated (no --cascade).\n"
-            "Warning: referenced styleguide/s-style was not activated (no --cascade).\n"
-            "Warning: referenced tactic/c-tac was not activated (no --cascade).\n"
-            + _CASCADE_HINT
+            # #6742: this fixture's ``activated_procedures`` / ``activated_styleguides`` /
+            # ``activated_tactics`` keys are absent, so all three references are in force
+            # and are named as such instead of as "was not activated".
+            + _IN_FORCE_G_PROC
+            + _IN_FORCE_S_STYLE
+            + _IN_FORCE_C_TAC
             + "Not cascaded: asset/a-asset (kind not charter-activatable)\n"
             + _NO_COMPILE
         ),
@@ -227,10 +232,11 @@ CASES: dict[str, tuple[str, str, tuple[str, ...], dict[str, list[str]], str]] = 
         {"deactivated_tactics": ["c-tac"]},
         (
             "Activated: p-dir\n"
-            "Warning: referenced procedure/g-proc was not activated (no --cascade).\n"
-            "Warning: referenced styleguide/s-style was not activated (no --cascade).\n"
-            "Warning: referenced tactic/c-tac is deactivated and was not activated.\n"
-            + _CASCADE_HINT
+            + _IN_FORCE_G_PROC
+            + _IN_FORCE_S_STYLE
+            # #6742: a deactivated reference keeps its warning even though its kind has
+            # no explicit allow list — the deny list wins over "effective when absent".
+            + "Warning: referenced tactic/c-tac is deactivated and was not activated.\n"
             + "Not cascaded: asset/a-asset (kind not charter-activatable)\n"
             + _NO_COMPILE
         ),
@@ -241,11 +247,13 @@ CASES: dict[str, tuple[str, str, tuple[str, ...], dict[str, list[str]], str]] = 
         ("--only", "tactic", "c-tac"),
         {"activated_tactics": ["adversarial-qa-handoff"]},
         (
+            # #6742: ``activated_procedures`` is absent, so the referenced procedure is in
+            # force (a note, not a warning) and nothing is left to cascade, so the
+            # recovery hint is gone too.
             "Activated: c-tac\n"
             # a8dd1812 (#6457): --only names the list it wrote before the footer.
             "Now listed for tactic (1): c-tac\n"
-            "No longer in force (1): adversarial-qa-handoff\n"
-            "Warning: referenced procedure/g-proc was not activated (no --cascade).\n" + _CASCADE_HINT + _NO_COMPILE
+            "No longer in force (1): adversarial-qa-handoff\n" + _IN_FORCE_G_PROC + _NO_COMPILE
         ),
     ),
     "deactivate_cascade_all": (
