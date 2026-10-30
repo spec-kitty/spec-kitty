@@ -16,9 +16,8 @@
   "baseline_merge_commit": "a18187fb2cfa5c48b8553379804da1d5d0105c74",
   "contracts": "none",
   "contracts_rationale": "Internal consolidation: no interface, endpoint, event payload or file format changes. The only contract is the anchored lock path itself, pinned by value in tests/kernel/test_lock_paths.py and documented in data-model.md.",
-  "coordination_branch": "kitty/mission-anchor-lock-path-single-authority-01M66YWP",
   "created_at": "2026-10-30T17:49:30.635174+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "One kernel helper for anchor-keyed lock paths",
   "merged_at": "2026-10-30T19:12:30.829815+00:00",
   "merged_commit": "77bf05c90a0cdbf7a12982f70c4c4edd053046f2",
@@ -33,7 +32,6 @@
   "slug": "anchor-lock-path-single-authority-01M66YWP",
   "status_phase": "1",
   "target_branch": "issue-6727-anchor-lock-paths",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-30T17:54:11.098709+00:00"
 }
