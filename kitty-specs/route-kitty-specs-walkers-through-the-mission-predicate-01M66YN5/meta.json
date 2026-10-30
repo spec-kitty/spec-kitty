@@ -26,6 +26,7 @@
   "purpose_context": "This mission advances route kitty specs walkers through the mission predicate on issue-6758-kitty-specs-walkers-mission-predicate so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "route kitty specs walkers through the mission predicate",
   "slug": "route-kitty-specs-walkers-through-the-mission-predicate-01M66YN5",
+  "status_phase": "1",
   "target_branch": "issue-6758-kitty-specs-walkers-mission-predicate",
   "topology": "single_branch"
 }
