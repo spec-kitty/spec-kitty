@@ -861,7 +861,7 @@ The exit code is the one the same invocation has without `--json`.
 | `CASCADE_SCOPE_INVALID` | activate, deactivate | A bad `--cascade` value | 1 |
 | `CHARTER_WRITE_ROOT_INVALID` | activate, deactivate | The command ran where activation cannot be written (a linked worktree) | 1 |
 | `DEACTIVATION_REFUSED_REQUIRED` | deactivate | An org pack requires the id; `error.requiring_packs` lists the packs | 1 |
-| `ACTIVATION_FAILED` | activate, deactivate | The activation engine or DRG load failed (an unknown artifact id, for example); under `--json` also a failed pack-skill projection | 1 |
+| `ACTIVATION_FAILED` | activate, deactivate | The activation engine or DRG load failed (an unknown artifact id, for example); on `activate`, a declared org pack that was never fetched (run `spec-kitty charter fetch`); under `--json` also a failed pack-skill projection | 1 |
 | `RESYNTHESIS_FAILED` | activate, deactivate (`--json`) | The change is recorded, but the catalog refresh after it failed; `error` carries the change report and `detail` | 1 |
 
 `charter status` can also pass through, unchanged, any other internal-consistency code an
@@ -878,9 +878,11 @@ Edge cases:
 - A `.kittify/config.yaml` that is not a mapping is refused by the soundness check as
   `ACTIVE_CHARTER_CONFIG_INVALID`. `CHARTER_CONFIG_SHAPE_INVALID` appears only after that check
   passed.
-- A malformed `charter_packs` entry in `.kittify/config.yaml` is refused as `ACTIVATION_FAILED`
-  by `activate` but as `ACTIVE_CHARTER_CONFIG_INVALID` by `deactivate`, because the two read
-  the org pack registry through different paths. This asymmetry is known; the follow-up is #6772.
+- A malformed `charter_packs` registry in `.kittify/config.yaml` is refused by both verbs as
+  `ACTIVE_CHARTER_CONFIG_INVALID` (#6772): the org pack registry cannot be read, so the pack
+  configuration is unsound. A declared org pack that was never fetched stays a distinct
+  `ACTIVATION_FAILED` refusal on `activate`, with the `spec-kitty charter fetch` remedy in the
+  message.
 
 Usage errors (flag misuse such as `--include-deactivated` without `--cascade`) stay Click usage
 errors: exit 2, printed as usage text, not JSON.
