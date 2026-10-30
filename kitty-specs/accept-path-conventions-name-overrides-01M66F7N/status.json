@@ -1,0 +1,53 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M66J0BXQA74AZGCM18FNX7EW",
+  "materialized_at": "2026-10-30T14:04:19.255728+00:00",
+  "mission_number": "",
+  "mission_slug": "accept-path-conventions-name-overrides-01M66F7N",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "maintainer-d",
+      "force_count": 1,
+      "implementer_of_record": "maintainer-d",
+      "lane": "done",
+      "last_event_id": "01M66J0A9JT3A2DNGWKDHWCPCH",
+      "last_transition_at": "2026-10-30T14:04:17.586795+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "shell_pid": 355533,
+      "shell_pid_created_at": "1793366632.37"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "maintainer-d",
+      "force_count": 1,
+      "implementer_of_record": "maintainer-d",
+      "lane": "done",
+      "last_event_id": "01M66J0BXQA74AZGCM18FNX7EW",
+      "last_transition_at": "2026-10-30T14:04:19.255728+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "shell_pid": 495249,
+      "shell_pid_created_at": "1793368234.26"
+    }
+  }
+}

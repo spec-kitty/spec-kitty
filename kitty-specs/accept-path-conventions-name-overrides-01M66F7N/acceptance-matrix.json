@@ -1,0 +1,49 @@
+{
+  "mission_slug": "accept-path-conventions-name-overrides-01M66F7N",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_validators_unit.py: test_strict_failure_names_project_path_conventions_and_drop_route, test_path_conventions_example_lists_only_actually_missing_keys, test_artifact_routed_missing_key_gets_no_path_conventions_hint (red-first on pre-fix main, green after fix)",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-d",
+      "verified_at": "2026-10-30T14:02:32.892001+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_validators_unit.py: test_strict_failure_names_project_path_conventions_and_drop_route, test_path_conventions_example_lists_only_actually_missing_keys, test_artifact_routed_missing_key_gets_no_path_conventions_hint (red-first on pre-fix main, green after fix)",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-d",
+      "verified_at": "2026-10-30T14:02:38.246524+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_validators_unit.py: test_strict_failure_names_project_path_conventions_and_drop_route, test_path_conventions_example_lists_only_actually_missing_keys, test_artifact_routed_missing_key_gets_no_path_conventions_hint (red-first on pre-fix main, green after fix)",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-d",
+      "verified_at": "2026-10-30T14:02:44.044323+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/guides/how-to/missions/accept-and-merge.md 'When the Project Layout Differs' section names both routes; docs-freshness errors=0 after index regen; changelog [Unreleased] entry with (#6633)",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-d",
+      "verified_at": "2026-10-30T14:02:56.856118+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
