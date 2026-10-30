@@ -213,8 +213,13 @@ legacy `Feature` label, and keep it retired as the dashboard delivery lands in t
 2. **The mission-data contract is unenumerated.** The §3.1 invariant asserts a versioned
    data contract, but no contract or contract test exists yet — the dashboard binds to the
    projection directly today. This is the domain's key structural gap, gated behind #645.
-   The orchestrator-api reads use the wall-clock reducer, `reduce()`. The dashboard uses
-   the Lamport reducer, `materialize_snapshot()`. So two read surfaces can disagree today.
+   The readers do not disagree about ordering: `reduce()`, `materialize_snapshot()` and the
+   deleted dashboard's reads all reach the same wall-clock fold
+   (`spec_kitty_events.diary.reduce_parsed`, ordered by `(at, event_id)` with the #4941
+   approved-departure lift). What remains open is narrower than the two-reducer split this
+   entry used to describe: a non-approval transition minted on a clock behind the event it
+   follows still sorts before that event, and Lamport-primary ordering is a post-GA
+   direction (#6609) that needs its own ADR.
 3. **Dashboard delivery is deferred, its invariants are not.** The experience-shaped
    delivery is a post-4.0.0 concern (§5), but the invariants (contract-bound consumers,
    browser-proven UI, Mission-canon labels) are in force now and must not regress as the
