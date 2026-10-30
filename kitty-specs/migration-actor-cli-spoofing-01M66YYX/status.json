@@ -1,7 +1,7 @@
 {
-  "event_count": 15,
-  "last_event_id": "01M674HHQ4S2EP1X0KXZJ3X1NC",
-  "materialized_at": "2026-10-30T19:28:16.607338+00:00",
+  "event_count": 16,
+  "last_event_id": "01M6751BYZZ83KKNP97R7X64ZH",
+  "materialized_at": "2026-10-30T19:36:55.007104+00:00",
   "mission_number": "",
   "mission_slug": "migration-actor-cli-spoofing-01M66YYX",
   "mission_type": "",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -93,14 +93,22 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M674HHQ4S2EP1X0KXZJ3X1NC",
-      "last_transition_at": "2026-10-30T19:28:16.607338+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M6751BYZZ83KKNP97R7X64ZH",
+      "last_transition_at": "2026-10-30T19:36:55.007104+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T19:31:20Z – python-pedro – shell_pid=224204 – Docs + changelog: status-model actor section gained 'Who may write a seed'; agent-subcommands.md's status emit --actor block follows the new help text verbatim (rendered from the lane-a code at 79 cols); changelog [Unreleased] Breaking entry with impact-first lead, before/after and remedy (1045 chars). Gates: check_docs_freshness errors=0 (6 pre-existing warnings: 3 HELP-DRIFT on charter/migrate, 3 404 links), test_no_legacy_terminology 98 passed."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 224204,
-      "shell_pid_created_at": "1793388492.9"
+      "shell_pid_created_at": "1793388492.9",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
     }
   }
 }
