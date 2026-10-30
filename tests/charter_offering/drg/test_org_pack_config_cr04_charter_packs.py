@@ -95,3 +95,105 @@ def test_org_block_without_packs_is_an_empty_registry(tmp_path: Path) -> None:
     _write_config(tmp_path, "charter_packs:\n  org: {}\n")
 
     assert load_pack_registry(tmp_path, strict=True).names() == []
+
+
+def test_an_unreadable_registry_is_the_typed_refusal_on_both_bases(tmp_path: Path) -> None:
+    """Issue #6772: the strict registry refusal is the typed ``OrgPackRegistryUnreadableError``.
+
+    The typed error must be BOTH an ``ActiveCharterConfigError`` (so it carries
+    ``ACTIVE_CHARTER_CONFIG_INVALID`` and every ``except ActiveCharterConfigError``
+    arm — ``charter activate``'s config refusal among them — renders it identically
+    to ``charter deactivate``'s strict required-floor read) AND a ``ValueError``
+    (so the fail-closed org-chain readers that document ``except ValueError`` —
+    ``effective_set``, ``preset_application``, ``manifest_loader`` — keep their
+    refusal behaviour unchanged). The dual base is the contract; pin both.
+
+    The seam (C-004 one-way boundary): ``require_declared_org_roots`` raises the
+    offering-owned ``UnreadableOrgPackRegistry``; the activation-side strict
+    chain authority (``resolve_pack_chain(strict=True)``) — the read ``charter
+    activate`` and the preset/effective-set reasoners go through — maps exactly
+    that error onto the typed refusal.
+    """
+    _write_config(tmp_path, "charter_packs: [1, 2]\n")
+
+    from charter.activation.activation_ledger import ActiveCharterConfigError, OrgPackRegistryUnreadableError
+    from charter.activation.layer_roots import resolve_pack_chain
+    from charter.offering.drg.org_pack_config import UnreadableOrgPackRegistry
+
+    # Offering-side: the refusal is offering-owned — a ValueError, not yet typed.
+    with pytest.raises(UnreadableOrgPackRegistry) as offering_side:
+        require_declared_org_roots(tmp_path)
+    assert not isinstance(offering_side.value, ActiveCharterConfigError)
+
+    # Activation-side: the strict chain authority maps it onto the typed error.
+    with pytest.raises(OrgPackRegistryUnreadableError) as raised:
+        resolve_pack_chain(tmp_path, strict=True)
+
+    error = raised.value
+    # Base 1: an ActiveCharterConfigError, so the CLI reports the one honest code on both verbs.
+    assert isinstance(error, ActiveCharterConfigError)
+    assert error.code == "ACTIVE_CHARTER_CONFIG_INVALID"
+    assert error.body.startswith("the org pack registry cannot be read:")
+    # Base 2: still a ValueError, so the strict org-chain readers' contracts hold.
+    assert isinstance(error, ValueError)
+    # str(exc) stays the human message (not the code): strict readers interpolate it.
+    assert str(error) == error.body
+    # The body is the offering-side message, unchanged by the mapping.
+    assert error.body == str(offering_side.value)
+    # The cause is chained, so the underlying parse failure stays visible in the traceback.
+    assert isinstance(raised.value.__cause__, UnreadableOrgPackRegistry)
+
+
+def test_a_declared_but_unfetched_pack_stays_a_plain_value_error(tmp_path: Path) -> None:
+    """Issue #6772: only the unreadable-registry arm is typed; the fetch remedy case stays distinguishable."""
+    absent_root = tmp_path / "not-fetched"
+    _write_config(tmp_path, _packs_block("charter_packs", "unfetched-org", absent_root))
+
+    from charter.activation.activation_ledger import ActiveCharterConfigError
+    from charter.activation.layer_roots import resolve_pack_chain
+
+    with pytest.raises(ValueError, match="unfetched-org") as raised:
+        require_declared_org_roots(tmp_path)
+
+    assert not isinstance(raised.value, ActiveCharterConfigError)
+
+    # Through the strict chain authority too: the mapping must not swallow the
+    # fetch remedy into a config-invalid refusal (activate keeps ACTIVATION_FAILED).
+    with pytest.raises(ValueError, match="unfetched-org") as chain_side:
+        resolve_pack_chain(tmp_path, strict=True)
+
+    assert not isinstance(chain_side.value, ActiveCharterConfigError)
+
+
+def test_the_offering_raise_never_imports_activation() -> None:
+    """The offering module's refusal crosses no seam at all (C-004 one-way boundary).
+
+    ``charter.offering`` may not import ``charter.activation`` at any scope
+    (gated statically by ``tests/architectural/test_charter_offering_does_not_import_activation.py``);
+    the typed error is produced by the activation-side mapping in
+    ``layer_roots.resolve_pack_chain`` instead. Runtime complement of the
+    static gate: importing ``org_pack_config`` and driving its refusal path
+    leaves ``charter.activation.activation_ledger`` unloaded.
+    """
+    import subprocess
+    import sys
+
+    probe = """
+import pathlib, sys, tempfile
+
+import charter.offering.drg.org_pack_config as m
+
+assert "charter.activation.activation_ledger" not in sys.modules
+
+d = pathlib.Path(tempfile.mkdtemp())
+(d / ".kittify").mkdir()
+(d / ".kittify" / "config.yaml").write_text("charter_packs: [1, 2]\\n")
+try:
+    m.require_declared_org_roots(d)
+except ValueError as exc:
+    assert type(exc).__name__ == "UnreadableOrgPackRegistry"
+    assert "charter.activation.activation_ledger" not in sys.modules
+    sys.exit(0)
+sys.exit(1)
+"""
+    subprocess.run([sys.executable, "-c", probe], check=True)

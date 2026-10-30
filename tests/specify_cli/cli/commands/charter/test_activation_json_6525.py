@@ -299,21 +299,17 @@ def test_an_unreadable_activation_store_is_refused(tmp_path: Path, command: str)
     _assert_refusal(root, command, ("directive", "p-dir"), "ACTIVE_CHARTER_CONFIG_INVALID")
 
 
-@pytest.mark.parametrize(
-    ("command", "code"),
-    [
-        # activate reads the org registry through charter's require_declared_org_roots,
-        # which raises a plain ValueError (an activation-engine failure here).
-        ("activate", "ACTIVATION_FAILED"),
-        # deactivate reads it through the strict required-floor read (ActiveCharterConfigError).
-        ("deactivate", "ACTIVE_CHARTER_CONFIG_INVALID"),
-    ],
-)
-def test_a_malformed_charter_packs_config_is_refused(tmp_path: Path, command: str, code: str) -> None:
+@pytest.mark.parametrize("command", ["activate", "deactivate"])
+def test_a_malformed_charter_packs_config_is_refused(tmp_path: Path, command: str) -> None:
     root = build_activation_project(tmp_path)
     (root / ".kittify" / "config.yaml").write_text("charter_packs: [1, 2]\n", encoding="utf-8")
 
-    error = _assert_refusal(root, command, ("directive", "001-architectural-integrity-standard"), code)
+    # Both verbs read the org registry through a fail-closed seam that raises a typed
+    # registry error carrying ACTIVE_CHARTER_CONFIG_INVALID (issue #6772): activate via
+    # resolve_pack_chain(strict=True)'s mapping of the offering-side registry
+    # refusal onto OrgPackRegistryUnreadableError, deactivate via the strict
+    # required-floor read's ActiveCharterConfigError.
+    error = _assert_refusal(root, command, ("directive", "001-architectural-integrity-standard"), "ACTIVE_CHARTER_CONFIG_INVALID")
 
     assert "org pack registry" in error["message"]
 

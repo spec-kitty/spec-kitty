@@ -29,6 +29,7 @@ __all__ = [
     "OrgPackConfig",
     "OrgPackEnvVarUnsetError",
     "OrgPackSubdirEscapeError",
+    "UnreadableOrgPackRegistry",
     "ensure_pack_identity",
     "load_pack_registry",
     "resolve_existing_org_roots",
@@ -495,22 +496,50 @@ def resolve_org_roots(repo_root: Path, *, quiet: bool = False) -> list[Path]:
     ]
 
 
+class UnreadableOrgPackRegistry(ValueError):
+    """The org pack registry in ``.kittify/config.yaml`` exists but cannot be parsed (issue #6772).
+
+    Offering-owned refusal of the ONE fail-closed registry read behind every
+    strict org-chain consumer (``require_declared_org_roots``): a
+    ``ValueError`` so the strict readers that document ``except ValueError``
+    keep firing on it, with the human message "the org pack registry cannot
+    be read: …" chained from the underlying parse failure.
+
+    The activation-side strict seam
+    (:func:`charter.activation.layer_roots.resolve_pack_chain` with
+    ``strict=True``) maps exactly this error onto the typed
+    :class:`~charter.activation.activation_ledger.OrgPackRegistryUnreadableError`
+    (code ``ACTIVE_CHARTER_CONFIG_INVALID``, still a ``ValueError``), so
+    ``charter activate`` reports the malformed registry exactly like
+    ``charter deactivate`` — while this module stays free of any
+    ``charter.activation`` import (the C-004 one-way boundary:
+    activation → offering only).
+    """
+
+
 def require_declared_org_roots(repo_root: Path) -> list[Path]:
     """Return every declared org pack root in declaration order, failing closed.
 
     The fail-closed sibling of :func:`resolve_existing_org_roots`: the registry
-    is read strictly and every declared root must be a directory. Raises
-    ``ValueError`` naming the cause otherwise. It is the one precondition both
-    absent-key reasoners share: the effective-set seam
-    (``charter.activation.effective_set``) and ``charter activate --preset``
-    (``charter.activation.preset_application``, #3732 WP08), so neither checks
-    a set it could not fully read.
+    is read strictly and every declared root must be a directory. An unreadable
+    or malformed registry raises the offering-owned
+    :class:`UnreadableOrgPackRegistry` (a ``ValueError``; the activation-side
+    strict seam maps it onto the typed
+    :class:`~charter.activation.activation_ledger.OrgPackRegistryUnreadableError`
+    with code ``ACTIVE_CHARTER_CONFIG_INVALID``); a declared root that is not a
+    directory raises a plain ``ValueError`` naming the pack and the fetch
+    remedy. It is the one precondition both absent-key reasoners share: the
+    effective-set seam (``charter.activation.effective_set``) and ``charter
+    activate --preset`` (``charter.activation.preset_application``, #3732 WP08),
+    so neither checks a set it could not fully read.
     """
     try:
         packs = load_pack_registry(repo_root, quiet=True, strict=True).packs
         named_roots = [(pack.name, pack.effective_root(repo_root)) for pack in packs]
     except ValueError as exc:
-        raise ValueError(f"the org pack registry cannot be read: {exc}") from exc
+        raise UnreadableOrgPackRegistry(
+            f"the org pack registry cannot be read: {exc}"
+        ) from exc
     for name, root in named_roots:
         if not root.is_dir():
             raise ValueError(

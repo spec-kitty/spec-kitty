@@ -10,8 +10,10 @@ onto it.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import NoReturn
 
 from charter.offering.drg.org_pack_config import (
+    UnreadableOrgPackRegistry,
     require_declared_org_roots,
     resolve_existing_org_roots,
     resolve_org_roots,
@@ -62,7 +64,10 @@ def resolve_pack_chain(repo_root: Path, *, strict: bool, quiet: bool = False) ->
     * ``strict=True`` -- fail-closed: the registry is read strictly and a
       declared-but-unfetched pack raises ``ValueError`` naming the pack and the
       ``spec-kitty charter fetch`` remedy (equivalent to
-      ``require_declared_org_roots``).
+      ``require_declared_org_roots``); an unreadable or malformed registry
+      raises the typed ``OrgPackRegistryUnreadableError`` (an
+      ``ActiveCharterConfigError`` carrying ``ACTIVE_CHARTER_CONFIG_INVALID``,
+      still a ``ValueError`` — issue #6772).
 
     Zero declared packs yields ``[]`` in either posture; it never raises.
 
@@ -71,5 +76,33 @@ def resolve_pack_chain(repo_root: Path, *, strict: bool, quiet: bool = False) ->
     per-call-site choice is deliberate, not accidental.
     """
     if strict:
-        return list(require_declared_org_roots(repo_root))
+        try:
+            return list(require_declared_org_roots(repo_root))
+        except UnreadableOrgPackRegistry as cause:
+            raise _refuse_unreadable_registry(cause) from cause
     return list(resolve_existing_org_roots(repo_root, quiet=quiet))
+
+
+def _refuse_unreadable_registry(cause: UnreadableOrgPackRegistry) -> NoReturn:
+    """Map the offering-side unreadable-registry refusal onto the typed error (issue #6772).
+
+    The typed refusal :class:`~charter.activation.activation_ledger.OrgPackRegistryUnreadableError`
+    carries the ``ACTIVE_CHARTER_CONFIG_INVALID`` code, so ``charter activate``
+    (whose strict org-chain read lands here) reports the malformed registry
+    exactly like ``charter deactivate``'s strict required-floor read, and it
+    stays a ``ValueError`` so every strict reader's ``except ValueError``
+    contract keeps firing.
+
+    This is the ONE point where the offering→activation seam maps the
+    offering-owned :class:`~charter.offering.drg.org_pack_config.UnreadableOrgPackRegistry`
+    onto the typed error, so ``charter.offering`` itself never imports
+    ``charter.activation`` (the C-004 one-way boundary). The import is lazy
+    because ``charter.activation.activation_ledger`` transitively imports this
+    module — the same shape ``charter.activation.org_pack_discovery._strict_error``
+    uses to keep the same-package import graph acyclic.
+    """
+    from charter.activation.activation_ledger import (  # noqa: PLC0415 — keeps the same-package import graph acyclic
+        OrgPackRegistryUnreadableError,
+    )
+
+    raise OrgPackRegistryUnreadableError(cause.args[0]) from cause
