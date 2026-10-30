@@ -100,6 +100,13 @@ they are *not* anchor-keyed (one is keyed by mission directory name, the other b
 sentinel), so they have no digest rule to share. Their docstrings name the helper and say
 why they do not use it, so the next reader does not re-open the question.
 
+**D4a — the frozen event-ledger page is not edited (#6117, ADR 2026-10-29-1 D-9).**
+`docs/architecture/event-ledger-writers-and-readers.md` is pinned to its freeze-point blob by
+`tests/architectural/test_events_import_frozen.py` and ships to `spec-kitty-events` with its
+history. The doc-tier half of this mission therefore lands in
+`docs/development/reference/lock-interop-spike.md` and in the module docstrings; the frozen page
+keeps its bytes and the gate that caught the first attempt stays green.
+
 **D4 — non-git fallbacks stay in the callers.**
 They differ per family and are part of each family's documented contract (`<anchor>.event-log.lock`
 is deliberately distinct from the glossary repair lock's `<log>.lock`; the synthesis fallback
