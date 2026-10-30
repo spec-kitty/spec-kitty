@@ -552,8 +552,13 @@ def test_approved_verdict_proceeds_without_override() -> None:
 
 
 def test_feedback_file_not_found_refuses(tmp_path: Path) -> None:
+    # #6699: pinned on a review-rejection edge — the not-found arm is only
+    # reachable where the flag is recordable; non-recordable edges get the
+    # edge refusal instead (test_issue_6699_feedback_file_edges.py).
     outcome = decide_transition(
         _base_request(
+            target_lane="planned",
+            old_lane="in_review",
             feedback_provided=True,
             feedback_source=str(tmp_path / "missing.md"),
             feedback_exists=False,
@@ -564,8 +569,11 @@ def test_feedback_file_not_found_refuses(tmp_path: Path) -> None:
 
 
 def test_feedback_path_not_a_file_refuses(tmp_path: Path) -> None:
+    # #6699: same — the not-a-file arm on its recordable edge.
     outcome = decide_transition(
         _base_request(
+            target_lane="planned",
+            old_lane="in_review",
             feedback_provided=True,
             feedback_source=str(tmp_path / "dir"),
             feedback_exists=True,
