@@ -155,3 +155,24 @@ def test_owned_next_with_a_free_lock_still_commits_and_prints(tmp_path: Path, mo
     assert raised is None, repr(raised)
     assert committed == [fact], "a free lock must still commit the advancement"
     assert printed == ["printed"], "a free lock must still print the decision"
+
+
+def test_owned_next_lets_a_non_lock_decision_error_propagate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """The refusal catch is scoped to the lock timeout, not to every DecisionError."""
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    fact = _fact(tmp_path)
+    _materialize_lock(fact)
+
+    def boom(_owned: OwnedCheckout) -> None:
+        raise DecisionError(DecisionErrorCode.MISSION_NOT_FOUND, message="not ours to reinterpret")
+
+    monkeypatch.setattr(next_cmd, "_commit_owned_next_mutations", boom)
+
+    raised, printed = _drive_dispatch(fact, monkeypatch, json_output=True)
+
+    assert isinstance(raised, DecisionError), repr(raised)
+    assert str(raised) == "not ours to reinterpret"
+    assert printed == []
+    assert capsys.readouterr().out == "", "a non-timeout error is not rendered as a next refusal"
