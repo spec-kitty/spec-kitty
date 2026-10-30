@@ -21,14 +21,19 @@
     "WP01": {
       "actor": "python-pedro",
       "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
       "lane": "in_progress",
       "last_event_id": "01M671GW57XR59EWDNB4CZZ46C",
       "last_transition_at": "2026-10-30T18:35:28.765464+00:00",
+      "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-30T18:34:56Z – unknown – Red-first: the #6400 spoof pin is now a refusal test, and tests/status/test_caller_seed_refusal_6754.py states the matrix (20 failed / 5 passed on the base). Guard + fail-closed builder landed; tests/status green (1738 passed), move-task/add-history/mark-status subset green (645 passed), the two status architectural gates green."
       ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 517342,
       "shell_pid_created_at": "1793385313.42",
       "subtasks": {
