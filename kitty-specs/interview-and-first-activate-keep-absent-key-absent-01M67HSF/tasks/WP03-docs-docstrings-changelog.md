@@ -5,7 +5,6 @@ dependencies:
 - WP01
 - WP02
 requirement_refs:
-- FR-009
 - FR-010
 - NFR-003
 - SC-001

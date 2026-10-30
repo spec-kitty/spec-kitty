@@ -28,7 +28,7 @@
 **Independent test**: the new end-to-end test drives `charter interview` and then `charter synthesize --dry-run --json`; it is red on main (two lists, 38 + 14 entries) and green after the change.
 **Prompt**: [tasks/WP01-interview-present-lists-only.md](tasks/WP01-interview-present-lists-only.md)
 
-Requirement refs: FR-001, FR-002, FR-005, FR-006, FR-007, FR-008, NFR-001, NFR-002, SC-001, SC-003, SC-004, C-001, C-002, C-003, C-007
+Requirement refs: FR-001, FR-002, FR-005, FR-006, FR-007, FR-008, FR-009, NFR-001, NFR-002, SC-001, SC-003, SC-004, C-001, C-002, C-003, C-007
 
 Included subtasks:
 
@@ -47,7 +47,7 @@ Dependencies: none. Risks: the new message must not read as a failure; the denie
 **Independent test**: the new end-to-end test drives `charter activate directive <id>` and then `charter synthesize --dry-run --json`; the #4253 tests assert zero drop with the key still absent.
 **Prompt**: [tasks/WP02-activate-keeps-in-force-implicit.md](tasks/WP02-activate-keeps-in-force-implicit.md)
 
-Requirement refs: FR-003, FR-004, FR-005, FR-006, FR-008, NFR-002, SC-002, SC-003, SC-004, C-001, C-003, C-005, C-006, C-007
+Requirement refs: FR-003, FR-004, FR-005, FR-006, FR-008, FR-009, NFR-002, SC-002, SC-003, SC-004, C-001, C-003, C-005, C-006, C-007
 
 Included subtasks:
 
@@ -66,7 +66,7 @@ Dependencies: WP01 (shares the end-to-end test file). Risks: the freeze-warning 
 **Independent test**: `pytest tests/architectural/test_no_legacy_terminology.py`, `test_fr015_effective_set_seam_is_public`, the kind-vocabulary gate and `check_docs_freshness --ci` (errors=0).
 **Prompt**: [tasks/WP03-docs-docstrings-changelog.md](tasks/WP03-docs-docstrings-changelog.md)
 
-Requirement refs: FR-009, FR-010, NFR-003, SC-001, SC-002
+Requirement refs: FR-010, NFR-003, SC-001, SC-002
 
 Included subtasks:
 
