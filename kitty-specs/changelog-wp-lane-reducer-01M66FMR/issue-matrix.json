@@ -25,7 +25,7 @@
    "wp": null
   },
   "#6612": {
-   "evidence_ref": "commit d8dcabb620 (WP01 lane squash) + tests/release/test_release_prep.py coord-surface tests",
+   "evidence_ref": "commit 803b0d91df (WP01 lane squash, post-compaction hash) + tests/release/test_release_prep.py coord-surface tests",
    "fr": null,
    "nfr": null,
    "repo": null,
