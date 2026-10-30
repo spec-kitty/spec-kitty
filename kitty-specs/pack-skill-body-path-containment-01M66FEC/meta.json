@@ -11,5 +11,7 @@
   "purpose_tldr": "pack skill body path containment",
   "slug": "pack-skill-body-path-containment-01M66FEC",
   "target_branch": "issue-6734-pack-skill-body-path-containment",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T13:26:59.930451+00:00"
 }
