@@ -237,9 +237,11 @@ def test_a_kept_draft_is_announced_on_stderr(capsys: pytest.CaptureFixture[str])
     _announce_kept_feedback_draft(SimpleNamespace())
     assert "Warning:" not in capsys.readouterr().err
 
-    _announce_kept_feedback_draft(SimpleNamespace(warnings=("Review feedback draft /tmp/x.md was kept: it changed after the record.",)))
+    _announce_kept_feedback_draft(
+        SimpleNamespace(warnings=("Review feedback draft kitty-specs/m/tasks/WP01-core/review-feedback-1.md was kept: it changed after the record.",))
+    )
     captured = capsys.readouterr()
-    assert "Warning: Review feedback draft /tmp/x.md was kept" in captured.err
+    assert "Warning: Review feedback draft kitty-specs/m/tasks/WP01-core/review-feedback-1.md was kept" in captured.err
     assert captured.out == "", "the announcement must never touch stdout"
 
     # The real write result carries the same field, and no warnings means silence.
