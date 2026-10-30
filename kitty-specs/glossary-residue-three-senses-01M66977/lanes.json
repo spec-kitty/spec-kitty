@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "glossary-residue-three-senses-01M66977",
+  "mission_id": "01M66977022EWZ5R0K0XXE98C1",
+  "mission_branch": "issue-6759-glossary-residue",
+  "target_branch": "issue-6759-glossary-residue",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "AGENTS.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/context/orchestration.md",
+        "src/specify_cli/.contextive/orchestration.yml",
+        "src/specify_cli/audit/models.py",
+        "src/specify_cli/context/mission_resolver.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T11:34:44.536257+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f4831ea7acd764279fdd1132955eddf6cd765ac5"
+}
