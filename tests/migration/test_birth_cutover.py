@@ -62,12 +62,28 @@ from tests.consolidation.executor_family import setattr_executor_family
 # ---------------------------------------------------------------------------
 
 
-def _write_single_lane(feature_dir: Path, slug: str, mission_branch: str, *, wp_id: str = "WP01") -> None:
+def _write_single_lane(repo: Path, feature_dir: Path, slug: str, mission_branch: str, *, wp_id: str = "WP01") -> None:
+    """Hand-write the single-``lane-a`` manifest this fixture controls.
+
+    The manifest records a ``planning_commit_sha`` captured from the CURRENT
+    target-branch tip — the same "captured" action the production finalize path
+    uses (``tasks_finalize._finalize_lanes`` and
+    ``mission_state._write_rebuilt_lanes`` both call ``capture_branch_tip``).
+    #6715's implementation-evidence gate (``consolidation/wp_evidence.py``)
+    refuses an approved work package of a lane whose ``lanes.json`` records no
+    planning commit (``EVIDENCE_WINDOW_UNCOMPUTABLE``), so a fixture manifest
+    without one is refused at claim time just like a real one (#6801).
+    """
     from kernel.clock import now_utc_iso
 
+    from specify_cli.core.vcs.git import capture_branch_tip
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.lanes.persistence import write_lanes_json
 
+    planning_commit_sha = capture_branch_tip(repo, "main")
+    assert planning_commit_sha is not None, (
+        "fixture must record a planning commit (#6715 EVIDENCE_WINDOW_UNCOMPUTABLE): capture_branch_tip could not resolve the target-branch tip"
+    )
     write_lanes_json(
         feature_dir,
         LanesManifest(
@@ -76,6 +92,7 @@ def _write_single_lane(feature_dir: Path, slug: str, mission_branch: str, *, wp_
             mission_id=slug,
             mission_branch=mission_branch,
             target_branch="main",
+            planning_commit_sha=planning_commit_sha,
             lanes=[
                 ExecutionLane(
                     lane_id="lane-a",
@@ -193,12 +210,19 @@ def _drive_claimed_through_approved(repo: Path, slug: str, wp_id: str) -> None:
     """Advance an already-``claimed`` WP to ``approved`` via the REAL
     status-emit pipeline (mirrors T009's ``_seed_wp_approved`` but does NOT
     re-seed ``planned`` / re-claim — the caller already drove a genuine
-    ``planned -> claimed`` transition)."""
+    ``planned -> claimed`` transition).
+
+    The implementing hops and the review hops carry DISTINCT recorded actors,
+    exactly as T009's ``_seed_wp_approved`` does: #6715's evidence axis refuses
+    an approval whose actor matches the implementer of record
+    (``REVIEW_NOT_INDEPENDENT``), and the birth-cutover WP01 is claimed by
+    ``python-pedro``, so the hops the implementer owns are emitted by that
+    same identity and the review hops by ``reviewer-renata``."""
     from specify_cli.status.emit import emit_status_transition
     from specify_cli.status.models import ReviewResult, TransitionRequest
 
     feature_dir = _status_dir(repo, slug)
-    for to_lane in ("in_progress", "for_review", "in_review"):
+    for to_lane in ("in_progress", "for_review"):
         gating = to_lane == "for_review"
         emit_status_transition(
             TransitionRequest(
@@ -206,9 +230,19 @@ def _drive_claimed_through_approved(repo: Path, slug: str, wp_id: str) -> None:
                 mission_slug=slug,
                 wp_id=wp_id,
                 to_lane=to_lane,
-                actor="seed",
+                actor="python-pedro",
                 force=gating,
                 reason="seed: manufacture reviewable state" if gating else None,
+            )
+        )
+    for to_lane in ("in_review",):
+        emit_status_transition(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=slug,
+                wp_id=wp_id,
+                to_lane=to_lane,
+                actor="reviewer-renata",
             )
         )
     emit_status_transition(
@@ -217,7 +251,7 @@ def _drive_claimed_through_approved(repo: Path, slug: str, wp_id: str) -> None:
             mission_slug=slug,
             wp_id=wp_id,
             to_lane="approved",
-            actor="seed",
+            actor="reviewer-renata",
             evidence={
                 "review": {
                     "reviewer": "reviewer-renata",
@@ -279,7 +313,7 @@ def _bootstrap_born_mission(
         mission_branch = f"kitty/mission-{slug}"
         _git(repo, "branch", mission_branch, "main")
 
-    _write_single_lane(feature_dir, slug, mission_branch)
+    _write_single_lane(repo, feature_dir, slug, mission_branch)
     _write_wp01_with_subtask(feature_dir)
     _seed_planned(feature_dir, slug, "WP01")
     _git(repo, "add", "-A")
