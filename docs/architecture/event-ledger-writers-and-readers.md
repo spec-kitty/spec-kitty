@@ -223,7 +223,7 @@ flowchart LR
 | G-7 | Internal lifecycle modules and their exemptions remain | `status/lifecycle_events.py` (`"5.0.0"`, `#1198` at `:303`, `:314`); `retrospective/lifecycle_events.py`; 15 `canonical-producer-exempt` markers in `src/` | 2026-10-14-1 D-4 | Retire after G-1; payload models first (#6438) | #6185 (blocked on owner ruling), #6438 |
 | G-8 | Side effects still inline in the shells | `coordination/transaction.py` commit path; `events/decision_log.py` swallows a failed commit as a warning | 2026-10-14-1 D-5 | Consumers after G-1; make the decision-log commit failure a recorded, rerunnable failure | file new (later step) |
 | G-9 | No local retention policy | no `keep_runs` / `max_age_days` in `src/`; run journals grow unbounded | 2026-10-13-2 D-3 | `ledger.retention` plus a dry-run-first doctor cleanup that protects active and resumable Missions | file new (split out of #6185 item 4) |
-| G-10 | ~~`events tail` tails only `status.events.jsonl`; `--json` has no effect~~ **Closed 2026-10-30 (#6611)** | `events tail` gained the closed seven-kind `--log` selector (`status` default, `decisions`, `mission`, `run`, `glossary`, `ops`, `canonical`; path resolution in the private `cli/commands/_events_tail_logs.py` seam, `--log run` refuses typed via `run_log_unavailable`) and `--json` flipped to a real opt-in over the byte-identical machine envelope, with the human-readable renderer as the default. Contract tests: `tests/cli/test_events_tail_log_selector.py` + `tests/cli/test_events_tail_logs_unit.py`. | 2026-10-13-2 D-2 | None open | #6611 |
+| G-10 | `events tail` tails only `status.events.jsonl`; `--json` has no effect | `cli/commands/events.py:71` (`noqa: ARG001`) | 2026-10-13-2 D-2 | Extend tail to the other logs once G-1 names them | file new (low) |
 | G-11 | ~~Produce-seam names still say "saas"~~ **Closed 2026-10-22 (#6607)** | The seam in `status/adapters.py` now reads `register_status_fanout_handler`, `register_lifecycle_fanout_handler`, `fire_status_fanout` and `fire_lifecycle_fanout`; `emit._status_fan_out`, `outbound.queue_fanout_emission` and `lifecycle_events.fanout_lifecycle_event` follow; the timeout variable is `SPEC_KITTY_STATUS_FANOUT_TIMEOUT`. There is no alias for any old name or for the old variable (operator ruling 2026-10-22, which supersedes this row's earlier "with an env alias" proposal). Contract test: `tests/status/test_adapters_contract.py` (stub handlers; open-core registers none), with the sink plugin `tests/conftest_fanout_sink.py` | 2026-10-13-2 follow-up debt (rename the `saas_fanout` slots); discharged by its Amendment 2026-10-22 | None open | #6607 |
 | G-12 | CLI status reads do not go through one read port | `orchestrator_api/commands.py` and `tasks_status_cmd.py` call `reduce(...)` themselves; no read-port module | 2026-10-01-2 D-5 (amended: every CLI status read calls only that port) | Introduce the port, gate direct `reduce` callers | #5528 |
 | G-13 | Raw readers that bypass the reducer | `release/changelog.py:129-155` (last `to_lane` in file order, skips corrupt lines, reads `mission_dir` not the resolved status surface); `consolidation/preflight.py` append order | 2026-10-01-2 D-5 | Changelog through `get_wp_lane` and the placement seam; record the preflight order in the ordering ADR or align it | file new (changelog) |
@@ -241,10 +241,9 @@ flowchart LR
    binding, lock spike, one file at a time) governs G-1, G-2, G-5 to G-8.
 2. **No dependencies, in parallel**: G-17 and G-19 (test guardrails, before G-14), G-14
    (lock refresh), G-3 (doc amendments), G-4 (#6268), #6409
-   (then close #957). G-10, G-11, G-16 and G-18 are closed (#6611, #6607,
-   #6614, 2026-10-22/30).
+   (then close #957). G-11, G-16 and G-18 are closed (#6607, #6614, 2026-10-22).
 3. **G-1 and G-2 together**: the port skeleton and the multi-file writes gate.
-4. **After G-1**: G-6, G-7 (#6438, the lifecycle half of #6185), G-5, G-9, then G-8.
+4. **After G-1**: G-6, G-7 (#6438, the lifecycle half of #6185), G-5, G-9, then G-8 and G-10.
 5. **Read side, independent**: G-12 under #5528, G-13.
 
 ## Why event changes are risky

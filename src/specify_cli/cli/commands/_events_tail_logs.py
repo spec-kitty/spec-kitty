@@ -45,7 +45,6 @@ __all__ = [
     "SUPPORTED_LOG_KINDS",
     "COORD_LOG_KINDS",
     "RunLogUnavailable",
-    "latest_run_journal",
     "render_event_line",
     "resolve_log_path",
 ]

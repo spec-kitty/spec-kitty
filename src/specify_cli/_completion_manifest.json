@@ -768,7 +768,7 @@
    "deprecated": false,
    "commands": {
     "tail": {
-     "help": "Tail a mission's event log (``status.events.jsonl``) as JSON lines on stdout.\n\nOrdered dispatch (plan.md's CLI Surface section -- \"exactly four things, none of\nthem novel domain logic\"):\n\n1. FR-004 usage check: ``--from-invariant`` without ``--from-offset``.\n2. FR-009 mission resolve.\n3. FR-013 resume validation (only when ``--from-offset`` is given).\n4. Drive the core.",
+     "help": "Tail one of the mission's canonical event logs as lines on stdout.\n\nDefault output is one human-readable line per event; ``--json`` opts into\nthe machine envelope (``docs query --json`` precedent, #6611).\n\nOrdered dispatch (plan.md's CLI Surface section -- \"exactly four things, none of\nthem novel domain logic\"):\n\n1. FR-004 usage check: ``--from-invariant`` without ``--from-offset``.\n2. FR-009 mission resolve, then ``--log`` kind dispatch (Typer already\n   rejected unknown kinds with a usage error before any file access).\n3. FR-013 resume validation against the SELECTED log (only when\n   ``--from-offset`` is given).\n4. Drive the core.",
      "hidden": false,
      "deprecated": false
     }
