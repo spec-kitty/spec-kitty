@@ -18,9 +18,9 @@ requirement_refs:
 - C-005
 - C-006
 - C-007
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: Planning artifacts were generated on main. The mission's implementation runs on issue-6685-interview-and-first-activate-keep-absent-key-absent and merges back into main through the operator's PR.
+planning_base_branch: issue-6685-interview-and-first-activate-keep-absent-key-absent
+merge_target_branch: issue-6685-interview-and-first-activate-keep-absent-key-absent
+branch_strategy: Planning artifacts for this mission were generated on issue-6685-interview-and-first-activate-keep-absent-key-absent. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6685-interview-and-first-activate-keep-absent-key-absent unless the human explicitly redirects the landing branch.
 subtasks:
 - T005
 - T006
@@ -30,7 +30,7 @@ phase: Phase 2 - The first activation keeps an in-force artifact implicit
 history:
 - at: '2026-10-30T23:30:00Z'
   actor: system
-  action: Prompt authored for the #6685 mission
+  action: Prompt authored for the
 agent_profile: python-pedro
 authoritative_surface: src/charter/activation/
 create_intent:
