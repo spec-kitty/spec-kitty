@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "mission_slug": "pack-file-name-collision-diagnostic-01M66YTQ",
+  "mission_id": "01M66YTQPXVTD0K2QFNDTY4RX2",
+  "mission_branch": "kitty/mission-pack-file-name-collision-diagnostic-01M66YTQ",
+  "target_branch": "issue-6743-pack-file-name-collision-diagnostic",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/identity_index.py",
+        "tests/charter/activation/test_file_name_collision_diagnostic_6743.py",
+        "tests/charter/activation/test_identity_index.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/org_charter.py",
+        "tests/charter/packs/test_org_charter_hooks.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_pack_tooling.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_charter_pack_collect.py",
+        "src/specify_cli/cli/commands/_profile_health_render.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/specify_cli/cli/commands/test_doctor_charter_packs_file_name_collision.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/governance/create-an-org-doctrine-pack.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-30T17:53:30.034800+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "75e7e6d04fe6932656fb98b5b5a16120b2ad0215"
+}

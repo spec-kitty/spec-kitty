@@ -1,0 +1,36 @@
+{
+  "accept_commit": "53e542ade3d88dcba618108148ace238cbd7fe0e",
+  "acceptance_history": [
+    {
+      "accept_commit": "53e542ade3d88dcba618108148ace238cbd7fe0e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:46:54.171127+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "abd696c0917a522bca98606b38081be7e851665a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:46:54.171127+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "abd696c0917a522bca98606b38081be7e851665a",
+  "baseline_merge_commit": "b2b2d80b5f62c5ef22289c0d67f43a3ef057c5b6",
+  "created_at": "2026-10-30T17:48:26.318313+00:00",
+  "flattened": false,
+  "friendly_name": "pack file name collision diagnostic",
+  "merged_at": "2026-10-30T19:47:53.535152+00:00",
+  "merged_commit": "5cfd26f91f127785252fe96213bd99af92a38944",
+  "mid8": "01M66YTQ",
+  "mission_id": "01M66YTQPXVTD0K2QFNDTY4RX2",
+  "mission_number": 244,
+  "mission_slug": "pack-file-name-collision-diagnostic-01M66YTQ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A file name reused across pack layers with a different declared id silently changes which id that name stands for; validate and doctor must report it (issue #6743).",
+  "purpose_tldr": "Report a pack file-name collision across layers as a pack-content error in validate and doctor",
+  "slug": "pack-file-name-collision-diagnostic-01M66YTQ",
+  "status_phase": "1",
+  "target_branch": "issue-6743-pack-file-name-collision-diagnostic",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T17:54:50.392295+00:00"
+}
