@@ -138,9 +138,10 @@ retire(feedback_source, recorded_source_text, persistence, mission_dirs):
     5. unlink() succeeds                                       else warn (kept)
 ```
 
-`mission_dirs` = `kitty-specs/<mission_slug>` under each of: `main_repo_root` (the repository root
-checkout that `move-task`'s Check 1 reads), the write `surface_root` (coordination worktree in a
-coord topology), and `owned.owned_root` when the mission runs in an owned checkout.
+`mission_dirs` = the mission directory `placement_seam(...).read_dir(WORK_PACKAGE_TASK)` returns, the
+PRIMARY-partition dir that owns `tasks/<wp>/` — the same seam every other review-cycle read uses, so
+there is no second authority for resolving it (the raw-join and kind-blind-read gates in
+`tests/architectural/` both forbid the alternatives).
 
 ## Phase 0 — Research outcome
 
