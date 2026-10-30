@@ -6,7 +6,8 @@ Every Mission in ``kitty-specs/`` is classified into one of four derived states
 based on the presence / absence of ``mission_id`` and ``mission_number`` in
 ``meta.json`` (FR-045). A ``kitty-specs/`` child that is not a Mission at all
 (:func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir`
-rejects it, so Mission selection does not list it) is ``residue`` (#5875):
+rejects it, so Mission selection does not list it) is ``residue`` (#5875). Glossary:
+``docs/context/orchestration.md#residue`` (read-side sense):
 
 ``assigned``
     ``mission_id`` is present AND ``mission_number`` is non-null.

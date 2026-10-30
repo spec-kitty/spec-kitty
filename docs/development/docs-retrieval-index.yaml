@@ -11194,6 +11194,7 @@ pages:
     - {slug: "topology-surface", text: "Topology Surface", level: 3}
     - {slug: "routing", text: "Routing", level: 3}
     - {slug: "the-drain", text: "The drain", level: 3}
+    - {slug: "residue", text: "Residue", level: 3}
   - path: "docs/context/planning-and-tracking.md"
     title: "Context: Planning & Tracking"
     divio_type: "none"
