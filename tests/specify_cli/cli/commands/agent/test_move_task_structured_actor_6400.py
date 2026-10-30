@@ -211,6 +211,19 @@ def test_explicit_agent_with_an_empty_tool_is_refused_before_any_write(tmp_path:
     assert h.events(m) == before
 
 
+def test_explicit_agent_with_more_than_four_segments_is_refused_before_any_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6755: a compact string with more than four segments is not one — move-task refuses it with nothing written, instead of silently truncating."""
+    m = h.build_mission(tmp_path, monkeypatch)
+    before = h.events(m)
+
+    result = h.move(m, h.WP, "claimed", "a:b:c:d:e")
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid --agent value" in result.output
+    assert "Traceback" not in result.output
+    assert h.events(m) == before
+
+
 def test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A recorded ``migration:`` identity (no ``--agent``) is kept whole, so it stays a seed (#6400 review F3)."""
     from spec_kitty_events import diary
