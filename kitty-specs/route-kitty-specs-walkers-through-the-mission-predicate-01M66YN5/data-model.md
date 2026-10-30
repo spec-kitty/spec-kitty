@@ -49,6 +49,13 @@ TrackedMissionPaths(repo_root)         # created once by the walker
 - A broken git index degrades to file presence with one warning per checkout root and run
   (`probe_tracked_mission_paths`); a timeout propagates.
 
+## Accepted behavioural loss (charter-activate warning)
+
+The in-flight warning no longer scans a read-side residue folder, so an in-flight lane recorded there is
+not reported. Accepted, and stated in the spec's edge cases: a folder selection never lists cannot be
+resolved or advanced by the runtime, so an in-flight lane in it is stale state; `doctor identity` reports
+the folder with a reason and a remedy, which is the surface an operator can act on.
+
 ## State transitions
 
 None. Every surface is read-only; no walker writes to `kitty-specs/` and therefore none

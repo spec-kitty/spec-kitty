@@ -21,6 +21,12 @@ flowchart LR
     B -->|residue| D["left out everywhere;<br/>doctor identity reports it once,<br/>with a reason and a remedy"]
 ```
 
+**Terminology.** In this Mission, "residue" always means **read-side residue**: a `kitty-specs/`
+child that `is_selectable_mission_dir` rejects (no `meta.json`; an untracked id-less `meta.json` in a git
+repository; an unreadable `meta.json` with no tracked marker). The write-seam sense
+(`is_kitty_specs_residue`) and the audit-engine sense (`not is_mission_dir`) are different rules and are
+out of scope (C-001, C-002). Wherever this spec writes "residue" it means the read-side sense.
+
 ### User Story 1 - `doctor topology` stops calling residue a Mission (Priority: P1)
 
 An operator runs `spec-kitty doctor topology` on a repository that has a real Mission
@@ -86,6 +92,10 @@ architectural gate fails naming that function.
 - **Broken git index**: the walks keep their current posture. `doctor topology` is a read-only report and degrades through the hardened memo (one warning) rather than crashing; a timeout still propagates.
 - **No git repository at all**: the predicate falls back to file presence, so a `meta.json`-bearing folder stays a Mission and every existing non-git fixture keeps passing.
 - **Every child carries a `mission_id`**: no `git ls-files` subprocess at all.
+- **In-flight lanes in a read-side residue folder**: the charter-activate warning no longer reports them.
+  Accepted: such a folder cannot be selected, resolved or advanced by the runtime, so its lanes are stale
+  state rather than a reachable Mission's work in progress; `doctor identity` reports the folder with a
+  reason and a remedy.
 
 ## Requirements *(mandatory)*
 
