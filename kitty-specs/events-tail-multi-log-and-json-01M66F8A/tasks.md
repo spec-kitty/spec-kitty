@@ -58,3 +58,27 @@ byte-identical to the pre-change command.
 **Dependencies**: WP01 (consumes the helper module).
 **Requirement refs**: FR-001, FR-004, FR-005, FR-006, FR-007.
 **Prompt**: [tasks/WP02-shell-wiring.md](tasks/WP02-shell-wiring.md) (~330 lines)
+
+## Mission close-out (driver-owned, NOT a WP)
+
+After both WPs merge into the mission branch, the mission driver owns these
+concrete drift surfaces — no WP may edit them (finding 4 of the post-tasks
+review):
+
+1. `CHANGELOG.md` — `[Unreleased]` entry for the `--json` default flip
+   (C-005, High): before/after behavior and the migration (`--json` opts
+   back into machine output).
+2. `docs/api/cli-commands.md` — the GENERATED CLI reference pins the
+   current `--json` help ("no observable effect either way …
+   [default: True]") and lacks `--log`; regenerate via
+   `scripts/docs/build_cli_reference.py` (the HELP-DRIFT gate
+   `scripts/docs/check_cli_reference_freshness.py` and
+   `tests/architectural/test_docs_cli_reference_parity.py` will go red
+   otherwise). Check `docs/api/agent-subcommands.md` too if it carries the
+   tail help.
+3. `docs/context/system-events.md` — the "Tail envelope" glossary entry
+   says "One JSON line emitted on stdout"; now true only in `--json` mode.
+   Update the wording (this is the canonical terminology directory).
+4. `docs/architecture/event-ledger-writers-and-readers.md` — gap-table row
+   G-10 tracks this exact issue; close it.
+5. The PR body names the deferred log kinds (C-001 scope note).
