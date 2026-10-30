@@ -37,7 +37,7 @@
       "wp": "WP01"
     },
     "#6668": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "fabricated-identity audit context cited from the write-seam sense; context only",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,8 +45,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#6680": {
       "evidence_ref": "<link or commit>",
