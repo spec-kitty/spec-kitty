@@ -3422,6 +3422,7 @@ pages:
     - {slug: "open-questions-operator", text: "Open questions (operator)", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-10-29-accepted-the-events-services-live-in-spec-kitty-events", text: "Amendment 2026-10-29 (Accepted): the events services live in spec-kitty-events", level: 2}
+    - {slug: "amendment-2026-10-30-accepted-the-ordering-is-wall-clock-not-lamport", text: "Amendment 2026-10-30 (Accepted): the ordering is wall clock, not Lamport", level: 2}
   - path: "docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md"
     title: "ADR: the decision ledger is a PRIMARY-partition kind (reverses the #3928 COORD intent)"
     divio_type: "none"
