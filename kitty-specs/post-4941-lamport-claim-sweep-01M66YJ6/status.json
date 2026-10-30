@@ -1,0 +1,125 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M671DN1PCNCP379XRNAYVPBW",
+  "materialized_at": "2026-10-30T18:33:43.222481+00:00",
+  "mission_number": "",
+  "mission_slug": "post-4941-lamport-claim-sweep-01M66YJ6",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M66ZX4GAHNE0727ZGCCDBY8F",
+      "last_transition_at": "2026-10-30T18:07:13.418588+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Guard written red-first: 5 failures on the unmodified tree, 4 non-vacuity tests pass. WP02/WP03 turn it green.",
+        "Review passed (reviewer-renata lens). Anti-pattern checklist: 1 N/A (test-only module), 2 PASS (asserts over the real living corpus; non-vacuity feeds a stale and a negated sentence to the same detector), 3 N/A, 4 PASS (FR-007 behavioural assertions), 5 PASS (only the new test file is committed), 6 PASS (no ordering decision), 7 N/A, 8 N/A. Documented leniency: a sentence that negates the claim anywhere counts as teaching the fact, so exact removals are additionally pinned in RETIRED_PHRASES."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 123175,
+      "shell_pid_created_at": "1793382951.65",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      },
+      "tracker_refs": [
+        "#6604"
+      ]
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M670KQ4ZMTH0ACB8988N6NJ8",
+      "last_transition_at": "2026-10-30T18:19:33.407062+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Only the ADR-amendment assertion of the guard is still red; all six living surfaces corrected.",
+        "Review passed (reviewer-renata lens). Checklist: 1 N/A (docs + one docstring), 2 PASS (guard asserts over the real files; the corrected text now satisfies the affirmative scan while the ADR assertion stays honestly red), 3 N/A, 4 PASS (FR-001/002/004/005/006 each have a live assertion), 5 PASS (only owned files; git show --stat confirms), 6 PASS (no ordering decision: every added sentence says what the code does, and #6609 is named as the separate post-GA direction), 7 PASS (WP01's guard file untouched; the shared mission branch is the single lane), 8 N/A. Verified: preflight.py change is docstring-only (no code hunk); CLAUDE.md symlink untouched; the container page's prose, alt-text and node label now agree; the residual is stated in AGENTS.md and in the closed G-3 row. Gate note: the pre-review regression gate reported source_mismatch (baseline captured under DeclaredCommandScopeSource/text, head under .../junit_xml) - a harness comparability artefact, not a test regression; this WP changes no executable behaviour."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 219802,
+      "shell_pid_created_at": "1793383652.33",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#6604"
+      ]
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M671DN1PCNCP379XRNAYVPBW",
+      "last_transition_at": "2026-10-30T18:33:43.222481+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Guard fully green; ADR diff is additions only (updated: frontmatter + Status pointer + amendment); docs freshness errors=0.",
+        "Review passed (reviewer-renata lens). 1 N/A, 2 PASS (the guard reads the real ADR and changelog), 3 N/A, 4 PASS (FR-003/FR-008/FR-009 have live assertions: amendment heading + (at, event_id)/lift/#6609, changelog style tests, issue-matrix verdicts), 5 PASS (only the ADR, changelog, generated retrieval index), 6 PASS (no ordering decision - 'The decision does not change' and #6609 named as a separate direction), 7 N/A, 8 N/A. T011 proven: git diff -U0 shows one removed line, the updated: frontmatter value; every other line is an addition. Review correction applied this round: the first draft blamed D-3's paragraph, which carries no Lamport claim; it now names the Context section's 'two different reducers' paragraph and D-5."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 363956,
+      "shell_pid_created_at": "1793384390.58",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      },
+      "tracker_refs": [
+        "#6604"
+      ]
+    }
+  }
+}
