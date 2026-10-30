@@ -15,13 +15,20 @@ primitives that compose a chain by hand are forbidden to those callers:
 * a ``Call`` to ``resolve_org_roots`` / ``resolve_existing_org_roots`` /
   ``require_declared_org_roots`` / ``resolve_org_root_chain``;
 * iterating ``<registry>.packs`` and collecting BARE ``pack.effective_root(...)``
-  Paths on their own into a list/set (roots-only chain assembly by hand).
+  Paths on their own into a list/set/mapping (roots-only chain assembly by hand).
+  A collection is an ``append``/``add``/``extend`` argument, a comprehension
+  element, or the value of an assignment into a subscript (``roots[i] = ...``);
+  for a subscript assignment the key is part of the pairing evidence.
 
 **Rule 2 is deliberately roots-only.** The authority owns the ordered, existence-filtered
-ROOT chain (``list[Path]``). Code that needs pack NAMES (a ``(pack.name, root)`` pair, or a
-loop that also collects ``pack.name``) or an unfiltered enumeration (the missing-pack
+ROOT chain (``list[Path]``). Code that needs pack NAMES (a ``(pack.name, root)`` pair, a
+loop that also collects ``pack.name``, a subscript key that names the pack, or a dict
+comprehension keyed by ``pack.name``) or an unfiltered enumeration (the missing-pack
 diagnostic) legitimately reads the pack registry, because the Path-only authority cannot
 provide names or unfiltered paths. That is a rule-semantics boundary, not an allowlist entry.
+The name-pairing test is deliberately one-sided where it can be: a ``DictComp`` is exempt
+only when its KEY names the pack, so ``{p.effective_root(r): p.name ...}`` — whose key is
+the root itself — is still roots-only assembly.
 
 **Scope** (research.md Decision 5): the whole ``src/`` tree. The one exclusion is a
 SCAN-EXCLUSION rule, not an allowlist entry: files under ``src/charter/offering/**``
@@ -72,6 +79,10 @@ _PRIMITIVES: frozenset[str] = frozenset(
 )
 _COLLECTOR_METHODS: frozenset[str] = frozenset({"append", "add", "extend"})
 
+# Iterator wrappers that hold the registry's ``packs`` while hiding it from a bare
+# attribute test (``for i, p in enumerate(registry.packs)").
+_ITER_WRAPPERS: frozenset[str] = frozenset({"enumerate", "iter", "list", "reversed", "sorted", "tuple"})
+
 # ~1320 modules in scope tree-wide (owner and offering tier excluded); leave headroom.
 _SCANNED_FILE_FLOOR = 1200
 
@@ -113,7 +124,17 @@ def _is_bare_root(node: ast.AST) -> bool:
 
 
 def _is_packs_iter(node: ast.expr) -> bool:
-    return isinstance(node, ast.Attribute) and node.attr == "packs"
+    """True for ``<registry>.packs``, also when an iterator wrapper such as ``enumerate(...)`` holds it."""
+    if isinstance(node, ast.Attribute) and node.attr == "packs":
+        return True
+    if isinstance(node, ast.Call) and _called_name(node) in _ITER_WRAPPERS and node.args:
+        return _is_packs_iter(node.args[0])
+    return False
+
+
+def _carries_name(node: ast.AST) -> bool:
+    """True when *node* reads a ``*.name`` attribute anywhere (the name-pairing evidence)."""
+    return any(isinstance(n, ast.Attribute) and n.attr == "name" for n in ast.walk(node))
 
 
 def _collector_args(loop: ast.For) -> list[ast.expr]:
@@ -126,17 +147,46 @@ def _collector_args(loop: ast.For) -> list[ast.expr]:
     ]
 
 
+def _subscript_assignments(loop: ast.For) -> list[tuple[ast.expr, ast.expr]]:
+    """``<x>[<key>] = <value>`` in the loop body, as ``(key, value)`` pairs.
+
+    Assigning into a subscript is a collector too: a preallocated ``roots[i] = ...``
+    loop assembles the same roots-only chain as ``roots.append(...)``. The subscript
+    key is that collection's name-pairing evidence, so ``roots[p.name] = ...``
+    stays name-paired while ``roots[i] = ...`` does not.
+    """
+    return [
+        (target.slice, n.value)
+        for stmt in loop.body
+        for n in ast.walk(stmt)
+        if isinstance(n, ast.Assign)
+        for target in n.targets
+        if isinstance(target, ast.Subscript)
+    ]
+
+
 def _loop_collects_bare_roots(loop: ast.For) -> bool:
     args = _collector_args(loop)
-    captures_name = any(isinstance(a, ast.Attribute) and a.attr == "name" for a in args)
-    return any(_is_bare_root(a) for a in args) and not captures_name
+    subscript_pairs = _subscript_assignments(loop)
+    collected = args + [value for _, value in subscript_pairs]
+    # Pairing evidence: a collected ``*.name`` value (as before), or a subscript key that
+    # names the pack. Judged over the loop's collected values and keys, never over the
+    # whole body, so a loop that merely reads ``pack.name`` stays a violation.
+    captures_name = any(isinstance(a, ast.Attribute) and a.attr == "name" for a in args) or any(_carries_name(key) for key, _ in subscript_pairs)
+    return any(_is_bare_root(a) for a in collected) and not captures_name
 
 
 def _comprehension_collects_bare_roots(node: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp) -> bool:
     if not any(_is_packs_iter(g.iter) for g in node.generators):
         return False
-    elts = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
-    return any(_is_bare_root(e) for e in elts)
+    if isinstance(node, ast.DictComp):
+        # A dict keyed by a pack name is a name-paired reader (the root-only authority
+        # cannot supply names). A dict keyed by the root itself is a roots-only mapping,
+        # whatever its values carry.
+        if _carries_name(node.key):
+            return False
+        return _is_bare_root(node.key) or _is_bare_root(node.value)
+    return _is_bare_root(node.elt)
 
 
 def _hand_assembly_kind(node: ast.AST) -> str | None:
@@ -219,8 +269,30 @@ def test_owner_bypass_control_census_sees_the_owner() -> None:
             "registry.packs comprehension assembling roots",
             "def f(r):\n    return [p.effective_root(r) for p in load_pack_registry(r).packs]\n",
         ),
+        (
+            "registry.packs iteration assembling roots",
+            "def f(r):\n    roots = []\n    for i, p in enumerate(load_pack_registry(r).packs):\n        roots[i] = p.effective_root(r)\n    return roots\n",
+        ),
+        (
+            "registry.packs comprehension assembling roots",
+            "def f(r):\n    return {p.effective_root(r): p.name for p in load_pack_registry(r).packs}\n",
+        ),
+        (
+            "registry.packs comprehension assembling roots",
+            "def f(r):\n    return {i: p.effective_root(r) for i, p in enumerate(load_pack_registry(r).packs)}\n",
+        ),
     ],
-    ids=["existing", "attribute-form", "require-declared", "root-chain", "packs-loop", "packs-comprehension"],
+    ids=[
+        "existing",
+        "attribute-form",
+        "require-declared",
+        "root-chain",
+        "packs-loop",
+        "packs-comprehension",
+        "packs-subscript-assignment",
+        "root-keyed-dict-comprehension",
+        "index-keyed-dict-comprehension",
+    ],
 )
 def test_planted_violation_is_reported(tmp_path: Path, kind: str, body: str) -> None:
     assert kind in {h.kind for h in _plant(tmp_path, body)}
@@ -239,8 +311,20 @@ def test_planted_violation_is_reported(tmp_path: Path, kind: str, body: str) -> 
             "        n.append(p.name)\n        roots.append(p.effective_root(r))\n    return n, roots\n"
         ),
         "def f(r):\n    for p in load_pack_registry(r).packs:\n        use(p.effective_root(r))\n",
+        ("def f(r):\n    roots = {}\n    for p in load_pack_registry(r).packs:\n        roots[p.name] = p.effective_root(r)\n    return roots\n"),
+        "def f(r):\n    return {p.name: p.effective_root(r) for p in load_pack_registry(r).packs}\n",
     ],
-    ids=["reexport", "docstring", "authority-call", "names-only", "pair-comprehension", "paired-loop", "no-collection"],
+    ids=[
+        "reexport",
+        "docstring",
+        "authority-call",
+        "names-only",
+        "pair-comprehension",
+        "paired-loop",
+        "no-collection",
+        "name-keyed-subscript",
+        "name-keyed-dict-comprehension",
+    ],
 )
 def test_non_violations_are_not_flagged(tmp_path: Path, source: str) -> None:
     assert _plant(tmp_path, source) == []
