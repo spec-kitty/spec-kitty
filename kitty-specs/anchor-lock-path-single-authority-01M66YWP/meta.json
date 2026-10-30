@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:10:19.654341+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "8747890f324f327a288f6110fc8f904a744477ef"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:10:19.654341+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "8747890f324f327a288f6110fc8f904a744477ef",
   "contracts": "none",
   "contracts_rationale": "Internal consolidation: no interface, endpoint, event payload or file format changes. The only contract is the anchored lock path itself, pinned by value in tests/kernel/test_lock_paths.py and documented in data-model.md.",
   "coordination_branch": "kitty/mission-anchor-lock-path-single-authority-01M66YWP",
