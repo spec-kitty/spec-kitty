@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-10-30T23:20:31.227723+00:00",
+  "flattened": false,
+  "friendly_name": "An honest pre-review gate reason for a planning-lane WP",
+  "mid8": "01M67HTS",
+  "mission_id": "01M67HTSN74F8KRC82JGETD2NW",
+  "mission_number": null,
+  "mission_slug": "pre-review-planning-lane-gate-honest-reason-01M67HTS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances An honest pre-review gate reason for a planning-lane WP on issue-6792-planning-lane-gate-honest-reason so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Make the pre-review gate record why it did not inspect a planning-lane WP's committed diff, instead of claiming no files changed.",
+  "slug": "pre-review-planning-lane-gate-honest-reason-01M67HTS",
+  "target_branch": "issue-6792-planning-lane-gate-honest-reason",
+  "topology": "lanes"
+}
