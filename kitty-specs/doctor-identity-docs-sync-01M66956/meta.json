@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-doctor-identity-docs-sync-01M66956",
+  "created_at": "2026-10-30T11:29:40.365818+00:00",
+  "flattened": false,
+  "friendly_name": "doctor identity docs sync",
+  "mid8": "01M66956",
+  "mission_id": "01M66956D0MR7JZ2CR6FXSA927",
+  "mission_number": null,
+  "mission_slug": "doctor-identity-docs-sync-01M66956",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances doctor identity docs sync on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "doctor identity docs sync",
+  "slug": "doctor-identity-docs-sync-01M66956",
+  "target_branch": "issue-6760-doctor-identity-docs-sync",
+  "topology": "coord"
+}
