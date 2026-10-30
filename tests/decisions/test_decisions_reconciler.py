@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import contextlib
 import json
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch
 
 import pytest
@@ -66,6 +68,27 @@ def _setup_meta(repo_root: Path) -> None:
     mission_dir.mkdir(parents=True, exist_ok=True)
     meta = {"mission_id": MISSION_ID, "mission_slug": MISSION_SLUG}
     (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+
+
+def _status_state_read_dir(
+    repo_root: Path,
+    mission_slug: str,
+    seam_ctor: Callable[..., Any] | None = None,
+) -> Path:
+    """Read-side ``STATUS_STATE`` resolution — the COORD events home.
+
+    The production ``decisions/service.py`` read-side ``_mission_dir`` was
+    removed (#6766; caller-less since #6762 moved the opened-row check onto
+    the write-side path). These lockstep tests resolve the events dir
+    through the same ``mission_runtime`` seam the service module uses, to
+    keep distinguishing ``DECISION_LEDGER`` routing from ``STATUS_STATE``
+    routing. Pass ``seam_ctor`` to route through a patched constructor (the
+    coord-topology lockstep test mocks ``service.placement_seam``).
+    """
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    ctor = placement_seam if seam_ctor is None else seam_ctor
+    return cast(Path, ctor(repo_root, mission_slug, owned=None).read_dir(MissionArtifactKind.STATUS_STATE))
 
 
 def _events_for_decision(repo_root: Path, decision_id: str) -> list[dict]:  # type: ignore[type-arg]
@@ -695,7 +718,7 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep(tmp_path: Path) -> No
     # COORD-partition dir events (`status.events.jsonl`) live in when the two
     # diverge under a coord topology. Under this flat fixture they coincide
     # (AC-D3), so this also pins that coincidence for the flat case.
-    events_dir = _service_mod._mission_dir(tmp_path, MISSION_SLUG)
+    events_dir = _status_state_read_dir(tmp_path, MISSION_SLUG)
     assert service_ledger_dir == events_dir, "flat-topology sanity: PRIMARY and COORD dirs must coincide here (AC-D3)"
 
 
@@ -716,7 +739,7 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
     and ``cli/commands/_decisions_doctor.py::_ledger_dir`` land on the
     PRIMARY dir, identically to each other (and their sidecar
     ``index.json.lock`` paths), AND that this differs from the COORD events
-    dir (``_mission_dir`` / ``status.events.jsonl``'s home) -- a drift back to
+    dir (``status.events.jsonl``'s home) -- a drift back to
     ``STATUS_STATE`` in either module fails this test.
     """
     from unittest.mock import patch
@@ -748,7 +771,7 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
     with patch.object(_service_mod, "placement_seam", return_value=_FakeSeam()) as service_seam_ctor:
         service_ledger_dir = _service_mod._ledger_dir(tmp_path, MISSION_SLUG)
         doctor_ledger_dir = _doctor_mod._ledger_dir(tmp_path, MISSION_SLUG)
-        events_dir = _service_mod._mission_dir(tmp_path, MISSION_SLUG)
+        events_dir = _status_state_read_dir(tmp_path, MISSION_SLUG, seam_ctor=service_seam_ctor)
 
     service_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG, owned=None)
 
