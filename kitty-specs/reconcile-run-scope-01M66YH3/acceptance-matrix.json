@@ -1,0 +1,79 @@
+{
+  "mission_slug": "reconcile-run-scope-01M66YH3",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_reconcile_legacy_edge_signatures_carry_no_ellipsis_sentinel \u2014 run_scope is present on both functions",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T19:11:33.129496+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same test + grep: EllipsisType absent from src/charter/activation/synthesizer/reconcile.py (import and annotations); no parameter defaults to Ellipsis",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T19:11:37.835755+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_full_scope_strips_the_dead_edge_of_a_directive_it_did_not_regenerate (green; red under a scope swap)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T19:11:41.946975+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_topic_scoped_scope_keeps_the_dead_edge_of_a_directive_it_did_not_regenerate + ::test_both_scopes_strip_the_dead_edge_of_a_directive_they_regenerated[TOPIC_SCOPED]",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T19:11:51.943489+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_run_scope_does_not_change_which_legacy_applies_edges_are_stripped (4 parametrisations; red if the scope leaks into the applies branch)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T19:12:02.777149+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_merge_project_overlay_scopes_match_the_explicit_run_scope + test_orchestrator_resynthesize.py::TestTopicScopedRunScope::test_a_bounded_run_keeps_and_does_not_report_the_dead_edge_it_left_alone (red when the pipeline passes FULL)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T19:12:07.111161+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_synthesize_reconcile.py::test_full_run_still_strips_dead_mission_type_edge_of_an_unregenerated_directive + ::test_legacy_applies_strip_is_limited_to_regenerated_reach_only_sources (delta path keeps RunScope.FULL)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T19:12:11.622849+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

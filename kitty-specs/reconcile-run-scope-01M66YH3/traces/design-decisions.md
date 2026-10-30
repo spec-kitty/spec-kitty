@@ -1,0 +1,11 @@
+# Tracer: design-decisions
+
+One entry per finding: `YYYY-MM-DD · actor · <text>`.
+
+---
+
+2026-10-30 · pi/deepseek-v4.1-flash-1017 · D-1: enum over bool for the new parameter (RunScope.FULL / RunScope.TOPIC_SCOPED) because the call site then says what kind of run it is instead of 'topic_scoped=False', and the enum can own dead_edge_filter(regenerated_urns), so the ternary leaves _is_legacy_applies. D-2: run_scope is keyword-only and required on both functions, no default, because any default would reintroduce implicit scope. D-3: merge_project_overlay keeps topic_scoped: bool = False (exported, pre-existing, not the sentinel) and maps it to the enum in one place; changing it would widen the diff beyond the issue.
+
+2026-10-30 · pi/deepseek-v4.1-flash-1017 · A1 (medium) remediated: WP02 declares execution_mode: planning_artifact and authoritative_surface: docs/, matching the repo's docs/changelog WPs, which clears the finalize-tasks ownership warning. A2 (low) remediated: spec FR-005 now names its ratchet partner (FR-003/FR-004 on the shared fixture). A3 (low) accepted, not fixed: the call-site enumeration appears in the spec, the plan and the WP01 prompt, but the plan's table is the single authority and the other two are one-line restatements that help a cold implementer; collapsing them would cost more than the duplication.
+
+2026-10-30 · pi/deepseek-v4.1-flash-1017 · Review round 1 (independent reviewer, verdict APPROVE with 1 should-fix + 4 nits): the should-fix was real — nothing pinned the scope resynthesize_pipeline passes, so forcing it to FULL left 61 tests green while the run reported stripping a dead edge that merge_project_overlay had kept. Fixed with TestTopicScopedRunScope (pipeline-level, goes red under that mutation). Nit taken: dead_edge_filter now ends in assert_never(self) so a hypothetical third RunScope member is a mypy error (verified). Nit taken: module Public API list names RunScope; legacy_applies_edges docstring now says it also returns dead mission-type edges. Nit noted only: the reviewer's differential replay of the base sentinel module against HEAD ran 810 _is_legacy_applies cases, 18 legacy_applies_edges/merge cases and 3 _graph_delta cases with 0 mismatches — the strongest available evidence for 'no behaviour change'.
