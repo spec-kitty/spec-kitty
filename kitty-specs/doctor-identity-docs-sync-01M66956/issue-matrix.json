@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2313": {
+      "evidence_ref": "context-only citation: the 3.x commit that relocated the migration runbooks; owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5875": {
+      "evidence_ref": "context-only citation: #5875 added the residue rule the page keeps verbatim; it owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6760": {
+      "evidence_ref": "docs/migrations/mission-id-canonical-identity.md rewritten to the live doctor identity --json contract; pinned by tests/docs/test_mission_id_migration_page.py (8/8, red-first 6/6 pre-fix); reviewed by reviewer-renata, WP01 approved",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

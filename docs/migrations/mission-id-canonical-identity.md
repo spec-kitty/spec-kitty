@@ -2,7 +2,7 @@
 title: 'Migration: Mission ID as Canonical Identity'
 description: "Migration to mission_id (ULID) as a mission's canonical identity, shipped with mission 083: the new identity model, the backfill, and the ADR behind it."
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-10-30'
 related:
 - docs/migrations/feature-flag-deprecation.md
 ---
@@ -106,12 +106,18 @@ From the root of each project you want to migrate:
 spec-kitty doctor identity --json
 ```
 
-The command walks `kitty-specs/` and classifies every mission:
+The command walks `kitty-specs/` and classifies every mission into one
+of four states, and every `kitty-specs/` folder that is not a Mission as
+`residue` (the same contract `spec-kitty doctor identity --help` prints and
+`docs/api/cli-commands.md` carries):
 
-- `ok` — mission already has a `mission_id`; nothing to do.
-- `legacy` — mission has no `mission_id`; backfill required.
-- `conflict` — two or more legacy missions share a `mission_slug` or
-  `mission_number`; they need human disambiguation before backfill.
+- `assigned` — `mission_id` present AND `mission_number` non-null (fully
+  migrated, post-merge).
+- `pending` — `mission_id` present AND `mission_number` null (pre-merge;
+  the number is assigned at merge time).
+- `legacy` — `mission_id` missing AND `mission_number` present (needs
+  backfill).
+- `orphan` — both fields missing, or `meta.json` unreadable (needs triage).
 - `residue` — the folder is not a Mission, and selection does not list it.
   It has no `meta.json`; or, in a git repository, git tracks neither its
   `meta.json` nor its `spec.md`, and the `meta.json` has no `mission_id` or
@@ -140,34 +146,76 @@ The command walks `kitty-specs/` and classifies every mission:
   fails too, delete the index file (`git rev-parse --git-path index` prints
   its path) and run `git reset` again.
 
-**Expected output** for a project with one legacy mission:
+**Expected output** for a project with one legacy mission, one pending
+mission and one leftover residue folder (`path` values are absolute;
+`residue_remedies` appears only when at least one folder is `residue`):
 
 ```json
 {
-  "status": "legacy_present",
-  "total": 12,
-  "ok": 11,
-  "legacy": 1,
-  "conflicts": 0,
+  "summary": {
+    "assigned": 0,
+    "pending": 1,
+    "legacy": 1,
+    "orphan": 0,
+    "residue": 1
+  },
   "missions": [
     {
-      "dir": "kitty-specs/001-auth-system",
-      "mission_slug": "auth-system",
-      "mission_number": 1,
+      "path": "/srv/my-project/kitty-specs/001-auth-system",
+      "slug": "001-auth-system",
       "mission_id": null,
-      "state": "legacy"
+      "mission_number": 1,
+      "state": "legacy",
+      "error": null,
+      "residue_reason": null
+    },
+    {
+      "path": "/srv/my-project/kitty-specs/002-dashboard",
+      "slug": "002-dashboard",
+      "mission_id": "01J6XW9VMJ5Z3QRXPFW5K2H1MA",
+      "mission_number": null,
+      "state": "pending",
+      "error": null,
+      "residue_reason": null
+    },
+    {
+      "path": "/srv/my-project/kitty-specs/leftover-junk",
+      "slug": "leftover-junk",
+      "mission_id": null,
+      "mission_number": null,
+      "state": "residue",
+      "error": null,
+      "residue_reason": "no_meta"
     }
-  ]
+  ],
+  "duplicate_prefixes": {},
+  "ambiguous_selectors": {},
+  "fail_on_triggered": false,
+  "residue_remedies": {
+    "no_meta": "No meta.json on disk, so Mission selection does not list it. If it is leftover residue, delete the folder. If it is a real Mission whose meta.json was deleted: when `git status` shows the deletion, run `git restore <path>/meta.json`; when the deletion was committed, find it with `git log --diff-filter=D --format=%h -1 -- <path>/meta.json` and run `git checkout <sha>~1 -- <path>/meta.json`. If its meta.json was never committed, re-create the Mission with `spec-kitty agent mission create` and move its spec.md into the new folder."
+  }
 }
 ```
 
-If `conflicts > 0`, resolve them first: rename one of the colliding
-directories, or delete a stale checkout. The backfill refuses to run while
-conflicts are present, by design — we do not want the CLI to guess.
+Every row in `missions[]` carries `path`, `slug`, `mission_id`,
+`mission_number`, `state`, `error` and `residue_reason` (`null` unless the
+row is `residue`). `duplicate_prefixes` reports every 3-digit numeric
+prefix shared by two or more missions, and `ambiguous_selectors` every
+selector handle that would resolve to more than one mission — `residue`
+folders are in neither, because Mission selection does not list them.
+`fail_on_triggered` is `true` when `--fail-on` matched at least one row (the
+command then exits 1).
+
+If `duplicate_prefixes` or `ambiguous_selectors` is non-empty, resolve the
+collision before you rely on short handles: rename one of the colliding
+directories, or delete a stale checkout. An ambiguous handle fails with a
+structured `MISSION_AMBIGUOUS_SELECTOR` error, without fallback — see
+Step 6. The CLI does not guess.
 
 ## Step 3 — Run the backfill
 
-Once the audit is clean of conflicts:
+Once the audit reports no `legacy` missions (and no `orphan` or `residue` rows
+you need to triage):
 
 ```bash
 spec-kitty migrate backfill-identity
@@ -177,19 +225,29 @@ This command:
 
 1. Loads every legacy mission.
 2. Mints a fresh `mission_id` (ULID) per mission.
-3. Writes `mission_id` into `meta.json`. **No other field is touched** —
+3. Writes `mission_id` into `meta.json`. **No other field's value is touched** —
    `mission_number`, `mission_slug`, `created_at`, `target_branch`,
-   `friendly_name`, `mission_type` are all preserved byte-for-byte.
-4. Commits the change on the current branch with a deterministic message.
+   `friendly_name`, `mission_type` all keep their values, except
+   that a legacy string-typed `mission_number` (for example `"042"`) is
+   coerced to an integer.
+4. Leaves the change in your working tree for you to review and commit; it
+   does not commit by itself.
 
-**Expected output:**
+**Expected output** (live run on a project with one legacy mission):
 
 ```text
-Scanning kitty-specs/ ...
-  001-auth-system     legacy -> minted 01J6XW9KQT7M0YB3N4R5CQZ2EX
-  003-dashboard       legacy -> minted 01J6XW9VMJ5Z3QRXPFW5K2H1MA
-Backfilled 2 missions. meta.json updated. Git commit: abc1234
+backfill-identity summary
+  Total missions scanned : 2
+  Written (mission_id)   : 1
+  Skipped (already set)  : 1
+  Errors                 : 0
+  Number coerced         : 0
+
+Done. 1 mission(s) received a ``mission_id``.
 ```
+
+Rows with `Errors > 0` name the failing mission and the reason; the command
+exits 1 when any row errors.
 
 **Backfill is additive-only.** Existing data is never overwritten. The
 backfill is safe to re-run: missions that already have a `mission_id` are
@@ -203,21 +261,50 @@ Confirm the project is clean:
 spec-kitty doctor identity --json
 ```
 
-**Expected output:**
+**Expected output** (the same project after the backfill and after
+triaging the leftover residue folder — `legacy` is 0,
+the backfilled mission is now `assigned`, and `residue_remedies` is absent
+because no residue row remains; the backfill itself does not remove
+residue folders):
 
 ```json
 {
-  "status": "ok",
-  "total": 12,
-  "ok": 12,
-  "legacy": 0,
-  "conflicts": 0
+  "summary": {
+    "assigned": 1,
+    "pending": 1,
+    "legacy": 0,
+    "orphan": 0,
+    "residue": 0
+  },
+  "missions": [
+    {
+      "path": "/srv/my-project/kitty-specs/001-auth-system",
+      "slug": "001-auth-system",
+      "mission_id": "01M669SYJ4RPTTHW57DMY2KPY6",
+      "mission_number": 1,
+      "state": "assigned",
+      "error": null,
+      "residue_reason": null
+    },
+    {
+      "path": "/srv/my-project/kitty-specs/002-dashboard",
+      "slug": "002-dashboard",
+      "mission_id": "01J6XW9VMJ5Z3QRXPFW5K2H1MA",
+      "mission_number": null,
+      "state": "pending",
+      "error": null,
+      "residue_reason": null
+    }
+  ],
+  "duplicate_prefixes": {},
+  "ambiguous_selectors": {},
+  "fail_on_triggered": false
 }
 ```
 
-If any mission is still `legacy`, rerun backfill against that mission
-directly. If a `conflict` appears after backfill, open an issue — backfill
-should never produce one.
+A `pending` mission is healthy: its `mission_number` is assigned at merge
+time. If any mission is still `legacy`, rerun backfill against that mission
+directly (`spec-kitty migrate backfill-identity --mission <slug>`).
 
 ## What Backfill Does Not Change
 
