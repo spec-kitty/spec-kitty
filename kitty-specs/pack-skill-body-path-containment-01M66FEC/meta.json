@@ -4,7 +4,7 @@
   "friendly_name": "pack skill body path containment",
   "mid8": "01M66FEC",
   "mission_id": "01M66FECNVSH097T6M06F5DRAB",
-  "mission_number": null,
+  "mission_number": 244,
   "mission_slug": "pack-skill-body-path-containment-01M66FEC",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances pack skill body path containment on issue-6734-pack-skill-body-path-containment so stakeholders can track the work from mission creation onward.",
