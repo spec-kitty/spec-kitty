@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances glossary residue three senses on issue-6759-glossary-residue so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "glossary residue three senses",
   "slug": "glossary-residue-three-senses-01M66977",
+  "status_phase": "1",
   "target_branch": "issue-6759-glossary-residue",
   "topology": "single_branch"
 }
