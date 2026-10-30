@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "The four orchestrator-api lifecycle verbs refuse a seed-shaped --actor with error_code USAGE_ERROR before any state change.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/orchestrator_api/test_caller_seed_refusal_6754.py::test_transition_refuses_a_caller_supplied_seed (+ the 3 sibling verbs)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:37:54.047432+00:00",
       "notes": ""
     },
     {
