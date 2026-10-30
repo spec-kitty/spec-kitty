@@ -15,5 +15,7 @@
   "purpose_tldr": "Refuse a caller-supplied 'migration:' identity at every status boundary that records it verbatim, so only in-process migrations can write reconstruction seeds (#6754).",
   "slug": "migration-actor-cli-spoofing-01M66YYX",
   "target_branch": "issue-6754-migration-actor-cli-spoofing",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T18:59:52.928824+00:00"
 }
