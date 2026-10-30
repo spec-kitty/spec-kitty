@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6763": {
-      "evidence_ref": "WP01 d05c37913c + c0d5d5498b: doctor --repair + coordination-only copy refuse a busy decisions lock via the single _decisions_lock seam",
+      "evidence_ref": "branch issue-6763-decisions-lock-timeout-refusal: four decisions-lock acquisitions through _decisions_lock, DECISION_LOCK_TIMEOUT in all three commands (commits e0fbe49cc6, 1cc2e111ba, 817e61862d, 22ff215e11); tests/decisions 94 passed, owned-next suite 35 passed, repair integration 36 passed",
       "fr": "FR-001, FR-002, FR-003, FR-004, FR-005",
       "nfr": "NFR-001, NFR-002, NFR-003",
       "repo": "spec-kitty/spec-kitty",
@@ -21,7 +21,7 @@
       "scope": "full",
       "source_file": "spec.md",
       "title": "Decisions lock timeouts in doctor --repair, next and decision repair-runtime-lock escape as a raw LockAcquireTimeout traceback",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     },
     "#6764": {
