@@ -198,6 +198,11 @@ def build_changelog_block(
           included in the changelog block.
 
     No network calls are made. Uses ``git tag --list`` and filesystem reads only.
+
+    Lists Missions only (#6758): a ``kitty-specs/`` child that
+    :func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir` rejects is
+    read-side residue, so a leftover folder never reaches the release notes. One
+    ``TrackedMissionPaths`` memo per call keeps the git probe to at most one.
     """
     # Resolve the tag to compare against
     if since_tag is None:
@@ -211,8 +216,11 @@ def build_changelog_block(
     if not mission_specs_dir.exists():
         return ("", [])
 
+    from specify_cli.context.mission_resolver import TrackedMissionPaths, is_selectable_mission_dir
+
+    tracked = TrackedMissionPaths(repo_root)
     mission_dirs = sorted(
-        [d for d in mission_specs_dir.iterdir() if d.is_dir()],
+        [d for d in mission_specs_dir.iterdir() if d.is_dir() and is_selectable_mission_dir(d, repo_root=repo_root, tracked=tracked)],
         key=lambda d: d.name,
     )
 

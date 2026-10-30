@@ -81,11 +81,23 @@ def _mission_dirs_to_process(repo_root: Path, specs_dir: Path, errors: list[str]
     ``.kittify/derived/<slug>``), never the name of the coordination path. A
     per-Mission refusal (remote-only or deleted coordination branch, seed fork,
     held status lock) becomes an ``errors[]`` entry and the loop continues.
+
+    Lists Missions only (#6758): a child that
+    :func:`~specify_cli.context.mission_resolver.is_selectable_mission_dir` rejects is
+    read-side residue, so it is neither materialized nor probed for a coordination
+    surface, and it produces no ``errors[]`` entry. One ``TrackedMissionPaths`` memo
+    per walk keeps the git probe to at most one.
     """
     if not specs_dir.exists():
         return []
+    from specify_cli.context.mission_resolver import TrackedMissionPaths, is_selectable_mission_dir
+
+    tracked = TrackedMissionPaths(repo_root)
     targets: list[tuple[str, Path]] = []
-    for root_dir in sorted(p for p in specs_dir.iterdir() if p.is_dir() and not p.name.startswith(".")):
+    candidates = (p for p in sorted(specs_dir.iterdir()) if p.is_dir() and not p.name.startswith("."))
+    for root_dir in candidates:
+        if not is_selectable_mission_dir(root_dir, repo_root=repo_root, tracked=tracked):
+            continue
         try:
             targets.append((root_dir.name, _status_dir_for(repo_root, root_dir.name)))
         except _RESOLUTION_REFUSALS as exc:
