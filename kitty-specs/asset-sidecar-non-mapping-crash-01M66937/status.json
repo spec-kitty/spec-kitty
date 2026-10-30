@@ -2,10 +2,9 @@
   "event_count": 9,
   "last_event_id": "01M66B78KEYV9AFX6WY0T7DFN7",
   "materialized_at": "2026-10-30T12:05:45.198743+00:00",
-  "mission_number": "244",
+  "mission_number": "",
   "mission_slug": "asset-sidecar-non-mapping-crash-01M66937",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,38 +19,19 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "glm:glm-5.3:reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "claude",
       "force_count": 1,
       "implementer_of_record": "claude",
       "lane": "done",
       "last_event_id": "01M66B78KEYV9AFX6WY0T7DFN7",
       "last_transition_at": "2026-10-30T12:05:45.198743+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-30T11:42:24Z – claude – shell_pid=62492 – RED PROOF (T001/T002): 26 failed on pre-fix main in tests/charter_offering/test_non_mapping_sidecar_skip.py — all 11 kinds x {list, scalar} org-overlay cases crash with AttributeError: 'list' object has no attribute 'get'; project-layer cases crash identically; built-in directive case crashes in _pre_validate; built-in asset case fails DID NOT WARN (pre-fix reason wording is the Pydantic ValidationError, not the uniform non-mapping reason). Green target: skip with 'Skipping invalid <layer> <kind> <file>: expected a YAML mapping, got <type>'.",
-        "Reviewer identity must be the actual independent reviewer (glm:glm-5.3:reviewer-renata), not the implementer alias claude; releasing the mis-stamped review claim so the review can be re-claimed under the true reviewer identity. No code change; review verdict (approve) unchanged.",
-        "Review passed (reviewer glm:glm-5.3 with reviewer-renata profile, independent of implementer claude): red-first proof reproduced independently (26/26 red pre-fix), 11/11 kind matrix exact, guard before _pre_validate in both tiers, warning shape matches the pinned consumer regex, gates green (ruff, ruff format, mypy --strict, 56 tests). Non-blocking notes: ruff-format reflows of pre-existing expressions (required by the format gate); built-in asset red failure was the reason-wording pin (by design).",
-        "- 2026-10-30T12:05:09Z – glm:glm-5.3:reviewer-renata – shell_pid=192847 – Wrap-up: development-assist test verdict = KEEP. tests/charter_offering/test_non_mapping_sidecar_skip.py is the permanent regression contract for the non-mapping skip (not issue-named, no test_issue_NNNN/test_repro_NNNN file was added); it lives in the suite that owns the base-loader contract, carries no WP##/NFR-### labels, and exercises the production entry point (repository construction). Nothing to retire or split.",
-        "- 2026-10-30T12:05:13Z – glm:glm-5.3:reviewer-renata – shell_pid=192847 – Wrap-up: aggregate-diff review = LAND. Single-WP mission, so the aggregate diff is exactly the WP01 lane diff (kitty/mission-...-lane-a vs kitty/mission-...), which the independent reviewer (glm:glm-5.3, reviewer-renata profile) verified end-to-end: red-first proof reproduced independently, 11/11 kind matrix, guard placement in both tiers, pinned warning shape, ruff/format/mypy --strict green, 56 tests green. No cross-WP integration surface exists. Verdict synthesized: LAND."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261030",
         "reviewer": "spec-kitty auto-rebase",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 192847,
-      "shell_pid_created_at": "1793361733.78",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done"
-      }
+      "shell_pid": 62492,
+      "shell_pid_created_at": "1793360243.75"
     }
   }
 }
