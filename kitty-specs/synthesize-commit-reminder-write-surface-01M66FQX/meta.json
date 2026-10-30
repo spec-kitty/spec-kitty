@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:40:49.170599+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "012b250f2167a729c961fb58960cc178478037f8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T14:40:49.170599+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "012b250f2167a729c961fb58960cc178478037f8",
   "created_at": "2026-10-30T13:24:45.552015+00:00",
   "flattened": false,
   "friendly_name": "synthesize commit reminder write surface",
