@@ -283,6 +283,7 @@ def test_next_ignore_rollback_respects_commit_landing(owned_checkouts, monkeypat
 def test_repair_rechecks_changes_after_owner_lock_acquisition(owned_checkouts, monkeypatch, race):
     from contextlib import contextmanager
     import kernel.locks
+    from specify_cli.decisions import service as decisions_service
 
     c = owned_checkouts
     lock = seed(c)
@@ -298,6 +299,10 @@ def test_repair_rechecks_changes_after_owner_lock_acquisition(owned_checkouts, m
                 git(c.owned_root, "add", "-f", str(lock))
             yield record
 
+    # #6763: the repair acquires through the decisions seam, so the seam's own
+    # binding is the patch point (kernel.locks' module attribute is no longer
+    # consulted on this path). The race being injected is unchanged.
+    monkeypatch.setattr(decisions_service, "machine_file_lock", racing_lock)
     monkeypatch.setattr(kernel.locks, "machine_file_lock", racing_lock)
     result = invoke(c, monkeypatch)
     assert result.exit_code == 1
@@ -413,3 +418,94 @@ def test_repair_keeps_the_status_shape_for_a_non_owned_failure(owned_checkouts, 
     assert set(payload) == {"status", "code", "message"}
     assert payload["status"] == "error"
     assert payload["code"] == "RUNTIME_LOCK_PRECONDITION_REFUSED"
+
+
+# ---------------------------------------------------------------------------
+# #6763 -- a decisions-lock wait that times out is the verb's own refusal:
+# code ``DECISION_LOCK_TIMEOUT``, the seam's "nothing was written; retry"
+# message, exit 1, and a byte-identical owned checkout. The acquire happens
+# only after the preflight and the dry-run/no-change short-circuits, so a
+# refusal leaves nothing behind.
+# ---------------------------------------------------------------------------
+
+
+def test_repair_lock_timeout_is_the_structured_refusal(owned_checkouts, monkeypatch):
+    """A busy lock on the acquire path is the seam's own refusal.
+
+    The lock is seeded ``untracked`` -- the state in which the repair reaches
+    the acquire. A live holder writes its ``LockRecord`` into the lock file, so
+    for a *tracked* lock the preflight refuses first (see the row below); that
+    ordering is pre-existing and unchanged here.
+    """
+    import json
+
+    from kernel.locks import machine_file_lock
+
+    c = owned_checkouts
+    lock = seed(c, "untracked")
+    before = snapshot(c.owned_root)
+    inode = lock.stat().st_ino
+    monkeypatch.setattr("specify_cli.decisions.service._LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+
+    with machine_file_lock(lock, blocking=True, timeout_s=5.0):
+        result = invoke(c, monkeypatch)
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert set(payload) == {"status", "code", "message"}, payload
+    assert payload["status"] == "error"
+    assert payload["code"] == "DECISION_LOCK_TIMEOUT"
+    assert str(lock) in payload["message"]
+    assert "Nothing was written" in payload["message"]
+    assert "retry" in payload["message"].lower()
+    assert snapshot(c.owned_root) == before, "a refused repair must not write"
+    assert lock.stat().st_ino == inode, "the synchronization inode must survive a refusal"
+
+
+def test_tracked_lock_contention_is_refused_at_the_preflight(owned_checkouts, monkeypatch):
+    """Characterisation: a *tracked* lock held elsewhere refuses at the preflight.
+
+    The holder's own ``LockRecord`` writes into the tracked lock file, so
+    ``_runtime_lock_preflight`` sees an operator-looking modification and
+    refuses with ``RUNTIME_LOCK_PRECONDITION_REFUSED`` before the acquire. That
+    ordering predates #6763 and this mission deliberately preserves it; the row
+    exists so a later change to either side cannot silently move the boundary.
+    """
+    import json
+
+    from kernel.locks import machine_file_lock
+
+    c = owned_checkouts
+    lock = seed(c, "tracked")
+    before = snapshot(c.owned_root)
+    inode = lock.stat().st_ino
+    monkeypatch.setattr("specify_cli.decisions.service._LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+
+    with machine_file_lock(lock, blocking=True, timeout_s=5.0):
+        result = invoke(c, monkeypatch)
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert set(payload) == {"status", "code", "message"}, payload
+    assert payload["code"] == "RUNTIME_LOCK_PRECONDITION_REFUSED"
+    assert snapshot(c.owned_root) == before, "a refused repair must not write"
+    assert lock.stat().st_ino == inode
+
+
+def test_repair_with_a_free_lock_still_repairs(owned_checkouts, monkeypatch):
+    """Positive control on the SAME fixture: a free lock still untracks the lock."""
+    import json
+
+    c = owned_checkouts
+    lock = seed(c, "tracked")
+
+    result = invoke(c, monkeypatch)
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["status"] == "ok"
+    assert payload["tracked"] is True
+    assert payload.get("commit")
+    assert str(lock.relative_to(c.owned_root)) not in git(c.owned_root, "ls-files").splitlines()
+    assert git(c.owned_root, "check-ignore", str(lock))
+    assert git(c.owned_root, "status", "--porcelain=v1") == ""
