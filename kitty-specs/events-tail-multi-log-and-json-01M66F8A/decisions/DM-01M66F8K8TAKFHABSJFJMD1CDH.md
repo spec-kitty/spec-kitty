@@ -4,9 +4,9 @@
 - **Origin flow:** `specify`
 - **Step id:** `specify.success_criteria`
 - **Input key:** `success_criteria`
-- **Status:** `deferred`
+- **Status:** `resolved`
 - **Created:** `2026-10-30T13:16:23.194199+00:00`
-- **Resolved:** `2026-10-30T13:16:23.637029+00:00`
+- **Resolved:** `2026-10-30T13:21:30.770551+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -20,13 +20,13 @@ _(none)_
 
 ## Final answer
 
-_(none)_
+See spec.md Success Criteria SC-001..SC-004: --log streams every kind in C-001 from its canonical path (table-driven, red on main); default output is human-readable while --json stays byte-identical to today; --log run selects the latest matching run and refuses typed when none; resume misuse refuses identically on a non-status kind.
 
 ## Rationale
 
-owner deferred during specify interview
+_(none)_
 
 ## Change log
 
 - `2026-10-30T13:16:23.194199+00:00` — opened
-- `2026-10-30T13:16:23.637029+00:00` — deferred
+- `2026-10-30T13:21:30.770551+00:00` — resolved (final_answer="See spec.md Success Criteria SC-001..SC-004: --log streams every kind in C-001 from its canonical path (table-driven, red on main); default output is human-readable while --json stays byte-identical to today; --log run selects the latest matching run and refuses typed when none; resume misuse refuses identically on a non-status kind.")

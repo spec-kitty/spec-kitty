@@ -4,9 +4,9 @@
 - **Origin flow:** `specify`
 - **Step id:** `specify.problem_statement`
 - **Input key:** `problem_statement`
-- **Status:** `deferred`
+- **Status:** `resolved`
 - **Created:** `2026-10-30T13:16:22.528581+00:00`
-- **Resolved:** `2026-10-30T13:16:22.835479+00:00`
+- **Resolved:** `2026-10-30T13:21:27.909309+00:00`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -20,13 +20,13 @@ _(none)_
 
 ## Final answer
 
-_(none)_
+spec-kitty events tail, the ADR 2026-10-13-2 D-2 local subscriber, can follow only a Mission's status.events.jsonl, and its --json flag is accepted but unused (#6611). Operators cannot watch the decision log, run journal, glossary, Op lifecycle or canonical events, and humans get raw JSON with no readable mode.
 
 ## Rationale
 
-owner deferred during specify interview
+_(none)_
 
 ## Change log
 
 - `2026-10-30T13:16:22.528581+00:00` — opened
-- `2026-10-30T13:16:22.835479+00:00` — deferred
+- `2026-10-30T13:21:27.909309+00:00` — resolved (final_answer="spec-kitty events tail, the ADR 2026-10-13-2 D-2 local subscriber, can follow only a Mission's status.events.jsonl, and its --json flag is accepted but unused (#6611). Operators cannot watch the decision log, run journal, glossary, Op lifecycle or canonical events, and humans get raw JSON with no readable mode.")
