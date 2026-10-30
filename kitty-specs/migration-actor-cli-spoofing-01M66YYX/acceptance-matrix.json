@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "The refusal never rewrites the value: nothing is appended, so no log records an identity the caller did not write.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_status_emit_refuses_a_seed_and_writes_nothing (event log byte-identical)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:24.049026+00:00",
       "notes": ""
     },
     {
