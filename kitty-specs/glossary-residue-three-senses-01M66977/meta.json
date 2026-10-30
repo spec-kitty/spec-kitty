@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-30T11:30:46.500786+00:00",
+  "flattened": false,
+  "friendly_name": "glossary residue three senses",
+  "mid8": "01M66977",
+  "mission_id": "01M66977022EWZ5R0K0XXE98C1",
+  "mission_number": null,
+  "mission_slug": "glossary-residue-three-senses-01M66977",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances glossary residue three senses on issue-6759-glossary-residue so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "glossary residue three senses",
+  "slug": "glossary-residue-three-senses-01M66977",
+  "target_branch": "issue-6759-glossary-residue",
+  "topology": "single_branch"
+}
