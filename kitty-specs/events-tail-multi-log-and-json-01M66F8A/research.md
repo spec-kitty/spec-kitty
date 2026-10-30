@@ -97,3 +97,17 @@ Red tests, through `CliRunner` on the mounted app (the pattern of
   fails today (no such option).
 - default (no `--json`) human output differs from `--json` output — fails
   today (flag is a no-op).
+
+## Phase 0 addendum (plan step, 2026-10-30)
+
+- No new research tasks: every unknown named in the spec's Technical Context
+  is discharged by the discovery findings above (verified writer paths,
+  resolved dependencies, recorded design decisions). No `[NEEDS CLARIFICATION]`
+  markers remain.
+- Red-test plan confirmed: extend the WP04 test pattern
+  (`tests/cli/test_events_tail.py`'s mounted-app CliRunner) in a new sibling
+  file `tests/cli/test_events_tail_log_selector.py`; the first red assertions
+  are the `--log` option's existence (unknown-option failure today) and the
+  default-vs-`--json` output difference (no-op flag today).
+- Supply-chain: no dependency is added, upgraded or removed — the
+  supply-chain planning section does not apply.
