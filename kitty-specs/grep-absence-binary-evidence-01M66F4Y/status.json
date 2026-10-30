@@ -1,0 +1,37 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M66J2644V592J7M22Z5JQZZ7",
+  "materialized_at": "2026-10-30T14:05:18.852502+00:00",
+  "mission_number": "",
+  "mission_slug": "grep-absence-binary-evidence-01M66F4Y",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "maintainer-agent-e",
+      "force_count": 0,
+      "implementer_of_record": "maintainer-agent-e",
+      "lane": "done",
+      "last_event_id": "01M66J2644V592J7M22Z5JQZZ7",
+      "last_transition_at": "2026-10-30T14:05:18.852502+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "shell_pid": 336329,
+      "shell_pid_created_at": "1793366390.13"
+    }
+  }
+}
