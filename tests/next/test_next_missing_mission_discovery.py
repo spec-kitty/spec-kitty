@@ -81,17 +81,6 @@ def _add_mission(
     if friendly_name is not None:
         meta["friendly_name"] = friendly_name
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
-    # Git-track the created mission (#6799): under the #5875 read-side ruling an
-    # id-less ``meta.json`` only counts toward the mission population when git
-    # tracks a marker (``is_selectable_mission_dir`` rule 3); an untracked one is
-    # read-side residue, so a fixture that does not track its missions no longer
-    # sets up the populations these tests assert against.
-    subprocess.run(
-        ["git", "add", "kitty-specs", ".kittify"],
-        cwd=repo_root,
-        capture_output=True,
-        check=True,
-    )
 
 
 @pytest.fixture
