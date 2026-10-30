@@ -98,6 +98,9 @@ each new test was seen red before its walker changed.
   - `test_collect_inflight_missions_skips_residue` — the returned `AffectedMission` slugs are `{MISSION_SLUG}` (both children carry an in-flight `WP02` event, so a local rule would return both).
   - `test_changelog_excludes_residue_folder` — `slug in slugs` for the Mission and `RESIDUE_SLUG not in slugs` (both children carry an accepted `WP01`, so a local rule would include both).
 - **Run them against the unchanged code and record the failures**; keep the failing output for the PR.
+- Extend `test_mission_dirs_to_process_skips_residue` with the NFR-001 probe-cost assertion: a counter on
+  the memo's probe (`specify_cli.context.mission_resolver.tracked_mission_paths`) must record exactly one
+  call for the shared fixture and zero for a fixture whose every child carries a `mission_id`.
 
 ### Subtask T008 – `materialize` processes Missions only
 

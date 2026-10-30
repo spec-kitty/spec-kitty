@@ -139,6 +139,11 @@ Implementation commits land on this branch; the operator merges the PR into `mai
   - `test_mission_dirs_for_skips_residue`.
 - **Run them now, against the unchanged walkers, and record the failing ids** for the PR's `## Tests run`
   section. Do not weaken the assertions to make them pass.
+- Add one probe-cost assertion (NFR-001) in `test_collect_topology_rows_skips_residue`: monkeypatch
+  `specify_cli.context.mission_resolver.tracked_mission_paths` (or `kernel.git.tracked_paths`, whichever
+  the memo calls) with a counter, run the walk twice — once with a fixture whose children all carry a
+  `mission_id` (expect 0 calls) and once with the shared fixture (expect exactly 1) — so the memo's
+  "at most one probe per walk" promise is pinned rather than assumed.
 - **Notes**: keep the existing `test_collect_topology_rows_all` etc. untouched — they are the non-git
   positive control that proves the filter does not hide real Missions.
 
