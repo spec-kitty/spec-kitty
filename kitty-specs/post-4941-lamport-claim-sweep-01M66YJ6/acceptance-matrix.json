@@ -1,0 +1,99 @@
+{
+  "mission_slug": "post-4941-lamport-claim-sweep-01M66YJ6",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The two living C4 pages name the wall-clock status reducer, never a Lamport one",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_status_path_ordering_claims.py::test_no_affirmative_lamport_status_path_claim covers docs/architecture/diagrams/01_context/README.md and 02_containers/README.md; test_retired_phrases_are_gone pins the exact removed strings",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The API/dashboard domain plan states one wall-clock fold instead of two disagreeing reducers",
+      "proof_type": "automated_test",
+      "evidence": "test_retired_phrases_are_gone covers docs/plans/domains/api-dashboard-domain-plan.md ('The dashboard uses the Lamport reducer' and 'So two read surfaces can disagree today' are gone)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "ADR 2026-10-01-2 carries an accepted 2026-10-30 factual amendment, with its original decision text intact",
+      "proof_type": "automated_test",
+      "evidence": "test_read_api_adr_keeps_history_and_records_the_amendment asserts both the historical D-5 sentence and the amendment heading with (at, event_id), lift and #6609",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "AGENTS.md credits the shipped lift and the corrected docstrings and keeps only the narrow residual",
+      "proof_type": "automated_test",
+      "evidence": "test_no_affirmative_lamport_status_path_claim, test_retired_phrases_are_gone and test_residual_stays_visible all cover AGENTS.md",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The consolidation/preflight.py actor-lookup docstring cites the amended record, not Lamport-primary",
+      "proof_type": "automated_test",
+      "evidence": "test_no_affirmative_lamport_status_path_claim scans src/specify_cli/consolidation/preflight.py; git show of the WP02 commit proves the change is docstring-only",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Gap G-3 in the event-ledger page records the closure and the residual",
+      "proof_type": "automated_test",
+      "evidence": "test_gap_table_records_the_closure asserts 'Closed (#6604)' in docs/architecture/event-ledger-writers-and-readers.md",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "A guard test fails when the retired wording returns and cannot pass vacuously",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_status_path_ordering_claims.py: 9 tests including the detector non-vacuity pair and the line-wrap case; proved red before WP02/WP03",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "An [Unreleased] changelog entry states the correction",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_changelog_style.py, test_unreleased_section.py and test_sync_changelog.py pass; the entry names (#6604) and stays under 1,200 characters",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "The #5528/#6117 issue-body corrections are deferred to their own pass and recorded",
+      "proof_type": "manual_review",
+      "evidence": "kitty-specs/post-4941-lamport-claim-sweep-01M66YJ6/issue-matrix.json records deferred-with-followup for #5528 and #6117, and the PR body states it",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:35:00Z",
+      "notes": "Verified by running the named test on the mission head."
+    }
+  ],
+  "negative_invariants": []
+}
