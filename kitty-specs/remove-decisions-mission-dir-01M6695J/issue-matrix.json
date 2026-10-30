@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#4848": {
+      "evidence_ref": "Opened-row existence check moved onto the pre-resolved write-side events path by merged PR #6762 (2026-10-29); this mission only deletes the read-side helper that change orphaned and pins the write-side-only invariant (guard test test_service_status_state_access.py)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6762": {
+      "evidence_ref": "PR #6762 merged 2026-10-29; its own scope is complete. This mission removes the dead read-side _mission_dir it left behind (issue #6766) \u2014 nothing in #6762 remains for this mission to fix",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6766": {
+      "evidence_ref": "Read-side decisions/service.py::_mission_dir deleted (caller-less since #6762/#4848); write-side-only STATUS_STATE invariant pinned by the new guard test (red on planning base, green on head, independently reproduced by reviewer); orphaned pins removed; WP06 reference ledger + changelog updated; 452 targeted tests + three architectural gates green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
