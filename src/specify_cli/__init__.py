@@ -37,7 +37,7 @@ import os  # noqa: E402
 import sys  # noqa: E402
 from collections.abc import Callable, Sequence  # noqa: E402
 from pathlib import Path  # noqa: E402
-from typing import TYPE_CHECKING, Any, TypeVar  # noqa: E402
+from typing import TYPE_CHECKING, Any, TypeVar, cast  # noqa: E402
 
 T = TypeVar("T")
 
@@ -60,7 +60,7 @@ def root_callback(*args: Any, **kwargs: Any) -> Any:
 def locate_project_root() -> Path | None:
     from specify_cli.core.project_resolver import locate_project_root as _locate_project_root
 
-    return _locate_project_root()
+    return cast(Path | None, _locate_project_root())
 
 
 def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: "Console") -> str:
@@ -161,10 +161,17 @@ def main_callback(
 
 def _run_startup_project_gates(ctx: typer.Context) -> None:
     """Run project-local safety gates shared by normal and startup-fast paths."""
+    from specify_cli.cli.helpers import ROOT_COMMAND_ARGS_META_KEY
     from specify_cli.runtime.bootstrap import check_version_pin
 
     # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
     project_root = locate_project_root()
+    repository_root = project_root
+    args = ctx.meta.get(ROOT_COMMAND_ARGS_META_KEY, ())
+    if project_root is not None and any(arg == "--owned-checkout" or arg.startswith("--owned-checkout=") for arg in args):
+        from specify_cli.cli.commands._owned_checkout import startup_project_checkout
+
+        project_root = startup_project_checkout(ctx, project_root)
     if project_root is not None:
         check_version_pin(project_root)
 
@@ -179,17 +186,17 @@ def _run_startup_project_gates(ctx: typer.Context) -> None:
     # created before the upgrade), that still carries the retired doctrine layout.
     # The hook paths never reach here (main_callback skips both gates for them).
     if project_root is not None:
-        _check_legacy_charter_layout(ctx, project_root)
+        _check_legacy_charter_layout(ctx, project_root, inspect_invoking_checkout=project_root == repository_root)
 
 
-def _check_legacy_charter_layout(ctx: typer.Context, project_root: Path) -> None:
+def _check_legacy_charter_layout(ctx: typer.Context, project_root: Path, *, inspect_invoking_checkout: bool = True) -> None:
     from specify_cli.cli.helpers import ROOT_COMMAND_ARGS_META_KEY
     from specify_cli.migration.legacy_charter_gate import check_legacy_charter_layout, current_checkout_root, usage_errors_first
 
     args = tuple(ctx.meta.get(ROOT_COMMAND_ARGS_META_KEY, sys.argv[1:]))
     check_legacy_charter_layout(
         project_root,
-        current_checkout_root(),
+        current_checkout_root() if inspect_invoking_checkout else project_root,
         invoked_subcommand=ctx.invoked_subcommand,
         argv=args,
         before_refusal=usage_errors_first(ctx, args),
@@ -513,7 +520,7 @@ def _load_bytecode_heal_invoker() -> Callable[..., Any]:
     try:
         from specify_cli.bytecode_heal import invoke_with_bytecode_heal
 
-        return invoke_with_bytecode_heal
+        return cast(Callable[..., Any], invoke_with_bytecode_heal)
     except Exception:
         import importlib
         from importlib.util import cache_from_source
@@ -527,7 +534,7 @@ def _load_bytecode_heal_invoker() -> Callable[..., Any]:
         try:
             from specify_cli.bytecode_heal import invoke_with_bytecode_heal
 
-            return invoke_with_bytecode_heal
+            return cast(Callable[..., Any], invoke_with_bytecode_heal)
         except Exception:
             return _invoke_unguarded
 
