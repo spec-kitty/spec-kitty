@@ -495,6 +495,8 @@ def is_selectable_mission_dir(
     so the upgrade sweep can still repair it; here a ``spec.md`` alone never
     makes a folder selectable. The resolver index (:func:`_index_entry`) is
     stricter still: it needs a ``mission_id``, since it resolves by identity.
+
+    Glossary: ``docs/context/orchestration.md#residue`` (read-side sense).
     """
     if not (path / "meta.json").is_file():
         return False
@@ -574,6 +576,8 @@ def is_kitty_specs_residue(
     untracked legacy Missions without ``spec.md`` or ``meta.json`` become residue (accepted residual).
 
     *repo_root* defaults to the parent of ``kitty-specs/``.
+
+    Glossary: ``docs/context/orchestration.md#residue`` (write-seam sense).
     """
     if path.parent.name != KITTY_SPECS_DIR or _markers_exist(path):
         return False
