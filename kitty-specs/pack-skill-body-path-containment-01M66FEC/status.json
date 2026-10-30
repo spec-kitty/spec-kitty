@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "pi",
-      "agent": "pi:tokenfactory/glm-5.3:python-pedro",
+      "agent": "pi:tokenfactory/glm-5.3:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: both read paths routed through resolve_relative_path_within_root via shared resolve_body_path helper; red-first tests on both paths; full gates green.",
-        "Ready for review (identity re-record; diff unchanged, all gates green, review report on file)"
+        "Ready for review (identity re-record; diff unchanged, all gates green, review report on file)",
+        "Review passed: APPROVE (reviewer-renata, delegated review task) — all 7 WP contract items satisfied; one containment authority on both read paths, fail-closed, red-first independently reproduced on base cab1be39f6; post-review cleanups committed (120 passed/1 skipped re-verified)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
