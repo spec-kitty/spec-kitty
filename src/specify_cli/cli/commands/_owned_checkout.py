@@ -91,6 +91,38 @@ def owned_checkout_option(help: str) -> object:  # noqa: A002 -- matches typer's
     return typer.Option("--owned-checkout", help=help)
 
 
+def startup_project_checkout(ctx: typer.Context, repository_root: Path) -> Path:
+    """Select the validated explicit checkout for read-only startup gates.
+
+    Tokenize the real command path without invoking callbacks. A raw flag in
+    a positional argument or on a command without the owned option grants no
+    authority. Full mission/topology/write validation remains the leaf's job;
+    invalid claims keep normal startup and leaf refusal behavior.
+    """
+    from specify_cli.cli.helpers import ROOT_COMMAND_ARGS_META_KEY
+
+    args = list(ctx.meta.get(ROOT_COMMAND_ARGS_META_KEY, ()))
+    if not any(arg == "--owned-checkout" or arg.startswith("--owned-checkout=") for arg in args):
+        return repository_root
+    from specify_cli.core.owned_mission import resolve_owned_create_root
+
+    command = ctx.command
+    try:
+        while command is not None:
+            options, remaining, _order = command.make_parser(ctx).parse_args(args=args)
+            claim = options.get("owned_checkout")
+            if claim is not None:
+                return Path(resolve_owned_create_root(repository_root, Path(claim)).checkout)
+            if not remaining or not hasattr(command, "resolve_command"):
+                break
+            name, command, args = command.resolve_command(ctx, remaining)
+            if command is not None:
+                ctx = command.context_class(command, info_name=name, parent=ctx)
+    except Exception:  # noqa: BLE001 -- an unvalidated claim must never redirect startup gates
+        return repository_root
+    return repository_root
+
+
 def resolve_owned_or_adopt(
     repository_root: Path,
     owned_claim: Path | None,
@@ -410,6 +442,7 @@ def echo_stale_copy_warning(owned: OwnedCheckout) -> None:
 __all__ = [
     "OP_RECORD_LIST_OWNED_CHECKOUT_HELP",
     "OP_RECORD_OWNED_CHECKOUT_HELP",
+    "startup_project_checkout",
     "OwnedCheckoutOption",
     "echo_stale_copy_warning",
     "emit_owned_refusal",
