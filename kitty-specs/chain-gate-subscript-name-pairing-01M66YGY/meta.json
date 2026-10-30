@@ -1,0 +1,33 @@
+{
+  "accept_commit": "87b9aa420f68ac0d48d712f13094cbc8d212e844",
+  "acceptance_history": [
+    {
+      "accept_commit": "87b9aa420f68ac0d48d712f13094cbc8d212e844",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T18:21:38.465239+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "ba4240b42689e9e6b5a8f559c12ec2047eb9609d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T18:21:38.465239+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "ba4240b42689e9e6b5a8f559c12ec2047eb9609d",
+  "baseline_merge_commit": "512567eee71e31bb39f580c4f7acf8b865e9d1b2",
+  "created_at": "2026-10-30T17:43:06.049051+00:00",
+  "flattened": false,
+  "friendly_name": "chain gate subscript name pairing",
+  "merged_at": "2026-10-30T18:22:42.320939+00:00",
+  "merged_commit": "b1b8c46c21f5fe63d8a89d04734dcbc7d375ce5c",
+  "mid8": "01M66YGY",
+  "mission_id": "01M66YGYYA071YFW6DRTKSER13",
+  "mission_number": 244,
+  "mission_slug": "chain-gate-subscript-name-pairing-01M66YGY",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances chain gate subscript name pairing on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "chain gate subscript name pairing",
+  "slug": "chain-gate-subscript-name-pairing-01M66YGY",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
