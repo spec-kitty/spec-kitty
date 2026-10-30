@@ -37,7 +37,7 @@
       "wp": "WP03"
     },
     "#6758": {
-      "evidence_ref": "This mission's own issue; routed walkers land with this PR and the verdict flips to fixed at wrap-up.",
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/pull/6837",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,8 +45,8 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
-      "wp": "WP01"
+      "verdict": "fixed",
+      "wp": "WP03"
     },
     "#6759": {
       "evidence_ref": "Context only: the residue glossary entry is #6759's own mission; this mission names the read-side sense in its spec instead of editing that glossary.",
