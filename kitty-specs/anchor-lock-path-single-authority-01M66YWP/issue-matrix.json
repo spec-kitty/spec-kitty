@@ -49,7 +49,7 @@
       "wp": null
     },
     "#6727": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "One helper (kernel.locks.anchored_lock_path) owns the rule; the three families call it and keep byte-identical names; tests/kernel/test_lock_paths.py + tests/architectural/test_anchor_lock_path_single_owner.py pin it. Branch issue-6727-anchor-lock-paths.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,8 +57,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": "WP01"
+      "verdict": "fixed",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
