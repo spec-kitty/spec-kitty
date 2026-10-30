@@ -9,7 +9,7 @@ requirement_refs:
 - SC-004
 planning_base_branch: issue-6753-stale-coord-lane-base
 merge_target_branch: issue-6753-stale-coord-lane-base
-branch_strategy: Planning artifacts were generated on issue-6753-stale-coord-lane-base. Completed changes must merge back into that branch.
+branch_strategy: Planning artifacts for this mission were generated on issue-6753-stale-coord-lane-base. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6753-stale-coord-lane-base unless the human explicitly redirects the landing branch.
 subtasks:
 - T007
 - T008
