@@ -102,7 +102,10 @@ The external Mission UI consumes status and is not implicitly a charter client.
 
 The October direction update (operator ruling) frames the system as an **open-core producer**
 with Team Kitty as its **consumer**. Spec Kitty Core (the open-core CLI) owns the event ledger
-and the Lamport reducer and *publishes* the **Mission Status Read API** — the open-core
+and the wall-clock status reducer (`(at, event_id)`, with the #4941 approved-departure lift;
+CLI lane rows carry no Lamport clock, ADR
+[2026-02-09-3](../../../adr/2.x/2026-02-09-3-event-log-merge-semantics.md) Amendment 2026-10-22)
+and *publishes* the **Mission Status Read API** — the open-core
 producer surface (ADR [2026-10-01-2](../../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
 Accepted). **Team Kitty — "Multiplayer Mode"** (mission-ui, the pack composer) is the **consumer**: it reads that API across its public contract boundary and is drawn
 here as a single opaque box, its internals not part of this repository's model. The Python
@@ -136,7 +139,7 @@ flowchart LR
     apiConsumer["External application /<br/>API consumer<br/>(reads mission status; planned)"]
     events["spec-kitty-events<br/><i>contract package (wheel) · exists</i>"]
     tracker["spec-kitty-tracker<br/><i>contract package (wheel) · exists</i>"]
-    core["<b>Spec Kitty Core</b><br/>open-core CLI (Python)<br/>local-first state machine + governance<br/>owns event ledger + Lamport reducer<br/><i>open-core · producer · exists</i>"]
+    core["<b>Spec Kitty Core</b><br/>open-core CLI (Python)<br/>local-first state machine + governance<br/>owns event ledger + wall-clock status reducer<br/><i>open-core · producer · exists</i>"]
     seam(["<b>Mission-Status Read API</b><br/>contract: contracts/mission-status/openapi.yaml<br/><i>producer → consumer boundary</i>"])
     teamkitty["<b>Team Kitty</b> — consumer / 'Multiplayer Mode'<br/>mission-ui · pack composer<br/><i>opaque external · consumer</i>"]
     operator -->|runs commands, approves| core
