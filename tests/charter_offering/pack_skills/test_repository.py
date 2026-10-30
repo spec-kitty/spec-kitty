@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import warnings
 from pathlib import Path
 
@@ -150,3 +151,57 @@ def test_augmenter_in_same_tier_as_target_is_skipped(skill_dirs: dict[str, Path]
     repo, warned = _load(skill_dirs)
     assert [item.id for item in repo.list_all()] == ["land-pr"]
     assert any("lower tier" in message for message in warned)
+
+
+# -- body_path containment at read time (#6734) ------------------------------
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable on this platform")
+def test_body_text_refuses_symlink_swapped_after_load(skill_dirs: dict[str, Path]) -> None:
+    # TOCTOU through the public entry point: the body passes load-time
+    # validation (the link still resolves inside the skill directory), then is
+    # repointed outside before the read.
+    from charter.offering.pack_skills import PackSkillViolation
+
+    skill_dir = skill_dirs["org_a"] / "team"
+    data = prompt_skill("land-pr", body_path="link.md")
+    write_skill(skill_dir, data, body=None)
+    (skill_dir / "target.md").write_text("inside body\n", encoding="utf-8")
+    (skill_dir / "link.md").symlink_to(skill_dir / "target.md")
+
+    repo, warned = _load(skill_dirs)
+
+    assert warned == []
+    assert repo.body_text("land-pr") == "inside body\n"
+    outside = skill_dirs["org_a"].parent / "outside.md"
+    outside.write_text("SECRET OUTSIDE\n", encoding="utf-8")
+    (skill_dir / "link.md").unlink()
+    (skill_dir / "link.md").symlink_to(outside)
+    with pytest.raises(PackSkillViolation, match="escapes"):
+        repo.body_text("land-pr")
+
+
+@pytest.mark.parametrize("body_path", ["../outside.md", "/etc/passwd", "nested/../../outside.md"])
+def test_body_text_refuses_escaping_body_path(skill_dirs: dict[str, Path], body_path: str) -> None:
+    # Injected record: load-time validation skips a file with an escaping
+    # body_path, so the catalog cannot hold one through loading -- the read-time
+    # guard is defense-in-depth for records that reach it any other way.
+    from charter.offering.pack_skills import PackSkillViolation
+    from charter.offering.pack_skills.models import PackSkill
+
+    (skill_dirs["org_a"].parent / "outside.md").write_text("SECRET OUTSIDE\n", encoding="utf-8")
+    repo, _ = _load(skill_dirs)
+    escaped = PackSkill.model_validate(prompt_skill("escaped", body_path=body_path))
+    repo._items["escaped"] = escaped
+    repo._sources["escaped"] = skill_dirs["org_a"] / "escaped.skill.yaml"
+    with pytest.raises(PackSkillViolation, match="escapes"):
+        repo.body_text("escaped")
+
+
+def test_body_text_reads_a_nested_contained_body(skill_dirs: dict[str, Path]) -> None:
+    # Positive control: a contained (nested) body still loads and reads.
+    (skill_dirs["org_a"] / "nested").mkdir()
+    write_skill(skill_dirs["org_a"], prompt_skill("land-pr", body_path="nested/body.md"), body="nested body\n")
+    repo, warned = _load(skill_dirs)
+    assert warned == []
+    assert repo.body_text("land-pr") == "nested body\n"
