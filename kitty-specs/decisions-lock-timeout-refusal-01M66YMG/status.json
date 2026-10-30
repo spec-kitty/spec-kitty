@@ -1,0 +1,120 @@
+{
+  "event_count": 26,
+  "last_event_id": "01M675PJ1PJF1NNHNY9C4X0TMT",
+  "materialized_at": "2026-10-30T19:48:29.366184+00:00",
+  "mission_number": "244",
+  "mission_slug": "decisions-lock-timeout-refusal-01M66YMG",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M675PFC98D610ZSMYP239VJA",
+      "last_transition_at": "2026-10-30T19:48:26.633955+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T18:42:17Z – python-pedro – shell_pid=74593 – T001-T005 done: both doctor acquisitions routed through _decisions_lock; C2 refusal renderer; 3 tests (2 red-first + free-lock control) green; tests/decisions/ 88 passed; ruff+mypy clean; commit d05c37913c.",
+        "- 2026-10-30T19:14:28Z – unknown – Review round 1 F1 fixed: human-mode refusal renders Error: [DECISION_LOCK_TIMEOUT] and is pinned by test_repair_lock_timeout_refusal_human_mode; tests/decisions 89 passed, ruff+mypy clean (c0d5d5498b).",
+        "Review round 2 passed: F1 fixed (human-mode [DECISION_LOCK_TIMEOUT] line pinned by test, exit 1, no partial report); single translation seam confirmed, doctor duplicate wait constant gone, mission_slug widened, DecisionError catch precedes every _emit_*. tests/decisions 89 passed; ruff+mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 87261,
+      "shell_pid_created_at": "1793387797.06",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M675PGPZGKDPPJJR142NQHPN",
+      "last_transition_at": "2026-10-30T19:48:27.999634+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T19:23:11Z – python-pedro – shell_pid=98231 – T006-T009 done: owned-next commit step routed through _decisions_lock; _emit_decisions_lock_timeout dual renderer; 3 tests (2 red-first + free-lock control) green; owned next suite 34 passed 1 xfailed; ruff+mypy clean (9693cdf230).",
+        "Owned next refuses a busy decisions lock via the single seam",
+        "Review round 1 passed: only the commit step is translated (DecisionError caught around _commit_owned_next_mutations, printing stays after it); absent-lock nullcontext branch preserved; JSON and human refusals both name the lock, carry error_code DECISION_LOCK_TIMEOUT and say the retry is safe; same-fixture control proves a free lock still commits and prints. 34 unit + 35 owned-next integration tests passed; ruff+mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 260821,
+      "shell_pid_created_at": "1793388624.01",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M675PJ1PJF1NNHNY9C4X0TMT",
+      "last_transition_at": "2026-10-30T19:48:29.366184+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T19:41:57Z – python-pedro – shell_pid=277377 – T010-T013 done: acquire routed through _decisions_lock; DecisionError mapped to its own code; 3 new integration rows (timeout refusal, tracked-lock preflight characterisation, free-lock control) plus the owner-lock race test re-pointed at the seam binding; 36 passed; ruff+mypy clean (697755efdb).",
+        "Runtime-lock repair refuses a busy decisions lock through the single seam",
+        "Review passed: acquire routed through the single seam after the preflight (nothing written on refusal); DecisionError maps to its own code so the {status,code,message} shape is unchanged for every other failure; tracked-lock contention pinned by a characterisation row and filed as #6836 (cited in the PR Deferred section); owner-lock race test re-pointed at the seam binding it now uses. Module 36 passed, decision CLI 53 passed; ruff+mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 482044,
+      "shell_pid_created_at": "1793389600.51",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    }
+  }
+}
