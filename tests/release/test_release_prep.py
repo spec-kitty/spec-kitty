@@ -7,6 +7,7 @@ Zero network calls (all network entry-points are mocked to raise).
 from __future__ import annotations
 
 import json
+import subprocess
 import time
 import urllib.request
 from dataclasses import asdict
@@ -490,3 +491,341 @@ def test_runs_within_5s_for_16_wps(tmp_path: Path) -> None:
     elapsed = time.monotonic() - start
 
     assert_timing_budget(elapsed, 5.0, name="elapsed")
+
+
+# ---------------------------------------------------------------------------
+# #6612 — WP acceptance must follow the canonical reducer over the resolved
+# status surface (gap G-13). Red-first: these failed before the fix because
+# _wp_lane_from_event_log took the last ``to_lane`` in file order off the
+# primary mission dir and silently skipped corrupt lines.
+# ---------------------------------------------------------------------------
+
+
+def _status_event_row(
+    mission_slug: str,
+    wp_id: str,
+    from_lane: str,
+    to_lane: str,
+    at: str,
+    event_id: str,
+) -> dict[str, object]:
+    """One valid lane ``StatusEvent`` row (the store's on-disk shape)."""
+    return {
+        "event_id": event_id,
+        "mission_slug": mission_slug,
+        "wp_id": wp_id,
+        "from_lane": from_lane,
+        "to_lane": to_lane,
+        "at": at,
+        "actor": "codex",
+        "force": False,
+        "execution_mode": "worktree",
+        "evidence": None,
+        "reason": None,
+        "review_ref": None,
+    }
+
+
+def _write_event_log(mission_dir: Path, rows: list[dict[str, object]]) -> None:
+    """Write ``status.events.jsonl`` into a mission dir."""
+    mission_dir.joinpath("status.events.jsonl").write_text(
+        "\n".join(json.dumps(row) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_changelog_classifies_wp_by_reduced_lane_not_file_order(tmp_path: Path) -> None:
+    """File order is not lane order after a union merge / out-of-order append.
+
+    The log below is a continuous chain in REDUCER order (by ``at``):
+    ``planned -> in_review`` (05-01) then ``in_review -> approved`` (05-02),
+    but is written to disk with the approval FIRST. The last ``to_lane`` in
+    file order is ``in_review``; the reduced lane is ``approved``.
+    """
+    _write_mission(tmp_path, "010-out-of-order", "Out Of Order", {"WP01": "in_progress"})
+    _write_event_log(
+        tmp_path / "kitty-specs" / "010-out-of-order",
+        [
+            _status_event_row(
+                "010-out-of-order",
+                "WP01",
+                "in_review",
+                "approved",
+                "2026-05-02T10:00:00Z",
+                "e-approve",
+            ),
+            _status_event_row(
+                "010-out-of-order",
+                "WP01",
+                "planned",
+                "in_review",
+                "2026-05-01T09:00:00Z",
+                "e-review",
+            ),
+        ],
+    )
+
+    changelog, slugs = build_changelog_block(tmp_path, since_tag=None)
+
+    assert "010-out-of-order" in slugs
+    assert "WP01" in changelog
+
+
+def test_changelog_excludes_wp_when_reducer_order_leaves_it_unaccepted(tmp_path: Path) -> None:
+    """The mirror image: file order ends accepted, reducer order does not."""
+    _write_mission(tmp_path, "011-out-of-order", "Mirror Case", {"WP01": "in_progress"})
+    _write_event_log(
+        tmp_path / "kitty-specs" / "011-out-of-order",
+        [
+            # Later ``at`` (reducer-final): departure to in_review.
+            _status_event_row(
+                "011-out-of-order",
+                "WP01",
+                "approved",
+                "in_review",
+                "2026-05-02T10:00:00Z",
+                "e-reopen",
+            ),
+            _status_event_row(
+                "011-out-of-order",
+                "WP01",
+                "in_review",
+                "approved",
+                "2026-05-01T09:00:00Z",
+                "e-approve",
+            ),
+        ],
+    )
+
+    changelog, slugs = build_changelog_block(tmp_path, since_tag=None)
+
+    assert "011-out-of-order" not in slugs
+
+
+def test_changelog_fails_loudly_on_corrupt_status_log(tmp_path: Path) -> None:
+    """A corrupt log line must fail the build the way every other reader fails."""
+    from specify_cli.status import StoreError
+
+    _write_mission(tmp_path, "012-corrupt-log", "Corrupt Log", {"WP01": "in_progress"})
+    mission_dir = tmp_path / "kitty-specs" / "012-corrupt-log"
+    mission_dir.joinpath("status.events.jsonl").write_text(
+        json.dumps(
+            _status_event_row(
+                "012-corrupt-log",
+                "WP01",
+                "planned",
+                "in_review",
+                "2026-05-01T09:00:00Z",
+                "e-review",
+            )
+        )
+        + "\nthis line is not json\n",
+        encoding="utf-8",
+    )
+
+    # The failure must be loud AND diagnosable: name the mission, not just
+    # the line number, when hundreds of missions are scanned (#6612 review).
+    with pytest.raises(StoreError, match=r"012-corrupt-log: .*line 2"):
+        build_changelog_block(tmp_path, since_tag=None)
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_changelog_reads_coordination_surface_not_stale_primary_copy(tmp_path: Path) -> None:
+    """Under coordination topology the authoritative log is the coord branch's.
+
+    The primary mission dir carries a stale ``in_review`` copy; the
+    coordination worktree carries the authoritative ``approved`` log. The
+    changelog must classify from the coordination surface (the #1735
+    split-brain class, closed for the changelog by #6612).
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True, text=True)
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    (repo / ".kittify").mkdir()
+    (repo / "README.md").write_text("test repo\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "init")
+
+    slug = "coord-m"
+    mission_id = "01ABCDEF1234567890123456"
+    mid8 = mission_id[:8]
+    coord_branch = f"kitty/mission-{slug}-{mid8}"
+    primary_dir = repo / "kitty-specs" / slug
+    tasks_dir = primary_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": mission_id,
+                "coordination_branch": coord_branch,
+                "mission_slug": slug,
+                "friendly_name": "Coord Mission",
+                "created_at": "2026-01-01T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (primary_dir / "spec.md").write_text("# Coord Mission\n", encoding="utf-8")
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\nstatus: in_progress\n---\n\n## WP01 — coord thing\n",
+        encoding="utf-8",
+    )
+    # Stale primary copy: the WP never got past in_review here.
+    _write_event_log(
+        primary_dir,
+        [
+            _status_event_row(slug, "WP01", "planned", "in_review", "2026-05-01T09:00:00Z", "e-review"),
+        ],
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "primary stale copy")
+
+    # Authoritative log on the coordination branch.
+    _git(repo, "checkout", "-b", coord_branch)
+    coord_dir = repo / "kitty-specs" / f"{slug}-{mid8}"
+    coord_dir.mkdir(parents=True)
+    _write_event_log(
+        coord_dir,
+        [
+            _status_event_row(slug, "WP01", "planned", "in_review", "2026-05-01T09:00:00Z", "e-review"),
+            _status_event_row(slug, "WP01", "in_review", "approved", "2026-05-02T10:00:00Z", "e-approve"),
+        ],
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "coord approved")
+    _git(repo, "checkout", "main")
+    # Materialize the coordination worktree at the registered location.
+    _git(
+        repo,
+        "worktree",
+        "add",
+        str(repo / ".worktrees" / f"{slug}-{mid8}-coord"),
+        coord_branch,
+    )
+
+    changelog, slugs = build_changelog_block(repo, since_tag=None)
+
+    assert slug in slugs
+    assert "WP01" in changelog
+
+
+def _make_coord_branch_repo(tmp_path: Path) -> tuple[Path, Path, str, str, str]:
+    """Git fixture for a coordination-topology mission (#6612 review findings).
+
+    Creates a repo whose primary mission dir carries a stale ``in_review``
+    copy of ``status.events.jsonl`` and whose coordination branch carries
+    the authoritative ``approved`` log. The caller decides whether the
+    coordination worktree is materialized and whether the branch survives.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True, text=True)
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    (repo / ".kittify").mkdir()
+    (repo / "README.md").write_text("test repo\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "init")
+
+    slug = "coord-edge"
+    mission_id = "01ABCDEF1234567890123456"
+    mid8 = mission_id[:8]
+    coord_branch = f"kitty/mission-{slug}-{mid8}"
+    primary_dir = repo / "kitty-specs" / slug
+    tasks_dir = primary_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": mission_id,
+                "coordination_branch": coord_branch,
+                "mission_slug": slug,
+                "friendly_name": "Coord Edge Mission",
+                "created_at": "2026-01-01T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (primary_dir / "spec.md").write_text("# Coord Edge Mission\n", encoding="utf-8")
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\nstatus: in_progress\n---\n\n## WP01 — coord edge thing\n",
+        encoding="utf-8",
+    )
+    # Stale primary copy: the WP never got past in_review here.
+    _write_event_log(
+        primary_dir,
+        [
+            _status_event_row(slug, "WP01", "planned", "in_review", "2026-05-01T09:00:00Z", "e-review"),
+        ],
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "primary stale copy")
+
+    # Authoritative log on the coordination branch.
+    _git(repo, "checkout", "-b", coord_branch)
+    coord_dir = repo / "kitty-specs" / f"{slug}-{mid8}"
+    coord_dir.mkdir(parents=True)
+    _write_event_log(
+        coord_dir,
+        [
+            _status_event_row(slug, "WP01", "planned", "in_review", "2026-05-01T09:00:00Z", "e-review"),
+            _status_event_row(slug, "WP01", "in_review", "approved", "2026-05-02T10:00:00Z", "e-approve"),
+        ],
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "coord approved")
+    _git(repo, "checkout", "main")
+    return repo, primary_dir, slug, mid8, coord_branch
+
+
+def test_changelog_unmaterialized_coord_surface_never_reads_stale_primary(tmp_path: Path) -> None:
+    """Unmaterialized coordination worktree: frontmatter fallback, not the stale primary.
+
+    The coordination branch exists but its worktree is not materialized
+    (fresh-clone window, #4959), so no authoritative log is readable. The
+    changelog must fall back to the WP frontmatter (``in_progress`` → not
+    accepted) and must NOT classify from the stale primary copy — which
+    here says ``approved``, so a regression to the primary surface would
+    wrongly include the mission.
+    """
+    repo, primary_dir, slug, _mid8, _coord_branch = _make_coord_branch_repo(tmp_path)
+    # Discriminating stale copy: a continuous chain ending approved.
+    _write_event_log(
+        primary_dir,
+        [
+            _status_event_row(slug, "WP01", "planned", "in_review", "2026-05-01T09:00:00Z", "e-review"),
+            _status_event_row(slug, "WP01", "in_review", "approved", "2026-05-02T10:00:00Z", "e-approve"),
+        ],
+    )
+
+    changelog, slugs = build_changelog_block(repo, since_tag=None)
+
+    assert slug not in slugs
+    assert "WP01" not in changelog
+
+
+def test_changelog_raises_when_coordination_branch_deleted(tmp_path: Path) -> None:
+    """A deleted coordination branch must fail loudly, not read the stale primary (#1848).
+
+    The mission's authoritative surface was destroyed mid-flight. Release
+    prep must raise ``CoordinationBranchDeleted`` — the same data-loss guard
+    every other reader of the status surface shares — never silently
+    classify WPs off the stale primary copy.
+    """
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    repo, _primary_dir, _slug, _mid8, coord_branch = _make_coord_branch_repo(tmp_path)
+    _git(repo, "branch", "-D", coord_branch)
+
+    with pytest.raises(CoordinationBranchDeleted):
+        build_changelog_block(repo, since_tag=None)

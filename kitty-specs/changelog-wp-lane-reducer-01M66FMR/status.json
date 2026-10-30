@@ -1,0 +1,87 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M66MG40MJC1FEWZTNSEC6GMY",
+  "materialized_at": "2026-10-30T14:47:52.596509+00:00",
+  "mission_number": "244",
+  "mission_slug": "changelog-wp-lane-reducer-01M66FMR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi:glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "maintainer-f",
+      "lane": "done",
+      "last_event_id": "01M66MG2NNK4VCWS6A0331C6TV",
+      "last_transition_at": "2026-10-30T14:47:51.221841+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T13:41:00Z – maintainer-f – shell_pid=395331 – Red-first: 4 tests (out-of-order both directions, corrupt log, coord surface) failed on pre-fix tree; fix routes _wp_lane_from_event_log through placement_seam(...).read_dir(STATUS_STATE) + get_wp_lane with the plan D-2 failure policy. Verified: tests/release 256 passed/6 skipped, read-side bypass gate 31 passed, regex-redos 20 passed, status wiring 11 passed, ruff check+format clean, mypy --strict clean.",
+        "Ready for review",
+        "- 2026-10-30T14:12:23Z – maintainer-f – shell_pid=395331 – Review round 1 (2 delegates, correctness + adversarial): REJECT. Blockers: broad except swallowed CoordinationBranchDeleted (D-2 violation; 52 of 662 real mission dirs raise it) and per-WP seam resolution (34x wall-clock). Majors: OSError arm lost, StoreError lacked mission context, no CLI wrap, worktree-scan mixing. All fixed in commit 2: narrow catch set (BranchDeleted re-raised, bare StatusReadPathNotFound -> mission_dir), per-mission get_all_wp_lanes, OSError frontmatter parity, mission-named StoreError, get_main_repo_root scan anchor, agent release prep clean exit-1. Deleted-branch test proven red on commit 1. Docs items confirmed WP02-owned (readers-table row :125 + G-13 :229 + [Unreleased] entry). Loud-arm operator decision: keep spec-locked propagation; 52 dangling missions remediable via 'spec-kitty doctor coordination --fix'; documented in PR.",
+        "- 2026-10-30T14:26:39Z – maintainer-f – shell_pid=395331 – Review round 2 (re-review delegate): APPROVE. All 10 fix claims verified incl. red-check on round-1 commit (deleted-branch + mission-context tests fail there). 1 minor fixed (discriminating unmaterialized fixture, regression-simulation proven) in commit 3. 2 nits routed to WP02: doc row names get_all_wp_lanes (batch reader) so spec NFR-001 text and code agree; C-001 deviation for agent/release.py (review-sanctioned) noted for mission-review record.",
+        "Review passed: round-1 blockers fixed (exception topology, per-mission resolution), round-2 approve by independent delegate reviewers; discriminator fixture strengthened"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 395331,
+      "shell_pid_created_at": "1793367062.91",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M66MG40MJC1FEWZTNSEC6GMY",
+      "last_transition_at": "2026-10-30T14:47:52.596509+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T14:30:31Z – unknown – T006: [Unreleased] Fixed entry, 1176 chars (<1200), bold impact-first lead with (#6612), before/after, loud-failure behavior + doctor remediation named. T007: readers-table row moved to reducer-backed group naming get_all_wp_lanes (spec NFR-001 text/code agreement per round-2 review nit), G-13 marked partly closed keeping the preflight item, raw-readers prose and mermaid diagram updated. docs-lint clean (0 errors). WP01 review round-2 nits addressed: doc row names the batch reader; C-001 deviation (agent/release.py, review-sanctioned) noted for mission review.",
+        "Ready for review",
+        "- 2026-10-30T14:36:04Z – unknown – Review: APPROVE (docs delegate). Every factual claim verified against WP01 code; G-13 keeps preflight item; gates 0 errors. Finding 1 (merge sequencing) is handled by mission consolidation (lane-a merges with the mission branch). Nits: length headroom 24 chars, symbol-only file refs consistent with sibling rows — no action.",
+        "Review passed: docs accurate vs code, gates clean",
+        "WP02 deliverable unchanged (commit 21d2d33f5c, reviewed and approved by pi:glm-5.3:reviewer-renata); re-entering review lane only to record the implementer-of-record binding the accept gate requires",
+        "Re-affirming the round-1 approval: docs accurate vs code, gates clean; implementer of record now maintainer-f"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}
