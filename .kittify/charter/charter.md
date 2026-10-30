@@ -4,7 +4,7 @@
 > Version: 1.7.0
 > Updated: 2026-10-29 — the events domain's Java services (the Mission Status
 > Read API and the Mission Write API / event-log write core) and the events contracts move to
-> `spec-kitty-events`, which becomes the canonical owner of the events domain; core consumes a
+> `spec-kitty-events`, which becomes the canonical owner of the events domain; core will consume a
 > released, pinned `service-v*` build by tag and per-asset sha256, fetched on first use and
 > fail-closed; the events paths (`services/` and the other frozen set of ADR D-9) are frozen in core until their removal (operator and CEO ruling
 > 2026-10-29; ADR `2026-10-29-1`).
@@ -388,11 +388,13 @@ native binaries, a JVM jar, contract bundles and conformance fixtures, each with
 consumes `spec-kitty-events` as two artifact kinds:
 
 - **the PyPI package**, a SemVer range plus `uv.lock`, unchanged;
-- **the pinned service build**, one lockfile per service (`pins/<service>.source.yaml`: tag, commit
-  and per-asset sha256), bumped only through `spec-kitty service vendor`.
+- **the pinned service build**, which core will pin with one lockfile per service
+  (`pins/<service>.source.yaml`: tag, commit and per-asset sha256), bumped only through
+  `spec-kitty service vendor`. This mechanism is the target state: decided, not yet built (plan
+  `docs/plans/events-domain-move/plan.md` §4 step 4, "Core PR 1").
 
-The wheel stays pure: the CLI fetches the host binary on first need, executes it only when its
-digest matches the pin, and fails closed with a named code and remedy when it cannot. There is
+The wheel will stay pure: the CLI will fetch the host binary on first need, execute it only when
+its digest matches the pin, and fail closed with a named code and remedy when it cannot. There is
 no Python fallback writer. The read service is pinned for CI conformance only, and the CLI
 never launches it. The client side stays in core: the EventBridge port,
 `write_service_protocol`, the launcher, `kernel.locks`, and the Python oracle tests. No new
