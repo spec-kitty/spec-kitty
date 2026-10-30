@@ -388,8 +388,19 @@ The validator distinguishes errors from advisories:
 | `replaceable-builtins.yaml` malformed, or a directive entry without a reason | Error |
 | `replaceable-builtins.yaml` entry for a URN your pack does not override | Advisory |
 | Artifact ID collides with a built-in ID | Advisory |
+| A file name you ship is also a built-in file name, but declares a *different* id (`file_name_collision`) | Error |
 | `pack-manifest.yaml` exists and was author-edited | Advisory |
 | `enforcement` value other than `"advisory"` | Advisory |
+
+One rule is worth stating on its own, because it is about file names rather than ids.
+Activation resolves a token by file name first, across layers, so a file name can stand for
+exactly one id. If you ship `directives/024-locality-of-change.directive.yaml` declaring
+`ACME_024`, the built-in `024-locality-of-change` no longer names `DIRECTIVE_024` anywhere,
+and every activation command refuses that id with a message naming the conflict. Validation
+reports this as a `file_name_collision` error for the pack you are validating (against the
+built-in layer) and `spec-kitty doctor charter-packs` reports it for your whole configured
+chain; both tell you which file to rename. Renaming one of the files is the fix — a
+deliberate override of a built-in keeps the **same** id, so it is never affected by this rule.
 
 A `drg_dangling_edge` finding always names the file, offending endpoint and
 `source`/`target` role; canonical binding refusals additionally name the resolver
