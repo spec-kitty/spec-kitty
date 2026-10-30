@@ -30,6 +30,7 @@ agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/commands/
 create_intent:
 - tests/_support/mission_residue_fixture.py
+- tests/regressions/test_issue_6758_doctor_walkers.py
 execution_mode: code_change
 model: ''
 owned_files:
@@ -37,9 +38,7 @@ owned_files:
 - src/specify_cli/cli/commands/_coordination_doctor.py
 - src/specify_cli/cli/commands/_review_cycle_reconcile_doctor.py
 - tests/_support/mission_residue_fixture.py
-- tests/specify_cli/cli/commands/test_identity_audit.py
-- tests/specify_cli/cli/commands/test_coordination_doctor.py
-- tests/specify_cli/cli/commands/test_review_cycle_reconcile_doctor.py
+- tests/regressions/test_issue_6758_doctor_walkers.py
 role: implementer
 tags: []
 task_type: implement
@@ -128,8 +127,10 @@ Implementation commits land on this branch; the operator merges the PR into `mai
 ### Subtask T002 – Red-first tests for the three doctor walkers
 
 - **Purpose**: pin each walker's behaviour before changing it.
-- **Files**: `tests/specify_cli/cli/commands/test_identity_audit.py`,
-  `test_coordination_doctor.py`, `test_review_cycle_reconcile_doctor.py`.
+- **Files**: create `tests/regressions/test_issue_6758_doctor_walkers.py` (markers
+  `pytest.mark.integration`, `pytest.mark.git_repo`, `pytest.mark.regression`). Do **not** add a git
+  fixture to the three owning module test files: they are `fast`-tier, and a subprocess-driving
+  fixture there breaks the tier contract. They stay untouched as the non-residue regression guard.
 - **Steps**: add one test each (names below), each using the shared fixture and asserting
   `{row["slug"] ...} == {MISSION_SLUG}` / `[p.name ...] == [MISSION_SLUG]`, plus one assertion that the
   Mission itself is present (the positive control):
@@ -187,7 +188,8 @@ Implementation commits land on this branch; the operator merges the PR into `mai
 - **Steps**:
   1. Confirm each T002 test failed before its walker change (re-run by temporarily reverting the walker
      hunk, or keep the recorded failing output from T002).
-  2. Run: `uv run pytest tests/specify_cli/cli/commands/test_identity_audit.py
+  2. Run: `uv run pytest tests/regressions/test_issue_6758_doctor_walkers.py
+     tests/specify_cli/cli/commands/test_identity_audit.py
      tests/specify_cli/cli/commands/test_coordination_doctor.py
      tests/specify_cli/cli/commands/test_review_cycle_reconcile_doctor.py
      tests/specify_cli/cli/commands/test_doctor_coordination.py
