@@ -31,6 +31,7 @@ from charter.offering.pack_skills.validation import (
     PackSkillViolation,
     Tier,
     apply_enhancement,
+    resolve_body_path,
     validate_pack_skill,
 )
 
@@ -165,12 +166,23 @@ class PackSkillRepository(BaseArtifactRepository[PackSkill]):
         return self._provenance.get(skill_id)
 
     def body_text(self, skill_id: str) -> str | None:
-        """Return the prompt body of a loaded prompt-form skill, or ``None``."""
+        """Return the prompt body of a loaded prompt-form skill, or ``None``.
+
+        The body path is resolved through the shared containment authority
+        (:func:`charter.offering.pack_skills.validation.resolve_body_path`,
+        anchored at the skill's own ``*.skill.yaml`` directory): a ``body_path``
+        that escapes the skill directory — an absolute path, a ``..``
+        component, or a symlink resolving outside — raises
+        :class:`PackSkillViolation` instead of reading the outside file, so a
+        post-load symlink swap can never serve content from outside the pack
+        skill (#6734). ``None`` is reserved for an unknown id, a missing
+        source, or a skill with no ``body_path``.
+        """
         skill = self._items.get(skill_id)
         source = self._sources.get(skill_id)
         if skill is None or source is None or not skill.body_path:
             return None
-        return (source.parent / skill.body_path).read_text(encoding="utf-8")
+        return resolve_body_path(skill, source).read_text(encoding="utf-8")
 
 
 __all__ = ["PackSkillConflictError", "PackSkillRepository"]

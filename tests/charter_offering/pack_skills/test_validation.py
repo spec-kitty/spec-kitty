@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -98,6 +99,44 @@ def test_body_path_escaping_directory_refused(tmp_path: Path) -> None:
     skill, path = _load(data, skills, body=None)
     (tmp_path / "outside.md").write_text("x", encoding="utf-8")
     with pytest.raises(PackSkillViolation, match="escapes"):
+        validate_pack_skill(skill, path, tier="org")
+
+
+@pytest.mark.parametrize(
+    "body_path",
+    [
+        "/etc/passwd",  # POSIX absolute
+        "C:\\Windows\\system.ini",  # Windows drive-letter absolute
+        "\\\\server\\share\\body.md",  # Windows UNC
+        "nested/../../outside.md",  # .. component that climbs out
+        "nested/../outside.md",  # string-level .. is refused by the shared primitive
+    ],
+)
+def test_escaping_body_path_kinds_refused(tmp_path: Path, body_path: str) -> None:
+    skills = tmp_path / "skills"
+    skill, path = _load(prompt_skill(body_path=body_path), skills, body=None)
+    (tmp_path / "outside.md").write_text("x", encoding="utf-8")
+    with pytest.raises(PackSkillViolation, match="escapes"):
+        validate_pack_skill(skill, path, tier="org")
+
+
+@pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable on this platform")
+def test_symlink_escape_refused(tmp_path: Path) -> None:
+    skills = tmp_path / "skills"
+    (tmp_path / "outside.md").write_text("outside", encoding="utf-8")
+    skills.mkdir(parents=True)
+    (skills / "link.md").symlink_to(tmp_path / "outside.md")
+    skill, path = _load(prompt_skill(body_path="link.md"), skills, body=None)
+    with pytest.raises(PackSkillViolation, match="escapes"):
+        validate_pack_skill(skill, path, tier="org")
+
+
+def test_missing_body_is_a_not_found_not_an_escape(tmp_path: Path) -> None:
+    # A contained body_path whose file is absent stays the separate "not found"
+    # finding; containment never swallows it.
+    skills = tmp_path / "skills"
+    skill, path = _load(prompt_skill(body_path="nested/missing.md"), skills, body=None)
+    with pytest.raises(PackSkillViolation, match="not found"):
         validate_pack_skill(skill, path, tier="org")
 
 

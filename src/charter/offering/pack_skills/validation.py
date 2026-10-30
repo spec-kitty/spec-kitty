@@ -16,6 +16,11 @@ from ruamel.yaml.error import YAMLError
 
 from kernel.pack_tiers import BUILT_IN, PackTier
 
+from charter.offering.drg.org_pack_config import (
+    OrgPackSubdirEscapeError,
+    resolve_relative_path_within_root,
+)
+
 from charter.offering.pack_skills.models import (
     MAX_SKILL_DESCRIPTION_LENGTH,
     MAX_SKILL_NAME_LENGTH,
@@ -110,11 +115,29 @@ def validate_pack_skill(
         _check_frontmatter(skill, body_text)
 
 
+def resolve_body_path(skill: PackSkill, skill_file: Path) -> Path:
+    """Resolve a prompt-form skill's ``body_path`` inside its skill directory.
+
+    Containment is judged by
+    :func:`charter.offering.drg.org_pack_config.resolve_relative_path_within_root`
+    — the single containment authority — anchored at the declaring
+    ``*.skill.yaml`` file's directory, so the load-time validation
+    (:func:`validate_pack_skill`) and the read-time accessor
+    (:meth:`~charter.offering.pack_skills.repository.PackSkillRepository.body_text`)
+    cannot drift apart. An absolute path (POSIX, Windows or UNC), a ``..``
+    component, a symlink resolving outside the directory, or a path that cannot
+    be resolved at all raises :class:`PackSkillViolation`; existence is NOT
+    checked here (callers report a missing body separately).
+    """
+    try:
+        resolved: Path = resolve_relative_path_within_root(skill_file.parent, skill.body_path or "")
+    except (OrgPackSubdirEscapeError, ValueError) as exc:
+        raise PackSkillViolation(f"skill {skill.id!r}: body_path {skill.body_path!r} escapes the skill directory ({exc})") from exc
+    return resolved
+
+
 def _read_body(skill: PackSkill, skill_file: Path) -> str:
-    base = skill_file.parent.resolve()
-    body_file = (base / (skill.body_path or "")).resolve()
-    if not body_file.is_relative_to(base):
-        raise PackSkillViolation(f"skill {skill.id!r}: body_path {skill.body_path!r} escapes the skill directory")
+    body_file = resolve_body_path(skill, skill_file)
     if not body_file.is_file():
         raise PackSkillViolation(f"skill {skill.id!r}: body file {skill.body_path!r} not found")
     return body_file.read_text(encoding="utf-8")
@@ -238,6 +261,7 @@ __all__ = [
     "apply_enhancement",
     "rendered_description",
     "rendered_name",
+    "resolve_body_path",
     "skill_limit_violation",
     "validate_pack_skill",
 ]
