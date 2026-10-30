@@ -48,7 +48,7 @@ Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``drg_external_endpoint``, ``drg_builtin_unavailable``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
 ``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``,
-``profile_skipped``, ``org_pack_missing``, ``unreadable_file``,
+``body_path_escape``, ``profile_skipped``, ``org_pack_missing``, ``unreadable_file``,
 ``pack_sanction``, plus
 structural categories for the ``pack`` and ``org-charter`` artifact types.
 
@@ -123,6 +123,7 @@ from charter.offering.drg.org_pack_loader import (
     OrgDRGFragment,
     OrgPackSchemaError,
     augmentation_plural_kinds,
+    find_body_path_escapes,
     load_org_pack,
 )
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
@@ -172,6 +173,10 @@ class ValidationIssue:
     * ``intent_conflict`` — both ``enhances`` and ``overrides`` declared on one artifact.
     * ``asset_path_escape`` — an ASSET manifest's ``path`` resolves outside the
       pack's ``assets/`` root (absolute, ``..``-escape, or symlink escape).
+    * ``body_path_escape`` — an authored ``drg/fragment.yaml`` node's ``body_path``
+      is not contained in the pack root (absolute, ``..``-escape, or symlink
+      escape), judged by the same predicate ``doctor charter-packs`` uses
+      (``find_body_path_escapes``, #6418/#6733).
     * ``asset_mime_invalid`` — an ASSET manifest's ``mime`` is not a well-formed
       ``type/subtype`` value, or disagrees with the path extension's guessed type.
     * ``profile_skipped`` — an agent-profile file was recorded by
@@ -502,6 +507,12 @@ def validate_pack(
 
     org_fragment, org_errors = _validate_org_fragment(pack_dir)
     errors.extend(org_errors)
+
+    # #6733: the fragment half of the containment rule. ``doctor charter-packs``
+    # has reported this since #6418 (``ORG_FRAGMENT_BODY_PATH_ESCAPE``); this
+    # surface — the author's own pre-share gate — reported only the asset half.
+    if org_fragment is not None:
+        errors.extend(_validate_fragment_body_paths(pack_dir, org_fragment))
 
     # DRG validation (only if drg/ exists).
     drg_dir = pack_dir / "drg"
@@ -898,6 +909,29 @@ def _validate_org_fragment(pack_dir: Path) -> tuple[OrgDRGFragment | None, list[
             return None, [_org_load_finding(exc, fallback_file=fragment)]
         return loaded, []
     return None, _validate_org_governance_profiles(pack_dir)
+
+
+def _validate_fragment_body_paths(pack_dir: Path, fragment: OrgDRGFragment) -> list[ValidationIssue]:
+    """Report each authored fragment node whose ``body_path`` escapes the pack root (#6733).
+
+    Delegates containment to :func:`charter.offering.drg.org_pack_loader.find_body_path_escapes` —
+    the predicate ``doctor charter-packs`` reports through since #6418 — over the *loaded* fragment
+    (never a re-validated copy: the loader's copy caveat keeps a discovered node from being judged
+    as authored). The message is the predicate's own, so the validator and the doctor say the same
+    sentence, and category ``body_path_escape`` sits beside the existing ``asset_path_escape``.
+    """
+    fragment_file = pack_drg_fragment(pack_dir)
+    return [
+        ValidationIssue(
+            severity="error",
+            artifact_type="drg",
+            artifact_id=escape.node,
+            file=str(fragment_file),
+            message=escape.message,
+            category="body_path_escape",
+        )
+        for escape in find_body_path_escapes(fragment, pack_dir)
+    ]
 
 
 def _validate_org_governance_profiles(pack_dir: Path) -> list[ValidationIssue]:
