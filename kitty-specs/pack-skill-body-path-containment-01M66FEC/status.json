@@ -54,7 +54,7 @@
     },
     "WP02": {
       "actor": "pi",
-      "agent": "pi:tokenfactory/glm-5.3:python-pedro",
+      "agent": "pi:tokenfactory/glm-5.3:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -64,7 +64,8 @@
       "last_transition_at": "2026-10-30T14:55:19.821838+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ready for review: claims corrected, changelog entry added, docs-lint 0 errors, pack_skills + identity + wheel tests green."
+        "Ready for review: claims corrected, changelog entry added, docs-lint 0 errors, pack_skills + identity + wheel tests green.",
+        "Review passed: APPROVE (reviewer-renata, delegated review task) — all 4 WP contract items delivered, claims verified against post-WP01 code, changelog facts checked one by one, docs-lint 0 errors, immutable doctor snapshot untouched; MINOR (illustrative consumer list, pre-existing style) noted for the wrap-up, no action required."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
