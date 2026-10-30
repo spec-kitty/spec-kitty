@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "pre-review-planning-lane-gate-honest-reason-01M67HTS",
+  "mission_id": "01M67HTSN74F8KRC82JGETD2NW",
+  "mission_branch": "kitty/mission-pre-review-planning-lane-gate-honest-reason-01M67HTS",
+  "target_branch": "issue-6792-planning-lane-gate-honest-reason",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_planning_lane_reason.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/review-gates.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T23:23:45.233422+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "498b7776f70a32c512c0fd60bea68d7929a818f5"
+}
