@@ -36,13 +36,13 @@ Writers verified in `src/`:
 
 | Kind | Canonical path | Writer evidence |
 |------|----------------|------------------|
-| status | `<resolved status surface>/status.events.jsonl` | `status/store.py` `EVENTS_FILENAME`; the tail's existing behavior |
-| decisions | `<mission_dir>/decisions.events.jsonl` | `events/decision_log.py:144` (`mission_dir / "decisions.events.jsonl"`); COORD-partition like status (`mission_runtime/artifacts.py` `DECISION_LOG`) |
-| mission (v1) | `<feature_dir>/mission-events.jsonl` | `runtime/next/runtime_bridge_composition.py:352` |
-| run | `.kittify/runtime/runs/<run_id>/run.events.jsonl` | `runtime/next/_internal_runtime/engine.py:108`; sibling `state.json` `MissionRunSnapshot` carries `mission_id`/`mission_slug` (optional for legacy rows) |
-| glossary | `.kittify/events/glossary/<mission_id>.events.jsonl` | `state/contract.py` `glossary_fallback_events` pattern; `ResolvedMission.mission_id` is the ULID |
-| ops | `kitty-ops/lifecycle.jsonl` | `invocation/lifecycle.py` `LIFECYCLE_LOG_RELATIVE_PATH` |
-| canonical | `.kittify/canonical-events.jsonl` | `status/lifecycle_events.py` `PROJECT_EVENTS_FILENAME` |
+| status | `<resolved status surface>/status.events.jsonl` | `src/specify_cli/status/store.py` `EVENTS_FILENAME`; the tail's existing behavior |
+| decisions | `<mission_dir>/decisions.events.jsonl` | `src/specify_cli/events/decision_log.py:144` (`mission_dir / "decisions.events.jsonl"`); COORD-partition like status (`src/mission_runtime/artifacts.py` `DECISION_LOG`) |
+| mission (v1) | `<feature_dir>/mission-events.jsonl` | `src/runtime/next/runtime_bridge_composition.py:352` |
+| run | `runs_root(repo_root)/<run_id>/run.events.jsonl` (`.kittify/runtime/runs/`) | `src/runtime/next/_internal_runtime/engine.py:108`; the runs dir comes from the canonical `src/runtime/next/run_index.py` `runs_root(repo_root)`; the sibling `state.json` `MissionRunSnapshot` carries `mission_id`/`mission_slug` (optional for legacy rows) |
+| glossary | `.kittify/events/glossary/<mission_id>.events.jsonl` | writer: `src/glossary/events.py` (`get_event_log_path` → `sanitize_mission_id(mission_id)`); `ResolvedMission.mission_id` is a validated 26-char ULID on which sanitization is identity, so the join is exact. Do NOT reuse `get_event_log_path` in the reader: it has an `mkdir` side effect |
+| ops | `kitty-ops/lifecycle.jsonl` | `src/specify_cli/invocation/lifecycle.py` `LIFECYCLE_LOG_RELATIVE_PATH` |
+| canonical | `.kittify/canonical-events.jsonl` | `src/specify_cli/status/lifecycle_events.py` `PROJECT_EVENTS_FILENAME` |
 
 `ResolvedMission` (`context/mission_resolver.py`) carries `mission_id`,
 `mission_slug`, `feature_dir`, `mid8` — enough to join every mission-scoped
@@ -111,3 +111,40 @@ Red tests, through `CliRunner` on the mounted app (the pattern of
   default-vs-`--json` output difference (no-op flag today).
 - Supply-chain: no dependency is added, upgraded or removed — the
   supply-chain planning section does not apply.
+
+## Post-tasks review round (2026-10-30, reviewer-renata squad) — accepted findings
+
+All eight findings accepted and folded into the artifacts. Recorded decisions:
+
+- **Run resolution vs the RunIndex (finding 3).** The runs dir comes from the
+  canonical `src/runtime/next/run_index.py` `runs_root(repo_root)` — no
+  literal re-spelling of the join. The mission→run relationship is derived by
+  scanning each run dir's `state.json` rather than reading
+  `feature-runs.json`: the index records the CURRENT run per mission, while
+  this subscriber wants the most recently modified journal across ALL runs of
+  the mission (including historical ones). Divergence policy: where the two
+  disagree (an older run whose journal was touched last), latest-by-mtime
+  wins — the subscriber follows writes, not the index's current-run pointer.
+- **Lazy status-surface resolution (finding 2).** Only the `status` and
+  `decisions` kinds consume the resolved status surface; project-scoped and
+  primary-partition kinds must not fail because a coordination surface is
+  broken. The shell dispatches on kind first; `resolve_log_path` takes
+  `surface_dir: Path | None` and only those two kinds read it.
+- **`test_events_tail_status_surface.py` (finding 1).** That suite asserts
+  JSON on stdout without passing `--json`; after the default flip it needs a
+  minimal update (its `_tail` helper gains `--json`), owned by WP02 with the
+  surface-resolution assertions intact.
+- **Changelog/docs obligations (finding 4)** are concretely owned by the
+  mission close-out (driver-owned, see tasks.md): CHANGELOG `[Unreleased]`,
+  regenerating `docs/api/cli-commands.md` via
+  `scripts/docs/build_cli_reference.py` (HELP-DRIFT gate +
+  `tests/architectural/test_docs_cli_reference_parity.py`), the Tail-envelope
+  wording in `docs/context/system-events.md`, and gap-table row G-10 in
+  `docs/architecture/event-ledger-writers-and-readers.md`.
+- **Glossary writer (finding 5):** `src/glossary/events.py`; sanitization is
+  identity on a validated ULID; `get_event_log_path` is not reused (mkdir
+  side effect in a read path).
+- **Renderer truncation (finding 7)** is now part of the CLI contract
+  (human-mode lines truncate at 400 chars with a trailing `...`).
+- **Corrupt-line edge (finding 8):** declared unchanged core contract;
+  explicitly not re-tested in this mission.
