@@ -14,6 +14,9 @@ requirement_refs:
 planning_base_branch: issue-6612-changelog-wp-lane-reducer
 merge_target_branch: issue-6612-changelog-wp-lane-reducer
 branch_strategy: Planning artifacts for this mission were generated on issue-6612-changelog-wp-lane-reducer. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6612-changelog-wp-lane-reducer unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-changelog-wp-lane-reducer-01M66FMR
+base_commit: c0737a19ac126b065b429563af056b94efd1dc9c
+created_at: '2026-10-30T13:31:13.544600+00:00'
 subtasks:
 - T001
 - T002
