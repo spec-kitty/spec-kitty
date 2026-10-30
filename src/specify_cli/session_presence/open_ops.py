@@ -6,6 +6,12 @@ never closed — at session boundaries (FR-009).
 Performance contract: this runs on every Claude Code session start/stop, so it
 is scan-only (``list_orphan_ops()``), makes no git calls, and must add < 0.5 s
 at 1,000 Op files (same pro-rata budget as the doctor ops sweep enumeration).
+
+Scope: this surface reads the project root checkout's ``kitty-ops/`` only,
+deliberately. Op records can also live in a linked worktree (#6564), and the
+repository-wide sweep is ``spec-kitty doctor ops`` (#6661); listing worktree Ops
+here would need one ``git worktree list`` per session boundary and is a separate
+decision with its own latency budget.
 """
 
 from __future__ import annotations
