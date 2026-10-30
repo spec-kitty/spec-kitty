@@ -17,6 +17,7 @@ every valid sibling artifact still loads.
 from __future__ import annotations
 
 import re
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -48,6 +49,8 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 NON_MAPPING_DOCUMENTS: list[tuple[str, str]] = [
     ("list", "- a\n"),
     ("str", "just a scalar\n"),
+    ("int", "42\n"),
+    ("bool", "true\n"),
 ]
 
 
@@ -334,3 +337,21 @@ def test_built_in_non_mapping_asset_is_skipped(tmp_path: Path) -> None:
         ),
     ):
         AssetRepository(built_in_dir=built_in)
+
+
+def test_empty_overlay_file_stays_absence(tmp_path: Path) -> None:
+    """An empty sidecar (``None`` document) stays absence, with no warning.
+
+    Pins the ``data is None`` early return ahead of the non-mapping guard:
+    emptiness is absence, not a malformed document, so the repository loads
+    with no skip warning and nothing registers under the file's id.
+    """
+    case = next(c for c in KINDS if c.repository is DirectiveRepository)
+    org = tmp_path / "org"
+    _write_raw(org / case.bad_filename, "")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        repository = DirectiveRepository(org_dirs=[org], built_in_dir=tmp_path / "built-in")
+
+    assert repository.get(case.valid_id) is None
