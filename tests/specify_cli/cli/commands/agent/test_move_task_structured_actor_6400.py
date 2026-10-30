@@ -282,13 +282,18 @@ def test_explicit_migration_agent_is_parsed_strictly_and_is_not_a_seed(tmp_path:
 
 
 def test_explicit_agent_with_more_than_four_segments_parses_like_mark_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An explicit ``--agent`` goes through the strict builder mark-status uses, whatever its segment count."""
+    """An explicit ``--agent`` goes through the strict builder mark-status uses, whatever its segment count (#6755 re-pin: both paths refuse alike)."""
     from specify_cli.status import build_status_actor
 
     m = h.build_mission(tmp_path, monkeypatch)
+    before = h.events(m)
 
-    appended = _move_ok(m, "claimed", "a:b:c:d:e")
+    with pytest.raises(ValueError, match="Too many segments in --agent value"):
+        build_status_actor(role="implementer", agent="a:b:c:d:e", fallback_tool="user", binding=None)
 
-    expected = build_status_actor(role="implementer", agent="a:b:c:d:e", fallback_tool="user", binding=None)
-    assert expected == {"tool": "a", "role": "implementer", "profile": "c", "model": "b"}
-    assert [e["actor"] for e in _lane(appended)] == [expected]
+    result = h.move(m, h.WP, "claimed", "a:b:c:d:e")
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid --agent value" in result.output
+    assert "Too many segments in --agent value" in result.output
+    assert h.events(m) == before
