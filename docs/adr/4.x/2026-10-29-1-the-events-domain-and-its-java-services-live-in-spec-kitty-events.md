@@ -76,6 +76,7 @@ Chosen option: **2**.
 - The read service, the `domain-model` and `event-log` libraries, the future `command-cli` write deployable, and `contracts/{mission-status,mission-write,_shared,tools,lint}` live in spec-kitty-events (`service/` and `contracts/`). They are imported with their history.
 - Core's copies are removed at the cut-over. Core's history is kept.
 - Java work on these modules is filed and done in spec-kitty-events.
+- The architecture page `docs/architecture/event-ledger-writers-and-readers.md` moves to spec-kitty-events with the domain. It stays frozen in core, and corrections to it are made there (operator ruling, 2026-10-29).
 
 ### D-2: the `service-v*` release line is core's only source for service binaries
 
@@ -142,8 +143,13 @@ spec-kitty-events CI checks out core at a pinned SHA to run them.
 
 ### D-9: freeze until removal
 
-- No change lands under `services/` in core after 2026-10-29. Queued Java work moves to spec-kitty-events.
-- An architectural gate enforces the freeze once the in-flight core missions have merged. It is removed together with `services/`.
+- No change lands in core after 2026-10-29 under any of these frozen paths. Queued Java work moves to spec-kitty-events.
+  - `services/`;
+  - `contracts/mission-status`, `contracts/mission-write`, `contracts/_shared`, `contracts/tools`, `contracts/lint` and `contracts/gradle`;
+  - `contracts/README.md`, `contracts/build.gradle` and `contracts/settings.gradle`;
+  - `docs/architecture/event-ledger-writers-and-readers.md`.
+  - `contracts/fixtures/` stays in core and is not frozen.
+- The architectural gate `tests/architectural/test_events_import_frozen.py` enforces the freeze (its `_FROZEN_OBJECTS` is the exact set above). It lands in the same PR as this record.
 
 ### Consequences
 

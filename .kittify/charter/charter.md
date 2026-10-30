@@ -6,7 +6,7 @@
 > Read API and the Mission Write API / event-log write core) and the events contracts move to
 > `spec-kitty-events`, which becomes the canonical owner of the events domain; core consumes a
 > released, pinned `service-v*` build by tag and per-asset sha256, fetched on first use and
-> fail-closed; `services/` is frozen in core until its removal (operator and CEO ruling
+> fail-closed; the events paths (`services/` and the other frozen set of ADR D-9) are frozen in core until their removal (operator and CEO ruling
 > 2026-10-29; ADR `2026-10-29-1`).
 > Updated: 2026-10-25 — charter direction and hosted surfaces brought in line with the
 > recorded decisions: the Python charter stays in core until it is retired and is replaced
@@ -396,8 +396,10 @@ digest matches the pin, and fails closed with a named code and remedy when it ca
 no Python fallback writer. The read service is pinned for CI conformance only, and the CLI
 never launches it. The client side stays in core: the EventBridge port,
 `write_service_protocol`, the launcher, `kernel.locks`, and the Python oracle tests. No new
-change lands under `services/` in core; Java work on these modules is done in
-`spec-kitty-events`.
+change lands in core under the frozen set: `services/`, the moving `contracts/` modules and
+files, and `docs/architecture/event-ledger-writers-and-readers.md` (the exact list is ADR
+`2026-10-29-1` D-9, enforced by `tests/architectural/test_events_import_frozen.py`); Java work on
+these modules is done in `spec-kitty-events`.
 
 `spec-kitty-tracker` owns tracker provider abstractions, hosted discovery/sync primitives, normalized tracker models, and tracker authority policy behavior.
 

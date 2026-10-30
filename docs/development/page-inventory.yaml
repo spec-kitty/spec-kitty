@@ -5194,7 +5194,7 @@
   notes: null
 - path: docs/plans/events-domain-move/plan.md
   tag: current
-  divio_type: none
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
