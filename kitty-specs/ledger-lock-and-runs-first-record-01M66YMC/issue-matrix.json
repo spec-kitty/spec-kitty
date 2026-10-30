@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#6431": {
+      "evidence_ref": "context-only citation in spec/plan (a precedent or a prior behaviour this mission leaves untouched); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6611": {
+      "evidence_ref": "context-only citation in spec/plan (a precedent or a prior behaviour this mission leaves untouched); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6613": {
+      "evidence_ref": "PR to follow; ledger append now holds a dedicated sidecar lock (WP01) and the ADR/developer reference record the reselection (WP02)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6727": {
+      "evidence_ref": "context-only citation: #6727 is the sibling mission that consolidates anchored lock-path helpers; this mission adds none and reuses kernel.locks.machine_file_lock, so it owes #6727 no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

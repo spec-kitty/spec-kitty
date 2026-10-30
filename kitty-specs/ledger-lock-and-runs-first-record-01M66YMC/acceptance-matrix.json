@@ -1,0 +1,79 @@
+{
+  "mission_slug": "ledger-lock-and-runs-first-record-01M66YMC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_ledger_append_lock.py::test_concurrent_appends_keep_both_records (red on the pre-fix tree, green with the lock)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T20:04:25.281263+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_ledger_append_lock.py::test_append_many_keeps_both_partitions_under_concurrency",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T20:04:29.559482+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_ledger_append_lock.py::test_lock_path_is_a_dedicated_sidecar_in_the_ignored_surface + test_an_append_never_adds_an_untracked_file_to_git_status; kernel.locks.machine_file_lock is the only lock mechanism",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T20:04:33.451487+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_ledger_append_lock.py::test_append_waits_for_a_held_ledger_lock and ::test_append_raises_typed_error_when_the_lock_never_frees (file byte-identical after give-up)",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T20:04:37.600065+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_migration_ledger_adr_records_reselection.py (3 of 6 assertions red before the amendment); ADR amendment 2026-10-30",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T20:04:41.787070+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_migration_ledger_adr_records_reselection.py::test_the_developer_reference_states_the_ledger_lock_and_the_reselection",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T20:04:45.649294+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_registry_runs_first.py + tests/upgrade/test_clone_local_selection.py unchanged and green; base.py untouched",
+      "pass_fail": "pass",
+      "verified_by": "pi/deepseek-v4.1-flash-1017",
+      "verified_at": "2026-10-30T20:04:49.526148+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

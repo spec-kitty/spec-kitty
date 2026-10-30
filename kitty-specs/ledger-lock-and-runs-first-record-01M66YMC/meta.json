@@ -1,0 +1,35 @@
+{
+  "accept_commit": "5993cb73ea121b9e6146de703b61b11fa3c892ee",
+  "acceptance_history": [
+    {
+      "accept_commit": "5993cb73ea121b9e6146de703b61b11fa3c892ee",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T20:04:54.730393+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "b01cf86eee3a0867106b335f3f1fd57039176098"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T20:04:54.730393+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "b01cf86eee3a0867106b335f3f1fd57039176098",
+  "baseline_merge_commit": "af6e52a3ba846f3fbe28cba6ca893ede7d3b717b",
+  "created_at": "2026-10-30T17:44:57.997405+00:00",
+  "flattened": false,
+  "friendly_name": "ledger lock and runs first record",
+  "merged_at": "2026-10-30T20:05:35.905150+00:00",
+  "merged_commit": "ce004d1ac3fe5f014cbf928bccedc0b96da353af",
+  "mid8": "01M66YMC",
+  "mission_id": "01M66YMC8061RKCHH6X6YHFD66",
+  "mission_number": 244,
+  "mission_slug": "ledger-lock-and-runs-first-record-01M66YMC",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances ledger lock and runs first record on issue-6613-ledger-lock-and-runs-first-record so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "ledger lock and runs first record",
+  "slug": "ledger-lock-and-runs-first-record-01M66YMC",
+  "status_phase": "1",
+  "target_branch": "issue-6613-ledger-lock-and-runs-first-record",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T17:49:11.576481+00:00"
+}
