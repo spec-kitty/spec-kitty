@@ -959,6 +959,28 @@ these lists, and an asset sidecar that does not parse is skipped here;
 `assets/` directory (for example through a symlink), and every asset of a pack whose `assets/`
 directory itself resolves outside the pack, are reported as `ORG_ASSET_PATH_ESCAPE`.
 
+### File-name collisions in `spec-kitty doctor charter-packs`
+
+Activation resolves a token by **file name first, across layers** (#6459). Two layers can bind
+one file name to two different declared ids — an org `tactics/shared.tactic.yaml` declaring
+`org-a` beside a project `tactics/shared.tactic.yaml` declaring `proj-b`. The file name then
+stands for one id only, and no activation writer can store the other (#6527, Decision
+`file_name_collision`).
+
+`--json` always carries `org_drg.file_name_collisions`, an empty list when the chain is clean
+(so "checked and clean" is distinguishable from "not checked"). Each record is
+`{"kind", "file_name", "declarations": [{"layer", "declared_id", "path"}]}`, declarations in
+layer precedence order (`project`, then org packs from last to first, then `built-in`) and
+records ordered by `(kind, file_name)`. A non-empty list also lands in `org_drg.errors` and the
+report is unhealthy (exit 1); the human output prints a `File-name collisions` block. If the
+scan cannot run, `org_drg.errors` says so.
+
+This is a *different* finding from the `Collisions` block: that one reports a higher layer
+shadowing the **same** id (a permitted override). Here the ids differ, so nothing legitimate is
+being overridden — rename one file so each id has its own file name. `spec-kitty charter pack
+validate <pack>` reports the same collision for one pack against the built-in layer, with
+category `file_name_collision`.
+
 ### `spec-kitty migrate activation-ledger`
 
 Runs only the move of the `4.0.0rc8_activation_ledger` upgrade step: the activation keys
