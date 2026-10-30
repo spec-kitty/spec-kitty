@@ -20,9 +20,11 @@ says it takes the same OS lock files with ``flock(2)`` semantics.
 1. **Lock file** (:func:`event_log_lock_path`):
    ``<git-common-dir>/spec-kitty-locks/event-logs/<digest>.lock``, where
    ``<digest>`` is the first 32 hex characters of the SHA-256 of the anchor's
-   resolved, ``os.path.normcase``-d path (UTF-8). Every worktree of a
-   repository shares the git common dir, so every writer of one log takes one
-   lock.
+   resolved, ``os.path.normcase``-d path (UTF-8). :func:`kernel.locks.anchored_lock_path`
+   is the ONE implementation of that rule (#6727); this module adds the
+   ``event-logs`` subdirectory and the two policies listed below. Every worktree
+   of a repository shares the git common dir, so every writer of one log takes
+   one lock.
    - Outside a git repository, the lock is ``<anchor>.event-log.lock``.
    - When git cannot be invoked at all, the append refuses
      (:class:`EventLogLockUnavailableError`) rather than lock where other
@@ -60,9 +62,8 @@ from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 
-from kernel.content_digest import sha256_digest
 from kernel.git_topology import GitTopologyUnavailableError, NotAGitRepositoryError, git_common_dir
-from kernel.locks import LOCK_DIRECTORY, LockAcquireTimeout, machine_file_lock
+from kernel.locks import LockAcquireTimeout, anchored_lock_path, machine_file_lock
 from kernel.no_follow import NoFollowPathError, open_no_follow
 
 # Only names another src/ module imports are exported; the rest stay importable (tests use them).
@@ -86,8 +87,6 @@ NON_GIT_LOCK_SUFFIX = ".event-log.lock"
 #: Bounded wait for the lock, in seconds.
 EVENT_LOG_LOCK_TIMEOUT_S = 10.0
 
-_DIGEST_LENGTH = 32
-
 #: Lock files this thread holds, keyed by the resolved anchor (#6706).
 _held = threading.local()
 
@@ -100,7 +99,6 @@ def _drop_inherited_held_locks() -> None:
 if hasattr(os, "register_at_fork"):  # absent on Windows
     os.register_at_fork(after_in_child=_drop_inherited_held_locks)
 
-_DIGEST_PREFIX = "sha256:"
 _LF = b"\n"
 _LINE_TERMINATORS = ("\n", "\r")
 
@@ -154,6 +152,11 @@ class EventLogShortWriteError(EventLogAppendError):
 def event_log_lock_path(anchor: Path) -> Path:
     """Return the lock file that every append anchored on *anchor* takes (contract rule 1).
 
+    The anchor digest and the ``<git-common-dir>/spec-kitty-locks`` placement are owned by
+    :func:`kernel.locks.anchored_lock_path`; this function adds only the event-log
+    subdirectory, the sibling fallback outside a git repository and the refusal when git
+    cannot be invoked.
+
     Raises:
         EventLogLockUnavailableError: git could not be invoked.
     """
@@ -166,8 +169,7 @@ def event_log_lock_path(anchor: Path) -> Path:
         raise EventLogLockUnavailableError(
             f"{anchor}: cannot place the event-log lock because git could not be invoked ({exc}). Make git runnable in this checkout, then retry."
         ) from exc
-    digest = sha256_digest(os.path.normcase(str(resolved)).encode("utf-8")).removeprefix(_DIGEST_PREFIX)[:_DIGEST_LENGTH]
-    return common_dir / LOCK_DIRECTORY / EVENT_LOG_LOCK_SUBDIRECTORY / f"{digest}.lock"
+    return anchored_lock_path(resolved, common_dir=common_dir, subdirectory=EVENT_LOG_LOCK_SUBDIRECTORY)
 
 
 @contextmanager
