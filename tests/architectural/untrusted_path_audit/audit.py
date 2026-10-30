@@ -53,6 +53,38 @@ Both tripwire directions (FR-004, IC-02)
   PURE seams that :func:`main` itself calls, so the acceptance theater drives the
   real path.
 
+Pure-move pairing and ``--fix`` (#6642)
+---------------------------------------
+A change that only MOVES a sink (module renamed / function relocated, joined
+segment unchanged) used to redden BOTH tripwires -- one ghost overcount plus
+one undercount -- forcing a hand re-pin of the inventory locator columns.
+:func:`pair_relocations` (a PURE seam :func:`main` itself calls) now recognises
+such a move and collapses it into ONE actionable ``sink moved:`` finding that
+still exits non-zero until the inventory is re-pinned. A pair forms only when
+**exactly one** ghost row and **exactly one** missing live sink share
+``(token, untrusted source)`` and the token is not ``…``-truncated; anything
+else (a genuine removal, a genuine new sink, a changed token, an ambiguous
+group, a source-cell mismatch, a truncated token) stays RED for a human --
+the ratchet keeps its teeth.
+
+Re-running with ``--fix`` re-pins ONLY the machine locator columns
+(``file:line`` and ``qualname``) of the paired rows; the token, untrusted
+source, sink-op, disposition and rationale cells are never touched. ``--fix``
+is fail-closed: it refuses to write while any non-relocation error exists,
+and it re-audits the would-be result in memory (every check, from the rewritten
+text) before touching the file.
+
+Two supporting checks keep the pairing honest:
+
+* **Source-cell canonicality**: a live row's ``untrusted source`` cell must be
+  the exact canonical machine string the matcher prints -- a hand-tuned cell
+  (``resolved.mission_slug`` where discovery says ``mission_slug``) would
+  silently disable pairing for that row. Hand annotations belong in the
+  rationale.
+* **No line-shift chains**: rationale cells must not carry hand-kept
+  ``1902→1933`` / ``shifted −11`` relocation-history chains -- git history
+  already records them, and ``--fix`` re-pins the locators.
+
 ``[inventory-only]`` rows (freshen path)
 ----------------------------------------
 A row carries the ``[inventory-only]`` tag in its rationale column when the
@@ -71,11 +103,14 @@ the *known false-negative classes* (what this matcher does NOT trace).
 
 from __future__ import annotations
 
+import argparse
 import ast
+import re
 import sys
-from collections.abc import Mapping
-from dataclasses import dataclass
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NamedTuple
 
 # --------------------------------------------------------------------------- #
 # Locate the source tree relative to this file (repo-root independent).
@@ -110,6 +145,31 @@ TOKEN_ELLIPSIS = "…"
 #: Rationale-column tag exempting a row from the overcount guard (RULESET known-FN
 #: / intentionally-removed sink). Each tagged row names WHY in its notes.
 INVENTORY_ONLY_TAG = "[inventory-only]"
+
+#: Prefix of a relocation finding (a pure move recognised by #6642's pairing).
+#: ``--fix`` resolves exactly the errors carrying this prefix and nothing else.
+RELOCATION_FINDING_PREFIX = "sink moved:"
+
+#: Hand-kept line-shift chains are forbidden in rationale cells (#6642): git
+#: history already records relocations, and ``--fix`` re-pins the locator
+#: columns. Matches the arrow form (``1902→1933``) and the signed-shift prose
+#: form (``shifted −11 by mission …``).
+_LINE_SHIFT_CHAIN_RE = re.compile(r"\d+\s*→\s*\d+|\bshifted\s+[+−-]?\d+")
+
+
+class RelocationPair(NamedTuple):
+    """One recognised pure move: a ghost inventory row and its live sink.
+
+    A pair forms when exactly one ghost key and exactly one missing discovered
+    key share ``(token, untrusted source)`` — the columns a pure move (module
+    rename / function relocation, joined segment unchanged) leaves intact.
+    The human columns (disposition, rationale) carry over untouched.
+    """
+
+    ghost_key: RowKey
+    ghost_locator: str
+    missing_key: RowKey
+    missing_locator: str
 
 
 def truncate_token(token: str) -> str:
@@ -197,15 +257,25 @@ class SinkRow:
     line: int
     untrusted_source: str
     sink_op: str
+    # Memoised composite key (composite_key_from_file re-reads and re-parses
+    # the file; #6642's pairing seam consumes the key a second time). Deliberately
+    # excluded from equality/hash/repr: two rows describing the same call site
+    # must stay equal regardless of whether either has had key() called yet.
+    _key_cache: RowKey | None = field(default=None, compare=False, repr=False)
 
     def key(self) -> RowKey:
         """Composite comparison identity (FR-004): ``(rel_path, qualname, token)``.
 
         Derived live from the current source line, so a line shift produces the
         SAME key (drift-immunity); ``sink_op`` is deliberately excluded -- it is
-        diagnostic, not identity.
+        diagnostic, not identity. Memoised (composite_key_from_file re-reads and
+        re-parses the file; #6642's pairing seam consumes the key a second time).
         """
-        return composite_row_key(self.rel_path, self.line)
+        if self._key_cache is None:
+            key = composite_row_key(self.rel_path, self.line)
+            object.__setattr__(self, "_key_cache", key)
+            return key
+        return self._key_cache
 
     def locator(self) -> str:
         """Non-authoritative jump-to locator ``rel_path:line`` (never compared)."""
@@ -546,6 +616,127 @@ def check_overcount(
     return errors
 
 
+def pair_relocations(
+    discovered: Mapping[RowKey, tuple[str, str]],
+    inventory: Mapping[RowKey, tuple[str, str]],
+) -> tuple[list[RelocationPair], list[str]]:
+    """Recognise pure moves: pair ghosts with missing sinks on (token, source).
+
+    PURE seam that :func:`main` itself calls (#6642). *discovered* maps each
+    live composite key to ``(locator, untrusted_source)``; *inventory* maps each
+    non-``[inventory-only]`` inventory key to ``(locator, source cell)``. Both
+    maps are KEY-deduped by their builders, so repeated rows collapse before
+    grouping (counting keys, not rows).
+
+    A pair forms for a ``(token, source)`` group holding **exactly one** ghost
+    key and **exactly one** missing key, when the token is not ``…``-truncated.
+    Everything else stays red for a human: a genuine removal (ghost without a
+    missing twin), a genuine new sink (missing without a ghost twin), a changed
+    token (the pair key breaks), an ambiguous group, a source-cell mismatch, or
+    a truncated token (a shared 60-char prefix cannot distinguish a move from a
+    removal-plus-addition — the row identity itself uses the truncated token).
+
+    Returns ``(pairs, notes)``; *notes* are diagnostic strings for
+    token-matches that did NOT pair (they never fire on a green tree, and every
+    note coexists with the underlying ghost/undercount errors).
+    """
+    ghosts = {k: v for k, v in inventory.items() if k not in discovered}
+    missing = {k: v for k, v in discovered.items() if k not in inventory}
+
+    ghost_groups: dict[tuple[str, str], list[RowKey]] = {}
+    for key, (_, source) in ghosts.items():
+        ghost_groups.setdefault((key[2], source), []).append(key)
+    missing_groups: dict[tuple[str, str], list[RowKey]] = {}
+    for key, (_, source) in missing.items():
+        missing_groups.setdefault((key[2], source), []).append(key)
+
+    pairs: list[RelocationPair] = []
+    notes: list[str] = []
+    for (token, source), ghost_keys in sorted(ghost_groups.items()):
+        missing_keys = missing_groups.get((token, source))
+        if not missing_keys:
+            # No same-(token, source) twin: explain every same-token /
+            # different-source near-miss (the most common reason a real move
+            # fails to pair), not an arbitrary first candidate.
+            near_misses = sorted(m_loc for m_key, (m_loc, m_src) in missing.items() if m_key[2] == token and m_src != source)
+            if near_misses:
+                notes.append(
+                    f"no automatic pairing for ghost row: its token matches live "
+                    f"sink(s) {', '.join(near_misses)} but the untrusted source "
+                    f"differs ({source!r} vs the discovered source there) — "
+                    f"re-pin by hand or canonicalise the source cell"
+                )
+            continue
+        if TOKEN_ELLIPSIS in token:
+            notes.append(
+                f"no automatic pairing for truncated token {token!r}: a shared "
+                f"60-char prefix cannot distinguish a move from a removal plus "
+                f"a new sink — re-pin by hand"
+            )
+            continue
+        if len(ghost_keys) == 1 and len(missing_keys) == 1:
+            ghost, moved = ghost_keys[0], missing_keys[0]
+            pairs.append(RelocationPair(ghost, ghosts[ghost][0], moved, missing[moved][0]))
+        else:
+            notes.append(
+                f"ambiguous relocation group (token={token!r}, source={source!r}): "
+                f"{len(ghost_keys)} ghost row(s) vs {len(missing_keys)} missing "
+                f"live sink(s) — automatic pairing requires exactly one of each; "
+                f"re-pin by hand"
+            )
+    return pairs, notes
+
+
+def _format_relocation_findings(pairs: Sequence[RelocationPair]) -> list[str]:
+    """One actionable finding per recognised pure move (still RED until re-pin)."""
+    return [
+        f"{RELOCATION_FINDING_PREFIX} {p.ghost_locator} "
+        f"(qualname={p.ghost_key[1]!r}, token={p.ghost_key[2]!r}) -> "
+        f"{p.missing_locator}; the disposition and rationale carry over — "
+        f"re-run with --fix to re-pin the locator columns (file:line, qualname)"
+        for p in pairs
+    ]
+
+
+def _apply_relocation_fixes(text: str, pairs: Sequence[RelocationPair]) -> str:
+    """Re-pin ONLY the locator columns (``file:line``, ``qualname``) of paired rows.
+
+    The token, untrusted-source, sink-op, disposition and rationale cells are
+    never touched (#3011 ``rekey_inventory.py`` precedent: never overwrite
+    hand-adjudicated columns). Rows are matched by their STORED composite
+    identity, exactly as the comparison seams see them.
+    """
+    rewrites = {p.ghost_key: p for p in pairs}
+    out: list[str] = []
+    in_table = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("| file:line "):
+            in_table = True
+            out.append(raw)
+            continue
+        if in_table and line.replace(" ", "").startswith("|---"):
+            out.append(raw)
+            continue
+        if in_table:
+            if not line.startswith("|"):
+                in_table = False
+                out.append(raw)
+                continue
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if len(cells) >= _INVENTORY_ROW_CELLS:
+                rel = cells[0].rpartition(":")[0]
+                key = (rel, cells[1], cells[2]) if rel and cells[1] and cells[2] else None
+                pair = rewrites.get(key) if key is not None else None
+                if pair is not None:
+                    cells[0] = pair.missing_locator
+                    cells[1] = pair.missing_key[1]
+                    out.append("| " + " | ".join(cells) + " |")
+                    continue
+        out.append(raw)
+    return "\n".join(out) + ("\n" if text.endswith("\n") else "")
+
+
 def _fail(messages: list[str]) -> int:
     print("AUDIT FAILED", file=sys.stderr)
     for msg in messages:
@@ -594,6 +785,56 @@ def _check_fr009(inventory_rows: list[dict[str, str]]) -> list[str]:
     return errors
 
 
+def _check_source_canonicality(
+    discovered: Mapping[RowKey, tuple[str, str]],
+    inventory_rows: list[dict[str, str]],
+) -> list[str]:
+    """Check 5: a live row's source cell is the canonical machine string (#6642).
+
+    The relocation pairing compares the inventory ``untrusted source`` cell
+    with the discovered row's machine ``untrusted_source`` by EXACT equality,
+    so a hand-tuned cell (``resolved.mission_slug`` where discovery says
+    ``mission_slug``) would silently disable pairing for that row. Ghost rows
+    are exempt (the pairing rule governs them); ``[inventory-only]`` rows are
+    exempt (never paired, never discovered).
+    """
+    errors: list[str] = []
+    for row in inventory_rows:
+        if INVENTORY_ONLY_TAG in row["rationale"]:
+            continue
+        key = _inventory_row_key(row)
+        if key is None or key not in discovered:
+            continue
+        live_source = discovered[key][1]
+        if row["source"] != live_source:
+            errors.append(
+                f"inventory row {row['locator']!r} source cell {row['source']!r} is not "
+                f"the canonical machine string {live_source!r} — the relocation pairing "
+                f"compares this cell by exact equality; re-pin it (move any hand "
+                f"annotation into the rationale)"
+            )
+    return errors
+
+
+def _check_no_line_shift_chains(inventory_rows: list[dict[str, str]]) -> list[str]:
+    """Check 6: rationale cells carry no hand-kept line-shift chains (#6642).
+
+    Git history already records relocations and ``--fix`` re-pins the locator
+    columns, so a "line shifted 1902→1933 by mission …" chain is pure churn:
+    every relocation PR would have to extend it by hand.
+    """
+    errors: list[str] = []
+    for row in inventory_rows:
+        match = _LINE_SHIFT_CHAIN_RE.search(row["rationale"])
+        if match:
+            errors.append(
+                f"inventory row {row['locator']!r} rationale contains a hand-kept "
+                f"line-shift chain ({match.group(0)!r}) — git history records "
+                f"relocations; re-pin locators with --fix instead of logging shifts"
+            )
+    return errors
+
+
 def _summary(inventory_rows: list[dict[str, str]], discovered_count: int) -> str:
     todo = sum(1 for r in inventory_rows if r["disposition"] == "routed-through-seam (TODO)")
     safe = sum(1 for r in inventory_rows if r["disposition"] == "routed-through-seam")
@@ -607,16 +848,44 @@ def _summary(inventory_rows: list[dict[str, str]], discovered_count: int) -> str
     )
 
 
-def main() -> int:
+def _build_rich_discovered(discovered: list[SinkRow]) -> dict[RowKey, tuple[str, str]]:
+    """Composite key -> ``(locator, untrusted_source)``, deduped (first wins)."""
+    out: dict[RowKey, tuple[str, str]] = {}
+    for row in discovered:
+        out.setdefault(row.key(), (row.locator(), row.untrusted_source))
+    return out
+
+
+def _build_rich_inventory(rows: list[dict[str, str]]) -> dict[RowKey, tuple[str, str]]:
+    """Composite key -> ``(locator, source cell)`` for pairable rows, deduped.
+
+    Excludes ``[inventory-only]`` rows and rows with an unparseable identity
+    (the latter are already fail-closed parse errors) — the ghost set the
+    overcount guard sees, minus the exempt rows.
+    """
+    out: dict[RowKey, tuple[str, str]] = {}
+    for row in rows:
+        if INVENTORY_ONLY_TAG in row["rationale"]:
+            continue
+        key = _inventory_row_key(row)
+        if key is not None:
+            out.setdefault(key, (row["locator"], row["source"]))
+    return out
+
+
+def _collect_errors(
+    discovered: list[SinkRow],
+    inventory_rows: list[dict[str, str]],
+) -> tuple[list[str], list[RelocationPair]]:
+    """Run every check except file existence; return (errors, relocation pairs).
+
+    The errors list includes one :data:`RELOCATION_FINDING_PREFIX` finding per
+    recognised pure move (still RED — the inventory is out of sync until
+    re-pinned); the two underlying ghost/undercount errors for a paired key are
+    suppressed so a pure move reads as ONE actionable finding, not two
+    misleading failures (#6642).
+    """
     errors: list[str] = []
-
-    discovered = discover_rows()
-    discovered_files = {r.rel_path for r in discovered}
-
-    if not INVENTORY_PATH.exists():
-        return _fail([f"inventory.md missing at {INVENTORY_PATH}"])
-
-    inventory_rows = _parse_inventory_rows(INVENTORY_PATH.read_text(encoding="utf-8"))
 
     # ---- Check 1: valid dispositions + Named-untrusted rule (SC-003). ----
     errors.extend(_check_dispositions(inventory_rows))
@@ -626,15 +895,97 @@ def main() -> int:
     errors.extend(parse_errors)
     discovered_keys = build_discovered_key_map(discovered)
 
+    # ---- Pure-move pairing (#6642) BEFORE the tripwires, so paired keys ----
+    # ---- collapse into a single finding instead of two errors. ----
+    rich_discovered = _build_rich_discovered(discovered)
+    rich_inventory = _build_rich_inventory(inventory_rows)
+    pairs, notes = pair_relocations(rich_discovered, rich_inventory)
+    paired_ghosts = {p.ghost_key for p in pairs}
+    paired_missing = {p.missing_key for p in pairs}
+
     # ---- Check 2 (undercount) + Check 2b (overcount/ghost) via PURE seams. ----
-    errors.extend(check_undercount(discovered_keys, inventory_keys))
-    errors.extend(check_overcount(discovered_keys, inventory_keys))
+    errors.extend(
+        check_undercount(
+            {k: v for k, v in discovered_keys.items() if k not in paired_missing},
+            inventory_keys,
+        )
+    )
+    errors.extend(
+        check_overcount(
+            discovered_keys,
+            {k: v for k, v in inventory_keys.items() if k not in paired_ghosts},
+        )
+    )
+    errors.extend(_format_relocation_findings(pairs))
+    errors.extend(notes)
 
     # ---- Check 3: known-candidate presence (path-level tripwire). ----
-    errors.extend(_check_known_candidates(discovered_files, inventory_rows))
+    errors.extend(_check_known_candidates({r.rel_path for r in discovered}, inventory_rows))
 
     # ---- Check 4: FR-009 meta.json source present + tagged. ----
     errors.extend(_check_fr009(inventory_rows))
+
+    # ---- Check 5: source-cell canonicality (pair-key precondition). ----
+    errors.extend(_check_source_canonicality(rich_discovered, inventory_rows))
+
+    # ---- Check 6: no hand-kept line-shift chains in rationale cells. ----
+    errors.extend(_check_no_line_shift_chains(inventory_rows))
+
+    return errors, pairs
+
+
+def _parse_args(argv: Sequence[str] | None) -> bool:
+    """Parse the audit's CLI flags; return whether ``--fix`` was requested."""
+    parser = argparse.ArgumentParser(
+        prog="python -m tests.architectural.untrusted_path_audit.audit",
+        description=("Reproducible untrusted-segment -> filesystem-sink audit. Exit 0 means the live source tree still matches the committed inventory."),
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help=(
+            "re-pin the locator columns (file:line, qualname) of recognised pure "
+            "sink relocations; dispositions and rationales are never touched, and "
+            "the file is written only if the would-be result passes every check"
+        ),
+    )
+    return bool(parser.parse_args(list(argv) if argv is not None else None).fix)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the audit; exit 0 only when the tree matches the inventory.
+
+    *argv* defaults to no flags (the plain audit run the architectural test
+    module drives); the ``python -m`` entry point passes ``sys.argv[1:]`` so
+    ``--fix`` reaches it.
+    """
+    fix = _parse_args(argv or [])
+
+    discovered = discover_rows()
+
+    if not INVENTORY_PATH.exists():
+        return _fail([f"inventory.md missing at {INVENTORY_PATH}"])
+
+    original_text = INVENTORY_PATH.read_text(encoding="utf-8")
+    inventory_rows = _parse_inventory_rows(original_text)
+    errors, pairs = _collect_errors(discovered, inventory_rows)
+
+    if fix:
+        blocking = [e for e in errors if not e.startswith(RELOCATION_FINDING_PREFIX)]
+        if blocking:
+            # Fail-closed: never write while any non-relocation error exists.
+            return _fail(["--fix refused to write: non-relocation errors are present:"] + blocking)
+        if pairs:
+            new_text = _apply_relocation_fixes(original_text, pairs)
+            new_rows = _parse_inventory_rows(new_text)
+            re_errors, _ = _collect_errors(discovered, new_rows)
+            if re_errors:
+                return _fail(["--fix refused to write: the re-pinned inventory would still fail:"] + re_errors)
+            INVENTORY_PATH.write_text(new_text, encoding="utf-8")
+            print(f"AUDIT FIXED: re-pinned {len(pairs)} relocated sink row(s) (locator columns only; disposition and rationale untouched)")
+            print(_summary(new_rows, len(discovered)))
+            return 0
+        # Nothing to fix: behave exactly like a plain audit run (no write).
 
     if errors:
         return _fail(errors)
@@ -644,4 +995,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))
