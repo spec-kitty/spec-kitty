@@ -539,7 +539,7 @@ def test_cli_owned_flag_never_bypasses_invalid_or_legacy_claim(tmp_path: Path, c
     assert not (claimed / "kitty-specs").exists()
 
 
-@pytest.mark.parametrize("metadata_kind, expected_exit", [("too-new", 5), ("invalid", 6)])
+@pytest.mark.parametrize("metadata_kind, expected_exit", [("too-new", 5), ("out-of-range", 6), ("malformed", 4)])
 def test_cli_owned_checkout_keeps_its_schema_gate(tmp_path: Path, metadata_kind: str, expected_exit: int) -> None:
     from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA
     from specify_cli.upgrade.runner import MigrationRunner
@@ -552,6 +552,8 @@ def test_cli_owned_checkout_keeps_its_schema_gate(tmp_path: Path, metadata_kind:
     _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
     if metadata_kind == "too-new":
         MigrationRunner._stamp_schema_version(owned / ".kittify", MAX_SUPPORTED_SCHEMA + 1)
+    elif metadata_kind == "out-of-range":
+        MigrationRunner._stamp_schema_version(owned / ".kittify", 1001)
     else:
         _write(owned / ".kittify/metadata.yaml", "[malformed yaml\n")
 
