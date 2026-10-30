@@ -34,7 +34,11 @@ _ISSUE_NAMED = re.compile(r"^test_(?:issue|repro)_\d{3,}")
 # anti-pattern activation fix. A reviewed keep-verdict (legitimate issue-named repro).
 # 2026-10-04: lowered 84 -> 83; #5621 retired tests/regressions/
 # test_issue_4962_charter_encoding.py after porting its last case to a seam test.
-_HIGH_WATER = 83
+# 2026-10-30: raised 83 -> 84; #6699 landed
+# test_issue_6699_feedback_file_edges.py as a kept issue-named guard (fold
+# verdict: KEPT — permanent red-first repro + refusal-contract pin, cf.
+# test_issue_2684_subtask_completion_event_sourced.py).
+_HIGH_WATER = 84
 
 
 def _is_issue_named(filename: str) -> bool:
