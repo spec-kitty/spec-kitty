@@ -23,6 +23,7 @@ __all__ = [
     "CascadeEntry",
     "CascadeOutcome",
     "CascadeReport",
+    "InForceRef",
     "NoCascadeReport",
 ]
 
@@ -128,17 +129,42 @@ class CascadeReport:
 
 
 @dataclass(frozen=True)
+class InForceRef:
+    """A referenced artifact the project's activation state already admits (FR-001, #6742).
+
+    ``reason`` is the note's parenthetical: why this artifact is in force without
+    having been activated by this command (an absent allow list, or an allow list
+    that already names it). It is presentation detail only, so the JSON form is
+    the plain :meth:`ArtifactRef.to_json` of ``ref``.
+    """
+
+    ref: ArtifactRef
+    reason: str
+
+    def to_json(self) -> dict[str, object]:
+        return self.ref.to_json()
+
+
+@dataclass(frozen=True)
 class NoCascadeReport:
-    """What the no-``--cascade`` warning names: referenced but not activated (FR-013)."""
+    """What the no-``--cascade`` report names: referenced, and not activated by this command.
+
+    ``skipped`` and ``deactivated`` are the artifacts that are *not* in force —
+    the ones a ``Warning: referenced …`` line names (FR-013). ``already_in_force``
+    is the third case (FR-001/FR-002, #6742): referenced, but the project already
+    admits it, so telling the operator it "was not activated" would report a
+    failure that did not happen.
+    """
 
     skipped: tuple[ArtifactRef, ...] = ()
     deactivated: tuple[ArtifactRef, ...] = ()
     kind_filtered: tuple[ArtifactRef, ...] = ()
+    already_in_force: tuple[InForceRef, ...] = ()
     hint: str | None = None
 
     @property
     def warned(self) -> tuple[ArtifactRef, ...]:
-        """Every artifact a ``Warning: referenced …`` line names."""
+        """Every artifact a ``Warning: referenced …`` line names (the notes are not warnings)."""
         return (*self.skipped, *self.deactivated)
 
 
@@ -203,7 +229,13 @@ class ActivationChangeReport:
             "no_longer_in_force": self._no_longer_in_force_json(),
             "warnings": self.all_warnings(),
             "notices": list(self.notices),
+            # What the ``Warning: referenced …`` lines name: the references that are
+            # NOT in force (skipped, then deactivated). An artifact in force is in
+            # ``referenced_already_in_force`` instead, never in both (FR-005, #6742).
             "referenced_not_cascaded": [ref.to_json() for ref in self.referenced.warned] if self.referenced else [],
+            # The ``Note: referenced … is already in force`` lines of a run without
+            # --cascade (FR-001, #6742).
+            "referenced_already_in_force": [entry.to_json() for entry in self.referenced.already_in_force] if self.referenced else [],
             # The "Not cascaded: <kind>/<id> (kind not charter-activatable)" lines of a
             # run without --cascade; with --cascade they are cascade.skipped_kind_filtered.
             "referenced_kind_filtered": [ref.to_json() for ref in self.referenced.kind_filtered] if self.referenced else [],
