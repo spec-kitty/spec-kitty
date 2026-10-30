@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "mission_slug": "doctor-decisions-duplicate-openings-01M66YMR",
+  "mission_id": "01M66YMRG6FXGQNV0R4BBE3ZBN",
+  "mission_branch": "kitty/mission-doctor-decisions-duplicate-openings-01M66YMR",
+  "target_branch": "issue-6764-doctor-decisions-duplicate-openings",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_decisions_doctor.py",
+        "src/specify_cli/decisions/index_fold.py",
+        "tests/decisions/test_decisions_reconciler.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/cli/commands/doctor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T18:21:50.201355+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "1a1f73f6011831d6b82c9a04e79f7af85368e174"
+}
