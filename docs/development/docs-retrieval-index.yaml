@@ -14683,6 +14683,15 @@ pages:
     - {slug: "known-limitations-and-delivery", text: "Known limitations and delivery", level: 2}
     - {slug: "resource-custody-and-cleanup", text: "Resource custody and cleanup", level: 2}
     - {slug: "ci-feedback-and-corrective-scope", text: "CI feedback and corrective scope", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-30-owned-startup-project-gates.md"
+    title: "Owned checkout startup admission repair"
+    divio_type: "reference"
+    abstract: "Evidence and decisions for correcting startup admission of explicitly selected migrated linked checkouts."
+    anchors:
+    - {slug: "user-experience-findings", text: "User Experience Findings", level: 2}
+    - {slug: "engineering-decisions", text: "Engineering Decisions", level: 2}
+    - {slug: "known-limitations", text: "Known Limitations", level: 2}
+    - {slug: "publication-documentation-repair", text: "Publication documentation repair", level: 2}
   - path: "docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md"
     title: "Infra-to-logic separation (#2173) — investigation synthesis"
     divio_type: "none"

@@ -2,7 +2,7 @@
 title: Engineering notes
 description: 'Internal engineering notes for Spec Kitty: field reports, design notes, architectural reviews, and the historical record of closed investigations and missions.'
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-10-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/engineering-notes/architectural-review/README.md
@@ -46,6 +46,8 @@ pages are kept as a record and are not current guidance. The active cycle is 4.0
 - [Reflections](reflections/README.md) — retrospective engineering reflections.
 
 ### Field reports
+
+- [Owned checkout startup admission repair](2026-10-30-owned-startup-project-gates.md) — runtime custody decisions, qualification and upstream publication record (#6845).
 
 Narratives of a full run under the doctrine: process, operator decisions, and where the
 charter, ADRs or guides changed the outcome.
