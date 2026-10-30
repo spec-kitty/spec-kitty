@@ -30,7 +30,8 @@
       ],
       "write_scope": [
         "src/specify_cli/cli/commands/events.py",
-        "tests/cli/test_events_tail_log_selector.py"
+        "tests/cli/test_events_tail_log_selector.py",
+        "tests/cli/test_events_tail_status_surface.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -43,8 +44,8 @@
       "parallel_group": 1
     }
   ],
-  "computed_at": "2026-10-30T13:28:52.202142+00:00",
+  "computed_at": "2026-10-30T13:37:07.105478+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "b312d75c42f5b2d556d260570914b32021dc5165"
+  "planning_commit_sha": "1b091b06e37ecdd6b67c432ef341c9c385950928"
 }
