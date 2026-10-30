@@ -19,6 +19,7 @@ from specify_cli.cli.console import console
 from specify_cli.cli import StepTracker
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.status import refuse_seed_shaped_identity
 from specify_cli.frontmatter import FrontmatterError
 from mission_runtime import (
     MissionArtifactKind,
@@ -368,6 +369,20 @@ def implement(
     if mission is None:
         console.print("[red]Error:[/red] --mission <slug> is required")
         raise typer.Exit(2)
+
+    # #6754: ``--actor`` is a hidden compatibility option for programmatic callers and its
+    # value is recorded verbatim as a bare-string actor, so a reconstruction-seed-shaped
+    # value would seed. Refuse it beside the no-selector guard, before mission detection,
+    # before any lane worktree is allocated and before the claim is emitted.
+    if actor is not None:
+        try:
+            refuse_seed_shaped_identity(actor, option="--actor")
+        except ValueError as exc:
+            # Mirrors the no-selector guard above: the message reaches the operator as an
+            # ``Error:`` line, and in ``--json`` mode the wrapper's captured summary turns it
+            # into the single ``{"status": "error", ...}`` envelope.
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
 
     if recover:
         implement_recover._run_recover_mode(wp_id, mission, json_output)
