@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "agent status emit --actor refuses a seed-shaped identity before any write (exit 1, canonical message, byte-identical event log).",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_status_emit_refuses_a_seed_and_writes_nothing",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:37:49.253743+00:00",
       "notes": ""
     },
     {
