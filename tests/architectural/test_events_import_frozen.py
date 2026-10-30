@@ -8,7 +8,8 @@ the always-on ``architectural-fast`` roster (``special_tiers.architectural.fast_
 ``.github/ci-module-registry.yml``): it runs on every PR shape, whatever paths the diff touches.
 
 Java work on these modules is filed and done in spec-kitty-events. The cut-over PR deletes ``services/`` and this file
-together; while ``services/`` is absent the gate passes, so the removal itself is never refused.
+together; while ``services/`` is absent the gate passes, so the removal itself is never refused. Every other frozen path must
+still exist: renaming or moving one out of the frozen set is refused.
 
 Non-vacuity (standing order 5): a floor on the number of files the pinned tree holds, and a planted change in a scratch
 repository that the comparison must flag, plus its negative control.
@@ -66,7 +67,11 @@ def committed_tree_id(repo: Path, path: str) -> str | None:
 def frozen_violation(repo: Path, path: str, frozen_tree_id: str) -> str | None:
     """A refusal message when ``path`` at ``HEAD`` differs from its frozen object, else ``None``."""
     tree_id = committed_tree_id(repo, path)
-    if tree_id is None or tree_id == frozen_tree_id:
+    if tree_id is None:
+        if path == _FROZEN_PATH:
+            return None  # the cut-over removes services/ together with this gate
+        return f"{path} is missing after the freeze: it moves with the events domain and may not be renamed or removed.\n{_REMEDY}"
+    if tree_id == frozen_tree_id:
         return None
     if _git(repo, "cat-file", "-t", tree_id).stdout.strip() != "tree":
         return f"{path} changed after the freeze.\n{_REMEDY}"
@@ -137,3 +142,11 @@ def test_change_outside_services_and_removal_pass(tmp_path: Path) -> None:
     assert _git(repo, "rm", "-rq", _FROZEN_PATH).returncode == 0
     _commit_all(repo, "cut-over removes services")
     assert frozen_violation(repo, _FROZEN_PATH, frozen) is None
+    # A frozen path other than services/ may not disappear (rename or move out of the frozen set).
+    readme = committed_tree_id(repo, "README.md")
+    assert readme is not None
+    assert _git(repo, "mv", "README.md", "MOVED.md").returncode == 0
+    _commit_all(repo, "move a frozen file")
+    missing = frozen_violation(repo, "README.md", readme)
+    assert missing is not None
+    assert "README.md is missing after the freeze" in missing
