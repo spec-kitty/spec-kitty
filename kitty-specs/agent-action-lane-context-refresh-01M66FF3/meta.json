@@ -16,9 +16,8 @@
   "baseline_merge_commit": "e583598839f276381fcccd6075ff0fd364468a80",
   "contracts": "none",
   "contracts_rationale": "No interface is added or changed: the CLI surface is byte-identical and only stale-warning stderr noise disappears; the fix routes an existing internal helper onto a third internal call site.",
-  "coordination_branch": "kitty/mission-agent-action-lane-context-refresh-01M66FF3",
   "created_at": "2026-10-30T13:19:57.008224+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "agent action lane context refresh",
   "merged_at": "2026-10-30T14:18:39.322413+00:00",
   "merged_commit": "e43cd2091ab2731c5daf5a324b72cab33379bd64",
@@ -33,7 +32,6 @@
   "slug": "agent-action-lane-context-refresh-01M66FF3",
   "status_phase": "1",
   "target_branch": "issue-6650-agent-action-lane-context-refresh",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-30T13:27:08.038566+00:00"
 }
