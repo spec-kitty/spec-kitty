@@ -267,6 +267,39 @@ def is_migration_actor(actor: ActorField | None) -> bool:
     return actor is not None and actor_identity_str(actor).startswith(MIGRATION_ACTOR_PREFIX)
 
 
+#: The one message a caller sees when it supplies a reconstruction-seed-shaped identity (#6754).
+#: A seed restates history, so only an in-process migration writes one: a caller-supplied value
+#: shaped like a seed is refused rather than recorded, and never rewritten into a live actor.
+SEED_SHAPED_IDENTITY_REFUSAL = (
+    "a caller-supplied {option} must not start with {prefix!r}: a reconstruction seed restates history "
+    "and is written in-process by migrations only (#6754); pass the live identity of the actor instead"
+)
+
+
+def refuse_seed_shaped_identity(value: str | None, *, option: str) -> None:
+    """Refuse a caller-supplied identity that would be recorded as a reconstruction seed (#6754).
+
+    ``None`` is a no-op (no identity was supplied). The test is
+    :func:`is_migration_actor`'s — the exact, case-sensitive
+    :data:`MIGRATION_ACTOR_PREFIX` — so the refusal and the classification can never
+    disagree about the same value.
+
+    A refusal leaves the value as typed: it is never stripped, escaped or re-parsed into
+    a live-looking actor, so the log never records an identity the caller did not write
+    (FR-010). Recording a seed stays possible only for an in-process migration, which
+    builds its rows directly and never reaches a caller-facing option.
+
+    Args:
+        value: The identity exactly as the caller supplied it.
+        option: The option name to name in the message, e.g. ``"--actor"``.
+
+    Raises:
+        ValueError: With :data:`SEED_SHAPED_IDENTITY_REFUSAL`, naming *option*.
+    """
+    if value is not None and is_migration_actor(value):
+        raise ValueError(SEED_SHAPED_IDENTITY_REFUSAL.format(option=option, prefix=MIGRATION_ACTOR_PREFIX))
+
+
 def parse_agent_boundary_string(
     raw: str,
 ) -> tuple[str, str | None, str | None, str | None]:
