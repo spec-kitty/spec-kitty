@@ -68,10 +68,10 @@
       "criterion_id": "FR-007",
       "description": "An explicit --agent migration:x stays tool 'migration' and is never a reconstruction seed.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_an_explicit_agent_is_never_a_seed; test_move_task_structured_actor_6400.py::test_explicit_migration_agent_is_parsed_strictly_and_is_not_a_seed",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:11.942240+00:00",
       "notes": ""
     },
     {
