@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6400": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "PR #6774 merged; #6754 is the follow-up it deliberately left open",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#6754": {
       "evidence_ref": "spec.md FR-001..FR-011; tests/status/test_caller_seed_refusal_6754.py",
