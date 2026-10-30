@@ -121,7 +121,7 @@
       "wp": null
     },
     "#6642": {
-      "evidence_ref": "mission untrusted-audit-relocation-pairing-01M66F6X WP01 approved (review round 2); PR pending",
+      "evidence_ref": "PR #6811 (draft): https://github.com/spec-kitty/spec-kitty/pull/6811 \u2014 WP01 approved (review round 2), acceptance FR-001..007 pass, mission-review pass_with_notes",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -129,7 +129,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
