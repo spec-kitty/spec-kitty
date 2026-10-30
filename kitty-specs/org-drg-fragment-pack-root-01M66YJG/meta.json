@@ -27,6 +27,7 @@
   "purpose_context": "This mission advances org drg fragment pack root on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "org drg fragment pack root",
   "slug": "org-drg-fragment-pack-root-01M66YJG",
+  "status_phase": "1",
   "target_branch": "main",
   "topology": "single_branch"
 }
