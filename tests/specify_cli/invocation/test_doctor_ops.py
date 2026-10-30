@@ -26,6 +26,7 @@ from specify_cli.invocation.writer import (
     OP_CLOSURES_FILENAME,
     OP_CLOSURES_RELATIVE_PATH,
     append_op_closure,
+    open_invocation_ids,
     op_closures_path,
     read_op_closures,
 )
@@ -63,6 +64,62 @@ def _write_op(
             }
         )
     path.write_text("\n".join(json.dumps(event) for event in events) + "\n", encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# open_invocation_ids (#6739): the one owner for "is this Op open"
+# ---------------------------------------------------------------------------
+
+
+def test_open_invocation_ids_ignores_missing_dir(tmp_path: Path) -> None:
+    assert open_invocation_ids(tmp_path) == set()
+
+
+def test_open_invocation_ids_returns_only_unclosed_op_records(tmp_path: Path) -> None:
+    ops_dir = tmp_path / EVENTS_DIR
+    ops_dir.mkdir()
+    open_op = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRM.jsonl"
+    completed_op = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRN.jsonl"
+    swept_op = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMP0.jsonl"
+    _write_op(open_op, completed=False)
+    _write_op(completed_op, completed=True)
+    _write_op(swept_op, completed=False)
+    for name in ("ops-index.jsonl", "lifecycle.jsonl", "propagation-errors.jsonl", OP_CLOSURES_FILENAME):
+        (ops_dir / name).write_text('{"event": "started"}\n', encoding="utf-8")
+    append_op_closure(
+        tmp_path,
+        OpCompletedEvent(
+            invocation_id=swept_op.stem,
+            completed_at="2026-06-05T00:01:00+00:00",
+            outcome="abandoned",
+            closed_by="doctor_sweep",
+        ),
+    )
+
+    assert open_invocation_ids(tmp_path) == {open_op.stem}
+
+
+def test_open_invocation_ids_reads_a_corrupt_record_as_open(tmp_path: Path) -> None:
+    """An unreadable record is not evidence of closure: it stays open (fail safe)."""
+    ops_dir = tmp_path / EVENTS_DIR
+    ops_dir.mkdir()
+    corrupt = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRP.jsonl"
+    corrupt.write_text("{not json\n\n", encoding="utf-8")
+
+    assert open_invocation_ids(tmp_path) == {corrupt.stem}
+
+
+def test_list_orphan_ops_agrees_with_open_invocation_ids(tmp_path: Path) -> None:
+    """One rule, two readers: the doctor surface and the cleanup engine cannot drift."""
+    ops_dir = tmp_path / EVENTS_DIR
+    ops_dir.mkdir()
+    first = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRQ.jsonl"
+    second = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRR.jsonl"
+    closed = ops_dir / "01KTBE0RQY9XKTV0PE49PJDMRS.jsonl"
+    for path, completed in ((first, False), (second, False), (closed, True)):
+        _write_op(path, completed=completed)
+
+    assert {path.stem for path in list_orphan_ops(tmp_path)} == open_invocation_ids(tmp_path)
 
 
 def test_list_orphan_ops_ignores_missing_dir(tmp_path: Path) -> None:
