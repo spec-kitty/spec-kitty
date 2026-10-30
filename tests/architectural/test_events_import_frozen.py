@@ -46,7 +46,8 @@ _FROZEN_OBJECTS: dict[str, str] = {
 _FROZEN_FILE_FLOOR = 700
 _REMEDY = (
     "This path is frozen in core (ADR 2026-10-29-1 D-9): it moves to spec-kitty/spec-kitty-events with its history. "
-    "Revert the change and make it in spec-kitty-events."
+    "Revert the change and make it in spec-kitty-events. An operator-approved change may instead re-pin "
+    "_FROZEN_OBJECTS in the same PR, and is then ported to spec-kitty-events."
 )
 
 

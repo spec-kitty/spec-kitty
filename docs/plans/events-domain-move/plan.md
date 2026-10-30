@@ -6,18 +6,18 @@ type: explanation
 audience: docs/context/audience/internal/maintainer.md
 updated: '2026-10-29'
 ---
-# Events domain move: core-side plan (session B)
+# Events domain move: core-side plan
 
 **Status:** Signed off by the operator, 2026-10-29: the go is given and the issue moves are approved. The freeze gate and the governance records land first. The pin, fetch and launcher mechanism follows. The cut-over waits for spec-kitty-events' first `service-v*` release.
 
-**Decision being executed:** operator and CEO, 2026-10-29. The Java event services (read: Mission Status Read API; write: Mission Write API / event-log write core) leave core for `spec-kitty/spec-kitty-events`, which becomes the canonical owner of the events domain. Binding: Gradle everywhere; history preserved (session A imports with filter-repo); a separate `service-vX.Y.Z` tag line in spec-kitty-events; core pins a service tag plus a sha256 per OS binary; `services/` is frozen in core from now on.
+**Decision being executed:** operator and CEO, 2026-10-29. The Java event services (read: Mission Status Read API; write: Mission Write API / event-log write core) leave core for `spec-kitty/spec-kitty-events`, which becomes the canonical owner of the events domain. Binding: Gradle everywhere; history preserved (the spec-kitty-events side imports with filter-repo); a separate `service-vX.Y.Z` tag line in spec-kitty-events; core pins a service tag plus a sha256 per OS binary; `services/` is frozen in core from now on.
 
-**Further operator decisions (2026-10-29, relayed by session A):**
+**Further operator decisions (2026-10-29, relayed by the spec-kitty-events side):**
 - Layout in spec-kitty-events: `service/` (from `services/mission-status-api/`, via filter-repo `--path-rename`) plus `contracts/`, both imported with history in one pass.
 - Contract bundles ride on `service-v*`. There are two release lines in total: PyPI `v*` and `service-v*`. Core's `contract-<module>-v*` line and `contracts-release.yml` retire at the cut-over.
 - Events CI pins a core SHA for the lock-interop peer, the nightly corpus compare and golden regeneration.
 
-Proposed assets per `service-v<ver>` release (session A):
+Proposed assets per `service-v<ver>` release (the spec-kitty-events side):
 - `mission-status-api-<ver>-{linux-x64,linux-arm64,macos-arm64,windows-x64.exe}`, each with a `.sha256`;
 - `mission-status-api-<ver>.jar` (the JVM fallback);
 - `contract-bundles-<ver>.tar.gz`, `contract-tools-<ver>.tar.gz` and `conformance-fixtures-<ver>.tar.gz`, each with a `.sha256`;
@@ -124,14 +124,14 @@ tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-he
 | **B. Platform wheels** | `hatch_build.py` fetches and verifies the host asset at build time and force-includes it. Releases ship per-OS wheels plus an sdist. | Works offline after `pip install`. No runtime download. | Core stops being a pure wheel: 4+ wheels per release and a cibuildwheel-like pipeline. Wheel size grows by every bundled service (write, then charter), and a binary over ~100 MB hits PyPI's per-file cap. Unsupported platforms get an sdist that must fetch at build time anyway. |
 | **C. Hybrid** | A plus an optional companion `spec-kitty-services` platform wheel (the `[native]` extra) that pre-provides the binaries. The launcher prefers the companion, then the cache, then the fetch. | Offline installs supported; the core wheel stays pure. | Two release pipelines; the companion's size limits still apply. |
 
-**Recommendation: A now, built so C can be added later without changing the launcher** (the resolution order already has an install-provided slot). The binary size is unknown until session A's first native build. If it comes in under ~60 MB and offline installs matter for 4.0.0 GA, revisit B or C.
+**Recommendation: A now, built so C can be added later without changing the launcher** (the resolution order already has an install-provided slot). The binary size is unknown until the spec-kitty-events side's first native build. If it comes in under ~60 MB and offline installs matter for 4.0.0 GA, revisit B or C.
 
 ## 4. Cut-over runbook (ordered; each step gated on the previous)
 
 0. **Now (prep, this branch only):** this plan, the ADR draft, the charter/CLAUDE.md/AGENTS.md drafts, the pin schema. No `main` change.
 1. **Freeze, on a go signal:** the `tests/architectural/test_events_import_frozen.py` gate on the always-on fast roster (fails on any change to `services/`, the moving `contracts/` modules and tools, or `docs/architecture/event-ledger-writers-and-readers.md`, against the git object ids at the freeze; planted-violation non-vacuity tests) plus a CODEOWNERS note. Announce on #6409, #6676 and #6117 (comment text drafted for approval).
 2. **All in-flight sessions merged** (§2); confirm that no live session holds unpushed `services/` or `contracts/` work.
-3. **Session A:** filter-repo import (`service/` plus `contracts/`), Gradle unification, CI (pinned to the frozen core SHA), and the first `service-v*` pre-release with per-OS assets, the jar, the contract-bundles and conformance-fixtures assets, `SHA256SUMS` and attestation.
+3. **spec-kitty-events side:** filter-repo import (`service/` plus `contracts/`), Gradle unification, CI (pinned to the frozen core SHA), and the first `service-v*` pre-release with per-OS assets, the jar, the contract-bundles and conformance-fixtures assets, `SHA256SUMS` and attestation.
 4. **Core PR 1 (pre-cut-over, can merge while `services/` still exists):** the pin mechanism (`kernel.service_artifacts`, `sync-services`, the composite action, `service vendor`), the launcher skeleton with fail-closed codes, and the ADR plus charter/CLAUDE.md amendments. The pins point at A's pre-release. CI fetches and verifies the pin.
 5. **Core PR 2 (cut-over):**
    - remove `services/` and `mission-status-api.yml`, plus the ci-router, module-registry, fleet-verdict, CODEOWNERS and `.gitattributes` entries;
@@ -158,7 +158,7 @@ tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-he
 | #6692 | ADR on the Java writer: fold into the new ADR (§6) or close as superseded |
 | #6590 | stays in core; implemented by the same pin mechanism |
 
-Session A owns the events-side list; this is the core-side cross-check.
+The spec-kitty-events side owns the events-side list; this is the core-side cross-check.
 
 ## 6. ADR and governance drafts (to write after the Q answers)
 - New ADR `docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md`. It amends 2026-10-01-2 (D-7, D-9 to D-12: in-repo becomes external), 2026-10-22-1 (D-5: where the binary comes from), 2026-10-27-1 (the launcher's binary source), 2026-10-14-1 (the writer's home), and 3.x 2026-04-25-1 (events = PyPI package **plus** a pinned service binary). Modelled on the charter precedents.
@@ -169,4 +169,4 @@ Session A owns the events-side list; this is the core-side cross-check.
 - **Q2 contracts:** move with the services; the bundles ride on `service-v*`.
 - **Q3 read service:** CI-only pin. The CLI never launches it; ADR 2026-10-01-2 D-7 holds.
 - **Q4 freeze gate:** a small standalone PR once the live mission sessions have merged.
-- **Q5 acceptance-jvm tools:** fetched from the pinned `service-v*` release, not copied. Session A publishes them as a separate `contract-tools-<ver>.tar.gz` (`contracts/tools/*.py`, `pins.json`, `enum_pins.json`; no fixtures), so `contract-bundles` stays pure contract data.
+- **Q5 acceptance-jvm tools:** fetched from the pinned `service-v*` release, not copied. The spec-kitty-events side publishes them as a separate `contract-tools-<ver>.tar.gz` (`contracts/tools/*.py`, `pins.json`, `enum_pins.json`; no fixtures), so `contract-bundles` stays pure contract data.

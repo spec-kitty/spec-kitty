@@ -150,6 +150,8 @@ spec-kitty-events CI checks out core at a pinned SHA to run them.
   - `docs/architecture/event-ledger-writers-and-readers.md`.
   - `contracts/fixtures/` stays in core and is not frozen.
 - The architectural gate `tests/architectural/test_events_import_frozen.py` enforces the freeze (its `_FROZEN_OBJECTS` is the exact set above). It lands in the same PR as this record.
+- Exception path: an operator-approved change to a frozen path may re-pin `_FROZEN_OBJECTS` in the same PR, and that change is ported to spec-kitty-events.
+- Exit: the gate is removed together with `services/` at the cut-over. That exit is tracked by #6117, owner Stijn Dejongh.
 
 ### Consequences
 
