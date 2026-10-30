@@ -95,7 +95,14 @@ T012 Verify: doctor module, offering modules, activation-seam gate, dead-symbol 
 
 > **Revision**: an earlier two-package split (WP01 offering, WP02 doctor) was rejected at review
 > (finding F1): it cut through one atomic refactor, leaving `doctor charter-packs` broken at the
-> first package's head. WP02 is canceled; T007–T012 moved into WP01.
+> first package's head. WP02 is canceled (its prompt file stays as the record); T007–T012 moved
+> into WP01.
+
+## Canceled Work Packages
+
+| ID | Title | Status | Reason |
+|----|-------|--------|--------|
+| WP02 | One authority in the doctor's containment flow | canceled | Folded into WP01 at review (finding F1): the WP boundary cut through one atomic refactor, so WP01 was not independently deliverable. Its subtasks T007–T012 were delivered in WP01. |
 
 ---
 
