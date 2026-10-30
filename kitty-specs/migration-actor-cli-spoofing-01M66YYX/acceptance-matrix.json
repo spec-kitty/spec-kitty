@@ -88,10 +88,10 @@
       "criterion_id": "FR-009",
       "description": "The refusal/allowed matrix is pinned per surface family through the real entry points.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "the three matrix modules: tests/status/, tests/specify_cli/orchestrator_api/ and tests/specify_cli/cli/commands/ test_caller_seed_refusal_6754.py",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:19.783157+00:00",
       "notes": ""
     },
     {
