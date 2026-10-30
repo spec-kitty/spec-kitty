@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "agent-string-parser-hardening-01M6699F",
+  "mission_id": "01M6699F82NW47GQ0KV3GRBD3V",
+  "mission_branch": "kitty/mission-agent-string-parser-hardening-01M6699F",
+  "target_branch": "issue-6755-agent-string-parser-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/status/models.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_structured_actor_6400.py",
+        "tests/specify_cli/cli/commands/agent/test_structured_actor_annotations_6400.py",
+        "tests/status/test_actor_boundary_normalize.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T11:35:31.870777+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3db67d867902f798def54be86a5b32c083ce46a7"
+}
