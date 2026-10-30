@@ -45,9 +45,9 @@ artifacts:
   slug: testing-style-guide
 built_in_only: false
 bundle_content_hash: 
-  sha256:2dd79f82e6db854287bab902c9719bcbd806d2dba3c391cf432a48adbc36191a
+  sha256:7c3ec7e2e51685be26a740374595413bc06df7d2f71065287bc5d6fa8ac0d9b7
 created_at: '1970-01-01T00:00:00+00:00'
-manifest_hash: 0a614ff0abfe831dd4fae16cdeb2ce58d907a53dfbb6264c76da0dc4bbe04554
+manifest_hash: bd0c447c3c483843fa8c3d2abcd40447bb5d2ff9429d27c0cbda8b65c671c935
 mission_id:
 run_id: fresh-project-seed
 schema_version: '3'
