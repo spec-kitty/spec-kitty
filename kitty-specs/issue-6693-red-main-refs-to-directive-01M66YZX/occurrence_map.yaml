@@ -1,0 +1,93 @@
+# Occurrence map for the issue-6693 red-main reference repoint
+# (change_mode: bulk_edit, DIRECTIVE_035).
+#
+# Mission: repoint every live core reference from the retired built-in
+# `procedure:red-main-release-discipline` to the shipped
+# `directive:RED_MAIN_RELEASE_DISCIPLINE` after vendoring open-packs#74
+# (pin 72cb7dbc). Sibling rename in the internal pack
+# (`procedure:spec-kitty-red-main-policy` -> `directive:SPEC_KITTY_RED_MAIN_POLICY`)
+# reaches core only through the pin: it has NO tracked core occurrence, so this
+# map's single target is the built-in id.
+#
+# Census at classification time (`git grep` on tracked files, excluding
+# kitty-specs/<this mission>/**, which carry this mission's own artifacts):
+# 16 occurrence lines in 14 files -> 12 RENAME across 9 files,
+# 4 PRESERVE across 4 files. Two further files change without containing the
+# term at all (the two `packs/*.source.yaml` pin lockfiles) and are covered by
+# the `serialized_keys: rename` action plus a `structural_targets` exemption so
+# the reason is visible in the gate output.
+#
+# The rename is not a pure string swap: in core the URN kind prefix also moves
+# (`procedure:` -> `directive:`). Every RENAME site therefore changes both the
+# prefix and the id, which is why the curated-edge site and the test assertions
+# are asserted on the composed URN rather than the bare stem.
+
+target:
+  term: red-main-release-discipline
+  replacement: RED_MAIN_RELEASE_DISCIPLINE
+  operation: rename
+
+categories:
+  # `src/charter/offering/drg/migration/extractor.py` — the curated
+  # DIRECTIVE_030 edge, the one live code symbol naming the retired URN.
+  code_symbols:         { action: rename }
+  # No module path or import statement carries the term (the pack ships the
+  # artifact as a file, and core reads the fetched tree by glob), so nothing
+  # here is expected to change; the category is declared because the gate
+  # requires all eight.
+  import_paths:         { action: do_not_change }
+  # No path literal moves. The artifact's FILE STEM is deliberately unchanged
+  # upstream, so `directives/red-main-release-discipline.directive.yaml` and
+  # `_LIBRARY/directive-red-main-release-discipline.md` are new names emitted
+  # by the compiler, not occurrences this mission may edit by hand.
+  filesystem_paths:     { action: do_not_change }
+  # Serialized YAML/JSON is where most of the live surface lives: the
+  # activation ledger id, the compiled charter catalog id (+ its `_LIBRARY`
+  # local_path), the regenerated project-DRG label, the org-pack test fixture
+  # fragment, and the two pin lockfiles. The term is a doctrine artifact id,
+  # not an external API/schema key, so it is safe to change here.
+  serialized_keys:      { action: rename }
+  # No CLI subcommand or flag names the artifact.
+  cli_commands:         { action: do_not_change }
+  # `.kittify/charter/charter.md` (the standing-order pointer) and
+  # `docs/changelog/CHANGELOG.md` (the new [Unreleased] entry) are the
+  # user-facing prose sites; both must name the directive.
+  user_facing_strings:  { action: rename }
+  # Five test files assert the fetched pack's ids; the `minimal_org_pack_2`
+  # fixture declares the refines edge. All follow the shipped packs.
+  tests_fixtures:       { action: rename }
+  # No metric name, log key or analytics event carries the term.
+  logs_telemetry:       { action: do_not_change }
+
+exceptions:
+  # Historical records keep the wording they were written with (C-002). These
+  # files are not touched by this mission; the exceptions make that a
+  # reviewer-visible contract rather than an omission.
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Immutable mission snapshots: past missions record the ids that existed when they ran"
+  - path: "docs/changelog/CHANGELOG.md"
+    action: rename
+    reason: "The file is touched (a new [Unreleased] entry), but every historical entry above it keeps its original wording — only the added entry names the directive. Per-file exemption cannot express that split, so the category action permits the file and C-002 governs the historical lines."
+  - path: "docs/plans/engineering-notes/doctrine-drg-missing-links-analysis.md"
+    action: do_not_change
+    reason: "Dated engineering note recording the DRG inventory as it was when measured"
+  - path: "tests/charter/test_activation_preserves_effective_4253.py"
+    action: do_not_change
+    reason: "Names the artifact only in #4253 historical narrative explaining the regression that test guards; the test stays green and the wording is the record of that incident"
+  - path: "tests/charter_offering/fixtures/content-manifest.json"
+    action: do_not_change
+    reason: "Relocation-guard manifest of pre-relocation `src/charter/offering/**` layout — the listed path is asserted ABSENT, so rewriting it would fabricate a path that never existed"
+  - path: ".kittify/evidence/**"
+    action: do_not_change
+    reason: "Recorded session evidence (append-only)"
+
+structural_targets:
+  # The two pin lockfiles carry no occurrence of the term: they change only
+  # their `commit`/`tree_digest`/`snapshot_sha256` values, which the vendor
+  # command writes. Named here so the gate reports the reason per file instead
+  # of inferring a category action for a change the map never described.
+  - path: "packs/built-in.source.yaml"
+    reason: "Pin lockfile written by `spec-kitty charter pack vendor`; contains no occurrence of the target term"
+  - path: "packs/internal.source.yaml"
+    reason: "Pin lockfile written by `spec-kitty charter pack vendor`; contains no occurrence of the target term"
