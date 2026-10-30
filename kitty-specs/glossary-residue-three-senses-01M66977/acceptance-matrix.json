@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "test_terminology_canon_links_entry (AGENTS.md Terminology Canon bullet links docs/context/orchestration.md#residue)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T12:03:50.292980+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
