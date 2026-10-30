@@ -2,7 +2,7 @@
   "mission_slug": "route-kitty-specs-walkers-through-the-mission-predicate-01M66YN5",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -88,10 +88,10 @@
       "criterion_id": "FR-009",
       "description": "Verify FR-009 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/regressions/test_issue_6758_doctor_walkers.py (6 tests) and tests/regressions/test_issue_6758_read_surfaces.py (4 tests); 7 of the 10 failed before the fix",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T19:47:06.703551+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
