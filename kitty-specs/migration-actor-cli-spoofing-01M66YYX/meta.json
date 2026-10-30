@@ -28,7 +28,7 @@
   "friendly_name": "Caller-supplied migration actors are not reconstruction seeds",
   "mid8": "01M66YYX",
   "mission_id": "01M66YYX43K243WESFE0QRZ1MJ",
-  "mission_number": null,
+  "mission_number": 244,
   "mission_slug": "migration-actor-cli-spoofing-01M66YYX",
   "mission_type": "software-dev",
   "pr_bound": true,
