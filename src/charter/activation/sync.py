@@ -97,7 +97,8 @@ def ensure_charter_bundle_fresh(repo_root: Path, *, scope: CharterScope | None =
     """Auto-refresh extracted charter artifacts when ``charter.md`` exists.
 
     Resolves ``repo_root`` to the canonical (main-checkout) root via
-    ``resolve_canonical_repo_root`` and consults
+    ``resolve_canonical_repo_root``, or honors the explicitly resolved
+    ``scope.root`` when *scope* is given, and consults
     ``CharterBundleManifest.CANONICAL_MANIFEST`` for the set of files that
     must exist under the canonical root. If any required derived file is
     missing or the bundle is stale (``is_stale`` hash comparison), ``sync()``
@@ -229,7 +230,7 @@ def sync(
 
 
 def _charter_yaml_path(repo_root: Path, *, scope: CharterScope | None = None) -> Path:
-    """Return the canonical (main-checkout) ``charter.yaml`` path for *repo_root*."""
+    """Return the ``charter.yaml`` path for *repo_root*, or for ``scope.root`` when *scope* is given."""
     return Path(_charter_read_root(repo_root, scope), CHARTER_YAML)
 
 
@@ -237,8 +238,9 @@ def _load_charter_yaml_section(repo_root: Path, section: str, *, scope: CharterS
     """Return the named top-level ``charter.yaml`` section, or ``None``.
 
     Anchors path resolution on the canonical (main-checkout) root via
-    :func:`charter.resolution.resolve_canonical_repo_root` so worktree
-    callers read the same ``charter.yaml`` the main checkout tracks
+    :func:`charter.resolution.resolve_canonical_repo_root` -- or on
+    ``scope.root`` when *scope* is given -- so worktree callers read the same
+    ``charter.yaml`` the main checkout tracks
     (FR-010) -- mirrors the worktree-transparency contract the retired
     ``ensure_charter_bundle_fresh``-routed loaders used to provide, without
     invoking the (now-inert) sync chokepoint.
