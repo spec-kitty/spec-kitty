@@ -44,6 +44,7 @@ from ._doctor_shared import (
 )
 
 if TYPE_CHECKING:
+    from specify_cli.core.agent_config import AgentConfig
     from specify_cli.skills.command_installer import VerifyReport
     from specify_cli.skills.manifest_store import SkillsManifest
 
@@ -276,8 +277,15 @@ def _print_slash_command_payload(
 
 def _load_command_skill_state(
     project_path: Path,
-) -> tuple[SkillsManifest, VerifyReport, list[str], list[str], list[str], bool]:
-    """Load command-skill manifest state and configured command-skill agents."""
+) -> tuple[SkillsManifest, VerifyReport, list[str], list[str], list[str], bool, AgentConfig]:
+    """Load command-skill manifest state, the configured agents and the config they came from.
+
+    The loaded ``AgentConfig`` rides along because the summary needs to know whether
+    the project *states* an agent list at all: a config with no ``agents.available``
+    is the legacy every-agent fallback (#6501), and an audit over that shape must not
+    claim health over the surfaces it never examined (#6891). Carrying it here keeps
+    one YAML read per invocation.
+    """
     from specify_cli.core.agent_config import load_agent_config
     from specify_cli.skills import command_installer, manifest_store
     from specify_cli.skills.vibe_config import skill_path_configured
@@ -299,6 +307,7 @@ def _load_command_skill_state(
         manifest_agents,
         uninstalled_agents,
         vibe_config_missing,
+        config,
     )
 
 
@@ -470,7 +479,39 @@ _LEGACY_FIX_REMEDY = " — run `spec-kitty doctor skills --fix` to retire it"
 #: Human-render-only payload keys: the frozen ``doctor skills --json`` envelope (#1965) never carries them.
 _LEGACY_OWNED_KEY = "_legacy_owned"
 _LEGACY_RECORDED_KEY = "_legacy_recorded"
-_HUMAN_ONLY_KEYS = frozenset({_LEGACY_OWNED_KEY, _LEGACY_RECORDED_KEY})
+_NO_STATED_AGENT_LIST_KEY = "_no_stated_agent_list"
+_HUMAN_ONLY_KEYS = frozenset({_LEGACY_OWNED_KEY, _LEGACY_RECORDED_KEY, _NO_STATED_AGENT_LIST_KEY})
+
+#: The truthful summary clause for an audit that examined nothing in a legacy project
+#: (``.kittify/config.yaml`` with no ``agents.available``, the #6501 every-agent fallback).
+_NO_STATED_AGENT_LIST = "no stated agent list (every agent is available) — nothing to check"
+_NO_STATED_AGENT_LIST_DETAIL = (
+    ".kittify/config.yaml does not state an agents.available list, so the CLI cannot tell "
+    "which surfaces to verify"
+)
+
+
+def _examined_nothing_in_legacy_project(stated_agent_list: bool, examined: int) -> bool:
+    """Whether this report is a clean legacy audit over an empty examined set (#6891).
+
+    ``examined`` is the number of surfaces the audit actually compared (manifest
+    entries for ``doctor skills``, collected surfaces for ``doctor tool-surfaces``).
+    Zero of them with no stated agent list means the summary can only say that
+    nothing was checked: claiming ``all ... healthy`` would assert health over a set
+    the command never looked at. A stated list — including the stated-empty shape
+    ``available: []`` (#6494, #6493) — is not this predicate's business.
+    """
+    return not stated_agent_list and examined == 0
+
+
+def _print_nothing_to_check(subject: str, examined: str) -> None:
+    """Render the legacy no-stated-list summary: name the state and the gap, prescribe nothing.
+
+    No install advice: for a project whose surfaces a plugin supplies, telling the
+    operator to install the CLI's copies is the duplicate-surface harm #6493 removed.
+    """
+    console.print(f"[yellow]{subject}[/yellow]: {_NO_STATED_AGENT_LIST} ({examined})")
+    console.print(f"  ! {_NO_STATED_AGENT_LIST_DETAIL}", markup=False)
 
 
 def _recorded_legacy_paths(manifest: SkillsManifest) -> list[str]:
@@ -550,6 +591,13 @@ def _print_command_skill_repairs(payload: dict[str, object]) -> None:
 def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
     """Render human output for ``doctor skills``."""
     if payload["ok"]:
+        if payload.get(_NO_STATED_AGENT_LIST_KEY):
+            # #6891: no managed entry was examined, so there is no health to report. A kept,
+            # edited leftover is only a warning (never a failure), so it does not clear ``ok``:
+            # keep naming it after the truthful line instead of dropping it.
+            _print_nothing_to_check("Command Skills", "0 manifest entries were examined")
+            _print_command_skill_guidance(payload)
+            return
         console.print(
             "[green]Command Skills[/green]: all manifest entries healthy "
             f"({payload['entries']} file(s))"
@@ -654,7 +702,9 @@ def _skills_not_in_project(json_output: bool, exc: BaseException | None) -> NoRe
     raise typer.Exit(2)
 
 
-_SkillState = tuple["SkillsManifest", "VerifyReport", list[str], list[str], list[str], bool]
+_SkillState = tuple[
+    "SkillsManifest", "VerifyReport", list[str], list[str], list[str], bool, "AgentConfig"
+]
 
 
 def _load_skills_state_or_exit(project_path: Path, json_output: bool) -> _SkillState:
@@ -734,6 +784,7 @@ def _assemble_skills_payload(
         manifest_agents,
         uninstalled_agents,
         vibe_config_missing,
+        agent_config,
     ) = state
 
     repaired: list[str] = []
@@ -758,6 +809,7 @@ def _assemble_skills_payload(
                     manifest_agents,
                     uninstalled_agents,
                     vibe_config_missing,
+                    agent_config,
                 ) = _load_command_skill_state(project_path)
             except Exception as exc:
                 repair_errors.append(f"post-fix verify failed: {exc}")
@@ -784,6 +836,11 @@ def _assemble_skills_payload(
     tool_folders = _tool_folder_findings(project_path)
     payload["tool_folders"] = tool_folders
     payload["ok"] = bool(payload["ok"]) and bool(slash_payload["ok"]) and not pack_findings and not tool_folders
+    # #6891: only after the FINAL ``ok`` — a real slash-command, pack-skill or tool-folder
+    # finding must keep its own report rather than be replaced by "nothing to check".
+    payload[_NO_STATED_AGENT_LIST_KEY] = bool(payload["ok"]) and _examined_nothing_in_legacy_project(
+        agent_config.explicit_agent_list, cast(int, payload.get("entries", 0))
+    )
     return payload
 
 
@@ -845,18 +902,23 @@ def _configured_tool_keys(project_path: Path) -> list[str]:
     return sorted(set(load_agent_config(project_path).available))
 
 
-def _configured_tool_keys_or_exit(project_path: Path, json_output: bool) -> list[str]:
-    """Load configured tool keys, translating a config load failure to exit 2.
+def _tool_config_or_exit(project_path: Path, json_output: bool) -> AgentConfig:
+    """Load the agent config for ``doctor tool-surfaces``, translating a load failure to exit 2.
+
+    Returns the whole :class:`AgentConfig`, not just its keys, because the human
+    summary needs ``explicit_agent_list``: an audit over the legacy every-agent
+    fallback (#6501) has no surfaces to check and must say so instead of claiming
+    health (#6891). Loading it here keeps one YAML read per invocation.
 
     Mirrors :func:`_load_skills_state_or_exit`'s ``AgentConfigError`` handling
     (the sibling ``doctor skills`` command) so a non-mapping
     ``.kittify/config.yaml`` produces the documented ``config_error`` JSON
     envelope instead of an uncaught traceback (OP-FRESH-001).
     """
-    from specify_cli.core.agent_config import AgentConfigError
+    from specify_cli.core.agent_config import AgentConfigError, load_agent_config
 
     try:
-        return _configured_tool_keys(project_path)
+        return load_agent_config(project_path)
     except AgentConfigError as exc:
         if json_output:
             console.print_json(json.dumps(_json_error("config_error", str(exc)), indent=2))
@@ -865,13 +927,21 @@ def _configured_tool_keys_or_exit(project_path: Path, json_output: bool) -> list
         raise typer.Exit(2) from exc
 
 
-def _print_tool_surface_human(outcome: object) -> None:
-    """Render a compact human summary of a tool-surface outcome."""
+def _print_tool_surface_human(outcome: object, *, stated_agent_list: bool) -> None:
+    """Render a compact human summary of a tool-surface outcome.
+
+    *stated_agent_list* is ``False`` for a legacy config with no ``agents.available``
+    list; with zero collected surfaces that is an audit of nothing, so the summary
+    names the state instead of claiming health (#6891).
+    """
     from specify_cli.tool_surface.service import ToolSurfaceOutcome
 
     assert isinstance(outcome, ToolSurfaceOutcome)
     report = outcome.report
     if report.ok and not report.findings:
+        if _examined_nothing_in_legacy_project(stated_agent_list, report.summary.surfaces):
+            _print_nothing_to_check("Tool Surfaces", "0 surfaces were examined")
+            return
         console.print(
             "[green]Tool Surfaces[/green]: all surfaces healthy "
             f"({report.summary.surfaces} checked)"
@@ -971,9 +1041,10 @@ def run_tool_surfaces_audit(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(2) from exc
 
+    agent_config = _tool_config_or_exit(project_path, json_output)
     outcome = run_tool_surfaces(
         project_path,
-        _configured_tool_keys_or_exit(project_path, json_output),
+        sorted(set(agent_config.available)),
         tool_filter=tool,
         kinds=kinds or None,
         fix=fix,
@@ -982,5 +1053,5 @@ def run_tool_surfaces_audit(
     if json_output:
         console.print_json(json.dumps(outcome.to_json(), indent=2))
         raise typer.Exit(0 if outcome.report.ok else 1)
-    _print_tool_surface_human(outcome)
+    _print_tool_surface_human(outcome, stated_agent_list=agent_config.explicit_agent_list)
     raise typer.Exit(0 if outcome.report.ok else 1)
