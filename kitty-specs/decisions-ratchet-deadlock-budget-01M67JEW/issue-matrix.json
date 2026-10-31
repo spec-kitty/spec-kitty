@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#4848": {
+      "evidence_ref": "Cited as the operator ruling that makes open_decision's decisions-lock wait unbounded (service.py:_OPEN_LOCK_WAIT_S); this mission changes no product behaviour (spec C-001).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6773": {
+      "evidence_ref": "commit 636bf69da4 (test file + proofs); pre-fix red reproduced from research/deadlock-budget-probe.md; 30/30 -n4 repetitions green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

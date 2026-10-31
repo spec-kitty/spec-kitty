@@ -1,0 +1,83 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M67Q0BJZ9ZVAAJF9DC53P7FQ",
+  "materialized_at": "2026-10-31T00:50:56.223592+00:00",
+  "mission_number": "244",
+  "mission_slug": "decisions-ratchet-deadlock-budget-01M67JEW",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67Q0B94M7572QSKA4YT9MR6",
+      "last_transition_at": "2026-10-31T00:50:55.908869+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Harness owns the only deadline; 30x -n4 repetitions green (SC-001); red proof in research/deadlock-budget-probe.md",
+        "Independent review: VERDICT approve; should-fix and two nits folded in 636bf69da4"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1264272,
+      "shell_pid_created_at": "1793404424.93",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "curator-carla",
+      "lane": "done",
+      "last_event_id": "01M67Q0BJZ9ZVAAJF9DC53P7FQ",
+      "last_transition_at": "2026-10-31T00:50:56.223592+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Audit-table row + updated bump; docs freshness errors=0; legacy-terminology gate 98 passed",
+        "Docs row reviewed in the same independent round (review finding 4: the specified row mirrors research.md D-1..D-5 and no claim is contradicted by the code; WP signed off as 'nothing to overstate yet'). The landed row matches that specification verbatim plus the post-fix repetition evidence. docs freshness errors=0."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2055267,
+      "shell_pid_created_at": "1793407282.24",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}
