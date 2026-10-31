@@ -125,6 +125,15 @@ class DecisionsReconciliationReport:
     #: ``{"decision_id", "index_status", "folded_status"}``. Empty on a
     #: healthy corpus.
     status_mismatch: list[dict[str, str]] = field(default_factory=list)
+    #: #6764: decision_ids whose event log holds more than one
+    #: ``DecisionPointOpened`` row that the canonical fold already TOLERATES
+    #: (#4848: payloads equal apart from ``recorded_at``; the fold keeps the
+    #: earliest). This is an INFORMATIONAL finding, not an error: the log was
+    #: written before #4848, it reads correctly, and nothing needs repairing.
+    #: It is therefore deliberately NOT part of :attr:`clean` and never affects
+    #: the exit code -- see :func:`run_decisions_reconciliation`. Empty on a log
+    #: written by the fixed writer.
+    duplicate_openings_tolerated: list[str] = field(default_factory=list)
     #: WP17 (FR-010/FR-010a/FR-009c, #5023): the two-surface fork/ledger-home
     #: report, computed only when ``repo_root`` is supplied to ``_diagnose``
     #: (``None`` for the back-compat no-``repo_root`` call shape driven
@@ -349,7 +358,7 @@ def _rebuild_index_from_log(
 def _fold_diagnostics(
     grouped: dict[str, list[dict[str, Any]]],
     index_by_id: dict[str, IndexEntry],
-) -> tuple[list[str], list[dict[str, str]]]:
+) -> tuple[list[str], list[dict[str, str]], list[str]]:
     """Run the canonical fold over every log-backed decision_id and report
     what the id-set comparison alone cannot see (#4919):
 
@@ -361,6 +370,13 @@ def _fold_diagnostics(
       index whose folded status disagrees with the on-disk index status (a
       stale entry -- e.g. the index still says ``deferred`` after a
       ``resolve`` landed in the log).
+    - ``duplicate_openings_tolerated`` (#6764): decision_ids whose log holds
+      several ``DecisionPointOpened`` rows the fold ACCEPTS (#4848) -- an
+      informational finding only, so it never affects
+      :attr:`DecisionsReconciliationReport.clean`.
+
+    The duplicate count is computed in this same loop from the group already
+    read, so it costs no second log read and no second fold.
 
     A decision missing from the index entirely (``missing_from_index``) is
     folded here too (to catch malformed folds regardless of index
@@ -375,6 +391,7 @@ def _fold_diagnostics(
     """
     malformed_ids: list[str] = []
     status_mismatch: list[dict[str, str]] = []
+    duplicate_ids: list[str] = []
     for decision_id in sorted(grouped):
         existing = index_by_id.get(decision_id)
         try:
@@ -382,6 +399,11 @@ def _fold_diagnostics(
         except _index_fold.FoldError:
             malformed_ids.append(decision_id)
             continue
+        # #6764: only a decision the fold FOLDED can hold *tolerated* duplicates --
+        # a differing-payload duplicate already continued as a malformed fold above,
+        # so the two findings are disjoint by construction.
+        if _index_fold.tolerated_duplicate_openings(grouped[decision_id]) > 0:
+            duplicate_ids.append(decision_id)
         if existing is not None and existing.status != folded.status:
             status_mismatch.append(
                 {
@@ -390,7 +412,7 @@ def _fold_diagnostics(
                     "folded_status": folded.status.value,
                 }
             )
-    return malformed_ids, status_mismatch
+    return malformed_ids, status_mismatch, duplicate_ids
 
 
 def _all_decision_ids_from_fork_report(fork_report: _fork.DecisionsForkReport) -> set[str]:
@@ -425,6 +447,11 @@ def _diagnose(
     (:func:`_fold_diagnostics`) so a genuinely unfoldable decision or a stale
     index status is caught by the read-only path too, not just ``--repair``.
 
+    #6764: the same fold pass also reports decisions whose log holds duplicate
+    ``DecisionPointOpened`` rows the fold tolerates (``duplicate_openings_tolerated``)
+    -- informational only, so :attr:`DecisionsReconciliationReport.clean` is
+    unaffected.
+
     WP17 (FR-010/FR-010a/FR-009c, #5023): when *repo_root* is supplied, this
     additionally runs the two-surface :func:`~specify_cli.decisions.fork
     .detect_decision_forks` comparison, widens the orphan rule to the union
@@ -441,7 +468,7 @@ def _diagnose(
     index_ids = {e.decision_id for e in index.entries}
     index_by_id = {e.decision_id: e for e in index.entries}
 
-    malformed_ids, status_mismatch = _fold_diagnostics(grouped, index_by_id)
+    malformed_ids, status_mismatch, duplicate_ids = _fold_diagnostics(grouped, index_by_id)
 
     orphan_universe = set(log_ids)
     fork_report: _fork.DecisionsForkReport | None = None
@@ -462,6 +489,7 @@ def _diagnose(
         orphaned_in_index=sorted(index_ids - orphan_universe),
         malformed_folds=sorted(malformed_ids),
         status_mismatch=status_mismatch,
+        duplicate_openings_tolerated=sorted(duplicate_ids),
         fork_report=fork_report,
         findings=findings,
     )
@@ -617,6 +645,23 @@ def _emit_status_mismatch_warning(report: DecisionsReconciliationReport) -> None
     console.print(f"  [red]stale status[/red] ({len(report.status_mismatch)}) index entry disagrees with the folded event log: {detail}")
 
 
+def _emit_duplicate_openings_notice(report: DecisionsReconciliationReport) -> None:
+    """#6764: name the decisions whose log holds duplicate ``DecisionPointOpened``
+    rows the fold already tolerates (#4848) -- informational, never a failure.
+
+    Colour is deliberately NOT red: the rows were written before #4848, they read
+    correctly, the log is left as-is, and the exit code does not change. The word
+    "informational" is spelled out so a reader cannot mistake it for an error.
+    """
+    if not report.duplicate_openings_tolerated:
+        return
+    console.print(
+        f"  [cyan]informational[/cyan] ({len(report.duplicate_openings_tolerated)}) decision(s) with duplicate "
+        "openings the fold tolerates (identical apart from their recorded time; the earliest is folded and "
+        f"the log is left unchanged): {', '.join(report.duplicate_openings_tolerated)}"
+    )
+
+
 def _surface_log_to_json(log: _fork.SurfaceLog | None) -> dict[str, object] | None:
     if log is None:
         return None
@@ -682,6 +727,7 @@ def _emit_human(report: DecisionsReconciliationReport) -> None:
     _emit_lossy_attribution_warning(report)
     _emit_malformed_fold_warning(report)
     _emit_status_mismatch_warning(report)
+    _emit_duplicate_openings_notice(report)
 
 
 def _emit_json(report: DecisionsReconciliationReport) -> None:
@@ -694,6 +740,10 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
     WP17: additive keys only (``forked``, ``streams``, ``ledger``,
     ``reconcile_steps``, ``findings``, ``ledger_copied``) -- present only
     when a fork report was computed (``repo_root`` was supplied).
+
+    #6764: ``duplicate_openings_tolerated`` is likewise additive and always
+    present (``[]`` when a log holds no tolerated duplicates). It is an
+    informational finding: ``clean`` and the exit code are unaffected.
     """
     payload: dict[str, object] = {
         "mission_slug": report.mission_slug,
@@ -706,6 +756,7 @@ def _emit_json(report: DecisionsReconciliationReport) -> None:
         "lossy_attribution": report.lossy_attribution,
         "malformed_folds": report.malformed_folds,
         "status_mismatch": report.status_mismatch,
+        "duplicate_openings_tolerated": report.duplicate_openings_tolerated,
         "remedy": _malformed_fold_remedy_text(report),
         "findings": report.findings,
         "ledger_copied": report.ledger_copied,
@@ -731,8 +782,11 @@ def run_decisions_reconciliation(
     Diagnose (default): read-only report of log/index divergence — entries
     in the log missing from the index, index entries with no backing event,
     a decision_id whose event group cannot be folded at all
-    (``malformed_folds``), and an index entry whose status disagrees with
-    the folded log (``status_mismatch``). Always exits 0, even when the
+    (``malformed_folds``), an index entry whose status disagrees with the
+    folded log (``status_mismatch``), and the informational
+    ``duplicate_openings_tolerated`` list (#6764: decisions whose log holds
+    openings the fold already tolerates; it never affects the verdict, the
+    exit code or ``--repair``). Always exits 0, even when the
     report is not clean (report-only, matching the ``doctor
     review-cycle-reconcile`` precedent).
 

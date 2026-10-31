@@ -1,0 +1,9 @@
+# Tooling friction — doctor-decisions-duplicate-openings-01M66YMR (#6764)
+
+- **[2026-10-30][specify] `spec-kitty specify` created a mission whose `target_branch` was the protected `main`, so `spec-commit` refused every planning artifact.** The refusal is correct, but the wrapper offers no `--start-branch`, so the only repair was to delete the empty scaffold (including its coordination worktree and branch) and re-create it with `spec-kitty agent mission create --pr-bound --start-branch issue-6764-…`. The recreate worked first time; ~3 minutes lost. Candidate tooling gap: `specify` should mint the topic branch the way `mission create --start-branch` does, or refuse to create on a protected head.
+
+- **[2026-10-30][docs] The committed `docs/api/cli-commands.md` is materially stale, so the documented "regenerate the reference" step is unusable for a small doc change.** A full `build_cli_reference` run rewrites 87 lines in and 1,014 lines out across 22 unrelated commands, all pre-existing on `main`. Workaround: generate to a temp file and splice only the `doctor decisions` section into the committed reference. Filed as #6835.
+
+- **[2026-10-30][implement] `check_docs_freshness`'s CLI-reference sub-check spawns `uv run spec-kitty <path> --help` per command with a 30 s timeout.** In a lane worktree whose `uv` cache is cold, the first run of the full generator died with `subprocess.TimeoutExpired` on `doctor review-cycle-reconcile --help`. A second run succeeded. Workaround: re-run; worth a note in the generator's docs.
+
+- **[2026-10-30][implement] `tests/architectural/test_no_legacy_terminology.py` fails in a fresh lane worktree with "no synced files under packs/internal".** The failure message names the fix (`make sync-packs`), and the cache made it fast; still one avoidable red for every parallel lane.
