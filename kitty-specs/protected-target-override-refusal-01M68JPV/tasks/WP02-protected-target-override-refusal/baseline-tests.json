@@ -1,0 +1,30 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-10-31T10:23:04Z",
+  "base_branch": "5b145d9f9b80c8af49d892201acbe5bb14e30f9c",
+  "base_commit": "5b145d9f9b80c8af49d892201acbe5bb14e30f9c",
+  "test_runner": "custom",
+  "total": 3,
+  "passed": 0,
+  "failed": 3,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.cli.commands.test_retrospect.TestMaybeAutoCommit.test_auto_commit_on_a_protected_target_warns_and_commits_nothing",
+      "error": "AssertionError: assert '6d4103881cb4...0dcdde8b05c01' == 'f6b694a48f9c...d8b41a5779f8f'",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.commands.test_retrospect.TestCreateHarness.test_create_on_a_protected_target_warns_and_commits_nothing",
+      "error": "AssertionError: assert 'ae7da2ae04f7...dc47f69a51b8a' == '01ff0159c3ee...0f73675b9d63e'",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.commands.test_retrospect.TestBackfillHarness.test_backfill_on_a_protected_target_warns_and_commits_nothing",
+      "error": "AssertionError: assert '1e22ad51ed1a...ca4d214666c13' == '40201c144867...28bef1d84bd6f'",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300
+}
