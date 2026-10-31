@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "residue-successor-retry-on-unsettled-predecessor-01M67J1B",
+  "mission_id": "01M67J1B54KF9MM8AES59D1M3P",
+  "mission_branch": "issue-6688-residue-successor-retry",
+  "target_branch": "issue-6688-residue-successor-retry",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/upgrade/migrations/base.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_6_residue_safe_consistency_sweep.py",
+        "src/specify_cli/upgrade/migrations/m_3_1_1_residue_safe_normalize_status_json.py",
+        "src/specify_cli/upgrade/registry.py",
+        "tests/specify_cli/upgrade/test_residue_safe_successors_6669.py",
+        "tests/specify_cli/upgrade/test_successor_retry_6688.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T23:27:46.778982+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "6aff2a8e222907dd6f03f4960d84326c9f8ff0db"
+}
