@@ -61,6 +61,13 @@ def _available(project_root: Path, kind: str) -> set[str]:
     return set(ActiveCharterManager().list_available(ProjectContext.from_repo(project_root), kind))
 
 
+def _effective_procedures(repo: Path) -> set[str]:
+    """The procedure ids the activation-aware service has in force (measured, not read back from YAML)."""
+    from charter.activation.active_charter_service_builder import build_active_charter_service
+
+    return set(build_active_charter_service(repo).procedures)
+
+
 def _effective_directives(repo: Path) -> set[str]:
     """The directive ids the activation-aware service has in force."""
     from charter.activation.active_charter_service_builder import build_active_charter_service
@@ -112,6 +119,8 @@ def test_first_activation_of_a_procedure_keeps_the_rest_effective(
     project_without_activation_keys: Path,
 ) -> None:
     project_root = project_without_activation_keys
+    previously_effective = _effective_procedures(project_root)
+    assert len(previously_effective) > 1, "fixture invalid: the narrowing must be observable"
 
     result = _activate(project_root, "procedure", "adversarial-squad-deployment")
     assert result.exit_code == 0, result.output
@@ -119,10 +128,8 @@ def test_first_activation_of_a_procedure_keeps_the_rest_effective(
     after = PackContext.from_config(project_root)
     # #6685: an artifact the absent key already puts in force is activated without a write.
     assert after.activated_procedures is None, "the first activation froze the procedure set (#6685)"
-    effective = _available(project_root, "procedure")
-
+    effective = _effective_procedures(project_root)
     assert "adversarial-squad-deployment" in effective
-    previously_effective = _available(project_root, "procedure")
     lost = previously_effective - effective
     assert not lost, (
         f"#4253: activating one procedure deactivated {len(lost)} previously effective "
