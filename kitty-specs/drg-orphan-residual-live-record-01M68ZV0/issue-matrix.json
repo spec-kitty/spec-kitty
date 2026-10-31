@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#1923": {
+      "evidence_ref": "Context only: owned by another issue/mission; this change neither fixes nor claims it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5927": {
+      "evidence_ref": "Context only: owned by another issue/mission; this change neither fixes nor claims it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6379": {
+      "evidence_ref": "Already merged: #6379 vendored the plan step contracts, #6432 tracked it, #6437 (bd7fdb7f36) raised the ceiling 21 -> 25. Cited, not re-fixed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6432": {
+      "evidence_ref": "Already merged: #6379 vendored the plan step contracts, #6432 tracked it, #6437 (bd7fdb7f36) raised the ceiling 21 -> 25. Cited, not re-fixed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6437": {
+      "evidence_ref": "Already merged: #6379 vendored the plan step contracts, #6432 tracked it, #6437 (bd7fdb7f36) raised the ceiling 21 -> 25. Cited, not re-fixed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6513": {
+      "evidence_ref": "Mission drg-orphan-residual-live-record-01M68ZV0: live residual record + membership guard; ceiling unchanged at 25; no DRG edge.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6798": {
+      "evidence_ref": "Context only: owned by another issue/mission; this change neither fixes nor claims it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6801": {
+      "evidence_ref": "Context only: owned by another issue/mission; this change neither fixes nor claims it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6816": {
+      "evidence_ref": "Context only: owned by another issue/mission; this change neither fixes nor claims it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

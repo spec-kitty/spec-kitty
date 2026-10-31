@@ -1,0 +1,59 @@
+{
+  "mission_slug": "drg-orphan-residual-live-record-01M68ZV0",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/architecture/charter-synthesis-drg.md#the-shipped-graph-orphan-residual-current-state (live, non-frozen record; shipped frame)",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-31T13:50:38.622894+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_documented_residual_matches_measured_shipped_orphans: recorded 25 URNs == measured set",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-31T13:50:43.229034+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ceiling assertion message + docstring name the live record and the ledger; no kitty-specs/ edit instruction",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-31T13:50:47.337876+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "guard proven in both directions and for missing block (PR transcripts)",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-31T13:50:52.310676+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ceiling ledger table incl. 21 -> 25 with #6379/#6432 and #6513",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-31T13:50:56.541129+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
