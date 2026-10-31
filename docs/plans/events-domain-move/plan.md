@@ -4,7 +4,7 @@ description: 'Core-side inventory, pin/fetch/launcher design and cut-over runboo
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-10-29'
+updated: '2026-10-31'
 ---
 # Events domain move: core-side plan
 
@@ -125,6 +125,8 @@ tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-he
 | **C. Hybrid** | A plus an optional companion `spec-kitty-services` platform wheel (the `[native]` extra) that pre-provides the binaries. The launcher prefers the companion, then the cache, then the fetch. | Offline installs supported; the core wheel stays pure. | Two release pipelines; the companion's size limits still apply. |
 
 **Recommendation: A now, built so C can be added later without changing the launcher** (the resolution order already has an install-provided slot). The binary size is unknown until the spec-kitty-events side's first native build. If it comes in under ~60 MB and offline installs matter for 4.0.0 GA, revisit B or C.
+
+**Update 2026-10-31:** option C's companion is decided: A stays the default, and the optional `spec-kitty-services` companion wheel fills the install slot (ADR 2026-10-29-1, Amendment 2026-10-31; #6904).
 
 ## 4. Cut-over runbook (ordered; each step gated on the previous)
 
