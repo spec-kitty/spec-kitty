@@ -263,7 +263,12 @@ class AgentProfileRepository:
         self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
-        self._drg: DRGGraph = drg if drg is not None else self._default_drg()
+        # Lineage is read on demand (#6462): building the graph here cost every
+        # caller 13 shipped ``*.graph.yaml`` parses, including the many that only
+        # read the profile map (``get``/``list_all``/provenance/``sentinel``). An
+        # explicit ``drg`` is authoritative and marks the graph resolved, so the
+        # lazy path never runs for it.
+        self._drg: DRGGraph | None = drg
         self._hierarchy_index: dict[str, list[str]] | None = None
         self._load()
 
@@ -295,6 +300,14 @@ class AgentProfileRepository:
                 nodes=[],
                 edges=[],
             )
+
+    def _graph(self) -> DRGGraph:
+        """Return the lineage graph, building the shipped one on first use."""
+        graph = self._drg
+        if graph is None:
+            graph = self._default_drg()
+            self._drg = graph
+        return graph
 
     def _record_skip(
         self,
@@ -697,7 +710,7 @@ class AgentProfileRepository:
         A profile may declare at most one lineage parent; if several edges are
         present the first by sorted target id is returned for determinism.
         """
-        edges = self._drg.edges_from(_profile_urn(profile_id), Relation.SPECIALIZES_FROM)
+        edges = self._graph().edges_from(_profile_urn(profile_id), Relation.SPECIALIZES_FROM)
         if not edges:
             return None
         parents = sorted(_profile_id_from_urn(e.target) for e in edges)
@@ -931,7 +944,7 @@ class AgentProfileRepository:
         the graph but must not import the charter projection (layer direction:
         charter → charter.offering).
         """
-        return self._drg
+        return self._graph()
 
     def profile_channel_reached(self, profile_id: str) -> frozenset[str]:
         """Every artefact URN a loaded *profile* reaches through the profile channel.
@@ -954,9 +967,10 @@ class AgentProfileRepository:
         walk); the render layer applies its NodeKind delivery table (C4).
         """
         seed = _profile_urn(profile_id)
-        if seed not in agent_profile_seed_urns(self._drg):
+        graph = self._graph()
+        if seed not in agent_profile_seed_urns(graph):
             return frozenset()
-        return profile_channel_reachable(self._drg, {seed})
+        return profile_channel_reachable(graph, {seed})
 
     def profile_channel_procedure_ids(self, profile_id: str) -> list[str]:
         """Procedure ids a loaded *profile* delivers through the profile channel.
