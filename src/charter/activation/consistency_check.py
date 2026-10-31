@@ -19,7 +19,7 @@ from charter.activation.catalog import resolve_offering_root
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.identity_index import IdentityIndex
-from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
+from charter.activation.kind_vocabulary import MISSION_TYPE_TOKEN, ArtifactKind, MissionTypeNotAnArtifactKind
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext, load_denied, resolve_charter_yaml_pointer
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 
@@ -373,29 +373,67 @@ def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | Non
     return result
 
 
+def _layered_mission_type_ids(ctx: ProjectContext) -> frozenset[str]:
+    """The ids of the layered mission-type roster (built-in → org → project).
+
+    ``mission-type`` is the one kind whose membership cannot come from
+    :meth:`ActiveCharterManager.list_available`: that scan is deliberately flat and
+    built-in-only for this kind (``_scan_layout_for`` returns ``layered=False``),
+    while a project's mission types live at
+    ``.kittify/missions/mission_types/`` — outside the project pack root — so no
+    layer-root argument could reach them. The layered roster is the authority every
+    reader already resolves through (the runtime roster, ``charter mission-type
+    list`` and ``charter activate``'s preflight), so it is the only one this check
+    may use (#6749).
+
+    Raises whatever the roster raises: a malformed or unreadable file anywhere in a
+    scanned layer loud-fails by design (the roster never silently shrinks). The
+    caller converts that into a fail-closed verification error.
+    """
+    from charter.missions import MissionTemplateRepository, resolve_layered_mission_types  # noqa: PLC0415
+
+    mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
+    return frozenset(resolve_layered_mission_types(mission_types_dirs, ctx.require_pack_context()))
+
+
 def _collect_all_offering_ids(
     ctx: ProjectContext,
     manager: ActiveCharterManager,
+    *,
+    mission_type_ids: frozenset[str] | None = None,
 ) -> dict[str, frozenset[str]]:
     """Return a mapping of CLI kind → frozenset of doctrine IDs (loaded once).
 
     Invalid/missing doctrine dirs return an empty frozenset per kind.
 
-    Scans the project's configured org-pack chain as well as the built-in layer
-    (#6338): ``list_available`` defaults to built-in-only, so an org-pack (e.g.
-    ``packs/internal``) artifact activated in this project would otherwise be
-    absent from the known-id set and falsely reported as an
-    ``unknown_reference`` ("Not found in doctrine"). The org chain is resolved
-    ``strict=False`` so a misconfigured/absent org pack degrades to built-in
-    only rather than crashing the scan.
-    """
-    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
+    The scan spans every layer the readers resolve over: the built-in layer, the
+    project layer (the canonical ``resolve_layer_roots`` project pack root, #6749)
+    and the project's configured org-pack chain (#6338). A project-layer artifact
+    activated in this project would otherwise be absent from the known-id set and
+    falsely reported as an ``unknown_reference`` ("Not found in doctrine"). The org
+    chain is resolved ``strict=False`` so a misconfigured/absent org pack degrades to
+    built-in only rather than crashing the scan.
 
-    org_chain = resolve_pack_chain(ctx.require_repo_root(), strict=False)
+    ``mission_type_ids`` is the layered roster's id set for ``mission-type`` — the
+    only kind :meth:`list_available` cannot answer over the layers (see
+    :func:`_layered_mission_type_ids`). When it is ``None`` the kind's entry is
+    omitted entirely, meaning "membership could not be resolved this run"; the
+    caller has already recorded that as a verification error, and
+    :func:`_is_known` must not turn an unverifiable kind into a false ``unknown``.
+    """
+    from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain  # noqa: PLC0415
+
+    repo_root = ctx.require_repo_root()
+    layer_roots = resolve_layer_roots(repo_root)
+    org_chain = resolve_pack_chain(repo_root, strict=False)
     all_ids: dict[str, frozenset[str]] = {}
     for kind in YAML_KEY_MAP:
+        if kind == MISSION_TYPE_TOKEN:
+            if mission_type_ids is not None:
+                all_ids[kind] = mission_type_ids
+            continue
         try:
-            all_ids[kind] = manager.list_available(ctx, kind, org_root_chain=org_chain)
+            all_ids[kind] = manager.list_available(ctx, kind, layer_roots=layer_roots, org_root_chain=org_chain)
         except ValueError:
             all_ids[kind] = frozenset()
     return all_ids
@@ -427,13 +465,21 @@ def _is_known(cli_kind: str, token: str, identity: IdentityIndex, all_offering_i
     """Whether *token* (stem, declared id or URN) names a known artifact of *cli_kind* (FR-017, #6433).
 
     For an artifact kind the identity index (built-in, org and project layers)
-    alone decides. The ``list_available`` ids are read only for mission types,
+    alone decides. The layered mission-type roster's ids decide for mission types,
     which have no :class:`ArtifactKind` and so no index entries.
+
+    A kind with no catalogue entry this run is unverifiable, not empty: the run has
+    already recorded why (a fail-closed verification error), and reporting its
+    activated tokens as ``unknown`` here would state something the check could not
+    know (#6749).
     """
     kind = _artifact_kind(cli_kind)
     if kind is not None:
         return identity.knows(kind, token)
-    return token in all_offering_ids.get(cli_kind, frozenset())
+    known: frozenset[str] | None = all_offering_ids.get(cli_kind)
+    if known is None:
+        return True
+    return token in known
 
 
 def _check_unknown_references(
@@ -614,6 +660,8 @@ def _find_owning_kind(
     for other_kind in YAML_KEY_MAP:
         if other_kind == exclude_kind:
             continue
+        if _artifact_kind(other_kind) is None and other_kind not in all_offering_ids:
+            continue  # Unverifiable this run (see _is_known): it owns nothing.
         if _is_known(other_kind, artifact_id, identity, all_offering_ids):
             return other_kind  # Report once per misplaced ID.
     return None
@@ -1660,7 +1708,25 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
             suggestions=suggestions,
         )
 
-    all_offering_ids = _collect_all_offering_ids(ctx, manager)
+    # The mission-type roster is the one layered authority the catalogue cannot
+    # obtain from ``list_available`` (#6749). Read it only when this project
+    # actually activates a mission type (NFR-002: the implicit-all-active path, and
+    # a project with no mission-type list, perform no roster read at all), and read
+    # it once per run. A roster failure fails CLOSED: it is surfaced as a
+    # verification error and the kind's catalogue entry stays absent, so its
+    # activated tokens are neither confirmed nor falsely called unknown.
+    mission_type_ids: frozenset[str] | None = None
+    if raw_activated_by_kind.get(MISSION_TYPE_TOKEN):
+        try:
+            mission_type_ids = _layered_mission_type_ids(ctx)
+        except Exception as exc:  # noqa: BLE001  # fail-closed signal below, not a silent pass.
+            verification_errors.append(f"{MISSION_TYPE_TOKEN}: Could not verify the layered mission-type roster ({type(exc).__name__}: {exc}).")
+            suggestions.append(
+                f"{MISSION_TYPE_TOKEN}: Could not verify config<->mission-type roster parity "
+                f"({type(exc).__name__}: {exc}). Fix or remove the malformed mission_types entry "
+                f"in the built-in, org or project layer (see 'spec-kitty doctor charter-packs') and retry."
+            )
+    all_offering_ids = _collect_all_offering_ids(ctx, manager, mission_type_ids=mission_type_ids)
     # One identity index per run (#6433, FR-017), over the roots compile uses: the
     # offering root, the pack context's org roots and the project layer.
     identity = IdentityIndex.from_pack_context(ctx.require_pack_context(), repo_root=ctx.require_repo_root(), offering_root=resolve_offering_root())
