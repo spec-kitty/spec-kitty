@@ -102,3 +102,25 @@ closure, run mandatory fast and full owning charter/docs gates, publish through
 the existing PR, then qualify the rc7 operational port after the preceding
 runtime source is explicitly released. Upstream merge/release and actual
 acceptance qualification remain separate obligations.
+
+## Activation and runtime boundary correction
+
+The published predecessor's local functional scopes passed, but required CI
+architecture gates found two real boundary violations: the runtime imported
+its projector from a CLI module, and two new consumers imported activation
+internals. That predecessor is not ready for merge or operational admission;
+its functional evidence and the architectural readiness correction are retained
+separately.
+
+The same typed projection now lives in the shared core ownership layer. Runtime
+and CLI readers consume it without a runtime-to-CLI dependency. Charter scope
+and immutable fetch arguments are identity re-exports through the existing
+`charter.activation.api` facade, with its public-surface identity table updated.
+The charter layer retains its independence from the CLI, and the canonical
+ownership minter and explicit leaf revalidation still supply the one fact.
+No forbidden-dependency or activation-internal baseline is expanded.
+
+The complete layer-rules, activation-boundary and activation-API identity gate
+files now join the next local qualification scope. Actual emitted fetch, scoped
+intent, default-callback and exact Git-call controls remain required too. Final
+results are recorded externally after source and documentation freeze.

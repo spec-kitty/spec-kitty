@@ -9,7 +9,7 @@ from typing import TypedDict
 import typer
 
 from charter.activation.pack_context import ActiveCharterConfigError
-from charter.activation.scope import CharterScope
+from charter.activation.api import CharterScope
 from charter.packs import RetiredPackFieldError
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 from kernel.errors import KittyInternalConsistencyError
@@ -17,7 +17,8 @@ from kernel.errors import KittyInternalConsistencyError
 from specify_cli.cli.helpers import git_resolution_failure_message
 from specify_cli.task_utils import TaskCliError
 from mission_runtime import ActionContextError
-from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, charter_scope_for_owned, resolve_owned_or_adopt
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_adopt
+from specify_cli.core.owned_charter import charter_scope_for_owned
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._common import _emit_error
