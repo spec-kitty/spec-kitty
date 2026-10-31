@@ -2,88 +2,98 @@
   "mission_slug": "issue-6328-code-producing-review-gate-01M68ZQ1",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/charter/test_code_producing_capability.py::test_mission_type_declares_the_field_tri_state tests/charter/test_code_producing_capability.py::test_custom_type_declaring_code_producing_true",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:16:41.368783+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/charter/test_code_producing_capability.py::test_builtin_code_producing_defaults tests/charter/test_code_producing_capability.py::test_builtin_map_is_the_single_owning_list",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:16:44.247951+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/charter/test_code_producing_capability.py::test_custom_type_declaring_nothing_is_conservatively_false tests/charter/test_code_producing_capability.py::test_unknown_mission_type_is_false",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:16:47.224201+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/charter/test_code_producing_capability.py::test_facet_is_thunk_backed_and_memoised tests/charter/test_code_producing_capability.py::test_action_sequence_hot_path_does_not_fire_the_capability",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:16:50.006494+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/charter/test_code_producing_capability.py::test_accessor_is_public_through_the_activation_api_seam tests/architectural/test_charter_activation_api_reexport.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:16:52.614541+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/cli/commands/agent/test_ready_for_review_code_producing_gate.py::test_custom_code_producing_type_without_lane_commit_is_refused tests/specify_cli/cli/commands/agent/test_ready_for_review_code_producing_gate.py::test_review_readiness_path_has_no_family_name_literal",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:16:54.983385+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/specify_cli/cli/commands/agent/test_ready_for_review_code_producing_gate.py::test_custom_non_code_type_is_not_applied tests/specify_cli/cli/commands/agent/test_ready_for_review_code_producing_gate.py::test_builtin_verdicts_are_unchanged",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:16:57.289287+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "git diff --stat origin/main -- src/specify_cli/lanes/for_review_gate.py src/specify_cli/lanes/consolidation.py is empty; verified at WP02/T013",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:17:01.462542+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "evidence-gate-untouched-by-capability",
+      "description": "The code_producing capability must NOT appear in the shared evidence/for_review gate module: #6715's gate keeps its own semantics and must not be re-keyed or duplicated by this mission",
+      "verification_method": "grep_absence",
+      "verification_command": "code_producing",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/lanes"
+    }
+  ]
 }

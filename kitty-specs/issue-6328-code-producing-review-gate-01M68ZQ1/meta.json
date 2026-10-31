@@ -1,18 +1,36 @@
 {
+  "accept_commit": "31c1c517711d18b7eb59c35aac32f0fce5b85e64",
+  "acceptance_history": [
+    {
+      "accept_commit": "31c1c517711d18b7eb59c35aac32f0fce5b85e64",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T16:17:08.331847+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "e6b7b942e5ab129ee5fee71d9c955ffc0f99a8cd"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T16:17:08.331847+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "e6b7b942e5ab129ee5fee71d9c955ffc0f99a8cd",
+  "baseline_merge_commit": "308acb42a0fef9149c0e4c2fc5c0f2bb6e60afd6",
   "contracts": "none",
   "contracts_rationale": "No API, CLI flag, exit-code or JSON-envelope change. The only new interface is one Python function on the existing charter.activation.api seam (code_producing_for), and the consumer change re-keys a pre-existing internal gate. The review-readiness refusal text, the #6715/#5939 error codes and every CLI surface are unchanged.",
   "created_at": "2026-10-31T12:42:22.804208+00:00",
   "flattened": false,
   "friendly_name": "Enforce the implementation-commit review prerequisite from code_producing",
+  "merged_at": "2026-10-31T16:17:34.846944+00:00",
+  "merged_commit": "308acb42a0fef9149c0e4c2fc5c0f2bb6e60afd6",
   "mid8": "01M68ZQ1",
   "mission_id": "01M68ZQ1JC60N280B54GMCBB6K",
-  "mission_number": null,
+  "mission_number": 245,
   "mission_slug": "issue-6328-code-producing-review-gate-01M68ZQ1",
   "mission_type": "software-dev",
   "pr_bound": true,
   "purpose_context": "This mission advances Enforce the implementation-commit review prerequisite from code_producing on issue-6328-code-producing-review-gate so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "A custom code-producing mission type can no longer reach review with nothing implemented; the review-readiness prerequisite is keyed on the code_producing capability, not the software-dev family name.",
   "slug": "issue-6328-code-producing-review-gate-01M68ZQ1",
+  "status_phase": "1",
   "target_branch": "issue-6328-code-producing-review-gate",
   "topology": "single_branch"
 }
