@@ -54,7 +54,9 @@ def test_a_done_work_package_is_attested_with_a_forced_done_self_transition(tmp_
 
     (request,) = captured
     assert request.to_lane == Lane.DONE
-    assert request.force is True and request.actor == "stijn" and request.reason_source == "operator"
+    # #6722: the event carries the structured system actor; the identity is still "stijn".
+    assert request.force is True and request.reason_source == "operator"
+    assert request.actor == {"tool": "stijn", "role": "system", "profile": None, "model": None}
     assert request.reason == "operator attests approved content reviewed: read the whole lane"
     assert request.policy_metadata == {ATTESTATION_KEY: APPROVED_REVIEWED}
     assert request.evidence == {"review": {"reviewer": "stijn", "verdict": "approved", "reference": "operator-attestation:WP01"}}
