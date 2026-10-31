@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "mission_slug": "reject-invalid-forced-status-rewind-01M68J8B",
+  "mission_id": "01M68J8B3G2N6W1D4Y1FADR15Z",
+  "mission_branch": "kitty/mission-reject-invalid-forced-status-rewind-01M68J8B",
+  "target_branch": "issue-6514-reject-invalid-forced-status-rewind",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/validate.py",
+        "src/specify_cli/status/wp_state.py",
+        "tests/status/test_6514_forced_rewind_review_ref.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/test_move_task_done_exit.py",
+        "tests/status/test_6514_door_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/status-model.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-31T08:50:52.521059+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "01641d2e2cc537c6c3b1f82f1dc62a5a5710ba36"
+}

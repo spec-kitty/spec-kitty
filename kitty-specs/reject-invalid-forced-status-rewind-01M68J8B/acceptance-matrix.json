@@ -1,0 +1,109 @@
+{
+  "mission_slug": "reject-invalid-forced-status-rewind-01M68J8B",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "A forced for_review -> in_progress with no review_ref is refused before it is appended.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: tests/status/test_forced_rewind_requires_review_ref.py::test_invalid_forced_rewind_is_refused_before_append; tests/status/test_forced_rewind_door_parity.py::test_orchestrator_door_refuses_the_pointerless_forced_rewind",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:20.188832+00:00",
+      "notes": "Proof: tests/status/test_forced_rewind_requires_review_ref.py::test_invalid_forced_rewind_is_refused_before_append; tests/status/test_forced_rewind_door_parity.py::test_orchestrator_door_refuses_the_pointerless_forced_rewind"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A refused rewind leaves status.events.jsonl and status.json byte-identical.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: tests/status/test_forced_rewind_requires_review_ref.py::test_invalid_forced_rewind_is_refused_before_append (SHA-256 of both files)",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:23.767325+00:00",
+      "notes": "Proof: tests/status/test_forced_rewind_requires_review_ref.py::test_invalid_forced_rewind_is_refused_before_append (SHA-256 of both files)"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The refusal names review_ref and --review-ref.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: tests/status/test_forced_rewind_requires_review_ref.py::test_invalid_forced_rewind_is_refused_before_append (--json error text)",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:27.229338+00:00",
+      "notes": "Proof: tests/status/test_forced_rewind_requires_review_ref.py::test_invalid_forced_rewind_is_refused_before_append (--json error text)"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The same forced rewind with a non-empty --review-ref still appends and validates clean.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: tests/status/test_forced_rewind_requires_review_ref.py::test_pointer_carrying_forced_rewind_still_appends",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:30.701438+00:00",
+      "notes": "Proof: tests/status/test_forced_rewind_requires_review_ref.py::test_pointer_carrying_forced_rewind_still_appends"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The rule lives in the status validation authority, so both generic doors refuse.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: tests/status/test_forced_rewind_door_parity.py (both doors, one rule); src/specify_cli/status/wp_state.py::requires_review_ref",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:34.173943+00:00",
+      "notes": "Proof: tests/status/test_forced_rewind_door_parity.py (both doors, one rule); src/specify_cli/status/wp_state.py::requires_review_ref"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The 'this edge requires review_ref' fact has one definition read by writer and auditor.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: src/specify_cli/status/wp_state.py REVIEW_REF_REQUIRED_EDGES + has_review_ref, consumed by validate.validate_event_schema; tests/status/test_forced_rewind_requires_review_ref.py::test_validator_reads_the_same_requirement",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:37.683069+00:00",
+      "notes": "Proof: src/specify_cli/status/wp_state.py REVIEW_REF_REQUIRED_EDGES + has_review_ref, consumed by validate.validate_event_schema; tests/status/test_forced_rewind_requires_review_ref.py::test_validator_reads_the_same_requirement"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Other forced edges (done, canceled, planned, for_review -> planned, in_review) are unchanged.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: tests/status/test_forced_rewind_door_parity.py::test_force_elsewhere_is_unchanged and ::test_forced_exits_from_done_still_work",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:41.691601+00:00",
+      "notes": "Proof: tests/status/test_forced_rewind_door_parity.py::test_force_elsewhere_is_unchanged and ::test_forced_exits_from_done_still_work"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "move-task's forced for_review -> in_progress rewind still records, carrying force-override.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: tests/status/test_forced_rewind_door_parity.py::test_move_task_forced_rewind_still_lands_with_its_sentinel; tests/specify_cli/cli/commands/agent/test_move_task_done_exit.py",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:45.176262+00:00",
+      "notes": "Proof: tests/status/test_forced_rewind_door_parity.py::test_move_task_forced_rewind_still_lands_with_its_sentinel; tests/specify_cli/cli/commands/agent/test_move_task_done_exit.py"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Both write doors refuse the same invalid request identically.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: tests/status/test_forced_rewind_door_parity.py::test_orchestrator_door_refuses_the_pointerless_forced_rewind + the emit-door equivalent",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:48.662935+00:00",
+      "notes": "Proof: tests/status/test_forced_rewind_door_parity.py::test_orchestrator_door_refuses_the_pointerless_forced_rewind + the emit-door equivalent"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "docs/architecture/status-model.md states the force-insurmountable requirement and the append-only recovery position.",
+      "proof_type": "automated_test",
+      "evidence": "Proof: docs/architecture/status-model.md#forced-rewinds-out-of-review; check_docs_freshness errors=0; docs-retrieval-index.yaml carries the anchor",
+      "pass_fail": "pass",
+      "verified_by": "pi/claude-sonnet-4.5",
+      "verified_at": "2026-10-31T10:33:51.878462+00:00",
+      "notes": "Proof: docs/architecture/status-model.md#forced-rewinds-out-of-review; check_docs_freshness errors=0; docs-retrieval-index.yaml carries the anchor"
+    }
+  ],
+  "negative_invariants": []
+}
