@@ -671,3 +671,44 @@ def test_check_decision_documentation_on_implement_fail_arm_message_stem(
         "(RuntimeError: boom-decision-doc). Regenerate graph.yaml / run "
         "'spec-kitty charter resynthesize' and retry."
     ]
+
+
+# ---------------------------------------------------------------------------
+# #6749: the known-id catalogue must not be structurally blind to the project
+# layer. Artefact-kind membership is decided by the run's IdentityIndex
+# (built-in + org + project, #6433); this pins that the catalogue the check also
+# builds agrees with it over the project layer instead of scanning built-in + org
+# only.
+# ---------------------------------------------------------------------------
+
+_PROJECT_DIRECTIVE_BODY = 'schema_version: "1.0"\nid: PROJ_DIR_900\ntitle: Project directive\nintent: local rule\nenforcement: advisory\n'
+
+
+@pytest.mark.doctrine
+def test_catalogue_spans_the_project_layer(tmp_path: Path) -> None:
+    """The catalogue sees a project-layer artifact the run's identity index knows."""
+    import charter.activation.consistency_check as consistency_check
+    from charter.activation.catalog import resolve_offering_root
+    from charter.activation.identity_index import IdentityIndex
+    from charter.activation.pack_manager import ActiveCharterManager
+    from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
+    from kernel.charter_pack_paths import project_pack_root
+
+    ctx = _ctx_with_config(tmp_path, "activated_directives:\n  - proj-dir\n")
+    directive_dir = project_pack_root(tmp_path) / PROJECT_KIND_DIRS[ArtifactKind.DIRECTIVE]
+    directive_dir.mkdir(parents=True, exist_ok=True)
+    (directive_dir / "proj-dir.directive.yaml").write_text(_PROJECT_DIRECTIVE_BODY, encoding="utf-8")
+
+    ids = consistency_check._collect_all_offering_ids(ctx, ActiveCharterManager())
+
+    assert "proj-dir" in ids["directive"], f"catalogue is project-blind: {sorted(ids['directive'])[:5]}..."
+
+    # Positive control on the SAME fixture: the authority the check actually uses
+    # for artefact kinds resolves the same token, so the two answers cannot drift.
+    identity = IdentityIndex.from_pack_context(
+        ctx.require_pack_context(),
+        repo_root=ctx.require_repo_root(),
+        offering_root=resolve_offering_root(),
+    )
+    assert identity.knows(ArtifactKind.DIRECTIVE, "proj-dir")
+    assert run_consistency_check(ctx).unknown_references == []
