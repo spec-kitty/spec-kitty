@@ -1,0 +1,25 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-10-31T10:07:13Z",
+  "base_branch": "1363ee77fdffd2f8ee153df7570e9b2da88b1d70",
+  "base_commit": "1363ee77fdffd2f8ee153df7570e9b2da88b1d70",
+  "test_runner": "custom",
+  "total": 2,
+  "passed": 0,
+  "failed": 2,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.status.test_adapters_contract.test_status_package_carries_no_hosted_transport_vocabulary",
+      "error": "AssertionError: wire_payload.py: hosted",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_order.test_lifecycle_path_and_implement_claim_path_do_not_deadlock",
+      "error": "AssertionError: assert {'B': Feature...81577+00:00')} == {}",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300
+}
