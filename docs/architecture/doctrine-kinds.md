@@ -331,6 +331,16 @@ executable steps — each step can delegate to a directive, tactic, or procedure
 **Location.** `packs/built-in/missions/built_in_step_contracts/*.step-contract.yaml`
 (project overlay: `.kittify/charter-packs/mission_step_contracts/`).
 
+**Identity.** A step contract has two spellings, and they deliberately differ. Its **declared id**
+(`documentation-accept`) is what `id:` holds, what `charter activate`/`deactivate` take and what the
+activation lists store. Its **DRG node** is `mission_step_contract:<mission>/<action>`
+(`mission_step_contract:documentation/accept`), because the activation filter keeps a step contract
+by its owning mission type and the pre-review gate join resolves it by the `(mission, action)` pair.
+`IdentityIndex.urn` maps one to the other, and
+`charter.offering.missions.step_contracts.step_contract_urn` is the one implementation of the tail
+rule; an architectural gate (`tests/architectural/test_drg_urn_identity_parity.py`) fails if a
+shipped node's URN and the identity of the contract it names ever disagree (#6741).
+
 **Example.** `specify` action, software-dev mission
 (`packs/built-in/missions/built_in_step_contracts/specify.step-contract.yaml`). Its `bootstrap`
 step loads charter context; `capture_intent` delegates to directives
