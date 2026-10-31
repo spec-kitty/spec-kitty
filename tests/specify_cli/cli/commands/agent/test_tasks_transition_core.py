@@ -1060,6 +1060,21 @@ def test_non_force_backward_with_evidence_is_force_free() -> None:
     assert plan.transition_targets == ["in_progress"]
 
 
+def test_approved_reopen_preserves_supplied_feedback_without_force() -> None:
+    """The ordinary feedback pointer reaches the same existing evidence gate."""
+    plan = build_transition_plan(
+        old_lane="approved",
+        target_lane="in_progress",
+        force=False,
+        review_feedback_pointer="review-feedback.md",
+        arb_review_ref=None,
+        note_text="Reopen for correction",
+    )
+    assert plan.emit_force is False
+    assert plan.emit_review_ref == "review-feedback.md"
+    assert plan.transition_targets == ["in_progress"]
+
+
 def test_non_force_backward_without_evidence_stays_forced() -> None:
     """FR-015 (honest force): ``approved -> in_progress`` with NO ``review_ref``
     evidence is FSM-rejected force-free, so ``emit_force`` stays truthfully ``True``.

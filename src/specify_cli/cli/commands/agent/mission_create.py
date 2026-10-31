@@ -830,18 +830,39 @@ def create_mission(
     mission_slug: Annotated[str, typer.Argument(help="Mission slug (e.g., 'user-auth')")],
     mission_type: Annotated[
         str | None,
-        typer.Option("--mission-type", help="Mission type (e.g., 'documentation', 'software-dev')"),
+        typer.Option(
+            "--mission-type",
+            help="Mission type (e.g., 'documentation', 'software-dev')",
+        ),
     ] = None,
     mission: Annotated[
         str | None,
         typer.Option("--mission", hidden=True, help="(deprecated) Use --mission-type"),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
-    target_branch: Annotated[str | None, typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
+    target_branch: Annotated[
+        str | None,
+        typer.Option("--target-branch", help="Target branch (defaults to current branch)"),
+    ] = None,
     friendly_name: Annotated[str | None, typer.Option("--friendly-name", help="Human-friendly mission title")] = None,
-    purpose_tldr: Annotated[str | None, typer.Option("--purpose-tldr", help="One-line stakeholder TLDR for the mission")] = None,
-    purpose_context: Annotated[str | None, typer.Option("--purpose-context", help="Short stakeholder-facing paragraph for the mission")] = None,
-    pr_bound: Annotated[bool, typer.Option("--pr-bound/--no-pr-bound", help="Mark mission as PR-bound (gate fires on merge_target_branch)")] = False,
+    purpose_tldr: Annotated[
+        str | None,
+        typer.Option("--purpose-tldr", help="One-line stakeholder TLDR for the mission"),
+    ] = None,
+    purpose_context: Annotated[
+        str | None,
+        typer.Option(
+            "--purpose-context",
+            help="Short stakeholder-facing paragraph for the mission",
+        ),
+    ] = None,
+    pr_bound: Annotated[
+        bool,
+        typer.Option(
+            "--pr-bound/--no-pr-bound",
+            help="Mark mission as PR-bound (gate fires on merge_target_branch)",
+        ),
+    ] = False,
     topology: Annotated[
         MissionTopology | None,
         typer.Option(
@@ -941,6 +962,12 @@ def create_mission(
     from specify_cli.cli.commands.agent import mission as _mission
 
     repo_root = _mission.locate_project_root()
+    if owned_checkout is not None and repo_root is not None:
+        # Project scaffolding may exist only in the linked checkout. The owned
+        # namespace still belongs to its actual Git primary, initialized or not.
+        from specify_cli.core.paths import get_main_repo_root
+
+        repo_root = get_main_repo_root(repo_root)
     # fix-cycle-2 HIGH: mint the owned-checkout fact ONCE, here, before any of
     # the phases below run a git operation against it (start-branch switch,
     # get_current_branch, topology derivation). None when no claim was given.

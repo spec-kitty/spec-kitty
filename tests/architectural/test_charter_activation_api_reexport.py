@@ -31,6 +31,8 @@ pytestmark = pytest.mark.architectural
 
 #: (symbol, charter.activation source module). Keep in sync with charter.activation.api.__all__.
 _SEAM_TABLE: list[tuple[str, str]] = [
+    ("CharterScope", "charter.activation.scope"),
+    ("OwnedCharterInvocation", "charter.activation.scope"),
     ("ActivationLedger", "charter.activation.activation_ledger"),
     ("ActivationResult", "charter.activation.pack_manager"),
     ("DenyListChoice", "charter.activation.activation_ledger"),

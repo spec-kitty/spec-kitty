@@ -14683,6 +14683,58 @@ pages:
     - {slug: "known-limitations-and-delivery", text: "Known limitations and delivery", level: 2}
     - {slug: "resource-custody-and-cleanup", text: "Resource custody and cleanup", level: 2}
     - {slug: "ci-feedback-and-corrective-scope", text: "CI feedback and corrective scope", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-30-owned-analysis-currency.md"
+    title: "Owned analysis currency repair"
+    divio_type: "none"
+    abstract: "Root-custody decisions and qualification scope for owned analysis recording and freshness checks."
+    anchors:
+    - {slug: "objective-and-ownership", text: "Objective and ownership", level: 2}
+    - {slug: "user-experience-findings", text: "User experience findings", level: 2}
+    - {slug: "decisions-and-provenance", text: "Decisions and provenance", level: 2}
+    - {slug: "qualification-and-known-limitations", text: "Qualification and known limitations", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-30-owned-charter-context.md"
+    title: "Owned prompt charter scope repair"
+    divio_type: "none"
+    abstract: "Typed scope propagation keeps prompt policy and charter context reads within the validated owned checkout."
+    anchors:
+    - {slug: "objective-and-ownership", text: "Objective and ownership", level: 2}
+    - {slug: "user-experience-findings", text: "User experience findings", level: 2}
+    - {slug: "decisions-and-provenance", text: "Decisions and provenance", level: 2}
+    - {slug: "known-limitations-and-qualification-boundaries", text: "Known limitations and qualification boundaries", level: 2}
+    - {slug: "resources-and-next-action", text: "Resources and next action", level: 2}
+    - {slug: "generated-fetch-closure", text: "Generated fetch closure", level: 2}
+    - {slug: "activation-and-runtime-boundary-correction", text: "Activation and runtime boundary correction", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-30-owned-startup-project-gates.md"
+    title: "Owned checkout startup admission repair"
+    divio_type: "reference"
+    abstract: "Evidence and decisions for correcting startup admission of explicitly selected migrated linked checkouts."
+    anchors:
+    - {slug: "user-experience-findings", text: "User Experience Findings", level: 2}
+    - {slug: "engineering-decisions", text: "Engineering Decisions", level: 2}
+    - {slug: "known-limitations", text: "Known Limitations", level: 2}
+    - {slug: "publication-documentation-repair", text: "Publication documentation repair", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-31-approved-reopen-feedback.md"
+    title: "Approved implementation reopen feedback"
+    divio_type: "none"
+    abstract: "Preserve explicitly supplied reopen references through canonical CLI planning and actor guards."
+    anchors:
+    - {slug: "observed-behavior-and-contract", text: "Observed behavior and contract", level: 2}
+    - {slug: "actor-identity-and-proof-boundary", text: "Actor identity and proof boundary", level: 2}
+    - {slug: "implementation-and-qualification", text: "Implementation and qualification", level: 2}
+    - {slug: "development-version-and-validation-configuration", text: "Development version and validation configuration", level: 2}
+    - {slug: "golden-refusal-fixture-and-guard-coverage", text: "Golden refusal fixture and guard coverage", level: 2}
+    - {slug: "timing-diagnosis-and-limits", text: "Timing diagnosis and limits", level: 2}
+    - {slug: "owner-and-next-event", text: "Owner and next event", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-31-migration-project-admission.md"
+    title: "Migration project write admission"
+    divio_type: "none"
+    abstract: "Preserve project discovery while preventing global runtime storage from authorizing unrelated migrations."
+    anchors:
+    - {slug: "objective-and-observed-user-experience", text: "Objective and observed user experience", level: 2}
+    - {slug: "admission-boundary-and-compatibility", text: "Admission boundary and compatibility", level: 2}
+    - {slug: "regression-evidence-and-limitations", text: "Regression evidence and limitations", level: 2}
+    - {slug: "owning-suite-fixture-corrections", text: "Owning-suite fixture corrections", level: 2}
+    - {slug: "owner-resources-and-next-event", text: "Owner, resources and next event", level: 2}
   - path: "docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md"
     title: "Infra-to-logic separation (#2173) — investigation synthesis"
     divio_type: "none"

@@ -115,6 +115,8 @@ def _seed_mission(repo_root: Path, slug: str, mid8: str, coord_branch: str) -> t
         "mission_slug": slug,
         "mid8": mid8,
         "coordination_branch": coord_branch,
+        "topology": "coord",
+        "target_branch": "main",
         "mission_type": "software-dev",
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
@@ -252,23 +254,17 @@ class TestProtectedBranchesConfigHonoring:
             "Precondition: 'main' must be protected with explicit [main]."
         )
 
-        from mission_runtime import CommitTarget
-
-        with patch(
-            "specify_cli.coordination.commit_router.resolve_placement_only",
-            return_value=CommitTarget(ref=coord_branch),
-        ), patch(
-            "specify_cli.coordination.commit_router._resolve_mid8",
-            return_value=mid8,
-        ):
-            result = commit_for_mission(
-                repo_root=repo.repo_root,
-                mission_slug=slug,
-                files=(report,),
-                message="acceptance-matrix: via coord",
-                policy=policy,
-                kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
-            )
+        # Exercise the canonical kind-aware authority: the coordination
+        # artifact resolves to the coord branch while PRIMARY_METADATA resolves
+        # to main. A constant placement mock made those two distinct reads equal.
+        result = commit_for_mission(
+            repo_root=repo.repo_root,
+            mission_slug=slug,
+            files=(report,),
+            message="acceptance-matrix: via coord",
+            policy=policy,
+            kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+        )
 
         coord_worktree = repo.repo_root / ".worktrees" / f"{slug}-{mid8}-coord"
         assert coord_worktree.exists(), (
@@ -377,23 +373,17 @@ class TestFR006HatchEndToEnd:
         assert not policy.operator_hatch_active, "Baseline: hatch must be OFF."
         assert policy.is_protected("main"), "Baseline: 'main' must be protected without hatch."
 
-        from mission_runtime import CommitTarget
-
-        with patch(
-            "specify_cli.coordination.commit_router.resolve_placement_only",
-            return_value=CommitTarget(ref=coord_branch),
-        ), patch(
-            "specify_cli.coordination.commit_router._resolve_mid8",
-            return_value=mid8,
-        ):
-            result = commit_for_mission(
-                repo_root=repo.repo_root,
-                mission_slug=slug,
-                files=(report,),
-                message="acceptance-matrix: no hatch",
-                policy=policy,
-                kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
-            )
+        # Exercise the canonical kind-aware authority: the coordination
+        # artifact resolves to the coord branch while PRIMARY_METADATA resolves
+        # to main. A constant placement mock made those two distinct reads equal.
+        result = commit_for_mission(
+            repo_root=repo.repo_root,
+            mission_slug=slug,
+            files=(report,),
+            message="acceptance-matrix: no hatch",
+            policy=policy,
+            kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+        )
 
         coord_worktree = repo.repo_root / ".worktrees" / f"{slug}-{mid8}-coord"
         assert coord_worktree.exists(), (

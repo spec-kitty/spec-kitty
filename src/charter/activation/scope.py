@@ -48,6 +48,7 @@ from charter.activation.pack_context import ActiveCharterConfigError
 
 __all__ = [
     "CharterScope",
+    "OwnedCharterInvocation",
     "CharterScopeConfig",
     "CharterScopeConflict",
     "CharterScopeNotFound",
@@ -151,6 +152,18 @@ class CharterScopeConfig(BaseModel):
 
 
 @dataclass(frozen=True)
+class OwnedCharterInvocation:
+    """Fetch arguments projected from an admitted ownership fact.
+
+    Rendering data grants no authority: the CLI revalidates both arguments
+    through its canonical ownership minter before reading charter context.
+    """
+
+    owned_root: Path
+    mission_handle: str
+
+
+@dataclass(frozen=True)
 class CharterScope:
     """Resolved charter scope for a given filesystem path.
 
@@ -166,11 +179,25 @@ class CharterScope:
         ``"repo_root_default"`` when no ``charter_scopes:`` configuration is
         present; ``"monorepo_config"`` when the scope came from the
         configured list.
+    invocation:
+        Optional immutable fetch arguments projected from admitted ownership.
+        The CLI revalidates them; rendering data never grants permission.
     """
 
     root: Path
     name: str | None
     config_source: Literal["repo_root_default", "monorepo_config"]
+    invocation: OwnedCharterInvocation | None = None
+
+    def __post_init__(self) -> None:
+        if self.invocation is not None:
+            owned_root = self.invocation.owned_root
+            handle = self.invocation.mission_handle
+            if not handle or Path(handle).name != handle or handle in {".", ".."}:
+                raise CharterScopeConflict("owned charter fetch requires a canonical Mission handle")
+            mission_dir = owned_root / "kitty-specs" / handle
+            if not self.root.is_relative_to(owned_root) or not mission_dir.is_relative_to(self.root):
+                raise CharterScopeConflict("owned charter fetch scope and Mission must share the admitted checkout")
 
     # -- constructors ---------------------------------------------------
 

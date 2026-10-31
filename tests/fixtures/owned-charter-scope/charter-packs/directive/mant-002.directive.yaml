@@ -1,0 +1,13 @@
+id: MANT_002
+schema_version: '1.0'
+title: Zig-first replacement path
+intent: New replacement-path product behavior belongs in Zig. Retained Rust is limited to the
+  smallest supported maintenance or proof-bearing extension required while migration remains
+  incomplete.
+enforcement: required
+scope: Applies to implement and review.
+procedures: []
+integrity_rules: []
+validation_criteria: []
+explicit_allowances: []
+references: []

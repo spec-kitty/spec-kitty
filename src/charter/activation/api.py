@@ -38,6 +38,13 @@ and drained tranche by tranche, while any *new* reach fails immediately.
 
 from __future__ import annotations
 
+# Scope and immutable fetch arguments are shared across runtime and CLI readers.
+# Identity re-exports keep those consumers behind this activation seam.
+from charter.activation.scope import (
+    CharterScope as CharterScope,
+    OwnedCharterInvocation as OwnedCharterInvocation,
+)
+
 # Mission-type-key access — the canonical reader/normalizer pair the mission
 # lifecycle, retrospective and diagnostics surfaces consume. Public per
 # charter.activation.mission_type_key.__all__.
@@ -251,6 +258,7 @@ __all__ = [
     "ActivationLedger",
     "ActivationResult",
     "ActiveCharterConfigError",
+    "CharterScope",
     "DenyListChoice",
     "DenyListWriteRefused",
     "EffectiveSet",
@@ -267,6 +275,7 @@ __all__ = [
     "LedgerMove",
     "LegacyRenameRefusedError",
     "ManifestIntegrityError",
+    "OwnedCharterInvocation",
     "ProjectDRGValidationError",
     "ProjectDirectiveScanError",
     "PromotionOutcome",

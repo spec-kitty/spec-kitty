@@ -29,9 +29,11 @@ from typer.testing import CliRunner
 
 from mission_runtime import MissionTopology
 from specify_cli import app as root_app
-from specify_cli.core.mission_creation import MissionCreationError, _create_mission_core_failure_atomic
+from specify_cli.core import mission_creation
+from specify_cli.core.mission_creation import MissionCreationError, MissionCreationResult, _create_mission_core_failure_atomic
 
 from tests._factories import make_mission, provision_test_charter
+from tests.core._mission_create_golden import branch_tips, build_repo, observe_state
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -214,6 +216,65 @@ def test_recreate_of_existing_mission_reports_mission_already_exists(tmp_path: P
 
     assert exc_info.value.error_code == "MISSION_ALREADY_EXISTS"
     assert meta_path.read_text(encoding="utf-8") == meta_before
+
+
+def test_public_live_duplicate_refusal_never_remints(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The historical golden row refuses before identity mint or any write."""
+    repo = build_repo(tmp_path, target="main", protected=("main",))
+    slug = "ref-protected-recreate"
+
+    def create(*, allow_duplicate: bool = False) -> MissionCreationResult:
+        return mission_creation.create_mission_core(
+            repo, slug, topology=MissionTopology.SINGLE_BRANCH, target_branch="main", allow_worktree_context=True, allow_duplicate=allow_duplicate
+        )
+
+    create(allow_duplicate=True)
+    tips = branch_tips(repo)
+    before = observe_state(repo, base_tips=tips)
+
+    def unexpected_mint() -> str:
+        pytest.fail("the public live-prior refusal must precede a second identity mint")
+
+    # Narrow fault detector outside the zero-patch golden set. The refusal and
+    # repository effects still execute through the real public create path.
+    monkeypatch.setattr(mission_creation, "_mint_mission_id", unexpected_mint)
+    with pytest.raises(MissionCreationError) as error:
+        create()
+
+    assert error.value.error_code == "MISSION_ALREADY_EXISTS"
+    assert "Refusing to silently create a duplicate (#4033)" in str(error.value)
+    assert observe_state(repo, base_tips=tips) == before
+
+
+def test_protected_recreate_guard_cannot_be_masked_by_live_duplicate(tmp_path: Path) -> None:
+    """Admit the duplicate, then exercise the real protected scaffold guard."""
+    repo = build_repo(tmp_path, target="main", protected=("main",))
+    slug = "protected-recreate-control"
+    identity = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
+
+    def create() -> MissionCreationResult:
+        return _create_mission_core_failure_atomic(
+            repo,
+            slug,
+            _mission_id=identity,
+            topology=MissionTopology.SINGLE_BRANCH,
+            target_branch="main",
+            allow_worktree_context=True,
+            allow_duplicate=True,
+        )
+
+    first = create()
+    assert first.meta["mission_id"] == identity
+    assert first.meta["mission_branch"] == _minted_branch_name(slug, identity)
+    tips = branch_tips(repo)
+    before = observe_state(repo, base_tips=tips)
+
+    with pytest.raises(MissionCreationError) as error:
+        create()
+
+    assert error.value.error_code == "MISSION_ALREADY_EXISTS"
+    assert "Refusing to overwrite an existing mission." in str(error.value)
+    assert observe_state(repo, base_tips=tips) == before
 
 
 def test_unprotected_target_no_mint(tmp_path: Path) -> None:

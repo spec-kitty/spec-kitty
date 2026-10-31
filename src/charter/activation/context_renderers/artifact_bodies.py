@@ -9,6 +9,8 @@ selection/decision logic.
 
 from __future__ import annotations
 
+from charter.activation.scope import CharterScope
+
 import json
 import re
 
@@ -56,7 +58,7 @@ def _append_step_lines(body_lines: list[str], step: object) -> None:
         body_lines.append(f"        {description.strip()}")
 
 
-def _format_inline_glossary_body(pack: object) -> list[str]:
+def _format_inline_glossary_body(pack: object, *, scope: CharterScope | None = None) -> list[str]:
     """Render a glossary pack as term surfaces (names) + a fetch pointer (NFR-001).
 
     Emits the pack id/heading, a ``Terms:`` line listing every term *surface*
@@ -79,6 +81,7 @@ def _format_inline_glossary_body(pack: object) -> list[str]:
         render_fetch_stanza(
             selector=f"glossary-pack:{pack_id}",
             when_clause=_GLOSSARY_FETCH_WHEN,
+            scope=scope,
         )
     )
     return body_lines
