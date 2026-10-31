@@ -11,6 +11,8 @@ from ..detectors import (
     detect_forbidden_keys,
     detect_legacy_keys,
 )
+from specify_cli.status import decode_actor
+
 from ..models import MissionFinding, Severity
 from ..shape_registry import check_unknown_keys, status_event_row_artifact_type
 from ._details import format_exception_detail
@@ -34,6 +36,24 @@ from ._details import format_exception_detail
 # We flag as drift:
 #   - Anything else (e.g. uppercase, spaces, empty string, numeric-only)
 _ACTOR_RE = re.compile(r"^[a-z][a-z0-9_:-]*$")
+
+
+def _actor_is_well_formed(actor: object) -> bool:
+    """True for a plain-string actor of the expected format or a decodable structured actor.
+
+    A structured (dict) actor is what ``finalize-tasks`` seeds and every agent/operator
+    write records (#6400, #6722); its shape is the status decoder's to judge, so a dict it
+    refuses stays a finding. Any other non-string value is malformed.
+    """
+    if isinstance(actor, str):
+        return _ACTOR_RE.match(actor) is not None
+    if isinstance(actor, dict):
+        try:
+            decode_actor(actor)
+        except ValueError:
+            return False
+        return True
+    return False
 
 
 def classify_status_events_jsonl(
@@ -118,7 +138,7 @@ def classify_status_events_jsonl(
 
         # Actor drift check
         actor = obj.get("actor")
-        if actor is not None and not (isinstance(actor, str) and _ACTOR_RE.match(actor)):
+        if actor is not None and not _actor_is_well_formed(actor):
             findings.append(
                 MissionFinding(
                     code="ACTOR_DRIFT",
