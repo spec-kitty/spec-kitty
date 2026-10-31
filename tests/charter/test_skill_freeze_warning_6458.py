@@ -112,7 +112,7 @@ def test_an_all_kind_never_warns_of_the_freeze(project: Path) -> None:
     plain = _activate(project, "toolguide", "gherkin")
     assert _written(project, "activated_toolguides") is None, "an in-force artifact must not freeze the kind (#6685)"
     assert _FREEZE_MARK not in plain
-    assert _ONLY_ADVICE in plain, "an 'all' kind keeps the --only advice"
+    assert "charter activate toolguide gherkin --only" in plain, "an 'all' kind keeps the --only advice"
 
     narrowed = _activate(project, "toolguide", "gherkin", "--only")
     assert _written(project, "activated_toolguides") == ["gherkin"]

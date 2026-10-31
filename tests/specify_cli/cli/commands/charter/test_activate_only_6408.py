@@ -130,9 +130,8 @@ def test_without_only_an_absent_list_stays_absent_and_the_warning_says_why(tmp_p
     assert result.exit_code == 0, result.output
     assert _list(root) is None, "the absent key must stay absent (#6685)"
     out = " ".join(result.output.split())
-    assert "keeps no explicit activation set" in out
-    assert "nothing in force was deactivated" in out
-    assert "--only" in out and "keep activation narrow" in out
+    assert "already in force; nothing written" in out
+    assert "--only" in out and "would freeze" in out
     assert "This list is now explicit" not in out, "no list was written, so nothing is frozen"
     assert "No longer in force" not in out
 

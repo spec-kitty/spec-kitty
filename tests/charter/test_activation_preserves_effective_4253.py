@@ -365,7 +365,7 @@ def test_resolved_set_still_reports_nothing_deactivated(tmp_path: Path) -> None:
 
     warnings = _fb_activate(root, "tactic", "org-a-tactic")
 
-    assert any(ALREADY_EFFECTIVE in w for w in warnings), warnings
+    assert any("already in force" in w for w in warnings), warnings
     assert not any("could not be resolved" in w for w in warnings)
 
 
@@ -394,7 +394,6 @@ def test_first_activation_says_why_it_wrote_nothing(project_without_activation_k
     result = _activate(project_without_activation_keys, "directive", "001-architectural-integrity-standard")
     assert result.exit_code == 0, result.output
     output = " ".join(result.output.split())
-    assert "already effective" in output
-    assert "nothing in force was deactivated" in output
-    assert "--only" in output and "keep activation narrow" in output
+    assert "already in force; nothing written" in output
+    assert "--only" in output and "would freeze" in output
     assert "This list is now explicit" not in output, "no list was written, so nothing is frozen"
