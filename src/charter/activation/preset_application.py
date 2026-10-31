@@ -692,23 +692,19 @@ def apply_preset_plan(repo_root: Path, plan: PresetPlan, *, force: bool = False)
     """
     from charter.activation.synthesizer.synthesis_lock import synthesis_lock  # deferred import
 
-    with synthesis_lock(repo_root):
-        return _apply_preset_plan_locked(repo_root, plan, force=force)
-
-
-def _apply_preset_plan_locked(repo_root: Path, plan: PresetPlan, *, force: bool) -> PresetOutcome:
-    """The body of :func:`apply_preset_plan`; the caller holds the synthesis lock."""
+    # The refusal writes nothing, so it needs no lock (and must not wait on one).
     if plan.customised_changes and not force:
         raise PresetWouldOverwriteError(plan)
-    if not force or not plan.forced_deny:
-        if not plan.is_noop:
-            _write(repo_root, plan, plan.written, plan.removed, deny_change=None)
-        return PresetOutcome(written=dict(plan.written), kept_deactivated=dict(plan.denied_listed))
-    _target_file, document = _read_target(repo_root)
-    cleared = _cleared_by_force(document, plan)
-    values, removed = _forced_values(plan)
-    _write(repo_root, plan, values, removed, deny_change=DenyListChoice.PRESET_FORCE)
-    return PresetOutcome(written={key: ids for key, ids in values.items() if key in plan.written or key in plan.forced_written}, cleared=cleared)
+    with synthesis_lock(repo_root):
+        if not force or not plan.forced_deny:
+            if not plan.is_noop:
+                _write(repo_root, plan, plan.written, plan.removed, deny_change=None)
+            return PresetOutcome(written=dict(plan.written), kept_deactivated=dict(plan.denied_listed))
+        _target_file, document = _read_target(repo_root)
+        cleared = _cleared_by_force(document, plan)
+        values, removed = _forced_values(plan)
+        _write(repo_root, plan, values, removed, deny_change=DenyListChoice.PRESET_FORCE)
+        return PresetOutcome(written={key: ids for key, ids in values.items() if key in plan.written or key in plan.forced_written}, cleared=cleared)
 
 
 def _write(repo_root: Path, plan: PresetPlan, values: dict[str, list[str]], removed: list[str], *, deny_change: DenyListChoice | None) -> None:
