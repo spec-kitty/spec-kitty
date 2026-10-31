@@ -25,7 +25,7 @@
       "wp": null
     },
     "#6792": {
-      "evidence_ref": "WP01 commits 5adbfa87 + e00c31b6 (red-first repro + fix); branch issue-6792-planning-lane-gate-honest-reason",
+      "evidence_ref": "PR #6863 (branch issue-6792-planning-lane-gate-honest-reason); reason selected in tasks_move_task_gates._mt_empty_changed_files_reason, covered by tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_planning_lane_reason.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
