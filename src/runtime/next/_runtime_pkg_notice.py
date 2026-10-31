@@ -45,11 +45,13 @@ _NOTICE_TEXT = (
 def _marker_path() -> Path:
     """Location of the one-time-notice marker file.
 
-    ``$XDG_STATE_HOME/spec-kitty/`` when set, else ``~/.cache/spec-kitty/``,
-    on every platform (:func:`kernel.user_dirs.user_state_dir`), so the marker
-    survives across CLI invocations but never lands in the repo tree.
+    ``kernel.user_dirs.user_state_dir()`` (``platformdirs`` semantics, #6488):
+    ``$XDG_STATE_HOME/spec-kitty``, else ``~/.local/state/spec-kitty`` on Linux;
+    ``~/Library/Application Support/spec-kitty`` on macOS;
+    ``%LOCALAPPDATA%\\spec-kitty`` on Windows. The marker therefore survives across
+    CLI invocations but never lands in the repo tree.
     """
-    return user_state_dir() / "spec-kitty" / _MARKER_FILENAME
+    return user_state_dir() / _MARKER_FILENAME
 
 
 def _runtime_package_installed() -> bool:

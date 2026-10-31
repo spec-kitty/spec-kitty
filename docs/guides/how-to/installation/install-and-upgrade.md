@@ -275,9 +275,11 @@ Schema (stable across patch releases):
 ## Troubleshooting
 
 **I get the nag every time.**
-The cache lives at `~/.cache/spec-kitty/upgrade-nag.json`. If it is being cleared between
-runs, set `SPEC_KITTY_NAG_THROTTLE_SECONDS=86400` explicitly or check for a process that
-deletes the cache directory.
+The cache lives at `upgrade-nag.json` in the per-user cache directory: `~/.cache/spec-kitty`
+on Linux, `~/Library/Caches/spec-kitty` on macOS, `%LOCALAPPDATA%\spec-kitty\Cache` on
+Windows (one authority since #6488). If it is being cleared between runs, set
+`SPEC_KITTY_NAG_THROTTLE_SECONDS=86400` explicitly or check for a process that deletes the
+cache directory.
 
 **The CLI won't upgrade with the printed command.**
 Your install method may have changed. Rerun `spec-kitty upgrade --cli` to get a fresh
