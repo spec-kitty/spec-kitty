@@ -125,13 +125,15 @@
       "group": "charter",
       "roots": [
         "src/charter/**",
-        "src/specify_cli/charter_runtime/**"
+        "src/specify_cli/charter_runtime/**",
+        "src/kernel/activation_ledger_store.py"
       ],
       "cov_targets": [
         "charter",
         "specify_cli.charter_runtime"
       ],
-      "census_evidence": "known-live"
+      "census_evidence": "known-live",
+      "note": "spec-kitty#6336: src/kernel/activation_ledger_store.py (the activation ledger's kernel-side floor, ADR 2026-10-19-1) is claimed here as an OVERLAP root -- the `kernel` group still owns src/kernel/**. Its readers are tests/charter/activation/** and tests/charter/conformance/test_activation_ledger_conformance.py, which live in this module's test dirs, so a floor edit must select the charter shard (#6336's 2026-10-20 follow-up). Overlapping src ownership is the scrub's existing shape (core_misc/unit/execution_context each also own src/specify_cli/status/**). The activation STORE paths (.kittify/charter/*.yaml) and the internal-pack pin (packs/internal.source.yaml) deliberately do NOT join this group: they are non-src, and the router's `charter` filter must stay the verbatim transcription of this row, so they carry their own non-src router group (`charter_activation`, gate_selection.ACTIVATION_STORE_MODULE_FANOUT)."
     },
     {
       "group": "dossier",
