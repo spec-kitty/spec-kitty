@@ -69,7 +69,7 @@ The contract-shaped dict inside the TeamSpace replay envelope.
 
 ## Entity: dry-run envelope (existing, unchanged shell)
 
-`_TeamspaceEnvelope` keeps its 14 fields. Only `payload` construction changes;
+`_TeamspaceEnvelope` keeps its 15 fields. Only `payload` construction changes;
 `event_id`, `aggregate_id`/`aggregate_type`, `timestamp`, `lamport_clock`,
 correlation seed and `build_id`/`node_id` are unchanged. `envelope_sha256` is
 recomputed from the (now model-built) payload, so hashes for rows carrying
