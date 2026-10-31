@@ -122,13 +122,17 @@ def plan_no_implementation_attestations(
     *,
     repo_root: Path,
     excluded_canceled_wp_ids: Iterable[str],
+    landed_commit: str | None = None,
 ) -> dict[str, str]:
     """Validate the request against the status snapshot and the evidence verdict: work package id -> current lane, in request order.
 
     *feature_dir* is the status-bearing mission dir; *repo_root* the repository the evidence windows
-    are diffed in. Raises :class:`AttestationError` (nothing recorded) for an invalid request, an
-    unreadable status log, or a work package whose evidence verdict an attestation cannot lift
-    (:func:`_refuse_unliftable`). An empty request returns an empty mapping without reading.
+    are diffed in. *landed_commit* is a caller-verified PR landing commit, threaded to
+    :func:`~specify_cli.consolidation.wp_evidence.evaluate_evidence` so this planner and the
+    gate it runs before judge the same window (#6780). Raises :class:`AttestationError` (nothing
+    recorded) for an invalid request, an unreadable status log, or a work package whose evidence
+    verdict an attestation cannot lift (:func:`_refuse_unliftable`). An empty request returns an
+    empty mapping without reading.
     """
     from specify_cli.status import read_events
 
@@ -144,7 +148,9 @@ def plan_no_implementation_attestations(
         raise AttestationError(f"{ATTEST_NO_IMPLEMENTATION_FLAG} could not read the status log: {exc}. {_NOTHING_RECORDED}") from exc
     claim_lanes = approved_claim_lanes(work_packages, lanes_manifest, excluded)
     validated = _validate_no_implementation_request(requested, reason, claim_lanes=claim_lanes)
-    report = evaluate_evidence(repo_root, feature_dir, lanes_manifest, work_packages, excluded, events=lambda: read_events(feature_dir))
+    report = evaluate_evidence(
+        repo_root, feature_dir, lanes_manifest, work_packages, excluded, events=lambda: read_events(feature_dir), landed_commit=landed_commit
+    )
     _refuse_unliftable(report, validated)
     return {wp_id: claim_lanes[wp_id] for wp_id in validated}
 
