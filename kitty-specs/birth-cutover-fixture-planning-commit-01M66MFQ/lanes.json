@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "birth-cutover-fixture-planning-commit-01M66MFQ",
+  "mission_id": "01M66MFQ05B1KP8ABVFZ0HYS5V",
+  "mission_branch": "kitty/mission-birth-cutover-fixture-planning-commit-01M66MFQ",
+  "target_branch": "issue-6801-birth-cutover-fixture-planning-commit",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/migration/test_birth_cutover.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T14:51:37.169145+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b70ea477f42ab8530d908fbd3ecedde9b928c06c"
+}
