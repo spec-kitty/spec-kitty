@@ -14,9 +14,8 @@
   "accepted_by": "exedev",
   "accepted_from_commit": "0d6617cbf2940fa9a0aff06f0ce9e0cadbcbcbec",
   "baseline_merge_commit": "a23f63744a02b56d9b4f1154eac1f0b7dfa1d233",
-  "coordination_branch": "kitty/mission-stale-coord-lane-base-01M67HRA",
   "created_at": "2026-10-30T23:19:10.403322+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "stale coord lane base",
   "merged_at": "2026-10-31T01:22:43.271640+00:00",
   "merged_commit": "6a3f404d9920443f2587a047a89dda2c7b83509a",
@@ -30,7 +29,6 @@
   "slug": "stale-coord-lane-base-01M67HRA",
   "status_phase": "1",
   "target_branch": "main",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-30T23:22:46.951722+00:00"
 }
