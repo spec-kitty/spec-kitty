@@ -149,7 +149,13 @@ def test_claude_code_bundle_plugin_json_exists(tmp_path: Path) -> None:
         (out / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
     )
     assert payload["name"] == "spec-kitty"
-    assert payload["distribution_target"] == "claude_code_plugin"
+    # The target label is a projector attribute, never a manifest field
+    # (distribution_target is not a Claude plugin key either).
+    assert "distribution_target" not in payload
+    # Claude reads its own manifest format, so the Agent Plugins reduction drops
+    # $schema while keeping the identity and link fields every directory needs.
+    assert "$schema" not in payload
+    assert payload["license"] == "MIT"
     assert "version" in payload
 
 

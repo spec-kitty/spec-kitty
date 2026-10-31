@@ -235,7 +235,10 @@ class PluginBundleProvider:
                 entries = supplied_entries(projector.entries(plans, inputs.root.path), suppliers)
                 files.extend(files_for_entries(entries, directory, inputs.root, observations))
                 manifest = (directory / projector.manifest_relative_path).relative_to(inputs.root.path).as_posix()
-                files.append(StagedFile(manifest, json_bytes(plugin_manifest_payload(target)), manifest=True))
+                payload = plugin_manifest_payload()
+                if projector.manifest_relative_path.startswith(".claude-plugin/"):
+                    payload = plugin_manifest_payload(agent_plugins=False)
+                files.append(StagedFile(manifest, json_bytes(payload), manifest=True))
                 directories.append(directory)
             return prepare_staging(inputs, tuple(files), tuple(directories), tuple(observations), suppliers=suppliers)
         except (OSError, ValueError, TypeError, AgentConfigError) as exc:
