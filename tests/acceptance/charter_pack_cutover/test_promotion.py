@@ -18,8 +18,6 @@ from typing import Any
 import pytest
 from click.testing import Result
 
-from charter.activation.invocation_context import ProjectContext
-from charter.activation.pack_manager import ActiveCharterManager
 
 from ._effective_set import builtin_inventory, effective_set, expand
 from ._requirements import REPO_ROOT
@@ -159,7 +157,16 @@ def _spy_on_preflight(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
     return proposals
 
 
-def _assert_preflight_seeded_from_effective_set(proposals: list[Any], project: Path) -> None:
+def _config_stems(project: Path, ids: frozenset[str]) -> set[str]:
+    """*ids* mapped to their config-stem spelling (the preflight proposes stems, the service reports declared ids)."""
+    from charter.activation.identity_index import IdentityIndex
+    from charter.drg import ArtifactKind
+
+    index = IdentityIndex.build(project)
+    return {index.stored_spelling(ArtifactKind.DIRECTIVE, item) if index.knows(ArtifactKind.DIRECTIVE, item) else str(item) for item in ids}
+
+
+def _assert_preflight_seeded_from_effective_set(proposals: list[Any], project: Path, in_force_before: frozenset[str]) -> None:
     """The preflight's proposed directive selection covers everything in force.
 
     #6685: the activation writes no list for an in-force artifact, so the reference is the
@@ -170,11 +177,9 @@ def _assert_preflight_seeded_from_effective_set(proposals: list[Any], project: P
     proposed = set(proposals[-1].activated_directives or ())
     assert PROMOTED_DIRECTIVE in proposed, "control: the preflight proposes the requested directive"
     written_value = active_charter(project).get("activated_directives")
-    reference = (
-        {str(i) for i in written_value}
-        if isinstance(written_value, list)
-        else set(ActiveCharterManager().list_available(ProjectContext.from_repo(project), "directive"))
-    )
+    # The fixture's own measured in-force set (the service, across every readable layer), in the
+    # stem spelling the preflight proposes — not a narrower re-read of the built-in layer.
+    reference = {str(i) for i in written_value} if isinstance(written_value, list) else _config_stems(project, in_force_before)
     narrowed = sorted(reference - proposed)
     assert not narrowed, f"the resynthesis preflight seeded a narrower set than what was in force: {narrowed}"
 
@@ -192,8 +197,8 @@ def _assert_caller_ran(caller: str, result: Result) -> None:
     if caller != "resynthesize":
         assert result.exit_code == 0, describe(result)
         return
-    # #6685: an activation that changes nothing writes nothing, so no resynthesis is triggered
-    # and the missing generated artifacts are never demanded.
+    # #6685: the full synthesis pipeline still runs, but it no longer reads an operator activation,
+    # so it completes without demanding the generated artifacts this fixture does not provide.
     assert result.exit_code == 0, describe(result)
     assert "Activated" in text, describe(result)
     assert SYNTHESIS_NEEDS_GENERATED_ARTIFACTS not in text, describe(result)
@@ -216,7 +221,7 @@ def test_fr015_promotion_preserves_effective_set(caller: str, tmp_path: Path, ch
     else:
         assert "activated_directives" in active_charter(project), "control: the caller promoted the directive key"
     if caller == "resynthesize":
-        _assert_preflight_seeded_from_effective_set(proposals, project)
+        _assert_preflight_seeded_from_effective_set(proposals, project, before["directives"])
     after = expand(effective_set(project, inventory), inventory)
     lost = {kind: sorted(before[kind] - after[kind]) for kind in before if before[kind] - after[kind]}
     assert not lost, f"{caller} narrowed the effective set: {lost}"
