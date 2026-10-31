@@ -1,0 +1,85 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M69CFPPPJAXY4QWQ8M4M4CDM",
+  "materialized_at": "2026-10-31T16:25:33.654946+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-write-roundtrip-latency-01M68ZVK",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M69CFJ8Y2TF8X0QC2F2ZH6MP",
+      "last_transition_at": "2026-10-31T16:25:29.118562+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 255762,
+      "shell_pid_created_at": "1793451099.09"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M69CFKS7RDS9FBVD5ERHPCGJ",
+      "last_transition_at": "2026-10-31T16:25:30.663770+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 1655914,
+      "shell_pid_created_at": "1793458216.37"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M69CFN6J2QHCFQAQF07BPZ5F",
+      "last_transition_at": "2026-10-31T16:25:32.114631+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 1941545,
+      "shell_pid_created_at": "1793461004.53"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M69CFPPPJAXY4QWQ8M4M4CDM",
+      "last_transition_at": "2026-10-31T16:25:33.654946+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 2119532,
+      "shell_pid_created_at": "1793462917.37"
+    }
+  }
+}

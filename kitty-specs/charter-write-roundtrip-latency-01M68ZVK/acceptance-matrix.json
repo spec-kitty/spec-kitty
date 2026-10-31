@@ -1,0 +1,79 @@
+{
+  "mission_slug": "charter-write-roundtrip-latency-01M68ZVK",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_compiled_charter_single_cycle.py counts 1 prepared write and 1 render per refresh, against a two-cycle control measuring 2 and 2",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:23:23.964781+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/activation/test_charter_yaml_io_equality.py: verdicts match the frozen pre-change rule for every corpus pair (repo charter, 12 strided pack documents, synthetic tagged/tagged-key/anchored/non-string-key); whole-document comparison 1189 ms -> 1.0-3.7 ms",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:23:35.686908+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_compiled_charter_single_cycle.py::test_second_refresh_is_a_no_op_and_keeps_generated_at and ::test_unchanged_catalog_preserves_the_authored_timestamp; the preserved stamp is decided from the document the write replaces (one content-bearing observation per refresh)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:23:39.860936+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/activation/test_charter_write_roundtrips.py: one recompile makes <= 6 whole-document round trips, with a same-fixture two-cycle control measuring 18",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:23:44.355548+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/performance/test_charter_write_repo_scale_timing.py: command median over a read floor sampled interleaved in the same run, limited by CHARTER_WRITE_RATIO_LIMIT in tests/_perf_helpers.py; no absolute seconds",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:23:48.566804+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "docs/adr/4.x/2026-10-31-1-charter-write-budget-for-repository-scale-projects.md records the read floor, the before/after medians and ratio, the round-trip count and the two rejected routes to 2 s",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:23:52.992030+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/activation/test_charter_yaml_io_sections.py: 20 merged-vs-sequential byte-identity cases plus the real 165 KB charter, CRLF and missing-section variants; test_compiled_charter_single_cycle.py proves the same for the compiled-charter path",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T16:23:57.398356+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
