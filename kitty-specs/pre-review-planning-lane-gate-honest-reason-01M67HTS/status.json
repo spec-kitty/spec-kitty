@@ -66,7 +66,9 @@
       "last_transition_at": "2026-10-31T01:13:47.000300+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-10-31T01:09:54Z – python-pedro – shell_pid=2682197 – T007/T008 done: [Unreleased] changelog entry with before/after and the unchanged limitation, plus a review-gates.md blockquote next to the inherited-limitation note recording the planning-lane reason, the classification order (declared execution_mode, then the lanes.json kind view) and the degrade-to-incumbent rule. T009: check_docs_freshness --ci exit=0 findings=12 errors=0 warnings=12 (pre-existing link-health warnings only); test_no_legacy_terminology 98 passed. No new doc page, so no index regeneration."
+        "- 2026-10-31T01:09:54Z – python-pedro – shell_pid=2682197 – T007/T008 done: [Unreleased] changelog entry with before/after and the unchanged limitation, plus a review-gates.md blockquote next to the inherited-limitation note recording the planning-lane reason, the classification order (declared execution_mode, then the lanes.json kind view) and the degrade-to-incumbent rule. T009: check_docs_freshness --ci exit=0 findings=12 errors=0 warnings=12 (pre-existing link-health warnings only); test_no_legacy_terminology 98 passed. No new doc page, so no index regeneration.",
+        "Ready for review: changelog [Unreleased] entry + review-gates planning-lane paragraph; docs freshness errors=0",
+        "- 2026-10-31T01:16:26Z – python-pedro – shell_pid=2682197 – Review cycle 1 (independent, curator-carla): APPROVE with 2 low findings, both fixed in the follow-up docs commit — the changelog Before record now quotes the shipped incumbent reason in full (outcome no_coverage + reason), and review-gates.md states both lanes.json conditions (lane membership AND the planning_artifact_wps kind view). Entry now 924 chars; freshness errors=0."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
