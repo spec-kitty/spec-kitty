@@ -744,8 +744,13 @@ terms:
     status: active
 
   - surface: active charter
-    definition: "What a project has activated: its activated_<kind> keys, activated_kinds and mission_type_activations, in .kittify/config.yaml or the charter.yaml it points to; listed by `spec-kitty charter list --json`. 'Active' and 'inactive' alone still describe one artifact ('an active directive'); 'active charter' names the project's activated set as a whole; the .kittify/charter/ tree is never called 'active' (ADR 2026-10-06-1 section 1). See the Active charter entry in docs/context/charter.md."
+    definition: "What a project has activated: its activated_<kind> keys, activated_kinds and mission_type_activations, plus the deactivated_<kind> exclusions, held in the activation ledger .kittify/charter/activation.yaml (ADR 2026-10-19-1; a project not yet upgraded to 4.0.0rc8 still keeps the allow keys in .kittify/config.yaml or the charter.yaml it points to); listed by `spec-kitty charter list --json`. 'Active' and 'inactive' alone still describe one artifact ('an active directive'); 'active charter' names the project's activated set as a whole; the .kittify/charter/ tree is never called 'active' (ADR 2026-10-06-1 section 1). See the Active charter entry in docs/context/charter.md."
     synonyms_to_avoid: [charter selection]
+    confidence: 0.95
+    status: active
+
+  - surface: activation ledger
+    definition: "The git-tracked file .kittify/charter/activation.yaml, the single authority for what a project has activated: activated_kinds, mission_type_activations, the three-state activated_<kind> allow state and the deactivated_<kind> exclusions. The effective set of a kind is its allow state minus its exclusions, and an exclusion never removes an org-required id. `spec-kitty init` writes it; `spec-kitty upgrade` or `spec-kitty migrate activation-ledger` moves an older project's keys into it. Not the Migration Ledger (.kittify/migration-ledger.jsonl, which records the upgrade migrations that ran). See ADR 2026-10-19-1 and the Activation ledger entry in docs/context/charter.md."
     confidence: 0.95
     status: active
 
