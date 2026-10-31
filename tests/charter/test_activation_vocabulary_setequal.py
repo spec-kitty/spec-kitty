@@ -318,14 +318,31 @@ def test_finalize_migration_relocates_glossary_pack_onto_existing_charter_yaml(
 _MISSION_TYPE_KEY = "mission_type_activations"
 
 
+def _is_activation_field_name(name: str) -> bool:
+    """Whether *name* is an activation-shaped field name on the model."""
+    return name == _MISSION_TYPE_KEY or name.startswith("activated_")
+
+
 def _model_activation_fields() -> frozenset[str]:
     """The activation-shaped field names declared on ``CharterYaml``."""
     from charter.activation.schemas import CharterYaml
 
-    return frozenset(
-        name
-        for name in CharterYaml.model_fields
-        if name == _MISSION_TYPE_KEY or name.startswith("activated_")
+    return frozenset(name for name in CharterYaml.model_fields if _is_activation_field_name(name))
+
+
+def test_every_authority_key_is_a_model_field_name_shape() -> None:
+    """The parity gate below can only see keys this naming predicate matches.
+
+    If the authority ever grows a key outside the ``activated_<plural>`` /
+    ``mission_type_activations`` shape, set-equality would fail with a message
+    telling the maintainer to declare a field the predicate cannot see -- an
+    unfixable instruction. Fail here first, where the reason is the predicate.
+    """
+    unmatchable = sorted(key for key in _authority() if not _is_activation_field_name(key))
+    assert not unmatchable, (
+        f"ACTIVATION_YAML_KEYS holds {unmatchable}, which _is_activation_field_name does not "
+        "match, so the CharterYaml parity gate cannot see them. Widen the predicate (and the "
+        "model field naming) before trusting that gate."
     )
 
 
