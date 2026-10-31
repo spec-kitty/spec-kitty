@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "status-lock-dir-name-ssot-01M68JA7",
+  "mission_id": "01M68JA7W6H52P94EVKZJPRWR6",
+  "mission_branch": "kitty/mission-status-lock-dir-name-ssot-01M68JA7",
+  "target_branch": "issue-6516-status-lock-dir-name-ssot",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/paths/__init__.py",
+        "src/specify_cli/paths/windows_paths.py",
+        "src/specify_cli/review/lock.py",
+        "src/specify_cli/status/locking.py",
+        "tests/audit/test_no_legacy_path_literals.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-31T08:53:06.027317+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "6e79dff6a25b22785039a9bcd9964faee7f78cea"
+}

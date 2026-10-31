@@ -1,0 +1,36 @@
+{
+  "accept_commit": "8f97cef7de70a6f58042adeada833f8c0f09086f",
+  "acceptance_history": [
+    {
+      "accept_commit": "8f97cef7de70a6f58042adeada833f8c0f09086f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:42:53.033375+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "7d981026e0662f12bc4b94519311328d897a2ed7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T09:42:53.033375+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "7d981026e0662f12bc4b94519311328d897a2ed7",
+  "baseline_merge_commit": "fd568898d4e0e15ed5fe2f50e248e285e6e0c30b",
+  "contracts": "none",
+  "contracts_rationale": "Path-name and test-only change: no API, CLI flag, exit code, JSON envelope or wire format changes. The only new public symbol is a str constant re-exported through specify_cli.paths.",
+  "created_at": "2026-10-31T08:48:11.768275+00:00",
+  "flattened": true,
+  "friendly_name": "status lock dir name ssot",
+  "merged_at": "2026-10-31T09:44:40.103612+00:00",
+  "merged_commit": "30a2a3ea88791f651e705fdbccb989e16e921f9e",
+  "mid8": "01M68JA7",
+  "mission_id": "01M68JA7W6H52P94EVKZJPRWR6",
+  "mission_number": 245,
+  "mission_slug": "status-lock-dir-name-ssot-01M68JA7",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances status lock dir name ssot on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "status lock dir name ssot",
+  "slug": "status-lock-dir-name-ssot-01M68JA7",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T08:53:59.209081+00:00"
+}

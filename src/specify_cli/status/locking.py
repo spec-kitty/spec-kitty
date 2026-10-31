@@ -37,6 +37,7 @@ from kernel.git_topology import GitTopologyError, git_common_dir
 from kernel.locks import machine_file_lock
 from specify_cli.core.checkout_file_lock import LOCK_DIRECTORY, acquire_or_raise
 from specify_cli.core.constants import KITTIFY_DIR
+from specify_cli.paths import RUNTIME_STATE_DIR_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +60,14 @@ UNBOUNDED_LOCK_WAIT: float = -1
 
 _HOLDER_SUFFIX = ".holder"
 
-#: Lock home for a bare non-git tree (no ``.git`` and no ``.kittify``). Not a
-#: project or repository marker, so creating it never changes what a later
-#: root walk resolves (#6367). Same directory name ``review.lock`` uses.
-_NON_GIT_LOCK_HOME = ".spec-kitty"
+#: Lock directory for a bare non-git tree (no ``.git`` and no ``.kittify``):
+#: ``<repo_root>/<RUNTIME_STATE_DIR_NAME>``. A repository-LOCAL runtime
+#: directory, never the user-global home — the name comes from the runtime-state
+#: path authority (``specify_cli.paths``) instead of being typed here, so the one
+#: string has one owner. Not a project or repository marker, so creating it never
+#: changes what a later root walk resolves (#6367). Same directory the worktree
+#: review lock uses.
+_NON_GIT_LOCK_DIR = RUNTIME_STATE_DIR_NAME
 
 
 class FeatureStatusLockTimeoutError(RuntimeError):
@@ -155,13 +160,13 @@ def _git_common_dir(repo_root: Path) -> Path:
       process of that checkout expects it;
     * it does not, but ``<repo_root>/.kittify`` does (a non-git Spec Kitty
       project): lock under that existing ``.kittify``;
-    * neither exists (a bare non-git tree): use ``<repo_root>/.spec-kitty``
-      (:data:`_NON_GIT_LOCK_HOME`), which no project-root walk treats as a
-      marker. Minting ``<repo_root>/.git/`` here used to turn the tree into a
-      bogus repo root for every later ``resolve_canonical_root`` walk (the
-      "fake repo root" trap ``tests/review/test_artifacts.py`` documents), and
-      minting ``<repo_root>/.kittify/`` turned it into a bogus *project* root
-      for every later ``locate_project_root`` walk from below it (#6367): a
+    * neither exists (a bare non-git tree): use ``<repo_root>/<runtime-state
+      directory name>`` (:data:`_NON_GIT_LOCK_DIR`), which no project-root walk
+      treats as a marker. Minting ``<repo_root>/.git/`` here used to turn the
+      tree into a bogus repo root for every later ``resolve_canonical_root`` walk
+      (the "fake repo root" trap ``tests/review/test_artifacts.py`` documents),
+      and minting ``<repo_root>/.kittify/`` turned it into a bogus *project*
+      root for every later ``locate_project_root`` walk from below it (#6367): a
       lock must never create either marker.
     """
     try:
@@ -173,7 +178,7 @@ def _git_common_dir(repo_root: Path) -> Path:
         kittify = Path(repo_root / KITTIFY_DIR)
         if kittify.is_dir():
             return kittify
-        return Path(repo_root / _NON_GIT_LOCK_HOME)
+        return Path(repo_root / _NON_GIT_LOCK_DIR)
 
 
 def feature_status_lock_path(repo_root: Path, lock_key: str) -> Path:

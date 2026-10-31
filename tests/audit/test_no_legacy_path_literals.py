@@ -168,18 +168,20 @@ _GLOBAL_STATE_SCAN_ROOTS = ("src/specify_cli", "src/kernel")
 # Files that may legitimately contain a ``.spec-kitty`` (or asset-home) literal:
 #   * the keystone resolver itself — the ONE place the default home is computed,
 #   * asset-home modules (``.kittify`` — a different root, never ``.spec-kitty``),
-#   * Windows migration code (moves legacy data; must name the legacy dir),
-#   * the worktree-local review lock (``worktree / ".spec-kitty"`` — NOT home),
-#   * the status lock's bare non-git fallback (``repo_root / ".spec-kitty"`` — NOT
-#     home; the same repository-local directory the review lock uses, #6367).
+#   * Windows migration code (moves legacy data; must name the legacy dir).
+#
+# Drained by #6516: ``status/locking.py`` and ``review/lock.py`` each carried their
+# own ``".spec-kitty"`` literal for the repository-LOCAL runtime directory (the
+# status lock's bare non-git fallback and the worktree review lock — #6367) and were
+# allowlisted for it (#6582). Both now take the name from the runtime-state path
+# authority (``specify_cli.paths.RUNTIME_STATE_DIR_NAME``), so the guard scans them
+# again; an allowlist entry for either one is a regression, not a fix.
 _HOME_LITERAL_ALLOWLIST = frozenset(
     {
         "src/specify_cli/paths/windows_paths.py",
         "src/specify_cli/runtime/home.py",
         "src/kernel/paths.py",
         "src/specify_cli/paths/windows_migrate.py",
-        "src/specify_cli/review/lock.py",
-        "src/specify_cli/status/locking.py",
     }
 )
 
@@ -259,6 +261,36 @@ def test_home_literal_guard_is_non_vacuous() -> None:
         "literal — it would pass vacuously and miss a real re-scatter.\n"
         f"Detected: {detected!r}"
     )
+
+
+def test_repo_local_lock_modules_carry_no_literal_even_without_the_allowlist() -> None:
+    """The #6516 pin: a drained exemption cannot be restored silently.
+
+    ``_HOME_LITERAL_ALLOWLIST`` is bypassed here on purpose (``frozenset()``), so
+    the first assertion fails the moment a ``.spec-kitty`` literal comes back to
+    either repository-local lock module — independently of any allowlist entry.
+    The loop that follows closes the other half: restoring the *entry* on its own
+    puts the module back outside the FR-010 guard. Together they cover the "blind
+    allowlist" shape #6582 landed and #6516 rejects.
+
+    The shrink-only allowlist discipline this pins is owned by tactic
+    ``architectural-gate-non-vacuity``.
+    """
+    repo_root = pathlib.Path(__file__).resolve().parents[2]
+    drained_modules = (
+        "src/specify_cli/status/locking.py",
+        "src/specify_cli/review/lock.py",
+    )
+    detected = _scan_global_state_for_home_literal(repo_root, frozenset())
+    offenders = [violation for violation in detected if violation.split(":", 1)[0] in drained_modules]
+    assert not offenders, (
+        "A repository-local lock module types the runtime-directory name again; take it "
+        "from `specify_cli.paths.RUNTIME_STATE_DIR_NAME` instead of re-allowlisting it:\n  " + "\n  ".join(offenders)
+    )
+    for module in drained_modules:
+        assert module not in _HOME_LITERAL_ALLOWLIST, (
+            f"{module} was drained from the allowlist by #6516; re-adding the exemption hides the module from the FR-010 guard instead of fixing the literal."
+        )
 
 
 def test_bare_spec_kitty_literal_matcher_precision() -> None:

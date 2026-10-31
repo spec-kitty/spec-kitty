@@ -1,0 +1,69 @@
+{
+  "mission_slug": "status-lock-dir-name-ssot-01M68JA7",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The runtime-home guard fails on a bare `.spec-kitty` literal in src/specify_cli/status/locking.py, and that module is not on _HOME_LITERAL_ALLOWLIST.",
+      "proof_type": "pytest tests/audit/test_no_legacy_path_literals.py (9 passed); red replayed in commit 8585b377b2, which failed naming src/specify_cli/status/locking.py:65",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:42:25.879893+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "src/specify_cli/status/locking.py derives its repository-local lock directory name from specify_cli.paths.RUNTIME_STATE_DIR_NAME, not from a literal typed in the module.",
+      "proof_type": "commit 442d451599: locking.py imports specify_cli.paths.RUNTIME_STATE_DIR_NAME; grep shows no bare literal in the module",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:42:31.494284+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The status-lock fallback constant no longer presents itself as a home (the `_NON_GIT_LOCK_HOME` symbol is gone; the value is a repository-local directory).",
+      "proof_type": "grep -rn _NON_GIT_LOCK_HOME src tests returns nothing; the constant is _NON_GIT_LOCK_DIR",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:42:35.244174+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The bare non-git status lock still resolves to <repo_root>/.spec-kitty/spec-kitty-locks/<key>.status.lock and mints neither a .git nor a .kittify marker.",
+      "proof_type": "pytest tests/status/test_lock_fallback_never_mints_marker.py -q (4 passed, no assertion edits)",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:42:39.124461+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "An allowlist-bypassed scan of the global-state surface reports no src/specify_cli/status/locking.py violation, so the #6582 exemption cannot be re-added silently.",
+      "proof_type": "tests/audit/test_no_legacy_path_literals.py::test_repo_local_lock_modules_carry_no_literal_even_without_the_allowlist, verified to fail on a planted literal (mutation probe, reverted)",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:42:43.763028+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "src/specify_cli/review/lock.py's public LOCK_DIR equals the runtime-state authority name and still resolves the review lock to <worktree>/.spec-kitty/review-lock.json.",
+      "proof_type": "commit 442d451599 + pytest tests/specify_cli/test_audit_tail_readers.py tests/specify_cli/cli/commands/test_single_branch_implement_refusals.py (52 passed)",
+      "evidence": null,
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:42:47.684322+00:00",
+      "notes": ""
+    }
+  ],
+  "negative_invariants": []
+}
