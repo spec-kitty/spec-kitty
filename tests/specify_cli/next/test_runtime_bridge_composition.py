@@ -638,19 +638,27 @@ def test_dispatch_logs_invocation_chain_on_success(
     assert "inv-001" in log_msg
 
 
-def test_dispatch_handles_non_sized_invocation_ids_and_returns_guard_failures(
+def test_dispatch_logs_the_executor_invocation_count_and_returns_guard_failures(
     feature_dir: Path,
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Guard failures still surface when executor metadata is non-sized."""
+    """Guard failures still surface, and the logged count comes from the contract.
+
+    #6745 finding S8: this test used to set ``invocation_ids = object()`` and pin
+    ``emitted 0 invocation(s)``, which is production code tolerating a contract
+    violation so a bare test double could flow through. The executor's result type
+    always carries a sized ``invocation_ids`` tuple, so the premise is gone: the
+    fake now carries a real tuple and the log must report its length. The
+    guard-failure half (the reason this test exists) is unchanged.
+    """
     import logging
 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
     fake_result = MagicMock()
-    fake_result.invocation_ids = object()
+    fake_result.invocation_ids = ("inv-001", "inv-002")
 
     with (
         caplog.at_level(logging.INFO, logger="runtime.next.runtime_bridge"),
@@ -673,7 +681,44 @@ def test_dispatch_handles_non_sized_invocation_ids_and_returns_guard_failures(
     assert failures is not None
     assert any("tasks.md" in failure for failure in failures)
     log_messages = [record.getMessage() for record in caplog.records]
-    assert any("emitted 0 invocation(s)" in message for message in log_messages)
+    assert any("emitted 2 invocation(s)" in message for message in log_messages)
+
+
+def test_non_sized_invocation_ids_is_a_contract_violation_not_a_silent_zero(
+    feature_dir: Path,
+    tmp_path: Path,
+) -> None:
+    """#6745 finding S8: a result that breaks the declared type now fails loudly.
+
+    ``StepContractExecutionResult.invocation_ids`` is a tuple of strings. The
+    composition used to swallow anything else (``except TypeError: count = 0``) so a
+    bare ``MagicMock`` could flow through; that tolerance hid a real contract
+    violation behind an INFO line reading "emitted 0 invocation(s)". The read is now
+    direct, so the violation raises at the seam where it can be fixed.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    fake_result = MagicMock()
+    fake_result.invocation_ids = object()
+
+    with (
+        patch(
+            "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+            return_value=fake_result,
+        ),
+        pytest.raises(TypeError),
+    ):
+        _dispatch_via_composition(
+            repo_root=repo_root,
+            mission="software-dev",
+            action="tasks",
+            actor="architect-alphonso",
+            profile_hint=None,
+            request_text=None,
+            mode_of_work=None,
+            feature_dir=feature_dir,
+        )
 
 
 def test_unexpected_exception_surfaces_structured_cli_error(feature_dir_with_full_tasks: Path, tmp_path: Path) -> None:
