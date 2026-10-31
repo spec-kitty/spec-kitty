@@ -23,7 +23,17 @@
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01M68JJPW6VTJX54ME1HF4ZWRT",
-      "last_transition_at": "2026-10-31T08:52:49.158525+00:00"
+      "last_transition_at": "2026-10-31T08:52:49.158525+00:00",
+      "notes": [
+        "- 2026-10-31T09:10:13Z – unknown – Added status/wire_payload.py (contract-model builder + facade export) with red-first tests: 9 passed; ruff/mypy clean; status-module-boundary, integration-boundary and dead-symbol gates green."
+      ],
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "finalize-tasks",

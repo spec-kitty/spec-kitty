@@ -21,6 +21,7 @@ import json
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 from spec_kitty_events.status import StatusTransitionPayload
 
 from specify_cli import status
@@ -103,8 +104,13 @@ def test_done_evidence_rides_as_the_contract_shape() -> None:
         _event(to_lane=Lane.DONE, evidence=_done_evidence()),
     )
 
-    assert payload["evidence"] == _done_evidence().to_dict()
-    # the model, not the local dataclass, is the authority on the emitted shape
+    evidence = payload["evidence"]
+    # The contract model is the authority on the emitted shape, and it always
+    # materializes ``verification`` (default empty list) -- the one documented
+    # normalization versus the local row, which omits an empty list.
+    assert evidence["repos"] == _done_evidence().to_dict()["repos"]
+    assert evidence["review"] == _done_evidence().to_dict()["review"]
+    assert evidence["verification"] == []
     assert StatusTransitionPayload.model_validate(payload).evidence is not None
 
 
@@ -120,7 +126,7 @@ def test_every_contract_field_is_mapped_or_declared_producer_supplied() -> None:
 
 
 def test_producer_supplied_exclusion_cannot_grow_silently() -> None:
-    assert wire_payload._PRODUCER_SUPPLIED_FIELDS == frozenset({"summary"})
+    assert frozenset({"summary"}) == wire_payload._PRODUCER_SUPPLIED_FIELDS
 
 
 # ---------------------------------------------------------------------------
@@ -129,19 +135,17 @@ def test_producer_supplied_exclusion_cannot_grow_silently() -> None:
 
 
 def test_force_without_reason_is_rejected_at_construction() -> None:
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(ValidationError, match="reason"):
         status.build_status_event_payload(_event(force=True, to_lane=Lane.PLANNED))
 
-    assert "reason" in str(excinfo.value)
     # positive control: the same forced edge builds once a reason is supplied
     assert status.build_status_event_payload(_event(force=True, to_lane=Lane.PLANNED, reason="rewind"))["force"] is True
 
 
 def test_approved_without_evidence_is_rejected_at_construction() -> None:
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(ValidationError, match="evidence"):
         status.build_status_event_payload(_event(to_lane=Lane.APPROVED))
 
-    assert "evidence" in str(excinfo.value)
     # positive control: the same edge builds with evidence
     assert status.build_status_event_payload(_event(to_lane=Lane.APPROVED, evidence=_done_evidence()))["to_lane"] == "approved"
 
@@ -163,7 +167,8 @@ def test_overrides_replace_only_the_named_fields() -> None:
     )
 
     assert payload["from_lane"] == "for_review"
-    assert payload["evidence"] == _done_evidence().to_dict()
+    assert payload["evidence"]["repos"] == _done_evidence().to_dict()["repos"]
+    assert payload["evidence"]["review"] == _done_evidence().to_dict()["review"]
     # untouched fields still come from the event
     assert payload["to_lane"] == "in_review"
     assert payload["wp_id"] == event.wp_id
