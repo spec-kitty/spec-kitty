@@ -277,6 +277,8 @@ def test_model_rejected_row_is_reported_while_valid_rows_still_map(tmp_path: Pat
     report = teamspace_dry_run(repo)
 
     assert not report.valid
+    # a rejected row produces no envelope, so the count still matches the mappings
+    assert report.envelope_count == len(report.row_mappings)
     payload_errors = [error for error in report.errors if error["error"] == "PAYLOAD_INVALID"]
     assert [error["event_id"] for error in payload_errors] == [rejected_id]
     assert payload_errors[0]["model_violations"]

@@ -1019,7 +1019,6 @@ def teamspace_dry_run(
             )
             continue
         for index, status_event in enumerate(sorted(events, key=lambda e: (e.at, e.event_id)), start=1):
-            count += 1
             try:
                 envelope = _status_event_to_teamspace_envelope(
                     status_event,
@@ -1050,6 +1049,10 @@ def teamspace_dry_run(
                     }
                 )
                 continue
+            # Count only rows that produced an envelope, so ``envelope_count``
+            # keeps its documented meaning (and its 1:1 relation to
+            # ``row_mappings``) even when a row is rejected.
+            count += 1
             row_location = row_locations.get(status_event.event_id)
             row_mappings.append(
                 TeamspaceDryRunRowMapping(
