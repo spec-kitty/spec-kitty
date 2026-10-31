@@ -31,12 +31,15 @@ The repository fixture is vendored here on purpose: it uses only
 ``clone_template`` and ``provision_test_charter`` and never imports
 ``tests/_factories/coord_mission.py``, so a factory change cannot move the matrix.
 
-No attribute patching or mocking appears in the golden set. Identity
-cannot be injected without a patch, so the two cells that need a known mid8
-use :func:`await_fresh_mid8_bucket`: mid8 is the ULID's millisecond timestamp
+No attribute patching or mocking appears in the golden set. The public create
+entry point does not expose identity injection, so the branch-collision cell
+uses :func:`await_fresh_mid8_bucket`: mid8 is the ULID's millisecond timestamp
 in 1,024 ms buckets, so a prediction made at the start of a bucket holds for
 the next ~900 ms. The cell then checks the prediction was used and fails
-loudly if it was not, instead of snapshotting a wrong state.
+loudly if it was not, instead of snapshotting a wrong state. The historical
+protected-recreate row refuses a live prior before a second identity mint;
+that path needs no prediction. A distinct non-golden control uses the
+documented fixed-identity seam to exercise the later protected scaffold guard.
 """
 
 from __future__ import annotations
