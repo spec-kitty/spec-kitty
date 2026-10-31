@@ -34,12 +34,11 @@ from __future__ import annotations
 
 import logging
 import os
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from kernel.paths import is_windows
+from kernel.user_dirs import user_config_dir
 from specify_cli.core.env import is_truthy
 
 _LOG = logging.getLogger(__name__)
@@ -99,25 +98,15 @@ class UpgradeConfig:
 
 
 def _resolve_config_dir() -> str:
-    """Resolve the per-user config directory for spec-kitty."""
-    try:
-        from platformdirs import user_config_dir  # type: ignore[import-untyped,unused-ignore]
+    """Resolve the per-user config directory for spec-kitty.
 
-        return str(user_config_dir("spec-kitty"))  # type: ignore[no-untyped-call,unused-ignore]
-    except ImportError:
-        pass
-
-    if sys.platform == "darwin":
-        return str(Path.home() / "Library" / "Application Support" / "spec-kitty")
-    if is_windows():
-        app_data = os.environ.get("APPDATA", "")
-        if app_data:
-            return str(Path(app_data) / "spec-kitty")
-        return str(Path.home() / "AppData" / "Roaming" / "spec-kitty")
-    # Linux / WSL / other POSIX.
-    xdg = os.environ.get("XDG_CONFIG_HOME", "")
-    base = xdg if xdg else str(Path.home() / ".config")
-    return str(Path(base) / "spec-kitty")
+    Delegates to :func:`kernel.user_dirs.user_config_dir`, the one authority (#6488):
+    ``$XDG_CONFIG_HOME/spec-kitty``, else ``~/.config/spec-kitty`` on Linux;
+    ``~/Library/Application Support/spec-kitty`` on macOS;
+    ``%LOCALAPPDATA%\\spec-kitty`` on Windows. ``platformdirs`` is a hard dependency, so
+    there is no manual fallback: a missing ``platformdirs`` is an install defect.
+    """
+    return str(user_config_dir())
 
 
 def _load_yaml_config() -> dict[str, Any]:
