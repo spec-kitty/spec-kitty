@@ -1,0 +1,27 @@
+# The optional companion of spec-kitty-cli: the pinned, digest-verified service binaries
+# for one platform (ADR 2026-10-29-1, Amendment 2026-10-31; #6904).
+#
+# Its version equals the spec-kitty-cli version and the `services` extra pin in the root
+# pyproject.toml (guarded by tests/cross_cutting/packaging/test_companion_version_lock.py
+# and scripts/release/validate_release.py). Static metadata only, so uv locks this
+# workspace member without building it.
+#
+# The in-tree backend builds only the binary-free fallback wheel, an editable wheel and
+# an sdist. Release platform wheels come from scripts/build_services_wheel.py in core.
+
+[project]
+name = "spec-kitty-services"
+version = "4.0.0rc8"
+description = "Optional companion of spec-kitty-cli: the pinned, digest-verified service binaries for one platform."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[project.entry-points."spec_kitty.service_binaries"]
+charter-service = "spec_kitty_services:charter_service"
+write-service = "spec_kitty_services:write_service"
+
+[build-system]
+requires = []
+build-backend = "spec_kitty_services_backend"
+backend-path = ["_backend"]
