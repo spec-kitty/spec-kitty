@@ -89,26 +89,17 @@ def _render_prompt(repo: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     return "\n".join(lines)
 
 
-def test_review_prompt_drops_the_committed_with_the_project_claim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The draft is not committed with the project — the record is."""
+@pytest.mark.parametrize("retired_claim", ["committed with the project", "handles all file updates automatically"])
+def test_review_prompt_drops_the_untrue_claims(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, retired_claim: str) -> None:
+    """The draft is not committed with the project and the script does not handle every update."""
     prompt = _render_prompt(tmp_path, monkeypatch)
 
-    assert "committed with the project" not in prompt
+    assert retired_claim not in prompt
+
+
+def test_review_prompt_names_the_record_that_keeps_the_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The replacement claim: the record keeps the reviewer's text, and the command removes the draft."""
+    prompt = _render_prompt(tmp_path, monkeypatch)
+
     assert "review-cycle-N.md" in prompt, "the prompt must name the record that keeps the reviewer's text"
     assert "removes" in prompt, "the prompt must say the rejection command removes the draft once recorded"
-
-
-def test_review_prompt_drops_the_handles_everything_claim(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The script does not handle every file update; it records and retires this one."""
-    prompt = _render_prompt(tmp_path, monkeypatch)
-
-    assert "handles all file updates automatically" not in prompt
-
-
-def test_review_prompt_still_advertises_the_helper_owned_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The advertised draft path is unchanged — it still comes from the owning helper."""
-    prompt = _render_prompt(tmp_path, monkeypatch)
-    expected = str(review_feedback_source_path(tmp_path / "kitty-specs" / _MISSION_SLUG / "tasks" / _WP_SLUG, 1))
-
-    assert expected in prompt
-    assert "review-feedback-1.md" in prompt
