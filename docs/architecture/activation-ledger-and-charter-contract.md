@@ -107,6 +107,9 @@ code):
 - **A refusal seam.** `DeactivationRefused` with a `reason`, `RequiredArtifactDeactivationError`
   carrying the requiring packs, and `check_deactivation_permitted`.
 - **An identity map.** The stem, declared id and URN lookups in `IdentityIndex`.
+- **One selection resolver.** `SelectionResolver` (`selection.py`) turns an interview
+  selection into an activation stem through every layer, so the interview and the
+  upgrade promotion share one rule (#6686).
 - **A structured cascade result.** `CascadeActivationResult` in `cascade.py`.
 - **A public door.** `charter.activation.api` re-exports the ledger types, `IdentityIndex`,
   `deny_delta` and `EffectiveSet`.

@@ -272,13 +272,9 @@
 - file: src/specify_cli/cli/commands/charter/interview.py
   module: charter.activation.activation_engine
 - file: src/specify_cli/cli/commands/charter/interview.py
-  module: charter.activation.catalog
-- file: src/specify_cli/cli/commands/charter/interview.py
   module: charter.activation.effective_set
 - file: src/specify_cli/cli/commands/charter/interview.py
   module: charter.activation.interview
-- file: src/specify_cli/cli/commands/charter/interview.py
-  module: charter.activation.layer_roots
 - file: src/specify_cli/cli/commands/charter/interview.py
   module: charter.activation.org_charter
 - file: src/specify_cli/cli/commands/charter/interview.py
