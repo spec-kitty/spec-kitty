@@ -190,14 +190,10 @@ class TestContractStructuralEquivalence:
 
         added = set(impl_fields) - contract_fields
         defaultless = sorted(
-            name
-            for name in added
-            if impl_fields[name].default is dataclasses.MISSING
-            and impl_fields[name].default_factory is dataclasses.MISSING
+            name for name in added if impl_fields[name].default is dataclasses.MISSING and impl_fields[name].default_factory is dataclasses.MISSING
         )
         assert not defaultless, (
-            "SynthesisRequest added required field(s) the archived contract does not "
-            f"declare: {defaultless}. A contract-shaped caller would break."
+            f"SynthesisRequest added required field(s) the archived contract does not declare: {defaultless}. A contract-shaped caller would break."
         )
 
 
