@@ -242,7 +242,7 @@ jobs:
             # .kittify/charter/activation.yaml, ADR 2026-10-19-1) or to the internal-pack pin lockfile
             # changes what the charter module's config-parity tests assert, but it matches no src
             # group, so before this group the diff selected ZERO modules and the charter shard never
-            # ran (#6333 landed green that way). packs/internal/** is untracked since #6451, so the
+            # ran (how #6333 reached main unchecked). packs/internal/** is untracked since #6451, so the
             # pin lockfile is the only in-repo internal-pack signal. It cannot ride on the `charter`
             # group above: that group's globs are a verbatim transcription of the scrub's `charter`
             # roots (the charter SOURCE subsystem), which is why #6334 refused that edit. Not a module:
