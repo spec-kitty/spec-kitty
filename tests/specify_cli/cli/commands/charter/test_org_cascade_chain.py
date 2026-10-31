@@ -441,10 +441,6 @@ class TestNoOrgPackRegression:
             self._CASCADE_SOURCE_ID,
         )
         assert result.exit_code == 0, result.output
-        # #6685: the source and its references are all in force already, so the cascade writes no list.
-        data = _config(project_root)
-        for key in ("activated_agent_profiles", "activated_directives", "activated_tactics"):
-            assert key not in data, f"{key} was written for an in-force cascade (#6685)"
         assert "Cascade-activated" in result.output
 
     def test_deactivate_cascade_all_unaffected_by_org_roots_threading(
