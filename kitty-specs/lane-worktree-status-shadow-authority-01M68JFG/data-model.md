@@ -9,7 +9,7 @@ resolves; the data model is unchanged.
   `status.json` (derived snapshot). Located by `coordination/surface_resolver.py`.
 - **Lane worktree** — a registered git worktree of the mission's repository whose name is not
   `-coord`. Carries a fork-time copy of the mission directory that is non-authoritative.
-- **Repository root** (`repo_root`) — the anchor a read is resolved against. Normalised once per read
+- **Repository root** (`repo_root`) — the anchor a read is resolved against. Normalized once per read
   by `_canonical_status_read_root` when it is a lane worktree.
 
 ## Invariants
