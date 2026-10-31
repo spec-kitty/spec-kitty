@@ -1,0 +1,94 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M67Y0AGGRMNY4MK4RXA9F77C",
+  "materialized_at": "2026-10-31T02:53:15.152649+00:00",
+  "mission_number": "244",
+  "mission_slug": "lane-auto-commit-directory-expansion-01M67HVC",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M67Y099NXEHCVETNDDA9F5WV",
+      "last_transition_at": "2026-10-31T02:53:13.909633+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Seam refusal implemented red-first; 5 new tests green incl. CLI expansion positive control; 662 safe-commit/git tests + upgrade/consolidation suites green.",
+        "Review passed (reviewer-renata lens): refusal is pre-mutation and typed; the review round fixed error precedence (.worktrees policy still first) and pinned the SafeCommitError/RuntimeError hierarchy; 588 safe-commit/git tests green.",
+        "Aggregate review added 74405422c9 (submodule gitlink is not a directory to refuse); sending back for review per LANE_MOVED_AFTER_APPROVAL.",
+        "Re-review the gitlink follow-up commit 74405422c9.",
+        "Re-review passed for 74405422c9: the refusal now exempts a submodule gitlink (index mode 160000), proven by a real nested-repo submodule fixture; the index read happens only after the stat finds a directory, and NFR-001 records that. 589 safe_commit/git tests green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 835797,
+      "shell_pid_created_at": "1793402708.84",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "#6750"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M67Y0AGGRMNY4MK4RXA9F77C",
+      "last_transition_at": "2026-10-31T02:53:15.152649+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Expansion + truthful landed reporting implemented red-first; 4 new tests green, half-by-half proof recorded (revert expansion -> 3 assertions red; revert landed arm -> landed-report red); agent/lanes/architectural suites 3940 passed (only pre-existing #6333/#6406 charter-config reds).",
+        "Review passed (reviewer-renata lens). Review round finding: SafeCommitRecoveryFailed is ALSO raised pre-mutation without a commit_sha, so the new arm must branch on it -- fixed in ae07380 with a dedicated non-vacuity test (unconditional wording prints 'landed ... as None'). All 5 regression tests green; agent suite 2829 passed (only pre-existing #6333/#6406 reds)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3919826,
+      "shell_pid_created_at": "1793412689.39",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#6750"
+      ]
+    }
+  }
+}

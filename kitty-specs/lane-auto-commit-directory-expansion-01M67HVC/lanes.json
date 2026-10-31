@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "lane-auto-commit-directory-expansion-01M67HVC",
+  "mission_id": "01M67HVCPCFFS715QMC1XQAPY3",
+  "mission_branch": "kitty/mission-lane-auto-commit-directory-expansion-01M67HVC",
+  "target_branch": "issue-6750-lane-auto-commit-directory-expansion",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/git/commit_helpers.py",
+        "tests/specify_cli/git/test_safe_commit_directory_argument_6750.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+        "tests/specify_cli/cli/commands/agent/test_mt_lane_deliverable_directory_6750.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T23:23:57.310798+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "216c0aafa443f662824bb81cb11496ae05a06b90"
+}
