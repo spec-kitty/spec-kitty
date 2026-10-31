@@ -278,6 +278,17 @@ class TestTwoPackChainCascade:
             f"cascade-deactivation did not reach the second org pack; output:\n{result.output}"
         )
 
+    def test_cascade_deactivate_without_list_names_the_command_per_child(self, project_root: Path) -> None:
+        """No allow list is written (#6685), so a cascade deactivation leaves the children in force and says how to turn each off (#6873)."""
+        _write_two_pack_chain(project_root)
+
+        result = _deactivate(project_root, "--cascade", "all", "directive", "a-directive")
+        assert result.exit_code == 0, result.output
+        squashed = " ".join(result.output.split())
+        assert "directive/c-directive: still active (no allow-list; only a-directive excluded)" in squashed
+        assert "`spec-kitty charter deactivate directive c-directive`" in squashed
+        assert "activated_directives" not in _config(project_root)
+
 
 # ---------------------------------------------------------------------------
 # T012 — revert-test: ID-mapping widening matters, not just DRG visibility
