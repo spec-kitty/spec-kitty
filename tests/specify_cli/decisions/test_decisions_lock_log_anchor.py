@@ -302,15 +302,12 @@ def _is_under(path: Path, root: Path) -> bool:
 
 @pytest.mark.integration
 @pytest.mark.git_repo
-def test_the_anchor_lock_lives_outside_the_working_tree(tmp_path: Path) -> None:
-    """A decision write takes the anchor lock under the git common dir, nothing in the tree.
+def test_the_anchor_lock_is_taken_and_leaves_no_working_tree_residue(tmp_path: Path) -> None:
+    """A decision write takes the event-log anchor lock and adds no lock file to the tree.
 
-    A main checkout's ``.git`` is a directory *inside* the repository root, so
-    "outside the checkout directory" is the wrong test of NFR-004. The invariant
-    is that the anchor lock lives under the git COMMON dir -- the directory every
-    worktree of the repository shares and git never tracks -- so it cannot reach
-    a commit and needs no ``.gitignore`` rule. The ledger sidecar stays the only
-    lock the working tree provisions for, exactly as before this change.
+    Where the lock lives is the kernel's contract (``tests/kernel/test_event_log_append.py``);
+    here only the decisions-specific facts are pinned: the write takes the anchor,
+    and the ledger sidecar stays the only lock the working tree provisions for.
     """
     root = tmp_path / "repo"
     root.mkdir()
@@ -348,13 +345,8 @@ def test_the_anchor_lock_lives_outside_the_working_tree(tmp_path: Path) -> None:
             actor="alice",
         )
 
-    common_dir = Path(_git(root, "rev-parse", "--path-format=absolute", "--git-common-dir").strip())
-    anchor_locks = [lock for lock in taken if lock == event_log_lock_path(mission_dir / "status.events.jsonl")]
-    assert anchor_locks, f"the event-log anchor lock was never taken; took {sorted(map(str, taken))}"
-    for lock in anchor_locks:
-        assert _is_under(lock, common_dir / "spec-kitty-locks" / "event-logs"), (
-            f"the anchor lock must live under the git common dir, outside every working tree: {lock}"
-        )
+    anchor = event_log_lock_path(mission_dir / "status.events.jsonl")
+    assert anchor in taken, f"the event-log anchor lock was never taken; took {sorted(map(str, taken))}"
 
     status = _git(root, "status", "--porcelain=v1", "--untracked-files=all").splitlines()
     tracked_lock_paths = [line[3:] for line in status if line[3:].endswith(".lock")]
@@ -367,18 +359,24 @@ def _git(root: Path, *args: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# The reused anchor contract: non-git fallback
+# Outside a git repository the write still works (sibling-lock fallback)
 # ---------------------------------------------------------------------------
 
 
-def test_a_non_git_anchor_falls_back_to_a_sibling_lock(tmp_path: Path) -> None:
-    """Computing the anchor lock path never creates a lock and never leaves the anchor's dir."""
-    (tmp_path / "not-a-repo").mkdir()
-    log = tmp_path / "not-a-repo" / "status.events.jsonl"
-    lock = event_log_lock_path(log)
-    assert lock == log.with_name(log.name + ".event-log.lock")
-    assert not lock.exists(), "computing the lock path must not create the lock file"
-    assert not log.exists()
+def test_a_decision_write_outside_a_git_repository_succeeds(tmp_path: Path) -> None:
+    """With no git repository the anchor falls back to a sibling lock and the open succeeds."""
+    root = _checkout(tmp_path, "not-a-repo")
+    result = open_decision(
+        root,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="step-no-git",
+        input_key="no_git",
+        question="Works without git?",
+        options=("yes", "no"),
+        actor="alice",
+    )
+    assert result.decision_id
 
 
 # ---------------------------------------------------------------------------
