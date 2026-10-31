@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#6746": {
+      "evidence_ref": "already landed as 129527bfa4 (bounded project budgets); no timeout default is touched here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6751": {
+      "evidence_ref": "WP01 + WP02 approved cycle 1 \u2014 tasks/WP01-bounded-opaque-identity/review-cycle-1.md, tasks/WP02-verdict-candidate-exit/review-cycle-1.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP02"
+    },
+    "#6798": {
+      "evidence_ref": "pre-existing red on main (tests/next legacy-mission discovery), unrelated module; cited in the PR Deferred section",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "pre-existing red on main (migration birth-cutover fixtures), unrelated module; cited in the PR Deferred section",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "CI infrastructure false red (router gate =incomplete); cited if it surfaces on this PR",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
