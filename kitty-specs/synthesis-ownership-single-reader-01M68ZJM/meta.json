@@ -11,5 +11,7 @@
   "purpose_tldr": "synthesis ownership single reader",
   "slug": "synthesis-ownership-single-reader-01M68ZJM",
   "target_branch": "issue-6767-synthesis-ownership-single-reader",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T12:45:41.087089+00:00"
 }
