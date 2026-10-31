@@ -1,0 +1,146 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M675NKV93NVTN3JGR8TYK7XV",
+  "materialized_at": "2026-10-30T19:47:58.441137+00:00",
+  "mission_number": "244",
+  "mission_slug": "pack-file-name-collision-diagnostic-01M66YTQ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M675NF53W5MNHBC8PYXR6HNB",
+      "last_transition_at": "2026-10-30T19:47:53.635525+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01: FileNameCollision + file_name_collisions() over the memoised tables; shared _sharing_entries() with collision_error(); agreement test with the writer refusal plus same-id/disjoint controls. 425 tests pass, ruff clean, mypy unchanged (2 pre-existing no-any-return).",
+        "Review PASS by reviewer-renata. Checklist: (1) dead code: PASS-with-recorded-deviation — file_name_collisions()/FileNameCollision.message() gain their production callers in WP02 (validate door) and WP03 (doctor leg), which declare WP01 as a dependency; final caller check belongs to the mission-level integrated review. (2) synthetic-fixture: PASS — all three tests failed before the implementation and call the production query. (3) silent-return: PASS — an empty tuple is the documented answer, not a swallowed error. (4) FR coverage: FR-001 (collision returned), FR-004 (message names file/layers/ids/rename), FR-005 (declarations equal ActivationIdCollisionError's). (5) frozen surface: PASS — no frozen file touched. (6) locked decision: PASS — stored_spelling/collision_error semantics and message unchanged, pinned by test_stored_spelling_6527. (7) shared-file ownership: PASS — write scope is lane-a's. (8) production fragility: PASS — no new raise. One LOW finding fixed in round one: the per-kind table was looked up twice in the comprehension."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 117604,
+      "shell_pid_created_at": "1793382886.76",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M675NGHSP5AN66QXA4KVSA5E",
+      "last_transition_at": "2026-10-30T19:47:55.065393+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02: validate leg in validate_pack_with_org_charter (pack + built-in only, level-labelled); 6 tests incl. same-id/renamed/outside-a-repo controls; 87 targeted tests pass; packs/internal validate unchanged 8.5s; ruff clean; mypy unchanged (1 pre-existing).",
+        "Review PASS by reviewer-renata. Checklist: (1) dead code: PASS — file_name_collision_issues() is called by validate_pack_with_org_charter (the CLI door) and the constants are in __all__. (2) synthetic-fixture: PASS — the door test and the two CLI tests failed before the change; they drive validate_pack_with_org_charter / the charter_app command. (3) silent-return: PASS — the empty list is the documented no-collision answer; the non-directory guard returns [] because validate_pack already reports not_found for that path. (4) FR coverage: FR-002 (error on the issue example), FR-006 (same-id override, renamed file, outside-a-repo control), FR-007 (--json category assertion). (5) frozen surface: PASS — pack_validator.py untouched, so the ValidationIssue/ValidationResult schema is unchanged. (6) locked decisions: PASS — C-004 holds (no repo config read; a chdir-outside-a-repo test pins it) and C-002 holds (no charter.offering -> charter.activation import). (7) shared-file ownership: PASS — lane-b write scope. (8) production fragility: PASS — no new raise; a missing pack.yaml degrades the layer label to 'org'. Verified blast radius: packs/internal and packs/built-in both report zero collisions, validate packs/internal still 0 errors at 8.5s (baseline 8.5s). DEFERRED (out of the approved spec scope, filed as #6825): the assembly door (assemble_pack_with_org_charter) does not run the identity leg, so two inputs sharing a file name for different ids still assemble cleanly."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 409551,
+      "shell_pid_created_at": "1793384562.47",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M675NHZC2SJ4YJGX80NZXXV9",
+      "last_transition_at": "2026-10-30T19:47:56.524796+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Retry after the pre-review gate's first run: WP03 collector/leg/renderer; 7 new tests green; doctor unchanged at 9.5s vs 10.5s baseline; out-of-map edit test_doctor_override_diagnostics.py (pinned org_drg key set gains file_name_collisions: []).",
+        "Review PASS by reviewer-renata. (1) dead code: PASS — _run_file_name_collision_check is called from charter_packs_check on both output paths and _collect_file_name_collisions is called by it and the tests; both are in __all__. (2) synthetic-fixture: PASS — the text/JSON/RC tests drive doctor_app end to end and failed before the leg existed. (3) silent-return: PASS — the always-present empty list is the documented 'checked, clean' answer, and a failed scan is recorded as an errors entry. (4) FR coverage: FR-003 (text + JSON + RC=1), FR-007 (org_drg.file_name_collisions shape asserted), NFR-002 (two runs equal), NFR-003 (monkeypatched failure recorded, no traceback). (5) frozen surface: PASS. (6) locked decision: PASS — the existing same-id override 'Collisions:' block, PackHealth and the payload key order are untouched; the new work only adds one key, verified by the pinned byte-identical snapshot test. (7) shared-file ownership: PASS, with one recorded out-of-map edit (test_doctor_override_diagnostics.py snapshot, the sanctioned-addition pattern that file documents for #6418/#6496). (8) production fragility: PASS — the only except is the documented never-crash guard. Recorded deviation from plan DD-3: the renderer lives in doctor.py beside _render_cross_grain_findings rather than in _profile_health_render.py; it uses the same _org_drg_list + escape helpers and the same call sites, so the module split is unchanged in substance. Timing: doctor charter-packs 9.5s on the diff vs 10.5s on the unchanged checkout (no measurable slowdown, NFR-004)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 20752,
+      "shell_pid_created_at": "1793387444.13",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M675NKV93NVTN3JGR8TYK7XV",
+      "last_transition_at": "2026-10-30T19:47:58.441137+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP04: [Unreleased] Fixed entry (1056 chars, #6743, before/after, rename advice); docs/api/charter-commands.md gains the File-name collisions subsection with the org_drg.file_name_collisions JSON shape and the difference from the same-id Collisions block; org-pack how-to gains an error-table row and a paragraph. docs_index --write regenerated, check_docs_freshness --ci errors=0 (3 pre-existing HELP-DRIFT warnings untouched), tests/architectural/test_no_legacy_terminology.py 98 passed, tests/docs 1804 passed. docs/api/cli-commands.md is generated and unchanged (no --help text changed).",
+        "Review PASS by reviewer-renata for the docs WP. (1) dead code: N/A (no code). (2) synthetic-fixture: N/A. (3) silent-return: N/A. (4) requirement coverage: FR-002/FR-003's user-facing contract is documented where an operator looks — changelog before/after, charter-commands JSON shape, how-to error row + paragraph. (5) frozen surface: PASS — no code touched, docs/api/cli-commands.md left to its generator (help text unchanged, freshness gate in sync). (6) locked decision: PASS — the prose states error severity with no opt-in, and explains that a deliberate same-id override is unaffected, matching C-003. (7) shared-file ownership: PASS. (8) fragility: N/A. Checks: docs_index --write regenerated the index (1 line), check_docs_freshness --ci errors=0 with the 3 pre-existing HELP-DRIFT warnings (charter activate --only, migrate activation-ledger, migrate ledger — none of them touched here), test_no_legacy_terminology 98 passed, tests/docs 1804 passed / 2 skipped."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 247470,
+      "shell_pid_created_at": "1793388559.02",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    }
+  }
+}

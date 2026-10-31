@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6459": {
+      "evidence_ref": "spec.md Problem section: cites #6459 as the file-name-first resolution rule this diagnostic surfaces, not as work this mission owes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6527": {
+      "evidence_ref": "spec.md Problem section: cites #6527 as the shipped writer refusal this diagnostic pre-warns about; that work is already merged (a8dd1812a6).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6743": {
+      "evidence_ref": "PR #6840: charter pack validate / charter org validate report category=file_name_collision and exit 1; doctor charter-packs reports org_drg.file_name_collisions and exits 1 (tests/charter/packs/test_org_charter_hooks.py, tests/specify_cli/cli/commands/charter/test_charter_pack_tooling.py, tests/specify_cli/cli/commands/test_doctor_charter_packs_file_name_collision.py)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
