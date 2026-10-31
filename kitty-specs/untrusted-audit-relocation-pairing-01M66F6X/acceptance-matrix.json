@@ -1,0 +1,79 @@
+{
+  "mission_slug": "untrusted-audit-relocation-pairing-01M66F6X",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_pair_relocations_pure_move_pairs_into_single_relocation",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-agent-i",
+      "verified_at": "2026-10-30T15:09:04.104146+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_main_reports_pure_relocation_as_single_moved_finding (one finding, exit 1, ghost+undercount suppressed) + test_main_green_tree_output_has_no_relocation_noise \u2014 tests/architectural/test_untrusted_path_containment.py 36/36 green",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-agent-i",
+      "verified_at": "2026-10-30T15:08:38.587055+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_fix_repins_relocated_row_and_goes_green (cells 0/1 only, idempotent) + test_fix_fail_closed_on_unrelated_error + test_fix_refuses_when_repinned_tree_would_still_fail \u2014 tests/architectural/test_untrusted_path_containment.py 36/36 green",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-agent-i",
+      "verified_at": "2026-10-30T15:08:42.509053+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_genuine_removal_never_pairs + test_genuine_new_sink_never_pairs + pre-existing test_main_flags_* teeth tests (both directions) \u2014 tests/architectural/test_untrusted_path_containment.py 36/36 green",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-agent-i",
+      "verified_at": "2026-10-30T15:08:46.464120+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_truncated_token_never_auto_pairs \u2014 tests/architectural/test_untrusted_path_containment.py 36/36 green",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-agent-i",
+      "verified_at": "2026-10-30T15:08:50.428490+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_main_flags_line_shift_chain_arrow_form + _prose_form + test_chain_guard_regex_covers_both_forms_and_clean_prose + test_committed_inventory_has_no_line_shift_chains \u2014 tests/architectural/test_untrusted_path_containment.py 36/36 green",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-agent-i",
+      "verified_at": "2026-10-30T15:08:54.423138+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_build_rich_inventory excludes [inventory-only] rows from pairing; green tree keeps 6 exempt rows overcount-free (reviewer round-1 verified) \u2014 tests/architectural/test_untrusted_path_containment.py 36/36 green",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-agent-i",
+      "verified_at": "2026-10-30T15:08:58.675436+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

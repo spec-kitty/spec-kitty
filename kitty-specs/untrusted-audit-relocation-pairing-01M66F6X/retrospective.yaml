@@ -1,0 +1,140 @@
+schema_version: 1
+mission_id: 01M66F6XMG33MZ1DDB334G4KAS
+mission_slug: untrusted-audit-relocation-pairing-01M66F6X
+mission_number: 244
+friendly_name: untrusted audit relocation pairing
+mission_type: software-dev
+target_branch: issue-6642-untrusted-audit-relocation-pairing
+created_at: '2026-10-30T15:11:03.362038+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-30T15:11:03.362038+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-002
+  category: doc
+  summary: analysis-report.md present; findings not machine-readable
+  evidence_refs:
+  - e-008
+  details: An analysis-report.md artifact is present for this mission and its frontmatter carries a machine-readable
+    findings count, but no resolved verdict (the verdict key is absent or records the legacy 'unknown' marker), so the
+    count is not asserted; review it manually.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-007
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+operator_notes:
+- id: rn2-n1
+  category: tech_debt
+  summary: 'round-2 review NOTE N-1: new test code is hand-format style on the #473 formatter-debt ratchet'
+  evidence_refs: [e-005]
+  details: The new tests in test_untrusted_path_containment.py pass `ruff format --check`
+    only via the repo-conventional `--force-exclude` (the file is on the #473 ratchet,
+    which predates this mission). Deepens that file's debt slightly; clean up when the
+    #473 ratchet retires. Non-gating.
+- id: rn2-n2
+  category: tech_debt
+  summary: 'round-2 review NOTE N-2: Any-leak through the _ratchet_keys re-export chain'
+  evidence_refs: [e-005]
+  details: composite_key_from_file genuinely returns tuple[str, str] (contracts/anchoring.py:270)
+    but resolves as Any through tests.architectural._ratchet_keys under mypy --strict; the
+    four cast() calls in the tests are a shim, not a type lie. Future cleanup: fix the
+    re-export typing. Non-gating.
+- id: rn2-n3
+  category: perf
+  summary: 'round-2 review NOTE N-3: test_main_flags_hand_tuned_source_cell runs main() twice'
+  evidence_refs: [e-005]
+  details: The first bare main() run (~5s full discovery) is redundant with the redirected
+    run that actually asserts; trim if the file's suite time matters again. Non-gating.
+- id: rn2-n4
+  category: ux
+  summary: 'round-2 review NOTE N-4: near-miss note drops the differing discovered source value'
+  evidence_refs: [e-005]
+  details: The m-3 fix names every same-token/different-source candidate but no longer
+    prints the discovered source to compare against ("vs the discovered source there").
+    Marginally less actionable; acceptable. Non-gating.
+- id: rn2-n5
+  category: tech_debt
+  summary: 'round-2 review NOTE N-5 (pre-existing): stale locator lines on the two surface_resolver rows'
+  evidence_refs: [e-005]
+  details: coordination/surface_resolver.py:552/:504 locator lines predate the #2091 rework
+    (~live lines 1109-1111); tolerated by the audit's documented line-drift immunity
+    (key = rel_path/qualname/token, no line) and predates this WP. The m-2 restoration
+    deliberately avoided line arithmetic that would collide with the new chain guard.
+    Non-gating.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/untrusted-audit-relocation-pairing-01M66F6X/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/untrusted-audit-relocation-pairing-01M66F6X/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/untrusted-audit-relocation-pairing-01M66F6X/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/untrusted-audit-relocation-pairing-01M66F6X/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/untrusted-audit-relocation-pairing-01M66F6X/tasks/WP01-relocation-pairing-and-fix.md
+- id: e-006
+  kind: file
+  path: kitty-specs/untrusted-audit-relocation-pairing-01M66F6X/status.events.jsonl
+- id: e-007
+  kind: event_range
+  path: kitty-specs/untrusted-audit-relocation-pairing-01M66F6X/status.events.jsonl
+  range: 01M66M8ZRJPGR625G9T5YF2K3S
+- id: e-008
+  kind: file
+  path: kitty-specs/untrusted-audit-relocation-pairing-01M66F6X/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

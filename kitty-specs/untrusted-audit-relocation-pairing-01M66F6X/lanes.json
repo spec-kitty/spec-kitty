@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "untrusted-audit-relocation-pairing-01M66F6X",
+  "mission_id": "01M66F6XMG33MZ1DDB334G4KAS",
+  "mission_branch": "kitty/mission-untrusted-audit-relocation-pairing-01M66F6X",
+  "target_branch": "issue-6642-untrusted-audit-relocation-pairing",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/architectural/test_untrusted_path_containment.py",
+        "tests/architectural/untrusted_path_audit/RULESET.md",
+        "tests/architectural/untrusted_path_audit/audit.py",
+        "tests/architectural/untrusted_path_audit/inventory.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T13:31:13.677985+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f0a3d1ff4b85ea86a78a0edf711a9f6a7a4a764c"
+}

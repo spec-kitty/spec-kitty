@@ -119,6 +119,37 @@ dropped.
 
 ---
 
+## Pure-move pairing and `--fix` (#6642)
+
+A change that only MOVES a sink (module renamed / function relocated, joined
+segment unchanged) is recognised by `pair_relocations` and collapses the ghost
+overcount + undercount pair into ONE `sink moved:` finding (still RED until the
+inventory is re-pinned). A pair forms only when **exactly one** ghost row and
+**exactly one** missing live sink share `(token, untrusted source)` and the
+token is not `…`-truncated. Everything else stays RED for a human — a genuine
+removal, a genuine new sink, a changed token, an ambiguous group, a source-cell
+mismatch, or a truncated token (a shared 60-char prefix cannot distinguish a
+move from a removal plus a new sink).
+
+`--fix` re-pins ONLY the `file:line` and `qualname` columns of the paired rows;
+the token, untrusted source, sink-op, disposition and rationale cells are never
+overwritten. It is fail-closed: no write while any non-relocation error exists,
+and an in-memory re-audit of the would-be result must be fully green first.
+
+Two hygiene rules keep the pairing working:
+
+1. **Source cells are canonical machine strings.** The `untrusted source`
+   column must equal exactly what the matcher prints (e.g. `mission_slug`, not
+   `resolved.mission_slug` or `mission_slug (operator --mission selector)`).
+   Receiver / provenance annotations belong in the rationale column — a
+   hand-tuned cell silently disables pairing for that row.
+2. **No line-shift chains in rationales.** Hand-kept `1902→1933` /
+   `shifted −11` relocation history is forbidden: git already records it, and
+   `--fix` re-pins the locators. Cite the *reason* a row moved (mission, PR),
+   not the line arithmetic.
+
+---
+
 ## Disposition vocabulary (exactly one per row)
 
 | Disposition | Meaning |

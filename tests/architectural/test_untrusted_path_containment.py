@@ -509,3 +509,489 @@ def test_inventory_only_rows_carry_a_documented_reason() -> None:
             f"[inventory-only] row {row['locator']!r} must document WHY it is "
             "exempt (removed-sink change or known-FN class), not just the bare tag."
         )
+
+
+# ---------------------------------------------------------------------------
+# #6642 — pure sink relocation: pairing, --fix, and the teeth that stay.
+#
+# A change that only MOVES a sink (module renamed / function relocated, joined
+# segment unchanged) used to report two failures — a ghost overcount plus an
+# undercount — forcing a hand re-pin of the inventory locator columns. The
+# audit now pairs a pure move: one ghost row + one missing live sink uniquely
+# sharing (token, untrusted source) collapse into ONE "sink moved" finding,
+# and ``--fix`` re-pins only the machine locator columns (file:line, qualname).
+# Every other tripwire keeps its exact strictness (teeth tests below).
+# ---------------------------------------------------------------------------
+
+from tests.architectural._ratchet_keys import composite_key_from_file  # noqa: E402
+from typing import cast  # noqa: E402
+from tests.architectural.untrusted_path_audit.audit import pair_relocations  # noqa: E402
+from tests.architectural.untrusted_path_audit.audit import RelocationPair  # noqa: E402
+from tests.architectural.untrusted_path_audit.audit import SinkRow  # noqa: E402
+
+
+def _synth_key(rel: str, qualname: str, token: str) -> tuple[str, str, str]:
+    """A synthetic composite key — pair_relocations only compares strings."""
+    return (rel, qualname, token)
+
+
+# --- Unit level: the pairing seam (pure, no file access) -------------------
+
+
+def test_pure_move_pairs_into_single_relocation() -> None:
+    """One ghost + one missing sink sharing (token, source) pair uniquely."""
+    ghost = _synth_key("old/mod.py", "f", "p = root / mission_slug")
+    moved = _synth_key("new/mod.py", "f", "p = root / mission_slug")
+    discovered = {moved: ("new/mod.py:9", "mission_slug")}
+    inventory = {ghost: ("old/mod.py:4", "mission_slug")}
+    pairs, notes = pair_relocations(discovered, inventory)
+    assert pairs == [RelocationPair(ghost, "old/mod.py:4", moved, "new/mod.py:9")]
+    assert notes == []
+
+
+def test_pure_move_with_qualname_change_pairs() -> None:
+    """A function relocated into another function pairs (qualname changed)."""
+    ghost = _synth_key("mod.py", "outer", "p = root / mission_slug")
+    moved = _synth_key("mod.py", "Outer.inner", "p = root / mission_slug")
+    pairs, _ = pair_relocations(
+        {moved: ("mod.py:12", "mission_slug")}, {ghost: ("mod.py:4", "mission_slug")}
+    )
+    assert len(pairs) == 1 and pairs[0].ghost_key == ghost and pairs[0].missing_key == moved
+
+
+def test_genuine_removal_never_pairs() -> None:
+    """Teeth: a removed sink (ghost, no missing twin) never pairs."""
+    ghost = _synth_key("old/mod.py", "f", "p = root / mission_slug")
+    pairs, notes = pair_relocations({}, {ghost: ("old/mod.py:4", "mission_slug")})
+    assert pairs == [] and notes == []
+
+
+def test_genuine_new_sink_never_pairs() -> None:
+    """Teeth: a new sink (missing, no ghost twin) never pairs."""
+    moved = _synth_key("new/mod.py", "f", "p = root / mission_slug")
+    pairs, notes = pair_relocations({moved: ("new/mod.py:9", "mission_slug")}, {})
+    assert pairs == [] and notes == []
+
+
+def test_token_changed_move_never_pairs() -> None:
+    """Teeth: a relocation whose joined segment changed breaks the pair key."""
+    ghost = _synth_key("old/mod.py", "f", "p = root / mission_slug")
+    changed = _synth_key("new/mod.py", "f", "p = root / mission_slug . name")
+    pairs, notes = pair_relocations(
+        {changed: ("new/mod.py:9", "mission_slug")}, {ghost: ("old/mod.py:4", "mission_slug")}
+    )
+    assert pairs == []
+    # No note either: the tokens do not match, so there is nothing to explain.
+    assert notes == []
+
+
+def test_source_mismatch_never_pairs_and_notes() -> None:
+    """Teeth: same token, different untrusted source cells — no pairing, a note."""
+    ghost = _synth_key("old/mod.py", "f", "p = root / mission_slug")
+    moved = _synth_key("new/mod.py", "f", "p = root / mission_slug")
+    pairs, notes = pair_relocations(
+        {moved: ("new/mod.py:9", "mission_slug")}, {ghost: ("old/mod.py:4", "slug")}
+    )
+    assert pairs == []
+    assert len(notes) == 1
+    assert "source differs" in notes[0]
+
+
+def test_truncated_token_never_auto_pairs() -> None:
+    """Teeth: a …-truncated token never auto-pairs (prefix collisions)."""
+    ghost = _synth_key("old/mod.py", "f", "p = root / a / mission_slug / b / c / d…")
+    moved = _synth_key("new/mod.py", "f", "p = root / a / mission_slug / b / c / d…")
+    pairs, notes = pair_relocations(
+        {moved: ("new/mod.py:9", "mission_slug")}, {ghost: ("old/mod.py:4", "mission_slug")}
+    )
+    assert pairs == []
+    assert len(notes) == 1
+    assert "truncated" in notes[0]
+
+
+def test_ambiguous_two_ghosts_one_missing_never_pairs() -> None:
+    """Teeth: 2 ghosts vs 1 missing in one (token, source) group is ambiguous."""
+    g1 = _synth_key("a/mod.py", "f", "p = root / mission_slug")
+    g2 = _synth_key("b/mod.py", "f", "p = root / mission_slug")
+    moved = _synth_key("c/mod.py", "f", "p = root / mission_slug")
+    pairs, notes = pair_relocations(
+        {moved: ("c/mod.py:9", "mission_slug")},
+        {g1: ("a/mod.py:4", "mission_slug"), g2: ("b/mod.py:4", "mission_slug")},
+    )
+    assert pairs == []
+    assert any("ambiguous" in n for n in notes)
+
+
+def test_ambiguous_one_ghost_two_missing_never_pairs() -> None:
+    """Teeth: 1 ghost vs 2 missing in one (token, source) group is ambiguous."""
+    ghost = _synth_key("a/mod.py", "f", "p = root / mission_slug")
+    m1 = _synth_key("b/mod.py", "f", "p = root / mission_slug")
+    m2 = _synth_key("c/mod.py", "f", "p = root / mission_slug")
+    pairs, notes = pair_relocations(
+        {m1: ("b/mod.py:4", "mission_slug"), m2: ("c/mod.py:9", "mission_slug")},
+        {ghost: ("a/mod.py:4", "mission_slug")},
+    )
+    assert pairs == []
+    assert any("ambiguous" in n for n in notes)
+
+
+def test_two_ghosts_zero_missing_never_pairs() -> None:
+    """Teeth: two ghosts sharing (token, source) with no missing sink stay red."""
+    g1 = _synth_key("a/mod.py", "f", "p = root / mission_slug")
+    g2 = _synth_key("b/mod.py", "f", "p = root / mission_slug")
+    pairs, notes = pair_relocations(
+        {}, {g1: ("a/mod.py:4", "mission_slug"), g2: ("b/mod.py:4", "mission_slug")}
+    )
+    assert pairs == []
+
+
+def test_multiple_distinct_relocations_pair_independently() -> None:
+    """Two unique (token, source) groups pair independently in one run."""
+    g1 = _synth_key("a/mod.py", "f", "p = root / mission_slug")
+    m1 = _synth_key("x/mod.py", "f", "p = root / mission_slug")
+    g2 = _synth_key("b/mod.py", "g", "q = base / wp_slug")
+    m2 = _synth_key("y/mod.py", "g", "q = base / wp_slug")
+    pairs, notes = pair_relocations(
+        {m1: ("x/mod.py:1", "mission_slug"), m2: ("y/mod.py:2", "wp_slug")},
+        {g1: ("a/mod.py:1", "mission_slug"), g2: ("b/mod.py:2", "wp_slug")},
+    )
+    assert len(pairs) == 2 and notes == []
+    assert {p.ghost_key for p in pairs} == {g1, g2}
+    assert {p.missing_key for p in pairs} == {m1, m2}
+
+
+# --- End-to-end level: main() reports the single finding -------------------
+
+
+def _relocate_cycle_sink(monkeypatch: pytest.MonkeyPatch, new_rel: str) -> None:
+    """Simulate a pure module rename of the live ``review/cycle.py:52`` sink.
+
+    The row inventoried at ``review/cycle.py:52`` (live line 278,
+    ``_review_cycle_wp_dir``) moves VERBATIM to ``new_rel``: same content, same
+    line, same token/qualname — only the module path changes. This patches the
+    identity helper's file lookup (the moved module has identical content) and
+    discovery's row set, the same seams ``main()`` itself consumes.
+    """
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    real_discover = audit_mod.discover_rows
+    real_ckff = composite_key_from_file
+
+    def _redirect_ckff(path: Path, line: int) -> tuple[str, str]:
+        try:
+            rel = path.relative_to(audit_mod.SRC_ROOT).as_posix()
+        except ValueError:
+            return cast(tuple[str, str], real_ckff(path, line))
+        if rel == new_rel:
+            path = audit_mod.SRC_ROOT / "review/cycle.py"
+        return cast(tuple[str, str], real_ckff(path, line))
+
+    def _fake_discover() -> list[SinkRow]:
+        rows: list[SinkRow] = []
+        for row in real_discover():
+            if row.rel_path == "review/cycle.py" and row.line == 278:
+                rows.append(
+                    audit_mod.SinkRow(new_rel, row.line, row.untrusted_source, row.sink_op)
+                )
+            else:
+                rows.append(row)
+        return rows
+
+    monkeypatch.setattr(audit_mod, "composite_key_from_file", _redirect_ckff)
+    monkeypatch.setattr(audit_mod, "discover_rows", _fake_discover)
+
+
+def test_main_reports_pure_relocation_as_single_moved_finding(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#6642 red-first core: a pure move yields ONE finding, not two errors."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    _relocate_cycle_sink(monkeypatch, "review/cycle_relocated.py")
+    assert audit_mod.main() == 1  # still red until the inventory is re-pinned
+    err = capsys.readouterr().err
+    assert err.count("sink moved:") == 1
+    assert "review/cycle.py" in err and "review/cycle_relocated.py" in err
+    # The two misleading failures are gone for this sink.
+    assert "overcount/ghost" not in err
+    assert "undercount" not in err
+    assert "--fix" in err  # the finding tells the contributor how to re-pin
+
+
+def test_main_green_tree_output_has_no_relocation_noise(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """NFR-001: on the green tree the audit output stays a plain summary."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    assert audit_mod.main() == 0
+    out = capsys.readouterr()
+    assert out.err == ""
+    assert out.out.startswith("AUDIT OK:")
+    assert "sink moved" not in out.out
+
+
+# --- End-to-end level: --fix re-pins exactly the locator columns ----------
+
+
+def _tmp_inventory_copy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Point the audit at a scratch copy of the real inventory."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = tmp_path / "inventory.md"
+    scratch.write_text(audit_mod.INVENTORY_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    monkeypatch.setattr(audit_mod, "INVENTORY_PATH", scratch)
+    return scratch
+
+
+def test_fix_repins_relocated_row_and_goes_green(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """--fix re-pins the locator columns; disposition/rationale untouched."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = _tmp_inventory_copy(monkeypatch, tmp_path)
+    before = (scratch.read_text(encoding="utf-8")).splitlines()
+    ghost_line = next(
+        ln for ln in before if ln.startswith("| review/cycle.py:52 | _review_cycle_wp_dir |")
+    )
+    ghost_cells = [c.strip() for c in ghost_line.strip("|").split("|")]
+
+    _relocate_cycle_sink(monkeypatch, "review/cycle_relocated.py")
+    assert audit_mod.main(["--fix"]) == 0
+    out = capsys.readouterr()
+    assert "AUDIT FIXED: re-pinned 1 relocated sink row" in out.out
+
+    after = (scratch.read_text(encoding="utf-8")).splitlines()
+    fixed_line = next(
+        ln for ln in after if ln.startswith("| review/cycle_relocated.py:278 | _review_cycle_wp_dir |")
+    )
+    fixed_cells = [c.strip() for c in fixed_line.strip("|").split("|")]
+    # Locator columns re-pinned (file:line + qualname).
+    assert fixed_cells[0] == "review/cycle_relocated.py:278"
+    assert fixed_cells[1] == ghost_cells[1]
+    # Token, source, sink op, disposition, rationale: byte-identical.
+    assert fixed_cells[2:] == ghost_cells[2:]
+
+    # The fixed tree is green for a plain run, and --fix is now a no-op.
+    assert audit_mod.main() == 0
+    assert audit_mod.main(["--fix"]) == 0
+    assert scratch.read_text(encoding="utf-8") == "\n".join(after) + "\n"
+
+
+def test_fix_without_relocations_writes_nothing(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """--fix on a green tree is a no-op (no write, plain summary)."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = _tmp_inventory_copy(monkeypatch, tmp_path)
+    before = scratch.read_text(encoding="utf-8")
+    assert audit_mod.main(["--fix"]) == 0
+    out = capsys.readouterr()
+    assert "AUDIT FIXED" not in out.out
+    assert out.out.startswith("AUDIT OK:")
+    assert scratch.read_text(encoding="utf-8") == before
+
+
+def test_fix_fail_closed_on_unrelated_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Teeth: --fix refuses to write while any non-relocation error exists."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = _tmp_inventory_copy(monkeypatch, tmp_path)
+    # Corrupt one unrelated row's disposition (an error --fix cannot resolve).
+    lines = scratch.read_text(encoding="utf-8").splitlines()
+    i = next(n for n, ln in enumerate(lines) if ln.startswith("| audit/engine.py:88 |"))
+    lines[i] = lines[i].replace("| unreachable |", "| bogus-disposition |")
+    assert lines[i] != scratch.read_text(encoding="utf-8").splitlines()[i]
+    corrupted = "\n".join(lines) + "\n"
+    scratch.write_text(corrupted, encoding="utf-8")
+
+    _relocate_cycle_sink(monkeypatch, "review/cycle_relocated.py")
+    assert audit_mod.main(["--fix"]) == 1
+    # Fail-closed: the scratch file is byte-identical (no partial write).
+    assert scratch.read_text(encoding="utf-8") == corrupted
+
+
+def test_fix_refuses_when_repinned_tree_would_still_fail(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Teeth: --fix re-audits the would-be result in memory before writing.
+
+    Defense-in-depth for a buggy rewrite: if the re-pinned inventory would
+    still fail any check, --fix reports it and leaves the file untouched.
+    """
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = _tmp_inventory_copy(monkeypatch, tmp_path)
+    before = scratch.read_text(encoding="utf-8")
+
+    real_apply = audit_mod._apply_relocation_fixes
+
+    def _buggy_apply(text: str, pairs: list[RelocationPair]) -> str:
+        # A (hypothetically) broken rewrite: re-pins the relocation AND
+        # corrupts one unrelated disposition.
+        return real_apply(text, pairs).replace(
+            "| unreachable |", "| bogus-disposition |", 1
+        )
+
+    monkeypatch.setattr(audit_mod, "_apply_relocation_fixes", _buggy_apply)
+
+    _relocate_cycle_sink(monkeypatch, "review/cycle_relocated.py")
+    rc = audit_mod.main(["--fix"])
+    assert rc == 1
+    # Refused: the scratch inventory is byte-identical (no partial write).
+    assert scratch.read_text(encoding="utf-8") == before
+
+
+def test_fix_repins_two_independent_relocations(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    """Two distinct pure moves in one run: both re-pinned, one --fix pass."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = _tmp_inventory_copy(monkeypatch, tmp_path)
+
+    real_discover = audit_mod.discover_rows
+    real_ckff = composite_key_from_file
+
+    def _redirect_ckff(path: Path, line: int) -> tuple[str, str]:
+        try:
+            rel = path.relative_to(audit_mod.SRC_ROOT).as_posix()
+        except ValueError:
+            return cast(tuple[str, str], real_ckff(path, line))
+        if rel in ("review/moved_a.py", "review/moved_b.py"):
+            path = audit_mod.SRC_ROOT / "review/cycle.py"
+        return cast(tuple[str, str], real_ckff(path, line))
+
+    def _fake_discover() -> list[SinkRow]:
+        rows: list[SinkRow] = []
+        for row in real_discover():
+            if row.rel_path == "review/cycle.py" and row.line == 278:
+                rows.append(audit_mod.SinkRow("review/moved_a.py", row.line, row.untrusted_source, row.sink_op))
+            elif row.rel_path == "review/cycle.py" and row.line == 294:
+                rows.append(audit_mod.SinkRow("review/moved_b.py", row.line, row.untrusted_source, row.sink_op))
+            else:
+                rows.append(row)
+        return rows
+
+    monkeypatch.setattr(audit_mod, "composite_key_from_file", _redirect_ckff)
+    monkeypatch.setattr(audit_mod, "discover_rows", _fake_discover)
+
+    assert audit_mod.main() == 1  # red: two "sink moved" findings
+    assert capsys.readouterr().err.count("sink moved:") == 2
+
+    assert audit_mod.main(["--fix"]) == 0
+    assert "re-pinned 2 relocated sink row" in capsys.readouterr().out
+    fixed = scratch.read_text(encoding="utf-8")
+    assert "| review/moved_a.py:278 | _review_cycle_wp_dir |" in fixed
+    assert "| review/moved_b.py:294 |" in fixed
+    assert audit_mod.main() == 0
+
+
+# --- The two hygiene guards are pinned in BOTH directions (#6642 review B-1):
+# --- a red-direction test per guard (the check FIRES on a corrupted inventory)
+# --- plus green-tree assertions that they hold on the committed inventory.
+# --- Removing either check from _collect_errors, or weakening the chain regex,
+# --- turns these red.
+
+
+def test_main_flags_hand_tuned_source_cell(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Check 5 fires: a non-canonical source cell on a LIVE row is RED."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = _tmp_inventory_copy(monkeypatch, tmp_path)
+    lines = scratch.read_text(encoding="utf-8").splitlines()
+    i = next(n for n, ln in enumerate(lines) if ln.startswith("| audit/engine.py:88 |"))
+    # Hand-tune the source cell back to the receiver-qualified form (the exact
+    # pre-#6642 state of this row): pairing would silently miss it.
+    lines[i] = lines[i].replace("| mission_slug | Path-join", "| resolved.mission_slug | Path-join", 1)
+    assert "resolved.mission_slug" in lines[i]
+    scratch.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    assert audit_mod.main() == 1
+    # Not committed above: read the error off stderr via a fresh run.
+    import contextlib
+    import io
+
+    err = io.StringIO()
+    with contextlib.redirect_stderr(err):
+        assert audit_mod.main() == 1
+    assert "audit/engine.py:88" in err.getvalue()
+    assert "not the canonical machine string 'mission_slug'" in err.getvalue()
+
+
+def test_main_flags_line_shift_chain_arrow_form(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Check 6 fires on the ``1902→1933`` arrow form (SC-004's letter)."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = _tmp_inventory_copy(monkeypatch, tmp_path)
+    lines = scratch.read_text(encoding="utf-8").splitlines()
+    i = next(n for n, ln in enumerate(lines) if ln.startswith("| audit/engine.py:88 |"))
+    lines[i] = lines[i].replace(
+        "Path-join (/) | unreachable |",
+        "Path-join (/) | unreachable | (line shifted 88→107 by a hypothetical mission.)",
+        1,
+    )
+    scratch.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    assert audit_mod.main() == 1
+
+
+def test_main_flags_line_shift_chain_prose_form(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Check 6 fires on the signed-shift prose form (``shifted −11``)."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    scratch = _tmp_inventory_copy(monkeypatch, tmp_path)
+    lines = scratch.read_text(encoding="utf-8").splitlines()
+    i = next(n for n, ln in enumerate(lines) if ln.startswith("| audit/engine.py:88 |"))
+    lines[i] = lines[i].replace(
+        "Path-join (/) | unreachable |",
+        "Path-join (/) | unreachable | (shifted −11 by a rebase.)",
+        1,
+    )
+    scratch.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    assert audit_mod.main() == 1
+
+
+def test_chain_guard_regex_covers_both_forms_and_clean_prose() -> None:
+    """The regex itself: both shift forms match; ordinary prose does not."""
+    from tests.architectural.untrusted_path_audit.audit import _LINE_SHIFT_CHAIN_RE
+
+    assert _LINE_SHIFT_CHAIN_RE.search("line shifted 1902→1933 by mission X")
+    assert _LINE_SHIFT_CHAIN_RE.search("relocated; shifted −11 by a rebase")
+    assert _LINE_SHIFT_CHAIN_RE.search("shifted +2 by mission Y")
+    assert _LINE_SHIFT_CHAIN_RE.search("then 518→472 by deletion")
+    assert _LINE_SHIFT_CHAIN_RE.search("relocated VERBATIM from merge.py:613") is None
+    assert _LINE_SHIFT_CHAIN_RE.search("disposition unchanged; same sink") is None
+
+
+def test_committed_inventory_has_no_line_shift_chains() -> None:
+    """SC-004 green direction: no committed rationale carries a shift chain."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    rows = audit_mod._parse_inventory_rows(
+        audit_mod.INVENTORY_PATH.read_text(encoding="utf-8")
+    )
+    assert rows, "sink table must parse"
+    assert audit_mod._check_no_line_shift_chains(rows) == []
+
+
+def test_committed_inventory_source_cells_are_canonical() -> None:
+    """Check 5 green direction: every live row's source cell is machine-canonical."""
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    discovered = audit_mod._build_rich_discovered(audit_mod.discover_rows())
+    rows = audit_mod._parse_inventory_rows(
+        audit_mod.INVENTORY_PATH.read_text(encoding="utf-8")
+    )
+    assert audit_mod._check_source_canonicality(discovered, rows) == []
