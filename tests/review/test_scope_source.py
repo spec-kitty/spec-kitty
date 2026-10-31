@@ -8,7 +8,7 @@ from typing import Any, ClassVar
 
 import pytest
 
-from specify_cli.review import scope_source
+from specify_cli.review import baseline, scope_source
 from specify_cli.review.scope_source import (
     DeclaredCommandScopeSource,
     RawRunResult,
@@ -136,8 +136,13 @@ def test_declared_command_parse_results_surfaces_unparseable_nonzero_exit(tmp_pa
     failures = impl.parse_results(raw)
 
     assert len(failures) == 1
-    assert failures[0].test == "<declared-command>"
+    assert failures[0].test == baseline.OPAQUE_FAILURE_TEST_ID
     assert failures[0].error == "panic"
+    # The placeholder name is not the identity: the entry carries the run's
+    # exit status and is marked opaque so the baseline diff compares the bound
+    # identity (exit status + full-output digest) instead (issue #6751).
+    assert failures[0].opaque is True
+    assert failures[0].exit_code == 2
 
 
 def test_declared_command_parse_results_parses_junit_xml(tmp_path: Path) -> None:
