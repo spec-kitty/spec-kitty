@@ -9,8 +9,7 @@ from typing import TypedDict
 import typer
 
 from charter.activation.pack_context import ActiveCharterConfigError
-from charter.activation.api import CharterScope
-from charter.activation.scope import CharterScopeConflict, CharterScopeNotFound
+from charter.activation.api import CharterScope, CharterScopeConflict, CharterScopeNotFound
 from charter.packs import RetiredPackFieldError
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 from kernel.errors import KittyInternalConsistencyError

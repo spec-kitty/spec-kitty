@@ -44,6 +44,8 @@ from __future__ import annotations
 # pair that this seam drains later, not new reach.
 from charter.activation.scope import (
     CharterScope as CharterScope,
+    CharterScopeConflict as CharterScopeConflict,
+    CharterScopeNotFound as CharterScopeNotFound,
     OwnedCharterInvocation as OwnedCharterInvocation,
 )
 
@@ -261,6 +263,8 @@ __all__ = [
     "ActivationResult",
     "ActiveCharterConfigError",
     "CharterScope",
+    "CharterScopeConflict",
+    "CharterScopeNotFound",
     "DenyListChoice",
     "DenyListWriteRefused",
     "EffectiveSet",
