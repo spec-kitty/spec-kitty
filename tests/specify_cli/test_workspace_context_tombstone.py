@@ -348,3 +348,82 @@ def test_merge_completion_keeps_context_when_keep_worktree_requested(tmp_path: P
     _run_cleanup_phase(run)
 
     assert context_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# #6450 item (4): a TRACKED workspace context must be COMMITTED when tombstoned
+# ---------------------------------------------------------------------------
+#
+# ``_remove_lane_worktrees`` runs AFTER ``_phase_commit_and_assert`` (the run's
+# only bookkeeping commit), so in a project that tracks
+# ``.kittify/workspaces/<slug>-<lane>.json`` the tombstone used to leave a
+# tracked-file deletion in the working tree of a run that reported success.
+
+
+def _init_merge_repo(tmp_path: Path, *, tracked: tuple[str, ...], untracked: tuple[str, ...]) -> Path:
+    """A real git repo holding lane workspace contexts, *tracked* and *untracked*."""
+    repo = tmp_path / "repo"
+    repo.mkdir(parents=True, exist_ok=True)
+    _git(repo, "init", "-qb", "main")
+    _git(repo, "config", "user.email", "tombstone@example.com")
+    _git(repo, "config", "user.name", "Tombstone Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+
+    (repo / ".kittify").mkdir(parents=True, exist_ok=True)
+    (repo / ".kittify" / "config.json").write_text("{}\n", encoding="utf-8")
+    (repo / "README.md").write_text("# repo\n", encoding="utf-8")
+    workspaces = repo / ".kittify" / "workspaces"
+    workspaces.mkdir(parents=True, exist_ok=True)
+    for lane in tracked + untracked:
+        (workspaces / f"m-{lane}.json").write_text("{}", encoding="utf-8")
+        if lane in tracked:
+            _git(repo, "add", f".kittify/workspaces/m-{lane}.json")
+    _git(repo, "add", "README.md", ".kittify/config.json")
+    _git(repo, "commit", "-m", "init")
+    return repo
+
+
+def _run_tombstones(run: _executor._MergeRunState) -> None:
+    """Run ONLY the worktree-removal/tombstone seam, with real git underneath."""
+    with (
+        patch.object(phase_teardown, "_worktree_removal_delay", return_value=0),
+        patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
+    ):
+        phase_teardown._remove_lane_worktrees(run)
+
+
+def _subject_and_paths(repo: Path) -> tuple[str, list[str]]:
+    subject = _git(repo, "log", "-1", "--format=%s").stdout.strip()
+    paths = [line for line in _git(repo, "show", "--name-only", "--format=", "HEAD").stdout.splitlines() if line.strip()]
+    return subject, paths
+
+
+def test_tracked_workspace_context_tombstone_is_committed(tmp_path: Path) -> None:
+    """#6450 (4): the tombstone of a TRACKED context lands in a scoped commit."""
+    repo = _init_merge_repo(tmp_path, tracked=("lane-a",), untracked=("lane-b",))
+    before = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    run = _make_merge_run(repo, lane_ids=["lane-a", "lane-b"])
+
+    _run_tombstones(run)
+
+    assert not (repo / ".kittify" / "workspaces" / "m-lane-a.json").exists()
+    assert not (repo / ".kittify" / "workspaces" / "m-lane-b.json").exists()
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() != before, "tombstoned tracked context was never committed"
+    assert _git(repo, "status", "--porcelain").stdout.strip() == "", "cleanup left the working tree dirty"
+    subject, paths = _subject_and_paths(repo)
+    assert subject == "chore(m): tombstone lane workspace contexts"
+    # Scoped: the TRACKED context only -- the untracked one was never in the index.
+    assert paths == [".kittify/workspaces/m-lane-a.json"]
+
+
+def test_tombstone_commit_is_skipped_when_no_tracked_context_was_removed(tmp_path: Path) -> None:
+    """Positive control: nothing tracked removed -> no commit, same as before."""
+    repo = _init_merge_repo(tmp_path, tracked=(), untracked=("lane-a",))
+    before = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    run = _make_merge_run(repo, lane_ids=["lane-a"])
+
+    _run_tombstones(run)
+
+    assert not (repo / ".kittify" / "workspaces" / "m-lane-a.json").exists()
+    assert _git(repo, "rev-parse", "HEAD").stdout.strip() == before, "an untracked context must not produce a commit"
+    assert _git(repo, "status", "--porcelain").stdout.strip() == ""
