@@ -13047,6 +13047,7 @@ pages:
     - {slug: "quick-start", text: "Quick Start", level: 2}
     - {slug: "preview-with-dry-run", text: "Preview with Dry-Run", level: 2}
     - {slug: "strategies", text: "Strategies", level: 2}
+    - {slug: "restack-onto-a-newer-dependency-branch", text: "Restack onto a Newer Dependency Branch", level: 2}
     - {slug: "target-branch", text: "Target Branch", level: 2}
     - {slug: "cleanup-options", text: "Cleanup Options", level: 2}
     - {slug: "mission-retention-policy", text: "Mission Retention Policy", level: 3}
