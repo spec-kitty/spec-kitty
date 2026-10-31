@@ -17,7 +17,7 @@ def charter_scope_for_owned(owned: OwnedCheckout, feature_dir: Path | None = Non
 
     from charter.activation.api import CharterScope, OwnedCharterInvocation
 
-    if feature_dir is not None and feature_dir.resolve() != owned.mission_dir:
+    if feature_dir is not None and feature_dir.resolve() != owned.mission_dir.resolve():
         raise ActionContextError("MISSION_CONTEXT_CONFLICT", "charter Mission differs from the validated owned checkout")
     scope = CharterScope.resolve(owned.owned_root, owned.mission_dir)
     return replace(scope, invocation=OwnedCharterInvocation(owned.owned_root, owned.mission_slug))

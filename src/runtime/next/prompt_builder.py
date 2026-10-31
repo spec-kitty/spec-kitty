@@ -529,13 +529,10 @@ def _governance_context(
     # existing typed charter scope without changing any Git-root authority.
     scope = None
     if owned is not None:
-        if feature_dir is not None and feature_dir.resolve() != owned.mission_dir.resolve():
-            raise ActionContextError(
-                "MISSION_CONTEXT_CONFLICT",
-                "prompt mission differs from the validated owned checkout",
-            )
         from specify_cli.core.owned_charter import charter_scope_for_owned
 
+        # One owner for the mission/checkout invariant: the projector refuses a
+        # feature_dir that is not this owned Mission's directory.
         scope = charter_scope_for_owned(owned, feature_dir)
     if action:
         try:
