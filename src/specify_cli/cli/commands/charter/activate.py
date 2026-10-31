@@ -348,8 +348,14 @@ class _CascadeIds:
     org_roots: list[Path]
     render_pass: ResolutionPass | None = None
 
-    def config_id(self, urn: str) -> str:
-        config_id: str = drg_urn_to_config_id(urn, self.offering_root, self.layer_roots, self.org_roots, self.render_pass)
+    def config_id(self, urn: str, resolution_pass: ResolutionPass | None = None) -> str:
+        """*urn*'s config-stem ID, resolved with *resolution_pass* (else the render pass).
+
+        An explicit pass lets a lookup batch share one read-only pass (#6777); without one
+        the behaviour is unchanged -- the render pass when set, else unmemoized.
+        """
+        active_pass = resolution_pass if resolution_pass is not None else self.render_pass
+        config_id: str = drg_urn_to_config_id(urn, self.offering_root, self.layer_roots, self.org_roots, active_pass)
         return config_id
 
 
@@ -380,29 +386,51 @@ def _activate_cascade_targets(
     With *reinstate* (``--include-deactivated``) each activation carries
     :attr:`DenyListChoice.CASCADE_INCLUDE_DEACTIVATED`, so a denied target's
     exclusion is cleared; the caller reports what the deny delta shows.
+
+    Every target's config stem is resolved **before the first activation write**, in one
+    read-only :class:`ResolutionPass` (#6777). Resolving each URN on its own -- inside the
+    loop, with no pass -- re-walked and re-parsed the whole doctrine catalog once per
+    target: 121 lookups (114 targets plus the seven render-only ones) cost 5309 id reads
+    and 5028 artifact-file parses on a full ``--cascade all`` walk. That is the redundancy
+    #5526 removed from the cascade *render* loops; the activation loop kept it because
+    ``_cascade_activation_report`` creates its render pass only after this call. Resolving
+    the batch up front also keeps ``ResolutionPass``'s contract that a pass never spans a
+    write to the files it reads. A read that fails now aborts before any activation writes
+    anything, where it used to abort after the targets already walked.
     """
     entries: list[CascadeEntry] = []
+    for ref in _cascade_target_refs(activated, ids):
+        try:
+            manager.activate(
+                ctx_project,
+                ref.kind,
+                ref.id,
+                layer_roots=ids.layer_roots,
+                org_root_chain=ids.org_roots,
+                reinstate=DenyListChoice.CASCADE_INCLUDE_DEACTIVATED if reinstate else DenyListChoice.ACTIVATE,
+            )
+        except ValueError as exc:
+            entries.append(CascadeEntry(CascadeOutcome.FAILED, ref, message=str(exc)))
+            continue
+        entries.append(CascadeEntry(CascadeOutcome.CASCADED, ref))
+    return entries
+
+
+def _cascade_target_refs(activated: dict[str, list[str]], ids: _CascadeIds) -> list[ArtifactRef]:
+    """Every cascade target's ref, its config stem resolved in ONE read-only pass (#6777).
+
+    The cascade engine reports DRG bare IDs; activation lists use config-stem IDs, so each
+    target is mapped back through the kind-vocabulary bridge. One :class:`ResolutionPass`
+    serves the whole batch, and the batch finishes before the caller writes anything.
+    """
+    resolution_pass = ResolutionPass()
+    refs: list[ArtifactRef] = []
     for kind_value in sorted(activated):
         kind_token = ArtifactKind(kind_value).operator_token
         for cascade_drg_id in activated[kind_value]:
             urn = f"{kind_value}:{cascade_drg_id}"
-            # The cascade engine reports DRG bare IDs; activation lists use
-            # config-stem IDs. Resolve back through the kind-vocabulary bridge.
-            ref = ArtifactRef(kind_token, ids.config_id(urn), urn)
-            try:
-                manager.activate(
-                    ctx_project,
-                    kind_token,
-                    ref.id,
-                    layer_roots=ids.layer_roots,
-                    org_root_chain=ids.org_roots,
-                    reinstate=DenyListChoice.CASCADE_INCLUDE_DEACTIVATED if reinstate else DenyListChoice.ACTIVATE,
-                )
-            except ValueError as exc:
-                entries.append(CascadeEntry(CascadeOutcome.FAILED, ref, message=str(exc)))
-                continue
-            entries.append(CascadeEntry(CascadeOutcome.CASCADED, ref))
-    return entries
+            refs.append(ArtifactRef(kind_token, ids.config_id(urn, resolution_pass), urn))
+    return refs
 
 
 def _reinstated_entries(before: frozenset[str], after: frozenset[str], walked: list[CascadeEntry]) -> list[CascadeEntry]:

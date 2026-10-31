@@ -204,16 +204,15 @@ WRITERS: dict[str, Callable[[Path], None]] = {
 }
 
 
-# The cascade writer walks a full built-in cascade: ~96 s locally, 134.5 s on a
-# per-PR CI runner (run 40834277976), and over the 240 s pytest.ini default on a
-# ~2.2x slower runner (#6777). Headroom: 600 s, about 2x that slow-runner estimate
-# (134.5 s * 2.2 = ~296 s). Drop this override once #6777 shrinks the walk.
-_CASCADE_TIMEOUT_S = 600
-
-
+# The cascade writer walks the full built-in cascade the DRG reaches from one directive
+# (114 targets across six kinds), so it is the one case here over the 30 s the `slow`
+# marker documents in pytest.ini; every other writer is a handful of activations. It runs
+# under the single 240 s backstop (#3143) -- #6777 removed both the redundant per-target
+# catalog re-reads that cost ~30 s and the 600 s per-test marker #6776 added as an interim
+# crutch. `test_the_cascade_case_runs_under_the_suite_wide_timeout` pins both decisions.
 @pytest.mark.parametrize(
     "writer",
-    [pytest.param(name, marks=pytest.mark.timeout(_CASCADE_TIMEOUT_S)) if name == "cascade" else name for name in WRITERS],
+    [pytest.param(name, marks=pytest.mark.slow) if name == "cascade" else name for name in WRITERS],
 )
 def test_writer_stores_stems_only(tmp_path: Path, writer: str) -> None:
     root = _project(tmp_path)
@@ -223,6 +222,48 @@ def test_writer_stores_stems_only(tmp_path: Path, writer: str) -> None:
     stored = _stored(root)
     assert stored, "fixture invalid: the writer stored nothing"
     assert _non_stems(root) == {}, stored
+
+
+def _parametrised_marks(func: Callable[..., None]) -> dict[str, set[str]]:
+    """Each parametrised case of *func*, with the pytest marks it carries."""
+    cases: dict[str, set[str]] = {}
+    for mark in getattr(func, "pytestmark", ()):
+        if mark.name != "parametrize":
+            continue
+        for argvalue in mark.args[1]:
+            value = argvalue.values[0] if hasattr(argvalue, "values") else argvalue
+            cases[str(value)] = {inner.name for inner in getattr(argvalue, "marks", ())}
+    return cases
+
+
+def test_the_cascade_case_runs_under_the_suite_wide_timeout() -> None:
+    """The `[cascade]` case keeps the single 240 s backstop and the documented `slow` tier.
+
+    #6776 added a per-test 600 s marker as an interim crutch while the cascade walk cost
+    ~80 s locally (#6777); #6777 removed the redundant work that needed it. Both halves of
+    that decision are pinned here so neither can return silently:
+
+    * no case overrides the one timeout authority in `pytest.ini` (#3143);
+    * the cascade walk is the only case on the `slow` tier, which `pytest.ini` defines as
+      "test expected to take >30 seconds" and which the module shards keep selecting
+      (`module-tests.yml`: `-m "not performance and not stress"`), so marking it slow moves
+      no coverage out of CI.
+    """
+    cases = _parametrised_marks(test_writer_stores_stems_only)
+    assert set(cases) == set(WRITERS), cases
+    assert [name for name, marks in cases.items() if "timeout" in marks] == [], "a case overrides the suite-wide 240 s timeout backstop"
+    assert [name for name, marks in cases.items() if "slow" in marks] == ["cascade"], cases
+
+
+def test_the_mark_probe_sees_a_marker_when_one_is_present() -> None:
+    """Positive control for the guard above: the same probe does detect a mark that is there."""
+
+    def _probe_case(case: str) -> None:  # pragma: no cover - never collected
+        """Body unused: the marks are what this test reads."""
+
+    collected = pytest.mark.parametrize("case", [pytest.param("x", marks=pytest.mark.timeout(600))])(_probe_case)
+
+    assert _parametrised_marks(collected) == {"x": {"timeout"}}
 
 
 @pytest.mark.parametrize(
