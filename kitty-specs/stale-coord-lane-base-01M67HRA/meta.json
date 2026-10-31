@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T01:21:25.853795+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "0d6617cbf2940fa9a0aff06f0ce9e0cadbcbcbec"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T01:21:25.853795+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "0d6617cbf2940fa9a0aff06f0ce9e0cadbcbcbec",
   "coordination_branch": "kitty/mission-stale-coord-lane-base-01M67HRA",
   "created_at": "2026-10-30T23:19:10.403322+00:00",
   "flattened": false,
