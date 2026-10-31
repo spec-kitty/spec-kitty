@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import functools
 import copy
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 import hashlib
 from io import StringIO
@@ -50,6 +50,7 @@ __all__ = [
     "apply_yaml_write",
     "render_yaml_document",
     "prepare_charter_yaml_section",
+    "prepare_charter_yaml_sections",
     "yaml_documents_equal",
     "catalog_field_from_document",
     "read_catalog_field",
@@ -257,6 +258,74 @@ def _yaml_value_events(value: Any) -> tuple[tuple[Any, ...], ...]:
     )
 
 
+def _is_sequence(value: Any) -> bool:
+    """A YAML sequence, excluding the scalar types that are also ``Sequence``s."""
+    return isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray))
+
+
+def _yaml_values_equal(left: Any, right: Any) -> bool:
+    """Structural equality with the serialise-and-reparse rule only at the leaves.
+
+    The rule this replaces was ``bool(left == right) or _yaml_value_events(left) ==
+    _yaml_value_events(right)``, evaluated once over the whole value. On a governed
+    document of a few hundred kilobytes that fallback serialises and re-parses both
+    sides in full, twice per rendered document, which cost about 1.2 s per comparison
+    (#6506). The verdicts are the same; only the reachability changes:
+
+    1. ``left is right`` or ``left == right`` -- equal. This clause stays FIRST: it is
+       what makes the common no-op case free, and it is order-insensitive for mappings.
+    2. Both mappings with the same keys in the same order -- compare the values pairwise.
+       Key order is significant here, exactly as it is for the event comparison this
+       replaces; it is never reached when clause 1 already answered, and clause 1 is
+       order-insensitive, so a mere reordering of equal content stays equal.
+    3. Both sequences of the same length -- compare element-wise, which also keeps
+       ``list`` and ``tuple`` equal to each other, as the event comparison did.
+    4. Otherwise -- the existing event comparison, now over one small value instead of
+       the whole document. This is the clause that handles ruamel's opaque constructed
+       nodes (tagged scalars, anchors, aliases), which compare by identity rather than
+       by content.
+
+    The walk itself is iterative, so this comparison adds no recursion of its own; the
+    ``==`` clause it keeps first still recurses exactly as the previous rule did.
+    """
+    pending: list[tuple[Any, Any]] = [(left, right)]
+    while pending:
+        candidate, candidate_other = pending.pop()
+        if candidate is candidate_other or candidate == candidate_other:
+            continue
+        if isinstance(candidate, Mapping) and isinstance(candidate_other, Mapping):
+            keys = list(candidate)
+            other_keys = list(candidate_other)
+            if len(keys) != len(other_keys):
+                return False
+            if keys != other_keys and [_yaml_key_events(key) for key in keys] != [_yaml_key_events(key) for key in other_keys]:
+                # Opaque keys (a tagged scalar, or a float key where ``nan != nan``) defeat
+                # ``==`` on the key list while comparing equal under the event rule, which is
+                # what the previous implementation applied to the whole document.
+                return False
+            pending.extend(zip((candidate[key] for key in keys), (candidate_other[key] for key in other_keys), strict=True))
+            continue
+        if _is_sequence(candidate) and _is_sequence(candidate_other):
+            if len(candidate) != len(candidate_other):
+                return False
+            pending.extend(zip(candidate, candidate_other, strict=True))
+            continue
+        if _yaml_value_events(candidate) != _yaml_value_events(candidate_other):
+            return False
+    return True
+
+
+def yaml_documents_equal(left: Any, right: Any) -> bool:
+    """Compare supported YAML values, including opaque tagged round-trip keys.
+
+    Comments remain a raw-span preservation obligation, not a value comparison.
+    The existing ruamel representer normalizes constructed scalars before parsing.
+    See :func:`_yaml_values_equal` for the decision rule and why the fallback is
+    confined to the values that genuinely differ.
+    """
+    return _yaml_values_equal(left, right)
+
+
 def _dump_fragment(document: Any, yaml: YAML) -> str:
     """Use the existing emitter without reinserting its document framing."""
     rendered = _dump_document(document, yaml)
@@ -267,15 +336,6 @@ def _dump_fragment(document: Any, yaml: YAML) -> str:
         elif isinstance(event, DocumentEndEvent) and event.explicit:
             end = event.start_mark.index
     return rendered[start:end].lstrip("\r\n")
-
-
-def yaml_documents_equal(left: Any, right: Any) -> bool:
-    """Compare supported YAML values, including opaque tagged round-trip keys.
-
-    Comments remain a raw-span preservation obligation, not a value comparison.
-    The existing ruamel representer normalizes constructed scalars before parsing.
-    """
-    return bool(left == right) or _yaml_value_events(left) == _yaml_value_events(right)
 
 
 def render_yaml_document(before: bytes | None, document: Any, yaml: YAML) -> bytes:
@@ -650,6 +710,87 @@ def _validate_removals(section: str, remove: tuple[str, ...]) -> None:
         raise ValueError(f"Unknown activation key(s): {unknown_keys}")
 
 
+#: Name of the pseudo-section whose values are flat ROOT keys rather than one nested mapping.
+_ACTIVATION_SECTION = "activation"
+
+
+def _validate_sections(sections: Mapping[str, dict[str, Any]]) -> None:
+    """Validate every named section, in the caller's order, before any mutation."""
+    for section, values in sections.items():
+        _validate_section(section, values)
+
+
+def prepare_charter_yaml_sections(
+    path: Path,
+    *,
+    sections: Mapping[str, dict[str, Any]] | None = None,
+    sections_from_document: Callable[[Mapping[str, Any]], Mapping[str, dict[str, Any]]] | None = None,
+    remove: Iterable[str] = (),
+) -> PreparedYamlWrite:
+    """Validate and prepare several owned sections in ONE document cycle.
+
+    One cycle instead of one per section: the document is observed once, loaded
+    once, mutated for every section, rendered once and reported as a single
+    receipt-backed write. ``compiler.write_compiled_charter`` owns two derived
+    sections (``catalog`` and ``metadata``) and used to pay the whole
+    observe/load/render/verify cost twice per recompile (#6506).
+
+    Exactly one of the two keyword forms is required:
+
+    * *sections* -- a ``{section: values}`` mapping, validated before the
+      document is read;
+    * *sections_from_document* -- a callable handed the freshly loaded, **not yet
+      mutated** document, returning that same mapping. It exists for a caller
+      that must decide one section's content *from* the document it is about to
+      replace (the preserved ``metadata.generated_at``), so that decision is
+      taken from the same bytes as the write instead of a second, independently
+      racing read. The callback must treat the document as read-only; mutating it
+      there changes what gets written.
+
+    *remove* names activation keys to delete from the document. A key both set in
+    the ``activation`` section and named in *remove* is a ``ValueError``. Removing
+    an absent key is a no-op, so an unchanged document renders to the same bytes.
+    """
+    if (sections is None) == (sections_from_document is None):
+        raise TypeError("exactly one of sections= or sections_from_document= is required")
+    removals = tuple(dict.fromkeys(remove))
+    if sections is not None:
+        _validate_sections(sections)
+    _validate_removals(_ACTIVATION_SECTION, removals)
+    before = observe_yaml_input(path)
+    if before.content is None:
+        raise FileNotFoundError(path)
+    document = _yaml_loader().load(before.content)
+    if document is None:
+        document = CommentedMap()
+    if not isinstance(document, dict):
+        raise ValueError("YAML root must be a mapping")
+    if sections is None:
+        assert sections_from_document is not None  # narrowed by the check above
+        sections = sections_from_document(document)
+        _validate_sections(sections)
+    activation_values = sections.get(_ACTIVATION_SECTION, {})
+    overlap = sorted(set(removals) & set(activation_values))
+    if overlap:
+        raise ValueError(f"Activation key(s) both written and removed: {overlap}")
+    changes: dict[str, Any] = {}
+    for section, values in sections.items():
+        # The activation pseudo-section is a set of flat ROOT keys, not a nested
+        # mapping (see :func:`_validate_section` / :data:`OWNED_SECTIONS`); every
+        # other section is one top-level key whose whole value is replaced.
+        if section == _ACTIVATION_SECTION:
+            changes.update(values)
+        else:
+            changes[section] = values
+    for key, value in changes.items():
+        if key not in document or document[key] != value:
+            document[key] = copy.deepcopy(value)
+    for key in removals:
+        document.pop(key, None)
+    desired = render_yaml_document(before.content, document, _yaml_loader())
+    return prepare_yaml_write(path, desired, section=",".join(sections), inputs=(before,))
+
+
 def prepare_charter_yaml_section(
     path: Path,
     section: str,
@@ -664,6 +805,10 @@ def prepare_charter_yaml_section(
     ``ValueError``). A key both set in *values* and named in *remove* is a
     ``ValueError``. Removing an absent key is a no-op, so an unchanged document
     renders to the same bytes.
+
+    A one-section call to :func:`prepare_charter_yaml_sections`; the section-name
+    and removal checks run here first so this entry point keeps its own error
+    precedence and messages.
     """
     removals = tuple(dict.fromkeys(remove))
     _validate_section(section, values)
@@ -671,22 +816,7 @@ def prepare_charter_yaml_section(
     overlap = sorted(set(removals) & set(values))
     if overlap:
         raise ValueError(f"Activation key(s) both written and removed: {overlap}")
-    before = observe_yaml_input(path)
-    if before.content is None:
-        raise FileNotFoundError(path)
-    document = _yaml_loader().load(before.content)
-    if document is None:
-        document = CommentedMap()
-    if not isinstance(document, dict):
-        raise ValueError("YAML root must be a mapping")
-    changes = values if section == "activation" else {section: values}
-    for key, value in changes.items():
-        if key not in document or document[key] != value:
-            document[key] = copy.deepcopy(value)
-    for key in removals:
-        document.pop(key, None)
-    desired = render_yaml_document(before.content, document, _yaml_loader())
-    return prepare_yaml_write(path, desired, section=section, inputs=(before,))
+    return prepare_charter_yaml_sections(path, sections={section: values}, remove=removals)
 
 
 def update_charter_yaml_section(path: Path, section: str, values: dict[str, Any]) -> None:

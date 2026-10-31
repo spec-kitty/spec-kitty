@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 import functools
 from io import StringIO
@@ -12,7 +12,6 @@ import re
 from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple, TypedDict
 
 from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
 from charter.activation.activation_ledger import DenySet, resolve_ledger_source
 from charter.activation._catalog_miss import CatalogMissCause, CatalogMissDiagnosis
@@ -25,12 +24,11 @@ from charter.activation.bundle_restamp import restamp_bundle_hash
 from charter.activation.charter_yaml_io import (
     PreparedYamlWrite,
     apply_yaml_write,
-    load_charter_yaml,
     observe_yaml_input,
     _YamlInput,
+    prepare_charter_yaml_sections,
     prepare_yaml_write,
     save_charter_yaml,
-    update_charter_yaml_section,
     yaml_documents_equal,
 )
 from kernel.charter_pack_paths import pack_presets_dir
@@ -572,10 +570,17 @@ def write_compiled_charter(
     catalog = _build_catalog_dict(compiled)
 
     if charter_yaml_path.exists():
-        preserved_generated_at = _preserved_generated_at(charter_yaml_path, catalog)
-        metadata = _build_metadata_dict(preserved_generated_at=preserved_generated_at)
-        update_charter_yaml_section(charter_yaml_path, "catalog", catalog)
-        update_charter_yaml_section(charter_yaml_path, "metadata", metadata)
+        # ONE write cycle for both derived sections (#6506). The preserved-timestamp
+        # decision is taken from the very document this write replaces, so it cannot
+        # observe a different version of the file than the one being overwritten, and
+        # the whole document is read, rendered and re-verified once instead of twice.
+        def sections_from_document(document: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+            return {
+                "catalog": catalog,
+                "metadata": _build_metadata_dict(preserved_generated_at=_preserved_generated_at_in(document, catalog)),
+            }
+
+        apply_yaml_write(prepare_charter_yaml_sections(charter_yaml_path, sections_from_document=sections_from_document))
     else:
         metadata = _build_metadata_dict()
         _bootstrap_charter_yaml(charter_yaml_path, catalog=catalog, metadata=metadata, repo_root=repo_root)
@@ -778,19 +783,20 @@ def _build_catalog_dict(compiled: CompiledCharter) -> dict[str, Any]:
     return dumped
 
 
-def _preserved_generated_at(charter_yaml_path: Path, catalog: dict[str, Any]) -> str | None:
-    """Return the on-disk ``metadata.generated_at`` when *catalog* is byte-unchanged.
+def _preserved_generated_at_in(document: Any, catalog: dict[str, Any]) -> str | None:
+    """Return ``metadata.generated_at`` from *document* when *catalog* is unchanged.
 
     FR-008/NFR-002 (contract C4): a recompile that produces the identical
     ``catalog`` content must not restamp ``generated_at`` -- otherwise a true
     no-op recompile still shows a ``metadata`` diff. Returns ``None`` (fresh
-    stamp) when the existing document cannot be read, has no comparable
+    stamp) when *document* is not a mapping, has no comparable
     ``catalog``/``metadata.generated_at``, or the catalog content differs.
+
+    Takes the already-loaded document rather than a path (#6506): the only caller
+    decides this while preparing the write that replaces the file, so a second,
+    independent read of the same document would cost a full parse of it and open a
+    window in which the file changes between the decision and the write.
     """
-    try:
-        document = load_charter_yaml(charter_yaml_path)
-    except (OSError, YAMLError, ValueError):
-        return None
     if not isinstance(document, dict):
         return None
     existing_catalog = document.get("catalog")
@@ -808,7 +814,7 @@ def _build_metadata_dict(*, preserved_generated_at: str | None = None) -> dict[s
 
     *preserved_generated_at*, when supplied by a caller that found the
     catalog content byte-unchanged from what is on disk (see
-    :func:`_preserved_generated_at`), is used in place of a fresh stamp so a
+    :func:`_preserved_generated_at_in`), is used in place of a fresh stamp so a
     pure no-op recompile does not restamp ``generated_at`` (FR-008/NFR-002).
     """
     metadata = CharterYamlMetadata(

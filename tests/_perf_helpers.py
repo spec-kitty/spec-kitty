@@ -102,6 +102,31 @@ STARTUP_RATIO_LIMIT = 2.90
 #: largest warm value and a little under half the smallest regressed one.
 WARM_LEAF_RATIO_LIMIT = 6.0
 
+#: Ratio limit for a charter write command (``charter activate``, ``charter deactivate``) at
+#: REPOSITORY scale, over a READ floor (``charter list``) sampled interleaved in the same run.
+#: The floor is a read rather than the interpreter start-up floor the owned-checkout ratio uses
+#: because the guard is about the compiled-charter write path (#6506), not about start-up.
+#:
+#: This limit is a RUNAWAY guard, not a regression detector, and the distinction is measured:
+#: the command costs 4-6x its own read floor, so its own variance dominates the ratio instead of
+#: cancelling against the floor (the owned-checkout ratio works because those commands sit at
+#: about 1.4x the floor). On this project size the measured ratio is 3.4-4.6 for the post-fix
+#: code and 3.5-6.8 for the pre-fix code across series taken under different machine load, so no
+#: limit can separate them reliably; a tighter limit would false-red on the clean tail, which is
+#: the failure mode ADR ``2026-10-05-2`` exists to stop and the reason #3787 retired its own
+#: ceiling after four ratchets.
+#:
+#: The exact regression gate for this class is structural and lives in
+#: ``tests/charter/activation/test_charter_write_roundtrips.py``: it counts whole-document round
+#: trips per recompile (6 after #6506, 18 for the two-cycle shape it replaced) and never consults
+#: a clock. This limit catches what a count cannot: a change that makes the command pathologically
+#: slow at scale without adding a round trip.
+#:
+#: Calibration: 8.0 is 74 percent above the largest clean ratio observed (4.58, three rounds under
+#: heavy concurrent load) and above every pre-fix ratio measured (3.5 to 6.8). Figures and method:
+#: ADR ``docs/adr/4.x/2026-10-31-1-charter-write-budget-for-repository-scale-projects.md``.
+CHARTER_WRITE_RATIO_LIMIT = 8.0
+
 #: Lowest clean ratios seen in any calibration series or CI run. They feed the
 #: detection threshold of each planted-work test: a plant is only detected when
 #: ``clean ratio + cost fraction`` exceeds the limit, so the lower band edge below must
