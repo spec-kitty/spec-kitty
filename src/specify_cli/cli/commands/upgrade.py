@@ -49,7 +49,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
 from kernel.clock import now_utc
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NoReturn
+from typing import TYPE_CHECKING, Any
 
 import typer
 
@@ -172,13 +172,12 @@ def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[s
 # ---------------------------------------------------------------------------
 
 
-def _render_ledger_lock_refusal(exc: MigrationLedgerLockTimeoutError, *, json_output: bool) -> NoReturn:
-    """Refuse (exit 1) when the migration ledger lock stayed held; the append never happened."""
+def _render_ledger_lock_refusal(exc: MigrationLedgerLockTimeoutError, *, json_output: bool) -> None:
+    """Render the refusal (the command then exits 1) when the migration ledger lock stayed held; the append never happened."""
     if json_output:
         print(json.dumps({"ok": False, "error": {"code": "MIGRATION_LEDGER_LOCK_TIMEOUT", "message": str(exc)}}, indent=2))
     else:
         console.print(f"[red]Refused:[/red] {escape(str(exc))}")
-    raise typer.Exit(1)
 
 
 def _run_cli_mode(
@@ -2196,6 +2195,7 @@ def upgrade(
             except MigrationLedgerLockTimeoutError as exc:
                 # Another process holds the ledger lock: a refusal, not a crash (#6613).
                 _render_ledger_lock_refusal(exc, json_output=json_output)
+                raise typer.Exit(1) from exc
             manual_review_paths = _collect_manual_review_paths(result.migration_results)
             outcome = UpgradeOutcome(
                 result=result,
