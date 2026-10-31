@@ -1016,6 +1016,12 @@ def apply_ledger_migration(repo_root: Path, plan: LedgerMigrationPlan) -> tuple[
     """
     from charter.activation.synthesizer.synthesis_lock import synthesis_lock  # deferred import
 
+    # A plan that writes nothing needs no lock and must not leave a lock file behind: a refusal raises, and a
+    # no-op has nothing to serialize.
+    if plan.refusal is not None:
+        raise LedgerMigrationRefused(plan.refusal)
+    if plan.noop:
+        return _apply_ledger_migration_locked(repo_root, plan)
     with synthesis_lock(repo_root):
         return _apply_ledger_migration_locked(repo_root, plan)
 
