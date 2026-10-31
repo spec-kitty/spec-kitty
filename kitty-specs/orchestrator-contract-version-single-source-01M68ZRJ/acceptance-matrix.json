@@ -1,0 +1,59 @@
+{
+  "mission_slug": "orchestrator-contract-version-single-source-01M68ZRJ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/orchestrator_api/test_origin_freshness_envelopes.py:127,181 assert envelope['contract_version'] == CONTRACT_VERSION (imported at :26); 13 passed",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T13:59:39.702473+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/orchestrator_api/test_contract_version.py::test_only_this_module_spells_a_contract_version \u2014 RED naming test_origin_freshness_envelopes.py:29 on dfe9efb0e8, GREEN at HEAD (6 passed)",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T13:59:44.580068+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_the_contract_version_scan_reports_a_pin_and_ignores_a_reference asserts the failure names path:line; test_the_contract_version_scan_reads_a_planted_file asserts (path,line) plus scanned==1; MIN_SCANNED_FILES=3000 floor vs 4282 scanned",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T13:59:47.490117+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "test_contract_version.py module docstring no longer states a current version (was '\"1.3.0\" (envelope.py:28)'); it points at the assertion and at the guard",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T13:59:50.571150+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "git show c9d4991aa4 -- tests/orchestrator_api/test_origin_freshness_envelopes.py keeps both contract_version assertions (only the RHS source changed); all other assertions byte-identical",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T13:59:53.724675+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
