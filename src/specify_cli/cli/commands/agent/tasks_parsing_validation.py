@@ -52,7 +52,6 @@ from specify_cli.cli.commands.agent.tasks_dependency_graph import (
 from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
     MISSION_TYPE_RESEARCH,
-    MISSION_TYPE_SOFTWARE_DEV,
 )
 from specify_cli.lanes._git import lane_has_commit_beyond_base
 from specify_cli.status import (
@@ -948,6 +947,25 @@ def _validate_worktree_state(
     return None
 
 
+def _is_code_producing(repo_root: Path, mission_type: str) -> bool:
+    """Whether *mission_type* produces committed code — a capability, not a family name.
+
+    Routes through the activation public seam (``charter.activation.api``), never
+    ``charter.activation.mission_type_profiles``: the boundary gate forbids a new
+    external reach into the activation internals. The resolve + built-in fallback
+    lives behind that seam, so this never raises and a resolution failure leaves
+    ``software-dev`` gated and an unknown type ungated (#6327 / #6328).
+    """
+    from charter.activation.api import code_producing_for
+
+    # Bind to a bool-annotated local before returning: under the ``specify_cli.*``
+    # ``follow_imports = "skip"`` narrow mypy check, a name imported from the
+    # (``charter.*``-skipped) activation seam resolves as ``Any``, so a bare
+    # ``return`` would read "Returning Any from function declared to return bool".
+    produces_code: bool = code_producing_for(repo_root, mission_type)
+    return produces_code
+
+
 def _validate_ready_for_review(
     repo_root: Path,
     mission_slug: str,
@@ -1034,8 +1052,13 @@ def _validate_ready_for_review(
     if research_guidance is not None:
         return False, research_guidance
 
-    # Check 2: For software-dev missions, check worktree for implementation commits
-    if mission_type == MISSION_TYPE_SOFTWARE_DEV:
+    # Check 2: for CODE-PRODUCING missions, check the worktree for implementation
+    # commits. The gate is the mission type's ``code_producing`` capability, never
+    # the ``software-dev`` family name (#6328): a custom code-producing type must
+    # fail review-readiness with nothing implemented, and a non-code type
+    # (research / documentation / plan / a custom non-code type) keeps bypassing
+    # this block, exactly as it does today.
+    if _is_code_producing(main_repo_root, mission_type):
         worktree_result = _validate_worktree_state(
             repo_root=repo_root,
             main_repo_root=main_repo_root,
