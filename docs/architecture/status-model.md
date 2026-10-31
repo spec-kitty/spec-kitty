@@ -459,7 +459,8 @@ WP frontmatter is not copied in.
 hop that leaves `in_review` (a rejection, a block or a cancel during review)
 and for a review verdict note. `implementer` for every other hop, for
 implementer notes and for subtask marks. `system` for a write the program makes
-itself, with no agent dispatch behind it (see [System writes](#system-writes));
+with no agent dispatch behind it, on its own or on the operator's behalf (an
+attestation records the operator identity in `tool`; see [System writes](#system-writes));
 an agent role is never derived from a lane hop for a system write, and a system
 write never gains `implementer` or `reviewer`.
 
