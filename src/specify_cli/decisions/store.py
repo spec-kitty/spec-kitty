@@ -38,6 +38,12 @@ __all__ = [
 ]
 
 
+# Structural separator for the rendered change-log bullets. ASCII only: a DM
+# record is a generated file under ``kitty-specs/`` and must pass
+# ``spec-kitty validate-encoding`` (#6579). Never render U+2014 here.
+_CHANGE_LOG_SEPARATOR = "-"
+
+
 class DecisionIndexReadError(GuardedReadError, RuntimeError):
     """Raised when ``decisions/index.json`` exists but cannot be decoded.
 
@@ -248,12 +254,12 @@ def _render_artifact(entry: IndexEntry) -> str:
 
     lines.append("## Change log")
     lines.append("")
-    lines.append(f"- `{entry.created_at.isoformat()}` — opened")
+    lines.append(f"- `{entry.created_at.isoformat()}` {_CHANGE_LOG_SEPARATOR} opened")
     if entry.resolved_at is not None and entry.status.value in ("resolved", "deferred", "canceled"):
         if entry.final_answer is not None:
-            lines.append(f'- `{entry.resolved_at.isoformat()}` — {entry.status.value} (final_answer="{entry.final_answer}")')
+            lines.append(f'- `{entry.resolved_at.isoformat()}` {_CHANGE_LOG_SEPARATOR} {entry.status.value} (final_answer="{entry.final_answer}")')
         else:
-            lines.append(f"- `{entry.resolved_at.isoformat()}` — {entry.status.value}")
+            lines.append(f"- `{entry.resolved_at.isoformat()}` {_CHANGE_LOG_SEPARATOR} {entry.status.value}")
 
     return "\n".join(lines) + "\n"
 
