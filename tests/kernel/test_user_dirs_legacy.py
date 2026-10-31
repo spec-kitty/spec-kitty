@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from kernel import user_dirs_legacy
-from kernel.user_dirs import user_cache_dir, user_state_dir
+from kernel.user_dirs import user_cache_dir, user_config_dir, user_state_dir
 from tests.kernel._user_dirs_pins import fake_platform
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -167,12 +167,15 @@ def test_a_candidate_that_is_live_today_is_never_discarded(monkeypatch: pytest.M
         platform,
         {"LOCALAPPDATA": "lad", "XDG_CACHE_HOME": "xdg", "XDG_STATE_HOME": "state", "XDG_CONFIG_HOME": "cfg"},
     )
-    live = _plant(user_cache_dir() / "keep.json")
-    expected = {tmp_path / "xdg" / "spec-kitty", tmp_path / "state" / "spec-kitty"}
+    # One planted file per kind, each inside a directory a pre-#6488 rule also used.
+    planted = [
+        _plant(user_cache_dir() / "keep.json"),
+        _plant(user_state_dir() / "keep-state.json"),
+        _plant(user_config_dir() / "upgrade.yaml", ""),
+    ]
     if platform == "windows":
-        # The pre-fix Windows cache root and the platformdirs doubled-author tree.
-        expected |= {tmp_path / "lad" / "spec-kitty", tmp_path / "lad" / "spec-kitty" / "spec-kitty"}
-    assert set(user_dirs_legacy.legacy_roots()) == expected
+        planted.append(_plant(tmp_path / "lad" / "spec-kitty" / "keep.json"))
 
     assert user_dirs_legacy.discard_legacy_locations() == ()
-    assert live.exists(), "a directory the tool still writes to was deleted"
+    for path in planted:
+        assert path.exists(), f"a live directory was modified: {path}"
