@@ -1,7 +1,7 @@
 {
-  "event_count": 19,
-  "last_event_id": "01M697DYVZFQ38PAKK8MRQK0T9",
-  "materialized_at": "2026-10-31T14:57:13.599227+00:00",
+  "event_count": 21,
+  "last_event_id": "01M697E9XR4C8Z6S6HABSW0WS2",
+  "materialized_at": "2026-10-31T14:57:24.913429+00:00",
   "mission_number": "",
   "mission_slug": "synthesis-ownership-single-reader-01M68ZJM",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -117,11 +117,15 @@
       }
     },
     "WP04": {
-      "actor": "finalize-tasks",
+      "actor": "python-pedro",
+      "agent": "python-pedro",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68ZTRS7T1CZ8CF2JASB1R2K",
-      "last_transition_at": "2026-10-31T12:44:24.743752+00:00"
+      "implementer_of_record": "python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M697E9XR4C8Z6S6HABSW0WS2",
+      "last_transition_at": "2026-10-31T14:57:24.913429+00:00",
+      "shell_pid": 1712027,
+      "shell_pid_created_at": "1793458638.49"
     }
   }
 }
