@@ -138,6 +138,12 @@ flowchart TD
 | Doctor detection on the branch-switched fixture | exit 0, lane path absent | FR-004 |
 | Doctor detection on a genuine legacy worktree | exit 1, path present (positive control) | FR-004 |
 
+**Delivered matrix note.** The "unregistered directory under `.worktrees/`" row was dropped during
+implementation: once git drops a registration, `scan_path`'s own `git config core.sparseCheckout`
+probe fails too, so the state is *inactive* rather than blocking and the row could not assert
+anything about classification. The drift and foreign-branch controls carry that guard on both root
+branches instead (see `traces/tooling-friction.md`).
+
 ### Contracts
 
 No new public API. The module's `__all__` is unchanged; `scan_repo`'s signature and the
