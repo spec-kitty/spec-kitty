@@ -256,8 +256,8 @@ def test_resolve_review_body_prefers_a_valid_feedback_file_and_a_generated_body(
     feedback = tmp_path / "feedback.md"
     feedback.write_text("real feedback\n", encoding="utf-8")
 
-    assert _resolve_review_body(feedback_source=feedback, body=None, sub_artifact_dir=tmp_path / "tasks") == "real feedback\n"
-    assert _resolve_review_body(feedback_source=None, body="generated\n", sub_artifact_dir=tmp_path) == "generated\n"
+    assert _resolve_review_body(feedback_source=feedback, body=None, sub_artifact_dir=tmp_path / "tasks") == ("real feedback\n", "real feedback\n")
+    assert _resolve_review_body(feedback_source=None, body="generated\n", sub_artifact_dir=tmp_path) == ("generated\n", None)
     with pytest.raises(ReviewCycleError, match="body is empty"):
         _resolve_review_body(feedback_source=None, body="  \n", sub_artifact_dir=tmp_path)
     with pytest.raises(ReviewCycleError, match="not found"):
