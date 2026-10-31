@@ -8,6 +8,12 @@ resolution-markers = [
     "python_full_version < '3.13'",
 ]
 
+[manifest]
+members = [
+    "spec-kitty-cli",
+    "spec-kitty-services",
+]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"
@@ -2292,6 +2298,9 @@ lint = [
     { name = "types-requests" },
     { name = "types-toml" },
 ]
+services = [
+    { name = "spec-kitty-services" },
+]
 test = [
     { name = "build" },
     { name = "chardet" },
@@ -2361,6 +2370,7 @@ requires-dist = [
     { name = "ruamel-yaml", specifier = ">=0.18.0" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.4.0" },
     { name = "spec-kitty-events", specifier = ">=11.3.0,<12" },
+    { name = "spec-kitty-services", marker = "extra == 'services'", editable = "packages/spec-kitty-services" },
     { name = "spec-kitty-tracker", specifier = ">=0.5.2,<0.6" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "tomli-w", specifier = ">=1.0.0" },
@@ -2371,7 +2381,7 @@ requires-dist = [
     { name = "types-requests", marker = "extra == 'lint'", specifier = ">=2.33.0" },
     { name = "types-toml", marker = "extra == 'lint'", specifier = ">=0.10.0" },
 ]
-provides-extras = ["test", "lint"]
+provides-extras = ["test", "services", "lint"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2398,6 +2408,11 @@ sdist = { url = "https://files.pythonhosted.org/packages/b0/19/80eb0b6f2c4cfef09
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a3/25/66d2e90850b932e58604bef7ecd542de5ba8818fc942571f779fa855d520/spec_kitty_events-11.3.0-py3-none-any.whl", hash = "sha256:92e72cec8bdeb320621cb754bbc46a9f915d9a5179f9dc6f8c6046623eed1d25", size = 1508662, upload-time = "2026-10-27T21:27:26.21Z" },
 ]
+
+[[package]]
+name = "spec-kitty-services"
+version = "4.0.0rc8"
+source = { editable = "packages/spec-kitty-services" }
 
 [[package]]
 name = "spec-kitty-tracker"
