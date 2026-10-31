@@ -1,0 +1,10 @@
+# JSON envelopes captured on origin/main 6f73b2a98e for the legacy fixture (FR-005 freeze)
+
+doctor skills --json  (22 keys)
+canonical_commands collisions configured_agents drift entries gaps legacy manifest_agents ok orphans pack_skills pruned repair_errors repaired_agents repaired_paths repaired_vibe_config slash_commands stale tool_folders uninstalled_agents unsafe vibe_config_missing
+
+doctor tool-surfaces --json  (7 keys)
+configured_tools findings ok project_root schema_version summary surfaces
+
+doctor tool-surfaces --json  summary keys (6)
+drifted errors missing present surfaces warnings
