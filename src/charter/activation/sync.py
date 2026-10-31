@@ -17,6 +17,13 @@ the ``charter.md`` staleness check. ``sync()`` no longer extracts or writes
 anything; it always reports ``synced=False`` / ``files_written=[]``.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
+
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
@@ -81,7 +88,12 @@ class SyncResult:
     warnings: list[str] = field(default_factory=list)
 
 
-def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
+def _charter_read_root(repo_root: Path, scope: CharterScope | None = None) -> Path:
+    """Honor an explicitly resolved read scope; ordinary callers retain Git-primary routing."""
+    return Path(scope.root if scope is not None else resolve_canonical_repo_root(repo_root))
+
+
+def ensure_charter_bundle_fresh(repo_root: Path, *, scope: CharterScope | None = None) -> SyncResult | None:
     """Auto-refresh extracted charter artifacts when ``charter.md`` exists.
 
     Resolves ``repo_root`` to the canonical (main-checkout) root via
@@ -99,7 +111,7 @@ def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
     Returns ``None`` when ``charter.md`` is absent under the canonical
     root — there is no charter to refresh.
     """
-    canonical_root = resolve_canonical_repo_root(repo_root)
+    canonical_root = _charter_read_root(repo_root, scope)
     charter_dir = canonical_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
     charter_path = charter_dir / _CHARTER_FILENAME
     if not charter_path.exists():
@@ -129,7 +141,10 @@ def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
         )
 
     if missing_files:
-        logger.info("Charter bundle incomplete (%s). Attempting auto-sync.", ", ".join(missing_files))
+        logger.info(
+            "Charter bundle incomplete (%s). Attempting auto-sync.",
+            ", ".join(missing_files),
+        )
     else:
         logger.info("Charter bundle stale. Attempting auto-sync.")
 
@@ -138,7 +153,10 @@ def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
     # itself doesn't know which checkout the caller invoked it from.
     result = replace(result, canonical_root=canonical_root)
     if result.error:
-        logger.warning("Charter auto-sync failed while refreshing extracted artifacts: %s", result.error)
+        logger.warning(
+            "Charter auto-sync failed while refreshing extracted artifacts: %s",
+            result.error,
+        )
     return result
 
 
@@ -210,12 +228,12 @@ def sync(
         )
 
 
-def _charter_yaml_path(repo_root: Path) -> Path:
+def _charter_yaml_path(repo_root: Path, *, scope: CharterScope | None = None) -> Path:
     """Return the canonical (main-checkout) ``charter.yaml`` path for *repo_root*."""
-    return Path(resolve_canonical_repo_root(repo_root), CHARTER_YAML)
+    return Path(_charter_read_root(repo_root, scope), CHARTER_YAML)
 
 
-def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
+def _load_charter_yaml_section(repo_root: Path, section: str, *, scope: CharterScope | None = None) -> object | None:
     """Return the named top-level ``charter.yaml`` section, or ``None``.
 
     Anchors path resolution on the canonical (main-checkout) root via
@@ -230,7 +248,7 @@ def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
     caller's "use an empty config" signal, logged at different verbosity by
     the two public loaders below.
     """
-    charter_yaml_path = _charter_yaml_path(repo_root)
+    charter_yaml_path = _charter_yaml_path(repo_root, scope=scope)
     if not charter_yaml_path.exists():
         return None
     document = load_charter_yaml(charter_yaml_path)
@@ -268,7 +286,7 @@ def require_canonical_governance(governance: Mapping[str, Any], *, source: Path)
     return governance
 
 
-def load_governance_config(repo_root: Path) -> GovernanceConfig:
+def load_governance_config(repo_root: Path, *, scope: CharterScope | None = None) -> GovernanceConfig:
     """Load governance config from ``charter.yaml``'s ``governance:`` section.
 
     IC-04 (INV-3): the prose->triad scrape is retired -- ``governance`` is a
@@ -302,20 +320,20 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
             field and its replacement (code ``RETIRED_PACK_FIELD``).
         pydantic.ValidationError: any other schema failure.
     """
-    governance_data = _load_charter_yaml_section(repo_root, "governance")
+    governance_data = _load_charter_yaml_section(repo_root, "governance", scope=scope)
     if governance_data is None:
         logger.info("charter.yaml governance section not found. Using empty governance config.")
         return GovernanceConfig()
     if isinstance(governance_data, Mapping):
-        require_canonical_governance(governance_data, source=_charter_yaml_path(repo_root))
+        require_canonical_governance(governance_data, source=_charter_yaml_path(repo_root, scope=scope))
     try:
         return GovernanceConfig.model_validate(governance_data)
     except ValidationError as exc:
-        raise_retired_field_at(exc, _charter_yaml_path(repo_root))
+        raise_retired_field_at(exc, _charter_yaml_path(repo_root, scope=scope))
         raise
 
 
-def load_directives_config(repo_root: Path) -> DirectivesConfig:
+def load_directives_config(repo_root: Path, *, scope: CharterScope | None = None) -> DirectivesConfig:
     """Load directives config from ``charter.yaml``'s ``directives:`` section.
 
     IC-04 (INV-3): the prose->triad scrape is retired -- ``directives`` is a
@@ -330,7 +348,7 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
     Returns:
         DirectivesConfig instance (empty if charter.yaml/section missing)
     """
-    directives_data = _load_charter_yaml_section(repo_root, "directives")
+    directives_data = _load_charter_yaml_section(repo_root, "directives", scope=scope)
     if directives_data is None:
         logger.info("charter.yaml directives section not found. Using empty directives config.")
         return DirectivesConfig()

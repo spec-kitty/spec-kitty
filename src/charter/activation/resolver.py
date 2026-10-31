@@ -37,6 +37,11 @@ pruned as a Cat-7 dead module (#6009), leaving this module the sole door.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
+
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -997,6 +1002,7 @@ def resolve_project_governance(
     tool_registry: set[str] | None = None,
     fallback_template_set: str = DEFAULT_TEMPLATE_SET,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> GovernanceResolution:
     """Resolve active governance from project + org charter selection data.
 
@@ -1019,8 +1025,8 @@ def resolve_project_governance(
     dataclass on the project + org side.
 
     """
-    governance = load_governance_config(repo_root)
-    directives_cfg = load_directives_config(repo_root)
+    governance = load_governance_config(repo_root, scope=scope)
+    directives_cfg = load_directives_config(repo_root, scope=scope)
     offering_catalog = load_offering_catalog()
     charter_config = governance.charter
     diagnostics: list[GovernanceDiagnostic] = []

@@ -19,6 +19,9 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
 
+    from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
     from charter.activation.scope import CharterScope
 
 from ruamel.yaml import YAML as YAML
@@ -146,9 +149,7 @@ def _action_node_declared(bundle: _ActionGovernanceBundle, action: str) -> bool:
     below) live here, and this predicate is inseparable from the two gate
     sites it backs.
     """
-    return bundle.merged is not None and (
-        f"action:{bundle.mission}/{action}" in bundle.merged.node_urns()
-    )
+    return bundle.merged is not None and (f"action:{bundle.mission}/{action}" in bundle.merged.node_urns())
 
 
 def _invocation_identity(repo_root: Path, org_root: Path | None) -> IdentityIndex:
@@ -236,7 +237,7 @@ def build_charter_context(
 
     from charter.activation.sync import ensure_charter_bundle_fresh
 
-    sync_result = ensure_charter_bundle_fresh(repo_root)
+    sync_result = ensure_charter_bundle_fresh(repo_root, scope=scope)
     canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
 
     normalized = action.strip().lower()
@@ -327,9 +328,7 @@ def build_charter_context(
     # depended on charter.md/charter.yaml existing (``_non_bootstrap_context_result``
     # sources project directives from ``.kittify/config.yaml``/charter.yaml
     # directly and degrades gracefully when absent).
-    if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(
-        governance_bundle, normalized
-    ):
+    if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(governance_bundle, normalized):
         return _non_bootstrap_context_result(
             repo_root,
             normalized,
@@ -337,6 +336,7 @@ def build_charter_context(
             profile_record,
             suppress_project_resolver=suppress_project_resolver,
             augment=_augment,
+            scope=scope,
         )
 
     # From here the action WILL deliver grain (fast-path or a declared node),
@@ -357,6 +357,7 @@ def build_charter_context(
             suppress_project_resolver=suppress_project_resolver,
             mark_loaded=mark_loaded,
             augment=_augment,
+            scope=scope,
         )
 
     return _bootstrap_context_result(
@@ -369,6 +370,7 @@ def build_charter_context(
         profile_record,
         mark_loaded=mark_loaded,
         augment=_augment,
+        scope=scope,
     )
 
 
@@ -404,6 +406,7 @@ def build_charter_context_include(
     *,
     action: str | None = None,
     org_roots: list[Path] | None = None,
+    scope: CharterScope | None = None,
 ) -> str:
     """Render one fetch-deferred governance selector.
 
@@ -425,6 +428,8 @@ def build_charter_context_include(
     pack 2..N defines resolves here and a colliding id renders the same body
     as the bootstrap context (#5779).
     """
+    if scope is not None:
+        repo_root = scope.root
     kind, separator, identifier = selector.partition(":")
     kind = kind.strip().lower()
     identifier = identifier.strip()
@@ -485,9 +490,7 @@ def build_charter_context_include(
         ArtifactKind.AGENT_PROFILE.value,
         ArtifactKind.GLOSSARY_PACK.value,
     ):
-        gated_service = _build_active_charter_service(
-            repo_root, org_roots=org_roots, identity=identity
-        )
+        gated_service = _build_active_charter_service(repo_root, org_roots=org_roots, identity=identity)
         if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
             return _render_agent_profile_include_selector(
                 gated_service,
@@ -533,6 +536,7 @@ def build_charter_context_json(
     mission_type: str | None = None,
     feature_dir: Path | None = None,
     include_all: bool = False,
+    scope: CharterScope | None = None,
 ) -> dict[str, object]:
     """Return the structured JSON payload for ``charter context --json``.
 
@@ -570,6 +574,8 @@ def build_charter_context_json(
     (the textual ``charter context`` surface is still authoritative for
     non-bootstrap actions).
     """
+    if scope is not None:
+        repo_root = scope.root
     normalized = action.strip().lower()
     # Single governance resolution: both ``all_directives`` and the resolution-
     # level ``directives_source`` provenance come from one
@@ -577,7 +583,7 @@ def build_charter_context_json(
     # NFR-003: the identity index is built once for this entry point and handed
     # to the resolver rather than rebuilt inside it.
     identity = _invocation_identity(repo_root, org_root)
-    all_directives, directives_source, diagnostics = _project_directive_resolution(repo_root, identity)
+    all_directives, directives_source, diagnostics = _project_directive_resolution(repo_root, identity, scope=scope)
     payload: dict[str, object] = {
         "context_schema_version": CONTEXT_SCHEMA_VERSION,
         "action": normalized,
@@ -597,13 +603,11 @@ def build_charter_context_json(
         # no layer). Always present; ``[]`` when the resolution has nothing to report.
         "diagnostics": diagnostics,
         "references": [],
-        "project_charter": _project_charter_json_block(repo_root),
-        "org_charter": (
-            dict(org_charter_block) if org_charter_block is not None else dict(_EMPTY_ORG_CHARTER)
-        ),
+        "project_charter": _project_charter_json_block(repo_root, scope=scope),
+        "org_charter": (dict(org_charter_block) if org_charter_block is not None else dict(_EMPTY_ORG_CHARTER)),
         "governance_references": [],
     }
-    selection = _load_governance_charter_config(repo_root)
+    selection = _load_governance_charter_config(repo_root, scope=scope)
     payload["governance_references"] = [
         status.to_dict()
         for status in collect_governance_reference_status(
@@ -644,9 +648,7 @@ def build_charter_context_json(
     # consulting the predicate (AC-1, unchanged). Every other action gates on
     # node-URN membership -- NOT empty-grain (see
     # `_action_node_declared`'s docstring for the activation-starved case).
-    if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(
-        bundle, normalized
-    ):
+    if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(bundle, normalized):
         # WP11 (B-6) — non-bootstrap, undeclared actions carry no action
         # grain; ruled OUT explicitly (empty typed arrays), not an
         # early-return before a bundle -- the bundle above already resolved.

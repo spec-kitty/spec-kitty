@@ -15,6 +15,11 @@ bootstrap view. Only long-form prose may be elided in compact mode.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
+
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -112,6 +117,7 @@ def render_compact_view(
     section_anchors: Iterable[str] | None = None,
     charter_text: str | None = None,
     suppress_project_resolver: bool = False,
+    scope: CharterScope | None = None,
 ) -> CompactView:
     """Render the compact governance block with IDs + anchors preserved.
 
@@ -185,6 +191,7 @@ def render_compact_view(
         asset_tuple,
         anchor_tuple,
         suppress_project_resolver=suppress_project_resolver,
+        scope=scope,
     )
 
     return CompactView(
@@ -210,6 +217,7 @@ def _render_text(
     section_anchors: tuple[str, ...],
     *,
     suppress_project_resolver: bool = False,
+    scope: CharterScope | None = None,
 ) -> str:
     """Render the human-readable compact governance block.
 
@@ -235,14 +243,10 @@ def _render_text(
         tools,
         diagnostics,
         resolver_directives,
-    ) = _resolve_governance_summary(repo_root)
+    ) = _resolve_governance_summary(repo_root, scope=scope)
 
-    effective_resolver_directives: list[str] = (
-        [] if suppress_project_resolver else resolver_directives
-    )
-    merged_directive_ids = tuple(
-        dict.fromkeys(list(directive_ids) + effective_resolver_directives)
-    )
+    effective_resolver_directives: list[str] = [] if suppress_project_resolver else resolver_directives
+    merged_directive_ids = tuple(dict.fromkeys(list(directive_ids) + effective_resolver_directives))
 
     lines: list[str] = [
         "Governance:",
@@ -310,6 +314,8 @@ def _resolve_languages(repo_root: Path) -> list[str] | None:
 
 def _resolve_governance_summary(
     repo_root: Path,
+    *,
+    scope: CharterScope | None = None,
 ) -> tuple[str, str, str, list[str], list[str]]:
     template_set = NONE_LABEL
     paradigms = NONE_LABEL
@@ -318,7 +324,7 @@ def _resolve_governance_summary(
     resolver_directives: list[str] = []
 
     try:
-        resolution = resolve_project_governance(repo_root)
+        resolution = resolve_project_governance(repo_root) if scope is None else resolve_project_governance(repo_root, scope=scope)
     except GovernanceResolutionError as exc:
         diagnostics.append(f"governance unresolved ({exc})")
         return template_set, paradigms, tools, diagnostics, resolver_directives

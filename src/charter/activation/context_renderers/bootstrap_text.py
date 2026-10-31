@@ -23,6 +23,11 @@ used throughout ``charter.activation.context``.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
+
 from typing import TYPE_CHECKING, NamedTuple
 
 from charter.activation import progressive_disclosure as _pd
@@ -276,6 +281,7 @@ def _render_bootstrap_text(
     repo_root: Path | None = None,
     charter_config: GovernanceCharterConfig | None = None,
     charter_content: str = "",
+    scope: CharterScope | None = None,
 ) -> str:
     """Render the full bootstrap charter context text."""
 
@@ -320,6 +326,7 @@ def _render_bootstrap_text(
         service,
         mission_type=governance_bundle.mission,
         action=action,
+        scope=scope,
     )
     _append_block(lines, activation_block)
 
