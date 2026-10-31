@@ -23,7 +23,6 @@ from specify_cli.core.errors import StructuredError
 from specify_cli.services import resolution
 from specify_cli.services.errors import ServiceRefusal, ServiceRefusalCode, remedy_for
 from specify_cli.services.resolution import (
-    INSTALLED_PINS_PACKAGE_DIR,
     UNPINNED_ENV,
     ResolvedBinary,
     binary_env_var,
@@ -170,10 +169,6 @@ def test_binary_env_var_names() -> None:
 # --------------------------------------------------------------------------- #
 # Pin lookup
 # --------------------------------------------------------------------------- #
-
-
-def test_installed_pins_dir_constant() -> None:
-    assert INSTALLED_PINS_PACKAGE_DIR == "_pins"
 
 
 def test_find_pin_reads_the_cli_s_own_source_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -372,13 +367,21 @@ def test_install_tier_provider_returning_none_falls_through(tmp_path: Path, monk
     assert _resolve(release).source == "cache"
 
 
-def test_install_tier_digest_mismatch_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("source", "remedy_marker"),
+    [("explicit", EXPLICIT_ENV), ("install", "uninstall it to use the pinned download")],
+)
+def test_a_supplied_binary_that_is_not_the_pinned_build_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, source: str, remedy_marker: str) -> None:
     release = _release(tmp_path)
-    wrong = tmp_path / "wrong"
-    wrong.write_bytes(b"not the pinned build")
-    monkeypatch.setattr(resolution, "_binary_providers", lambda service: (_Entry(lambda: wrong),))
-    refusal = _refusal(lambda: _resolve(release))
+    foreign = _foreign_build(tmp_path)
+    env: dict[str, str] = {}
+    if source == "explicit":
+        env[EXPLICIT_ENV] = str(foreign)
+    else:
+        monkeypatch.setattr(resolution, "_binary_providers", lambda service: (_Entry(lambda: foreign),))
+    refusal = _refusal(lambda: _resolve(release, env))
     assert refusal.code is ServiceRefusalCode.DIGEST_MISMATCH
+    assert remedy_marker in refusal.remedy
 
 
 def test_install_tier_broken_provider_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -502,13 +505,6 @@ def _foreign_build(tmp_path: Path) -> Path:
     build = tmp_path / "dev-build"
     build.write_bytes(b"#!/bin/sh\necho local build\n")
     return build
-
-
-def test_us5_unmatched_explicit_path_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    release = _release(tmp_path)
-    refusal = _refusal(lambda: _resolve(release, {EXPLICIT_ENV: str(_foreign_build(tmp_path))}))
-    assert refusal.code is ServiceRefusalCode.DIGEST_MISMATCH
-    assert EXPLICIT_ENV in refusal.remedy
 
 
 def test_us5_opt_in_with_explicit_path_runs_unpinned_with_a_warning(tmp_path: Path) -> None:
