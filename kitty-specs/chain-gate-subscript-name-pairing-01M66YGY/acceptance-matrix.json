@@ -1,0 +1,69 @@
+{
+  "mission_slug": "chain-gate-subscript-name-pairing-01M66YGY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_org_pack_chain_single_authority.py::test_planted_violation_is_reported[packs-subscript-assignment] (red before the fix, green after)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:21:00.170692+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_org_pack_chain_single_authority.py::test_non_violations_are_not_flagged[name-keyed-subscript]; over-widening reds the live census at src/charter/activation/drg_activation.py:198",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:21:04.706211+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_org_pack_chain_single_authority.py::test_planted_violation_is_reported[packs-subscript-assignment]; reverting the enumerate unwrap alone makes it clean (mutation A)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:21:08.864683+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_org_pack_chain_single_authority.py::test_non_violations_are_not_flagged[name-keyed-dict-comprehension] (red before the fix) + [root-keyed-dict-comprehension] and [index-keyed-dict-comprehension] still report",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:21:13.492298+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "11 planted fixtures in test_planted_violation_is_reported / test_non_violations_are_not_flagged; half-by-half revert of the three changed rules each reds a fixture",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:21:18.248590+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "tests/architectural/test_org_pack_chain_single_authority.py module docstring, Rule 2 paragraphs (names subscript collection, name-keyed DictComp exemption, key-only exemption)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:21:22.398170+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

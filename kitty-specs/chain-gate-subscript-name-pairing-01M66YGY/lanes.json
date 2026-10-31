@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "mission_slug": "chain-gate-subscript-name-pairing-01M66YGY",
+  "mission_id": "01M66YGYYA071YFW6DRTKSER13",
+  "mission_branch": "kitty/mission-chain-gate-subscript-name-pairing-01M66YGY",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/architectural/test_org_pack_chain_single_authority.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:44:57.984022+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "512567eee71e31bb39f580c4f7acf8b865e9d1b2"
+}
