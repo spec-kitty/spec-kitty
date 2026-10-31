@@ -171,9 +171,7 @@ def _load_project_directives_with_diagnostics(
     try:
         from charter.activation.resolver import resolve_project_governance
 
-        resolution = (
-            resolve_project_governance(repo_root, identity=identity) if scope is None else resolve_project_governance(repo_root, identity=identity, scope=scope)
-        )
+        resolution = resolve_project_governance(repo_root, identity=identity, scope=scope)
     except Exception:  # noqa: BLE001 - keep any directly-loaded directive IDs
         return local_by_id, list(dict.fromkeys(directive_ids)), None, []
     # ``metadata`` is always present on a real ``GovernanceResolution``; the

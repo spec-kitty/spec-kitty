@@ -324,7 +324,7 @@ def _resolve_governance_summary(
     resolver_directives: list[str] = []
 
     try:
-        resolution = resolve_project_governance(repo_root) if scope is None else resolve_project_governance(repo_root, scope=scope)
+        resolution = resolve_project_governance(repo_root, scope=scope)
     except GovernanceResolutionError as exc:
         diagnostics.append(f"governance unresolved ({exc})")
         return template_set, paradigms, tools, diagnostics, resolver_directives
