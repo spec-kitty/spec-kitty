@@ -1,0 +1,153 @@
+schema_version: 1
+mission_id: 01M68J6A4CSR6G3QFC88V70AGE
+mission_slug: project-intent-deny-rename-01M68J6A
+mission_number: 245
+friendly_name: project intent deny rename
+mission_type: software-dev
+target_branch: kitty/mission-project-intent-deny-rename-01M68J6A
+created_at: '2026-10-31T10:02:19.347089+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-31T10:02:19.347089+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-010
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-008
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-009
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-10-31][specify] Carry the exclusion, do not refuse the rename (#6565).'
+  evidence_refs:
+  - e-012
+  details: "- **[2026-10-31][specify] Carry the exclusion, do not refuse the rename (#6565).** The issue offered\n  two options.
+    Refusing the rename would break `charter synthesize` permanently on a project whose\n  deny entry names the old stem and
+    would ask the user to clear state they cannot see. Carrying the\n  exclusion keeps the user's explicit decision intact
+    and reuses the rename's own mapping."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-10-31][specify] Deny rename only where deny is authoritative.'
+  evidence_refs:
+  - e-012
+  details: "- **[2026-10-31][specify] Deny rename only where deny is authoritative.** A legacy surface's\n  `deactivated_*`
+    key is never applied (ADR 2026-10-19-1 Amendment 2026-10-20) and its save refuses a\n  deny change, so rewriting it there
+    would turn the rename into a refusal for no behaviour. The deny\n  keys are therefore rewritten only when the resolved
+    write target is the activation ledger."
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-10-31][specify] One authority, one new choice.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-10-31][specify] One authority, one new choice.** The fix extends the existing rename helper\n  (`charter/activation/synthesizer/legacy_rename.py`)
+    rather than adding a deny-side mapping: its\n  token step already rewrites stem tokens in the activation write target,
+    so the deny list joins that\n  step and the write stays one call. A new `DenyListChoice.RENAME` is the sanctioned authority;
+    the\n  FR-014 gate pins its single origin. Issue #6565."
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/tasks/WP01-rename-carries-denial.md
+- id: e-006
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/tasks/WP02-docs-fifth-path.md
+- id: e-007
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/status.events.jsonl
+- id: e-008
+  kind: event_range
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/status.events.jsonl
+  range: 01M68NN8QA1V34Y0X5VZFK2JPN
+- id: e-009
+  kind: event_range
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/status.events.jsonl
+  range: 01M68PD70JMMA5PF7TK6XPBYHV
+- id: e-010
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/analysis-report.md
+- id: e-011
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/traces/approach.md
+- id: e-012
+  kind: file
+  path: kitty-specs/project-intent-deny-rename-01M68J6A/traces/design-decisions.md
+generator_version: '1.0'
+provenance_history: []

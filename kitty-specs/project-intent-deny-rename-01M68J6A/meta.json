@@ -1,0 +1,41 @@
+{
+  "accept_commit": "f5c364de81f676d047eaea17a35776c9b12b9b18",
+  "acceptance_history": [
+    {
+      "accept_commit": "5532d2640adeffe2d01f87513dac1419ee911a98",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:01:51.850553+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "9ca7796246031e67c1050626858d5d0b1d4b0230"
+    },
+    {
+      "accept_commit": "f5c364de81f676d047eaea17a35776c9b12b9b18",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:01:56.747406+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "acbe3bc58ac3a243e475dad83d04a32907a462ba"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T10:01:56.747406+00:00",
+  "accepted_by": "python-pedro",
+  "accepted_from_commit": "acbe3bc58ac3a243e475dad83d04a32907a462ba",
+  "baseline_merge_commit": "9fbc42827dc49d2b0ec2dacbdae81df928c98bb4",
+  "created_at": "2026-10-31T08:46:03.006504+00:00",
+  "flattened": false,
+  "friendly_name": "project intent deny rename",
+  "merged_at": "2026-10-31T10:02:17.584495+00:00",
+  "merged_commit": "9fbc42827dc49d2b0ec2dacbdae81df928c98bb4",
+  "mid8": "01M68J6A",
+  "mission_branch": "kitty/mission-project-intent-deny-rename-01M68J6A",
+  "mission_id": "01M68J6A4CSR6G3QFC88V70AGE",
+  "mission_number": 245,
+  "mission_slug": "project-intent-deny-rename-01M68J6A",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances project intent deny rename on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "project intent deny rename",
+  "slug": "project-intent-deny-rename-01M68J6A",
+  "status_phase": "1",
+  "target_branch": "kitty/mission-project-intent-deny-rename-01M68J6A",
+  "topology": "single_branch"
+}
