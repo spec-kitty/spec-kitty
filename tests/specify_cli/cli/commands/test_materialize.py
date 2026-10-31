@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -41,14 +42,28 @@ def _make_event(
     )
 
 
+def _synthetic_mission_id(mission_slug: str) -> str:
+    """A deterministic 26-character ULID-shaped id, so a fixture Mission is never residue."""
+    digest = hashlib.sha1(mission_slug.encode("utf-8")).hexdigest().upper()[:18]
+    return f"01M5Z6N5{digest}"
+
+
 def _setup_feature(
     tmp_path: Path,
     mission_slug: str,
     wp_lanes: dict[str, str],
 ) -> Path:
-    """Create a feature directory with event log for the given WP lanes."""
+    """Create a Mission directory with event log for the given WP lanes.
+
+    ``meta.json`` carries a ``mission_id`` because ``materialize`` now lists
+    Missions only (#6758): a folder with no ``meta.json`` — or an id-less one that
+    git does not track — is read-side residue, and these fixtures exist to
+    exercise derived-view writing for real Missions.
+    """
     feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
+    meta = {"mission_slug": mission_slug, "mission_id": _synthetic_mission_id(mission_slug)}
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     for idx, (wp_id, lane) in enumerate(wp_lanes.items()):
         event_id = f"01TEST{idx:020d}"
         event = _make_event(mission_slug, wp_id, "planned", lane, event_id)
