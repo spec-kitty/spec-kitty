@@ -58,9 +58,37 @@ recorded as rejected validation configuration rather than production proof.
 
 This is a bounded correctness and safety repair in the existing Python CLI.
 It neither changes general project discovery semantics nor introduces an
-additional Git resolver. External receipts pin source, interpreter, dependencies,
+additional Git resolver. Admission is a fresh topology observation; it does not
+serialize arbitrary concurrent replacement of repository metadata. External receipts pin source, interpreter, dependencies,
 commands and outcomes. Source implementation, successful qualification,
 publication and consumer admission remain separate events.
+
+## Owning-suite fixture corrections
+
+The full owning-subsystem run exposed six functional failures also reproduced
+against the untouched predecessor source. The external baseline receipt pins
+that Git revision, every imported production module path and unchanged source
+hashes. The production safety repair does not change their consolidation or
+protection guards.
+
+Four birth-cutover fixtures predated the canonical implementation-evidence axis
+and omitted the finalized planning pin. They now reuse the shared real-Git
+`pin_planning_commit` fixture helper, incorporating that planning tip before
+creating implementation lanes. Once this missing prerequisite was corrected,
+the guard also correctly rejected their generic `seed` approval actor. The
+fixture now records the same distinct implementer and reviewer identities in
+the actual claim, implementation, review and approval transitions as in its
+review evidence. No review predicate or merge refusal is bypassed.
+
+Two protection fixtures mocked every kind-aware placement read to the same
+coordination ref. The current router also asks that authority for the primary
+metadata target, so the constant mock collapsed two deliberately distinct
+surfaces. These positive cases now exercise the real shared placement resolver
+with explicit stored coordination topology and primary target, retaining their
+actual commit and coordination-worktree assertions. Existing missing-planning,
+self-review, generic-identity and invalid coordination refusal controls remain
+part of focused validation. Intermediate failures and final frozen-source gate
+results are retained separately in external receipts.
 
 ## Owner, resources and next event
 
