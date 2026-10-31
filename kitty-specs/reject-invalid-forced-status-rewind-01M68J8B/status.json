@@ -1,0 +1,69 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M68RE9VGDJE33E93BSD82ZE9",
+  "materialized_at": "2026-10-31T10:35:16.208273+00:00",
+  "mission_number": "",
+  "mission_slug": "reject-invalid-forced-status-rewind-01M68J8B",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M68RE786KJGYXPWZFM3641XG",
+      "last_transition_at": "2026-10-31T10:35:13.542280+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 740220,
+      "shell_pid_created_at": "1793436675.44"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M68RE8ED3JGS12CS8DYD516Z",
+      "last_transition_at": "2026-10-31T10:35:14.765450+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 1944218,
+      "shell_pid_created_at": "1793441270.99"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "pi",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M68RE9VGDJE33E93BSD82ZE9",
+      "last_transition_at": "2026-10-31T10:35:16.208273+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 2071641,
+      "shell_pid_created_at": "1793442158.05"
+    }
+  }
+}
