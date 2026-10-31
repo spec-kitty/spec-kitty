@@ -61,21 +61,48 @@ SHARED_ASSET_DIRS = {"templates", "missions", "scripts", "command-templates"}
 SHARED_ASSET_FILES = {"AGENTS.md"}
 
 
+def shipped_mission_counterpart(rel: Path, package_root: Path) -> Path | None:
+    """Map a project mission path onto the shipped file it corresponds to.
+
+    ``package_root`` is the package's missions root (``get_package_asset_root()``
+    — a directory that already ends in ``missions/``). Both project trees that
+    carry a mission copy use the same shape, ``<tree>/missions/<type>/<rest>``:
+    the legacy per-project tree ``.kittify/missions/`` and the override tree
+    ``.kittify/overrides/missions/``. ``rel`` is that path relative to
+    ``.kittify/`` or ``.kittify/overrides/`` respectively, so one mapping serves
+    both, and the mission is taken from the path rather than a caller-supplied
+    default.
+
+    This is the ONLY place the ``missions/<type>/<rest>`` join is written. The
+    classifier (:func:`classify_asset`, via :func:`_find_package_counterpart`)
+    and the ``4.0.0rc8_repair_historical_sweep_overrides`` migration both resolve
+    through it, so they cannot drift into the two wrong joins that moved
+    package-identical files into ``.kittify/overrides/`` in the first place
+    (#6548, #5280).
+
+    Returns the shipped file, or ``None`` when ``rel`` is not a mission path or
+    the package ships nothing at that mission-relative path.
+    """
+    if len(rel.parts) <= 2 or rel.parts[0] != "missions":
+        return None
+    candidate = package_root.joinpath(*rel.parts[1:])
+    return candidate if candidate.is_file() else None
+
+
 def _find_package_counterpart(rel: Path, package_root: Path, mission: str) -> Path | None:
     """Locate the package-bundled counterpart for a project .kittify/ relative path.
 
-    Tries mission-specific path first, then direct path under package root,
-    then (for a project mission copy ``missions/<type>/<rest>``) the package's
-    own ``<type>/<rest>``. Returns None if no counterpart exists in the package.
+    Tries the project mission mapping first, then a mission-specific path, then
+    the direct path under the package root. Returns None if no counterpart
+    exists in the package.
     """
     # A project mission copy: ``package_root`` is itself the missions root, so
     # ``missions/<type>/<rest>`` maps to ``package_root/<type>/<rest>``. Without
     # this, a pack-identical copy read as CUSTOMIZED and was moved into
     # ``.kittify/overrides/``, where it shadowed later pack updates (#6548, #5280).
-    if len(rel.parts) > 2 and rel.parts[0] == "missions":
-        pkg_path = package_root.joinpath(*rel.parts[1:])
-        if pkg_path.is_file():
-            return pkg_path
+    mission_counterpart = shipped_mission_counterpart(rel, package_root)
+    if mission_counterpart is not None:
+        return mission_counterpart
 
     # Try mission-specific path: package_root/{mission}/{rel}
     pkg_path = package_root / mission / str(rel)
