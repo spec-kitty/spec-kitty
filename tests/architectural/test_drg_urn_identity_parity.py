@@ -118,7 +118,12 @@ def built_in_identity() -> IdentityIndex:
 def test_no_built_in_node_urn_drifts_from_the_identity_authority(
     built_in_graph, built_in_identity: IdentityIndex
 ) -> None:
-    """RED on the pre-#6741 tree: all 21 step-contract nodes were reported here."""
+    """The corpus arm: before #6741 all 21 step-contract nodes were reported here.
+
+    On the pre-fix tree this module cannot even import (``step_contract_urn`` did not exist), so the
+    21-node evidence is produced by the planted-divergence arm below, which feeds this same checker
+    exactly those spellings.
+    """
     checked = _checked_nodes(built_in_graph.nodes)
 
     assert _drifted_urns(checked, built_in_identity) == []
