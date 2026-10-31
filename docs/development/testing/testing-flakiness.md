@@ -2,7 +2,7 @@
 title: Test-flakiness handling policy
 description: "Spec Kitty's suite-wide flaky-test policy: how to detect a flake, what is and isn't allowed (never retry-to-green), and the disposition of each known flake surface."
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
@@ -122,6 +122,7 @@ irreducible flake has a sanctioned home instead of a retry.
 
 | Surface | Tier | Disposition |
 |---|---|---|
+| `tests/charter/activation/test_stored_spelling_6527.py::test_writer_stores_stems_only[cascade]` (over the 240 s per-test backstop, red on `main`) | 1 | **Fixed at the root cause, and the interim budget was withdrawn** (#6777). The case is not a budget test: it drives a real `charter activate --cascade all`, and the cost was avoidable work — the cascade resolved each of its 114 targets with its own fresh identity pass, re-walking and re-parsing the whole artifact catalog per target (121 lookups, 5309 id reads, 5028 artifact-file parses). One shared `ResolutionPass` covering the whole batch before the first write takes it to 240 parses and 0.62–0.70× the wall clock (interleaved A/B; absolute seconds on a shared host are not evidence). #6776's interim 600 s per-test marker is gone: the case runs under the single 240 s authority again and carries the documented `slow` tier, which the module shards still select. Two guards pin it — one fails if a per-test timeout returns, one if the batch ever stops sharing one pass or resolves after the first write. No retry was added; the remaining per-target catalog scan is a separate follow-up, filed as `#6854`. |
 | Historical `tests/architectural/test_wp_prompt_build_latency.py` NFR-002 latency surface | 1 | **Retired — this surface no longer exists.** The low-signal suite cleanup in PR #3285 removed the file. The current timing policy is carried by the live `-m timing` lane and its current budget tests; a future latency flake gets a new, separately evidenced row. |
 | `doctor restart-daemon` issue #1153 / NFR-002 wall-clock gate | 3 | **Retired as a portable CI performance claim in PR #3285.** The original ≤10-second end-to-end requirement depended on OS-global daemon and port state and repeatedly failed during hosted-macOS control-plane bootstrap without a corresponding product regression. The controlled Linux lane now enforces the replacement functional contract: the old daemon stops, a distinct PID starts, and the control plane becomes healthy within bounded subprocess and readiness timeouts. macOS remains supported through platform-independent tests and local smoke evidence; a future cross-platform restart performance SLO requires a controlled developer/canary harness because shared-runner wall clock is not accepted as evidence. |
 | `tests/sync/test_orphan_sweep.py` and `tests/_real_port_suites.py`'s `FIXED_RANGE_SUITES` (real fixed ports 9400–9449, daemons) | 3 | **Retired — this surface no longer exists.** The sync transport that owned it was deleted (issue #5): `tests/sync/` and `tests/_real_port_suites.py` are gone from the repo, so there is nothing left to serialise or quarantine here. `make test-full`'s current topology (one parallel pass plus dedicated `-n0` serial passes for `stress`/`timing`) is described in `CLAUDE.md`'s Commands section. |
