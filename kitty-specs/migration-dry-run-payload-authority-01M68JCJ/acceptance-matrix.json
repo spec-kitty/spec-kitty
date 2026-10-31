@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_wire_payload.py::test_payload_matches_the_contract_key_set_and_null_policy + ::test_force_without_reason_is_rejected_at_construction (10 passed)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:26.715753+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
