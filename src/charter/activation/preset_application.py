@@ -678,6 +678,11 @@ def _cleared_by_force(document: Mapping[str, Any], plan: PresetPlan) -> dict[str
 def apply_preset_plan(repo_root: Path, plan: PresetPlan, *, force: bool = False) -> PresetOutcome:
     """Perform *plan* as one write through the single activation writer.
 
+    The write (and, for ``--force``, its deny-clearing read) runs under the
+    run-wide charter synthesis lock (#6719): a preset write is one
+    read-modify-write of the activation config, so a synthesis run appending
+    between the read and the write would otherwise lose one of the two changes.
+
     Raises :class:`PresetWouldOverwriteError` (writing nothing) when the plan
     changes a customised key and *force* is false. A no-op plan writes nothing.
     Without *force*, the deactivated ids the preset lists stay excluded and are
@@ -685,6 +690,14 @@ def apply_preset_plan(repo_root: Path, plan: PresetPlan, *, force: bool = False)
     written and their exclusions cleared with
     :attr:`~charter.activation.activation_ledger.DenyListChoice.PRESET_FORCE`.
     """
+    from charter.activation.synthesizer.synthesis_lock import synthesis_lock  # deferred import
+
+    with synthesis_lock(repo_root):
+        return _apply_preset_plan_locked(repo_root, plan, force=force)
+
+
+def _apply_preset_plan_locked(repo_root: Path, plan: PresetPlan, *, force: bool) -> PresetOutcome:
+    """The body of :func:`apply_preset_plan`; the caller holds the synthesis lock."""
     if plan.customised_changes and not force:
         raise PresetWouldOverwriteError(plan)
     if not force or not plan.forced_deny:

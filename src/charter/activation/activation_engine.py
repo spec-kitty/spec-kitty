@@ -78,6 +78,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
+from contextlib import AbstractContextManager, nullcontext
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -981,8 +982,49 @@ def promote_activations(
     PromotionOutcome
         The committed plans and the keys left absent, with their reasons.
     """
-    outcome = PromotionOutcome()
-    effective_denied = denied if denied is not None else _seam_deny(repo_root if repo_root is not None else _owning_project(config_path), promotions)
+    root = repo_root if repo_root is not None else _owning_project(config_path)
+    effective_denied = denied if denied is not None else _seam_deny(root, promotions)
+    with _promotion_lock(root):
+        return _promote_locked(
+            promotions,
+            config_path=config_path,
+            config_data=config_data,
+            save=save,
+            effective_sets=effective_sets,
+            narrow_bases=narrow_bases,
+            effective_denied=effective_denied,
+            outcome=PromotionOutcome(),
+        )
+
+
+def _promotion_lock(root: Path | None) -> AbstractContextManager[Any]:
+    """The run-wide charter synthesis lock for *root*, or a no-op when the project root is unknown (#6719).
+
+    The promotion is one read-modify-write of the activation config: without the
+    lock a synthesis run appending between the caller's read and this commit
+    loses one of the two changes. A caller with no project root (a pure
+    config/save pair, mostly tests) has nothing to serialize on.
+    """
+    if root is None:
+        return nullcontext()
+    from charter.activation.synthesizer.synthesis_lock import synthesis_lock  # deferred import
+
+    lock: AbstractContextManager[Any] = synthesis_lock(root)
+    return lock
+
+
+def _promote_locked(
+    promotions: Mapping[str, Iterable[str]],
+    *,
+    config_path: Path,
+    config_data: dict[str, Any],
+    save: Callable[[Path, dict[str, Any]], None],
+    effective_sets: Mapping[str, EffectiveSet],
+    narrow_bases: Mapping[str, Sequence[str]] | None,
+    effective_denied: Mapping[str, DenySet],
+    outcome: PromotionOutcome,
+) -> PromotionOutcome:
+    """The body of :func:`promote_activations`; the caller holds the synthesis lock."""
     for yaml_key, ids in promotions.items():
         ids = list(ids)
         effective = effective_sets.get(yaml_key)
