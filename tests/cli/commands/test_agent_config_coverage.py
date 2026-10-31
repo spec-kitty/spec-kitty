@@ -38,6 +38,10 @@ def _mock_config(available: list[str] | None = None, auto_commit: bool = True) -
     config = MagicMock(spec=AgentConfig)
     config.available = list(available or [])
     config.auto_commit = auto_commit
+    # State the shape deliberately: a MagicMock attribute would otherwise be a
+    # truthy auto-mock, so "no agents" would read as a stated-empty list by
+    # accident of mock semantics rather than by the fixture's intent (#6493).
+    config.explicit_agent_list = True
     return config
 
 
@@ -116,8 +120,12 @@ class TestListCommand:
         assert result.exit_code == 0
         assert "claude" in result.output
 
-    def test_list_shows_no_agents_message_when_none_configured(self, tmp_path: Path) -> None:
-        """Arrange: empty config; Act: list; Assert: exit 0 and informative message."""
+    def test_list_names_the_no_cli_managed_state_for_an_empty_list(self, tmp_path: Path) -> None:
+        """Arrange: stated-empty config; Act: list; Assert: exit 0, truthful message (#6493).
+
+        A stated-empty agent list means the CLI manages no surfaces, so the old
+        "No agents configured" line misdescribed a project that is set up.
+        """
         config = _mock_config(available=[])
 
         patches = _patch_repo_and_config(tmp_path, config)
@@ -125,7 +133,8 @@ class TestListCommand:
             result = runner.invoke(app, ["list"])
 
         assert result.exit_code == 0
-        assert "No agents" in result.output or "configured" in result.output.lower()
+        assert "No CLI-managed agents" in result.output
+        assert "agent config add" not in result.output
 
     def test_list_shows_auto_commit_status(self, tmp_path: Path) -> None:
         """Arrange: config with auto_commit=False;
