@@ -1,0 +1,107 @@
+schema_version: 1
+mission_id: 01M68WJ9PT51PG0WTGAP1GWE12
+mission_slug: legacy-doctor-empty-audit-truthful-01M68WJ9
+mission_number: 245
+friendly_name: legacy doctor empty audit truthful
+mission_type: software-dev
+target_branch: main
+created_at: '2026-10-31T12:44:26.830733+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-31T12:44:26.830733+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-006
+not_helpful:
+- id: n-002
+  category: doc
+  summary: analysis-report.md present; findings not machine-readable
+  evidence_refs:
+  - e-008
+  details: An analysis-report.md artifact is present for this mission and its frontmatter carries a machine-readable
+    findings count, but no resolved verdict (the verdict key is absent or records the legacy 'unknown' marker), so the
+    count is not asserted; review it manually.
+- id: n-001
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-007
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/legacy-doctor-empty-audit-truthful-01M68WJ9/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/legacy-doctor-empty-audit-truthful-01M68WJ9/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/legacy-doctor-empty-audit-truthful-01M68WJ9/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/legacy-doctor-empty-audit-truthful-01M68WJ9/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/legacy-doctor-empty-audit-truthful-01M68WJ9/tasks/WP01-legacy-doctor-empty-audit.md
+- id: e-006
+  kind: file
+  path: kitty-specs/legacy-doctor-empty-audit-truthful-01M68WJ9/status.events.jsonl
+- id: e-007
+  kind: event_range
+  path: kitty-specs/legacy-doctor-empty-audit-truthful-01M68WJ9/status.events.jsonl
+  range: 01M68ZPBC1PZMW56ZYZ37YEC80
+- id: e-008
+  kind: file
+  path: kitty-specs/legacy-doctor-empty-audit-truthful-01M68WJ9/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
