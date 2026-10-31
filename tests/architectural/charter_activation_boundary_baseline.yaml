@@ -379,8 +379,6 @@
   module: charter.activation.mission_type_profiles
 - file: src/specify_cli/mission.py
   module: charter.activation.pack_context
-- file: src/specify_cli/mission_loader/command.py
-  module: charter.activation.layer_roots
 - file: src/specify_cli/mission_step_contracts/executor.py
   module: charter.activation._drg_helpers
 - file: src/specify_cli/mission_step_contracts/executor.py
