@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#4425": {
+      "evidence_ref": "context only: the listed-agent sync recovery diagnosis is preserved and pinned by a ratchet (tests/init/test_init_stated_empty_agents.py)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6472": {
+      "evidence_ref": "#6472 owns the per-harness ownership record; deferred in the PR's Deferred section",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6493": {
+      "evidence_ref": "PR for this mission: predicate + three truthful reports; 10 red-first tests",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#6494": {
+      "evidence_ref": "the stated-empty semantics (#6494) is the predicate's basis; tests pin both shapes",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6501": {
+      "evidence_ref": "legacy no-list fallback stays; agent config list now reports it (residual doctor wording filed as #6891)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "plugin-owned-surfaces-report-truthfully-01M68JAV",
+  "mission_id": "01M68JAVG00ZFKFA08NR2VN880",
+  "mission_branch": "kitty/mission-plugin-owned-surfaces-report-truthfully-01M68JAV",
+  "target_branch": "issue-6493-plugin-owned-surfaces-report-truthfully",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/_command_surface_doctor.py",
+        "src/specify_cli/cli/commands/agent/config.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/core/agent_config.py",
+        "tests/agent/cli/commands/test_agent_config.py",
+        "tests/init/test_init_stated_empty_agents.py",
+        "tests/specify_cli/cli/commands/test_doctor_stated_empty_reports.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:52:34.725004+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "39aac506925053f7ecb9679119ebee1d6ba10297"
+}
