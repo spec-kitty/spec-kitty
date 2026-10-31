@@ -295,13 +295,16 @@ def _refuse_unattributable_in_forecast(
     Nothing is mutated: the claim build and the scan are read-only.
     """
     main_repo = get_main_repo_root(repo_root)
-    # A non-repository directory has no window to scan at all. The real command cannot get
-    # here (``find_repo_root`` precedes it), so this only keeps the seam usable off-repo —
-    # never a way to skip the check inside a repository.
-    if not (main_repo / ".git").exists():
-        return
     try:
         window_base = resolve_commit(main_repo, resolved_target_branch)
+    except GitProbeError:
+        # No resolvable target commit means no landing window exists to forecast, and the run's
+        # own target preflight owns that refusal — a preview refusing here would only duplicate
+        # it with a weaker message. Everything the forecast DOES evaluate is below this point,
+        # where a probe error refuses (NFR-002).
+        logger.debug("no resolvable window base for the closed-world forecast", exc_info=True)
+        return
+    try:
         # The claim reads the STATUS surface the real run reads; resolved read-only here —
         # the forecast never seeds or materializes a coordination surface.
         status_dir = Path(resolve_status_surface(main_repo, resolved_feature)).parent
