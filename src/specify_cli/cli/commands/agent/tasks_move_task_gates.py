@@ -336,7 +336,9 @@ def _mt_pre_review_dirty_paths(worktree_path: Path) -> tuple[str, ...] | None:
     from specify_cli.cli.commands.agent.tasks_move_task import _lane_deliverable_paths
 
     try:
-        status = status_entries(worktree_path, untracked=None)
+        # #6750: the same expansion the auto-commit collector uses -- an untracked
+        # directory is not a deliverable path, its files are.
+        status = status_entries(worktree_path, untracked="all")
     except GitCommandError:
         return None
     filtered = _tasks._filter_runtime_state_paths(status)
