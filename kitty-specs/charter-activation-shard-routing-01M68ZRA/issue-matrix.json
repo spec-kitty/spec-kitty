@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#4386": {
+      "evidence_ref": "Context citation in the new routing comments: #4386 added the first non-src group to the scrub, #6480 made the pack pin the fan-out trigger and #6483 recorded the internal-pack pin note; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5927": {
+      "evidence_ref": "Context citation: known pre-existing red/gate behaviour on main, referenced from the PR [Deferred] section; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6333": {
+      "evidence_ref": "Closed parent bug: #6334 fixed the parity test; this mission closes the remaining trigger hole it reported. Context only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6334": {
+      "evidence_ref": "PR reference (context): the PR that deliberately left this hardening open.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6336": {
+      "evidence_ref": "commit 1e6e5e2 registers the charter_activation group + ACTIVATION_STORE_MODULE_FANOUT; commit 6a1c7ac pins the blast radius; tests/ci/test_charter_activation_routing.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6451": {
+      "evidence_ref": "Context citation: #6451 untracked packs/built-in + packs/internal, so the pin lockfile (packs/internal.source.yaml) is the in-repo internal-pack trigger this mission routes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6480": {
+      "evidence_ref": "Context citation in the new routing comments: #4386 added the first non-src group to the scrub, #6480 made the pack pin the fan-out trigger and #6483 recorded the internal-pack pin note; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6483": {
+      "evidence_ref": "Context citation in the new routing comments: #4386 added the first non-src group to the scrub, #6480 made the pack pin the fan-out trigger and #6483 recorded the internal-pack pin note; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6798": {
+      "evidence_ref": "Context citation: known pre-existing red/gate behaviour on main, referenced from the PR [Deferred] section; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Context citation: known pre-existing red/gate behaviour on main, referenced from the PR [Deferred] section; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Context citation: known pre-existing red/gate behaviour on main, referenced from the PR [Deferred] section; no work owed by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

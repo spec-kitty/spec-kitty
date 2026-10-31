@@ -1,0 +1,99 @@
+{
+  "mission_slug": "charter-activation-shard-routing-01M68ZRA",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_charter_activation_routing.py::test_router_transcribes_the_group_verbatim, ::test_changes_outputs_declares_the_group, ::test_the_group_gates_no_job_by_design",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:52:50.557196+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_charter_activation_routing.py::test_activation_trigger_selects_the_charter_module[.kittify/charter/charter.yaml]",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:52:53.485242+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_charter_activation_routing.py::test_activation_trigger_selects_the_charter_module[packs/internal.source.yaml]",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:52:56.306105+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_charter_activation_routing.py::test_kernel_ledger_floor_selects_the_charter_module, ::test_the_ledger_floor_is_a_charter_group_root_and_is_transcribed_verbatim",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:52:59.161954+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_charter_activation_routing.py::test_activation_ledger_reader_stays_selected",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:53:02.382953+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_charter_activation_routing.py::test_the_group_is_not_src_backed, ::test_an_unmapped_src_change_still_forces_run_all_alongside_an_activation_edit",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:53:05.466495+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_charter_activation_routing.py::test_unrelated_diffs_keep_their_selection, ::test_docs_only_still_selects_zero_modules, ::test_unrelated_activation_paths_stay_unrouted",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:53:08.692587+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_ci_router_transcription_guards.py (3 guards) + tests/architectural/test_module_shard_registry.py::test_registry_consumes_scrub_verbatim_no_divergent_rescrub, all green at HEAD 13ff55a",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:53:11.863391+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_charter_activation_routing.py::test_dropping_a_trigger_glob_drops_the_selection, ::test_dropping_the_fanout_row_drops_the_charter_module, ::test_dropping_the_charter_root_drops_the_ledger_floor_selection",
+      "pass_fail": "pass",
+      "verified_by": "claude-code",
+      "verified_at": "2026-10-31T13:53:14.896335+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
