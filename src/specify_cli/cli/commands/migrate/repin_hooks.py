@@ -40,7 +40,12 @@ def run_repin_hooks_migration(repo_root: Path) -> RepinHooksResult:
             CURRENT ``sys.executable`` does not refer to an existing file —
             i.e. the environment running this migration is itself broken.
     """
+    from specify_cli.cli.commands.migrate._project_admission import admit_migration_project_root
     from specify_cli.policy.hook_installer import install
 
-    record = install(repo_root)
+    root = admit_migration_project_root(repo_root, require_git=True)
+    try:
+        record = install(root)
+    except OSError as exc:
+        raise RuntimeError(f"Cannot re-pin hooks in {root}: {exc}") from exc
     return RepinHooksResult(hook_path=record.hook_path, interpreter=record.interpreter)

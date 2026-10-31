@@ -215,6 +215,16 @@ def git_configured_worktree(common_dir: Path) -> Path | None:
     return (resolved / raw).resolve()
 
 
+def git_toplevel_uncached(path: Path) -> Path:
+    """Observe the working-tree root freshly without changing probe caches.
+
+    Write admission cannot reuse an earlier repository observation after its
+    metadata disappears. Reuse the same probe implementation beneath the
+    standard cache wrapper, preserving all parsing and error classification.
+    """
+    return git_toplevel.__wrapped__(path)
+
+
 def clear_caches() -> None:
     """Reset every probe cache.
 
@@ -235,4 +245,5 @@ __all__ = [
     "git_common_dir",
     "git_configured_worktree",
     "git_toplevel",
+    "git_toplevel_uncached",
 ]
