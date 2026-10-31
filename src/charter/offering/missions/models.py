@@ -269,6 +269,15 @@ class MissionType(BaseModel):
         ``None`` (unset) defers to the built-in default map in
         ``charter.activation.mission_type_profiles`` (conservative ``False``
         for a custom type).
+    code_producing:
+        Optional authored capability: ``True`` when a mission of this type
+        produces **committed code**, so code-specific rigour (the review-time
+        implementation-commit prerequisite) applies to it. ``None`` (unset)
+        defers to the built-in default map in
+        ``charter.activation.mission_type_profiles`` (conservative ``False``
+        for a custom type, so no existing custom type silently gains
+        code-rigour gates). Tri-state on purpose: ``False`` is a declared
+        decision, ``None`` means undeclared. (#6327)
 
     The former ``template_set`` field (a persisted, YAML-authorable mapping
     duplicating the step authority) was retired in the S-C atomic cutover
@@ -288,6 +297,7 @@ class MissionType(BaseModel):
     action_sequence: list[str] | None = None
     path_conventions: dict[str, str] | None = None
     requires_substantive_spec: bool | None = None
+    code_producing: bool | None = None
 
     @field_validator("id")
     @classmethod
