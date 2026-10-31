@@ -9,6 +9,10 @@ whose ``result`` is not ``pending`` and that does not already carry a
 the sentinel means the surface a pre-schema judgement was established
 against is genuinely unknowable, not that it is empty by omission.
 
+``run_backfill_provenance_migration(..., mission_slug=<slug>)`` (#6347) walks
+that ONE Mission's matrix instead of the corpus; the corpus-wide walk remains
+the default when no scope is supplied.
+
 Measured at implement time (2026-07-24, this lane's worktree; the ``153
 matrices / 40 non-pending / 0 provenance`` figures quoted in the tasks
 prompt were UNVERIFIED placeholders):
@@ -87,6 +91,10 @@ class BackfillSummary:
 
     files_inspected: int = 0
     dry_run: bool = False
+    #: #6347: the resolved Mission slug this run was scoped to, or ``None`` for
+    #: the corpus-wide default. Reported so a scoped run is visible in its own
+    #: output rather than only in the operator's command line.
+    mission_slug: str | None = None
     migrated: list[MatrixMigrationRecord] = field(default_factory=list)
     unchanged: list[Path] = field(default_factory=list)
     errors: list[MatrixMigrationError] = field(default_factory=list)
@@ -216,8 +224,13 @@ def _compute_migration(raw_text: str) -> tuple[str, int] | None:
 # ---------------------------------------------------------------------------
 
 
-def _collect_matrix_paths(repo_root: Path) -> list[Path]:
+def _collect_matrix_paths(repo_root: Path, mission_slug: str | None = None) -> list[Path]:
     """Resolve the on-disk ``acceptance-matrix.json`` for every mission (T017).
+
+    ``mission_slug`` (#6347) narrows the walk to that one Mission; ``None``
+    keeps the whole-corpus walk. The narrowing happens on the MISSION LOOP, not
+    on the resolved paths: each candidate's matrix is still located through the
+    placement seam below, so a coordination-homed matrix stays reachable.
 
     WP04 (write-side-seam-matrix-tracer-01KYP3MH,
     ``contracts/write-seam-adoption.md``): the pre-fix glob
@@ -245,8 +258,14 @@ def _collect_matrix_paths(repo_root: Path) -> list[Path]:
     from mission_runtime import ActionContextError, MissionArtifactKind, placement_seam
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
+    if mission_slug is None:
+        mission_dirs = sorted(p for p in specs_dir.iterdir() if safe_is_dir(p))
+    else:
+        scoped_dir = specs_dir / mission_slug
+        mission_dirs = [scoped_dir] if safe_is_dir(scoped_dir) else []
+
     paths: list[Path] = []
-    for mission_dir in sorted(p for p in specs_dir.iterdir() if safe_is_dir(p)):
+    for mission_dir in mission_dirs:
         try:
             matrix_dir = placement_seam(repo_root, mission_dir.name).read_dir(
                 MissionArtifactKind.ACCEPTANCE_MATRIX
@@ -293,8 +312,12 @@ def run_backfill_provenance_migration(
     repo_root: Path,
     *,
     dry_run: bool = False,
+    mission_slug: str | None = None,
 ) -> BackfillSummary:
     """Execute the FR-014 provenance backfill across the on-disk matrix corpus.
+
+    ``mission_slug`` (#6347) scopes the run to one Mission's matrix; ``None``
+    keeps the corpus-wide default unchanged.
 
     Two phases:
 
@@ -313,8 +336,8 @@ def run_backfill_provenance_migration(
     ``dry_run=True`` runs the plan phase only and reports what WOULD be
     written; nothing is touched on disk.
     """
-    matrix_paths = _collect_matrix_paths(repo_root)
-    summary = BackfillSummary(files_inspected=len(matrix_paths), dry_run=dry_run)
+    matrix_paths = _collect_matrix_paths(repo_root, mission_slug)
+    summary = BackfillSummary(files_inspected=len(matrix_paths), dry_run=dry_run, mission_slug=mission_slug)
     plan = _plan_migration(matrix_paths, summary)
 
     if dry_run:

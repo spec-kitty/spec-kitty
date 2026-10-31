@@ -20,6 +20,11 @@ Interactive mode (default):   prompt before each non-UTF-8 file.
 ``--yes``/``-y``:              normalize without prompting; exit non-zero on
                                any ambiguous file (CI-safe).
 ``--json``:                    emit a JSON-stable summary on stdout at the end.
+``--mission <handle>``:        scope the walk to that Mission's charter content
+                               and EXCLUDE the global charter store (#6347).
+                               The exclusion is reported in both renderings and
+                               the store is left byte-for-byte untouched; the
+                               scoped exit code never fails because of it.
 """
 
 from __future__ import annotations
@@ -83,6 +88,13 @@ class _ScanSummary:
     ambiguous: list[_FileRecord] = field(default_factory=list)
     collisions: list[_FileRecord] = field(default_factory=list)
     dry_run: bool = False
+    #: #6347: the resolved Mission slug this run was scoped to, or ``None`` for
+    #: the corpus-wide default.
+    mission_slug: str | None = None
+    #: #6347: True when ``--mission`` excluded the global charter store from
+    #: this run. Reported (never silent) and never a failure: the operator
+    #: ruling on #6347 is "skip it, say so, do not mutate it".
+    global_store_excluded: bool = False
 
     @property
     def result(self) -> str:
@@ -117,24 +129,34 @@ def _is_pure_utf8(path: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _collect_charter_files(project_root: Path) -> list[Path]:
+def _collect_charter_files(project_root: Path, mission_slug: str | None = None) -> list[Path]:
     """Return all charter files matching the corpus patterns.
 
-    Scans:
+    Corpus-wide (``mission_slug is None``), scans:
     - ``kitty-specs/*/charter/*.{yaml,md,txt}``
     - ``.kittify/charter/*.{yaml,md,txt}``
+
+    Scoped (#6347), scans only ``kitty-specs/<mission_slug>/charter/*`` and
+    deliberately skips the global charter store — a Mission-scoped repair must
+    never mutate global state (the operator ruling on #6347).
     """
     files: list[Path] = []
 
     mission_specs = project_root / KITTY_SPECS_DIR
     if safe_is_dir(mission_specs):
-        for mission_dir in sorted(mission_specs.iterdir()):
-            if not safe_is_dir(mission_dir):
-                continue
+        if mission_slug is None:
+            mission_dirs = [p for p in sorted(mission_specs.iterdir()) if safe_is_dir(p)]
+        else:
+            scoped_dir = mission_specs / mission_slug
+            mission_dirs = [scoped_dir] if safe_is_dir(scoped_dir) else []
+        for mission_dir in mission_dirs:
             charter_dir = mission_dir / "charter"
             if safe_is_dir(charter_dir):
                 for ext in _CHARTER_EXTENSIONS:
                     files.extend(sorted(charter_dir.glob(f"*{ext}")))
+
+    if mission_slug is not None:
+        return files
 
     global_charter = project_root / ".kittify" / "charter"
     if safe_is_dir(global_charter):
@@ -316,8 +338,12 @@ def run_charter_encoding_migration(
     dry_run: bool,
     yes: bool,
     json_output: bool,
+    mission_slug: str | None = None,
 ) -> int:
     """Execute the charter-encoding migration.
+
+    ``mission_slug`` (#6347) scopes the run to one Mission's charter content and
+    excludes the global charter store; ``None`` keeps the corpus-wide walk.
 
     Returns the intended process exit code (0 = success, non-zero = ambiguous
     or backup-collision files present).  The caller (typer command) calls
@@ -327,9 +353,9 @@ def run_charter_encoding_migration(
     suppressed so that stdout carries only the final JSON payload.  Errors
     and ambiguity diagnostics are always routed to stderr.
     """
-    files = _collect_charter_files(project_root)
+    files = _collect_charter_files(project_root, mission_slug)
 
-    summary = _ScanSummary(dry_run=dry_run)
+    summary = _ScanSummary(dry_run=dry_run, mission_slug=mission_slug, global_store_excluded=mission_slug is not None)
     summary.files_inspected = len(files)
 
     yes_all = yes  # whether we skip all remaining prompts
@@ -387,6 +413,8 @@ def _emit_json_summary(summary: _ScanSummary) -> None:
     """Print a JSON-stable summary to stdout (FR-027)."""
     payload = {
         "result": summary.result,
+        "mission": summary.mission_slug,
+        "global_store_excluded": summary.global_store_excluded,
         "files_inspected": summary.files_inspected,
         "already_utf8": [str(p) for p in summary.already_utf8],
         "normalized": [
@@ -420,6 +448,11 @@ def _emit_human_summary(summary: _ScanSummary) -> None:
     """Print a human-readable summary to the console."""
     prefix = "[dim](dry-run)[/dim] " if summary.dry_run else ""
     _console.print(f"\n{prefix}[bold]charter-encoding migration summary[/bold]")
+    if summary.mission_slug is not None:
+        _console.print(f"  Scope            : mission {summary.mission_slug}")
+    if summary.global_store_excluded:
+        # #6347: never silent, never a failure -- say what was deliberately left alone.
+        _console.print("  [yellow]Global charter store: excluded by --mission (unchanged)[/yellow]")
     _console.print(f"  Files inspected  : {summary.files_inspected}")
     _console.print(f"  Already UTF-8    : {len(summary.already_utf8)}")
     _console.print(f"  Normalized       : {len(summary.normalized)}" + (" (would normalize)" if summary.dry_run else ""))
@@ -440,4 +473,6 @@ def _emit_human_summary(summary: _ScanSummary) -> None:
     if summary.dry_run:
         _console.print("\n[dim]Dry run — no files were modified.[/dim]")
     elif not summary.ambiguous and not summary.collisions:
-        _console.print("\n[green]Done.[/green] Charter corpus is UTF-8 compliant.")
+        # #6347 review r2 (F5): a scoped run inspected one Mission, not the corpus.
+        target = f"Mission {summary.mission_slug} charter content is" if summary.mission_slug else "Charter corpus is"
+        _console.print(f"\n[green]Done.[/green] {target} UTF-8 compliant.")
