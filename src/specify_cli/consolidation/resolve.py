@@ -18,7 +18,6 @@ from pathlib import Path
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import get_main_repo_root
-import typer
 
 from specify_cli.consolidation._constants import DEPENDENCY_REF_SET_CHANGED, error_code_suffix, logger
 from specify_cli.consolidation.state import (
@@ -233,14 +232,19 @@ def set_changed_message(recorded: Sequence[str], declared: Sequence[str]) -> str
     )
 
 
+class DependencyRefSetChanged(Exception):
+    """A ``--dependency-ref`` set differs from the one the loaded record holds (#6771).
+
+    Raised, not printed: this module stays off the CLI console; the executor renders
+    the refusal and exits 1.
+    """
+
+
 def _check_declared_set(state: ConsolidationState, declared: tuple[str, ...]) -> None:
-    """Refuse (exit 1) a ``--dependency-ref`` set that differs from the one the loaded record holds (#6771)."""
+    """Refuse a ``--dependency-ref`` set that differs from the one the loaded record holds (#6771)."""
     if not declared or not state.dependency_refs or set(state.dependency_refs) == set(declared):
         return
-    from specify_cli.cli.console import console
-
-    console.print(set_changed_message(state.dependency_refs, declared), markup=False, soft_wrap=True)
-    raise typer.Exit(1)
+    raise DependencyRefSetChanged(set_changed_message(state.dependency_refs, declared))
 
 
 def _load_or_create_merge_state(

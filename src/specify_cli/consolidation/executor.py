@@ -85,7 +85,7 @@ from specify_cli.consolidation.preflight import (
 )
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.push_preflight import _enforce_target_branch_sync_preflight
-from specify_cli.consolidation.resolve import _load_merge_state_entry_for_mission, _load_or_create_merge_state
+from specify_cli.consolidation.resolve import DependencyRefSetChanged, _load_merge_state_entry_for_mission, _load_or_create_merge_state
 from specify_cli.consolidation.state import (
     MergeLockError,
     ConsolidationState,
@@ -485,19 +485,23 @@ def _run_lane_based_consolidation_locked(
         skip_note=skip_note,
     )
 
-    state, is_resume = _load_or_create_merge_state(
-        main_repo=main_repo,
-        mission_slug=mission_slug,
-        canonical_id=canonical_id,
-        target_branch=lanes_manifest.target_branch,
-        wp_order=all_wp_ids,
-        push_requested=push,
-        skip_lanes=skip_lanes,
-        strategy=strategy.value,
-        delete_branch=delete_branch,
-        remove_worktree=remove_worktree,
-        dependency_refs=dependency_refs,
-    )
+    try:
+        state, is_resume = _load_or_create_merge_state(
+            main_repo=main_repo,
+            mission_slug=mission_slug,
+            canonical_id=canonical_id,
+            target_branch=lanes_manifest.target_branch,
+            wp_order=all_wp_ids,
+            push_requested=push,
+            skip_lanes=skip_lanes,
+            strategy=strategy.value,
+            delete_branch=delete_branch,
+            remove_worktree=remove_worktree,
+            dependency_refs=dependency_refs,
+        )
+    except DependencyRefSetChanged as refusal:
+        console.print(str(refusal), markup=False, soft_wrap=True)
+        raise typer.Exit(1) from None
 
     # terminus-merge-integrity WP06 (C-1 wiring half / T029): reseed the manifest
     # target from the PERSISTED ConsolidationState target immediately after load, so the
