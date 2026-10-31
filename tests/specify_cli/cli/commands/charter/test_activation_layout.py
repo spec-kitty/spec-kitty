@@ -141,7 +141,8 @@ class TestFlatLayoutActivation:
         _write_flat_agent_profile(pack_root, "orgzilla-org-analyst")
         _write_config_with_org_pack(project_root, "org-packs/orgzilla")
 
-        result = _invoke(project_root, "activate", "agent-profile", "orgzilla-org-analyst")
+        # #6685: `--only` is the write path now (a plain activation of an in-force artifact writes nothing).
+        result = _invoke(project_root, "activate", "agent-profile", "orgzilla-org-analyst", "--only")
 
         assert result.exit_code == 0, result.output
         assert "Unknown agent-profile ID" not in result.output
@@ -174,7 +175,7 @@ class TestMultiKindFlatLayout:
         _write_config_with_org_pack(project_root, "org-packs/orgzilla")
 
         # activate
-        activate = _invoke(project_root, "activate", "directive", "900-orgzilla-rule")
+        activate = _invoke(project_root, "activate", "directive", "900-orgzilla-rule", "--only")  # #6685: the write path
         assert activate.exit_code == 0, activate.output
         data = read_activation_ledger(project_root)
         assert "900-orgzilla-rule" in data["activated_directives"]
@@ -235,7 +236,7 @@ class TestNestedLayoutBackwardCompat:
         )
         _write_config_with_org_pack(project_root, "org-packs/legacy")
 
-        result = _invoke(project_root, "activate", "directive", "950-legacy-rule")
+        result = _invoke(project_root, "activate", "directive", "950-legacy-rule", "--only")  # #6685: the write path
 
         assert result.exit_code == 0, result.output
         data = read_activation_ledger(project_root)

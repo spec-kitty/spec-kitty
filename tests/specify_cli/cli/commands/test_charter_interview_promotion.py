@@ -24,6 +24,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.charter import app as charter_app
 from charter.activation.effective_set import resolve_effective_sets
 from kernel.activation_ledger_store import activation_ledger_path
+from tests._factories.activation_ledger import seed_activation_ledger
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -65,12 +66,17 @@ def _read_config(repo_root: Path) -> dict[str, object]:
     return loaded
 
 
-def test_interview_promotes_selections_preserving_builtins_on_absent_key(
+def test_interview_leaves_an_absent_key_absent_and_names_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No pre-existing config.yaml (absent-key state): promotion must seed the
-    effective directive/paradigm set, not just the newly-selected ids.
+    """No pre-existing config.yaml (absent-key state): the promotion writes nothing (#6685).
+
+    An absent ``activated_<kind>`` key means every available artifact of the kind is in
+    force, so the selection is already in force; writing the in-force set into the key
+    turned "nothing chosen yet" into an operator's activation, which ``charter synthesize``
+    answered by demanding a companion tactic per directive and skipping the fresh-project
+    seed (#2577, #4785, #6629).
     """
     _git_init(tmp_path)
     # Hermetic against a stray ``.kittify`` marker anywhere above ``tmp_path``
@@ -98,17 +104,19 @@ def test_interview_promotes_selections_preserving_builtins_on_absent_key(
     )
     assert result.exit_code == 0, f"interview failed: stdout={result.stdout!r}"
 
-    config = _read_config(tmp_path)
-
-    committed_directives = config["activated_directives"]
-    committed_paradigms = config["activated_paradigms"]
-
-    # Selected ids present.
-    assert _DIRECTIVE_010_STEM in committed_directives
-    assert _PARADIGM_DDD in committed_paradigms
-    # Nothing effective before is dropped (FR-015, at this call site).
-    assert effective_directives <= set(committed_directives)
-    assert effective_paradigms <= set(committed_paradigms)
+    # No allow list on any activation surface (a fresh project writes the activation ledger).
+    for surface in (activation_ledger_path(tmp_path), tmp_path / ".kittify" / "config.yaml"):
+        if surface.exists():
+            data = YAML(typ="safe").load(surface.read_text(encoding="utf-8")) or {}
+            assert "activated_directives" not in data, f"{surface.name} gained an activation key (#6685)"
+            assert "activated_paradigms" not in data, f"{surface.name} gained an activation key (#6685)"
+    # The run says what it left absent, and names the flag that writes an explicit list.
+    assert "activated_directives" in result.stdout and "activated_paradigms" in result.stdout, result.stdout
+    assert "--narrow-activation" in result.stdout, result.stdout
+    # Nothing effective before stops applying (FR-015, at this call site).
+    after = resolve_effective_sets(tmp_path, ["activated_directives", "activated_paradigms"])
+    assert effective_directives <= after["activated_directives"].ids
+    assert effective_paradigms <= after["activated_paradigms"].ids
 
 
 def test_interview_normalizes_canonical_form_directive_id(
@@ -120,6 +128,7 @@ def test_interview_normalizes_canonical_form_directive_id(
     _git_init(tmp_path)
     # See the hermeticity note in
     # test_interview_promotes_selections_preserving_builtins_on_absent_key.
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], activated_directives=[_DIRECTIVE_001_STEM])
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(
@@ -145,6 +154,7 @@ def test_interview_promotion_is_idempotent_across_runs(
     _git_init(tmp_path)
     # See the hermeticity note in
     # test_interview_promotes_selections_preserving_builtins_on_absent_key.
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], activated_directives=[_DIRECTIVE_001_STEM])
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     monkeypatch.chdir(tmp_path)
     args = [
@@ -155,11 +165,13 @@ def test_interview_promotion_is_idempotent_across_runs(
     ]
     first = runner.invoke(charter_app, args, catch_exceptions=False)
     assert first.exit_code == 0
+    after_first = activation_ledger_path(tmp_path).read_text(encoding="utf-8")
     second = runner.invoke(charter_app, args, catch_exceptions=False)
     assert second.exit_code == 0
 
     config = _read_config(tmp_path)
     assert config["activated_directives"].count(_DIRECTIVE_010_STEM) == 1
+    assert activation_ledger_path(tmp_path).read_text(encoding="utf-8") == after_first, "a second run wrote bytes (#6685 NFR-002)"
 
 
 def test_interview_with_no_selections_leaves_config_untouched(
@@ -272,13 +284,15 @@ def test_interview_narrow_activation_with_explicit_paradigms_narrows_them(
 def test_interview_without_narrow_is_unchanged_and_reports_empty_narrowed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Without ``--narrow-activation`` an absent key stays absent and ``narrowed`` is empty (#6408, #6685)."""
     _git_init(tmp_path)
-    effective = resolve_effective_sets(tmp_path, ["activated_directives"])["activated_directives"].ids
 
     payload = _run_interview_json(tmp_path, monkeypatch, "--selected-directives", "DIRECTIVE_001")
 
     assert payload["narrowed"] == {}
-    assert set(_read_config(tmp_path)["activated_directives"]) == set(effective) | {_DIRECTIVE_001_STEM}
+    surface = activation_ledger_path(tmp_path)
+    written = YAML(typ="safe").load(surface.read_text(encoding="utf-8")) if surface.exists() else {}
+    assert "activated_directives" not in (written or {}), "an absent key was seeded without --narrow-activation (#6685)"
 
 
 def test_interview_narrow_activation_text_output_lists_dropped(
@@ -417,6 +431,30 @@ def test_interview_reselecting_a_denied_directive_keeps_it_excluded(tmp_path: Pa
     assert f"kept deactivated: directive {_DIRECTIVE_010_STEM}" in " ".join(result.stdout.split())
 
 
+def test_interview_leaves_an_absent_key_absent_and_names_a_denied_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6685 + FR-009: an absent key stays absent, and a deactivated selection is reported, never claimed as in force."""
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], deactivated_directives=[_DIRECTIVE_001_STEM])
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal", "--selected-directives", _DIRECTIVE_001_STEM],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    surface = activation_ledger_path(tmp_path)
+    written = YAML(typ="safe").load(surface.read_text(encoding="utf-8")) or {}
+    assert "activated_directives" not in written, "an absent key stays absent (#6685)"
+    out = " ".join(result.stdout.split())
+    assert f"kept deactivated: directive {_DIRECTIVE_001_STEM}" in out, out
+    assert "every selected directive is deactivated" in out, out
+
+
 # --- F1/F2: promotion reads the effective deny only through the activation ledger seam ---
 
 
@@ -431,8 +469,8 @@ def _org_pack_project(tmp_path: Path, required_directives: list[str]) -> None:
     )
 
 
-def test_promotion_seeding_keeps_an_org_required_id_a_stale_deny_names(tmp_path: Path) -> None:
-    """F1 (FR-006/FR-009): a stale deny of an org-required id is inert, so the seeded list keeps it."""
+def test_promotion_keeps_an_org_required_id_a_stale_deny_names(tmp_path: Path) -> None:
+    """F1 (FR-006/FR-009): a stale deny of an org-required id is inert, so the selection is promoted."""
     from types import SimpleNamespace
 
     from specify_cli.cli.commands.charter.interview import _promote_interview_selections
@@ -440,8 +478,10 @@ def test_promotion_seeding_keeps_an_org_required_id_a_stale_deny_names(tmp_path:
 
     _git_init(tmp_path)
     _org_pack_project(tmp_path, [_DIRECTIVE_010_STEM])
-    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], deactivated_directives=[_DIRECTIVE_010_STEM])
-    data = SimpleNamespace(selected_directives=[_DIRECTIVE_001_STEM], selected_tactics=[], selected_paradigms=[])
+    seed_activation_ledger(
+        tmp_path, mission_type_activations=["software-dev"], activated_directives=[_DIRECTIVE_001_STEM], deactivated_directives=[_DIRECTIVE_010_STEM]
+    )
+    data = SimpleNamespace(selected_directives=[_DIRECTIVE_010_STEM], selected_tactics=[], selected_paradigms=[])
 
     warnings, _narrowed = _promote_interview_selections(tmp_path, data)
 
@@ -458,9 +498,10 @@ def test_promotion_on_an_unmigrated_project_never_applies_a_legacy_deny_key(tmp_
     _git_init(tmp_path)
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text(
-        f"mission_type_activations:\n- software-dev\ndeactivated_directives:\n- {_DIRECTIVE_010_STEM}\n", encoding="utf-8"
+        f"mission_type_activations:\n- software-dev\nactivated_directives:\n- {_DIRECTIVE_001_STEM}\ndeactivated_directives:\n- {_DIRECTIVE_010_STEM}\n",
+        encoding="utf-8",
     )
-    data = SimpleNamespace(selected_directives=[_DIRECTIVE_001_STEM], selected_tactics=[], selected_paradigms=[])
+    data = SimpleNamespace(selected_directives=[_DIRECTIVE_010_STEM], selected_tactics=[], selected_paradigms=[])
 
     warnings, _narrowed = _promote_interview_selections(tmp_path, data)
 

@@ -61,6 +61,13 @@ def _available(project_root: Path, kind: str) -> set[str]:
     return set(ActiveCharterManager().list_available(ProjectContext.from_repo(project_root), kind))
 
 
+def _effective_procedures(repo: Path) -> set[str]:
+    """The procedure ids the activation-aware service has in force (measured, not read back from YAML)."""
+    from charter.activation.active_charter_service_builder import build_active_charter_service
+
+    return set(build_active_charter_service(repo).procedures)
+
+
 def _effective_directives(repo: Path) -> set[str]:
     """The directive ids the activation-aware service has in force."""
     from charter.activation.active_charter_service_builder import build_active_charter_service
@@ -81,8 +88,10 @@ def test_first_activation_keeps_every_previously_effective_directive(
     assert result.exit_code == 0, result.output
 
     after = PackContext.from_config(project_root)
-    assert after.activated_directives is not None, "control: the activation wrote the directive key"
-    assert set(after.activated_directives) >= _available(project_root, "directive")
+    # #6685: the artifact was already in force, so the activation writes no list at all — the
+    # strongest form of the #4253 guarantee: the unrestricted state is never replaced by a copy
+    # of today's catalog, which would also freeze everything shipped later.
+    assert after.activated_directives is None, "the first activation froze the directive set (#6685)"
 
     lost = effective_before - _effective_directives(project_root)
     assert not lost, f"#4253: activating one directive deactivated {len(lost)} previously effective directive(s): {sorted(lost)}"
@@ -110,16 +119,17 @@ def test_first_activation_of_a_procedure_keeps_the_rest_effective(
     project_without_activation_keys: Path,
 ) -> None:
     project_root = project_without_activation_keys
+    previously_effective = _effective_procedures(project_root)
+    assert len(previously_effective) > 1, "fixture invalid: the narrowing must be observable"
 
     result = _activate(project_root, "procedure", "adversarial-squad-deployment")
     assert result.exit_code == 0, result.output
 
     after = PackContext.from_config(project_root)
-    assert after.activated_procedures is not None
-    effective = set(after.activated_procedures)
-
+    # #6685: an artifact the absent key already puts in force is activated without a write.
+    assert after.activated_procedures is None, "the first activation froze the procedure set (#6685)"
+    effective = _effective_procedures(project_root)
     assert "adversarial-squad-deployment" in effective
-    previously_effective = _available(project_root, "procedure")
     lost = previously_effective - effective
     assert not lost, (
         f"#4253: activating one procedure deactivated {len(lost)} previously effective "
@@ -379,9 +389,12 @@ def test_mission_type_seeding_spans_both_org_packs(tmp_path: Path) -> None:
     assert not any(ALREADY_EFFECTIVE in w for w in warnings)
 
 
-def test_default_activation_warning_says_the_materialised_list_is_frozen(project_without_activation_keys: Path) -> None:
+def test_first_activation_says_why_it_wrote_nothing(project_without_activation_keys: Path) -> None:
+    """#6685: the operator is told the artifact is already in force, that nothing was written, and how to choose a list."""
     result = _activate(project_without_activation_keys, "directive", "001-architectural-integrity-standard")
     assert result.exit_code == 0, result.output
     output = " ".join(result.output.split())
-    assert "Initialized from the" in output
-    assert "This list is now explicit" in output and "--only" in output
+    assert "already effective" in output
+    assert "nothing in force was deactivated" in output
+    assert "--only" in output and "keep activation narrow" in output
+    assert "This list is now explicit" not in output, "no list was written, so nothing is frozen"

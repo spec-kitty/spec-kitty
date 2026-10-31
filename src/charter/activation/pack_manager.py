@@ -486,7 +486,12 @@ def _preservation_set(
     "required" kind (skills) the in-force set is what ``PackContext`` puts in
     force while the key is absent (org-required plus built-in defaults), never
     the whole catalogue (``activate skill X`` would activate every skill). For
-    an "all" kind the set comes from the one public seam. When the seam cannot
+    an "all" kind the set comes from the one public seam.
+
+    This is only what the key *would* materialise. Since #6685 an absent key of
+    an "all" kind is not written at all when the artifact is already in that
+    set (:func:`charter.activation.activation_engine._stays_implicit`), so the
+    unrestricted state survives instead of being frozen into today's catalogue. When the seam cannot
     resolve it, activation stays tolerant but never narrower than the whole
     readable chain: it seeds from the seam's ``fallback_ids`` (built-in, every
     readable declared org root, project). ``mission-type`` is an activation
@@ -1081,7 +1086,9 @@ class ActiveCharterManager:
         the kind has no explicit activation set, materializes what is
         currently IN FORCE into the plan (#4253) — not a narrower shipped
         list, whose materialization silently deactivated everything outside
-        it. This method supplies that effective set from the one public seam,
+        it. The one exception is #6685: an artifact that is already in force
+        needs no list, and the plan then writes none (``only`` is how an
+        operator asks for one). This method supplies that effective set from the one public seam,
         :func:`charter.activation.effective_set.resolve_effective_sets`, and
         performs the single ``commit_plan`` write. Activation stays tolerant:
         when the set cannot be resolved it falls back to the available ids

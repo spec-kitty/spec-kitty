@@ -250,7 +250,10 @@ def test_a_completed_run_stores_the_answers_and_the_languages_and_promotion_keep
     assert payload["languages"] == ["python"]
     assert payload["languages_source"] == "detected"
     assert "DETECTED, not confirmed" in payload["languages_notice"]
-    assert "activated_directives" in read_activation_ledger(root), "promotion ran and wrote the activation ledger"
+    # #6685: the promotion runs but writes no absent key, so the answers carry the selection.
+    assert "activated_directives" not in read_activation_ledger(root)
+    answers = (root / ".kittify" / "charter" / "interview" / "answers.yaml").read_text(encoding="utf-8")
+    assert "DIRECTIVE_010" in answers
     assert "activated_directives" not in _config(root), "activation never lands beside the languages after the ledger flip"
 
 

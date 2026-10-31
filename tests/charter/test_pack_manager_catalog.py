@@ -252,19 +252,23 @@ class TestActivationDelegation:
     def test_activate_materializes_the_effective_set_and_persists(
         self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path
     ) -> None:
-        """#4253: materialization preserves what was effective, not default.yaml.
+        """#4253 + #6685: nothing effective is lost, and no list is written for an in-force artifact.
 
-        The persisted set must therefore be wider than the default pack — that
-        difference is precisely what used to be deactivated.
+        The absent key already puts every available directive in force, so the activation can
+        keep the unrestricted state instead of freezing today's catalog into a list.
         """
+        from charter.activation.effective_set import resolve_effective_sets
+
+        before = resolve_effective_sets(project_root, ["activated_directives"])["activated_directives"].ids
+        assert before, "fixture invalid: the directive kind must have something in force"
+
         result = manager.activate(ctx, kind="directive", artifact_id="025-boy-scout-rule")
         assert any("already effective" in w for w in result.warnings)
         data = read_activation_ledger(project_root)  # a fresh project writes the ledger (FR-019)
-        assert "025-boy-scout-rule" in data["activated_directives"]
-        available = manager.list_available(ctx, "directive")
-        assert not set(available) - set(data["activated_directives"]), (
-            "activation dropped a previously effective directive"
-        )
+        assert "activated_directives" not in data, "an in-force artifact must not materialise the absent key (#6685)"
+        after = resolve_effective_sets(project_root, ["activated_directives"])["activated_directives"].ids
+        assert "025-boy-scout-rule" in after, "the activated directive must be in force"
+        assert not (before - after), f"activation dropped a previously effective directive: {sorted(before - after)}"
 
     def test_activate_accepts_org_layer_artifact(
         self,

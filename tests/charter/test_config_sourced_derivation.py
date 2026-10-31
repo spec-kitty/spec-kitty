@@ -518,24 +518,19 @@ def test_lynn_cole_free_text_intent_activates_end_to_end_via_config_promotion(tm
     assert "DIRECTIVE_039" in interview.selected_directives
     assert "deep-module-design" in interview.selected_paradigms
 
-    # Preseed ONLY `mission_type_activations` (unrelated to the directive/
-    # paradigm promotion this test pins) so the `PackContext.from_config`
-    # round-trip below doesn't hard-fail (WP04, C-A1). `_promote_interview_
-    # selections` never writes this key itself, and `activated_directives`/
-    # `activated_paradigms` are still genuinely absent here, so the
-    # "absent-key parity" promotion warnings asserted below are unaffected.
+    # Preseed `mission_type_activations` (so `PackContext.from_config` does not
+    # hard-fail, WP04 C-A1) and an **empty** allow list for the two kinds the
+    # promotion writes. #6685: an absent key is never filled, so a present (here
+    # empty) list is what makes the append -- and therefore the config round-trip
+    # this test pins -- observable at all.
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     (kittify / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
+        "mission_type_activations:\n  - software-dev\nactivated_directives: []\nactivated_paradigms: []\n", encoding="utf-8"
     )
 
     warnings, _narrowed = _promote_interview_selections(tmp_path, interview)
-    # No promotion FAILURE (e.g. an unresolvable id) -- the "absent-key
-    # parity" notices below are expected, informational bookkeeping for a
-    # project with no pre-existing config.yaml, not an error:
-    #   "Key 'activated_directives' had no explicit activation set. Preserved
-    #    19 built-in entries before promotion (absent-key parity)."
+    # No promotion FAILURE (e.g. an unresolvable id).
     assert not any("Could not resolve" in warning for warning in warnings)
     assert (tmp_path / ".kittify" / "config.yaml").exists()
 

@@ -2,8 +2,8 @@
 
 Ledger-seeded.
 Drives the manager's activation-side deny glue: the stored stem is cleared for
-a declared id, an absent list is materialised without the denied id, a
-present-list round trip leaves no deny key, and a deny list plus an
+a declared id, an absent list is left absent with its deny untouched (#6685),
+a present-list round trip leaves no deny key, and a deny list plus an
 unreadable declared org pack refuses with every activation file
 byte-identical (after a same-fixture positive control). Also pins the
 cascade-child branches of ``charter deactivate`` and the empty-ledger write
@@ -77,16 +77,15 @@ def test_a_declared_id_round_trip_clears_the_stored_stem(tmp_path: Path) -> None
     assert f"Cleared the exclusion of '{_D}'" in " ".join(result.output.split())
 
 
-def test_materialising_an_absent_list_leaves_out_the_denied_id(tmp_path: Path) -> None:
+def test_activating_an_absent_list_writes_nothing_and_leaves_the_deny_alone(tmp_path: Path) -> None:
+    """#6685: an artifact the absent key already puts in force needs no write, denied ids included."""
     root = _project(tmp_path, deactivated_directives=[_D])
 
     result = _charter(root, "activate", "directive", _A)
 
     assert result.exit_code == 0, result.output
     ledger = read_activation_ledger(root)
-    assert _A in ledger["activated_directives"]
-    assert _OTHER in ledger["activated_directives"]  # the rest of the effective set is preserved (#4253)
-    assert _D not in ledger["activated_directives"]
+    assert "activated_directives" not in ledger, "an in-force artifact must not materialise the absent key (#6685)"
     assert ledger["deactivated_directives"] == [_D]
 
 
@@ -114,7 +113,7 @@ def _corrupt_after_a_positive_control(tmp_path: Path) -> Path:
     root = _project(tmp_path, pack_body=_ACME, deactivated_directives=[_D])
     control = _charter(root, "activate", "directive", _A)  # reads the floor (a deny list exists) and succeeds
     assert control.exit_code == 0, control.output
-    assert _A in read_activation_ledger(root)["activated_directives"]
+    assert "activated_directives" not in read_activation_ledger(root)  # no list, still a floor read (#6685)
     (root / "org-packs" / "acme" / "org-charter.yaml").write_text("required_tactics: [unclosed\n", encoding="utf-8")
     return root
 
@@ -254,25 +253,25 @@ def _legacy_config(root: Path) -> dict[str, Any]:
 
 
 def test_activate_on_an_unmigrated_project_never_applies_a_legacy_deny_key(tmp_path: Path) -> None:
-    """F2 (FR-017): materialising an absent list keeps the id a hand-written legacy deny key names."""
+    """F2 (FR-017): a hand-written legacy deny key is never applied, and #6685 writes no allow list at all."""
     root = _unmigrated(tmp_path)
 
     ActiveCharterManager().activate(ProjectContext(repo_root=root), "directive", _A)
 
     config = _legacy_config(root)
-    assert _D in config["activated_directives"]
+    assert "activated_directives" not in config, "an absent key stays absent (#6685)"
     assert config["deactivated_directives"] == [_D]
     assert not activation_ledger_path(root).exists()
 
 
-def test_activate_of_the_id_a_legacy_deny_key_names_writes_the_allow_list_only(tmp_path: Path) -> None:
-    """F2: the legacy deny key is not the activation's to clear; the allow-only write goes through."""
+def test_activate_of_the_id_a_legacy_deny_key_names_writes_nothing(tmp_path: Path) -> None:
+    """F2 + #6685: the legacy deny key is not the activation's to clear, and no allow list is written."""
     root = _unmigrated(tmp_path)
 
     ActiveCharterManager().activate(ProjectContext(repo_root=root), "directive", _D)
 
     config = _legacy_config(root)
-    assert _D in config["activated_directives"]
+    assert "activated_directives" not in config, "an absent key stays absent (#6685)"
     assert config["deactivated_directives"] == [_D]
 
 

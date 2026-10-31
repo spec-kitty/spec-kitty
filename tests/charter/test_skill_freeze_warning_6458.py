@@ -104,10 +104,13 @@ def test_only_on_a_present_key_warns_of_the_freeze_every_run(project: Path) -> N
 
 
 def test_an_all_kind_never_warns_of_the_freeze(project: Path) -> None:
-    """Control: ``toolguide`` (effective when absent: all), plain and ``--only``, same fixture."""
+    """Control: ``toolguide`` (effective when absent: all), plain and ``--only``, same fixture.
+
+    #6685: an "all" kind whose artifact the absent key already puts in force writes no list at
+    all, so there is nothing to freeze; ``--only`` still writes one and still gets the advice.
+    """
     plain = _activate(project, "toolguide", "gherkin")
-    written = _written(project, "activated_toolguides") or []
-    assert "gherkin" in written and len(written) > 1
+    assert _written(project, "activated_toolguides") is None, "an in-force artifact must not freeze the kind (#6685)"
     assert _FREEZE_MARK not in plain
     assert _ONLY_ADVICE in plain, "an 'all' kind keeps the --only advice"
 
