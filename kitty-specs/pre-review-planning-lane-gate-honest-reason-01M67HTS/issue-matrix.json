@@ -11,6 +11,18 @@
       "title": "<fill at WP-implementation time>",
       "verdict": "deferred-with-followup",
       "wp": "WP01"
+    },
+    "#3046": {
+      "evidence_ref": "different facet (#3046: advisory timeout/budget); out of scope per spec.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
     }
   },
   "schema_version": 1
