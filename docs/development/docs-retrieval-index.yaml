@@ -6144,6 +6144,7 @@ pages:
     - {slug: "spec-kitty-agent-status-doctor", text: "`spec-kitty agent status doctor`", level: 3}
     - {slug: "spec-kitty-agent-status-migrate", text: "`spec-kitty agent status migrate`", level: 3}
     - {slug: "legacy-compatibility", text: "Legacy Compatibility", level: 3}
+    - {slug: "subtask-completion-ownership-agent-tasks-mark-status", text: "Subtask completion ownership (`agent tasks mark-status`)", level: 2}
     - {slug: "9-lane-state-machine", text: "9-Lane State Machine", level: 2}
     - {slug: "canonical-lanes", text: "Canonical Lanes", level: 3}
     - {slug: "allowed-transitions-27-pairs", text: "Allowed Transitions (27 pairs)", level: 3}
