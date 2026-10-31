@@ -9,6 +9,7 @@ import sys
 from dataclasses import dataclass, field
 from kernel.clock import datetime, now_utc
 from pathlib import Path
+from collections.abc import Container
 from typing import Any, cast
 
 from packaging.version import InvalidVersion, Version
@@ -32,6 +33,22 @@ from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnrea
 from .registry import MigrationRegistry, migration_settled, migration_settled_in_view
 
 logger = logging.getLogger(__name__)
+
+
+def sequenced_predecessors(migration: BaseMigration, applied: Container[str]) -> list[str]:
+    """The declared detect-input predecessors of *migration* present in *applied* (#6552).
+
+    The ONE sequencing decision: a migration's ``sequenced_after`` names the migrations
+    whose writes its ``detect()`` reads, and *applied* is the set of migrations the caller
+    has decided (or, in a dry run, predicted) apply before it. Both the runner's per-migration
+    verdict and the ``upgrade --dry-run --verbose`` detection preview read the declaration
+    through this function, so the preview cannot grow a second sequencing rule.
+
+    A declared id the caller has not decided -- not selected, skipped, or unknown -- changes
+    nothing: it wrote nothing here. The declaration is detect-input metadata only; execution
+    order stays with ``order_manifest.txt`` (ADR ``2026-10-17-1`` §2).
+    """
+    return [predecessor for predecessor in migration.sequenced_after if predecessor in applied]
 
 
 @dataclass
@@ -249,7 +266,7 @@ class MigrationRunner:
         self._seen_residue: set[Path] = set()
         # The migrations this run has reported applied: the sequenced view a dry run
         # otherwise has no way to observe, because its ``apply()`` calls write nothing
-        # (#6552). Read only by :meth:`_sequenced_predecessors`.
+        # (#6552). Read only through :func:`sequenced_predecessors`.
         self._sequenced_applied: set[str] = set()
 
     def upgrade(
@@ -433,6 +450,10 @@ class MigrationRunner:
             Dict with ``warnings`` and ``errors`` lists.
         """
         self._seen_residue = set()
+        # Reset with the run like the residue bookkeeping: this path never reads the
+        # sequenced view, and leaving a previous run's set behind is a trap for whoever
+        # makes the worktree loop consult it (#6552).
+        self._sequenced_applied = set()
         with legacy_upgrade_scope(self.project_path):
             return self._upgrade_worktrees(target_version, [], dry_run, auto_commit=auto_commit)
 
@@ -534,9 +555,9 @@ class MigrationRunner:
         # predecessor this run already reported applied means a real run would have
         # rewritten the state this detect() just read, so its False is a pre-run-tree
         # answer, not the run's verdict. Empty on every real run (C-002).
-        sequenced_predecessors = self._sequenced_predecessors(migration) if dry_run and not migration_needed else []
+        pending_predecessors = sequenced_predecessors(migration, self._sequenced_applied) if dry_run and not migration_needed else []
 
-        if not migration_needed and not sequenced_predecessors:
+        if not migration_needed and not pending_predecessors:
             # Migration not needed - project doesn't have old state
             if not dry_run:
                 self._record_migration_result(
@@ -582,11 +603,12 @@ class MigrationRunner:
         # this migration next. Reporting it here keeps ``Migrations applied:`` (and the
         # JSON ``migrations_applied``) the same in both modes, and the change line says
         # it is a prediction. Nothing is written: a prediction is a verdict only.
-        if sequenced_predecessors:
+        if pending_predecessors:
             return (
                 MigrationResult(
                     success=True,
-                    changes_made=[f"dry-run: would apply after {', '.join(sequenced_predecessors)}"],
+                    changes_made=[f"dry-run: would apply after {', '.join(pending_predecessors)}"],
+                    predicted_after=tuple(pending_predecessors),
                 ),
                 "applied",
             )
@@ -641,19 +663,6 @@ class MigrationRunner:
             )
 
         return result, ("applied" if result.success else "failed")
-
-    def _sequenced_predecessors(self, migration: BaseMigration) -> list[str]:
-        """The declared detect-input predecessors this run has already reported applied (#6552).
-
-        Only a migration that declares the migrations whose writes its ``detect()``
-        reads (:attr:`~.migrations.base.BaseMigration.sequenced_after`) can be decided on
-        the sequenced view: the declaration is the author's assertion that the
-        predecessor's write is what re-selects this migration. A declared id that is
-        not in this run's applied set -- already settled, skipped, or unknown -- changes
-        nothing, because it wrote nothing here.
-        """
-        declared = getattr(migration, "sequenced_after", ())
-        return [predecessor for predecessor in declared if predecessor in self._sequenced_applied]
 
     @staticmethod
     def _not_needed_warning(migration_id: str, *, dry_run: bool) -> str:
@@ -727,6 +736,12 @@ class MigrationRunner:
         :func:`_worktrees_to_upgrade` (#5457): nothing is written, stamped or
         committed in them, and their branches receive project-global state by
         integration instead.
+
+        This pass is NOT sequenced-view aware (#6552, C-004): each worktree's verdict is
+        its own ``detect()`` on that worktree, and a worktree-not-needed migration is
+        reported nowhere (``result.migrations_applied`` is the main checkout's list only).
+        A dry run therefore says nothing about a worktree migration an earlier worktree
+        migration would have selected.
 
         Args:
             target_version: Target version
