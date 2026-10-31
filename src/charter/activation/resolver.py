@@ -4,7 +4,8 @@ Resolves active governance from charter selections and validates
 selected references against available profile/tool catalogs.
 
 Exports ``ActiveCharterService`` — an activation-aware wrapper around
-:class:`charter.offering.service.CharterOfferingService`.  The wrapper applies per-kind
+:class:`charter.offering.service.CharterOfferingService`. Glossary:
+``docs/context/charter.md#active-charter``. The wrapper applies per-kind
 activation filters from :class:`~charter.activation.pack_context.PackContext` to nine
 gated properties: ``paradigms``, ``procedures``, ``agent_profiles``
 (pre-existing) plus ``directives``, ``tactics``, ``styleguides``,

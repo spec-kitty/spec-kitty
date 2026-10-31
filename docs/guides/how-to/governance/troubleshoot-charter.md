@@ -110,7 +110,7 @@ of a specialist, on a project with no charter configured yet.
 **What is happening**: the generic-agent fallback (`is_charter_empty`) fires whenever
 `.kittify/charter/charter.yaml` is absent, no org/project pack is registered, and no
 `agent_profiles` activation is present. On a fresh project, `charter activate --preset minimal`
-only writes activation keys into the active charter (`.kittify/config.yaml`) — its default
+only writes activation keys into the activation ledger (`.kittify/charter/activation.yaml`) — its default
 recompile refreshes an existing `charter.yaml` but never creates one, so the bundle stays absent
 and the fallback still fires. Activating `minimal` alone does **not** resolve this symptom.
 

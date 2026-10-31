@@ -1,8 +1,9 @@
 """The activation ledger seam: vocabulary, typed load, write and the deny guard (FR-001, FR-002, FR-014, FR-020).
 
 ``.kittify/charter/activation.yaml`` is the single authority for charter
-activation (ADR ``2026-10-19-1``). This module owns everything above the
-kernel floor (:mod:`kernel.activation_ledger_store`):
+activation (ADR ``2026-10-19-1``). Glossary:
+``docs/context/charter.md#activation-ledger``. This module owns everything
+above the kernel floor (:mod:`kernel.activation_ledger_store`):
 
 * **Vocabulary** -- :func:`allow_key`, :func:`deny_key` and the key tuples, all
   derived from :class:`ArtifactKind` (C-004).
