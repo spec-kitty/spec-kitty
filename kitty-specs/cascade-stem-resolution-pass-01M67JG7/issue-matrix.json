@@ -37,7 +37,7 @@
       "wp": null
     },
     "#6777": {
-      "evidence_ref": "WP01: cascade resolves every target stem in one read-only pass",
+      "evidence_ref": "PR #6858 head 53bc9affa9: all 60 checks green, charter shard 6/7 pass (1309 passed, 1 skipped, 640.23s); cascade writer 5028 -> 240 artifact-file parses, 0.62-0.70x interleaved wall clock; case runs under the 240 s backstop with no per-test override",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,8 +45,20 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
+    },
+    "#6854": {
+      "evidence_ref": "follow-up issue filed: batch activation seam for the remaining per-target list_available_detailed scan (~36 s of the original walk); named in the PR's ## Deferred",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
     }
   },
   "schema_version": 1
