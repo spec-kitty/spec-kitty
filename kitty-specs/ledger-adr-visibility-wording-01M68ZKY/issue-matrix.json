@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5927": {
+      "evidence_ref": "Pre-existing main red (tests/contract/test_mission_status_reality.py) cited in the deferral, not owed work here. ",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6362": {
+      "evidence_ref": "ADR \u00a75 and #E now name spec-kitty migrate ledger [--json]; guard tests tests/docs/test_migration_ledger_adr_visibility.py (3 passed) bind the decision to the live CLI surface.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6387": {
+      "evidence_ref": "Merged PR #6387 delivered the original docs scope for #6362; cited for context only. ",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6798": {
+      "evidence_ref": "Pre-existing main red (tests/next legacy-mission discovery) cited in the deferral, not owed work here. ",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Pre-existing main red (tests/migration/test_birth_cutover.py) cited in the deferral, not owed work here. ",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Pre-existing CI router-gate flake cited in the deferral, not owed work here. ",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

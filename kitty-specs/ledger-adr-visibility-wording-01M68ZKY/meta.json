@@ -1,0 +1,34 @@
+{
+  "accept_commit": "19eae3f30af6cb14a1d6372b5d5cbd9ae675c964",
+  "acceptance_history": [
+    {
+      "accept_commit": "19eae3f30af6cb14a1d6372b5d5cbd9ae675c964",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:17:33.839935+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "ad31f5fb1b78a4c50620e8814a6b68b9f17f0ef1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T13:17:33.839935+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "ad31f5fb1b78a4c50620e8814a6b68b9f17f0ef1",
+  "baseline_merge_commit": "cb2476eb5785620540af7dda6299d4cdb8f7c7c0",
+  "created_at": "2026-10-31T12:40:41.147966+00:00",
+  "flattened": false,
+  "friendly_name": "Reconcile the migration-ledger ADR visibility wording",
+  "merged_at": "2026-10-31T13:17:59.541815+00:00",
+  "merged_commit": "cb2476eb5785620540af7dda6299d4cdb8f7c7c0",
+  "mid8": "01M68ZKY",
+  "mission_id": "01M68ZKYAA2QET1YH54WDZ5S2X",
+  "mission_number": 245,
+  "mission_slug": "ledger-adr-visibility-wording-01M68ZKY",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Reconcile ADR 2026-10-17-1 with shipped behaviour: the read surface is spec-kitty migrate ledger [--json], not the retired doctor migrations / upgrade --list-applied proposal (#6362).",
+  "purpose_tldr": "Make the accepted ledger ADR's visibility decision name the shipped spec-kitty migrate ledger surface",
+  "slug": "ledger-adr-visibility-wording-01M68ZKY",
+  "status_phase": "1",
+  "target_branch": "issue-6362-adr-visibility-wording",
+  "topology": "single_branch"
+}
