@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#2904": {
+      "evidence_ref": "#2904 (open) \u2014 XDG for ~/.kittify and ~/.spec-kitty, excluded by C-002",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5927": {
+      "evidence_ref": "pre-existing red on main, not caused by this PR (cited in the PR Deferred section)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6473": {
+      "evidence_ref": "context: #6473 already isolates per-owner startup-asset failures; this mission reuses that seam, changes nothing in it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6481": {
+      "evidence_ref": "context: #6481 introduced the helper this mission converges onto platformdirs semantics",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6488": {
+      "evidence_ref": "tests/kernel/test_user_dirs_convergence.py (6/6 mutation reverts detected); tests/kernel/test_user_dirs.py; tests/kernel/test_user_dirs_legacy.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#6590": {
+      "evidence_ref": "context: #6590 added the fourth cache caller (service assets); its location moves with the others",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6798": {
+      "evidence_ref": "pre-existing red on main, not caused by this PR (cited in the PR Deferred section)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "pre-existing red on main, not caused by this PR (cited in the PR Deferred section)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "pre-existing red on main, not caused by this PR (cited in the PR Deferred section)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

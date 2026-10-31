@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "mission_slug": "per-user-locations-single-authority-01M68JF2",
+  "mission_id": "01M68JF2NAWJC6SRCQDK39AZT9",
+  "mission_branch": "kitty/mission-per-user-locations-single-authority-01M68JF2",
+  "target_branch": "issue-6488-per-user-locations-single-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/**",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/service-pins.md",
+        "docs/development/how-to/sync-packs.md",
+        "docs/guides/how-to/installation/install-and-upgrade.md",
+        "src/charter/offering/packs/**",
+        "src/charter/offering/packs/pack_fetch.py",
+        "src/kernel/**",
+        "src/kernel/service_artifacts.py",
+        "src/kernel/user_dirs.py",
+        "src/kernel/user_dirs_legacy.py",
+        "src/runtime/next/**",
+        "src/runtime/next/_runtime_pkg_notice.py",
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/compat/**",
+        "src/specify_cli/compat/cache.py",
+        "src/specify_cli/compat/config.py",
+        "src/specify_cli/core/**",
+        "src/specify_cli/core/upgrade_notifier.py",
+        "tests/architectural/**",
+        "tests/architectural/test_no_legacy_terminology.py",
+        "tests/charter_offering/test_pack_fetch_cache_root.py",
+        "tests/core/test_upgrade_probe_and_notifier.py",
+        "tests/kernel/_user_dirs_pins.py",
+        "tests/kernel/test_service_artifacts.py",
+        "tests/kernel/test_user_dirs.py",
+        "tests/kernel/test_user_dirs_convergence.py",
+        "tests/kernel/test_user_dirs_legacy.py",
+        "tests/next/test_runtime_pkg_notice_unit.py",
+        "tests/performance/test_cli_startup_agent_commands_freshness.py",
+        "tests/specify_cli/compat/test_config.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:54:38.471752+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "58c8c1bd38d013fc9f620577045bc9f92acb2db0",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/kernel/user_dirs.py' vs 'src/kernel/**', 'tests/architectural/**' vs 'tests/architectural/test_no_legacy_terminology.py'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/charter/offering/packs/pack_fetch.py' vs 'src/charter/offering/packs/**', 'src/kernel/service_artifacts.py' vs 'src/kernel/**', 'src/runtime/next/_runtime_pkg_notice.py' vs 'src/runtime/next/**', 'src/specify_cli/compat/cache.py' vs 'src/specify_cli/compat/**', 'src/specify_cli/compat/config.py' vs 'src/specify_cli/compat/**', 'src/specify_cli/core/upgrade_notifier.py' vs 'src/specify_cli/core/**'; WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/kernel/user_dirs_legacy.py' vs 'src/kernel/**'; WP04 depends on WP03"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 3
+    }
+  }
+}
