@@ -215,6 +215,28 @@ Every branch the run moved is back at its pre-run commit, so nothing of that att
 - **`--abort`.** With nothing left to restore, `--abort` prints `Aborted ... state and workspace cleaned up`, clears what remains of the record and exits 0. It does not refuse; on a coordination Mission it can also tear down the coordination worktree and marker (the coordination branch is kept), and it holds the consolidation lock for that.
 - **The boundary.** A rollback that leaves a branch `NOT restored` keeps the attempt's baseline and snapshot untouched, because that content is still on the target: resolve the branch, then `--abort` — or `--resume` once the branch is back at a tip the record can explain. When the kept content is yours to keep, release it as described in [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored).
 
+### An `un-attributable` verdict after merging a dependency branch
+
+```text
+Reconciliation FAILED: ... un-attributable ...
+```
+
+A lane that merged an external dependency branch (`git merge --no-ff <dep>`) brings that
+branch's commits in as a merge's second parent. No approved work package owns them, so the
+closed-world check names them as un-attributable, and the run rolls back. If those commits
+really are an external dependency, declare the ref on the preview and the run:
+
+```bash
+spec-kitty consolidate --mission <slug> --dependency-ref <dependency-branch> --dry-run
+spec-kitty consolidate --mission <slug> --dependency-ref <dependency-branch>
+```
+
+A declaration that names Mission work, a ref that moved since the claim, or a different set on
+`--resume` is refused with a `DEPENDENCY_REF_*` code (see the
+[refusal codes](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes)).
+If the commits are a removed or canceled work package's, do not declare them; see
+[restack onto a newer dependency branch](../missions/merge-mission.md#restack-onto-a-newer-dependency-branch).
+
 ### A lane changed after its work package was approved
 
 ```text

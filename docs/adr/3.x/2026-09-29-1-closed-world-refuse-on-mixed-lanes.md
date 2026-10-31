@@ -356,3 +356,47 @@ not seen as a carrier, so this refusal does not fire for it. Its authored set is
 then empty, so the blob-attribution axis is expected to fail it rather than pass
 it (not pinned by a test). The mixed-lane recovery for `spine_unreadable` does
 not name the ambiguous-rename fix either.
+
+## Amendment 2026-10-31: an operator-declared dependency ref is inherited history (#6771)
+
+A lane that merges an external dependency branch's newer head (`git merge --no-ff <dep>`,
+reviewed on the merged tree) brings that branch's commits into the closed-world window. No
+work package's window owns them, so the landing was refused as `un-attributable`, and
+`--dry-run` previewed green. Structure cannot tell that merge from a removed work package
+riding a carrier lane (#4945), so the operator declares the ref:
+`spec-kitty consolidate --dependency-ref <ref>` (repeatable, CLI only).
+
+- **Meaning.** The declared ref's commits in the window (`window_base..ref`) are inherited
+  history, never attributed to a work package. They join the content that predates the
+  window on the closed-world axis and on the squash blob and deletion axes, which read the
+  same final per-path state the lane authorship uses. An undeclared restack still refuses.
+- **Verification, before any branch moves (`reconciliation.resolve_external_dependency_refs`).**
+  Each ref must resolve and be reachable from the mission branch or a lane branch. It is
+  refused when it is named inside the Mission's own branch namespace, when its window holds a
+  commit on a lane's or the mission branch's first-parent spine, when its window holds a
+  `lane_head` stamp ANY work package recorded in the status log (canceled and removed ones
+  included), or when its window holds the recorded work tip of a Mission lane branch
+  (`refs/spec-kitty/lane-tip/*`). The last three make the guard independent of the CURRENT
+  `lanes.json`: a removed work package's lane branch is deleted and unlisted, which is
+  exactly the shape that would otherwise exempt it. A lane branch that exists but whose spine
+  cannot be read refuses. A guard failure exempts nothing.
+- **Pinned at claim.** The first claim build resolves each ref to a SHA and records
+  `ConsolidationState.dependency_ref_pins`. The gate and a `--resume` verify that commit; a
+  name that now resolves elsewhere refuses naming both SHAs (`DEPENDENCY_REF_MOVED`), and a
+  deleted name does not unpin a commit that still exists. A record written before pins
+  existed holds names only and is pinned on first use. A `--resume` that restates a
+  different set refuses (`DEPENDENCY_REF_SET_CHANGED`): the record is the audit trail.
+- **Not read by other axes.** The approved bound (#5668) and the canceled-content axes do not
+  read the declaration: a dependency merged into a lane after review approved it still
+  refuses `LANE_MOVED_AFTER_APPROVAL`, and canceled content is still judged line by line.
+- **CLI only.** `orchestrator-api consolidate-mission` has no way to declare a ref, so an
+  undeclared restack fails closed there.
+- **`--dry-run`** now builds the full claim and runs the closed-world scan over the refs the
+  landing would introduce, so it reports claim-time refusals (a mis-declared ref, an
+  unevaluable claim) instead of previewing green. It unions the recorded declaration with
+  the command line, as a re-run would.
+- **Residual.** A removed work package that never recorded a `lane_head` stamp and whose lane
+  recorded no work tip (recorder hook not installed) and whose branch name is outside the
+  Mission namespace is not recognised as Mission work by name or record; the operator's
+  declaration is then the only authority.
+
