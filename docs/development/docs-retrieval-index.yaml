@@ -13178,6 +13178,7 @@ pages:
     - {slug: "resuming-with-resume", text: "Resuming with `--resume`", level: 2}
     - {slug: "a-worktree-that-shows-staged-deletions-after-an-interruption", text: "A worktree that shows staged deletions after an interruption", level: 3}
     - {slug: "exit-code-75-the-landing-stands-the-cleanup-did-not-finish", text: "Exit code 75: the landing stands, the cleanup did not finish", level: 3}
+    - {slug: "what-a-resume-lands-from-the-coordination-branch", text: "What a resume lands from the coordination branch", level: 3}
     - {slug: "aborting-a-consolidation", text: "Aborting a Consolidation", level: 2}
     - {slug: "the-consolidation-state-file", text: "The consolidation state file", level: 2}
     - {slug: "consolidation-strategy-selection", text: "Consolidation Strategy Selection", level: 2}
