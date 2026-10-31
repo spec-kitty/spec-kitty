@@ -276,13 +276,20 @@ def _charter_path(repo_root: Path) -> tuple[Path | None, Path]:
         canonical_root = resolve_canonical_repo_root(repo_root)
     except NotInsideRepositoryError:
         canonical_root = repo_root
-    charter_yaml: Path = canonical_root / CHARTER_YAML
-    if charter_yaml.exists():
-        return charter_yaml, canonical_root
-    charter_md: Path = canonical_root / CHARTER_MD
-    if charter_md.exists():
-        return charter_md, canonical_root
-    return None, canonical_root
+    return _charter_candidate(canonical_root), canonical_root
+
+
+def _charter_candidate(root: Path) -> Path | None:
+    """The charter file that keys staleness under *root*: ``charter.yaml``, else ``charter.md``, else ``None``.
+
+    One owner for the candidate order, so the canonical and the explicitly
+    owned charter root can never disagree about which file is the input.
+    """
+    for name in (CHARTER_YAML, CHARTER_MD):
+        candidate = root / name
+        if candidate.exists():
+            return candidate
+    return None
 
 
 def collect_input_artifact_hashes(feature_dir: Path, repo_root: Path, *, charter_root: Path | None = None) -> dict[str, dict[str, str | None]]:
@@ -295,7 +302,7 @@ def collect_input_artifact_hashes(feature_dir: Path, repo_root: Path, *, charter
         charter_path, canonical_root = _charter_path(repo_root)
     else:
         canonical_root = charter_root
-        charter_path = next((candidate for candidate in (charter_root / CHARTER_YAML, charter_root / CHARTER_MD) if candidate.exists()), None)
+        charter_path = _charter_candidate(charter_root)
     if charter_path is None:
         inputs["charter"] = {"path": None, "sha256": None}
     else:
