@@ -1,0 +1,33 @@
+{
+  "accept_commit": "3a15bcff247540bbb396c42ae7a75581f96391b7",
+  "acceptance_history": [
+    {
+      "accept_commit": "3a15bcff247540bbb396c42ae7a75581f96391b7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T18:35:56.987935+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "b128e69cbbd45d5ce34160e56ef791e658564f20"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T18:35:56.987935+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "b128e69cbbd45d5ce34160e56ef791e658564f20",
+  "contracts": "none",
+  "contracts_rationale": "Documentation-accuracy mission: no entity, interface, endpoint or externally visible event is defined, so there is no contract to pin.",
+  "created_at": "2026-10-30T17:43:46.588285+00:00",
+  "flattened": false,
+  "friendly_name": "post 4941 lamport claim sweep",
+  "mid8": "01M66YJ6",
+  "mission_branch": "kitty/mission-post-4941-lamport-claim-sweep-01M66YJ6",
+  "mission_id": "01M66YJ6D0RNRW0N1Q8QBRZM6V",
+  "mission_number": null,
+  "mission_slug": "post-4941-lamport-claim-sweep-01M66YJ6",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances post 4941 lamport claim sweep on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "post 4941 lamport claim sweep",
+  "slug": "post-4941-lamport-claim-sweep-01M66YJ6",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
