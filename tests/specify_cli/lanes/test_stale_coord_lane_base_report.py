@@ -287,3 +287,48 @@ def test_explicit_stale_base_names_the_ref_it_used(tmp_path: Path, capsys: pytes
     assert "'stale-explicit'" in captured.err, "the warning must name the base it actually used"
     assert captured.out == ""
     assert _is_ancestor(fixture.repo, "stale-explicit", branch), "the explicit base must still be the parent the lane was cut from"
+
+
+# ---------------------------------------------------------------------------
+# NFR-002 — every unanswerable probe arm is silent and never blocks.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "failure",
+    ["os_error", "timeout", "git_error"],
+    ids=["git-unavailable", "git-wedged", "ambiguous-revision"],
+)
+def test_unanswerable_probe_is_silent_and_never_blocks(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+) -> None:
+    """The three non-``0``/``1`` probe outcomes degrade to "unknown".
+
+    ``OSError`` (no git), ``TimeoutExpired`` (wedged git) and any other git exit
+    (an ambiguous or unreadable revision) must each stay silent AND leave the
+    allocation's outcome untouched -- an unanswerable probe never invents a
+    warning and never blocks a lane.
+    """
+    fixture = _coord_repo(tmp_path)
+    real_run = subprocess.run
+
+    def _failing_probe(cmd, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if isinstance(cmd, list) and "merge-base" in cmd and "--is-ancestor" in cmd:
+            if failure == "os_error":
+                raise OSError("git is not installed")
+            if failure == "timeout":
+                raise subprocess.TimeoutExpired(cmd="git merge-base", timeout=10)
+            return subprocess.CompletedProcess(cmd, 128, "", "fatal: ambiguous argument")
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr("specify_cli.lanes.worktree_allocator.subprocess.run", _failing_probe)
+    capsys.readouterr()
+
+    worktree_path, branch = _allocate(fixture)
+    captured = capsys.readouterr()
+
+    assert "WARNING" not in captured.out + captured.err, f"an unanswerable probe must stay silent, got: {captured!r}"
+    assert worktree_path.exists() and branch == LANE_BRANCH, "an unanswerable probe must not change the allocation's outcome"
