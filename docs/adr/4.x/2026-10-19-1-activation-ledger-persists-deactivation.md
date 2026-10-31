@@ -3,12 +3,12 @@ title: 'ADR: one activation ledger persists deactivation, and nothing silently r
 description: 'Activation state moves to one git-tracked file, .kittify/charter/activation.yaml, with a persistent deny-list so a deactivated charter artifact stays deactivated.'
 status: Accepted
 date: '2026-10-19'
-updated: '2026-10-25'
+updated: '2026-10-31'
 ---
 
 # One activation ledger persists deactivation, and nothing silently reinstalls it
 
-**Status:** Accepted (2026-10-19); amended 2026-10-20 and 2026-10-25 (see the amendments at the end).
+**Status:** Accepted (2026-10-19); amended 2026-10-20, 2026-10-25 and 2026-10-31 (see the amendments at the end).
 
 **Date:** 2026-10-19
 
@@ -163,7 +163,7 @@ project is never "unmigrated" and the upgrade stays a no-op on it.
 
 ### Decision 4: only explicit choices change a deny-list
 
-Four paths, and no others, may add to or remove from a `deactivated_<plural>` list:
+Five paths, and no others, may change a `deactivated_<plural>` list:
 
 | Path | Effect on the deny-list |
 |---|---|
@@ -171,19 +171,30 @@ Four paths, and no others, may add to or remove from a `deactivated_<plural>` li
 | `charter activate <kind> <id>` (including `--only`) | removes the id |
 | `charter activate ... --cascade ... --include-deactivated` | removes the ids the walk reaches |
 | `charter activate --preset X --force` | removes the ids the preset lists, and reports them |
+| the project-intent rename (`#6443`, `#6565`; `spec-kitty upgrade`, `charter synthesize`, `charter resynthesize`) | **moves** an entry from `NNN-mission-type-scope-directive` to `NNN-project-intent-directive` |
 
-Presets without `--force`, the interview, org-required promotion, synthesis, mission-type seeding
-and every migration never touch deny keys. A denied id they list stays subtracted and is named in
+The rename adds and removes nothing. It rewrites the id the user's own `charter deactivate`
+recorded, so the same artifact stays excluded after its artifact is renamed. Leaving the entry
+stale — reported as `DENY_UNKNOWN_ID`, with the artifact back in force — is the defect this closes.
+It runs only on the activation ledger — a hand-written legacy deny key on `charter.yaml` /
+`config.yaml` is left where it is, because a legacy surface's deny key is never applied — and only
+when a legacy stem is actually present, so a project that never had one performs no deny write.
+
+Presets without `--force`, the interview, org-required promotion, mission-type seeding and every
+migration never touch deny keys. Synthesis reaches a deny key only through the rename above, which
+moves the one legacy stem and nothing else. A denied id they list stays subtracted and is named in
 a warning. Ids dropped by `--only` narrowing get no deny entry; only an id the user names in
 `charter deactivate` is added.
 
 The guard is structural. The ledger write takes a `deny_change` keyword (`DenyListChoice`:
-`activate`, `deactivate`, `cascade-include-deactivated`, `preset-force`). A write that changes a
-deny-list (compared as normalised sets, so absent, `[]` and `null` are equal) without one raises
-`DenyListWriteRefused` and writes nothing. A gate over every registered migration and built-in
-preset proves none removes a deny entry: a static scan, plus a dynamic run of each
-activation-touching migration on a fixture where it applies, made non-vacuous by a self-mutation
-test.
+`activate`, `deactivate`, `cascade-include-deactivated`, `preset-force`, `rename`). A write that
+changes a deny-list (compared as normalised sets, so absent, `[]` and `null` are equal) without one
+raises `DenyListWriteRefused` and writes nothing. A gate over every registered migration and
+built-in preset proves that none removes a deny entry other than by the pinned rename: a static
+scan, plus a dynamic run of each activation-touching migration on a fixture where it applies, made
+non-vacuous by a self-mutation test. The `rename` origin is pinned to its one function in both
+directions, and because it is the only allowance in that gate, the gate carries a positive control
+that the rename does carry one entry — and only that one.
 
 ### Decision 5: the cascade stops at a denied node
 
@@ -446,10 +457,9 @@ business. A malformed or changed-meanwhile project fails the narrow command with
   `m_unify_charter_activation` promotion, which compares raw spellings. Shipped migrations are not
   edited (DIRECTIVE_044).
 - The SPDD probe residual (decision D-07) is unchanged.
-- The project-intent rename (#6443) renames the legacy `mission-type-scope-directive` in the
-  allow lists only. A deny entry recorded for the old id between a skipped or refused rename and its
-  later run goes stale, and the renamed directive is back in force. Operator ruling 2026-10-21:
-  document it and follow up in #6565; FR-014 stays absolute (no migration-reachable deny change).
+- ~~The project-intent rename (#6443) renames the legacy `mission-type-scope-directive` in the
+  allow lists only.~~ **Closed by #6565** (Amendment 2026-10-31): the rename carries the deny entry
+  too, through one narrowing `DenyListChoice.RENAME`. FR-014 stays absolute for every other path.
 
 ## Amendment 2026-10-25 (#6629): an upgrade never writes an absent activation key
 
@@ -485,3 +495,35 @@ when they add to it:
 
 Running either after the upgrade brings the #6629 synthesis behaviour back. #6408 owns those
 writers. This amendment changes only what an upgrade writes.
+
+## Amendment 2026-10-31 (#6565): the project-intent rename carries an exclusion
+
+**Decision.** The project-intent rename (`#6443`) now rewrites the legacy
+`NNN-mission-type-scope-directive` stem in the activation ledger's deny lists as well as its allow
+lists, so an exclusion the user recorded by the old stem keeps applying once the artifact is renamed.
+
+The window it closes is narrow but reachable (the residual recorded under the 2026-10-20 amendment):
+the rename is refused or skipped (for example `#6539`, no git repository), the project moves to the
+ledger, the user runs `charter deactivate directive <NNN>-mission-type-scope-directive`, and the
+rename runs later through an upgrade retry, `charter synthesize` or `charter resynthesize`. The deny
+entry then named a stem that no longer existed, was reported as `DENY_UNKNOWN_ID`, and the renamed
+`project-intent-directive` was back in force.
+
+- **Where.** The one rename helper (`charter/activation/synthesizer/legacy_rename.py`) carries it, in
+  the same single ledger write as the allow rename, reusing the helper's own old→new stem mapping.
+  There is no second mapping and no raw deny write.
+- **How much authority.** One new `DenyListChoice.RENAME`, minted in that helper and nowhere else. It
+  moves one entry between two spellings of the same artifact; it never adds and never removes a
+  denial. The deny-list gate pins the origin in both directions and carries a positive control, so the
+  allowance is provably used and cannot widen silently.
+- **Where it does not apply.** Only the activation ledger. A hand-written legacy deny key on
+  `charter.yaml` / `config.yaml` is left where it is (it was never applied there, and the legacy save
+  refuses a deny change), and a deny entry spelled by a declared id (`DIRECTIVE_003`) is untouched
+  because ids are not renamed.
+
+**Rejected alternative.** Refusing the rename while a deny entry names the old stem. It would fail
+`spec-kitty upgrade` and leave `charter synthesize` permanently broken on a project whose state the
+user cannot see, for a deactivation that is still theirs to keep.
+
+**Residual kept.** `#6539` (the rename skipped when a project has no git repository) is not fixed
+here; this amendment makes that state harmless on the next run rather than removing the trigger.

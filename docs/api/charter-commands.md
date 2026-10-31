@@ -581,6 +581,12 @@ command and reported as `LEGACY_KEYS_PRESENT`.
   ```
 
   A `mission-type` deactivation records no exclusion and still runs there.
+- An exclusion stays with its artifact when the project-intent directive is renamed (#6443,
+  #6565): `spec-kitty upgrade`, `charter synthesize` and `charter resynthesize` move a
+  `NNN-mission-type-scope-directive` exclusion to `NNN-project-intent-directive` in the same
+  write as the allow list, so you do not need to deactivate it again. Only the legacy stem is
+  moved; an entry you spelled as a declared id (`DIRECTIVE_003`) is untouched, because ids are
+  not renamed.
 - With `--cascade`, only the named id gets an exclusion. Exclusively referenced children
   leave their allow list (`Cascade-deactivated: kind/id`), a child an org pack requires is
   skipped (`Cascade: kind/id: skipped (required by <pack>)`), and under a kind with no allow

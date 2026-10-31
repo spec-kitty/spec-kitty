@@ -1,5 +1,11 @@
 """No migration and no built-in preset removes a deny entry (WP10: FR-014, SC-003; ADR 2026-10-19-1 Decision 4).
 
+One narrowing exception is pinned exactly (#6565): the project-intent rename rewrites the legacy
+``mission-type-scope-directive`` stem to ``project-intent-directive`` in the deny list too, so the
+exclusion a user recorded by the old stem keeps applying. It moves one entry between two spellings of
+the same artifact and adds/removes nothing; its origin is pinned in both directions, and a positive
+control proves the allowance is used rather than stale.
+
 Four halves:
 
 * **Static.** An AST scan of ``src/specify_cli/upgrade/migrations/**`` and
@@ -74,6 +80,8 @@ def _rel(path: Path) -> str:
 # --------------------------------------------------------------------------- #
 
 _PRESET_REL = _rel(PRESET_MODULE)
+#: The one rename authority (#6443), which carries the project-intent deny entry (#6565).
+_LEGACY_RENAME_REL = "src/charter/activation/synthesizer/legacy_rename.py"
 
 #: Inside the scanned set, per ``(file, function)``, the findings allowed: the
 #: ``--preset --force`` path only (its write and the plan of the exclusions it clears).
@@ -91,6 +99,8 @@ CHOICE_ORIGINS: frozenset[tuple[str, str, str]] = frozenset(
         ("src/charter/activation/pack_manager.py", "ActiveCharterManager.activate", "ACTIVATE"),
         ("src/specify_cli/cli/commands/charter/activate.py", "_activate_cascade_targets", "ACTIVATE"),
         ("src/specify_cli/cli/commands/charter/activate.py", "_activate_cascade_targets", "CASCADE_INCLUDE_DEACTIVATED"),
+        # #6565: the one narrowing choice -- the project-intent rename moves the legacy directive stem.
+        (_LEGACY_RENAME_REL, "_apply_tokens", "RENAME"),
     }
 )
 
@@ -103,6 +113,8 @@ DENY_CHANGE_FORWARDS: frozenset[tuple[str, str, str]] = frozenset(
         ("src/charter/activation/pack_manager.py", "_save_ledger", "deny_change"),
         ("src/charter/activation/pack_manager.py", "prepare_activation_write", "deny_change"),
         (_PRESET_REL, "_write", "deny_change"),
+        # #6565: the token step mints the choice once and hands it to the seam's one writer.
+        (_LEGACY_RENAME_REL, "_apply_tokens", "choice"),
     }
 )
 
@@ -113,6 +125,7 @@ DENY_KEY_MODULES: frozenset[str] = frozenset(
         "src/charter/activation/activation_ledger.py",
         "src/charter/activation/pack_manager.py",
         _PRESET_REL,
+        _LEGACY_RENAME_REL,
     }
 )
 
@@ -576,6 +589,35 @@ def test_an_order_exempt_migration_cannot_select_once_a_ledger_exists(migration_
     post_ledger_fixture(tmp_path)
     with _scope(tmp_path):
         assert migration.detect(tmp_path) is False
+
+
+#: The pre-#6443 stem of the always-synthesized directive, and the stem the rename gives it.
+_LEGACY_INTENT_STEM = "001-mission-type-scope-directive"
+_INTENT_STEM = "001-project-intent-directive"
+
+
+def test_the_rename_carries_the_deny_entry_and_nothing_else(tmp_path: Path) -> None:
+    """#6565 positive control: the one pinned allowance is used, and it changes exactly one deny entry.
+
+    Without this, the ``RENAME`` origin pinned above could be a stale allowance none of the dynamic
+    checks exercises: every other builder leaves the deny entries alone by design.
+    """
+    migration = _migration("4.0.0rc8_project_intent_directive_rename")
+    _build_legacy_project_intent_stem(tmp_path)
+    seed_activation_ledger(tmp_path, deactivated_directives=[_LEGACY_INTENT_STEM, *FIXTURE_DENY["deactivated_directives"]])
+    before = deny_snapshot(tmp_path)
+
+    with _scope(tmp_path):
+        assert migration.detect(tmp_path) is True
+        result = migration.apply(tmp_path)
+
+    assert result.success, result.errors
+    assert deny_snapshot(tmp_path) != before
+    ledger = read_activation_ledger(tmp_path)
+    assert ledger["deactivated_directives"] == sorted([_INTENT_STEM, FIXTURE_DENY["deactivated_directives"][0]])
+    assert ledger["deactivated_tactics"] == FIXTURE_DENY["deactivated_tactics"]
+    assert ledger["deactivated_skills"] == FIXTURE_DENY["deactivated_skills"]
+    assert _LEGACY_INTENT_STEM not in ledger["activated_directives"]
 
 
 def _preset_names() -> list[str]:

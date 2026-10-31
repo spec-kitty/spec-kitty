@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#5927": {
+      "evidence_ref": "Pre-existing CI red cited in the hand-off, not caused by nor fixed in this PR.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6443": {
+      "evidence_ref": "The #6443 rename this mission extends: its helper and migration are the change surface, not a defect to fix here (evidence: legacy_rename.py, plan.md IC-01).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6496": {
+      "evidence_ref": "Parent persistent-deactivation work (#6496-#6500) that introduced the deny lists; cited for the ADR/FR-014 context only.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6535": {
+      "evidence_ref": "Out of scope per spec.md: retiring the legacy activation reader is its own epic child; this mission keeps it working unchanged.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6539": {
+      "evidence_ref": "Out of scope per spec.md: the rename skipped without a git repository stays unfixed; this mission makes that state harmless by carrying the deny entry on the next run.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6565": {
+      "evidence_ref": "WP01 7af7c3054 carries the deny entry through the one rename authority (one new DenyListChoice.RENAME, gate pinned + positive control); WP02 fdb6fba816 documents the fifth path. Suite: test_legacy_rename.py 37 passed, test_deny_list_survives_upgrade.py 34 passed, migration suite 8 passed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6798": {
+      "evidence_ref": "Pre-existing CI red cited in the hand-off, not caused by nor fixed in this PR.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Pre-existing CI red cited in the hand-off, not caused by nor fixed in this PR.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Pre-existing CI red cited in the hand-off, not caused by nor fixed in this PR.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
