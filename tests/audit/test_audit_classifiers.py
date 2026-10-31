@@ -413,6 +413,34 @@ def test_status_events_actor_drift(tmp_path: Path) -> None:
     assert drift_findings[0].severity == Severity.WARNING
 
 
+@pytest.mark.parametrize(
+    "actor",
+    [
+        pytest.param({"tool": "finalize-tasks", "role": "system", "profile": None, "model": None}, id="system-seed"),
+        pytest.param({"tool": "claude", "role": "implementer", "profile": "python-pedro", "model": "opus"}, id="agent"),
+    ],
+)
+def test_status_events_structured_actor_is_not_drift(tmp_path: Path, actor: dict[str, object]) -> None:
+    """A decodable structured actor (system seed, #6400 agent) yields no ACTOR_DRIFT (#6722)."""
+    _write_jsonl(tmp_path / "status.events.jsonl", [{**_MODERN_EVENT, "actor": actor}])
+    findings, _ = classify_status_events_jsonl(tmp_path)
+    assert [f for f in findings if f.code == "ACTOR_DRIFT"] == []
+
+
+@pytest.mark.parametrize(
+    "actor",
+    [
+        pytest.param({"tool": "x", "role": "system"}, id="missing-keys"),
+        pytest.param({"tool": 3, "role": "system", "profile": None, "model": None}, id="non-string-field"),
+        pytest.param(42, id="number"),
+    ],
+)
+def test_status_events_malformed_structured_actor_is_drift(tmp_path: Path, actor: object) -> None:
+    _write_jsonl(tmp_path / "status.events.jsonl", [{**_MODERN_EVENT, "actor": actor}])
+    findings, _ = classify_status_events_jsonl(tmp_path)
+    assert "ACTOR_DRIFT" in _codes(findings)
+
+
 def test_status_events_valid_actor_formats(tmp_path: Path) -> None:
     """Various valid actor formats should not produce ACTOR_DRIFT."""
     for actor in ("claude", "finalize-tasks", "migration", "human", "user", "claude:opus"):
