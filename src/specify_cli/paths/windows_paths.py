@@ -1,7 +1,9 @@
 """Platform-aware runtime state path resolution for spec-kitty.
 
 This module is a leaf — it must not import from specify_cli.auth,
-specify_cli.tracker, or any kernel subpackage.
+specify_cli.tracker, or any kernel subpackage below the kernel floor
+(``kernel.paths``, the asset-home authority it delegates to, is the one
+exception and is already imported here).
 """
 
 from __future__ import annotations
@@ -50,6 +52,16 @@ class RuntimeRoot:
         return self.base / "cache"
 
 
+#: Canonical name of the runtime STATE directory — the single owner of the
+#: string, so no consumer re-types it (DIRECTIVE_044). The user-global runtime
+#: root ends in it (``~/.spec-kitty`` on POSIX). The repository-LOCAL runtime
+#: directory that holds worktree-scoped lock state deliberately shares the name
+#: (``<repo_root>/.spec-kitty``: the status lock's bare non-git fallback and the
+#: worktree review lock, #6367) and takes it from here rather than spelling it
+#: again — the two scopes are different directories, the name is one fact.
+RUNTIME_STATE_DIR_NAME = ".spec-kitty"
+
+
 def get_runtime_root() -> RuntimeRoot:
     """Return the canonical runtime state root for the current platform.
 
@@ -77,9 +89,9 @@ def get_runtime_root() -> RuntimeRoot:
         except Exception:
             # Keep import-time Windows simulations and constrained runtimes from
             # crashing before callers can patch or inspect the module.
-            base = Path.home() / ".spec-kitty"
+            base = Path.home() / RUNTIME_STATE_DIR_NAME
     else:
-        base = Path.home() / ".spec-kitty"
+        base = Path.home() / RUNTIME_STATE_DIR_NAME
     return RuntimeRoot(platform=platform, base=base)
 
 
