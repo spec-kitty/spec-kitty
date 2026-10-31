@@ -14,13 +14,15 @@ Cases:
 
 * the printed rejection command retires the draft, leaves the mission directory clean, and the next
   ``--to for_review`` passes Check 1 (SC-001);
-* the draft is kept — never destroyed — when the record is not durable, when the reviewer already
-  committed it, or when it lies outside the mission directory (SC-002, FR-002/FR-003/FR-004);
+* the draft is kept — never destroyed — when the record is not durable (SC-002, FR-002); the other
+  keep-cases (tracked, out of scope, symlink, edited, unreadable record) are unit-tested in
+  ``tests/specify_cli/review/test_cycle_feedback_draft_retirement.py``;
 * the recorded ``review-cycle-1.md`` still holds the reviewer's text verbatim (SC-003).
 """
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
@@ -124,7 +126,7 @@ def _advertised_draft(feature_dir: Path, cycle: int = 1) -> Path:
     return review_feedback_source_path(feature_dir / "tasks" / WP_SLUG, cycle)
 
 
-def _reject(draft: Path) -> object:
+def _reject(draft: Path, *extra: str) -> object:
     """Run the rejection command the review prompt prints."""
     return CliRunner().invoke(
         tasks_app,
@@ -139,6 +141,7 @@ def _reject(draft: Path) -> object:
             MISSION_SLUG,
             "--agent",
             "reviewer",
+            *extra,
         ],
     )
 
@@ -158,8 +161,9 @@ def test_rejection_retires_the_draft_and_the_next_for_review_passes(tmp_path: Pa
     draft.parent.mkdir(parents=True, exist_ok=True)
     draft.write_text("**Issue 1**: fix the off-by-one in the tally.\n", encoding="utf-8")
 
-    rejected = _reject(draft)
+    rejected = _reject(draft, "--json")
     assert rejected.exit_code == 0, rejected.output  # type: ignore[attr-defined]
+    assert json.loads(rejected.stdout)["retired_feedback_draft"] == str(draft)  # type: ignore[attr-defined]
 
     record = draft.parent / "review-cycle-1.md"
     assert record.is_file(), "the rejection must still write the review-cycle record"
@@ -168,6 +172,9 @@ def test_rejection_retires_the_draft_and_the_next_for_review_passes(tmp_path: Pa
     leftovers = [path for path in _dirty_paths(repo, f"kitty-specs/{MISSION_SLUG}") if path.endswith("review-feedback-1.md")]
     assert leftovers == [], f"the rejection left its own feedback draft untracked: {leftovers}"
     assert not draft.exists(), f"the rejected draft should be retired once the record is durable: {draft}"
+    # #6632 visibility: deleting a file is announced on stderr and named in the --json envelope.
+    assert f"Removed feedback draft {draft}" in rejected.stderr  # type: ignore[attr-defined]
+    assert "review-cycle-1.md" in rejected.stderr  # type: ignore[attr-defined]
 
     _seed_hops(feature_dir, [(Lane.PLANNED, Lane.CLAIMED), (Lane.CLAIMED, Lane.IN_PROGRESS)], day="2026-01-02")
     resubmitted = _resubmit()
@@ -187,36 +194,6 @@ def test_a_non_durable_record_keeps_the_draft(tmp_path: Path, monkeypatch: pytes
     assert rejected.exit_code == 0, rejected.output  # type: ignore[attr-defined]
     assert draft.exists(), "a non-durable record must never authorize removing the only copy"
     assert draft.read_text(encoding="utf-8") == body
-
-
-def test_a_tracked_draft_is_never_deleted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """FR-003: removing an already-committed draft would itself dirty the tree."""
-    repo, feature_dir = _build_mission(tmp_path, monkeypatch)
-    draft = _advertised_draft(feature_dir)
-    draft.parent.mkdir(parents=True, exist_ok=True)
-    draft.write_text("**Issue 1**: the reviewer committed this one.\n", encoding="utf-8")
-    _git(repo, "add", str(draft))
-    _git(repo, "commit", "-m", "reviewer: commit the feedback file")
-
-    rejected = _reject(draft)
-    assert rejected.exit_code == 0, rejected.output  # type: ignore[attr-defined]
-    assert draft.exists(), "a tracked draft must be left alone"
-    _git(repo, "ls-files", "--error-unmatch", str(draft.relative_to(repo)))
-
-
-def test_a_draft_outside_the_mission_directory_is_untouched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """FR-004: a scratch note outside ``kitty-specs/<mission>/`` is not this seam's to delete.
-
-    The positive control on the same fixture shape is the first test: an inside-mission draft *is*
-    removed after a durable rejection.
-    """
-    _repo, feature_dir = _build_mission(tmp_path, monkeypatch)
-    draft = tmp_path / "review-feedback-1.md"
-    draft.write_text("**Issue 1**: a scratch note outside the mission.\n", encoding="utf-8")
-
-    rejected = _reject(draft)
-    assert rejected.exit_code == 0, rejected.output  # type: ignore[attr-defined]
-    assert draft.exists(), "a draft outside the mission directory must be untouched"
 
 
 def test_a_kept_draft_is_announced_on_stderr(capsys: pytest.CaptureFixture[str]) -> None:
