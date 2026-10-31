@@ -460,6 +460,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             coord_ref=checkpoint.ref,
             checkpoint_sha=base,
             target_feature_dir=run.target_feature_dir,
+            target_ref=target,
         )
     except LateProjectionRefused as exc:
         raise CoordinationTeardownError(_late_projection_refusal(branch, target, exc)) from exc

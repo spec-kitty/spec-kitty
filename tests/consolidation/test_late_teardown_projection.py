@@ -25,7 +25,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.coordination.teardown import COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE
-from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefusalKind, LateProjectionRefused
+from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefusalKind, LateProjectionRefused, assert_late_window_landed
 from specify_cli.tasks.issue_matrix import IssueMatrixEntry, build_issue_matrix_document
 from tests.terminus.conftest import CoordMission, blob_present_at, build_coord_mission, run_terminus
 
@@ -183,6 +183,10 @@ def test_resume_projects_a_verdict_recorded_after_the_teardown_refusal(refused_r
     late_tracer.write_text("# late window\noperator trace written after the teardown refusal.\n", encoding="utf-8")
     _git(run.worktree, "add", str(late_tracer.relative_to(run.worktree)))
     _git(run.worktree, "commit", "-qm", "chore: record a trace in the late window")
+    coord_records = {
+        str(path.relative_to(run.worktree)): _git(run.worktree, "show", f"HEAD:{path.relative_to(run.worktree)}")
+        for path in (_matrix_path(run.worktree, mission), run.review_cycle, late_tracer)
+    }
 
     resumed = run.resume()
 
@@ -196,11 +200,46 @@ def test_resume_projects_a_verdict_recorded_after_the_teardown_refusal(refused_r
     for path in (run.review_cycle, late_tracer):
         assert blob_present_at(mission.repo, mission.target_branch, str(path.relative_to(run.worktree))), output
     assert run.projection_commits() == 1, f"the whole window lands as ONE projection commit\n{output}"
+    # The proof is on the COMMITTED target: each record's blob on the target ref is the coordination
+    # branch's, byte for byte (a working-tree read would pass on uncommitted bytes).
+    for rel, coord_blob in coord_records.items():
+        assert _git(mission.repo, "show", f"{mission.target_branch}:{rel}") == coord_blob, rel
     # And the working tree the operator is left in agrees with the landed commit.
     assert (
         _matrix_path(mission.repo, mission).read_text(encoding="utf-8")
         == _git(mission.repo, "show", f"{mission.target_branch}:kitty-specs/{mission.slug}/issue-matrix.json") + "\n"
     )
+
+
+def test_a_record_only_in_the_target_working_tree_is_not_landed(refused_run: _RefusedRun) -> None:
+    """Red case: coordination bytes planted UNCOMMITTED in the target checkout are not a landing.
+
+    The resume's own projection would commit such a file, so this drives the assertion directly: a
+    working-tree copy equal to the coordination blob must not satisfy it, because the branch
+    delete would then lose the only committed copy.
+    """
+    run, mission = refused_run, refused_run.mission
+    rel = Path("kitty-specs") / mission.slug / "traces" / "planted.md"
+    for base in (run.worktree, mission.repo):
+        (base / rel).parent.mkdir(parents=True, exist_ok=True)
+        (base / rel).write_text("# planted\n", encoding="utf-8")
+    _git(run.worktree, "add", str(rel))
+    _git(run.worktree, "commit", "-qm", "chore: record a trace in the late window")
+    kwargs = {
+        "main_repo": mission.repo,
+        "mission_slug": mission.slug,
+        "coord_ref": mission.coord_branch,
+        "checkpoint_sha": _checkpoint_sha(mission),
+        "target_feature_dir": mission.repo / "kitty-specs" / mission.slug,
+    }
+
+    with pytest.raises(LateProjectionRefused, match="planted.md") as refused:
+        assert_late_window_landed(**kwargs, target_ref=mission.target_branch)
+    assert refused.value.kind is LateProjectionRefusalKind.RECORD_NOT_LANDED
+
+    _git(mission.repo, "add", str(rel))
+    _git(mission.repo, "commit", "-qm", "chore: land the planted trace")
+    assert_late_window_landed(**kwargs, target_ref=mission.target_branch)
 
 
 def test_resume_refuses_a_late_deletion_of_a_coordination_record(refused_run: _RefusedRun) -> None:

@@ -1075,8 +1075,12 @@ def assert_late_window_landed(
     coord_ref: str,
     checkpoint_sha: str,
     target_feature_dir: Path,
+    target_ref: str,
 ) -> None:
     """Assert every coordination record of the late window reached the target (#6791).
+
+    "Reached the target" means COMMITTED on ``target_ref``: the comparison reads the ref's blob,
+    never the target working tree, which can hold uncommitted bytes that die with a reset.
 
     The generalisation of the gate-matrix fix: whatever a late coordination commit changed
     inside the Mission directory and the kind authority classifies as a coordination record
@@ -1109,10 +1113,12 @@ def assert_late_window_landed(
         relpath = repo_rel[len(mission_prefix) :]
         if not is_coordination_kind_file(relpath):
             continue
-        candidate = target_feature_dir / relpath
-        target_content = candidate.read_bytes() if candidate.is_file() else None
-        if _read_git_blob_bytes(main_repo, coord_ref, repo_rel) != target_content:
-            unlanded.append(repo_rel)
+        target_rel = (target_feature_dir / relpath).relative_to(main_repo).as_posix()
+        coord_content = _read_git_blob_bytes(main_repo, coord_ref, repo_rel)
+        target_content = _read_git_blob_bytes(main_repo, target_ref, target_rel)
+        if coord_content == target_content:
+            continue
+        unlanded.append(repo_rel)
     if not unlanded:
         return
     shown = ", ".join(unlanded[:20]) + (f" (and {len(unlanded) - 20} more)" if len(unlanded) > 20 else "")
