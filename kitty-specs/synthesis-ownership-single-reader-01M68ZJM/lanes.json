@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "mission_slug": "synthesis-ownership-single-reader-01M68ZJM",
+  "mission_id": "01M68ZJM7FCG21YNN4RPNEBNWY",
+  "mission_branch": "kitty/mission-synthesis-ownership-single-reader-01M68ZJM",
+  "target_branch": "issue-6767-synthesis-ownership-single-reader",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/errors.py",
+        "src/charter/activation/synthesizer/manifest.py",
+        "tests/charter/synthesizer/test_manifest.py",
+        "tests/charter/synthesizer/test_synthesis_ownership_reader.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/api.py",
+        "src/charter/activation/synthesizer/reach_only.py",
+        "tests/charter/synthesizer/test_reach_only_delivery.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/__init__.py",
+        "src/specify_cli/cli/commands/charter/_collision_remedy.py",
+        "src/specify_cli/cli/commands/charter/_synthesis.py",
+        "tests/cli/test_charter_context_coded_error_6454.py",
+        "tests/specify_cli/cli/commands/charter/test_synthesis_envelope_sidecar.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/architectural/test_single_synthesis_ownership_reader.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-31T12:44:24.985560+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "39384eb2815dc2f9f40a10a01b846a6e047338cf"
+}
