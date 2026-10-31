@@ -180,7 +180,7 @@ class TestRuntimeTemplateKey:
         # ~/.kittify content cannot shadow the builtin fallback tier.
         monkeypatch.setattr(
             runtime_bridge_io,
-            "_build_discovery_context",
+            "build_discovery_context",
             lambda root: DiscoveryContext(
                 project_dir=root,
                 builtin_roots=[builtin_root],
@@ -318,7 +318,7 @@ class TestWorkflowRuntimeTemplate:
 
         monkeypatch.setattr(
             runtime_bridge_io,
-            "_build_discovery_context",
+            "build_discovery_context",
             lambda root: DiscoveryContext(
                 project_dir=root,
                 builtin_roots=[builtin_root],

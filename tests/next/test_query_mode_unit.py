@@ -742,7 +742,7 @@ class TestQueryCurrentStateErrorPaths:
             # ``runtime_bridge_io``; patch them there.
             patch("runtime.next.runtime_bridge_io.tempfile.mkdtemp", side_effect=tracking_mkdtemp),
             patch("runtime.next.runtime_bridge_io._runtime_template_key", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge_io._build_discovery_context", return_value=None),
+            patch("runtime.next.runtime_bridge_io.build_discovery_context", return_value=None),
             patch("runtime.next.runtime_bridge_io.start_mission_run", side_effect=RuntimeError("template missing")),
             pytest.raises(RuntimeError, match="template missing"),
         ):
