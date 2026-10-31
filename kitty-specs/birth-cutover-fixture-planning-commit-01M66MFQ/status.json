@@ -1,0 +1,54 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M66Q5TYH1D61AVVHFHM0HGJR",
+  "materialized_at": "2026-10-30T15:34:41.361397+00:00",
+  "mission_number": "244",
+  "mission_slug": "birth-cutover-fixture-planning-commit-01M66MFQ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M66Q5TYH1D61AVVHFHM0HGJR",
+      "last_transition_at": "2026-10-30T15:34:41.361397+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T15:05:22Z – python-pedro – shell_pid=865670 – T001: planning_commit_sha captured via capture_branch_tip at lanes.json-write time, asserted non-None; T002: file run 24 passed (was 4 failed, 20 passed on main@512567eee7), assertions byte-identical, no xfail/skip; T003: ruff check + format clean, mypy not configured for tests (Makefile typecheck targets two src files only) so skipped per WP note; T004: distinct implementer/reviewer actors in _drive_claimed_through_approved (found red-first: refusal moved EVIDENCE_WINDOW_UNCOMPUTABLE -> REVIEW_NOT_INDEPENDENT with only the planning commit recorded).",
+        "Ready for review: 24 passed in tests/migration/test_birth_cutover.py, setup-only diff, no assertion/marker/gate change",
+        "Review passed: independent 2-reviewer squad under the reviewer-renata profile (stronger model tier, fresh-context subagents) approved 4dd07b5b69 with 0 blockers, 0 majors. Anchor tests 4/4 pass; full file 24 passed (was 4 failed / 20 passed on main@512567eee7); fixture-only diff, anchor assertions byte-identical, no xfail/skip, wp_evidence.py untouched; production parity of capture_branch_tip vs tasks_finalize._finalize_lanes verified; actor independence verified against actor_identities_independent and the _seed_wp_approved mirror for both coord and lanes topologies. Non-blocking findings: F1 follow-up to be filed for the same-class pre-existing red in tests/specify_cli/cli/test_accept_birth_cutover.py (red on pristine main@512567eee7, out_of_matrix_test_dirs so per-PR CI stays green); F2 nit (one-element for-loop style, left as-is for diff parity); F3 nit (ruff not spawnable in lane worktree venv; lint verified from main checkout venv)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 865670,
+      "shell_pid_created_at": "1793372003.67",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    }
+  }
+}

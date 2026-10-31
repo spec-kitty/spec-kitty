@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#4857": {
+      "evidence_ref": "Context reference: capture_branch_tip is the canonical tip-capture authority from #4857; the fixture now uses that production helper (NFR-002)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5939": {
+      "evidence_ref": "Context reference: independent-review precedent behind _seed_wp_approved's distinct actors; FR-003 mirrors that shape in the birth-cutover fixture",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6370": {
+      "evidence_ref": "Context reference: independent-review precedent behind _seed_wp_approved's distinct actors; FR-003 mirrors that shape in the birth-cutover fixture",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6715": {
+      "evidence_ref": "Gate verified fail-closed and correct, unchanged by this mission (reviewer B: 'relaxing the product would have been fail-open; fixture fix is the right layer'); refusal recovery text points at finalize-tasks, which the fixture now mirrors",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6795": {
+      "evidence_ref": "Cited PR reference: open PR blocked by the latent events-consumers red on main; unblocked when this mission's fix lands on main, no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6798": {
+      "evidence_ref": "Same defect class (fixture bypassing the production path), fixed by #6802; this mission follows that precedent for the birth-cutover fixture",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "WP01 commit 4dd07b5b69 (lane-a): fixture records planning_commit_sha via capture_branch_tip and distinct implementer/reviewer actors; tests/migration/test_birth_cutover.py 24 passed (was 4 failed, 20 passed on main@512567eee7)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6802": {
+      "evidence_ref": "Precedent reference (parallel fix fixing the fixture, not the product); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6804": {
+      "evidence_ref": "Cited PR reference: open PR blocked by the latent events-consumers red on main; unblocked when this mission's fix lands on main, no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
