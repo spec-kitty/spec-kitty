@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "mark-status-owner-authority-01M68JA8",
+  "mission_id": "01M68JA8DV0B367TFN9C295A0D",
+  "mission_branch": "kitty/mission-mark-status-owner-authority-01M68JA8",
+  "target_branch": "issue-6463-mark-status-owner-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_mark_status.py",
+        "tests/specify_cli/cli/commands/agent/test_mark_status_owner_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/status-model.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-31T08:52:52.787334+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "65803d8fa6c8180e8a285e029303921664bcc158"
+}

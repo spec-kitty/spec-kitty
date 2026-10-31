@@ -1,0 +1,10 @@
+# D2.1 — roster-or-history fallback hides the second claim (main@35318ef51c)
+# mission: WP01 tasks/WP01-a.md has subtasks: [T001]; WP02-b.md has NO subtasks key;
+# tasks.md: "## WP01 / Subtasks: T001" and "## WP02 / Subtasks: T001".
+$ spec-kitty agent tasks mark-status T001 --status done --mission 001-repro --json --no-auto-commit
+{"results": [{"id": "T001", "outcome": "updated", "format": "inline_subtasks",
+  "message": "Recorded done for T001 in WP01."}],
+ "summary": {"updated": 1, "already_satisfied": 0, "not_found": 0}}
+# status.events.jsonl:
+# {"wp_id": "WP01", "delta": {"subtasks": {"T001": "done"}}}
+# exit 0 — no refusal, although WP02 claims T001 in a structured tasks.md row.

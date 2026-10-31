@@ -1,0 +1,53 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M68NT6BZ01CD8XR35X26NPC2",
+  "materialized_at": "2026-10-31T09:49:20.127177+00:00",
+  "mission_number": "",
+  "mission_slug": "mark-status-owner-authority-01M68JA8",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M68NT50DRGN0QZ006MDVHJGB",
+      "last_transition_at": "2026-10-31T09:49:18.733787+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 781501,
+      "shell_pid_created_at": "1793436822.53"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M68NT6BZ01CD8XR35X26NPC2",
+      "last_transition_at": "2026-10-31T09:49:20.127177+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 1187364,
+      "shell_pid_created_at": "1793439070.39"
+    }
+  }
+}

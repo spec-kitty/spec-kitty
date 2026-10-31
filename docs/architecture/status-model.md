@@ -254,6 +254,37 @@ spec-kitty agent tasks move-task WP01 --to doing
 # "doing" is accepted as alias, persists as "in_progress" in the event log
 ```
 
+## Subtask completion ownership (`agent tasks mark-status`)
+
+Subtask completion is an annotation on a work package, so the command has to decide
+which work package an id belongs to before it writes anything. That decision has two
+sources, and only two:
+
+1. the authored `subtasks:` list in the work package's `tasks/<WP>.md` frontmatter
+   (static design intent), and
+2. a **structured** `tasks.md` row that names the id — a `- [ ]`/`- [x]` checkbox row,
+   a pipe-table row, or an inline `Subtasks: T001, T002` list under a work-package
+   heading. A prose mention never claims an id.
+
+The owners of an id are the union of those two sources. An id more than one work
+package claims is *shared*, and `mark-status` refuses it rather than picking one:
+
+```bash
+# refused: names WP01 and WP02, writes nothing
+spec-kitty agent tasks mark-status T001 --status done
+# scoped: records completion on WP02 only
+spec-kitty agent tasks mark-status T001 --status done --wp WP02
+```
+
+A `WP<digits>` id is a lane, not a subtask: `mark-status WP01` is refused with the
+`move-task` remedy, even when the id also appears in a `tasks.md` index table. If a
+work package genuinely authors a subtask with a work-package-shaped id, `--wp <owner>`
+is required, because the bare id reads two ways.
+
+The completion annotation's `wp_id` is the owner resolved this way; the writer never
+re-derives it from document order or a filename, so an event cannot land on a work
+package the caller did not select.
+
 ## 9-Lane State Machine
 
 ### Canonical Lanes
