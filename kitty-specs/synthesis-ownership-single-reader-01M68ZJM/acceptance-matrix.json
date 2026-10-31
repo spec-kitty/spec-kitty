@@ -2,107 +2,107 @@
   "mission_slug": "synthesis-ownership-single-reader-01M68ZJM",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "One ownership reader (synthesized_urns / synthesized_slugs) answers which artifacts of a kind synthesis created, from the manifest plus its sidecars.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "lane-a/b tests/charter/synthesizer/test_synthesis_ownership_reader.py (29 cases) + test_manifest.py (46)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "One fallback policy: an unreadable manifest or sidecar falls back to the created-artifacts record; only an unusable record raises.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "record fallback matrix: manifest-unreadable, record-unusable, sidecar-missing-by-kind, dangling symlink (test_synthesis_ownership_reader.py)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "One coded error, SynthesisMembershipUnreadableError / SYNTHESIS_MEMBERSHIP_UNREADABLE, carrying record path, offending file, reason and kind.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "test_the_error_is_the_documented_code + both coded consumers; guard test asserts one code literal in errors.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "reach_only_ids derives its slugs from the one reader; reach_only.py holds no manifest or sidecar read.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "lane-b test_reach_only_delivery.py (34) incl. hand-authored registration, missing-sidecar and record-fallback cases; grep shows no manifest read in reach_only.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "synthesis_owned_directive_ids reads through the one reader; the private URN reader is gone.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "lane-a test_manifest.py ownership section (46 passed) + test_collision_refusal_6510.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "One strict sidecar parser (sidecar_artifact_urn); no production code parses artifact_urn itself.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "lane-c test_synthesis_envelope_sidecar.py::test_the_display_module_does_not_parse_the_sidecar + architectural sidecar-parser guard",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "The charter synthesize --json envelope wraps the strict reader, keeps its four-field shape and never raises.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "lane-c test_synthesis_envelope_sidecar.py (9 cases: healthy, missing, corrupt, wrong-kind, direct-write, absent/corrupt manifest)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-008",
-      "description": "Verify FR-008 is satisfied",
+      "description": "The collision remedy classifies the coded error and keeps naming the offending file and the remedy.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "lane-c tests/charter/synthesizer/test_collision_refusal_6510.py (unreadable record named, never guessed) + charter CLI suite (525 passed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-009",
-      "description": "Verify FR-009 is satisfied",
+      "description": "The one reader and its one code are documented, and the retired readers are absent from src/.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "lane-d tests/architectural/test_single_synthesis_ownership_reader.py (4 guards, red-proved) + changelog entry under [Unreleased]",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     },
     {
       "criterion_id": "FR-010",
-      "description": "Verify FR-010 is satisfied",
+      "description": "Delivery gating keeps dropping a reach-only artifact of an inactive directive and delivering the rest.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "lane-b test_reach_only_delivery.py delivery pairs (delivered while the directive is on, dropped when off, control tactic delivered)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:05:00+00:00",
+      "notes": "Verified against the integrated lane diff; see the WP review verdicts and the PR's Tests run section."
     }
   ],
   "negative_invariants": []
