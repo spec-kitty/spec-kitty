@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5927": {
+      "evidence_ref": "Pre-existing red on main (tests/contract/test_mission_status_reality.py), unrelated to the activation write path",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6453": {
+      "evidence_ref": "Context only: the run-wide synthesis lock this mission reuses (owner of the lock, no work owed here)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6719": {
+      "evidence_ref": "PR #6911: the activation writes and the migration's manifest stamp now run under the run-wide synthesis lock; red-first two-writer tests in tests/charter/activation/test_activation_writes_under_synthesis_lock.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#6798": {
+      "evidence_ref": "Pre-existing red on main, unrelated to the activation write path; cited as a pre-existing failure",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Pre-existing red on main (tests/migration/test_birth_cutover.py), unrelated to the activation write path",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Pre-existing router-gate false red on main, unrelated to the activation write path",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
