@@ -3158,6 +3158,7 @@ pages:
     - {slug: "follow-up-2026-10-04-presence-axis-status-write-guard-wider-lag-recovery-5613", text: "Follow-up 2026-10-04 — presence axis, status-write guard, wider lag recovery (#5613)", level: 3}
     - {slug: "follow-up-2026-10-05-the-record-is-the-only-rollback-anchor-5686-5666", text: "Follow-up 2026-10-05 — the record is the only rollback anchor (#5686 / #5666)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "follow-up-2026-10-31-the-branch-integration-target-is-judged-too-6464", text: "Follow-up 2026-10-31 — the branch-integration target is judged too (#6464)", level: 3}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/2026-09-20-1-canonical-mission-type-source.md"
