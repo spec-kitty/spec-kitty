@@ -25,7 +25,7 @@
       "wp": null
     },
     "#6450": {
-      "evidence_ref": "PR #6924: items (4),(6),(7) fixed with red-first tests; items (1),(2),(3),(5) remain open with reasons in the PR Deferred section.",
+      "evidence_ref": "Fixed items (4),(6),(7) in PR #6924 with red-first tests. Remaining items stay in #6450: (1) commit trailers/signing needs its own issue after the Java write-core design, (2) needs the exact reproducing invocation, (5) needs the fixture that tripped the stale-assertion analyzer; (3) is the closed duplicate #6386. Follow-up: #6450.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,7 +33,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "fixed",
+      "verdict": "deferred-with-followup",
       "wp": "WP01"
     },
     "#6715": {
