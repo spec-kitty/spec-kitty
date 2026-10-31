@@ -147,6 +147,15 @@ Configuration (`.kittify/config.yaml`, under `review:`):
   `review.test_command`. A config that still sets it keeps working but earns a
   one-time deprecation warning; move the value to `review.test_command`.
 
+**Opaque (unparseable) results.** A declared command that exits nonzero without
+emitting a `FAIL <test>` line yields one synthetic whole-run failure. Its identity
+is its exit status plus a digest of the run's full output, so it counts as
+pre-existing only when the baseline failed in exactly the same way; any other
+opaque candidate failure is a **new failure**, never a silent pass. A
+`no_new_failures` verdict records the candidate's observed exit status and says in
+its reason that the result is baseline-relative — it does not assert that the
+candidate exited 0 (#6751).
+
 > **Inherited limitation (#2741, P1 — inherited, NOT fixed by this mission).**
 > The gate scopes off the WP worktree's *working-tree* diff rather than the WP
 > commit range. The doctrine-controlled-transition-gates inversion is
