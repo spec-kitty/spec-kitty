@@ -357,6 +357,8 @@ review feedback it is rewinding.
 | `spec-kitty agent tasks move-task --to in_progress` | `force-override` — the command's own sentinel for an operator rewind, set for both the explicit `--force` form and the auto-promoted backward move |
 | `spec-kitty agent action implement` (implementer of record or `--force --note` withdrawal) | `force-override`, the same sentinel |
 
+The edge set (`REVIEW_REF_REQUIRED_EDGES`) is deliberately narrow: only `for_review -> in_progress`. `in_review` / `approved -> in_progress` are not covered, because the validator does not flag them either, and a `migration:` actor is exempt (it reconstructs state; same precedent as the #5446 note rule), though the validator still reports such a row.
+
 A refused command exits non-zero, names `review_ref` and `--review-ref`, and writes nothing:
 `status.events.jsonl` and `status.json` are byte-identical afterwards, and
 `status validate` still passes. The rule is evaluated during validation, before the
