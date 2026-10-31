@@ -109,7 +109,7 @@ from charter.activation.charter_yaml_io import (
     update_charter_yaml_section,
 )
 from charter.activation.org_pack_discovery import RequiringPack, read_org_required_provenance
-from charter.activation.pack_context import ActiveCharterConfigError, PackContext, resolve_charter_yaml_pointer
+from charter.activation.pack_context import ActiveCharterConfigError, resolve_charter_yaml_pointer
 from charter.offering.missions.mission_type_repository import (
     ORG_MISSION_TYPES_SUBDIR,
     PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT,
@@ -506,21 +506,27 @@ def _preservation_set(
     return replace(preservation, ids=_without_denied(preservation.ids, deny))
 
 
-def _refuse_required_collisions(repo_root: Path, kind: str) -> None:
-    """Refuse to materialise an absent key while an org-required id of *kind* collides (Decision ``file_name_collision``).
+def _required_floor_stems(repo_root: Path, kind: str) -> list[str]:
+    """The org-required ids of *kind* as activation stems, refusing a colliding one (#6435).
 
-    The materialised list (the effective set, in stem spelling) cannot carry that
-    id: its file name stands for the other artifact, so the id is simply absent
-    and writing the list would drop the required id silently. The required ids
-    are therefore passed through :meth:`IdentityIndex.stored_spelling` (by
+    The materialised list (the effective set, in stem spelling) cannot carry a
+    required id whose file name stands for another artifact: the id is simply
+    absent from stem spelling, so writing the list would drop it silently. The
+    required ids are therefore passed through
+    :meth:`IdentityIndex.stored_spelling` (by
     :func:`~charter.activation.org_charter.org_required_stems`), which raises
-    :class:`ActivationIdCollisionError`.
+    :class:`ActivationIdCollisionError` (Decision ``file_name_collision``) — and
+    returns each other required id as the one spelling an activation list stores.
+
+    ``mission-type`` and every kind that cannot be org-required yield ``[]``.
     """
     if kind == MISSION_TYPE_TOKEN:
-        return
+        return []
     from charter.activation.org_charter import org_required_stems
 
-    org_required_stems(repo_root, ArtifactKind.from_operator_token(kind).plural, [])
+    # Warnings stay out of `activate`'s output: the collision refusal is the only signal this path owes.
+    stems: list[str] = org_required_stems(repo_root, ArtifactKind.from_operator_token(kind).plural, [])
+    return stems
 
 
 def _preservation_ids(
@@ -531,13 +537,17 @@ def _preservation_ids(
     available: frozenset[str],
     when_absent: str,
 ) -> _Preservation:
-    """The in-force set an absent key materialises, before the deny subtraction (see :func:`_preservation_set`)."""
+    """The in-force set an absent key materialises, before the deny subtraction (see :func:`_preservation_set`).
+
+    The org-required floor is read once, as activation stems, for every kind:
+    it is what a required-only kind puts in force, and reading it is also what
+    refuses a colliding required id before anything is written (#6435).
+    """
     if data.get(yaml_key) is not None:
         return _Preservation([], [], True)
-    _refuse_required_collisions(repo_root, kind)
+    floor = _required_floor_stems(repo_root, kind)
     if when_absent != "all":
-        in_force = PackContext.from_config(repo_root).allow_for(ArtifactKind.from_plural(yaml_key.removeprefix("activated_")))
-        return _Preservation(sorted(str(item) for item in in_force or ()), [], True)
+        return _Preservation(sorted(floor), [], True)
     from charter.activation.effective_set import resolve_effective_sets
 
     effective = resolve_effective_sets(repo_root, [yaml_key])[yaml_key]
