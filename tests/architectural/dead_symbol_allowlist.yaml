@@ -1178,11 +1178,6 @@ entries:
   rationale: T028 git probe (ancestry -> tree-equality integration under squash); consumed by the reconciliation
     verifier's own body (docstring cross-reference only) and exercised directly by tests/consolidation/test_reconciliation.py.
 - module: specify_cli.consolidation.reconciliation
-  name: Divergence
-  category: category_c_terminus_reconciliation_5001
-  rationale: public vocabulary of the new reconciliation gate (the verifier's FAIL-shaped structured divergence
-    record).
-- module: specify_cli.consolidation.reconciliation
   name: TERMINUS_ENTRY_POINTS
   category: category_c_terminus_reconciliation_5001
   rationale: public vocabulary of the new reconciliation gate (the closed-world entry point registry `route_terminus`
