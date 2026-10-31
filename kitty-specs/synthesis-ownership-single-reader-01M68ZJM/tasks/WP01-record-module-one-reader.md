@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: issue-6767-synthesis-ownership-single-reader
 merge_target_branch: issue-6767-synthesis-ownership-single-reader
 branch_strategy: Planning artifacts for this mission were generated on issue-6767-synthesis-ownership-single-reader. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6767-synthesis-ownership-single-reader unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-synthesis-ownership-single-reader-01M68ZJM
+base_commit: 949db9911011b019c0da3557815dd66a944a4698
+created_at: '2026-10-31T12:45:44.008796+00:00'
 subtasks:
 - T001
 - T002
