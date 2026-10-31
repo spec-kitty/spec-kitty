@@ -1,21 +1,21 @@
 {
-  "event_count": 12,
-  "last_event_id": "01M69B4K7Y9Q1D06EBR32V8GSS",
-  "materialized_at": "2026-10-31T16:02:01.086944+00:00",
+  "event_count": 19,
+  "last_event_id": "01M69BAGY8Y70B22NDW8BS5KFA",
+  "materialized_at": "2026-10-31T16:05:15.334055+00:00",
   "mission_number": "",
   "mission_slug": "issue-6328-code-producing-review-gate-01M68ZQ1",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -50,22 +50,30 @@
     },
     "WP02": {
       "actor": "reviewer-renata",
-      "agent": "python-pedro",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "python-pedro",
-      "lane": "planned",
-      "last_event_id": "01M69B4K7Y9Q1D06EBR32V8GSS",
-      "last_transition_at": "2026-10-31T16:02:01.086944+00:00",
+      "lane": "approved",
+      "last_event_id": "01M69BA162TRRTV7VHRKPC9QTJ",
+      "last_transition_at": "2026-10-31T16:04:59.202954+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Capability-keyed guard landed; 10 new tests + neighbour suites green"
+        "Capability-keyed guard landed; 10 new tests + neighbour suites green",
+        "Review cycle 1 finding R1 fixed (rename); 10 tests green",
+        "Review cycle 2 passed: R1 fixed (commit_beyond_base), no behavioural change. The refusal and its same-fixture positive control both reach _check_implementation_commit_present; built-in parity and --force pins green; #6715/#5939 empty-diff proof holds; ruff/mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 516540,
-      "shell_pid_created_at": "1793452076.86",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
         "T007": "done",
         "T008": "done",
@@ -77,11 +85,20 @@
       }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "python-pedro",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68ZXDR6XD8RRE857KGHD72S",
-      "last_transition_at": "2026-10-31T12:45:51.750806+00:00"
+      "implementer_of_record": "python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M69BAGY8Y70B22NDW8BS5KFA",
+      "last_transition_at": "2026-10-31T16:05:15.334055+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 2091904,
+      "shell_pid_created_at": "1793462711.37"
     }
   }
 }
