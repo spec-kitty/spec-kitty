@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/status/test_wire_payload.py::test_payload_matches_the_contract_key_set_and_null_policy + ::test_legacy_event_without_mission_id_omits_the_key_instead_of_nulling_it; tests/migration/...::test_dry_run_payload_is_byte_identical_to_a_real_transition (mission_id carried)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:32.327828+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
