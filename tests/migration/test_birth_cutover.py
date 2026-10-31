@@ -40,6 +40,9 @@ from mission_runtime import MissionTopology
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
+_IMPLEMENTER_ACTOR = "python-pedro"
+_REVIEWER_ACTOR = "reviewer-renata"
+
 # Reused, PROVEN git/CLI harness primitives (T009 —
 # tests/specify_cli/test_specify_topology_flag.py). Cross-test-module reuse of
 # private helpers is an established pattern in this suite (e.g.
@@ -156,7 +159,7 @@ def _status_dir(repo: Path, slug: str) -> Path:
     return resolve_status_surface(repo, slug).parent
 
 
-def _claim_real(repo: Path, slug: str, wp_id: str, *, actor: str = "python-pedro") -> None:
+def _claim_real(repo: Path, slug: str, wp_id: str, *, actor: str = _IMPLEMENTER_ACTOR) -> None:
     """Drive ``planned -> claimed`` through the REAL production status-emit
     pipeline — the genuine event-sourced claim (FR-008 / IC-07): no
     frontmatter ``shell_pid`` / ``agent`` write accompanies it."""
@@ -206,7 +209,7 @@ def _drive_claimed_through_approved(repo: Path, slug: str, wp_id: str) -> None:
                 mission_slug=slug,
                 wp_id=wp_id,
                 to_lane=to_lane,
-                actor="seed",
+                actor=_REVIEWER_ACTOR if to_lane == "in_review" else _IMPLEMENTER_ACTOR,
                 force=gating,
                 reason="seed: manufacture reviewable state" if gating else None,
             )
@@ -217,15 +220,15 @@ def _drive_claimed_through_approved(repo: Path, slug: str, wp_id: str) -> None:
             mission_slug=slug,
             wp_id=wp_id,
             to_lane="approved",
-            actor="seed",
+            actor=_REVIEWER_ACTOR,
             evidence={
                 "review": {
-                    "reviewer": "reviewer-renata",
+                    "reviewer": _REVIEWER_ACTOR,
                     "verdict": "approved",
                     "reference": f"review-{wp_id}",
                 }
             },
-            review_result=ReviewResult(reviewer="reviewer-renata", verdict="approved", reference=f"review-{wp_id}"),
+            review_result=ReviewResult(reviewer=_REVIEWER_ACTOR, verdict="approved", reference=f"review-{wp_id}"),
         )
     )
 
@@ -284,6 +287,16 @@ def _bootstrap_born_mission(
     _seed_planned(feature_dir, slug, "WP01")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", f"chore({slug}): finalize WP01")
+    # The canonical evidence axis (#6715) windows code from the recorded
+    # planning commit. Reuse the shared real-Git fixture pin, as finalize does,
+    # before any implementation branch or approval exists.
+    from tests.terminus.conftest import pin_planning_commit
+
+    pin_planning_commit(repo, feature_dir, commit_message=f"chore({slug}): record planning commit")
+    if result.coordination_branch is None:
+        # The handwritten mission branch predates planning; real allocation
+        # incorporates the finalized planning tip before creating code lanes.
+        _git(repo, "branch", "-f", mission_branch, "HEAD")
 
     coord_worktree: Path | None = None
     if result.coordination_branch is not None:

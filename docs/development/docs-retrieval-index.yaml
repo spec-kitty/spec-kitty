@@ -14720,6 +14720,7 @@ pages:
     - {slug: "objective-and-observed-user-experience", text: "Objective and observed user experience", level: 2}
     - {slug: "admission-boundary-and-compatibility", text: "Admission boundary and compatibility", level: 2}
     - {slug: "regression-evidence-and-limitations", text: "Regression evidence and limitations", level: 2}
+    - {slug: "owning-suite-fixture-corrections", text: "Owning-suite fixture corrections", level: 2}
     - {slug: "owner-resources-and-next-event", text: "Owner, resources and next event", level: 2}
   - path: "docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md"
     title: "Infra-to-logic separation (#2173) — investigation synthesis"
