@@ -48,7 +48,7 @@ either branch, one new CLI option only (C-001..C-005)
 
 | Gate | Verdict |
 | --- | --- |
-| Single canonical authority | **PASS** — the probe reuses `capture_branch_tip` (target tip) and the existing `WARNING:` stdout convention; no second branch-resolution authority is introduced. |
+| Single canonical authority | **PASS** — the probe reuses `capture_branch_tip` (target tip) and the existing `WARNING:` convention, on stderr (amended: `--json` keeps stdout machine-readable; C-004); no second branch-resolution authority is introduced. |
 | Architectural alignment | **PASS** — the check lives in the allocator (the one place a lane parent is decided), not in a CLI command, so every caller (`implement`, `next`, orchestrator-api) gets it. |
 | DDD + tiered rigour | **PASS** — the change is a read-only diagnostic plus one option threaded through an existing seam; no aggregate or boundary moves. |
 | ATDD-first | **PASS** — see Risk/Red-first below: both halves ship a failing test through the pre-existing entry point first. |
