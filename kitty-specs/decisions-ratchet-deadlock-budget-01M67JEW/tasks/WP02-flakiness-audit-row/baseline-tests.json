@@ -1,0 +1,1695 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-10-31T00:47:14Z",
+  "base_branch": "effc28665bca8aa6137dde5fe46294ae44cef1fc",
+  "base_commit": "effc28665bca8aa6137dde5fe46294ae44cef1fc",
+  "test_runner": "custom",
+  "total": 336,
+  "passed": 0,
+  "failed": 336,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.status.test_transitions.TestConstants.test_canonical_lanes_count",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestConstants.test_all_canonical_lanes_in_enum",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestConstants.test_all_enum_values_in_canonical_lanes",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestConstants.test_allowed_transitions_count",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestConstants.test_terminal_lanes",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestConstants.test_doing_alias",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestResolveAlias.test_doing_resolves_to_in_progress",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestResolveAlias.test_in_review_is_first_class_lane",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestResolveAlias.test_passthrough_canonical_lane",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestResolveAlias.test_case_insensitive",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestResolveAlias.test_strips_whitespace",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIsTerminal.test_done_is_terminal",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIsTerminal.test_canceled_is_terminal",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIsTerminal.test_in_progress_not_terminal",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIsTerminal.test_planned_not_terminal",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIsTerminal.test_doing_alias_not_terminal",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[planned-claimed-kwargs0]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[claimed-in_progress-kwargs1]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_progress-for_review-kwargs2]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[for_review-in_review-kwargs3]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_review-approved-kwargs4]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_review-done-kwargs5]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_review-in_progress-kwargs6]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_review-planned-kwargs7]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[approved-done-kwargs8]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[approved-in_progress-kwargs9]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[approved-planned-kwargs10]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_progress-planned-kwargs11]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[planned-blocked-kwargs12]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[claimed-blocked-kwargs13]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_progress-blocked-kwargs14]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[for_review-blocked-kwargs15]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_review-blocked-kwargs16]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[approved-blocked-kwargs17]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[blocked-in_progress-kwargs18]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[planned-canceled-kwargs19]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[claimed-canceled-kwargs20]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_progress-canceled-kwargs21]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[for_review-canceled-kwargs22]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[in_review-canceled-kwargs23]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[approved-canceled-kwargs24]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestLegalTransitions.test_legal_transition_accepted[blocked-canceled-kwargs25]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[planned-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[planned-in_progress]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[planned-for_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[planned-approved]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[claimed-for_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[claimed-approved]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[claimed-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[claimed-planned]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[for_review-approved]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[for_review-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[for_review-in_progress]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[for_review-planned]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[done-planned]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[done-in_progress]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[done-for_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[done-approved]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[canceled-planned]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[canceled-in_progress]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[blocked-planned]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[blocked-for_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[blocked-approved]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestIllegalTransitions.test_illegal_transition_rejected[blocked-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestForceOverride.test_force_allows_terminal_exit",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestForceOverride.test_force_without_actor_rejected",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestForceOverride.test_force_without_reason_rejected",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestForceOverride.test_force_with_empty_actor_rejected",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestForceOverride.test_force_with_empty_reason_rejected",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestForceOverride.test_force_on_legal_transition_bypasses_guards",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestForceOverride.test_force_cannot_target_genesis",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_actor_required_for_claim",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_actor_required_for_claim_empty_string",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_review_result_for_in_review_to_in_progress",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_review_result_for_in_review_to_planned",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_review_result_for_in_review_to_planned_accepted",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_review_result_for_in_review_to_planned_empty_reviewer_rejected",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_review_result_for_in_review_to_planned_empty_reference_rejected",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_review_result_for_in_review_to_approved",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_review_result_for_in_review_to_approved_with_result",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_in_review_approval_requires_approved_verdict",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_in_review_done_rejects_non_approval_evidence",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_in_review_review_ref_must_match_result",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_in_review_evidence_must_match_result",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_review_result_consistency_requires_result",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_workspace_context_required_for_claimed_to_in_progress",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_workspace_context_provided",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_subtasks_required_for_in_progress_to_for_review",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_implementation_evidence_required_for_in_progress_to_for_review",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_subtasks_and_implementation_evidence_allow_for_review",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_reason_required_for_abandon",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_reason_for_abandon_provided",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_conflict_detection_allows_distinct_actor",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_conflict_detection_allows_same_actor_reclaim",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestGuardConditions.test_conflict_detection_no_current_actor",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAliasInTransitions.test_doing_alias_in_from_lane",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAliasInTransitions.test_doing_alias_in_to_lane",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAliasInTransitions.test_doing_alias_both_lanes",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestUnknownLanes.test_unknown_from_lane",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestUnknownLanes.test_unknown_to_lane",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestBehaviorPreservationParity.test_baseline_fixture_is_non_trivial",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestBehaviorPreservationParity.test_validate_transition_matches_baseline",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestBehaviorPreservationParity.test_collapsed_matrix_catches_planted_row",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[planned-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[planned-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[claimed-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[claimed-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[in_progress-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[in_progress-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[for_review-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[for_review-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[in_review-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[in_review-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[approved-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[approved-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[blocked-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_from_terminal_with_actor_and_reason[blocked-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_requires_actor[done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_requires_actor[canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_requires_reason[done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_force_exit_requires_reason[canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_terminal_exit_without_force_is_illegal[done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestTerminalForceExitParity.test_terminal_exit_without_force_is_illegal[canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-planned]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-claimed]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-in_progress]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-for_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-in_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-approved]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-blocked]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[True-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-planned]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-claimed]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-in_progress]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-for_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-in_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-approved]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-done]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-blocked]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_truth_table_all_lanes[False-canceled]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_all_nine_lanes_are_covered",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_approved_and_done_ignore_provenance",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_canceled_turns_on_provenance",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_non_terminal_lanes_never_acceptable[planned]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_non_terminal_lanes_never_acceptable[claimed]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_non_terminal_lanes_never_acceptable[in_progress]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_non_terminal_lanes_never_acceptable[for_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_non_terminal_lanes_never_acceptable[in_review]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestAcceptableEndingPredicate.test_non_terminal_lanes_never_acceptable[blocked]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestHasOperatorProvenance.test_operator_snapshot_is_operator",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestHasOperatorProvenance.test_synthetic_snapshot_is_not_operator",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestHasOperatorProvenance.test_none_snapshot_is_not_operator",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_transitions.TestHasOperatorProvenance.test_legacy_snapshot_without_reason_source_is_not_operator",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestGetCommandTemplatesDir.test_returns_correct_doctrine_path",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestGetCommandTemplatesDir.test_return_type_is_path_not_none",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestGetCommandTemplatesDir.test_resolver_with_sys_modules_monkeypatch",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestSyncAgentCommandsIntegration.test_all_prompt_driven_commands_written",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestSyncAgentCommandsIntegration.test_missing_required_prompt_refuses_before_writes",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestRendererStaleRemoval.test_unproven_stale_files_preserved",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestIsCanonicalPredecessor.test_cross_release_marker_with_changed_body_is_predecessor",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestIsCanonicalPredecessor.test_same_version_identical_body_is_predecessor",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestIsCanonicalPredecessor.test_same_version_edited_body_is_not_predecessor",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestIsCanonicalPredecessor.test_unmarked_file_is_not_predecessor",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestIsCanonicalPredecessor.test_crlf_marker_line_is_recognized",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestIsCanonicalPredecessor.test_marker_inside_toml_prompt_body_counts",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestWarnUnmigratedCommands.test_preserved_canonical_name_is_named",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestWarnUnmigratedCommands.test_non_canonical_preserves_are_not_named",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestWarnUnmigratedCommands.test_no_warning_when_nothing_is_preserved",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestVersionLockTiming.test_lock_not_written_when_sync_raises",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_template_content_change_forces_rerender",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_cli_version_change_forces_rerender",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_cli_version_change_forces_rerender_isolated_from_destination_health",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_destination_file_altered_forces_rerender",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_destination_file_missing_forces_rerender",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_agent_keys_mismatch_forces_rerender",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_match_short_circuits_without_render_or_asset_preparation",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_malformed_stamp_degrades_to_render_without_raising",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessPrecheck.test_legacy_plain_version_stamp_degrades_to_render_without_raising",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestReadFreshnessStampMalformedPayload.test_payload_not_a_dict_reads_as_absent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestReadFreshnessStampMalformedPayload.test_non_string_cli_version_reads_as_absent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestReadFreshnessStampMalformedPayload.test_non_string_template_source_signature_reads_as_absent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestReadFreshnessStampMalformedPayload.test_agent_keys_not_a_list_of_strings_reads_as_absent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessShortCircuitOSErrorFallthrough.test_template_source_signature_oserror_falls_through_to_render",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessShortCircuitOSErrorFallthrough.test_destination_health_check_oserror_falls_through_to_render",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestFreshnessStampAppliesLast.test_stamp_absent_when_a_command_write_fails_partway",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestRenderingPipelineSignatureFoldedIn.test_rendering_pipeline_signature_change_forces_rerender",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestRenderingPipelineSignatureFoldedIn.test_rendering_pipeline_signature_hashes_this_module_and_renderers",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.specify_cli.runtime.test_agent_commands.TestRenderingPipelineSignatureFoldedIn.test_rendering_pipeline_signature_changes_with_agent_command_config",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_plain_implementer_claim_is_counted",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_reviewer_rework_rejection_with_review_ref_is_skipped",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_legacy_review_claim_for_review_to_in_progress_is_skipped",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_action_implement_takeover_without_review_ref_is_counted",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_forced_planned_claim_with_copied_review_ref_is_counted",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_generic_actors_are_skipped[user]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_generic_actors_are_skipped[implement-command]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_generic_actors_are_skipped[unknown]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_no_qualifying_event_returns_none",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_other_wps_events_are_ignored",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_dict_shaped_actor_is_returned_and_projects_through_actor_key",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_is_latest_implementer_false_for_missing_or_generic_latest[None]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_is_latest_implementer_false_for_missing_or_generic_latest[]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_is_latest_implementer_false_for_missing_or_generic_latest[implement-command]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_is_latest_implementer_false_for_missing_or_generic_latest[user]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_is_latest_implementer_false_for_missing_or_generic_latest[unknown]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_is_latest_implementer_same_tool_compact_vs_dict_shaped",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_is_latest_implementer_false_for_a_different_tool",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_is_latest_implementer_false_when_requester_projects_to_no_key",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_latest_implementer_event_returns_the_qualifying_event",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_latest_implementer_event_skips_generic_and_migration_actors",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_latest_implementer_event_keeps_the_full_recorded_identity",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_actor_full_identity_is_tool_model_profile[dict-drops-role]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_actor_full_identity_is_tool_model_profile[compact-drops-role]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_actor_full_identity_is_tool_model_profile[bare-tool]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_actor_full_identity_is_tool_model_profile[dict-tool-only]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_actor_full_identity_is_tool_model_profile[no-tool-segment-kept-as-recorded]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_actor_full_identity_is_tool_model_profile[role-only-dict]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_actor_full_identity_is_tool_model_profile[blank]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.status.test_review_roles.test_actor_full_identity_is_tool_model_profile[missing]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_write_lock_on_a_bare_directory_coordination_mission_takes_the_transaction_lock_file",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_write_lock_on_the_coordination_dir_takes_the_same_lock_file_as_the_primary_dir",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_capture_rollback_point_accepts_a_hold_taken_through_the_other_directory",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_key_is_equal_for_primary_and_coordination_directories_of_a_bare_directory_mission",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_key_of_a_modern_coordination_mission_is_its_own_directory_name",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_key_of_a_flat_mission_is_the_directory_name_even_when_the_slug_differs",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_key_of_a_directory_without_meta_is_the_directory_name",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_mid8_cascade_prefers_meta_mid8_then_mission_id[meta0-060-test-01AAAAAA]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_mid8_cascade_prefers_meta_mid8_then_mission_id[meta1-060-test-01BBBBBB]",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_mid8_cascade_falls_back_to_the_slug_tail",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_modern_coordination_mission_without_a_resolvable_mid8_raises_a_typed_error",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_legacy_slug_with_a_coordination_branch_and_no_mid8_is_keyed_on_the_bare_directory_name",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_transaction_lock_key_has_no_trailing_dash_without_a_mid8",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_transaction_key_equals_the_door_key_for_a_flat_backfilled_legacy_mission",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_transaction_key_equals_the_door_key_for_a_bare_directory_coordination_mission",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_key_reads_the_canonical_primary_meta_when_a_worktree_is_passed_as_repo_root",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_a_transaction_hold_keeps_its_key_when_meta_changes_inside_it",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_key_ignores_a_lane_worktree_copy_of_meta",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_write_lock_dir_is_named_by_the_key",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_nested_entry_reuses_the_held_key_after_meta_changes_inside_the_hold",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_a_hold_through_the_primary_dir_excludes_a_writer_through_the_coordination_dir",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_uncontended_lock_costs_no_subprocess_once_the_git_cache_is_warm",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_ignore_held_returns_the_key_on_disk_inside_a_hold",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_extender_yields_false_when_the_key_did_not_move",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_extender_yields_false_when_the_new_key_is_unresolved",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_extender_holds_the_moved_key_until_exit",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_extender_registers_the_moved_key_in_the_threads_held_map_until_exit",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_extender_requires_an_enclosing_hold",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_key.test_extender_times_out_when_another_writer_holds_the_new_key",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_happy_path_returns_zero_and_success_envelope",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_happy_path_with_no_meta_json_returns_null_mission_id",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_existing_mission_with_same_type_reattaches",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_existing_mission_with_other_type_is_refused_without_writes",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_validation_error_returns_two_with_error_envelope",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_unknown_key_returns_two_with_MISSION_KEY_UNKNOWN",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_unresolved_contract_ref_returns_two_with_MISSION_CONTRACT_REF_UNRESOLVED",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_resolve_contract_refs_resolves_org_tier_contract_ref",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_resolve_contract_refs_returns_error_when_org_pack_absent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_run_start_failure_returns_one_with_RUN_START_FAILED",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_warnings_pass_through_on_success",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_render_envelope_json_format",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_render_envelope_human_format_success",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_render_envelope_human_format_error",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_default_discovery_context_is_built_when_none_supplied",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_org_tier_mission_discovered_via_third_wiring_site",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_build_discovery_context_malformed_config_emits_no_warning_stream",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_build_discovery_context_declared_but_broken_org_pack_still_warns",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_loader_discovery_context_uses_the_pack_accessor",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_ensure_feature_metadata_edits_an_existing_meta_under_the_write_lock",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_ensure_feature_metadata_creates_a_first_meta",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_command.test_first_meta_write_does_not_lose_a_concurrent_creator",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_write_creates_kittify_if_absent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_write_brief_content",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_write_brief_hash_is_sha256_of_raw_content",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_write_source_yaml_fields",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_write_source_stdin",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_read_brief_returns_none_when_absent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_read_brief_returns_content_when_present",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_read_source_returns_none_when_absent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_read_source_returns_dict_when_present",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_read_source_raises_on_non_mapping_yaml",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_clear_removes_both_files",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_clear_is_idempotent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_write_twice_overwrites",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_mission_brief.test_write_packet_meta_lands_in_sidecar_without_changing_content_hash",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_copy_package_tree_preserves_existing_missions_when_dest_already_populated",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_copy_package_tree_default_still_replaces_regenerable_dest",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_copy_specify_base_from_local_preserves_existing_missions_and_memory",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_discard_failed_project_scaffold_preserves_operator_content",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_discard_failed_project_scaffold_is_noop_for_here_mode",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_same_second_backups_are_collision_safe",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_has_operator_authored_content_true_when_populated_without_config",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_has_operator_authored_content_false_for_truly_blank_kittify",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_has_operator_authored_content_false_when_no_kittify_at_all",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_has_operator_authored_content_false_for_empty_subtree_dirs",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_discard_failed_project_scaffold_keeps_a_checkout_and_says_why",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_remove_init_scratch_removes_a_plain_resolver_scratch_dir",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.test_init_backup_then_proceed.test_remove_init_scratch_keeps_a_resolver_scratch_dir_holding_a_checkout",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_empty_agent_normalized_to_none_at_write_boundary",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_empty_string_normalized_for_every_scalar_slot",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_nonempty_scalar_slots_are_preserved",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_empty_agent_delta_does_not_blank_prior_attribution",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_empty_agent_delta_is_noop_in_apply_even_from_legacy_log",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_empty_agent_in_claim_sidecar_is_noop",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_check_blanked_runtime_slots_flags_empty_agent_on_active_wp",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_check_blanked_runtime_slots_ignores_terminal_wp",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_check_blanked_runtime_slots_clean_when_populated",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_status_doctor_not_healthy_over_blanked_agent_slot",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_2960_blanked_runtime_slot.test_status_doctor_healthy_when_attribution_present",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_adapters_contract.test_empty_registry_fire_functions_are_noops",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_adapters_contract.test_status_stub_receives_kwargs_once_with_repo_root_rejoined",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_adapters_contract.test_lifecycle_stub_does_not_receive_repo_root",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_adapters_contract.test_resolved_binding_stub_does_not_receive_repo_root",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_adapters_contract.test_registering_the_same_qualified_function_twice_delivers_once",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_adapters_contract.test_raising_stub_is_swallowed_logged_and_later_stub_still_runs",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_adapters_contract.test_status_package_carries_no_hosted_transport_vocabulary",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_adapters_contract.test_no_handler_is_registered_after_import_in_a_fresh_interpreter",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_e2e_integration.TestE2EFullPipeline.test_e2e_full_pipeline",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_e2e_integration.TestE2EEmitInvalidTransition.test_e2e_emit_invalid_transition",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_e2e_integration.TestE2EEmitInvalidTransition.test_e2e_emit_invalid_transition_after_valid",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_e2e_integration.TestE2EEmitForceTransition.test_e2e_emit_force_transition",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_e2e_integration.TestE2EEmitForceTransition.test_e2e_force_without_reason_fails",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_e2e_integration.TestE2EJsonOutputFormat.test_e2e_json_output_format",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_e2e_integration.TestE2EMaterializeIdempotent.test_e2e_materialize_idempotent",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_retrospective_marker.test_marker_present_returns_true",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_retrospective_marker.test_marker_absent_returns_false",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_retrospective_marker.test_no_steps_returns_false",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_retrospective_marker.test_marker_not_last_returns_false",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.mission_loader.test_retrospective_marker.test_marker_constant_spelling_is_locked",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_doctor_issue_matrix_coord_partition.test_gating_refs_no_matrix_on_either_partition_is_a_warning_not_a_crash",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_doctor_issue_matrix_coord_partition.test_zero_gating_refs_coord_mission_is_clean",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_doctor_issue_matrix_coord_partition.test_gating_refs_with_coord_matrix_present_resolves_clean",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_agent_status_emit_cli.test_status_emit_success_includes_contract_fields",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_agent_status_emit_cli.test_status_emit_readback_failure_uses_structured_diagnostic",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.commands.test_upgrade_help_doc_refs.test_upgrade_help_doc_references_exist",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.cli.commands.test_upgrade_help_doc_refs.test_upgrade_module_doc_references_exist",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_dossier_sync_compat.test_326_dossier_sync_imports_remain_safe_noops",
+      "error": "failed on setup with \"kernel.locks.LockAcquireTimeout: Could not acquire machine lock at '/tmp/tmpnpvrm1by/baseline-worktree/.pytest_cache/spec-kitty-test-venv.lock' within bounded wait\"",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300
+}
