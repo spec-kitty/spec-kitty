@@ -1,0 +1,34 @@
+{
+  "accept_commit": "105ffb3336465f804af769e9250370e352ea1df8",
+  "acceptance_history": [
+    {
+      "accept_commit": "105ffb3336465f804af769e9250370e352ea1df8",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:04:19.382044+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "900aeb7c9b70619507c66e1d83a7d225ebfe8019"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T10:04:19.382044+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "900aeb7c9b70619507c66e1d83a7d225ebfe8019",
+  "baseline_merge_commit": "73ef52b64e0ad749e3483eb28042dcde750fd6a9",
+  "created_at": "2026-10-31T08:47:02.743812+00:00",
+  "flattened": true,
+  "friendly_name": "legacy agent list no widening",
+  "merged_at": "2026-10-31T10:05:26.834697+00:00",
+  "merged_commit": "1b9f8b024583f933c324e4a12c86d957525eded4",
+  "mid8": "01M68J84",
+  "mission_id": "01M68J84FDNEMVDVZEZDWBCVW9",
+  "mission_number": 245,
+  "mission_slug": "legacy-agent-list-no-widening-01M68J84",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances legacy agent list no widening on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "legacy agent list no widening",
+  "slug": "legacy-agent-list-no-widening-01M68J84",
+  "status_phase": "1",
+  "target_branch": "issue-6501-legacy-agent-list-no-widening",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T08:51:44.072815+00:00"
+}
