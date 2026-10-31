@@ -1,0 +1,69 @@
+{
+  "mission_slug": "issue-6693-red-main-refs-to-directive-01M66YZX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "packs/built-in.source.yaml and packs/internal.source.yaml both pin 72cb7dbcba69efa608327be9921d915f435d1565; 'charter pack vendor --check' matches both trees; tests/charter_offering/test_pack_pin.py + test_built_in_pin.py = 64 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-4.5:reviewer-renata",
+      "verified_at": "2026-10-30T18:56:35.658212+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/drg/migration/test_extractor_projection.py::TestDRGZeroDelta = 5 passed; reverting the curated edge target to the procedure kind turns test_regenerated_graph_matches_baseline_counts and test_shipped_graph_is_fresh_and_byte_identical red",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-4.5:reviewer-renata",
+      "verified_at": "2026-10-30T18:56:06.195503+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "126 passed over the five repointed files plus tests/charter/test_activation_preserves_effective_4253.py (untouched and green)",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-4.5:reviewer-renata",
+      "verified_at": "2026-10-30T18:56:14.054942+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "charter context --action implement: no catalog miss; doctor charter-packs: no activation-ledger finding; charter consistency-check: coherent; test_red_main_rule_is_activated_as_a_directive green",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-4.5:reviewer-renata",
+      "verified_at": "2026-10-30T18:57:58.187151+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_red_main_ledger_resolution.py = 5 passed at the fixed ledger; restoring the pre-repoint ledger from 39b1829058 turns test_every_activated_id_resolves_in_the_pack_chain and test_red_main_rule_is_activated_as_a_directive red",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-4.5:reviewer-renata",
+      "verified_at": "2026-10-30T18:58:10.140048+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/changelog/CHANGELOG.md [Unreleased]/Changed entry (1,053 chars, (#6693) lead, before/after); scripts.docs.check_changelog_style = 0 errors; check_spelling = 0 findings",
+      "pass_fail": "pass",
+      "verified_by": "claude:claude-opus-4.5:reviewer-renata",
+      "verified_at": "2026-10-30T18:58:17.688162+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

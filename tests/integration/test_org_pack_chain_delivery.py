@@ -72,7 +72,7 @@ _INTERNAL_DECLARED_URNS: dict[str, str] = {
 #: The internal pack's ``refines`` edges (source is its own procedure node, both
 #: targets are shipped built-in URNs). Each must reach the merged graph.
 _INTERNAL_REFINES_EDGES: set[tuple[str, str]] = {
-    ("procedure:landing-contributor-prs", "procedure:red-main-release-discipline"),
+    ("procedure:landing-contributor-prs", "directive:RED_MAIN_RELEASE_DISCIPLINE"),
     ("procedure:landing-contributor-prs", "tactic:pr-agent-worktree-isolation"),
 }
 
@@ -204,7 +204,7 @@ def test_class_a_second_org_pack_fragment_folds(tmp_path: Path) -> None:
     assert marker.provenance == _PACK2_PROVENANCE
 
     marker_edges = {(e.source, e.target) for e in merged.edges if e.source == _PACK2_MARKER_URN}
-    assert (_PACK2_MARKER_URN, "procedure:red-main-release-discipline") in marker_edges
+    assert (_PACK2_MARKER_URN, "directive:RED_MAIN_RELEASE_DISCIPLINE") in marker_edges
 
 
 def test_class_a_marker_absent_without_second_pack(tmp_path: Path) -> None:

@@ -41,6 +41,7 @@ activated_directives:
 - 051-supply-chain-install-safety
 - disciplined-refactoring
 - no-full-heavy-suites-in-mission
+- red-main-release-discipline
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -229,7 +230,6 @@ activated_procedures:
 - adversarial-squad-deployment
 - post-merge-arch-gate-adjudication
 - mission-wrap-up-sequence
-- red-main-release-discipline
 - glossary-maintenance-workflow
 - development-assist-test-cleanup
 - charter-offering-scenario-extraction

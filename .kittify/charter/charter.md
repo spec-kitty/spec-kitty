@@ -2,6 +2,12 @@
 
 > Created: 2026-01-27
 > Version: 1.7.0
+> Updated: 2026-10-30 — repointed the red-main & release standing order (#9) from the
+> retired `red-main-release-discipline` procedure to the shipped
+> `RED_MAIN_RELEASE_DISCIPLINE` directive after `spec-kitty-open-packs#74` moved the
+> rule-shaped artifact (open-packs pin `72cb7dbc`, #6693); the activation ledger
+> moved with it, and a new fast guard test fails if any activated or denied id
+> stops resolving against the fetched packs.
 > Updated: 2026-10-29 — the events domain's Java services (the Mission Status
 > Read API and the Mission Write API / event-log write core) and the events contracts move to
 > `spec-kitty-events`, which becomes the canonical owner of the events domain; core will consume a
@@ -162,7 +168,7 @@ the cheapest point in the lifecycle.
    accepted, land a failing reproduction test; do not spend expensive QA or manual
    testing on a red base; work red main down as top priority. Transparency over
    convenience — it's broken, we hate it, but it's the truth, so we do not hide it.
-   → `red-main-release-discipline` procedure, ADR `2026-07-17-1`.
+   → `RED_MAIN_RELEASE_DISCIPLINE` directive, ADR `2026-07-17-1`.
 
 All 15 catfooding artifacts are activated (`.kittify/config.yaml`) and
 directive-reachable, so each resolves in the compiled reference set
@@ -234,7 +240,7 @@ How agents and orchestrators should work so quality and context survive long mis
   full/cross-cutting/nightly runs; exception only on an explicit operator
   request. → `NO_FULL_HEAVY_SUITES_IN_MISSION` (internal pack), which
   reconciles with (not duplicates) `no-parallel-duplicate-test-runs` and
-  `red-main-release-discipline`.
+  `RED_MAIN_RELEASE_DISCIPLINE`.
 
 ## Collaboration Strategy
 

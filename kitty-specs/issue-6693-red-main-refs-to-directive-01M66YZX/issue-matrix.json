@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#4253": {
+      "evidence_ref": "context-only: #4253 is the 4.0.0rc5 regression that tests/charter/test_activation_preserves_effective_4253.py guards; this mission cites it as history and owes it no work (that test stays green untouched)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6693": {
+      "evidence_ref": "All six red tests green at pin 72cb7dbc; curated edge, five test sites and the minimal_org_pack_2 fixture repointed; this repository's activation ledger moved to the directive with the stale deny entry removed; new guard test tests/charter_offering/test_red_main_ledger_resolution.py fails on the pre-repoint ledger and passes after. Changelog entry under [Unreleased]/Changed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Repoint red-main-release-discipline procedure references to the RED_MAIN_RELEASE_DISCIPLINE directive on the next open-packs pin bump",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#74": {
+      "evidence_ref": "context-only: spec-kitty/spec-kitty-open-packs#74 (an upstream PR in the open-packs repository, resolved to #74 here) authored the doctrine change this mission vendors at pin 72cb7dbc; no work is owed in spec-kitty/spec-kitty",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

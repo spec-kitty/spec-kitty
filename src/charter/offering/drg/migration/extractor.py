@@ -389,12 +389,19 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:no-parallel-duplicate-test-runs",
         Relation.SUGGESTS,
     ),
-    # DIRECTIVE_030 (Test and Typecheck Quality Gate). The procedure keeps the
+    # DIRECTIVE_030 (Test and Typecheck Quality Gate). The rule keeps the
     # mainline CI signal honest and authoritative for release, which is the gate
     # this directive governs. Charter standing order #9 is the prose form.
+    # Re-pointed when ``spec-kitty-open-packs#74`` moved the rule-shaped
+    # artifact from the procedure kind to the ``RED_MAIN_RELEASE_DISCIPLINE``
+    # directive (open-packs pin 72cb7dbc, #6693). The id and the ``suggests``
+    # relation are unchanged; only the artifact kind moved, so the edge stays a
+    # curated artifact edge rather than being dropped. Leaving it on the retired
+    # procedure kind minted an orphan procedure node that the shipped graph no
+    # longer carries.
     (
         "directive:DIRECTIVE_030",
-        "procedure:red-main-release-discipline",
+        "directive:RED_MAIN_RELEASE_DISCIPLINE",
         Relation.SUGGESTS,
     ),
     # styleguide -> toolguide ``suggests`` is the established pattern (x4). The
