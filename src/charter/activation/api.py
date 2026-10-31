@@ -38,8 +38,10 @@ and drained tranche by tranche, while any *new* reach fails immediately.
 
 from __future__ import annotations
 
-# Scope and immutable fetch arguments are shared across runtime and CLI readers.
-# Identity re-exports keep those consumers behind this activation seam.
+# Scope and immutable fetch arguments are shared by CLI readers.
+# Identity re-exports keep those consumers behind this activation seam; the
+# runtime's own ``charter.activation.scope`` reach is a pre-existing baseline
+# pair that this seam drains later, not new reach.
 from charter.activation.scope import (
     CharterScope as CharterScope,
     OwnedCharterInvocation as OwnedCharterInvocation,
