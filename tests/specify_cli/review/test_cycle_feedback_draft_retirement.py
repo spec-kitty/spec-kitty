@@ -50,7 +50,9 @@ def _record(body: str) -> bytes:
     return f"---\ncycle_number: 1\n---\n\n{body}".encode()
 
 
-def _retire(draft: Path, recorded: str | None, mission_dir: Path, *, record: bytes | None = None, unreadable_record: bool = False) -> tuple[Path | None, str | None]:
+def _retire(
+    draft: Path, recorded: str | None, mission_dir: Path, *, record: bytes | None = None, unreadable_record: bool = False
+) -> tuple[Path | None, str | None]:
     """Run the seam; by default the committed record holds *recorded* verbatim."""
     if record is None and recorded is not None and not unreadable_record:
         record = _record(recorded)
