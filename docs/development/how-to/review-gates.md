@@ -153,6 +153,23 @@ Configuration (`.kittify/config.yaml`, under `review:`):
 > behaviour-preserving and therefore *preserves* this by design; it is tracked
 > separately and must not be mistaken for a fix or flagged as a regression. Only
 > the `for_review` pre-review facet of the repo-shape coupling is inverted here.
+> The remaining scope — falling back to the WP's committed evidence window — is
+> tracked in #6851.
+
+> **A planning-lane WP records why the gate did not inspect its commit (#6792).**
+> A `planning_artifact` WP commits its deliverables on the mission's target
+> branch, so the workspace the gate resolves *is* that checkout: the merge-base
+> diff against the target branch is empty by construction, and a committed, clean
+> tree adds no dirty paths. The gate skips cheaply and records
+> `planning-lane WP — committed diff not inspected (a planning_artifact WP commits on the target branch, so no workspace diff exists)`
+> as its `no_coverage` reason, and the transition is never blocked by it. Every
+> other WP with an empty diff keeps the `no changed files detected for this WP`
+> wording. Classification asks the WP's declared `execution_mode` first and,
+> when the frontmatter is silent, requires BOTH `lanes.json` conditions — the WP
+> sits in a lane `is_planning_lane` owns **and** its `planning_artifact_wps` kind
+> view names it — because a `single_branch` mission's one repo-root lane also
+> holds code work packages. An unreadable manifest falls back to the incumbent
+> wording rather than claiming a planning lane.
 
 ## Review-cycle artifacts and the consolidation gate
 
