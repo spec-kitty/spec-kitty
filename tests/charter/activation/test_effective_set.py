@@ -7,6 +7,10 @@ project-layer tactic. The seam must union built-in, both org packs and the
 project layer, emit every artifact (id≠stem ones included) in stem spelling
 (#6435), and fail closed (``resolved=False`` + reason) whenever the offering
 cannot be determined.
+
+A second fixture family (``mixed_project``) carries an id≠stem artifact of every
+gated kind, split across the two packs so the lower-precedence pack holds some
+too, and pins the union's one spelling rule and the fallback half's (#6435).
 """
 
 from __future__ import annotations
@@ -19,9 +23,12 @@ from ruamel.yaml import YAML
 
 from charter.activation import effective_set as seam
 from charter.activation.activation_engine import EffectiveSet
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.activation.effective_set import resolve_effective_sets
+from charter.activation.identity_index import IdentityIndex
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_manager import ActiveCharterManager
+from charter.offering.artifact_kinds import ArtifactKind
 from kernel.charter_pack_paths import PROJECT_PACK_ROOT
 
 pytestmark = pytest.mark.unit
@@ -73,6 +80,64 @@ def _config(project: Path, packs: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8") as fh:
         yaml.dump({"charter_packs": {"org": {"packs": packs}}, "mission_type_activations": ["software-dev"]}, fh)
+
+
+# --- the id≠stem artifact of every gated kind, per pack (#6435) -------------
+
+#: ``(activation key, kind, declared id, file stem, the pack's plural dir)``.
+#: The lower-precedence pack (``ORG1``) carries the tactic and the styleguide, so
+#: the union is exercised in both pack orders, not only for the last-declared pack.
+ID_STEM_ARTIFACTS: list[tuple[str, ArtifactKind, str, str, str]] = [
+    ("activated_directives", ArtifactKind.DIRECTIVE, ORG2_DIRECTIVE_ID, ORG2_DIRECTIVE_STEM, "directives"),
+    ("activated_tactics", ArtifactKind.TACTIC, "acme-tac-id", "acme-tac-file", "tactics"),
+    ("activated_styleguides", ArtifactKind.STYLEGUIDE, "acme-style-id", "acme-style-file", "styleguides"),
+    ("activated_toolguides", ArtifactKind.TOOLGUIDE, "acme-tool-id", "acme-tool-file", "toolguides"),
+    ("activated_paradigms", ArtifactKind.PARADIGM, "acme-paradigm-id", "acme-paradigm-file", "paradigms"),
+    ("activated_procedures", ArtifactKind.PROCEDURE, ORG2_PROCEDURE_ID, ORG2_PROCEDURE_STEM, "procedures"),
+]
+
+_ORG1_KEYS = {"activated_tactics", "activated_styleguides"}
+
+_STYLEGUIDE = 'schema_version: "1.0"\nid: {id}\ntitle: {stem}\nscope: code\nprinciples:\n  - Prefer the boring option.\n'
+_TOOLGUIDE = 'schema_version: "1.0"\nid: {id}\ntool: acme\ntitle: {stem}\nsummary: {stem} guide.\nguide_path: acme.md\napplies_to_languages: []\n'
+_PARADIGM = 'schema_version: "1.0"\nid: {id}\nname: {stem}\nsummary: Fixture paradigm.\n'
+
+_SUFFIX = {
+    ArtifactKind.STYLEGUIDE: "styleguide",
+    ArtifactKind.TOOLGUIDE: "toolguide",
+    ArtifactKind.PARADIGM: "paradigm",
+}
+
+_BODY = {
+    ArtifactKind.STYLEGUIDE: lambda stem, declared: _STYLEGUIDE.format(id=declared, stem=stem),
+    ArtifactKind.TOOLGUIDE: lambda stem, declared: _TOOLGUIDE.format(id=declared, stem=stem),
+    ArtifactKind.PARADIGM: lambda stem, declared: _PARADIGM.format(id=declared, stem=stem),
+}
+
+
+def _id_stem_file(pack: Path, kind: ArtifactKind, stem: str, declared: str, plural: str) -> None:
+    """Write *stem*'s file declaring *declared*: the one shape every gated kind shares."""
+    if kind is ArtifactKind.DIRECTIVE:
+        _directive(pack, stem, declared)
+    elif kind is ArtifactKind.TACTIC:
+        _write(
+            pack / plural / f"{stem}.tactic.yaml",
+            f'schema_version: "1.0"\nid: {declared}\nname: {stem}\npurpose: Fixture tactic.\nsteps:\n  - title: Act\n    description: Do it.\n',
+        )
+    elif kind is ArtifactKind.PROCEDURE:
+        _procedure(pack, stem, declared)
+    else:
+        _write(pack / plural / f"{stem}.{_SUFFIX[kind]}.yaml", _BODY[kind](stem, declared))
+
+
+@pytest.fixture
+def mixed_project(tmp_path: Path) -> Path:
+    """Two declared org packs; every gated kind carries one id≠stem artifact."""
+    root = tmp_path / "mixed"
+    for key, kind, declared, stem, plural in ID_STEM_ARTIFACTS:
+        _id_stem_file(root / (ORG1 if key in _ORG1_KEYS else ORG2), kind, stem, declared, plural)
+    _config(root, [{"name": "acme", "local_path": ORG1}, {"name": "acme-two", "local_path": ORG2}])
+    return root
 
 
 @pytest.fixture
@@ -287,3 +352,78 @@ def test_project_without_org_packs_resolves(tmp_path: Path) -> None:
 
     assert result.resolved
     assert _builtin_ids("paradigm") <= result.ids
+
+
+# --- #6435: one spelling rule, per kind and per layer ------------------------
+
+
+def _service(project: Path) -> object:
+    return build_active_charter_service(project)
+
+
+def test_the_mixed_two_pack_union_lists_every_idne_stem_artifact_once_by_its_stem(mixed_project: Path) -> None:
+    """Re-pin (#6435): the service half is declared ids, the scanned half is stems; one spelling survives."""
+    results = _resolve(mixed_project, [key for key, *_ in ID_STEM_ARTIFACTS])
+    service = _service(mixed_project)
+
+    for key, kind, declared, stem, plural in ID_STEM_ARTIFACTS:
+        entry = results[key]
+        assert entry.resolved, (key, entry.reason)
+        # positive control: the service really holds this artifact under its declared id,
+        # so the union saw the mixed spelling and had to map it (not a scan-only pass).
+        assert declared in getattr(service, plural), f"{key}: fixture invalid, the service does not load {declared}"
+        assert stem in entry.ids, (key, stem)
+        assert declared not in entry.ids, f"{key}: the declared id is listed beside its stem"
+        # both spellings an operator may type converge on the one stored stem
+        index = IdentityIndex.build(mixed_project, org_roots=[mixed_project / ORG1, mixed_project / ORG2])
+        assert index.stored_spelling(kind, declared) == stem, key
+        assert index.stored_spelling(kind, stem) == stem, key
+
+
+def test_the_fallback_half_is_stem_spelled_too(mixed_project: Path) -> None:
+    """The unresolvable path seeds ``activate``, so its half of the union obeys the same rule (#6435)."""
+    gone = mixed_project / "org-packs" / "gone"
+    _config(
+        mixed_project,
+        [
+            {"name": "acme", "local_path": ORG1},
+            {"name": "gone", "local_path": str(gone)},
+            {"name": "acme-two", "local_path": ORG2},
+        ],
+    )
+    index = IdentityIndex.build(mixed_project, org_roots=[mixed_project / ORG1, mixed_project / ORG2])
+
+    results = _resolve(mixed_project, [key for key, *_ in ID_STEM_ARTIFACTS])
+
+    for key, kind, declared, stem, _plural in ID_STEM_ARTIFACTS:
+        entry = results[key]
+        assert not entry.resolved and entry.reason is not None  # fail closed, unchanged
+        assert stem in entry.fallback_ids, (key, stem)
+        assert declared not in entry.fallback_ids, f"{key}: the fallback carries a declared id"
+        assert index.stem(kind, stem) == stem, key
+
+
+def test_reverting_the_one_mapping_leaves_no_declared_id_in_either_half(mixed_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The rule lives in one helper: with it neutralised, both halves show the mixed spelling again.
+
+    This is the pin that makes the two tests above non-vacuous -- it proves they
+    would fail if the union stopped mapping the service half.
+    """
+    monkeypatch.setattr(seam, "_as_stems", lambda ids, kind, identity: set(ids))
+
+    results = _resolve(mixed_project, [key for key, *_ in ID_STEM_ARTIFACTS])
+    leaked = {key: declared for key, _kind, declared, _stem, _plural in ID_STEM_ARTIFACTS if declared in results[key].ids}
+    assert leaked, "fixture invalid: with the mapping neutralised a declared id must reappear"
+
+    # ... and the fallback half calls the same helper, so it leaks through the same seam.
+    _config(
+        mixed_project,
+        [
+            {"name": "acme", "local_path": ORG1},
+            {"name": "gone", "local_path": str(mixed_project / "org-packs" / "gone")},
+            {"name": "acme-two", "local_path": ORG2},
+        ],
+    )
+    fallback = _resolve(mixed_project, [key for key, *_ in ID_STEM_ARTIFACTS])
+    leaked_fallback = {key: declared for key, _kind, declared, _stem, _plural in ID_STEM_ARTIFACTS if declared in fallback[key].fallback_ids}
+    assert leaked_fallback, "the fallback half must use the same one mapping"
