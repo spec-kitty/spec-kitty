@@ -23,6 +23,7 @@ from specify_cli.runtime.migrate import (
     _move_blocker,
     classify_asset,
     execute_migration,
+    shipped_mission_counterpart,
 )
 
 import pytest
@@ -1560,3 +1561,54 @@ class TestMigrationConflictRecord:
         assert second.conflicts == first.conflicts
         assert second.moved == []
         assert (files["twin"].read_bytes(), override.read_bytes()) == before
+
+
+class TestShippedMissionCounterpart:
+    """The one ``missions/<type>/<rest>`` -> package mapping (#6548).
+
+    Both project mission trees (``.kittify/missions/`` and
+    ``.kittify/overrides/missions/``) use the same shape, so the classifier and the
+    ``4.0.0rc8_repair_historical_sweep_overrides`` migration resolve through this
+    one helper instead of each writing its own join.
+    """
+
+    def test_nested_mission_path_maps_to_the_shipped_mission_file(self, tmp_path: Path) -> None:
+        package_root = tmp_path / "packs" / "missions"
+        pack = package_root / "software-dev" / "templates" / "spec-template.md"
+        pack.parent.mkdir(parents=True)
+        pack.write_text("shipped spec template")
+
+        rel = Path("missions") / "software-dev" / "templates" / "spec-template.md"
+
+        assert shipped_mission_counterpart(rel, package_root) == pack
+
+    def test_flat_template_path_is_not_a_mission_path(self, tmp_path: Path) -> None:
+        """The pre-2.x flat layout keeps its own joins; this helper must not claim it."""
+        package_root = tmp_path / "packs" / "missions"
+        pack = package_root / "software-dev" / "templates" / "spec.md"
+        pack.parent.mkdir(parents=True)
+        pack.write_text("shipped spec")
+
+        assert shipped_mission_counterpart(Path("templates") / "spec.md", package_root) is None
+
+    def test_mission_path_without_a_shipped_file_has_no_counterpart(self, tmp_path: Path) -> None:
+        package_root = tmp_path / "packs" / "missions"
+        (package_root / "software-dev" / "templates").mkdir(parents=True)
+
+        rel = Path("missions") / "erp" / "mission.yaml"
+
+        assert shipped_mission_counterpart(rel, package_root) is None
+
+    def test_a_directory_at_the_counterpart_path_is_not_a_counterpart(self, tmp_path: Path) -> None:
+        package_root = tmp_path / "packs" / "missions"
+        (package_root / "software-dev" / "templates" / "spec-template.md").mkdir(parents=True)
+
+        rel = Path("missions") / "software-dev" / "templates" / "spec-template.md"
+
+        assert shipped_mission_counterpart(rel, package_root) is None
+
+    def test_two_segment_path_is_not_a_mission_path(self, tmp_path: Path) -> None:
+        package_root = tmp_path / "packs" / "missions"
+        package_root.mkdir(parents=True)
+
+        assert shipped_mission_counterpart(Path("missions") / "software-dev", package_root) is None
