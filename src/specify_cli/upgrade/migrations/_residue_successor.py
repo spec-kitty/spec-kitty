@@ -103,10 +103,10 @@ class ResidueSafeLaneSuccessorMixin(BaseMigration):
 
     Listed first in the bases, before the shipped class, so ``super()`` here reaches the
     shipped walk. The successor keeps its per-folder overrides, which call :meth:`_is_residue`.
-    ``predecessor_id`` names the superseded predecessor whose settlement makes the successor inert.
+    ``predecessor_id`` (``BaseMigration``'s) names the superseded predecessor whose settlement
+    makes the successor inert and whose unsettled outcome reopens the retry (#6688).
     """
 
-    predecessor_id: str = ""
     _probes: ResidueProbes | None = None
 
     def _is_residue(self, feature_path: Path) -> bool:
