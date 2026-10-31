@@ -32,6 +32,7 @@ duplicated here.
 
 from __future__ import annotations
 
+import hashlib
 import shlex
 import tempfile
 from dataclasses import dataclass
@@ -218,7 +219,6 @@ def empty_scope_is_coverage_gap(source: ScopeSource) -> bool:
 # ---------------------------------------------------------------------------
 
 _FAILURE_LINE_PREFIX = "FAIL "
-_UNPARSEABLE_FAILURE_TEST_ID = "<declared-command>"
 _FAILURE_MESSAGE_MAX_CHARS = 200
 
 
@@ -249,13 +249,31 @@ def _whole_run_failure(raw: RawRunResult) -> BaselineFailure:
     Exit code alone is insufficient identity for a baseline diff, but a
     non-zero exit with no parseable per-test failures must still be
     surfaced as failing — never silently swallowed into ``()``.
+
+    The returned entry is marked ``opaque`` and carries the run's exit status
+    and a digest of its FULL output tail: together they are its bound,
+    comparable identity. The placeholder NAME alone is not an identity — two
+    opaque runs may have failed for unrelated reasons (issue #6751) — and the
+    one-line summary is not one either, because unrelated failures routinely
+    share a generic last line (``make: *** [Makefile:1: all] Error 1``). So
+    ``baseline.diff_baseline`` compares (exit status, output digest), never the
+    name and never the display summary.
     """
-    from specify_cli.review.baseline import BaselineFailure
+    from specify_cli.review.baseline import OPAQUE_FAILURE_TEST_ID, BaselineFailure
 
     tail_source = raw.stderr or raw.stdout
-    tail_lines = tail_source.strip().splitlines()
+    normalized = tail_source.replace("\r\n", "\n").strip()
+    tail_lines = normalized.splitlines()
     summary = tail_lines[-1][:_FAILURE_MESSAGE_MAX_CHARS] if tail_lines else f"exit code {raw.returncode}"
-    return BaselineFailure(test=_UNPARSEABLE_FAILURE_TEST_ID, error=summary, file="unknown")
+    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]  # noqa: TID251 - opaque run identity, not charter content
+    return BaselineFailure(
+        test=OPAQUE_FAILURE_TEST_ID,
+        error=summary,
+        file="unknown",
+        opaque=True,
+        exit_code=raw.returncode,
+        output_digest=digest,
+    )
 
 
 @dataclass(frozen=True)

@@ -4,7 +4,7 @@
   "friendly_name": "opaque failure identity",
   "mid8": "01M67HQA",
   "mission_id": "01M67HQAD9Z47WWK9XGGZ8WMZ1",
-  "mission_number": null,
+  "mission_number": 244,
   "mission_slug": "opaque-failure-identity-01M67HQA",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances opaque failure identity on issue-6751-opaque-failure-identity so stakeholders can track the work from mission creation onward.",
