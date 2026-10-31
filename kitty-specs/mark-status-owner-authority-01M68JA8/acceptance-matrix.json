@@ -1,0 +1,59 @@
+{
+  "mission_slug": "mark-status-owner-authority-01M68JA8",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mark_status_owner_authority.py::test_mixed_sources_refuse_unscoped_and_scope_per_wp \u2014 union of authored roster and structured tasks.md claim is refused unscoped and scoped per WP",
+      "pass_fail": "pass",
+      "verified_by": "pi/gpt-5-codex",
+      "verified_at": "2026-10-31T09:45:42.927921+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mark_status_owner_authority.py::test_wp_shaped_authored_subtask_needs_wp_scope \u2014 a WP-shaped authored subtask needs --wp and is recorded on its owner",
+      "pass_fail": "pass",
+      "verified_by": "pi/gpt-5-codex",
+      "verified_at": "2026-10-31T09:45:48.953511+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mark_status_owner_authority.py::test_wp_index_row_cannot_claim_a_work_package_id \u2014 a WP index-table row no longer claims a work-package id; the lane-transition rejection fires first",
+      "pass_fail": "pass",
+      "verified_by": "pi/gpt-5-codex",
+      "verified_at": "2026-10-31T09:45:57.101506+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/cli/commands/agent/tasks_mark_status.py::_ms_emit_subtask_state reads st.task_wps only; live check: the batch mark T001..T005 --wp WP01 and T001..T003 --wp WP02 recorded events on the scoped WP only",
+      "pass_fail": "pass",
+      "verified_by": "pi/gpt-5-codex",
+      "verified_at": "2026-10-31T09:46:02.610760+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mark_status_owner_authority.py::test_emit_refuses_an_unattributable_updated_id \u2014 an unattributable updated id raises before any event is appended",
+      "pass_fail": "pass",
+      "verified_by": "pi/gpt-5-codex",
+      "verified_at": "2026-10-31T09:46:07.964454+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
