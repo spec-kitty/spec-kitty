@@ -332,9 +332,7 @@ def test_an_unreadable_worktree_registry_keeps_the_callers_root(tmp_path: Path, 
     assert resolve_handle_to_read_path(lane_worktree, MISSION_DIRNAME) == lane_copy
 
 
-def test_a_primary_rooted_read_spends_no_worktree_registry_call(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_primary_rooted_read_spends_no_worktree_registry_call(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The guard costs nothing on the common path: a repository root never consults git.
 
     NFR-001: a repository-rooted status read is the overwhelmingly common case, so the guard
@@ -371,14 +369,10 @@ def test_a_primary_rooted_read_spends_no_worktree_registry_call(
         _unavailable,
     )
 
-    assert resolve_handle_to_read_path(lane_worktree, MISSION_DIRNAME) == (
-        lane_worktree / "kitty-specs" / MISSION_DIRNAME
-    )
+    assert resolve_handle_to_read_path(lane_worktree, MISSION_DIRNAME) == (lane_worktree / "kitty-specs" / MISSION_DIRNAME)
 
 
-def test_a_relative_lane_worktree_root_is_re_anchored_too(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_a_relative_lane_worktree_root_is_re_anchored_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A caller standing in the lane worktree hands in a relative root (``Path(".")``).
 
     The guard judges shape and git ancestry on the resolved path, so ``.`` from inside the lane
