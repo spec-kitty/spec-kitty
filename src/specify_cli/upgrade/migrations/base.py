@@ -275,6 +275,22 @@ class BaseMigration(ABC):
     #: and never re-selects or re-applies the migration.
     content_hash_sources: ClassVar[tuple[str, ...]] = ()
 
+    #: The migration ids whose application, EARLIER IN THE SAME RUN, changes state
+    #: this migration's :meth:`detect` reads (#6552). A dry run applies nothing, so
+    #: every ``detect()`` would otherwise answer for the pre-run tree and report a
+    #: migration the real run applies as ``not needed``. With this declaration the
+    #: runner reports the dependent as applied once a declared predecessor has been
+    #: reported applied in the same dry run, which is the verdict the real run reaches.
+    #:
+    #: It is DETECT-INPUT metadata, never an execution-order authority:
+    #: ``order_manifest.txt`` owns order (ADR ``2026-10-17-1`` §2), this declaration
+    #: reorders nothing, and a real run never consults it (there the predecessor has
+    #: already written, so ``detect()`` answers for itself). An id that is not in this
+    #: run's selection, or is unknown to the registry, changes nothing. Leave it empty
+    #: unless ``detect()`` genuinely reads the predecessor's write; an empty declaration
+    #: keeps the honest ``not needed on the current tree`` dry-run wording.
+    sequenced_after: ClassVar[tuple[str, ...]] = ()
+
     #: The migration adopts the ledger: it records other migrations as settled
     #: when it applies (ADR ``2026-10-17-1`` §6, Amendment 2026-10-20). Selection
     #: never caps it at the run's requested target (an upgrade to an older

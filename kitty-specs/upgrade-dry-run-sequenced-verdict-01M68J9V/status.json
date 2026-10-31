@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M68JG62KZTE7GQB54KTTCTVJ",
-  "materialized_at": "2026-10-31T08:51:26.419695+00:00",
+  "event_count": 4,
+  "last_event_id": "01M68JK8QT112R6G746Y5ZFM2Y",
+  "materialized_at": "2026-10-31T08:53:07.447684+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-dry-run-sequenced-verdict-01M68J9V",
   "mission_type": "software-dev",
@@ -13,17 +13,26 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "python-pedro",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68JG5SY0MBQPPGTAXGSP8K0",
-      "last_transition_at": "2026-10-31T08:51:26.142308+00:00"
+      "implementer_of_record": "python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M68JK8QT112R6G746Y5ZFM2Y",
+      "last_transition_at": "2026-10-31T08:53:07.447684+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 772919,
+      "shell_pid_created_at": "1793436783.42"
     },
     "WP02": {
       "actor": "finalize-tasks",

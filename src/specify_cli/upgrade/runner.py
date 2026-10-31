@@ -235,6 +235,10 @@ class MigrationRunner:
         self._repository_probe = RepositoryProbe(project_path)
         # Resolved residue folders already named in this run's warnings (#6669).
         self._seen_residue: set[Path] = set()
+        # The migrations this run has reported applied: the sequenced view a dry run
+        # otherwise has no way to observe, because its ``apply()`` calls write nothing
+        # (#6552). Read only by :meth:`_sequenced_predecessors`.
+        self._sequenced_applied: set[str] = set()
 
     def upgrade(
         self,
@@ -263,6 +267,7 @@ class MigrationRunner:
         (:func:`~specify_cli.upgrade.migrations.base.legacy_upgrade_scope`).
         """
         self._seen_residue = set()
+        self._sequenced_applied = set()
         with legacy_upgrade_scope(self.project_path):
             return self._upgrade(target_version, dry_run=dry_run, include_worktrees=include_worktrees, auto_commit=auto_commit)
 
@@ -355,6 +360,9 @@ class MigrationRunner:
 
             if status == "applied":
                 result.migrations_applied.append(migration.migration_id)
+                # The run's sequenced view grows here, in ONE place, so a dry run's
+                # later verdicts can consult what this run has already applied (#6552).
+                self._sequenced_applied.add(migration.migration_id)
             elif status == "skipped":
                 result.migrations_skipped.append(migration.migration_id)
             else:
@@ -432,6 +440,17 @@ class MigrationRunner:
         Returns:
             Tuple of (MigrationResult, status) where status is one of
             ``applied``, ``skipped``, or ``failed``.
+
+        Two authorities meet here. The LEDGER decides whether this migration is
+        selected at all (:func:`migration_settled`); ``detect()`` is the pre-apply
+        idempotency guard (C-003). Under ``dry_run`` the guard is not the run's
+        verdict: no earlier migration wrote anything, so a ``detect()`` that reads
+        an earlier migration's output answers for the PRE-RUN tree. A migration that
+        declares those predecessors (:attr:`~...base.BaseMigration.sequenced_after`)
+        is therefore decided on the run's own sequenced view -- the migrations this
+        run has already reported applied -- so the preview reports what the real run
+        reaches (#6552). The declaration is detect-input metadata only; a real run
+        never consults it, because there the predecessor has already written.
         """
         # Skip if the applicable ledger partition already records this migration
         # (ADR 2026-10-17-1 §3: the ledger, not metadata.yaml, is the applied
@@ -499,7 +518,13 @@ class MigrationRunner:
                 dry_run=dry_run,
             )
 
-        if not migration_needed:
+        # The sequenced view a dry run cannot observe for itself (#6552): a declared
+        # predecessor this run already reported applied means a real run would have
+        # rewritten the state this detect() just read, so its False is a pre-run-tree
+        # answer, not the run's verdict. Empty on every real run (C-002).
+        sequenced_predecessors = self._sequenced_predecessors(migration) if dry_run and not migration_needed else []
+
+        if not migration_needed and not sequenced_predecessors:
             # Migration not needed - project doesn't have old state
             if not dry_run:
                 self._record_migration_result(
@@ -512,7 +537,7 @@ class MigrationRunner:
             return (
                 MigrationResult(
                     success=True,
-                    warnings=[f"Migration {migration.migration_id} not needed (project already in target state)"],
+                    warnings=[self._not_needed_warning(migration.migration_id, dry_run=dry_run)],
                 ),
                 "skipped",
             )
@@ -538,6 +563,20 @@ class MigrationRunner:
                     warnings=[f"Migration {migration.migration_id} not applicable here ({reason}); skipping"],
                 ),
                 "skipped",
+            )
+
+        # Predicted verdict: the declared predecessor this run reported applied has
+        # written the state the real run's detect() would see, so the real run applies
+        # this migration next. Reporting it here keeps ``Migrations applied:`` (and the
+        # JSON ``migrations_applied``) the same in both modes, and the change line says
+        # it is a prediction. Nothing is written: a prediction is a verdict only.
+        if sequenced_predecessors:
+            return (
+                MigrationResult(
+                    success=True,
+                    changes_made=[f"dry-run: would apply after {', '.join(sequenced_predecessors)}"],
+                ),
+                "applied",
             )
 
         # Apply the migration. Same TOCTOU-safe handling as detect() above --
@@ -590,6 +629,31 @@ class MigrationRunner:
             )
 
         return result, ("applied" if result.success else "failed")
+
+    def _sequenced_predecessors(self, migration: BaseMigration) -> list[str]:
+        """The declared detect-input predecessors this run has already reported applied (#6552).
+
+        Only a migration that declares the migrations whose writes its ``detect()``
+        reads (:attr:`~.migrations.base.BaseMigration.sequenced_after`) can be decided on
+        the sequenced view: the declaration is the author's assertion that the
+        predecessor's write is what re-selects this migration. A declared id that is
+        not in this run's applied set -- already settled, skipped, or unknown -- changes
+        nothing, because it wrote nothing here.
+        """
+        declared = getattr(migration, "sequenced_after", ())
+        return [predecessor for predecessor in declared if predecessor in self._sequenced_applied]
+
+    @staticmethod
+    def _not_needed_warning(migration_id: str, *, dry_run: bool) -> str:
+        """The skip warning for a migration ``detect()`` reports nothing to do for.
+
+        A real run does reach the target state, so it keeps that claim. A dry run
+        applied nothing before this point, so it can only claim the tree in front of
+        it; it must not assert a target state it has not simulated (#6552).
+        """
+        if dry_run:
+            return f"Migration {migration_id} not needed on the current tree"
+        return f"Migration {migration_id} not needed (project already in target state)"
 
     def _detect_failure(
         self,

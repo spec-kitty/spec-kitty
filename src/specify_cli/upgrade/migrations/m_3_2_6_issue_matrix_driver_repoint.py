@@ -61,3 +61,10 @@ class IssueMatrixDriverRepointMigration(MergeDriverSeedingMigration):
     target_version = "3.2.6rc1"
     drivers = _DRIVERS
     dry_run_summary = "Would repoint the issue-matrix merge driver to issue-matrix.json"
+    # The gate migration declares the SAME config key with its own (filled-side) name,
+    # and applying it overwrites the row-aware name this migration's detect() reads --
+    # which is exactly what makes this migration needed. A dry run applies nothing, so
+    # without this declaration it would report this migration as
+    # "not needed (project already in target state)" while the real run applies it
+    # (#6552). Detect-input metadata only: order stays with order_manifest.txt.
+    sequenced_after = ("3.2.6_gate_artifact_merge_drivers",)
