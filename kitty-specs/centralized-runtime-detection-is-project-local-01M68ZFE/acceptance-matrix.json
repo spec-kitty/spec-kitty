@@ -1,0 +1,59 @@
+{
+  "mission_slug": "centralized-runtime-detection-is-project-local-01M68ZFE",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_compat.py::test_uses_centralized_runtime_reads_the_project_stamp_not_the_home (asserts True under an unbootstrapped home)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T15:22:04.657819+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same test: EnsureMissionsMigration().detect is False and InstallDocumentationMission().detect is False",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T15:22:09.387387+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_upgrade_empty_home_noop.py::test_converged_upgrade_makes_no_tracked_change_without_a_bootstrapped_home (head unchanged, no .kittify/missions, no .kittify/overrides)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T15:22:13.152155+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_pre_two_x_project_under_the_same_empty_home_still_repairs (1.9.0 -> missions land, ledger success) + test_uses_centralized_runtime_still_repairs_a_pre_two_x_project",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T15:22:17.044769+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "the three pre-existing test_compat.py cases plus test_uses_centralized_runtime_keeps_pre_two_x_answer_without_a_bootstrapped_home",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T15:22:21.241509+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

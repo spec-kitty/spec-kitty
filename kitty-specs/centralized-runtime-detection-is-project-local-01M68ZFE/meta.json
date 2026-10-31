@@ -1,0 +1,34 @@
+{
+  "accept_commit": "c84a07323076a1a1c2db05d37ea97d12529a02ec",
+  "acceptance_history": [
+    {
+      "accept_commit": "c84a07323076a1a1c2db05d37ea97d12529a02ec",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T15:22:27.791543+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "fe7b1323bde0e5cbdebcb11d2b7de4fd1ba3ea5c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T15:22:27.791543+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "fe7b1323bde0e5cbdebcb11d2b7de4fd1ba3ea5c",
+  "baseline_merge_commit": "5d07e51d39e25018d23cf7aca41ad41b64a52a22",
+  "created_at": "2026-10-31T12:38:13.859655+00:00",
+  "flattened": true,
+  "friendly_name": "centralized runtime detection is project local",
+  "merged_at": "2026-10-31T15:23:46.206906+00:00",
+  "merged_commit": "52a66badc3abb39638beb480e8a956ae6db9dc29",
+  "mid8": "01M68ZFE",
+  "mission_id": "01M68ZFE2BP5YQ37ZFXE5CQDNW",
+  "mission_number": 245,
+  "mission_slug": "centralized-runtime-detection-is-project-local-01M68ZFE",
+  "mission_type": "software-dev",
+  "purpose_context": "A project stamped 2.x or later must answer 'centralized runtime' the same way on every machine, so spec-kitty upgrade cannot re-run legacy mission migrations and commit frozen overrides when ~/.kittify is not bootstrapped yet (#6551).",
+  "purpose_tldr": "Make centralized-runtime detection read the project's own metadata instead of the operator's home",
+  "slug": "centralized-runtime-detection-is-project-local-01M68ZFE",
+  "status_phase": "1",
+  "target_branch": "issue-6551-centralized-runtime-detection-is-project-local",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T12:43:40.319070+00:00"
+}

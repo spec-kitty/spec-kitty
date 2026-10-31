@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#3900": {
+      "evidence_ref": "Cited as context only: #3900 explains why upgrade defers the home bootstrap, which is the premise of this fix; no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6548": {
+      "evidence_ref": "Already open: #6548 owns repair of historical sweep-created mission overrides. This PR fixes the trigger, not the repair of already-affected projects.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#6551": {
+      "evidence_ref": "commit af0c46dead: uses_centralized_runtime reads the project stamp first; production-path test tests/upgrade/test_upgrade_empty_home_noop.py::test_converged_upgrade_makes_no_tracked_change_without_a_bootstrapped_home",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

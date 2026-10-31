@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "centralized-runtime-detection-is-project-local-01M68ZFE",
+  "mission_id": "01M68ZFE2BP5YQ37ZFXE5CQDNW",
+  "mission_branch": "kitty/mission-centralized-runtime-detection-is-project-local-01M68ZFE",
+  "target_branch": "issue-6551-centralized-runtime-detection-is-project-local",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/compat.py",
+        "tests/upgrade/test_compat.py",
+        "tests/upgrade/test_upgrade_empty_home_noop.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "kitty-specs/centralized-runtime-detection-is-project-local-01M68ZFE/traces/**"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-31T12:42:21.395858+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "deec89b5b6f675ce69001369299e717661da0ddf"
+}
