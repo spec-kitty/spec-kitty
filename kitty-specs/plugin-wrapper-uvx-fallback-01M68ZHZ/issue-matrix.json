@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#497": {
+      "evidence_ref": "Cited for the PATH-reachability probe commits fb645d2b92/a77456eb4c; the behaviour is preserved (an unreachable shim still falls through) and pinned by test_bash_falls_back_to_uvx_when_path_shim_is_unreachable, not for work owed.",
+      "fr": null,
+      "nfr": "NFR-002",
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "Not in scope; the unreachable-shim fall-through must not regress",
+      "source_file": null,
+      "title": "commit fb645d2b92/a77456eb4c reference: probe the PATH CLI before delegating (regression guard preserved here)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#623": {
+      "evidence_ref": "Cited for the cmd.exe EXIT /B %ERRORLEVEL% regression guard introduced by commit fd220a10b9, not for work owed; this tracker number is an unrelated merged PR. The invariant is preserved and pinned by tests.",
+      "fr": "NFR-002",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "Not in scope; the invariant this commit established must not regress",
+      "source_file": "spec.md",
+      "title": "commit fd220a10b9 reference: cmd.exe EXIT /B %ERRORLEVEL% masking in the Windows wrapper (regression guard preserved here; the tracker number is an unrelated merged PR)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6476": {
+      "evidence_ref": "feat(WP01)+docs(WP02) on issue-6476 branch: both wrappers now run 'uvx --from spec-kitty-cli==<version> spec-kitty', PATH CLI gated on the supported series, series-range retry for an unpublished pin, uv/pipx remedy; 57 wrapper tests + 81 bundle tests green; real-uvx end-to-end run on a PATH without spec-kitty exits 0.",
+      "fr": "FR-001,FR-002,FR-003,FR-004,FR-005",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "Wrapper runtime resolution only: uvx --from form, series-gated PATH use, series-range retry, uv/pipx remedy",
+      "source_file": "spec.md",
+      "title": "Plugin bundle wrapper's uvx fallback is broken: uvx spec-kitty-cli==VER - package exposes no spec-kitty-cli executable",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6479": {
+      "evidence_ref": "Out of scope by design (spec C-001); bundle layout/manifest conformance is tracked by #6479 itself. Follow-up: #6479",
+      "fr": "C-001",
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "Not in this mission: bundle layout and manifest conformance stay with #6479",
+      "source_file": "spec.md",
+      "title": "spec-kitty plugin build bundles fail current directory requirements (Claude bin/ + hooks path, Codex/OpenAI manifest fields, Copilot schema)",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

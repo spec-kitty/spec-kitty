@@ -1,0 +1,40 @@
+{
+  "accept_commit": "225d1c4b01f59229d5d7974a8cfbcdeeac2ec932",
+  "acceptance_history": [
+    {
+      "accept_commit": "f2502356e8c3b90258140f838cdd0026a969ba68",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:33:36.840738+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "4da44e9c1889e3db1a5bd4d7ad57bda0a7f3a07e"
+    },
+    {
+      "accept_commit": "225d1c4b01f59229d5d7974a8cfbcdeeac2ec932",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:33:43.325413+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "107c50135d486ceee28ccbd4bc7b4e2250088d68"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T13:33:43.325413+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "107c50135d486ceee28ccbd4bc7b4e2250088d68",
+  "baseline_merge_commit": "6f73b2a98e608bc44dcb07c6a304b866f5716441",
+  "created_at": "2026-10-31T12:39:36.708424+00:00",
+  "flattened": false,
+  "friendly_name": "plugin wrapper uvx fallback",
+  "merged_at": "2026-10-31T13:40:02.703907+00:00",
+  "merged_commit": "3270c3797f607a7e1a95332dd6c5bff079da1815",
+  "mid8": "01M68ZHZ",
+  "mission_id": "01M68ZHZ6TX6Q1Y1KPJFPESJ9D",
+  "mission_number": 245,
+  "mission_slug": "plugin-wrapper-uvx-fallback-01M68ZHZ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances plugin wrapper uvx fallback on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "plugin wrapper uvx fallback",
+  "slug": "plugin-wrapper-uvx-fallback-01M68ZHZ",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

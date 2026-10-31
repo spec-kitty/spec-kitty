@@ -1,0 +1,89 @@
+{
+  "event_count": 20,
+  "last_event_id": "01M692PG2002AAXKKK3ZWP0JYT",
+  "materialized_at": "2026-10-31T13:34:30.464268+00:00",
+  "mission_number": "245",
+  "mission_slug": "plugin-wrapper-uvx-fallback-01M68ZHZ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M692PFRASMRAS27RS9MZ3W06",
+      "last_transition_at": "2026-10-31T13:34:30.154067+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T12:49:45Z – unknown – Red first: rendered the pre-fix wrapper from HEAD and ran it under a uvx stub (argv 'uvx spec-kitty-cli==4.0.0rc8 mission list') and against the real uvx (exit 1: 'An executable named spec-kitty-cli is not provided by package spec-kitty-cli'). Then fixed both templates. Half-by-half proof: reverting only the --from form reds the fallback+retry tests; reverting only the series gate reds the other-series test; reverting only the remedy reds the remedy test. 56 tests green in the module, 81 in the bundle module set; ruff check/format and mypy clean. Real end-to-end: new wrapper on a PATH without spec-kitty, real uvx, prints 'spec-kitty-cli version 4.0.0rc8' exit 0.",
+        "Ready for review",
+        "- 2026-10-31T12:55:24Z – unknown – Review round 1 (reviewer-renata lens): two findings fixed - (1) CMD fast path matched only ' <series>.' so a bare version output fell through to uvx; now accepts both shapes. (2) Runtime tests inherited /usr/bin:/bin, so a real uvx there could shadow the stub; PATH now holds only a symlinked awk. No spec/plan deviation. 81 bundle tests green, ruff+mypy clean.",
+        "Review passed (reviewer-renata profile). Findings fixed in 517c5ca6e5: CMD fast path matched only a program-name-prefixed version; runtime tests inherited system PATH dirs. Half-by-half proof: reverting the --from form, the series gate, or the remedy each reds a distinct test.",
+        "Re-opening to record the implementer identity and to add the POSIX parity test for a bare version output (the same gap the review fixed in the CMD wrapper).",
+        "Implementation done: bare-version parity test plus rendered-series pin; 57 tests green",
+        "Review cycle 2: implementer of record python-pedro; reviewer pass confirms the two new tests (bare-version parity, rendered series) and the earlier half-by-half proof still hold. Approved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 560159,
+      "shell_pid_created_at": "1793452363.7",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M692PG2002AAXKKK3ZWP0JYT",
+      "last_transition_at": "2026-10-31T13:34:30.464268+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T13:04:37Z – unknown – Install guide now documents the ordered resolution (series-gated PATH CLI -> pinned uvx --from -> series-range retry -> uv/pipx remedy) and the troubleshooting entry that recommended 'pip install spec-kitty-cli'. Changelog gains one [Unreleased] Fixed entry (#6476, 876 chars). check_docs_freshness --ci: errors=0 (4 pre-existing HELP-DRIFT warnings, unrelated); check_changelog_style: 0 errors; test_no_legacy_terminology: 98 passed.",
+        "Ready for review: docs + changelog updated, docs freshness errors=0",
+        "Review passed (reviewer-renata profile): documented order matches the rendered templates step for step; no pip remedy remains on the page or in generated content; changelog entry is under [Unreleased], carries (#6476) and is 876 characters.",
+        "Record the implementer identity and add the operator note on what gates PATH delegation.",
+        "Docs change done",
+        "Review cycle 2: implementer of record curator-carla; the added troubleshooting note matches the probe behaviour (unreachable/unreadable version falls through) and no pip remedy remains. Approved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 708797,
+      "shell_pid_created_at": "1793453066.27",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done"
+      }
+    }
+  }
+}
