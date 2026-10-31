@@ -470,6 +470,34 @@ def _refuse_protected_status_target(main_repo_root: Path, mission_slug: str, lan
         raise RuntimeError(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}")
 
 
+def _refuse_protected_target_override(main_repo_root: Path, mission_slug: str, lanes_manifest: LanesManifest) -> None:
+    """#6464: refuse a ``--target`` override onto a protected branch, before any branch moves.
+
+    The recorded-target preflight above reads ``meta.json``; this one reads the target
+    this path would actually commit to (``lanes_manifest.target_branch``, set from the
+    request's ``--target``) and refuses when it is protected and is not the recorded
+    target. Same ``RuntimeError`` shape, so both land in this command's failure
+    envelope with the policy's own code.
+    """
+    from specify_cli.consolidation.preflight import refuse_protected_target_override
+    from specify_cli.core.paths import MissionMetaReadError, resolve_merge_target_branch
+
+    try:
+        recorded_target, _source = resolve_merge_target_branch(main_repo_root, mission_slug, None)
+    except MissionMetaReadError:
+        # No readable record means no retarget to judge; the recorded-target preflight
+        # above (and the rest of the command) own the unreadable meta.json.
+        return
+    verdict = refuse_protected_target_override(
+        main_repo_root,
+        mission_slug,
+        recorded_target=recorded_target,
+        effective_target=lanes_manifest.target_branch,
+    )
+    if verdict is not None:
+        raise RuntimeError(f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}")
+
+
 def _orchestrator_refusal_text(refusal: str) -> str:
     """The lane-check refusal for this command's envelope: ``consolidate-mission`` has no attestation flag.
 
@@ -603,6 +631,7 @@ def _execute_lane_merge(
     lanes_manifest.target_branch = target_branch
     merge_strategy = MergeStrategy(strategy)
     _refuse_protected_status_target(main_repo_root, mission_slug, lanes_manifest)
+    _refuse_protected_target_override(main_repo_root, mission_slug, lanes_manifest)
     # #5939 / #6715: fail-closed evidence + independence backstop on every topology, before the
     # planning-only short-circuit below (a protected single_branch manifest reads
     # planning-artifact-only but lands real code, and a planning lane is judged too).
