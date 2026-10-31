@@ -70,23 +70,60 @@ class ReviewBaselineReadError(GuardedReadError, ValueError):
         super().__init__(path=path, reason=message)
 
 
+#: The identity a declared command's nonzero exit gets when its output carries no
+#: parseable per-failure line (see ``scope_source._whole_run_failure``). It is a
+#: PLACEHOLDER, not a test name: two runs that both fail opaquely may have failed
+#: for entirely unrelated reasons (issue #6751), so an entry carrying this name is
+#: marked ``BaselineFailure.opaque`` and compared on its bound identity
+#: (exit status + summary), never on this name alone.
+OPAQUE_FAILURE_TEST_ID = "<declared-command>"
+
+
 @dataclass(frozen=True)
 class BaselineFailure:
     """A single test failure recorded in the baseline."""
 
-    test: str   # fully qualified test name
+    test: str   # fully qualified test name, or OPAQUE_FAILURE_TEST_ID
     error: str  # one-line error summary (max 200 chars)
     file: str   # file:line
+    opaque: bool = False  # True: ``test`` is a placeholder; compare the bound identity instead
+    exit_code: int | None = None  # observed command exit status (opaque failures only)
+    # Opaque failures only: a digest of the run's FULL output tail. The one-line
+    # ``error`` is display text and is far too weak an identity on its own —
+    # unrelated failures routinely share a generic last line (``make: *** ...
+    # Error 1``). ``None`` for named failures and for pre-#6751 records, and an
+    # opaque entry without a digest never matches (fail-closed).
+    output_digest: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {"test": self.test, "error": self.error, "file": self.file}
+        payload: dict[str, Any] = {"test": self.test, "error": self.error, "file": self.file}
+        # Emitted only when they carry information, so a NAMED record written
+        # before issue #6751 keeps its byte-identical payload (an opaque legacy
+        # record is upgraded in place on its next save: its ``opaque`` marker is
+        # re-derived by ``from_dict``).
+        if self.opaque:
+            payload["opaque"] = True
+        if self.exit_code is not None:
+            payload["exit_code"] = self.exit_code
+        if self.output_digest is not None:
+            payload["output_digest"] = self.output_digest
+        return payload
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> BaselineFailure:
+        # A pre-#6751 record has none of the three keys. Inferring ``opaque``
+        # from the placeholder name keeps that legacy entry from silently
+        # regaining the name-only collision it was written under; ``exit_code``
+        # and ``output_digest`` stay None, so it can never verify-equal a
+        # candidate whose identity is known.
+        opaque = bool(data.get("opaque", data["test"] == OPAQUE_FAILURE_TEST_ID))
         return cls(
             test=data["test"],
             error=data["error"],
             file=data["file"],
+            opaque=opaque,
+            exit_code=data.get("exit_code"),
+            output_digest=data.get("output_digest"),
         )
 
 
@@ -696,6 +733,31 @@ def _capture_baseline_via_scope_source(
     return result
 
 
+def _matches_baseline_failure(baseline_failure: BaselineFailure, current_failure: BaselineFailure) -> bool:
+    """Do these two records name the SAME failure?
+
+    A named failure's name is its identity (the incumbent behaviour). An opaque
+    failure's name is only a placeholder, so it matches only another opaque
+    failure whose bound identity — exit status AND full-output digest — is
+    identical (issue #6751). The one-line ``error`` is NOT used: unrelated
+    failures routinely share a generic last line, so it is display text, not
+    identity. A named and an opaque entry never match, even when their text
+    collides: one is a real test, the other is "the whole run failed".
+    """
+    if baseline_failure.test != current_failure.test:
+        return False
+    if not (baseline_failure.opaque or current_failure.opaque):
+        return True
+    return (
+        baseline_failure.opaque
+        and current_failure.opaque
+        and baseline_failure.exit_code is not None
+        and baseline_failure.exit_code == current_failure.exit_code
+        and baseline_failure.output_digest is not None
+        and baseline_failure.output_digest == current_failure.output_digest
+    )
+
+
 def diff_baseline(
     baseline: BaselineTestResult,
     current_failures: list[BaselineFailure],
@@ -711,19 +773,28 @@ def diff_baseline(
           - pre_existing: failures that existed in the baseline
           - new_failures: failures NOT in baseline (regressions)
           - fixed: test names that failed in baseline but pass now
+
+    Opaque whole-run failures are compared on their bound identity (exit status
+    + full-output digest), not on the shared placeholder name, so a candidate
+    that failed for a different reason than the baseline is a NEW failure (issue
+    #6751). ``fixed`` stays name-based: the sole caller discards it today, and
+    an opaque placeholder that no longer appears is the honest entry to report.
     """
     # Sentinel baseline: no baseline data — treat everything as new
     if baseline.failed == -1:
         return [], list(current_failures), []
 
-    baseline_test_names = {f.test for f in baseline.failures}
+    baseline_failures_by_name: dict[str, list[BaselineFailure]] = {}
+    for failure in baseline.failures:
+        baseline_failures_by_name.setdefault(failure.test, []).append(failure)
     current_test_names = {f.test for f in current_failures}
 
     pre_existing: list[BaselineFailure] = []
     new_failures: list[BaselineFailure] = []
 
     for failure in current_failures:
-        if failure.test in baseline_test_names:
+        candidates = baseline_failures_by_name.get(failure.test, ())
+        if any(_matches_baseline_failure(candidate, failure) for candidate in candidates):
             pre_existing.append(failure)
         else:
             new_failures.append(failure)
