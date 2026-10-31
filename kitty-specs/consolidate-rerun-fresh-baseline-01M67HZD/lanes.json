@@ -18,7 +18,7 @@
         "src/specify_cli/consolidation/executor.py",
         "src/specify_cli/consolidation/rollback.py",
         "tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py",
-        "tests/terminus/test_repro_6770.py",
+        "tests/terminus/test_rollback_record_rebaseline.py",
         "tests/terminus/test_rollback_door.py"
       ],
       "predicted_surfaces": [],

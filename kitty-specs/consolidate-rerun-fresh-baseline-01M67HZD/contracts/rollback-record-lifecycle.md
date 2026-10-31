@@ -83,7 +83,7 @@ same and the released content stays where the operator put it.
 1. After a clean rollback, the next run — plain or `--resume` — re-derives its reconciliation
    window base from the target's current tip, so commits landed between attempts are not judged
    as mission content and are never rolled back over.
-   (`tests/terminus/test_repro_6770.py::test_a_clean_fail_rollback_leaves_no_record_and_the_rerun_uses_the_current_target_tip`)
+   (`tests/terminus/test_rollback_record_rebaseline.py::test_a_clean_fail_rollback_rebaselines_the_record_and_the_rerun_uses_the_current_target_tip`)
 2. After a clean rollback, a plain `spec-kitty consolidate --abort` no longer refuses: it reports
    a clean finish, clears the record and exits 0.
    (`…::test_a_plain_abort_after_a_clean_fail_rollback_is_a_no_op_not_a_refusal`)

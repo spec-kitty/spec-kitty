@@ -61,7 +61,7 @@ page
 - **Campsite cleaning (DIRECTIVE_025).** The touched functions already carry their
   rationale; no unrelated refactor is folded in. ✅
 - **No full heavy suites (NO_FULL_HEAVY_SUITES_IN_MISSION).** Targeted files only:
-  `tests/terminus/test_repro_6770.py`, `test_rollback_door.py`,
+  `tests/terminus/test_rollback_record_rebaseline.py`, `test_rollback_door.py`,
   `test_abort_restores_snapshot.py`, `tests/consolidation/test_rollback_authority.py`,
   `test_single_rollback_authority.py`, `test_executor_rollback_wiring.py`,
   `tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py`. ✅
@@ -135,7 +135,7 @@ No charter violations. No new module, no new persisted field, no new CLI flag.
 - **Purpose**: prove the reported defect and its two consequences (stale window base,
   wedged plain `--abort`) through the real entry points, and keep the proof.
 - **Relevant requirements**: FR-001, FR-002, FR-003, FR-004, SC-001, SC-002
-- **Affected surfaces**: new `tests/terminus/test_repro_6770.py`; re-pinned assertions
+- **Affected surfaces**: new `tests/terminus/test_rollback_record_rebaseline.py`; re-pinned assertions
   in `tests/terminus/test_rollback_door.py` and
   `tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py`
 - **Sequencing/depends-on**: the test is authored and observed red before IC-01 lands

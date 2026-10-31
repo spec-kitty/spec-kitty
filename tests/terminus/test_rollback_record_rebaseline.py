@@ -1,4 +1,5 @@
-"""Repro #6770 — a clean rollback must leave nothing that bends the next run's baseline.
+"""The consolidation record's baseline after a rollback (#6770) — a clean rollback must leave nothing
+that bends the next attempt's baseline.
 
 The reported shape (a recurrence of closed #5667 on 4.0.0rc8): a ``consolidate
 --strategy merge`` FAILs reconciliation, the single rollback door restores every branch it
@@ -17,10 +18,14 @@ next run is genuinely fresh and derives its window base from the target's curren
 rollback that keeps a foreign commit keeps the record, and while it survives attempt 1's
 persisted base is still the honest one.
 
+Contract-named, not issue-named: the rule these tests guard is the record's lifecycle across
+consolidation attempts (see ``kitty-specs/consolidate-rerun-fresh-baseline-01M67HZD/
+contracts/rollback-record-lifecycle.md``); #6770 is the report that produced it.
+
 Red-first: every test is written against the post-fix expectation and fails on the un-fixed
-tree (the record is still on disk, attempt 2 raises, ``--abort`` exits 1). Real git and the
-real ``_run_lane_based_consolidation`` / ``spec-kitty consolidate`` entry points throughout;
-the only patches are the one-shot reconciliation FAIL, the window-base spy and the
+tree (the attempt's baseline is still on disk, attempt 2 raises, ``--abort`` exits 1). Real git
+and the real ``_run_lane_based_consolidation`` / ``spec-kitty consolidate`` entry points
+throughout; the only patches are the one-shot reconciliation FAIL, the window-base spy and the
 foreign-commit injection, all of which delegate to the production call.
 """
 
@@ -120,7 +125,7 @@ def _output(capsys: pytest.CaptureFixture[str]) -> str:
     return " ".join((captured.out + captured.err).split())
 
 
-def test_a_clean_fail_rollback_leaves_no_record_and_the_rerun_uses_the_current_target_tip(
+def test_a_clean_fail_rollback_rebaselines_the_record_and_the_rerun_uses_the_current_target_tip(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """FR-001 + FR-002: no record survives, and attempt 2's window base is the target's live tip."""

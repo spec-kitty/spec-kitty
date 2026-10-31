@@ -30,7 +30,7 @@ package is independently deliverable and testable in order.
 rolls back fully leaves a record, the next run reuses the stale window base and rolls the
 target back over an intervening commit, and a plain `--abort` refuses — and re-pin the two
 tests that currently assert the opposite ("a fully rolled-back run keeps its record").
-**Independent Test**: `uv run pytest tests/terminus/test_repro_6770.py -x` runs and **fails**
+**Independent Test**: `uv run pytest tests/terminus/test_rollback_record_rebaseline.py -x` runs and **fails**
 on the un-fixed tree with the assertions described in each subtask (record present, second run
 raises, window base is `T0`), and the two re-pinned assertions fail on the same tree.
 **Prompt**: `tasks/WP01-red-first-regression.md`
@@ -38,7 +38,7 @@ raises, window base is `T0`), and the two re-pinned assertions fail on the same 
 
 ### Included Subtasks
 
-T001 Author `tests/terminus/test_repro_6770.py` with a one-shot reconciliation FAIL on a real LANES mission, then a target commit, then a re-run whose window base is asserted through `phase_claim.build_approved_wp_set`
+T001 Author `tests/terminus/test_rollback_record_rebaseline.py` with a one-shot reconciliation FAIL on a real LANES mission, then a target commit, then a re-run whose window base is asserted through `phase_claim.build_approved_wp_set`
 T002 Add the plain `--abort` assertion to the same fixture: after the clean rollback it must exit 0 and report no active merge state
 T003 Re-pin `tests/terminus/test_rollback_door.py::test_record_is_truthful_after_rollback_and_a_rerun_succeeds` to the new expectation (record cleared, re-run still lands both lanes)
 T004 Re-pin `tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py::_assert_failed_run_restored_the_snapshot` and its docstring to the same expectation
@@ -77,7 +77,7 @@ T005 Record the red run (command + the exact failure lines) in the WP history an
 (`state.json` + its post-fix marker) through `clear_state`, so the next run is genuinely fresh
 and derives its reconciliation window base from the target's current tip. A partial rollback
 keeps the record unchanged. The clear never replaces the original error.
-**Independent Test**: `uv run pytest tests/terminus/test_repro_6770.py tests/terminus/test_rollback_door.py tests/consolidation/test_rollback_authority.py tests/consolidation/test_single_rollback_authority.py tests/consolidation/test_executor_rollback_wiring.py tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py -x` passes.
+**Independent Test**: `uv run pytest tests/terminus/test_rollback_record_rebaseline.py tests/terminus/test_rollback_door.py tests/consolidation/test_rollback_authority.py tests/consolidation/test_single_rollback_authority.py tests/consolidation/test_executor_rollback_wiring.py tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py -x` passes.
 **Prompt**: `tasks/WP02-door-clears-undone-record.md`
 **Requirement Refs**: FR-001, FR-002, FR-004, FR-005, NFR-001, NFR-002, NFR-003, C-001, C-002, C-003
 
