@@ -20,6 +20,7 @@ from kernel.git.remote import (
     fetch_branches,
     no_prompt_env,
     remote_heads,
+    remote_tag_commit,
     resolve_remote,
     tracking_ref,
 )
@@ -261,6 +262,65 @@ def test_clone_repository_resolves_relative_paths_against_cwd(world: tuple[Path,
     assert result.returncode == 0
     assert (launch / "packs" / "p" / "README.md").exists()
     assert not (launch / "packs" / "packs").exists()
+
+
+# --- remote_tag_commit -------------------------------------------------------------
+
+
+def test_remote_tag_commit_peels_an_annotated_tag_and_reads_a_lightweight_one(world: tuple[Path, Path]) -> None:
+    _, work = world
+    head = _git(work, "rev-parse", "HEAD")
+    _git(work, "tag", "-a", "-m", "release", "service-v0.1.0")
+    _git(work, "tag", "service-v0.2.0")
+    _git(work, "push", "-q", "origin", "--tags")
+    assert _git(work, "rev-parse", "service-v0.1.0") != head  # the annotated tag object is not the commit
+    assert remote_tag_commit(work, "origin", "service-v0.1.0") == head
+    assert remote_tag_commit(work, "origin", "service-v0.2.0") == head
+
+
+def test_remote_tag_commit_absent_tag_is_none(world: tuple[Path, Path]) -> None:
+    _, work = world
+    _git(work, "tag", "service-v0.1.0")
+    _git(work, "push", "-q", "origin", "--tags")
+    assert remote_tag_commit(work, "origin", "service-v0.1") is None  # exact match only
+    assert remote_tag_commit(work, "origin", "service-v9.9.9") is None
+
+
+@pytest.mark.parametrize(
+    "remote",
+    [
+        "ext::sh -c touch${IFS}pwned",
+        "-uhelp",
+        "--upload-pack=touch pwned",
+        "ssh://host/repo",
+        "git@host:repo",
+        "http://host/repo",
+        "",
+        "a/../../x",
+        "origin/..",
+        "..",
+        "up/stream",
+    ],
+)
+def test_remote_tag_commit_refuses_an_unsafe_remote_before_any_contact(world: tuple[Path, Path], remote: str) -> None:
+    """Like ``fetch_commit_subtree``: only a plain remote name or an https:// / file:// URL is contacted."""
+    _, work = world
+    with pytest.raises(ValueError, match="remote"):
+        remote_tag_commit(work, remote, "service-v0.1.0")
+
+
+def test_remote_tag_commit_accepts_a_file_url(world: tuple[Path, Path]) -> None:
+    origin, work = world
+    _git(work, "tag", "service-v0.1.0")
+    _git(work, "push", "-q", "origin", "--tags")
+    assert remote_tag_commit(work, origin.resolve().as_uri(), "service-v0.1.0") == _git(work, "rev-parse", "HEAD")
+
+
+def test_remote_tag_commit_unreachable_raises_not_none(world: tuple[Path, Path]) -> None:
+    _, work = world
+    unreachable_remote(work)
+    with pytest.raises(RemoteUnreachable):
+        remote_tag_commit(work, "origin", "service-v0.1.0")
 
 
 # --- fetch_branches ----------------------------------------------------------------

@@ -40,6 +40,7 @@ __all__ = [
     "fetch_tags",
     "no_prompt_env",
     "remote_heads",
+    "remote_tag_commit",
     "resolve_remote",
     "tracking_ref",
 ]
@@ -211,6 +212,34 @@ def remote_heads(cwd: Path, remote: str, branches: Sequence[str], *, timeout: fl
     return heads
 
 
+def remote_tag_commit(cwd: Path, remote: str, tag: str, *, timeout: float = LS_REMOTE_TIMEOUT) -> str | None:
+    """Return the commit SHA *tag* names on *remote*, or ``None`` when the remote has no such tag.
+
+    One ``ls-remote --tags`` call for ``refs/tags/<tag>`` and its peeled form
+    ``refs/tags/<tag>^{}``: an annotated tag answers with the commit it points
+    at (the peeled line), a lightweight tag with its own SHA. Exact ref match only.
+
+    *remote* is a configured remote's name or an ``https://`` / ``file://`` URL, like
+    :func:`fetch_commit_subtree`'s *url*: anything else (another transport such as
+    ``ext::``, ``ssh://`` or ``host:path``, or a token that reads as an option) is refused
+    before git is run.
+
+    Raises:
+        ValueError: *remote* is neither a plain remote name nor an https:// or file:// URL.
+        RemoteUnreachable: the remote could not be asked (never returns ``None`` for that).
+    """
+    _validate_remote(remote)
+    ref = f"refs/tags/{tag}"
+    peeled = f"{ref}^{{}}"
+    result = _contact(cwd, remote, timeout, "ls-remote", "--tags", remote, ref, peeled)
+    found: dict[str, str] = {}
+    for line in result.stdout.decode("utf-8", "replace").splitlines():
+        sha, _, name = line.partition("\t")
+        if name in (ref, peeled):
+            found[name] = sha.strip()
+    return found.get(peeled) or found.get(ref)
+
+
 def _tracking_ref_is_at(cwd: Path, remote: str, branch: str, sha: str) -> bool:
     """``True`` only when ``refs/remotes/<remote>/<branch>`` is a commit that equals *sha* here (local read, no network).
 
@@ -338,12 +367,24 @@ SUBTREE_FETCH_TIMEOUT: float = 120.0
 
 _SHA_RE = re.compile(r"[0-9a-f]{40}")
 _ALLOWED_URL_SCHEMES = ("https://", "file://")
+#: A configured remote's name: no ``:`` (``host:path``, ``ext::``), no ``@``, no leading ``-``.
+_REMOTE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)*")  # a plain name: no "/", no ".." segment
 _UNRESOLVABLE_MARKERS = ("not our ref", "couldn't find remote ref", "unadvertised object", "did not match any")
 _ORIGIN = "origin"
 
 
 class CommitUnresolvable(RemoteUnreachable):
     """The remote answered, but does not serve the requested commit (``not our ref`` and kin)."""
+
+
+def _validate_remote(remote: str) -> None:
+    """A plain remote name (``origin``) or an https:// / file:// URL; refuse anything git could run or read as an option."""
+    if "://" in remote:
+        if not remote.startswith(_ALLOWED_URL_SCHEMES):
+            raise ValueError(f"remote must be a remote name or an https:// or file:// URL; got scheme {remote.split('://', 1)[0]!r}")
+        return
+    if not _REMOTE_NAME_RE.fullmatch(remote):
+        raise ValueError("remote must be a remote name or an https:// or file:// URL")
 
 
 def _validate_subtree_fetch(url: str, sha: str, subtree: str) -> None:
