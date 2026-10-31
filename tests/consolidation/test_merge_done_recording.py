@@ -105,7 +105,7 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     emit_mock.assert_called_once()
     request = emit_mock.call_args.args[0]
     assert request.to_lane == "done"
-    assert request.actor == "merge"
+    assert request.actor == {"tool": "merge", "role": "system", "profile": None, "model": None}  # #6722
     assert request.reason == "Merged WP01 into main"
     assert request.evidence["review"]["reviewer"] == "reviewer-1"
 
@@ -131,7 +131,7 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     emit_mock.assert_called_once()
     request = emit_mock.call_args.args[0]
     assert request.to_lane == "done"
-    assert request.actor == "merge"
+    assert request.actor == {"tool": "merge", "role": "system", "profile": None, "model": None}  # #6722
     assert request.evidence["review"]["verdict"] == "approved"
     assert request.evidence["review"]["reference"] == "lane-approved:WP01"
 

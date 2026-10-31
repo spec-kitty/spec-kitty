@@ -133,7 +133,7 @@ def test_event_only_mission_reaches_done_with_snapshot_evidence(
     emit_mock.assert_called_once()
     request = emit_mock.call_args.args[0]
     assert request.to_lane == "done"
-    assert request.actor == "merge"
+    assert request.actor == {"tool": "merge", "role": "system", "profile": None, "model": None}  # #6722
     # Reviewer identity comes from the seeded snapshot ``review.actor`` — NOT
     # frontmatter (there is none) and NOT the lane-approved ``metadata.agent``.
     assert request.evidence["review"]["reviewer"] == "reviewer-snap"
