@@ -374,7 +374,7 @@ def _rewrite_consistently(wheel: Path, change: Mapping[str, bytes | None], *, du
     "change",
     [
         {"evil.pth": b"import os\n"},
-        {"spec_kitty_services/__init__.py": b"def write_service():\n    return '/tmp/evil'\n"},
+        {"spec_kitty_services/__init__.py": b"def write_service():\n    return '/srv/evil'\n"},
         {"spec_kitty_services/extra.py": b"print('extra')\n"},
     ],
     ids=["planted-pth", "replaced-provider", "extra-module"],
