@@ -1,0 +1,15 @@
+# D2.2 — a WP-shaped id is claimed by the pipe-table resolver (main@35318ef51c)
+# tasks.md carries a WP index table:
+#   | WP | Title | Subtasks |
+#   |----|-------|----------|
+#   | WP01 | Setup | T001 |
+#   | WP02 | Foundation | T002 |
+# No WP authors "WP02" as a subtask.
+$ spec-kitty agent tasks mark-status WP02 --status done --mission 001-repro --json --no-auto-commit
+{"results": [{"id": "WP02", "outcome": "updated", "format": "pipe_table",
+  "message": "Marked WP02 as done (pipe-table row updated)."}],
+ "summary": {"updated": 1, "already_satisfied": 0, "not_found": 0}}
+# status.events.jsonl:
+# {"wp_id": "WP02", "delta": {"subtasks": {"WP02": "done"}}}
+# exit 0 — the documented rejection is "WP02: mark-status does not change
+# work-package lanes. Use `spec-kitty agent tasks move-task <WP_ID> --to <lane>`."

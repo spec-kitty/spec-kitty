@@ -1,0 +1,7 @@
+# Grounding loop used for every transcript in this directory.
+# A disposable git repo with kitty-specs/001-repro/{meta.json,tasks.md,tasks/WPxx-*.md}
+# and status_phase "1", driven by this checkout's built CLI:
+$ .venv/bin/spec-kitty agent tasks mark-status <ids> [--wp WPxx] --status done \
+      --mission 001-repro --json --no-auto-commit
+# Confirmed already-fixed (no action): shared bare T001 across two rostered WPs
+#   -> {"error": "T001 is a subtask of WP01, WP02, WP03 in Mission 001-repro; pass --wp to select one."}

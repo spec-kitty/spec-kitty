@@ -1,0 +1,32 @@
+{
+  "accept_commit": "df15c00acbc93dfff4ac36bd2ef4fef60c4f0414",
+  "acceptance_history": [
+    {
+      "accept_commit": "df15c00acbc93dfff4ac36bd2ef4fef60c4f0414",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:46:20.451811+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "0ccdb3420a437af81a3a405ad851067641196f25"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T09:46:20.451811+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "0ccdb3420a437af81a3a405ad851067641196f25",
+  "baseline_merge_commit": "7038bfd73797fda000ab4603427457c80a10dc21",
+  "created_at": "2026-10-31T08:48:12.327239+00:00",
+  "flattened": true,
+  "friendly_name": "mark status owner authority",
+  "merged_at": "2026-10-31T09:49:43.917388+00:00",
+  "merged_commit": "3a75c8d241d121718c7e05e66c68d3bd0a67f34c",
+  "mid8": "01M68JA8",
+  "mission_id": "01M68JA8DV0B367TFN9C295A0D",
+  "mission_number": 245,
+  "mission_slug": "mark-status-owner-authority-01M68JA8",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances mark status owner authority on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "mark status owner authority",
+  "slug": "mark-status-owner-authority-01M68JA8",
+  "status_phase": "1",
+  "target_branch": "main"
+}
