@@ -19,6 +19,7 @@ from specify_cli.agent_tasks_ports import (
 from specify_cli.coordination.commit_outcome import SurfaceOutcome, commit_outcome_exit_code, render_commit_outcome
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.git.protection_policy import ProtectionPolicy
+import fnmatch
 import logging
 import re
 import subprocess
@@ -431,7 +432,7 @@ class CreatedRejectedReviewCycle:
     warnings: tuple[str, ...] = ()
     #: #6632: the reviewer's feedback draft this call RETIRED after verified-
     #: durable persistence of the record (``None`` when there was no draft, when
-    #: the record was not durable, or when one of the five safety predicates kept
+    #: the record was not durable, or when one of the safety predicates kept
     #: it -- the reason is then in :attr:`warnings`). The record carries the
     #: draft's body verbatim, so nothing is lost; see
     #: :func:`_retire_consumed_feedback_source`.
@@ -1316,13 +1317,14 @@ def _resolve_review_body(
     return f"{body_header.rstrip()}\n\n{resolved_body}", resolved_body
 
 
-def _mission_dirs_for_feedback_source(
+def _wp_task_dirs_for_feedback_source(
     main_repo_root: Path,
     mission_slug: str,
+    wp_slug: str,
     *,
     owned: OwnedCheckout | None = None,
 ) -> tuple[Path, ...]:
-    """Return the mission directory a reviewer's feedback draft may live in (#6632).
+    """Return the ``tasks/<wp>`` directory a reviewer's feedback draft may live in (#6632).
 
     Derived through the ONE placement seam every other review-cycle read uses --
     ``read_dir(WORK_PACKAGE_TASK)``, the PRIMARY-partition mission directory that
@@ -1340,7 +1342,28 @@ def _mission_dirs_for_feedback_source(
     mission directory.
     """
     seam = placement_seam(main_repo_root, mission_slug, owned=owned)
-    return (seam.read_dir(MissionArtifactKind.WORK_PACKAGE_TASK).resolve(),)
+    return ((seam.read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks" / wp_slug).resolve(),)
+
+
+def _committed_record_body(record_bytes: bytes | None) -> str | None:
+    """Return the body of a committed ``review-cycle-N.md`` (frontmatter stripped), or ``None``."""
+    if record_bytes is None:
+        return None
+    try:
+        text = record_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+    if not text.startswith("---"):
+        return None
+    rest = text[3:].removeprefix("\n")
+    closing = rest.find("\n---")
+    if closing == -1:
+        return None
+    return rest[closing + 4 :].lstrip("\n")
+
+
+def _normalise_newlines(text: str) -> str:
+    return text.replace("\r\n", "\n").strip()
 
 
 def _retire_consumed_feedback_source(
@@ -1348,7 +1371,8 @@ def _retire_consumed_feedback_source(
     feedback_source: Path,
     recorded_source_text: str | None,
     record_name: str,
-    mission_dirs: tuple[Path, ...],
+    wp_task_dirs: tuple[Path, ...],
+    committed_record: bytes | None,
 ) -> tuple[Path | None, str | None]:
     """Remove the reviewer's consumed feedback draft, or say why it stays (#6632).
 
@@ -1363,35 +1387,45 @@ def _retire_consumed_feedback_source(
     dirty tree for another:
 
     1. *recorded_source_text* is not ``None``: the caller holds a durable record
-       and the source's OWN text (never the composed body, which may carry a
-       prepended ``body_header``).
-    2. The source resolves inside one of *mission_dirs*. A scratch note outside
-       ``kitty-specs/<mission_slug>/`` is not this seam's to delete.
+       of the source's own text.
+    2. The source is exactly THIS work package's draft: a regular file (never a
+       symlink -- the rule is "refuse to delete symlinks", the simplest safe
+       rule, because the link and its target would each need the scope test)
+       whose parent is one of *wp_task_dirs* (the placement seam's
+       ``tasks/<wp>`` directory) and whose name matches ``review-feedback-*.md``.
+       ``notes.md``, ``research.md`` and another work package's draft are never
+       this seam's to delete; they are kept silently.
     3. The source is NOT tracked in git. Deleting a committed draft would create
-       a deletion, leaving the tree dirty for the same gate.
-    4. The source's CURRENT text still equals *recorded_source_text*. A draft
-       edited after the record was written holds text the record does not.
+       a deletion, leaving the tree dirty for the same gate. Kept with a warning
+       when it is tracked but has uncommitted edits.
+    4. The source's CURRENT text is present in *committed_record* -- the body
+       actually read back from the destination ref, frontmatter stripped (a
+       ``body_header`` may precede it, so the draft must be the record body's
+       tail). The comparison is made after newline normalisation (CRLF to LF,
+       surrounding whitespace trimmed). A draft edited after the record was
+       written holds text the record does not.
     5. The ``unlink`` succeeds. An ``OSError`` becomes a warning, never an
        exception: a rejection must not fail after its verdict is committed.
 
     Returns:
         ``(retired_path, warning)``. ``(None, None)`` when the source was never
-        a candidate (absent, or outside every mission directory -- silently not
+        a candidate (absent, or not this work package's draft -- silently not
         ours); ``(None, <sentence>)`` when it was a candidate but was kept.
     """
     if recorded_source_text is None:
         return None, None
-    # ``entry`` is the path git status reports (the LINK when the draft is a
-    # symlink, which is what dirties the tree); ``target`` is what its bytes are
-    # read from. They differ for a symlink, and the spec's edge case is explicit:
-    # only the link is removed, never its target.
     entry = feedback_source.absolute()
+    if entry.is_symlink():
+        return (
+            None,
+            f"Review feedback draft {feedback_source} was kept: it is a symbolic link, and a link is never removed.",
+        )
     try:
         target = entry.resolve(strict=True)
     except OSError:
         return None, None  # already gone, or never there: nothing to retire
-    if not any(target.is_relative_to(mission_dir) for mission_dir in mission_dirs):
-        return None, None  # outside the mission's own tree: not ours to touch
+    if target.parent not in wp_task_dirs or not fnmatch.fnmatchcase(target.name, "review-feedback-*.md"):
+        return None, None  # not this work package's draft: not ours to touch
     from kernel.git import GitCommandError, is_tracked
 
     try:
@@ -1399,7 +1433,21 @@ def _retire_consumed_feedback_source(
     except GitCommandError:
         return None, None  # not inside a git work tree: no dirty-tree contract to serve
     if already_committed:
-        return None, None  # committed by the reviewer: the tree is already clean
+        # Committed by the reviewer: the tree is clean and nothing is owed -- unless
+        # the committed draft carries uncommitted edits, which the operator must hear of.
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--", entry.name],
+            cwd=entry.parent,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if status.stdout.strip():
+            return (
+                None,
+                f"Review feedback draft {feedback_source} was kept: it is tracked in git and has uncommitted edits.",
+            )
+        return None, None
     try:
         current_text = target.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
@@ -1407,10 +1455,12 @@ def _retire_consumed_feedback_source(
             None,
             f"Review feedback draft {feedback_source} was kept: it could not be re-read to confirm {record_name} holds its text.",
         )
-    if current_text != recorded_source_text:
+    committed_body = _committed_record_body(committed_record)
+    current = _normalise_newlines(current_text)
+    if committed_body is None or not current or not _normalise_newlines(committed_body).endswith(current):
         return (
             None,
-            f"Review feedback draft {feedback_source} was kept: it changed after {record_name} recorded it, "
+            f"Review feedback draft {feedback_source} was kept: {record_name} as committed does not hold its current text, "
             "so removing it would lose text the record does not hold.",
         )
     # A residual window remains between this re-read and the unlink (a reviewer
@@ -1636,7 +1686,7 @@ def create_rejected_review_cycle(
     # its body sits verbatim in ``review-cycle-N.md``. Retire it here, in the one
     # seam that knows both the source file and the durability outcome, and only
     # after the durability branch above has settled ``persistence``. A draft kept
-    # for any of the five documented reasons yields a warning the CLI prints on
+    # for any of the documented reasons yields a warning the CLI prints on
     # stderr; a rejection that already committed its verdict never fails here.
     retired_feedback_source: Path | None = None
     retirement_warnings: tuple[str, ...] = ()
@@ -1650,11 +1700,13 @@ def create_rejected_review_cycle(
                 feedback_source=feedback_source,
                 recorded_source_text=recorded_source_text,
                 record_name=filename,
-                mission_dirs=_mission_dirs_for_feedback_source(
+                wp_task_dirs=_wp_task_dirs_for_feedback_source(
                     main_repo_root,
                     safe_mission_slug,
+                    safe_wp_slug,
                     owned=owned,
                 ),
+                committed_record=_read_artifact_at_ref(surface_root, governed_destination_ref, evidence_ref),
             )
         except Exception:  # noqa: BLE001 - NFR-002: a committed verdict never fails here
             logger.warning(

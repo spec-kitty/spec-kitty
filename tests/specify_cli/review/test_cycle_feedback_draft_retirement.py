@@ -45,12 +45,21 @@ def _mission_tree(tmp_path: Path, *, git: bool = True) -> tuple[Path, Path]:
     return mission_dir.resolve(), draft
 
 
-def _retire(draft: Path, recorded: str | None, mission_dir: Path) -> tuple[Path | None, str | None]:
+def _record(body: str) -> bytes:
+    """A committed ``review-cycle-N.md`` as the writer lays it out: frontmatter, then the body."""
+    return f"---\ncycle_number: 1\n---\n\n{body}".encode()
+
+
+def _retire(draft: Path, recorded: str | None, mission_dir: Path, *, record: bytes | None = None, unreadable_record: bool = False) -> tuple[Path | None, str | None]:
+    """Run the seam; by default the committed record holds *recorded* verbatim."""
+    if record is None and recorded is not None and not unreadable_record:
+        record = _record(recorded)
     return _retire_consumed_feedback_source(
         feedback_source=draft,
         recorded_source_text=recorded,
         record_name=_RECORD_NAME,
-        mission_dirs=(mission_dir,),
+        wp_task_dirs=((mission_dir / "tasks" / "WP01-core").resolve(),),
+        committed_record=record,
     )
 
 
@@ -120,7 +129,7 @@ def test_keeps_a_draft_edited_after_the_record_was_written(tmp_path: Path) -> No
 
     assert retired is None
     assert warning is not None
-    assert "changed after" in warning
+    assert "does not hold" in warning
     assert draft.exists()
 
 
@@ -154,22 +163,69 @@ def test_keeps_the_draft_outside_a_git_work_tree(tmp_path: Path) -> None:
     assert draft.exists()
 
 
-def test_removes_a_symlinked_draft_but_never_its_target(tmp_path: Path) -> None:
-    """Spec edge case: a symlinked draft loses the LINK, never the target it points at.
+def test_refuses_to_delete_a_symlinked_draft(tmp_path: Path) -> None:
+    """A symlink is never removed (the simplest safe rule), whether it points in or out.
 
-    The link is what ``git status`` reports and what blocks the next move, so removing it is what the
-    retirement owes the tree; the target is the reviewer's file elsewhere on disk and survives.
+    Containment on the resolved target alone let a link OUTSIDE the work package's directory that
+    pointed INSIDE it be unlinked. Refusing every link needs no second scope test on the link itself.
     """
     mission_dir, draft = _mission_tree(tmp_path)
     body = "**Issue 1**: reached through a link.\n"
-    target = mission_dir / "reviewer-notes.md"
+    target = draft.parent / "review-feedback-2.md"
     target.write_text(body, encoding="utf-8")
-    draft.symlink_to(target)
+    outside_link = mission_dir / "linked-feedback.md"
+    outside_link.symlink_to(target)
+
+    retired, warning = _retire(outside_link, body, mission_dir)
+    assert retired is None
+    assert warning is not None
+    assert "symbolic link" in warning
+    assert outside_link.is_symlink()
+    assert target.read_text(encoding="utf-8") == body
+
+
+def test_keeps_a_draft_the_committed_record_does_not_hold(tmp_path: Path) -> None:
+    """Durability claim: compared with the body read back from the destination ref, not the earlier read."""
+    mission_dir, draft = _mission_tree(tmp_path)
+    body = "**Issue 1**: the draft text.\n"
+    draft.write_text(body, encoding="utf-8")
+
+    retired, warning = _retire(draft, body, mission_dir, record=_record("**Issue 1**: a different committed body.\n"))
+    assert retired is None
+    assert warning is not None
+    assert "as committed" in warning
+    assert draft.exists()
+
+    retired, warning = _retire(draft, body, mission_dir, unreadable_record=True)  # record unreadable at the ref
+    assert retired is None
+    assert warning is not None
+
+
+def test_retires_a_draft_whose_record_carries_a_header_and_crlf(tmp_path: Path) -> None:
+    """The comparison is after newline normalisation, and a ``body_header`` may precede the draft."""
+    mission_dir, draft = _mission_tree(tmp_path)
+    draft.write_bytes(b"**Issue 1**: windows line endings.\r\n")
+    record = _record("Approved by someone: ref\n\n**Issue 1**: windows line endings.\n")
+
+    retired, warning = _retire(draft, "**Issue 1**: windows line endings.\n", mission_dir, record=record)
+
+    assert warning is None
+    assert retired is not None
+    assert not draft.exists()
+
+
+def test_warns_when_a_tracked_draft_has_uncommitted_edits(tmp_path: Path) -> None:
+    """A tracked draft is kept; with uncommitted edits the operator is told."""
+    mission_dir, draft = _mission_tree(tmp_path)
+    body = "**Issue 1**: committed text.\n"
+    draft.write_text(body, encoding="utf-8")
+    _git(mission_dir.parents[1], "add", str(draft))
+    _git(mission_dir.parents[1], "commit", "-m", "reviewer: commit the draft")
+    draft.write_text(body + "an uncommitted afterthought\n", encoding="utf-8")
 
     retired, warning = _retire(draft, body, mission_dir)
 
-    assert warning is None
-    assert retired == draft.absolute()
-    assert not draft.is_symlink(), "the link the tree reported should be gone"
-    assert target.exists(), "the link's target must never be deleted"
-    assert target.read_text(encoding="utf-8") == body
+    assert retired is None
+    assert warning is not None
+    assert "uncommitted edits" in warning
+    assert draft.exists()
