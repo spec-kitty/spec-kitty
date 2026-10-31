@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "charter-consistency-project-layer-01M67J5F",
+  "mission_id": "01M67J5F2HE3ZH8XN0K39EDEWH",
+  "mission_branch": "issue-6749-charter-consistency-project-layer",
+  "target_branch": "issue-6749-charter-consistency-project-layer",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/consistency_check.py",
+        "tests/charter/test_consistency_check.py",
+        "tests/specify_cli/cli/commands/charter/test_charter_consistency_check.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T23:28:34.598099+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4f0a51f7a90299e4eefd701dba80fcbc609fa376"
+}

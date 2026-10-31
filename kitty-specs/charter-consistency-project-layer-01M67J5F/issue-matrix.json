@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2530": {
+      "evidence_ref": "Cited as prior art for the module's existing corrupt-input fail-closed contract (verification_errors, never a silent pass); this mission follows that contract for an unreadable mission-type roster and changes no #2530 behaviour.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6337": {
+      "evidence_ref": "Cited as the org-overlay test pair this mission mirrors for the project layer (tests/charter_offering/test_activation_parity_guard.py, green unchanged); no #6337 work is owed or reworked here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6338": {
+      "evidence_ref": "Prior org-chain fix (#6338, 515034b20d) is preserved, not reworked: _collect_all_offering_ids still passes the full resolve_pack_chain(strict=False) org chain alongside the new project layer roots; tests/charter_offering/test_activation_parity_guard.py's #6337/#6338 org-overlay pair passes unchanged.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6433": {
+      "evidence_ref": "Prior identity-index fix (#6433, a8dd1812a6) already closed the directive/styleguide instance of this bug and is preserved: _is_known still decides artefact kinds through IdentityIndex. This mission pins that path at the CLI (FR-007) and fixes the one kind #6433 left on the project-blind catalogue (mission-type). No work owed on #6433 itself.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6749": {
+      "evidence_ref": "WP01: consistency-check now resolves project-layer activated artifacts through the layered authorities the readers use (_collect_all_offering_ids passes resolve_layer_roots; mission-type membership from resolve_layered_mission_types, lazy + fail-closed). Red-first CLI acceptance test_project_layer_mission_type_is_coherent (exit 0/coherent) + unknown and malformed controls; catalogue test_catalogue_spans_the_project_layer; changelog entry. PR: issue-6749-charter-consistency-project-layer.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
