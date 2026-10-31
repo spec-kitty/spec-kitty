@@ -537,6 +537,9 @@ def test_implementer_of_record_withdraws_for_review_with_honest_reason(tmp_path:
     last = read_events(feature_dir)[-1]
     assert last.reason == "Implementer of record withdrew WP01 from for_review to continue implementation"
     assert last.force is True
+    # #6514: a forced for_review -> in_progress event must carry a review_ref or the
+    # status schema refuses it; this withdrawal cites the force-override sentinel.
+    assert last.review_ref == "force-override"
 
 
 def test_generic_only_implementer_is_refused_on_for_review(tmp_path: Path) -> None:
@@ -588,6 +591,10 @@ def test_operator_force_with_note_leaves_any_review_lane(tmp_path: Path, lane: L
     assert last.reason == "Operator force: reviewer is gone"
     assert last.force is True
     assert last.actor == "gemini"
+    if lane == Lane.FOR_REVIEW:
+        # #6514: the pointerless variant of this edge is now refused, so the
+        # withdrawal of record cites the force-override sentinel like move-task does.
+        assert last.review_ref == "force-override"
 
 
 @pytest.mark.parametrize("lane", [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS])
