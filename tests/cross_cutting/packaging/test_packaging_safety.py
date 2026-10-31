@@ -399,3 +399,38 @@ def test_packaging_config_ships_the_whole_pins_directory() -> None:
     assert "pins/**" in hatch["sdist"]["include"]
     assert not any(pattern.startswith("pins") for pattern in hatch["sdist"].get("exclude", []))
     assert _PINS_DIR.is_dir() and (_PINS_DIR / "README.md").is_file(), "the force-include source must always exist"
+
+
+#: The optional companion distribution (#6904; ADR 2026-10-29-1, Amendment 2026-10-31): its import package and its
+#: source tree. Neither ships in the CLI's wheel or sdist, which stay pure (pins only, D-4).
+_COMPANION_MEMBER_PREFIXES = ("spec_kitty_services/", "spec_kitty_services-", "packages/")
+
+
+def companion_leaks(members: list[str]) -> list[str]:
+    """Members that belong to the ``spec-kitty-services`` companion (its package, dist-info or source tree)."""
+    return [member for member in members if member.startswith(_COMPANION_MEMBER_PREFIXES)]
+
+
+def test_companion_helper_flags_planted_members() -> None:
+    """Self-test: the helper the archive test uses catches the companion's package, dist-info and source tree."""
+    planted = [
+        "spec_kitty_services/__init__.py",
+        "spec_kitty_services/bin/command-cli-0.1.0-linux-x64",
+        "spec_kitty_services-4.0.0rc8.dist-info/RECORD",
+        "packages/spec-kitty-services/pyproject.toml",
+        "packages/spec-kitty-services/README.md",
+    ]
+    clean = ["specify_cli/services/resolution.py", "src/specify_cli/services/launcher.py", "pins/README.md", "kernel/service_artifacts.py"]
+    assert companion_leaks(planted + clean) == planted
+
+
+@pytest.mark.slow
+def test_wheel_and_sdist_ship_no_companion_file(build_artifacts: dict[str, Path]) -> None:
+    wheel = _wheel_members(build_artifacts)
+    sdist = _sdist_rooted_members(build_artifacts)
+
+    assert not companion_leaks(wheel), f"companion content in the CLI wheel: {companion_leaks(wheel)[:10]}"
+    assert not companion_leaks(sdist), f"companion content in the CLI sdist: {companion_leaks(sdist)[:10]}"
+    # Positive control: the archives are real (the slot the companion fills ships).
+    assert "specify_cli/services/resolution.py" in wheel
+    assert "src/specify_cli/services/resolution.py" in sdist
