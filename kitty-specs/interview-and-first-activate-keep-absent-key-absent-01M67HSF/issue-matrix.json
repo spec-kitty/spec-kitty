@@ -145,7 +145,7 @@
       "wp": "WP01"
     },
     "#6685": {
-      "evidence_ref": "WP01 removes the interview seeding; WP02 removes the first-activate materialisation. Final verdict recorded at wrap-up.",
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/pull/6875 (head 81f417aa8f, all checks pass): tests/charter/test_interview_leaves_absent_key_absent_6685.py red on origin/main, green here",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -153,8 +153,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": "WP01"
+      "verdict": "fixed",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
