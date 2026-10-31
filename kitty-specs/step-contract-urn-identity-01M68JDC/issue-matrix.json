@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6741": {
-      "evidence_ref": "commit 871835f77b",
+      "evidence_ref": "commit 3dd6915f5c + f39c4d5599",
       "fr": "FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007",
       "nfr": "NFR-001, NFR-002, NFR-003",
       "repo": "spec-kitty/spec-kitty",
@@ -21,7 +21,7 @@
       "scope": "Align the one identity authority (declared id <-> mission-scoped DRG URN) across the activation filter, the config<->graph parity check and deny resolution; add a drift gate. Ships in this mission.",
       "source_file": "kitty-specs/step-contract-urn-identity-01M68JDC/research.md",
       "title": "Built-in mission-step-contract DRG URNs do not match their declared ids, so the activation graph filter never keeps them",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
