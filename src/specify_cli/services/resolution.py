@@ -4,8 +4,8 @@
 
 1. **explicit** -- ``SPEC_KITTY_<SERVICE>_BINARY`` (``SPEC_KITTY_WRITE_SERVICE_BINARY``),
    accepted only when its bytes are the pinned host build or the pinned jar;
-2. **install** -- the ``spec_kitty.service_binaries`` entry-point slot of a future
-   companion wheel (ADR 2026-10-29-1 D-4), digest-checked the same way;
+2. **install** -- the ``spec_kitty.service_binaries`` entry-point slot of the optional
+   ``spec-kitty-services`` companion wheel (ADR 2026-10-29-1 D-4), digest-checked the same way;
 3. **cache** -- the pinned native asset for this host, through
    ``kernel.service_artifacts.fetch_asset`` (cache, offline asset directory,
    download);
@@ -309,7 +309,7 @@ class _ProviderEntry(Protocol):
 
 
 def _binary_providers(service: str) -> Iterable[_ProviderEntry]:
-    """The install-slot entry points registered for *service* (none today); loaded by :func:`_provided_path`."""
+    """The install-slot entry points registered for *service* (the companion's, when installed); loaded by :func:`_provided_path`."""
     return list(entry_points(group=BINARY_PROVIDER_GROUP, name=service))
 
 
