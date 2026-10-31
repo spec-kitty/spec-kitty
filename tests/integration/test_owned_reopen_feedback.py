@@ -114,7 +114,7 @@ def _move(case: OwnedCheckouts, target: str, profile: str, *extra: str) -> Resul
     return result
 
 
-@pytest.mark.parametrize("kind", ["provided", "absent", "missing", "directory"])
+@pytest.mark.parametrize("kind", ["provided", "empty", "absent", "missing", "directory"])
 def test_owned_approved_reopen_feedback_contract(
     make_owned_checkouts: Callable[..., OwnedCheckouts], tmp_path: Path, monkeypatch: pytest.MonkeyPatch, kind: str
 ) -> None:
@@ -124,14 +124,22 @@ def test_owned_approved_reopen_feedback_contract(
     before = _snapshot(case.owned_root)
     old = list(read_events(case.mission_dir))
     extra = []
+    empty_feedback: Path | None = None
     if kind != "absent":
-        path = feedback if kind == "provided" else (tmp_path / "missing.md" if kind == "missing" else tmp_path)
+        if kind == "empty":
+            empty_feedback = tmp_path / "empty-feedback.md"
+            empty_feedback.write_text("")
+            path = empty_feedback
+        else:
+            path = feedback if kind == "provided" else (tmp_path / "missing.md" if kind == "missing" else tmp_path)
         extra = ["--review-feedback-file", str(path)]
     result = _move(case, "in_progress", "implementer-ivan", *extra)
     assert _snapshot(case.repository_root) == primary
     assert _snapshot(case.sibling) == sibling
-    if kind in ("missing", "directory"):
+    if kind in ("missing", "directory", "empty"):
         assert result.exit_code == 1, result.output
+        if kind == "empty":
+            assert f"Review feedback file is empty: {empty_feedback}" in result.output, result.output
         assert _snapshot(case.owned_root) == before
         assert list(read_events(case.mission_dir)) == old
         return

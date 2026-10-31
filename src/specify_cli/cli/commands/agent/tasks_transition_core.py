@@ -647,6 +647,10 @@ def _guard_feedback_file(req: MoveTaskRequest) -> RefuseExit1 | None:
         return RefuseExit1(f"Review feedback file not found: {req.feedback_source}")
     if not req.feedback_is_file:
         return RefuseExit1(f"Review feedback path is not a file: {req.feedback_source}")
+    # The approved-implementation reopen earns its force-free transition from
+    # the feedback body; an empty file would fabricate that evidence.
+    if _is_approved_reopen(req.old_lane, req.target_lane) and not (req.feedback_content or "").strip():
+        return RefuseExit1(f"Review feedback file is empty: {req.feedback_source}")
     return None
 
 
