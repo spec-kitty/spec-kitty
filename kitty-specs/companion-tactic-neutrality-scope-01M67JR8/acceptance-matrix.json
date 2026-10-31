@@ -1,0 +1,112 @@
+{
+  "mission_slug": "companion-tactic-neutrality-scope-01M67JR8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The gate learns that an artifact is a companion tactic from provenance `source_section`, not from its slug.",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py::test_scope_rule (all rows pass source_section explicitly) and tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py::test_provenance_without_a_section_keeps_the_old_rule",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T00:32:10Z",
+      "notes": "Verified on the approved WP tip; the command and counts are in the PR body."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The `selected_directives` section label that expands into companion tactics is declared once, in `interview_mapping`, and imported by the gate.",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py::test_companion_section_label_has_one_owner; no second literal in src/charter/activation/synthesizer/write_pipeline.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T00:32:10Z",
+      "notes": "Verified on the approved WP tip; the command and counts are in the PR body."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "A project whose language scope is known promotes a companion tactic that names its own test runner.",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py::test_companion_tactic_naming_the_project_runner_is_promoted and ::test_resynthesize_of_the_companion_is_promoted (real `charter synthesize` / `charter resynthesize`)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T00:32:10Z",
+      "notes": "Verified on the approved WP tip; the command and counts are in the PR body."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A companion tactic in a project with no observed and no declared language is still refused by the gate.",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py::test_companion_tactic_in_an_unconfigured_project_is_still_refused (exit 1, NeutralityGateViolation, staging preserved) and test_scope_rule[companion, no evidence]",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T00:32:10Z",
+      "notes": "Verified on the approved WP tip; the command and counts are in the PR body."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Non-companion artifacts keep the slug-component scope rule.",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py::test_scope_rule (testing-philosophy, java-style-guide, and a companion slug with a non-companion section); tests/charter/synthesizer/test_multi_language_evidence.py FR-011 cases unchanged and green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T00:32:10Z",
+      "notes": "Verified on the approved WP tip; the command and counts are in the PR body."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "A red-first test drives the real `charter synthesize` command on a known-scope project with a pytest-naming companion.",
+      "proof_type": "automated_test",
+      "evidence": "commit 750263fbed is the red proof (NeutralityGateViolation for tactic:how-we-apply-directive-003 on a Python project); tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py::test_companion_tactic_naming_the_project_runner_is_promoted is green after the fix",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T00:32:10Z",
+      "notes": "Verified on the approved WP tip; the command and counts are in the PR body."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The gate's module and predicate contract text says scope is the artifact's audience and states the companion rule.",
+      "proof_type": "code_review",
+      "evidence": "src/charter/activation/neutrality/lint.py module docstring; write_pipeline._is_generic_scoped and _is_companion_tactic docstrings (two worked examples added)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T00:32:10Z",
+      "notes": "Verified on the approved WP tip; the command and counts are in the PR body."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The harness-handoff ADR is amended and the changelog carries the user-facing before/after.",
+      "proof_type": "code_review",
+      "evidence": "docs/adr/3.x/2026-04-19-6-...-charter-handoff.md 'Amendment 2026-10-30: what the neutrality gate judges'; docs/changelog/CHANGELOG.md [Unreleased] Fixed entry of 875 chars; docs freshness errors=0",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T00:32:10Z",
+      "notes": "Verified on the approved WP tip; the command and counts are in the PR body."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No banned term and no language-scoped allowlist entry was added: the fix narrows the rule, never the ban list.",
+      "verification_method": "custom_command",
+      "verification_command": "git diff --quiet origin/main -- src/charter/activation/neutrality/banned_terms.yaml src/charter/activation/neutrality/language_scoped_allowlist.yaml",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ",
+      "verified_ref": "issue-6724-companion-tactic-neutrality-scope",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "The gate still refuses a banned term in a generic-scoped artifact when no language scope is known (the unconfigured-project half is not vacuous).",
+      "verification_method": "custom_command",
+      "verification_command": ".venv/bin/python -m pytest tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py::test_companion_tactic_in_an_unconfigured_project_is_still_refused -q -p no:randomly >/dev/null",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ",
+      "verified_ref": "issue-6724-companion-tactic-neutrality-scope",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    }
+  ]
+}
