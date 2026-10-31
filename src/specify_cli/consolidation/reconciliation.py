@@ -3302,8 +3302,8 @@ def _recorded_work_hit(
     """The first window commit on the first-parent history of a recorded Mission work tip, with how it was recorded, or ``None``.
 
     A work package's stamps and a lane's recorded tip are where its work ENDED, not where a
-    carrier lane merged it: a lane merged at commit X that kept going to a stamped Y holds X
-    on Y's first-parent spine, while no stamp or tip sits in ``window_base..X``. So each
+    carrier lane's `git merge` took it in: a lane that a carrier pulled in at commit X and that
+    kept going to a stamped Y holds X on Y's first-parent spine, while no stamp or tip sits in ``window_base..X``. So each
     recorded commit contributes its first-parent spine back to the window base. Commits an
     external dependency brought in sit on second-parent sides and are not on it. A recorded
     commit that no longer resolves covers nothing and is skipped; a probe failure raises.
