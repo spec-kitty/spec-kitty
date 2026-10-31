@@ -1,0 +1,120 @@
+{
+  "event_count": 29,
+  "last_event_id": "01M68Q6FT8FE5CK8JHATPRYJCV",
+  "materialized_at": "2026-10-31T10:13:31.592571+00:00",
+  "mission_number": "245",
+  "mission_slug": "upgrade-cutover-preserves-retired-commands-01M68J8W",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M68Q6D9ZRVJCGAAQGTTPP0EK",
+      "last_transition_at": "2026-10-31T10:13:29.023939+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first regression module; 5 red / 2 green on HEAD, the red proof is in the commit message",
+        "Review passed: red-first module drives MigrationRunner.upgrade; 5 red / 2 green before the fix; checklist PASS (see /tmp/review-wp01.md summary)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 734178,
+      "shell_pid_created_at": "1793436645.34",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M68Q6EG5HKW7CDECKKYD0SVH",
+      "last_transition_at": "2026-10-31T10:13:30.246003+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Shared-file coordination: WP02 also fixes two fixture defects in WP01's test module (schema_version=3; record everything except the writers; patch the registry-registered class after discovery reload). Guard warning ACTIVE_WP_SCOPE_VIOLATION is that file; the change is required for the red/green pair and is reviewed here.",
+        "Review passed: one declaration site, shipped modules byte-identical, hash/identity invariants extended; half-by-half mutation proof done (removing either entry alone turns the post-cutover test red); shared-file WP01-test fixture fix accepted as necessary and reviewed here; upgrade suite 1199 passed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 938344,
+      "shell_pid_created_at": "1793437739.23",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "pi:glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M68Q6FT8FE5CK8JHATPRYJCV",
+      "last_transition_at": "2026-10-31T10:13:31.592571+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Shared-file coordination: docs/development/docs-retrieval-index.yaml is the generated retrieval-index row for the new anchor on docs/api/upgrade-lifecycle.md (guard warning ACTIVE_WP_SCOPE_VIOLATION); it is the only index change and check_docs_freshness --ci is errors=0.",
+        "Review finding D1 fixed: both removal conditions now stated explicitly; check_docs_freshness --ci errors=0",
+        "Review passed: D1 fixed and re-read in context; changelog 945 chars, impact-first, (#6547); freshness errors=0; terminology suite 98 passed (after make sync-packs); shared-file index row noted",
+        "Aggregate-review round: doc condition 1+2 and test hardening committed after approval; reopening so the new content is reviewed",
+        "Aggregate-review fixes ready for re-review (doc third condition, no-auto-cleanup clause, JSONL parse)",
+        "Re-review passed (independent aggregate-review round): commits f05bc7a3 and 1bfff49 re-read; third removal condition now matches _classify; no-auto-cleanup clause accurate; JSONL parse; docs freshness errors=0"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}

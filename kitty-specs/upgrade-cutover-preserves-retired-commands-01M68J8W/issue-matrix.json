@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6431": {
+      "evidence_ref": "Context only: adoption floor covers first adoption, not a ledger cut over before it (the defect shape). Untouched (C-004).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "fix(upgrade): settle the version floor on first ledger adoption; cap selection at the requested target",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6547": {
+      "evidence_ref": "WP01 red-first reproduction (14 files restored on 35318ef51c) + WP02 supersession declaration; test_retired_command_writers_6547.py 7 passed; docs/changelog (#6547)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "upgrade: ledger cutover restores the per-project command files 3.1.2 retired",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#6589": {
+      "evidence_ref": "Context only: the supersession seam this mission declares through.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "fix(upgrade): supersede the 3.2.5 and 3.2.6rc3 gitignore backfills by rc8's narrowing",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
