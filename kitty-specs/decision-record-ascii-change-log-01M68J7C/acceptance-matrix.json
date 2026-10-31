@@ -1,0 +1,59 @@
+{
+  "mission_slug": "decision-record-ascii-change-log-01M68J7C",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/decisions/test_store.py::TestWriteArtifact::test_artifact_is_ascii_for_every_status (5 shapes) green; src/specify_cli/decisions/store.py uses _CHANGE_LOG_SEPARATOR='-'",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:18:04.854482+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Fix is writer-side only: git show 04ef701784 touches src/specify_cli/decisions/store.py and its test; tests/cross_cutting/encoding + test_accept_normalize_encoding.py (57 passed, 2 skipped) unchanged and green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:18:12.104232+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Parametrized open / resolved(+final_answer) / resolved(no final_answer) / deferred / canceled all assert max(bytes) <= 0x7F and detect_problematic_characters == []",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:18:18.203116+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "traces/approach.md: store.py::_render_artifact is the sole DM markdown producer; emit.py is JSONL-only, service/fork/index_fold/verify read or mutate the ledger; verified by package grep for '## Change log'",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:18:25.209358+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Red-first captured before the fix: all 5 parametrized cases failed with 'renders non-ASCII byte 0xE2' on the change-log lines; green after; traces/design-decisions.md records both",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:18:32.476941+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

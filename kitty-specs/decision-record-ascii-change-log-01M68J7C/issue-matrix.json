@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6579": {
+      "evidence_ref": "src/specify_cli/decisions/store.py::_CHANGE_LOG_SEPARATOR + tests/specify_cli/decisions/test_store.py::test_artifact_is_ascii_for_every_status (red on U+2014 0xE2, green after)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
