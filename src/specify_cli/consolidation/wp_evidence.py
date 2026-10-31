@@ -456,7 +456,10 @@ def _landed_window(repo_root: Path, window: tuple[str, str], landed_commit: str 
     the window becomes ``planning_commit..landed_commit``. The base, the owned-content match,
     the bookkeeping exclusion and the independence check are unchanged, so the same criterion
     is asked of the landed tree; a work package with no owned change there still refuses
-    (``IMPLEMENTATION_MISSING``).
+    (``IMPLEMENTATION_MISSING``). The window is nonetheless WIDER than the lane's: it also
+    holds everything else that landed on the target between the planning commit and the
+    landing, so owned files that unrelated target-side work touched in that interval read as
+    evidence too. A safer stand-in than refusing the lane, not an equivalent one.
 
     A readable tip is always used as it is (the lane window stays the first choice). A stand-in
     whose history does not contain the recorded planning commit is refused rather than diffed:

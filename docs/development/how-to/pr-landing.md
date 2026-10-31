@@ -765,11 +765,16 @@ been fixed, the end-state is stated instead of the trap.
   `planning_commit..<lane branch>`. Prune the lane branches after the acceptance, not
   between the PR merge and it — or simply keep `--merge-commit` on every re-run: with
   the verified landing commit supplied, a lane whose branch no longer resolves is
-  judged on `planning_commit..<landing commit>` instead, with the same owned-files
-  criterion, so a work package that never touched its `owned_files` still refuses
-  `IMPLEMENTATION_MISSING`. A refusal reading `IMPLEMENTATION_UNREADABLE` beside a
-  pruned branch is the signal to re-run with the landing commit, not to restore a
-  branch whose work has already landed.
+  judged on `planning_commit..<landing commit>` instead. **That window is wider than the
+  lane's**, so it is a weaker check with the same matcher: it also contains everything
+  else that landed on the target between the planning commit and the landing, so a work
+  package whose `owned_files` unrelated target-side work touched in that interval can
+  read as evidenced. The `owned_files` match and the bookkeeping exclusion are unchanged,
+  and a work package whose owned files nothing touched there still refuses
+  `IMPLEMENTATION_MISSING` — so read this acceptance as "the mission's content landed",
+  not as a substitute for reviewing the PR's own file list. A refusal reading
+  `IMPLEMENTATION_UNREADABLE` beside a pruned branch is the signal to re-run with the
+  landing commit, not to restore a branch whose work has already landed.
 
 ## PR-body contract
 
