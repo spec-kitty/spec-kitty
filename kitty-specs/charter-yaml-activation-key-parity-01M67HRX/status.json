@@ -1,0 +1,53 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M67PEV360A8BTTX2ASWJ87EE",
+  "materialized_at": "2026-10-31T00:41:22.279003+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-yaml-activation-key-parity-01M67HRX",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "python-pedro",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67PERVVPHBGFR5TACABX0P5",
+      "last_transition_at": "2026-10-31T00:41:19.995406+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 864790,
+      "shell_pid_created_at": "1793402777.5"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "comms-cleo",
+      "force_count": 0,
+      "implementer_of_record": "comms-cleo",
+      "lane": "done",
+      "last_event_id": "01M67PEV360A8BTTX2ASWJ87EE",
+      "last_transition_at": "2026-10-31T00:41:22.279003+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 1724037,
+      "shell_pid_created_at": "1793406428.31"
+    }
+  }
+}
