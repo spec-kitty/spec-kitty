@@ -376,7 +376,7 @@ def test_a_relative_lane_worktree_root_is_re_anchored_too(tmp_path: Path, monkey
     """A caller standing in the lane worktree hands in a relative root (``Path(".")``).
 
     The guard judges shape and git ancestry on the resolved path, so ``.`` from inside the lane
-    worktree is still normalised instead of silently answering from the copy in the current
+    worktree is still normalized instead of silently answering from the copy in the current
     directory.
     """
     repo = _build_mission(tmp_path / "repo", coordination=False)
