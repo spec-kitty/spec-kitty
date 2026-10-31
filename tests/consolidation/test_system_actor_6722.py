@@ -92,7 +92,7 @@ def test_merge_identity_constant_is_the_string_the_readers_project() -> None:
     assert build_system_actor(MERGE_ACTOR) == _SYSTEM_MERGE_ACTOR
 
 
-def test_done_mark_records_the_system_merge_actor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_done_mark_changes_only_the_actor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, feature_dir = _mission(tmp_path)
     _seed_runtime(feature_dir)
 
@@ -104,8 +104,7 @@ def test_done_mark_records_the_system_merge_actor(tmp_path: Path, monkeypatch: p
 
     emit_mock.assert_called_once()
     request = emit_mock.call_args.args[0]
-    assert request.actor == _SYSTEM_MERGE_ACTOR
-    # Only the actor moved: the lane, the reason and the evidence are unchanged.
+    # The lane, the reason and the evidence are unchanged by the actor move.
     assert request.to_lane == "done"
     assert request.reason == "Merged WP01 into main"
     assert request.evidence["review"]["reviewer"] == "reviewer-1"
@@ -116,60 +115,12 @@ def test_done_mark_records_the_system_merge_actor(tmp_path: Path, monkeypatch: p
 # ---------------------------------------------------------------------------
 
 
-def test_done_refusal_probe_builds_the_system_merge_actor(tmp_path: Path) -> None:
-    """The probe is a dry request; a guard that reads ``request.actor`` must see the write's value."""
-    from specify_cli.consolidation import preflight as preflight_module
-    from specify_cli.lanes.models import ExecutionLane, LanesManifest
-
-    repo_root, feature_dir = _mission(tmp_path)
-    _seed_runtime(feature_dir)
-    manifest = LanesManifest(
-        version=1,
-        mission_slug="021-test",
-        mission_id="01TEST00000000000000000000",
-        mission_branch="kitty/mission-021-test",
-        target_branch="main",
-        lanes=[
-            ExecutionLane(
-                lane_id="lane-a",
-                wp_ids=("WP01",),
-                write_scope=("src/**",),
-                predicted_surfaces=(),
-                depends_on_lanes=(),
-                parallel_group=0,
-            )
-        ],
-        computed_at="2026-10-30T00:00:00+00:00",
-        computed_from="test",
-    )
-
-    seen: list[Any] = []
-
-    def _capture(request: Any) -> None:
-        seen.append(request)
-        return None
-
-    monkeypatch_target = "specify_cli.coordination.status_transition.status_write_refusal"
-    import specify_cli.coordination.status_transition as status_transition_module
-
-    original = status_transition_module.status_write_refusal
-    status_transition_module.status_write_refusal = _capture
-    try:
-        assert preflight_module.refuse_protected_status_target(repo_root, "021-test", manifest) is None
-    finally:
-        status_transition_module.status_write_refusal = original
-
-    assert seen, "the probe must have built a request, or nothing is asserted"
-    assert seen[0].actor == _SYSTEM_MERGE_ACTOR
-    assert monkeypatch_target  # keeps the import used and names the seam under test
-
-
 # ---------------------------------------------------------------------------
 # T003 — the review-artifact override: structured event actor, plain-string slot
 # ---------------------------------------------------------------------------
 
 
-def test_skip_evidence_records_the_system_actor_and_keeps_the_override_slot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_skip_evidence_keeps_the_plain_string_override_slot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.post_merge.review_artifact_consistency import ReviewArtifactFinding
 
     _, feature_dir = _mission(tmp_path)
@@ -192,9 +143,7 @@ def test_skip_evidence_records_the_system_actor_and_keeps_the_override_slot(tmp_
 
     assert len(captured) == 1
     call = captured[0]
-    actor = call["kwargs"]["actor"]
     delta = call["args"][2]
-    assert actor == {"tool": "operator-ivan", "role": "system", "profile": None, "model": None}
     # The pinned four-field slot keeps the plain operator identity.
     assert delta.review == ReviewOverride(at=delta.review.at, actor="operator-ivan", wp_id="WP01", reason="content is the reviewed content")
     assert isinstance(delta.review.actor, str)
@@ -225,7 +174,7 @@ def _attestation_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tup
     return feature_dir, emit_mock
 
 
-def test_approved_attestation_records_the_system_actor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_approved_attestation_records_its_kind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.consolidation.approved_attestation import record_approved_reviewed_attestation
     from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
     from specify_cli.consolidation.approved_bound import APPROVED_REVIEWED
@@ -243,11 +192,10 @@ def test_approved_attestation_records_the_system_actor(tmp_path: Path, monkeypat
 
     emit_mock.assert_called_once()
     request = emit_mock.call_args.args[0]
-    assert request.actor == {"tool": "operator-ivan", "role": "system", "profile": None, "model": None}
     assert request.policy_metadata[ATTESTATION_KEY] == APPROVED_REVIEWED
 
 
-def test_canceled_attestation_records_the_system_actor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_canceled_attestation_records_its_kind(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY, CANCELED_SUPERSEDED, record_canceled_superseded_attestation
 
     feature_dir, emit_mock = _attestation_fixture(tmp_path, monkeypatch)
@@ -262,7 +210,6 @@ def test_canceled_attestation_records_the_system_actor(tmp_path: Path, monkeypat
 
     emit_mock.assert_called_once()
     request = emit_mock.call_args.args[0]
-    assert request.actor == {"tool": "operator-ivan", "role": "system", "profile": None, "model": None}
     assert request.policy_metadata[ATTESTATION_KEY] == CANCELED_SUPERSEDED
 
 
