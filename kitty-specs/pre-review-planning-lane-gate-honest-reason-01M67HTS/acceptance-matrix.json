@@ -6,43 +6,43 @@
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "A planning-lane work package records a no_coverage reason that names the planning lane and states the committed diff was not inspected.",
       "proof_type": "automated_test",
       "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_planning_lane_reason.py::test_planning_lane_wp_records_that_the_committed_diff_was_not_inspected + ::test_planning_artifact_falls_back_to_the_lanes_manifest_kind_view (7 passed)",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
       "verified_at": "2026-10-31T01:17:46.873167+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Empty-diff short-circuit selects the planning-lane reason; no assertion claims \"no changed files detected\" for the planning arm."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "Planning-lane classification comes from the canonical authorities (declared execution_mode, then the lanes.json lane + kind view), not a second literal.",
       "proof_type": "automated_test",
       "evidence": "tests/.../test_tasks_move_task_pre_review_planning_lane_reason.py::test_code_change_wp_placed_in_the_planning_lane_keeps_the_incumbent_reason + ::test_undeclared_code_wp_in_the_planning_lane_keeps_the_incumbent_reason; classification via WorkProductKind.PLANNING_ARTIFACT and lanes.compute.is_planning_lane (no lane-planning literal)",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
       "verified_at": "2026-10-31T01:17:53.005969+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Declared code_change in the repo-root lane keeps the incumbent wording; no \"lane-planning\" literal introduced in src/."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "Every non-planning work package with an empty changed-file set keeps the existing \"no changed files detected\" reason.",
       "proof_type": "automated_test",
       "evidence": "tests/.../test_tasks_move_task_pre_review_planning_lane_reason.py::test_code_change_wp_with_empty_diff_keeps_the_incumbent_reason (incumbent literal asserted)",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
       "verified_at": "2026-10-31T01:17:57.138451+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Control arms assert the incumbent literal byte-for-byte on the same fixture."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "The planning-lane arm dispatches no gate, runs no tests, keeps the non-blocking outcome, and applies the transition.",
       "proof_type": "automated_test",
       "evidence": "tests/.../test_tasks_move_task_pre_review_planning_lane_reason.py::test_planning_lane_wp_records_that_the_committed_diff_was_not_inspected (dispatch spy never fires, transition_applied true) + ::test_planning_lane_classification_survives_an_unreadable_lanes_manifest",
       "pass_fail": "pass",
       "verified_by": "reviewer-renata",
       "verified_at": "2026-10-31T01:18:01.342147+00:00",
-      "notes": "TODO: replace with a real acceptance criterion"
+      "notes": "Dispatch spy never fires; transition_applied true; corrupt/absent lanes.json degrades to the incumbent wording."
     }
   ],
   "negative_invariants": []
