@@ -434,3 +434,27 @@ def test_planning_lane_classification_survives_an_unreadable_lanes_manifest(tmp_
     assert gate["outcome"] == "no_coverage"
     assert gate["reason"] == _INCUMBENT_NO_CHANGES_REASON
     assert payload["transition_applied"] is True
+
+
+def test_declared_planning_mode_wins_over_a_silent_manifest_kind_view(tmp_path: Path) -> None:
+    """The other half of the ordering: a declared planning mode needs no manifest help.
+
+    A ``planning_artifact`` WP whose ``lanes.json`` does not name it in
+    ``planning_artifact_wps`` (an older or partial manifest) still gets the
+    honest reason, because the declared ``execution_mode`` is asked first and
+    returns before the manifest is read at all.
+    """
+    ports, _router = _build_fixture(tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / _MISSION
+    manifest = json.loads((feature_dir / "lanes.json").read_text(encoding="utf-8"))
+    manifest["planning_artifact_wps"] = []
+    (feature_dir / "lanes.json").write_text(json.dumps(manifest), encoding="utf-8")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "fixture: manifest kind view omits the planning WP")
+
+    payload = _move_to_for_review(tmp_path, _PLANNING_WP, ports)
+
+    gate = payload["pre_review_gate"]
+    assert gate["outcome"] == "no_coverage"
+    assert gate["reason"].startswith("planning-lane WP — committed diff not inspected")
+    assert payload["transition_applied"] is True
