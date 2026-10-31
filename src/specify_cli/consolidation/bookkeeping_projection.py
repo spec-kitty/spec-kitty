@@ -936,11 +936,17 @@ def _established_judgements(kind: MissionArtifactKind, content: bytes) -> dict[s
     for criterion in criteria:
         if not isinstance(criterion, Mapping):
             raise _UnreadableGateDocument("one of its criteria is not an object")
-        judgements[f"criterion {criterion.get('criterion_id')}"] = criterion.get("pass_fail") == "pass"
+        criterion_id = criterion.get("criterion_id")
+        if not isinstance(criterion_id, str) or not criterion_id:
+            raise _UnreadableGateDocument("one of its criteria has no criterion_id")
+        judgements[f"criterion {criterion_id}"] = criterion.get("pass_fail") == "pass"
     for invariant in invariants:
         if not isinstance(invariant, Mapping):
             raise _UnreadableGateDocument("one of its negative_invariants is not an object")
-        judgements[f"invariant {invariant.get('invariant_id')}"] = invariant.get("result") in terminal_invariants
+        invariant_id = invariant.get("invariant_id")
+        if not isinstance(invariant_id, str) or not invariant_id:
+            raise _UnreadableGateDocument("one of its negative_invariants has no invariant_id")
+        judgements[f"invariant {invariant_id}"] = invariant.get("result") in terminal_invariants
     return judgements
 
 
