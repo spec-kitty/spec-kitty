@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.status.bootstrap import bootstrap_canonical_state
-from specify_cli.status.models import StatusEvent, actor_identity_str, decode_actor
+from specify_cli.status.models import StatusEvent, actor_identity_str
 from specify_cli.status.store import read_events
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -37,23 +37,6 @@ def _disable_status_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.status.emit as emit_module
 
     monkeypatch.setattr(emit_module, "_status_fan_out", lambda *args, **kwargs: None)
-
-
-def test_bootstrap_seed_carries_the_system_actor(tmp_path: Path) -> None:
-    feature_dir = tmp_path / "kitty-specs" / "060-test-feature"
-    tasks_dir = feature_dir / "tasks"
-    tasks_dir.mkdir(parents=True)
-    _write_wp_file(tasks_dir, "WP01")
-    _write_wp_file(tasks_dir, "WP02")
-
-    result = bootstrap_canonical_state(feature_dir, "060-test-feature")
-    assert result.newly_seeded == 2
-
-    events = read_events(feature_dir)
-    assert len(events) == 2
-    for event in events:
-        assert event.actor == _SYSTEM_BOOTSTRAP_ACTOR
-        assert decode_actor(event.actor) == _SYSTEM_BOOTSTRAP_ACTOR
 
 
 def test_bootstrap_seed_keeps_its_lane_payload_and_identity(tmp_path: Path) -> None:

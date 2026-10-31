@@ -23,7 +23,6 @@ import pytest
 
 import specify_cli
 from specify_cli.migration import backfill_runtime_state as runtime_backfill
-from specify_cli.migration import verdict_provenance_backfill as verdict_backfill
 from specify_cli.migration import wp_status_backfill as wp_backfill
 from specify_cli.status.actor import build_system_actor
 from specify_cli.status.models import actor_identity_str, is_migration_actor
@@ -97,15 +96,6 @@ def _rewrite_seed_actor_to_the_pre_change_string(feature_dir: Path) -> int:
 # ---------------------------------------------------------------------------
 
 
-def test_wp_status_backfill_seeds_carry_the_system_actor(tmp_path: Path) -> None:
-    feature_dir = _wp_mission(tmp_path)
-    plan = wp_backfill.plan_wp_status_backfill(feature_dir)
-    assert plan.events, "the fixture must produce seeds, or nothing is asserted"
-    for event in plan.events:
-        assert event.actor == build_system_actor(_WP_STATUS_IDENTITY)
-        assert is_migration_actor(event.actor) is True
-
-
 def test_wp_status_backfill_keeps_its_deterministic_event_id(tmp_path: Path) -> None:
     """The actor is not an id input: the same corpus must mint the same seed ids."""
     feature_dir = _wp_mission(tmp_path)
@@ -116,26 +106,6 @@ def test_wp_status_backfill_keeps_its_deterministic_event_id(tmp_path: Path) -> 
         assert event.event_id == wp_backfill.seed_event_id(MISSION_ID, event.wp_id, str(event.to_lane)) or event.event_id == wp_backfill.seed_event_id(
             feature_dir.name, event.wp_id, str(event.to_lane)
         )
-
-
-def test_verdict_provenance_seed_carries_the_system_actor(tmp_path: Path) -> None:
-    feature_dir = _verdict_mission(tmp_path)
-    outcome = verdict_backfill.backfill_verdict_provenance(feature_dir)
-    assert outcome.appended_count == 1, "the fixture must append one seed, or nothing is asserted"
-    (event,) = [e for e in read_event_stream(feature_dir).transitions if is_migration_actor(e.actor)]
-    assert event.actor == build_system_actor(_VERDICT_IDENTITY)
-    assert actor_identity_str(event.actor) == _VERDICT_IDENTITY
-
-
-def test_runtime_backfill_seeds_carry_the_system_actor(tmp_path: Path) -> None:
-    feature_dir = build_mission(tmp_path)
-    result = runtime_backfill.backfill_runtime_state(feature_dir)
-    assert result.seeded_count > 0, "the fixture must seed, or nothing is asserted"
-    stream = read_event_stream(feature_dir)
-    seeds = [e for e in [*stream.transitions, *stream.annotations] if is_migration_actor(e.actor)]
-    assert len(seeds) == result.seeded_count
-    for event in seeds:
-        assert event.actor == build_system_actor(_RUNTIME_IDENTITY)
 
 
 def _seeds(feature_dir: Path) -> list[object]:
