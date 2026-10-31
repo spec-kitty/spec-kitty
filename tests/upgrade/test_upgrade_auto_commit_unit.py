@@ -215,6 +215,19 @@ def test_eligible_accepts_kittify_in_non_home(tmp_path: Path) -> None:
     assert autocommit.is_upgrade_commit_eligible(".kittify/metadata.yaml", tmp_path) is True
 
 
+@pytest.mark.parametrize(
+    ("path", "eligible"),
+    [
+        (".kittify/migrations/migration-ledger.jsonl.lock", False),
+        (".kittify/migrations/clone-local.jsonl.lock", False),
+        (".kittify/migration-ledger.jsonl", True),
+    ],
+)
+def test_eligible_never_sweeps_a_ledger_lock_sidecar(tmp_path: Path, path: str, eligible: bool) -> None:
+    """On a project without the 3.2.4 gitignore entry the lock is untracked; it must not be committed (#6613)."""
+    assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is eligible
+
+
 def test_eligible_rejects_home_kittify(monkeypatch) -> None:
     home = Path.home().resolve()
     assert autocommit.is_upgrade_commit_eligible(".kittify/metadata.yaml", home) is False

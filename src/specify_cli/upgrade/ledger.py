@@ -34,8 +34,9 @@ need a git invocation on a path that must also run outside a repository. It is
 never the payload itself — the primitive writes its own record into the file it
 locks and truncates it on release — and it never lands beside the *tracked*
 ledger either: ``.kittify/migrations/`` is the already-IGNORED per-clone
-surface, so the lock file cannot show up in ``git status`` or be swept into an
-upgrade autocommit (a tracked ledger is a sibling of the tracked
+surface (git-ignored once the 3.2.4 runtime-dirs gitignore backfill has run; until
+then the lock can be an untracked file, which ``autocommit`` never commits), so
+the lock file is never swept into an upgrade autocommit (a tracked ledger is a sibling of the tracked
 ``metadata.yaml``, and a sibling ``.lock`` there would be untracked noise).
 
 This module must NOT import ``base.py``: it reaches migration identity and
@@ -68,8 +69,8 @@ TRACKED_LEDGER_RELPATH = ".kittify/migration-ledger.jsonl"
 #: Per-clone partition — inside the already-IGNORED ``.kittify/migrations/`` surface.
 CLONE_LOCAL_LEDGER_RELPATH = ".kittify/migrations/clone-local.jsonl"
 #: Folder, relative to a project root, that holds every ledger lock file: the
-#: already-IGNORED per-clone surface, so a lock is never a ``git status`` entry
-#: and never reaches an upgrade autocommit. A lock is per-clone machine state.
+#: per-clone surface (git-ignored once the 3.2.4 gitignore backfill ran), and
+#: ``autocommit`` never commits a lock. A lock is per-clone machine state.
 LEDGER_LOCK_DIR_RELPATH = ".kittify/migrations"
 
 # Record field keys (hoisted; S1192).
@@ -101,12 +102,22 @@ def ledger_lock_path(project_root: Path | str, ledger_path: Path | str) -> Path:
 
     ``<project_root>/.kittify/migrations/<ledger file name>.lock``: a dedicated
     sidecar (deliberately not the payload, which ``kernel.locks`` would truncate)
-    living in the already-IGNORED per-clone surface, so the lock file never shows
-    up in ``git status`` and is never swept into an upgrade autocommit. Naming it
+    living in the per-clone surface (git-ignored once the 3.2.4 gitignore backfill
+    ran), and never swept into an upgrade autocommit. Naming it
     after the ledger file keeps the two partitions — and two projects — on
     distinct lock files, so unrelated appends never exclude each other.
     """
     return Path(project_root) / LEDGER_LOCK_DIR_RELPATH / (Path(ledger_path).name + _LOCK_SUFFIX)
+
+
+def is_ledger_lock_path(relative_path: str) -> bool:
+    """True when the project-relative POSIX *relative_path* is a ledger lock sidecar.
+
+    The lock is per-clone machine state. On a project whose ``.gitignore`` does
+    not yet carry ``.kittify/migrations/`` it can show as an untracked file, and
+    an upgrade autocommit must never sweep it into a commit.
+    """
+    return relative_path.startswith(LEDGER_LOCK_DIR_RELPATH + "/") and relative_path.endswith(_LOCK_SUFFIX)
 
 
 @contextmanager
