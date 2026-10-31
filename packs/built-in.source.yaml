@@ -3,11 +3,11 @@
 # OPPOSITE anchor, core -> open-packs.) The tree is fetched from the pinned commit,
 # not vendored; tree_digest = clean_tree_digest(<subtree>, level=<tree_digest.level>).
 repository: https://github.com/spec-kitty/spec-kitty-open-packs.git
-commit: af1c370f34601f2aa00d45a7a9597ab8d6a46ea1
+commit: a79c36318b7a506ca2ab26d74705c5e3e406004f
 subtree: packs/built-in
 tree_digest:
   algorithm: clean-tree-sha256
-  value: 390a43f5530fb9024926d36ab320bc0c418539dcbb18b3062a514e729a849c1c
+  value: 3b4cbd97a28efcce3b07f9751ccdde4a976bd206b5049056a9c347b9fb73f839
   level: built-in
 requires_core: '>=4.0.0rc7,<5'
-snapshot_sha256: 29dee100c21cd93a048f27c6a7b9c244cbe1e25ab525cc98c6d3ffd8e099c2cd
+snapshot_sha256: c21c5903af73181e26879da0ba0cc7e48dff32906148bb6f11e9d6ff575db8d7
