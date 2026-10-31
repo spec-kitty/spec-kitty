@@ -18,7 +18,6 @@ The fixture is shared with the runner-level module so the two proofs cannot drif
 from __future__ import annotations
 
 import contextlib
-import os
 import re
 from pathlib import Path
 
@@ -51,10 +50,10 @@ _test_app.command()(upgrade)
 _runner = CliRunner()
 
 
-def _invoke(project: Path, args: list[str]) -> object:
+def _invoke(project: Path, args: list[str], monkeypatch: pytest.MonkeyPatch) -> object:
     """Run the real ``upgrade`` command inside *project*, offline."""
+    monkeypatch.setenv("CI", "1")
     with contextlib.chdir(project):
-        os.environ["CI"] = "1"
         return _runner.invoke(_test_app, args, catch_exceptions=False)
 
 
@@ -70,12 +69,12 @@ def _only_the_reported_pair() -> None:
     MigrationRegistry.register(IssueMatrixDriverRepointMigration)
 
 
-def test_the_dry_run_summary_names_the_migration_it_predicts(tmp_path: Path) -> None:
+def test_the_dry_run_summary_names_the_migration_it_predicts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """M1 of the round-1 review: the prediction is operator-visible, not just data."""
     project = _pair_project(tmp_path)
     before = _tree_digest(project)
 
-    result = _invoke(project, ["--project", "--dry-run", "--no-worktrees"])
+    result = _invoke(project, ["--project", "--dry-run", "--no-worktrees"], monkeypatch)
 
     assert result.exit_code == 0, result.output
     assert "Migrations applied:" in result.output
@@ -91,11 +90,11 @@ def test_the_dry_run_summary_names_the_migration_it_predicts(tmp_path: Path) -> 
     assert _tree_digest(project) == before
 
 
-def test_the_verbose_preview_agrees_with_the_dry_run_summary(tmp_path: Path) -> None:
+def test_the_verbose_preview_agrees_with_the_dry_run_summary(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """M2 of the round-1 review: the pre-run preview uses the same sequencing decision."""
     project = _pair_project(tmp_path)
 
-    result = _invoke(project, ["--project", "--dry-run", "--verbose", "--no-worktrees"])
+    result = _invoke(project, ["--project", "--dry-run", "--verbose", "--no-worktrees"], monkeypatch)
 
     assert result.exit_code == 0, result.output
     preview = [line for line in _lines(result.output, f"{_REPOINT}:") if "ready" in line or "skipped" in line]
@@ -107,13 +106,13 @@ def test_the_verbose_preview_agrees_with_the_dry_run_summary(tmp_path: Path) -> 
     assert "would apply after" not in gate_line, gate_line
 
 
-def test_a_real_run_lists_the_migration_without_a_prediction(tmp_path: Path) -> None:
+def test_a_real_run_lists_the_migration_without_a_prediction(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Positive control: the fixture has the work pending, and a real run never predicts."""
     project = _copy(_pair_project(tmp_path), tmp_path / "real")
     _only_the_reported_pair()
     before = _tree_digest(project)
 
-    result = _invoke(project, ["--project", "--yes", "--no-worktrees"])
+    result = _invoke(project, ["--project", "--yes", "--no-worktrees"], monkeypatch)
 
     assert result.exit_code == 0, result.output
     assert re.search(rf"✓\s+{re.escape(_REPOINT)}", result.output), result.output
