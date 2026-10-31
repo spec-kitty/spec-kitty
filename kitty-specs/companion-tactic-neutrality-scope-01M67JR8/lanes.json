@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "companion-tactic-neutrality-scope-01M67JR8",
+  "mission_id": "01M67JR87X0B8GAZ07CS9R5930",
+  "mission_branch": "issue-6724-companion-tactic-neutrality-scope",
+  "target_branch": "issue-6724-companion-tactic-neutrality-scope",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-04-19-6-harness-owned-generated-artifact-charter-handoff.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/synthesizer/interview_mapping.py",
+        "src/charter/activation/synthesizer/write_pipeline.py",
+        "tests/charter/synthesizer/test_companion_tactic_neutrality_6724.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T23:39:03.530623+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ce90bb826e20627d719f71b96e32bb1321eb9c77"
+}

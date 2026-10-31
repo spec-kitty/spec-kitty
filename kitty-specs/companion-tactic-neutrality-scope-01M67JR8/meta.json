@@ -1,0 +1,47 @@
+{
+  "accept_commit": "69846bf159bc1f59a72113bd081c9418cc9aa040",
+  "acceptance_history": [
+    {
+      "accept_commit": "b4d874f95ca9e5f6ffa99d14f837b8c721e2e162",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T00:33:02.098655+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "e46139512fc8ae9d994c45843cc5bd78a97b4739"
+    },
+    {
+      "accept_commit": "452a0d2e405841490757d5bc39df79b11cbe0384",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T00:36:17.293662+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "21c58d150159365d92660543d87b4b1b692659f1"
+    },
+    {
+      "accept_commit": "69846bf159bc1f59a72113bd081c9418cc9aa040",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T00:36:23.628359+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "af16bc1ec8a5d6f81af1a1e18cf1cce89567c9da"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T00:36:23.628359+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "af16bc1ec8a5d6f81af1a1e18cf1cce89567c9da",
+  "baseline_merge_commit": "6dba485af684a91182bf164e969c7aec1f97d8ca",
+  "created_at": "2026-10-30T23:36:37.852818+00:00",
+  "flattened": false,
+  "friendly_name": "companion tactic neutrality scope",
+  "merged_at": "2026-10-31T00:36:43.233903+00:00",
+  "merged_commit": "6dba485af684a91182bf164e969c7aec1f97d8ca",
+  "mid8": "01M67JR8",
+  "mission_id": "01M67JR87X0B8GAZ07CS9R5930",
+  "mission_number": 244,
+  "mission_slug": "companion-tactic-neutrality-scope-01M67JR8",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances companion tactic neutrality scope on issue-6724-companion-tactic-neutrality-scope so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "companion tactic neutrality scope",
+  "slug": "companion-tactic-neutrality-scope-01M67JR8",
+  "status_phase": "1",
+  "target_branch": "issue-6724-companion-tactic-neutrality-scope",
+  "topology": "single_branch"
+}
