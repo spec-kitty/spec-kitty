@@ -768,12 +768,12 @@ taking them at face value would be wrong about when a migration runs again.
   `kernel.locks.machine_file_lock` — the extension point §1 named — with a bounded wait
   (`ledger.LEDGER_LOCK_TIMEOUT_S`, 30 s) that raises `ledger.MigrationLedgerLockTimeoutError`
   having appended nothing. The lock file is
-  `<project root>/.kittify/migrations/<ledger file name>.lock`: a dedicated sidecar (never the
-  payload, which the primitive truncates on release) inside the per-clone `.kittify/migrations/`
-  surface. That folder is git-ignored once the `3.2.4_runtime_dirs_gitignore_backfill` migration has
-  added its entry to `.gitignore`; before that (a pre-3.2.4 project, between the first locked append
-  and that migration) the lock can show as an untracked file. It never reaches an upgrade autocommit
-  either way: `autocommit.is_upgrade_commit_eligible` refuses any ledger lock sidecar.
+  `<user state dir>/spec-kitty/locks/migration-ledger/<sha256(resolved ledger path)[:32]>.lock`: a
+  dedicated sidecar (never the payload, which the primitive truncates on release) in the per-user
+  machine lock directory, **never inside the checkout**. A lock under `.kittify/migrations/` was
+  tried first and rejected: it shows as an untracked `git status` entry on any project whose
+  `.gitignore` lacks the `3.2.4_runtime_dirs_gitignore_backfill` entry, so `upgrade` would dirty a
+  clean checkout. Outside the checkout it can neither show in `git status` nor reach an autocommit.
 - **The lock is per ledger *file*, not per repository.** The file is the thing that can lose a
   record; a git-common-dir key would over-serialize unrelated checkouts and would need a git
   invocation on a path that must also run outside a repository (`init` outside git deliberately

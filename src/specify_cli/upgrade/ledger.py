@@ -32,12 +32,11 @@ The lock is per ledger **file**, not per repository: the file is what can lose a
 record, and a git-keyed lock would both over-serialize unrelated checkouts and
 need a git invocation on a path that must also run outside a repository. It is
 never the payload itself — the primitive writes its own record into the file it
-locks and truncates it on release — and it never lands beside the *tracked*
-ledger either: ``.kittify/migrations/`` is the already-IGNORED per-clone
-surface (git-ignored once the 3.2.4 runtime-dirs gitignore backfill has run; until
-then the lock can be an untracked file, which ``autocommit`` never commits), so
-the lock file is never swept into an upgrade autocommit (a tracked ledger is a sibling of the tracked
-``metadata.yaml``, and a sibling ``.lock`` there would be untracked noise).
+locks and truncates it on release — and it never lives in the checkout at all:
+it sits in the per-user machine lock directory (:func:`ledger_lock_path`), keyed
+by a digest of the ledger file's resolved path. A lock inside the repository is
+an untracked ``git status`` entry whenever ``.gitignore`` lacks the 3.2.4 entry,
+so ``upgrade`` would dirty a clean checkout.
 
 This module must NOT import ``base.py``: it reaches migration identity and
 ``content_hash_sources`` through defensive ``getattr`` so it works whether or
@@ -46,6 +45,7 @@ not those ClassVars exist yet (they land in WP02).
 
 from __future__ import annotations
 
+import hashlib
 import inspect
 import json
 from collections.abc import Iterator
@@ -57,6 +57,7 @@ from typing import Any
 from kernel.clock import datetime, now_utc, parse_iso
 from kernel.content_digest import sha256_digest
 from kernel.locks import LockAcquireTimeout, machine_file_lock
+from kernel.user_dirs import user_state_dir
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.git_ops import is_git_repo
@@ -68,10 +69,10 @@ from .metadata import _LEGACY_MIGRATION_ID_MAP
 TRACKED_LEDGER_RELPATH = ".kittify/migration-ledger.jsonl"
 #: Per-clone partition — inside the already-IGNORED ``.kittify/migrations/`` surface.
 CLONE_LOCAL_LEDGER_RELPATH = ".kittify/migrations/clone-local.jsonl"
-#: Folder, relative to a project root, that holds every ledger lock file: the
-#: per-clone surface (git-ignored once the 3.2.4 gitignore backfill ran), and
-#: ``autocommit`` never commits a lock. A lock is per-clone machine state.
-LEDGER_LOCK_DIR_RELPATH = ".kittify/migrations"
+#: Folder, under the per-user state directory, that holds every ledger lock
+#: file. Machine scope, never the checkout: a lock inside the repository is an
+#: untracked file in ``git status`` whenever ``.gitignore`` lacks the entry.
+LEDGER_LOCK_SUBPATH = ("spec-kitty", "locks", "migration-ledger")
 
 # Record field keys (hoisted; S1192).
 _K_ID = "id"
@@ -97,31 +98,24 @@ class MigrationLedgerLockTimeoutError(RuntimeError):
     """The ledger lock was not acquired within ``LEDGER_LOCK_TIMEOUT_S``; nothing was appended."""
 
 
-def ledger_lock_path(project_root: Path | str, ledger_path: Path | str) -> Path:
-    """The lock-only sidecar for *ledger_path* of the project rooted at *project_root*.
+def ledger_lock_path(ledger_path: Path | str) -> Path:
+    """The lock-only sidecar for *ledger_path*, in the machine lock directory.
 
-    ``<project_root>/.kittify/migrations/<ledger file name>.lock``: a dedicated
-    sidecar (deliberately not the payload, which ``kernel.locks`` would truncate)
-    living in the per-clone surface (git-ignored once the 3.2.4 gitignore backfill
-    ran), and never swept into an upgrade autocommit. Naming it
-    after the ledger file keeps the two partitions — and two projects — on
-    distinct lock files, so unrelated appends never exclude each other.
+    ``<user state dir>/spec-kitty/locks/migration-ledger/<sha256(resolved ledger
+    path)[:32]>.lock``: a dedicated sidecar (deliberately not the payload, which
+    ``kernel.locks`` would truncate) kept OUT of the repository, so it can never
+    be a ``git status`` entry nor reach an upgrade autocommit, whatever the
+    project's ``.gitignore`` says. Keyed by a digest of the ledger file's
+    resolved absolute path, so the two partitions — and two projects — take
+    distinct locks and unrelated appends never exclude each other. No git is
+    consulted, so it works outside a repository.
     """
-    return Path(project_root) / LEDGER_LOCK_DIR_RELPATH / (Path(ledger_path).name + _LOCK_SUFFIX)
-
-
-def is_ledger_lock_path(relative_path: str) -> bool:
-    """True when the project-relative POSIX *relative_path* is a ledger lock sidecar.
-
-    The lock is per-clone machine state. On a project whose ``.gitignore`` does
-    not yet carry ``.kittify/migrations/`` it can show as an untracked file, and
-    an upgrade autocommit must never sweep it into a commit.
-    """
-    return relative_path.startswith(LEDGER_LOCK_DIR_RELPATH + "/") and relative_path.endswith(_LOCK_SUFFIX)
+    digest = hashlib.sha256(str(Path(ledger_path).resolve()).encode("utf-8")).hexdigest()[:32]  # noqa: TID251 - a path-keyed lock file name, not charter content (hash_content would normalise the path)
+    return user_state_dir().joinpath(*LEDGER_LOCK_SUBPATH) / (digest + _LOCK_SUFFIX)
 
 
 @contextmanager
-def _ledger_lock(project_root: Path, ledger_path: Path) -> Iterator[Path]:
+def _ledger_lock(ledger_path: Path) -> Iterator[Path]:
     """Hold the exclusive lock for *ledger_path*'s read-modify-write; yield the lock file.
 
     Blocking with a bounded wait (``LEDGER_LOCK_TIMEOUT_S``): a second appender
@@ -131,7 +125,7 @@ def _ledger_lock(project_root: Path, ledger_path: Path) -> Iterator[Path]:
     re-entrancy, so a nested append from the holding thread neither deadlocks
     nor takes the OS lock twice.
     """
-    lock_path = ledger_lock_path(project_root, ledger_path)
+    lock_path = ledger_lock_path(ledger_path)
     try:
         with machine_file_lock(lock_path, blocking=True, timeout_s=LEDGER_LOCK_TIMEOUT_S, reentrant=True):
             yield lock_path
@@ -372,7 +366,7 @@ class MigrationLedger:
         must happen inside one lock hold, or a concurrent appender writes a file
         built from the same pre-append read (#6613).
         """
-        with _ledger_lock(self.project_root, path):
+        with _ledger_lock(path):
             lines = self._read_raw_lines(path)
             lines.extend(new_lines)
             atomic_write(path, "\n".join(lines) + "\n", mkdir=True)

@@ -35,7 +35,6 @@ from kernel.locks import machine_file_lock
 
 import specify_cli.upgrade.ledger as ledger_module
 from specify_cli.upgrade.ledger import (
-    LEDGER_LOCK_DIR_RELPATH,
     LedgerRecord,
     MigrationLedger,
     MigrationLedgerLockTimeoutError,
@@ -138,7 +137,7 @@ def test_append_many_keeps_both_partitions_under_concurrency(tmp_path: Path, mon
 def test_append_waits_for_a_held_ledger_lock(tmp_path: Path) -> None:
     """A second appender blocks on the sidecar lock until the holder releases it (FR-004)."""
     ledger = MigrationLedger(tmp_path)
-    lock_path = ledger_lock_path(tmp_path, ledger.tracked_path)
+    lock_path = ledger_lock_path(ledger.tracked_path)
 
     with machine_file_lock(lock_path, blocking=True, timeout_s=JOIN_SECONDS):
         thread = threading.Thread(target=lambda: ledger.append(_record("m_waited")), name="contender")
@@ -160,7 +159,7 @@ def test_append_raises_typed_error_when_the_lock_never_frees(tmp_path: Path, mon
     monkeypatch.setattr(ledger_module, "LEDGER_LOCK_TIMEOUT_S", 0.2)
 
     with (
-        machine_file_lock(ledger_lock_path(tmp_path, ledger.tracked_path), blocking=True, timeout_s=JOIN_SECONDS),
+        machine_file_lock(ledger_lock_path(ledger.tracked_path), blocking=True, timeout_s=JOIN_SECONDS),
         pytest.raises(MigrationLedgerLockTimeoutError) as caught,
     ):
         ledger.append(_record("m_dropped"))
@@ -170,37 +169,30 @@ def test_append_raises_typed_error_when_the_lock_never_frees(tmp_path: Path, mon
     assert {record.id for record in ledger.read_tracked()} == {"m_before"}
 
 
-def test_lock_path_is_a_dedicated_sidecar_in_the_ignored_surface(tmp_path: Path) -> None:
-    """The lock is `<ledger>.lock` under the IGNORED lock dir, never the payload, per partition (NFR-003)."""
+def test_lock_path_is_a_per_ledger_file_sidecar_outside_the_checkout(tmp_path: Path) -> None:
+    """The lock is keyed per ledger file, never the payload, and lives outside the project (NFR-003)."""
     ledger = MigrationLedger(tmp_path)
-    tracked_lock = ledger_lock_path(tmp_path, ledger.tracked_path)
-    clone_lock = ledger_lock_path(tmp_path, ledger.clone_local_path)
+    tracked_lock = ledger_lock_path(ledger.tracked_path)
+    clone_lock = ledger_lock_path(ledger.clone_local_path)
 
-    assert tracked_lock == tmp_path / LEDGER_LOCK_DIR_RELPATH / "migration-ledger.jsonl.lock"
-    assert clone_lock == tmp_path / LEDGER_LOCK_DIR_RELPATH / "clone-local.jsonl.lock"
     assert tracked_lock != ledger.tracked_path, "the payload itself must never be the lock file"
     assert tracked_lock != clone_lock, "two partitions must never share one lock"
+    assert tracked_lock != ledger_lock_path(MigrationLedger(tmp_path / "other").tracked_path), "two projects must never share one lock"
+    assert not tracked_lock.is_relative_to(tmp_path), "a lock inside the checkout can dirty `git status`"
 
 
-def test_an_append_never_adds_an_untracked_file_to_git_status(tmp_path: Path) -> None:
-    """The lock file lands in the ignored surface, so `git status` stays clean (autocommit cannot sweep it).
-
-    A lock beside the TRACKED ledger would be an untracked file in every consumer
-    checkout and would ride into the next upgrade autocommit, which derives its
-    commit set from `git status --porcelain`.
-    """
+def test_an_append_leaves_git_status_clean_without_any_gitignore_entry(tmp_path: Path) -> None:
+    """With no `.gitignore` at all, an append adds no untracked file: the lock is not in the checkout."""
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True, capture_output=True)
-    (tmp_path / ".gitignore").write_text(f"{LEDGER_LOCK_DIR_RELPATH}/\n", encoding="utf-8")
     (tmp_path / ".kittify").mkdir()
     ledger = MigrationLedger(tmp_path)
 
     ledger.append(_record("m_status"))
-    lock_path = ledger_lock_path(tmp_path, ledger.tracked_path)
-    assert lock_path.exists(), "the probe cannot see a lock file that was never created"
+    assert ledger_lock_path(ledger.tracked_path).exists(), "the probe cannot see a lock file that was never created"
 
-    status = subprocess.run(["git", "status", "--porcelain"], cwd=tmp_path, check=True, capture_output=True, text=True)
+    status = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=tmp_path, check=True, capture_output=True, text=True)
     assert ".lock" not in status.stdout
-    assert ".kittify/migrations/" not in status.stdout
+    assert ".kittify/migrations" not in status.stdout
 
 
 def test_append_outside_a_git_repository(tmp_path: Path) -> None:
@@ -217,7 +209,7 @@ def test_nested_append_does_not_self_deadlock(tmp_path: Path) -> None:
     """A thread already holding the ledger lock can append without waiting on itself (FR-004)."""
     ledger = MigrationLedger(tmp_path)
 
-    with machine_file_lock(ledger_lock_path(tmp_path, ledger.tracked_path), blocking=True, timeout_s=JOIN_SECONDS, reentrant=True):
+    with machine_file_lock(ledger_lock_path(ledger.tracked_path), blocking=True, timeout_s=JOIN_SECONDS, reentrant=True):
         ledger.append(_record("m_nested"))
 
     assert {record.id for record in ledger.read_tracked()} == {"m_nested"}

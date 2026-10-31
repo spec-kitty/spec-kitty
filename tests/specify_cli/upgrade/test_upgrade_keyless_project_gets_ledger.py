@@ -109,7 +109,7 @@ def test_held_ledger_lock_refuses_the_upgrade_without_a_traceback(tmp_path: Path
     root = _project(tmp_path, config="vcs:\n  type: git\n")
     monkeypatch.setattr(ledger_module, "LEDGER_LOCK_TIMEOUT_S", 0.2)
 
-    with machine_file_lock(ledger_lock_path(root, MigrationLedger(root).tracked_path), blocking=True, timeout_s=20.0):
+    with machine_file_lock(ledger_lock_path(MigrationLedger(root).tracked_path), blocking=True, timeout_s=20.0):
         app = typer.Typer(add_completion=False)
         app.command()(upgrade)
         with contextlib.chdir(root):
