@@ -59,6 +59,7 @@ from specify_cli.cli.commands.charter._cascade_shared import (
 )
 from specify_cli.cli.commands.charter.activate import (
     ACTIVATION_FAILED,
+    activation_write_window,
     DEACTIVATION_REFUSED_REQUIRED,
     NO_COMPILE_HELP,
     RESYNTHESIZE_HELP,
@@ -388,9 +389,19 @@ def _apply_direct_deactivation(
 def _deactivation_change_report(kind: str, artifact_id: str, cascade: str | None, repo_root: Path) -> tuple[Path, ActivationChangeReport, str]:
     """Run a positional deactivation (direct write, then cascade).
 
+    The read-only preflight runs before the window; everything that reads or writes the activation
+    config (the direct write, the cascade children, the change report's post-state reads) runs inside it,
+    so a deactivation that races a synthesis append is serialized instead of lost (#6719).
+
     Returns the write root, the change report and the source id the cascade lines name.
     """
     repo_root, scope = _deactivation_preflight(kind, cascade, repo_root)
+    with activation_write_window(repo_root):
+        return _deactivation_change_report_locked(kind, artifact_id, repo_root, scope)
+
+
+def _deactivation_change_report_locked(kind: str, artifact_id: str, repo_root: Path, scope: CascadeScope | None) -> tuple[Path, ActivationChangeReport, str]:
+    """Body of :func:`_deactivation_change_report`; the caller holds the activation write window."""
     ctx_project = ProjectContext(repo_root=repo_root)
     layer_roots = resolve_layer_roots(repo_root)
     manager = ActiveCharterManager()
