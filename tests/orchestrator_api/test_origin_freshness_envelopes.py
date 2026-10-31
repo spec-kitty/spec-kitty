@@ -3,7 +3,12 @@
 Drives the REAL orchestrator CLI against a real bare remote and a second clone
 that pushed ahead. The refusal envelope keeps its existing codes
 (``MISSION_NOT_READY`` / ``PREFLIGHT_FAILED``) and gains additive
-``data.preflight_error_code(s)`` and ``data.origin_freshness`` (contract 1.11.0).
+``data.preflight_error_code(s)`` and ``data.origin_freshness``.
+
+The envelope's ``contract_version`` is compared against the module's exported
+``CONTRACT_VERSION`` (never a literal): the exact value is pinned in
+``tests/specify_cli/orchestrator_api/test_contract_version.py``, so a contract bump cannot leave a
+stale pin here (#6578).
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ import pytest
 
 from specify_cli.git.origin_freshness import ORIGIN_COMPARE_FAILED, ORIGIN_REMOTE_AMBIGUOUS
 from specify_cli.orchestrator_api import consolidation as orchestrator_consolidation
+from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 from tests.terminus.conftest import CoordMission, _event, build_coord_mission, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests._support.two_clone import attach_and_push, clone_from, isolated_git_env, make_bare_remote, unreachable_remote
@@ -26,7 +32,6 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _STATUS_LOG = "status.events.jsonl"
 _ORIGIN_CODES = ("ORIGIN_STATUS_STALE", "ORIGIN_LANE_STALE", "ORIGIN_UNREACHABLE", ORIGIN_REMOTE_AMBIGUOUS, ORIGIN_COMPARE_FAILED)
-_CONTRACT_VERSION = "1.21.0"
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -119,7 +124,7 @@ def test_accept_mission_refuses_stale_status_evidence(coord_world: World) -> Non
     data = _data(envelope)
     assert envelope["success"] is False
     assert envelope["error_code"] == "MISSION_NOT_READY"
-    assert envelope["contract_version"] == _CONTRACT_VERSION
+    assert envelope["contract_version"] == CONTRACT_VERSION
     assert data["preflight_error_code"] == "ORIGIN_STATUS_STALE"
     assert data["preflight_error_codes"] == ["ORIGIN_STATUS_STALE"]
     assert _freshness(envelope)[0]["state"] == "behind"
@@ -173,7 +178,7 @@ def test_consolidate_mission_refuses_stale_status_evidence(coord_world: World) -
     data = _data(envelope)
     assert envelope["success"] is False
     assert envelope["error_code"] == "PREFLIGHT_FAILED"
-    assert envelope["contract_version"] == _CONTRACT_VERSION
+    assert envelope["contract_version"] == CONTRACT_VERSION
     assert data["preflight_error_code"] == "ORIGIN_STATUS_STALE"
     assert _origin_codes_of(envelope)[0] == "ORIGIN_STATUS_STALE"
     assert data["target_branch"] == coord_world.mission.target_branch
