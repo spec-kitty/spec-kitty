@@ -22,7 +22,8 @@ from specify_cli.migration.strip_frontmatter import (
     STATIC_FIELDS,
     strip_mutable_fields,
 )
-from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta
+from specify_cli.status.actor import build_system_actor
+from specify_cli.status.models import Lane, StatusEvent, WPInnerStateDelta, actor_identity_str
 from specify_cli.status.reducer import materialize, materialize_snapshot, materialize_to_json
 from specify_cli.status.store import (
     append_annotations_atomic_verified,
@@ -161,7 +162,7 @@ def test_seed_floor_precedes_transition_and_annotation_history(tmp_path: Path) -
     seeds = [
         event
         for event in (*stream_after.transitions, *stream_after.annotations)
-        if event.actor == b.BACKFILL_ACTOR
+        if actor_identity_str(event.actor) == b.BACKFILL_ACTOR
     ]
     assert seeds
     assert all(
@@ -193,7 +194,7 @@ def test_seed_floor_uses_annotation_only_history(tmp_path: Path) -> None:
     seed_keys = [
         (event.at, event.event_id)
         for event in (*stream.transitions, *stream.annotations)
-        if event.actor == b.BACKFILL_ACTOR
+        if actor_identity_str(event.actor) == b.BACKFILL_ACTOR
     ]
     annotation_key = (
         "2026-01-02T03:04:05+00:00",
@@ -299,7 +300,7 @@ def test_persisted_bad_claim_seed_no_longer_buries_lane_or_claim_slots(
                 from_lane=Lane.PLANNED,
                 to_lane=Lane.CLAIMED,
                 at="2026-01-02T04:00:00+00:00",
-                actor=b.BACKFILL_ACTOR,
+                actor=build_system_actor(b.BACKFILL_ACTOR),
                 force=False,
                 execution_mode="worktree",
                 policy_metadata={
@@ -392,7 +393,7 @@ def test_seed_ids_are_byte_identical_across_independent_runs(tmp_path: Path) -> 
     def seed_annotation_ids(fd: Path) -> dict[str, str]:
         ids: dict[str, str] = {}
         for a in read_event_stream(fd).annotations:
-            if a.actor == b.BACKFILL_ACTOR:
+            if actor_identity_str(a.actor) == b.BACKFILL_ACTOR:
                 key = next(iter(a.delta.to_dict().keys()))
                 ids[key] = a.event_id
         return ids
@@ -677,7 +678,7 @@ def test_missing_raw_claim_witness_cannot_be_masked_by_expected_event_builder(
     surviving_migration_annotations = [
         row
         for row in retained
-        if "delta" in row and row.get("actor") == b.BACKFILL_ACTOR
+        if "delta" in row and actor_identity_str(row.get("actor")) == b.BACKFILL_ACTOR
     ]
     assert surviving_migration_annotations
     events_path.write_text(
@@ -910,7 +911,7 @@ def test_seed_claim_never_rewinds_a_finished_wp(tmp_path: Path) -> None:
     result = b.backfill_runtime_state(feature_dir)
     assert result.action == "wrote"
 
-    seeds = [e for e in read_event_stream(feature_dir).transitions if e.actor == b.BACKFILL_ACTOR]
+    seeds = [e for e in read_event_stream(feature_dir).transitions if actor_identity_str(e.actor) == b.BACKFILL_ACTOR]
     assert seeds, "expected the claim carrier to still be seeded (no data loss)"
     assert all(seed.at < terminal_at for seed in seeds), (
         "the retroactive claim seed must sort strictly before recorded history"
@@ -1008,7 +1009,7 @@ def test_no_claim_carrier_when_authentic_history_already_carries_the_slots(
     claim_seeds = [
         e
         for e in read_event_stream(feature_dir).transitions
-        if e.actor == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
+        if actor_identity_str(e.actor) == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
     ]
     assert claim_seeds == [], "a fully-migrated claim must not be re-seeded as a transition"
     assert b.verify_backfill(feature_dir).ok is True
@@ -1025,7 +1026,7 @@ def test_claim_carrier_seeds_only_the_slots_still_missing(tmp_path: Path) -> Non
     claim_seeds = [
         e
         for e in read_event_stream(feature_dir).transitions
-        if e.actor == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
+        if actor_identity_str(e.actor) == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
     ]
     assert [e.policy_metadata for e in claim_seeds] == [
         {"shell_pid": 44821, "shell_pid_created_at": "1784458183.44"}
@@ -1136,7 +1137,7 @@ def test_seed_floor_precedes_history_under_either_at_encoding(
     seeds = [
         event
         for event in (*read_event_stream(feature_dir).transitions, *read_event_stream(feature_dir).annotations)
-        if event.actor == b.BACKFILL_ACTOR
+        if actor_identity_str(event.actor) == b.BACKFILL_ACTOR
     ]
     assert seeds
     assert all(
@@ -1199,7 +1200,7 @@ def test_claim_carrier_still_archives_a_slot_whose_authentic_value_diverges(
     claim_seeds = [
         e
         for e in read_event_stream(feature_dir).transitions
-        if e.actor == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
+        if actor_identity_str(e.actor) == b.BACKFILL_ACTOR and e.to_lane == Lane.CLAIMED
     ]
     assert [e.policy_metadata for e in claim_seeds] == [
         {"agent": "claude:opus:pedro"}
