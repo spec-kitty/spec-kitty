@@ -1,6 +1,8 @@
 {
+  "accept_commit": "ceed2c1a181d6804e3c4da12dea335e7c2abfad4",
   "acceptance_history": [
     {
+      "accept_commit": "ceed2c1a181d6804e3c4da12dea335e7c2abfad4",
       "acceptance_mode": "pr",
       "accepted_at": "2026-10-31T01:21:25.853795+00:00",
       "accepted_by": "exedev",
