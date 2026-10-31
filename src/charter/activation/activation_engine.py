@@ -97,6 +97,7 @@ __all__ = [
     "PromotionOutcome",
     "RequiredArtifactDeactivationError",
     "UnknownActivationIdError",
+    "absent_key_stays_implicit",
     "check_deactivation_permitted",
     "commit_plan",
     "deny_delta",
@@ -385,6 +386,24 @@ def _materialise_absent(
 # ---------------------------------------------------------------------------
 
 
+def absent_key_stays_implicit(effective_when_absent: str, *, key_present: bool) -> bool:
+    """Whether a kind's activation key is absent AND its absence keeps every artifact in force (#6685).
+
+    The one rule behind every writer that must not fill an absent key: an absent
+    ``activated_<plural>`` key of a kind with ``effective_when_absent == "all"`` means
+    every available artifact is in force, so writing the key would only freeze the
+    catalog (or, written with a selection alone, narrow it, #4253) and turn "nothing
+    chosen yet" into an operator's activation that ``charter synthesize`` reads as one
+    (#2577, #4785, #6629). ``required``-when-absent kinds (``skill``) put only the
+    org-required set in force, so their absent key is never implicit.
+
+    *effective_when_absent* is :attr:`ArtifactKind.effective_when_absent`. Pass
+    ``key_present=False`` for the kind-level question ("is this a kind whose absent key
+    means all?"); callers holding a config mapping pass whether the key is there.
+    """
+    return not key_present and effective_when_absent == "all"
+
+
 def _stays_implicit(
     current: list[str] | None,
     artifact_id: str,
@@ -395,18 +414,13 @@ def _stays_implicit(
 ) -> bool:
     """Whether activating *artifact_id* needs no write at all (#6685).
 
-    True only when the key is absent, its absence puts *every* available artifact in
-    force (``effective_when_absent == "all"``), the caller positively asserts that
-    *effective_ids* is what is in force, and the artifact is in it. The activation then
-    changes nothing: materialising the set would freeze the kind to today's catalog, and
-    writing the selection alone would narrow it (#4253).
-
-    ``mission-type`` (whose absent key puts *nothing* in force, so the caller passes a
-    substitute with ``in_force=False``) and a ``required``-when-absent kind such as
-    ``skill`` (whose absent key puts only the org-required set in force) are therefore
-    never implicit: not writing would lose the activation.
+    :func:`absent_key_stays_implicit` for the kind, plus: the caller positively asserts
+    that *effective_ids* is what is in force, and the artifact is in it. The activation
+    then changes nothing. ``mission-type`` (whose absent key puts *nothing* in force, so
+    the caller passes a substitute with ``in_force=False``) and an unresolved effective
+    set are never implicit: not writing would lose the activation.
     """
-    if current is not None or effective_when_absent != "all" or not effective_ids_in_force:
+    if not absent_key_stays_implicit(effective_when_absent, key_present=current is not None) or not effective_ids_in_force:
         return False
     return artifact_id in set(effective_ids)
 

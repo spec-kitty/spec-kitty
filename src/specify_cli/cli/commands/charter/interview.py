@@ -19,7 +19,7 @@ import typer
 from rich.markup import escape
 from ruamel.yaml.error import YAMLError
 
-from charter.activation.api import ActivationIdCollisionError
+from charter.activation.api import ActivationIdCollisionError, absent_key_stays_implicit
 from specify_cli.core.env import is_interactive
 from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
 from specify_cli.decisions.service import DecisionError as _DecisionError
@@ -93,7 +93,7 @@ def _kept_deactivated_messages(skipped_denied: dict[str, list[str]]) -> list[str
 
 #: One line per kind whose key an interview run leaves absent (#6685).
 _ABSENT_KEY_LEFT_ABSENT = (
-    "{key} was left absent: while an activated_<kind> key is absent every {token} of that kind is in force, "
+    "{key} was left absent: while it is absent every {token} of that kind is in force, "
     "so nothing was written. Run `spec-kitty charter interview --narrow-activation` to keep activation narrow "
     "and write an explicit list."
 )
@@ -113,13 +113,20 @@ def _present_key_promotions(
     """Split *promotions* into the keys that are present and the ones this writer leaves absent (#6685).
 
     An absent ``activated_<kind>`` key means every available artifact of that kind is
-    in force; writing the key would only turn the "nothing chosen yet" state into an
+    in force (:func:`charter.activation.api.absent_key_stays_implicit`, so a kind whose
+    absent key puts only the org-required set in force is written); writing the key would only turn the "nothing chosen yet" state into an
     operator's activation, which ``charter synthesize`` reads as one and answers by
     demanding a companion tactic per directive and skipping the fresh-project seed
     (#2577, #4785, #6629).
     """
-    present = {key: ids for key, ids in promotions.items() if config_data.get(key) is not None}
-    left_absent = {key: ids for key, ids in promotions.items() if key not in present}
+    from charter.drg import ArtifactKind
+
+    left_absent = {
+        key: ids
+        for key, ids in promotions.items()
+        if absent_key_stays_implicit(ArtifactKind.from_plural(key.removeprefix("activated_")).effective_when_absent, key_present=config_data.get(key) is not None)
+    }
+    present = {key: ids for key, ids in promotions.items() if key not in left_absent}
     return present, left_absent
 
 

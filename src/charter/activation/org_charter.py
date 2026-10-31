@@ -41,7 +41,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.activation.activation_engine import EffectiveSet
+from charter.activation.activation_engine import EffectiveSet, absent_key_stays_implicit
 from charter.activation.activations import ActivationEntry, _activation_identity_key
 from charter.activation.org_pack_discovery import last_non_empty_token, union_required_tokens
 from charter.offering.artifact_kinds import ORG_REQUIRABLE_KIND_FIELDS, ArtifactKind
@@ -100,7 +100,9 @@ REQUIRED_KIND_FIELDS: tuple[str, ...] = ORG_REQUIRABLE_KIND_FIELDS
 #: puts the org-required ids in force (``ArtifactKind.effective_when_absent ==
 #: "required"``) is left out: writing its key would freeze today's list, so a later
 #: addition to the org's ``required_<kind>`` would stop applying.
-_INTERVIEW_SEEDED_KIND_FIELDS: tuple[str, ...] = tuple(kind for kind in REQUIRED_KIND_FIELDS if ArtifactKind.from_plural(kind).effective_when_absent != "required")
+_INTERVIEW_SEEDED_KIND_FIELDS: tuple[str, ...] = tuple(
+    kind for kind in REQUIRED_KIND_FIELDS if absent_key_stays_implicit(ArtifactKind.from_plural(kind).effective_when_absent, key_present=False)
+)
 
 
 # ---------------------------------------------------------------------------
