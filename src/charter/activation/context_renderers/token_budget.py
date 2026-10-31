@@ -35,12 +35,15 @@ got swapped.
 
 from __future__ import annotations
 
+from charter.activation.scope import CharterScope
+
 from dataclasses import dataclass
 import re
 
 from charter.activation.context_renderers.fetch_stanza import (
     DEFAULT_WHEN_CLAUSE,
     fetch_stanza,
+    fetch_command,
     fetch_stanza_lines,
 )
 from charter.activation.context_renderers.section_bodies import (
@@ -172,14 +175,14 @@ def _join_sections(sections: list[RenderedSection]) -> str:
     return "\n\n".join(blocks)
 
 
-def _substituted_section(section: RenderedSection) -> RenderedSection:
+def _substituted_section(section: RenderedSection, *, scope: CharterScope | None = None) -> RenderedSection:
     """Return a copy of *section* whose body is the canonical fetch stanza."""
 
     clause = section.when_doing_clause or DEFAULT_WHEN_CLAUSE
     if section.replacement_body is not None:
         replacement = section.replacement_body
     elif section.selector:
-        replacement = fetch_stanza(section.selector, clause, indent=section.indent)
+        replacement = fetch_stanza(section.selector, clause, indent=section.indent, scope=scope)
     else:
         # No fetch path available — keep the original body so we don't
         # silently drop content with no recovery rail.  This is also
@@ -197,11 +200,7 @@ def _substituted_section(section: RenderedSection) -> RenderedSection:
     )
 
 
-def apply_token_budget(
-    sections: list[RenderedSection],
-    *,
-    budget: int = BUDGET_DEFAULT,
-) -> tuple[str, list[str]]:
+def apply_token_budget(sections: list[RenderedSection], *, budget: int = BUDGET_DEFAULT, scope: CharterScope | None = None) -> tuple[str, list[str]]:
     """Combine *sections* into a single text under *budget* characters.
 
     See module docstring for the substitution algorithm.
@@ -254,7 +253,7 @@ def apply_token_budget(
         # the swap order is deterministic regardless of input ordering.
         candidates.sort(key=lambda pair: (-len(pair[1].body), pair[1].section_id))
         target_index, target_section = candidates[0]
-        replaced = _substituted_section(target_section)
+        replaced = _substituted_section(target_section, scope=scope)
         current[target_index] = replaced
         notes.append(f"{target_section.section_id} (body {len(target_section.body)} chars -> fetch stanza)")
         joined = _join_sections(current)
@@ -502,7 +501,7 @@ _SELECTION_GROUPS: dict[str, tuple[str, str]] = {
 }
 
 
-def _collect_selection_block_candidates(selection_block: str) -> list[RenderedSection]:
+def _collect_selection_block_candidates(selection_block: str, *, scope: CharterScope | None = None) -> list[RenderedSection]:
     """Build compactable per-kind candidates for global doctrine selections.
 
     A project can deliberately select hundreds of artifacts. Their individual
@@ -522,7 +521,7 @@ def _collect_selection_block_candidates(selection_block: str) -> list[RenderedSe
         compact = "\n".join(
             [
                 *id_lines,
-                f"  Run: spec-kitty charter context --include {kind}:SELECTED_ID",
+                f"  Run: {fetch_command(f'{kind}:SELECTED_ID', scope=scope)}",
                 (f"  When you {clause}, replace SELECTED_ID with an ID above and apply the returned rule."),
             ]
         )
@@ -538,7 +537,7 @@ def _collect_selection_block_candidates(selection_block: str) -> list[RenderedSe
     return candidates
 
 
-def _swap_candidates_into_text(text: str, candidates: list[RenderedSection], budget: int) -> tuple[str, list[str]]:
+def _swap_candidates_into_text(text: str, candidates: list[RenderedSection], budget: int, *, scope: CharterScope | None = None) -> tuple[str, list[str]]:
     """Swap *candidates* (already sorted longest-first) into *text*.
 
     Iterates the sorted candidates, replacing each section's body with its
@@ -559,13 +558,7 @@ def _swap_candidates_into_text(text: str, candidates: list[RenderedSection], bud
             break
         stanza = section.replacement_body
         if stanza is None:
-            stanza = "\n".join(
-                fetch_stanza_lines(
-                    section.selector,
-                    section.when_doing_clause,
-                    indent=section.indent,
-                )
-            )
+            stanza = "\n".join(fetch_stanza_lines(section.selector, section.when_doing_clause, indent=section.indent, scope=scope))
         # Replace only the first occurrence — the block is rendered
         # exactly once in the bootstrap text.
         new_text = current_text.replace(section.body, stanza, 1)
@@ -578,13 +571,7 @@ def _swap_candidates_into_text(text: str, candidates: list[RenderedSection], bud
 
 
 def _enforce_token_budget(
-    text: str,
-    *,
-    action: str,
-    profile_block: str,
-    section_block: str,
-    selection_block: str = "",
-    budget: int = BUDGET_DEFAULT,
+    text: str, *, action: str, profile_block: str, section_block: str, selection_block: str = "", budget: int = BUDGET_DEFAULT, scope: CharterScope | None = None
 ) -> str:
     """Apply the NFR-001 token budget to *text* (WP05, consolidated WP04 T019).
 
@@ -612,7 +599,7 @@ def _enforce_token_budget(
 
     candidates = _collect_section_block_candidates(section_block, action)
     candidates.extend(_collect_profile_block_candidates(profile_block))
-    candidates.extend(_collect_selection_block_candidates(selection_block))
+    candidates.extend(_collect_selection_block_candidates(selection_block, scope=scope))
 
     if not candidates:
         # Nothing safe to substitute — return the original text so we
@@ -628,7 +615,7 @@ def _enforce_token_budget(
     # section/profile divide it fell.
     candidates.sort(key=lambda sec: (-len(sec.body), sec.section_id))
 
-    current_text, swapped_ids = _swap_candidates_into_text(text, candidates, budget)
+    current_text, swapped_ids = _swap_candidates_into_text(text, candidates, budget, scope=scope)
 
     if swapped_ids:
         current_text = f"{current_text}\n\n{warning_line(len(swapped_ids), budget)}"

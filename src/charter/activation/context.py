@@ -19,9 +19,6 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
 
-    from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
     from charter.activation.scope import CharterScope
 
 from ruamel.yaml import YAML as YAML
@@ -437,7 +434,7 @@ def build_charter_context_include(
         raise ValueError("Expected --include selector in '<kind>:<id>' form.")
 
     if kind == "section":
-        return _render_section_include_selector(repo_root, selector, identifier, action)
+        return _render_section_include_selector(repo_root, selector, identifier, action, scope=scope)
 
     if kind == "artifact":
         # D-21: the best-effort selector is gated too, against every kind's deny.

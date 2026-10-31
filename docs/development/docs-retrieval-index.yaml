@@ -14702,6 +14702,7 @@ pages:
     - {slug: "decisions-and-provenance", text: "Decisions and provenance", level: 2}
     - {slug: "known-limitations-and-qualification-boundaries", text: "Known limitations and qualification boundaries", level: 2}
     - {slug: "resources-and-next-action", text: "Resources and next action", level: 2}
+    - {slug: "generated-fetch-closure", text: "Generated fetch closure", level: 2}
   - path: "docs/plans/engineering-notes/2026-10-30-owned-startup-project-gates.md"
     title: "Owned checkout startup admission repair"
     divio_type: "reference"

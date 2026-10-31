@@ -118,10 +118,7 @@ _ACTION_RENDER_ROWS: tuple[_ActionRenderRow, ...] = (
 
 
 def _render_action_doctrine_lines(
-    lines: list[str],
-    governance_bundle: _ActionGovernanceBundle,
-    *,
-    repo_root: Path | None,
+    lines: list[str], governance_bundle: _ActionGovernanceBundle, *, repo_root: Path | None, scope: CharterScope | None = None
 ) -> None:
     """Emit every kind the bundle resolves under the Action Doctrine heading.
 
@@ -158,19 +155,17 @@ def _render_action_doctrine_lines(
             org_source_map=org_source_map,
             progressive_kind=row.progressive_kind,
             inline_urns=inline_urns,
+            scope=scope,
         )
 
     # WP01 (deliver-loaded-doctrine, FR-001/FR-002): glossary packs cannot ride
     # the generic ``_ActionRenderRow`` path -- that renderer emits a single
     # ``title``/``summary`` line and cannot express a term-surface list. The
     # dedicated glossary block emits surfaces-only + a fetch pointer (NFR-001).
-    _render_glossary_lines(lines, governance_bundle)
+    _render_glossary_lines(lines, governance_bundle, scope=scope)
 
 
-def _render_glossary_lines(
-    lines: list[str],
-    governance_bundle: _ActionGovernanceBundle,
-) -> None:
+def _render_glossary_lines(lines: list[str], governance_bundle: _ActionGovernanceBundle, *, scope: CharterScope | None = None) -> None:
     """Emit the glossary block: term surfaces (names) + a ``--include`` pointer.
 
     Resolves each delivered ``glossary_pack_ids`` entry from
@@ -189,7 +184,7 @@ def _render_glossary_lines(
         if pack is None:
             rendered.append(f"    - {pack_id}")
             continue
-        rendered.extend(_format_inline_glossary_body(pack))
+        rendered.extend(_format_inline_glossary_body(pack, scope=scope))
     if rendered:
         lines.append(_GLOSSARY_HEADING)
         lines.extend(rendered)
@@ -302,7 +297,7 @@ def _render_bootstrap_text(
 
     # WP04 (FR-001) — action-critical charter section bodies; an absent heading
     # emits a fetch stanza so the agent still has a recovery path.
-    section_block = render_critical_section_bodies(charter_content, action)
+    section_block = render_critical_section_bodies(charter_content, action, scope=scope)
     _append_block(lines, section_block)
 
     # Cycle note: ``_render_profile_sections`` stays in ``charter.activation.context``
@@ -310,12 +305,12 @@ def _render_bootstrap_text(
     # import avoids a load cycle.
     from charter.activation.context import _render_profile_sections  # noqa: PLC0415
 
-    profile_block = _render_profile_sections(profile, service)
+    profile_block = _render_profile_sections(profile, service, scope=scope)
     _append_block(lines, profile_block)
 
     # WP04 (FR-005) — charter-level global selection rendering: the 5-kind block
     # surfaces every ``GovernanceCharterConfig.selected_<kind>`` (with org provenance).
-    selection_block = _render_selection_block(charter_config, service, repo_root=repo_root, identity=governance_bundle.identity)
+    selection_block = _render_selection_block(charter_config, service, repo_root=repo_root, identity=governance_bundle.identity, scope=scope)
     _append_block(lines, selection_block)
 
     # WP04 T023 — activation-registry hook (FR-007); renderer body is WP05's
@@ -332,7 +327,7 @@ def _render_bootstrap_text(
 
     lines.append("")
     lines.append(f"Action Doctrine ({action}):")
-    _render_action_doctrine_lines(lines, governance_bundle, repo_root=repo_root)
+    _render_action_doctrine_lines(lines, governance_bundle, repo_root=repo_root, scope=scope)
 
     _append_guidelines_lines(lines, governance_bundle.mission, action)
 
@@ -369,10 +364,6 @@ def _render_bootstrap_text(
     # ``[[tool.mypy.overrides]]`` in pyproject.toml) cannot make this return look
     # like ``Any`` to mypy.
     budgeted: str = _enforce_token_budget(
-        text,
-        action=action,
-        profile_block=profile_block,
-        section_block=section_block,
-        selection_block=selection_block,
+        text, action=action, profile_block=profile_block, section_block=section_block, selection_block=selection_block, scope=scope
     )
     return budgeted
