@@ -83,3 +83,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-27 | [the write-service protocol is loopback HTTP with a bearer token from the git common dir](2026-10-27-1-the-write-service-protocol-is-loopback-http-with-a-bearer-token.md) |
 | 2026-10-27 | [owned-checkout refusals use the C2 error contract](2026-10-27-2-owned-refusals-use-the-c2-error-contract.md) |
 | 2026-10-29 | [the events domain and its Java services live in spec-kitty-events; core consumes a released, pinned service](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) |
+| 2026-10-31 | [the docsite is built with doc-kitty, consumed as a pinned git dependency, at directory URLs with every legacy URL redirected](2026-10-31-1-the-docsite-is-built-with-doc-kitty.md) |

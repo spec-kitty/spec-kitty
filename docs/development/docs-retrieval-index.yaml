@@ -4043,6 +4043,37 @@ pages:
     - {slug: "move-them-to-a-new-service-repository", text: "Move them to a new service repository", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-10-30-accepted-refusal-codes-and-pin-location", text: "Amendment 2026-10-30 (Accepted): refusal codes and pin location", level: 2}
+  - path: "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md"
+    title: "ADR: the docsite is built with doc-kitty, consumed as a pinned git dependency, at directory URLs with every legacy URL redirected"
+    divio_type: "none"
+    abstract: "doc-kitty replaces DocFX for docs.spec-kitty.ai: a site/ sub-project reads ../docs, pins doc-kitty by commit, deploys at the domain root and redirects every legacy URL."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-doc-kitty-replaces-docfx-site-is-a-sub-project-and-docs-stays-at-the-root-replacement-ruling-10-and-the-epic-layout-derived", text: "D-1: doc-kitty replaces DocFX; `site/` is a sub-project and `docs/` stays at the root *(replacement: ruling 10 and the epic; layout: derived)*", level: 3}
+    - {slug: "d-2-doc-kitty-is-consumed-as-a-pnpm-git-dependency-pinned-by-commit-derived", text: "D-2: doc-kitty is consumed as a pnpm git dependency pinned by commit *(derived)*", level: 3}
+    - {slug: "d-3-ci-uses-no-pat-derived", text: "D-3: CI uses no PAT *(derived)*", level: 3}
+    - {slug: "d-4-the-site-deploys-at-the-domain-root-derived", text: "D-4: the site deploys at the domain root *(derived)*", level: 3}
+    - {slug: "d-5-the-url-contract-the-baseline-ledger-and-the-moves-ledger-absorbs-2358-url-shape-ruling-1-ledgers-and-generator-derived", text: "D-5: the URL contract, the baseline ledger and the moves ledger (absorbs #2358) *(URL shape: ruling 1; ledgers and generator: derived)*", level: 3}
+    - {slug: "d-6-scripts-docs-keep-port-drop-derived", text: "D-6: `scripts/docs` keep / port / drop *(derived)*", level: 3}
+    - {slug: "d-7-the-frontmatter-contract-mapping-derived", text: "D-7: the frontmatter contract mapping *(derived)*", level: 3}
+    - {slug: "d-8-what-is-published-derived-from-ruling-4", text: "D-8: what is published *(derived from ruling 4)*", level: 3}
+    - {slug: "d-9-llms-txt-is-generated-ruling-3", text: "D-9: `llms.txt` is generated *(ruling 3)*", level: 3}
+    - {slug: "d-10-the-glossary-waits-on-3024-ruling-12", text: "D-10: the glossary waits on #3024 *(ruling 12)*", level: 3}
+    - {slug: "d-11-a-required-pull-request-build-gate-derived", text: "D-11: a required pull-request build gate *(derived)*", level: 3}
+    - {slug: "d-12-invariants-kept-derived", text: "D-12: invariants kept *(derived)*", level: 3}
+    - {slug: "d-13-parallel-run-rollback-and-docfx-retirement-derived", text: "D-13: parallel run, rollback and DocFX retirement *(derived)*", level: 3}
+    - {slug: "d-14-upstream-gaps-go-to-doc-kitty-derived", text: "D-14: upstream gaps go to doc-kitty *(derived)*", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "git-dependency-pinned-by-commit-chosen", text: "Git dependency pinned by commit (chosen)", level: 3}
+    - {slug: "ci-checkout-at-a-pinned-sha", text: "CI checkout at a pinned SHA", level: 3}
+    - {slug: "github-packages", text: "GitHub Packages", level: 3}
+    - {slug: "vendoring", text: "Vendoring", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
