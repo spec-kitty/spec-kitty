@@ -108,14 +108,7 @@ def repo_with_wp_in_review(tmp_path: Path) -> Path:
     )
     primary.joinpath("tasks.md").write_text("# Tasks\n\n## WP01 — Forced rewind\n- [x] T001 Seed (WP01)\n", encoding="utf-8")
     (tasks_dir / "WP01.md").write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Forced rewind\n"
-        "dependencies: []\n"
-        "subtasks:\n"
-        "- T001\n"
-        "---\n\n"
-        "body\n",
+        "---\nwork_package_id: WP01\ntitle: Forced rewind\ndependencies: []\nsubtasks:\n- T001\n---\n\nbody\n",
         encoding="utf-8",
     )
     primary.joinpath("status.events.jsonl").write_text(
