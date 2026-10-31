@@ -48,3 +48,5 @@
 - No credentials or machine-local paths in commits or artifacts; no merge, no auto-merge, no `main` push.
 
 ## Deviations (append-only)
+
+2026-10-30 — WP01 — Approved out-of-map edit to `src/specify_cli/cli/commands/agent/tasks_move_task.py` — Adding native callables to the `tasks_move_task_gates` seam makes the seam-pin gate (`tests/specify_cli/cli/commands/agent/test_tasks_move_task_seams.py`) require an identity re-export on `tasks_move_task`, so the four new helpers/constants join that existing re-export block. No behaviour in that file; owned_files unchanged (the seam-pin invariant, not new scope).
