@@ -255,6 +255,27 @@ def _warn_newly_visible_files(repo_root: Path, config: AgentConfig, removed_keys
         )
 
 
+def _seed_legacy_agent_list(repo_root: Path, config: AgentConfig) -> None:
+    """State the agents a legacy no-list config already observes, before editing it (#6501).
+
+    A config with no ``agents.available`` list is read as the agents whose project
+    directory exists. ``agent config add``/``remove`` state that list for the first
+    time, so they must start from what the project is observed to use: otherwise one
+    ``add claude`` on a project using Claude and Gemini would record ``[claude]`` and
+    silently un-manage Gemini, which is the same silent misread in the other
+    direction.
+    """
+    if config.explicit_agent_list:
+        return
+    from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY, observed_agent_dirs
+
+    for agent_root, _subdir in observed_agent_dirs(repo_root):
+        agent_key = AGENT_DIR_TO_KEY.get(agent_root)
+        if agent_key is not None and agent_key not in config.available:
+            config.available.append(agent_key)
+    config.explicit_agent_list = True
+
+
 def _register_global_command_agent(config: AgentConfig, agent_key: str) -> None:
     """Register a slash-command agent whose command files are global."""
     global_dir = get_global_command_dir(agent_key)
@@ -549,6 +570,8 @@ def add_agents(
     already_configured = []
     errors = []
 
+    _seed_legacy_agent_list(repo_root, config)
+
     for agent_key in agents:
         # Check if already configured
         if agent_key in config.available:
@@ -627,6 +650,8 @@ def remove_agents(
     removed = []
     removed_from_config = []
     errors = []
+
+    _seed_legacy_agent_list(repo_root, config)
 
     for agent_key in agents:
         if agent_key in SKILL_ONLY_AGENTS:
@@ -794,9 +819,10 @@ def sync_agents(
 
     # Remove orphaned directories
     if remove_orphaned and not config.available and not config.explicit_agent_list:
-        # A legacy config with no ``agents.available`` means "every agent" everywhere else
-        # (get_agent_dirs_for_project, ignored_agent_keys); treating it as "no agent
-        # configured" here would delete every agent surface.
+        # A legacy config with no ``agents.available`` list is read as the agents the
+        # project has (get_agent_dirs_for_project, #6501) or ignored for every agent
+        # (ignored_agent_keys); treating it as "no agent configured" here would delete
+        # every agent surface.
         remove_orphaned = False
         if not json_output:
             console.print(

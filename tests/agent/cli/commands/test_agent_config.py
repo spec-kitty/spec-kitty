@@ -137,6 +137,42 @@ class TestAddCommand:
             config_content = config_file.read_text()
             assert "claude" in config_content
 
+    def test_add_on_a_legacy_project_keeps_the_agents_it_already_uses(self, tmp_path):
+        """One add must not drop the other agents a no-list project observes (#6501)."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  auto_commit: true\n")
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".gemini").mkdir()
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["add", "cursor"])
+
+        assert result.exit_code == 0
+        from specify_cli.core.agent_config import load_agent_config
+
+        config = load_agent_config(tmp_path)
+        assert config.explicit_agent_list is True
+        assert set(config.available) == {"claude", "gemini", "cursor"}
+
+    def test_remove_on_a_legacy_project_records_the_remaining_agents(self, tmp_path):
+        """A removal states the observed list minus the removed agent (#6501)."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  auto_commit: true\n")
+        (tmp_path / ".claude").mkdir()
+        (tmp_path / ".gemini").mkdir()
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["remove", "gemini"])
+
+        assert result.exit_code == 0
+        from specify_cli.core.agent_config import load_agent_config
+
+        config = load_agent_config(tmp_path)
+        assert config.explicit_agent_list is True
+        assert config.available == ["claude"]
+
     def test_add_multiple_agents(self, mock_project):
         """Test adding multiple agents at once."""
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=mock_project):
