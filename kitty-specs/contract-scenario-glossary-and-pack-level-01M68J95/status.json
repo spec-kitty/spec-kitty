@@ -1,0 +1,86 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M68N9BNGN5NQK53RENT40B1N",
+  "materialized_at": "2026-10-31T09:40:08.496141+00:00",
+  "mission_number": "245",
+  "mission_slug": "contract-scenario-glossary-and-pack-level-01M68J95",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M68N99QATDWX335BPDY3YR4K",
+      "last_transition_at": "2026-10-31T09:40:06.506544+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Guard module red for the expected reasons; ruff/format/mypy clean",
+        "Review (reviewer-renata lens) passed after one round: dead code N/A, synthetic fixture PASS, silent empty return PASS, FR-004 coverage PASS, frozen surface N/A, locked decision PASS, shared-file ownership N/A, production fragility N/A. Round 1 fixed in daa6db2: placement test names the file when a neighbour heading is missing; row check now rejects an empty cell."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 834918,
+      "shell_pid_created_at": "1793437150.17",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M68N9BNGN5NQK53RENT40B1N",
+      "last_transition_at": "2026-10-31T09:40:08.496141+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Contract Scenario entry + both pack-level wording corrections; docs index regenerated; changelog added; guard green (9 passed); half-by-half proof recorded",
+        "Review passed after one round. Acceptance criteria 1 and 2 of issue #6439 both met: Contract Scenario carries definition, home (Location row), related terms and Do NOT use when; neither pack-level definition row says 'tier' while kernel.pack_tiers and the #6403 clauses survive verbatim. Round 1 finding (medium): the entry omitted the issue's home field; fixed in b593c34 by adding a Location row and an assertion for it. Anti-patterns: dead code N/A; synthetic fixture PASS (guard reads the real pages and reds when either half is reverted); silent empty return PASS; FR-001/002/003 coverage PASS; frozen surface N/A; locked decision PASS (Organization Tier, Three-layer DRG, seed and pack untouched); shared-file ownership PASS (single lane); production fragility N/A. Gates: guard 10 passed; docs index fresh; freshen_adr_inventory --check --all clean; check_docs_freshness --ci errors=0; test_no_legacy_terminology green; make docs-lint 0 errors (28 pre-existing length warnings, none mine)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 979386,
+      "shell_pid_created_at": "1793437933.87",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    }
+  }
+}
