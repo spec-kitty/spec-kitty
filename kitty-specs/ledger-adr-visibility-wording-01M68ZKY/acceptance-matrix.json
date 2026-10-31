@@ -1,0 +1,59 @@
+{
+  "mission_slug": "ledger-adr-visibility-wording-01M68ZKY",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_migration_ledger_adr_visibility.py::test_current_visibility_decision_names_the_shipped_surface (pass); \u00a75 names spec-kitty migrate ledger --json",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:16:43.150749+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_current_visibility_decision_names_the_shipped_surface also covers the #E slice; #E names spec-kitty migrate ledger (--json)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:16:47.786590+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_retired_proposal_survives_as_marked_history (pass); negative controls: paragraph deleted and marker removed each fail",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:16:50.706736+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "\u00a75 partition/pending/drift prose read against migrate_cmd.py tokens (_STATE_IN_PLACE/_STATE_RECORDED_ELSEWHERE/_STATE_PENDING/_DRIFT_HUMAN) and tests/specify_cli/upgrade/test_migrate_ledger_cmd.py: no contradicting statement",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:16:54.989309+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_migration_ledger_adr_visibility.py::test_current_visibility_decision_names_only_registered_commands \u2014 red on the pre-fix ADR, green after",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:16:58.294241+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
