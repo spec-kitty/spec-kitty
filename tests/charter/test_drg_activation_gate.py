@@ -229,8 +229,8 @@ def test_root_divergence_follows_resolve_offering_root() -> None:
 
 
 def test_resolution_is_batched_once_not_per_node(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Token resolution (``IdentityIndex.declared_id``, the one identity
-    authority since Decision ``urn_split``) must run a bounded number of times
+    """Token resolution (``IdentityIndex.urn``, the one identity authority
+    since #6741) must run a bounded number of times
     per filter call -- proportional to the number of activated stems across
     kinds, never to the number of graph nodes -- and one index is built per call.
 
@@ -242,20 +242,20 @@ def test_resolution_is_batched_once_not_per_node(monkeypatch: pytest.MonkeyPatch
     """
     call_count = 0
     built: list[object] = []
-    real_declared_id = IdentityIndex.declared_id
+    real_urn = IdentityIndex.urn
     real_from_pack_context = IdentityIndex.from_pack_context
 
-    def _counting_declared_id(self: IdentityIndex, kind: ArtifactKind, token: str) -> str | None:
+    def _counting_urn(self: IdentityIndex, kind: ArtifactKind, token: str) -> str | None:
         nonlocal call_count
         call_count += 1
-        return real_declared_id(self, kind, token)
+        return real_urn(self, kind, token)
 
     def _counting_from_pack_context(ctx: PackContext, **kwargs: Path | None) -> IdentityIndex:
         index = real_from_pack_context(ctx, **kwargs)
         built.append(index)
         return index
 
-    monkeypatch.setattr(IdentityIndex, "declared_id", _counting_declared_id)
+    monkeypatch.setattr(IdentityIndex, "urn", _counting_urn)
     monkeypatch.setattr(IdentityIndex, "from_pack_context", staticmethod(_counting_from_pack_context))
 
     ctx = _pack_context(activated_directives=frozenset({_REAL_DIRECTIVE_STEM}))
@@ -404,13 +404,13 @@ def test_filter_resolves_tokens_through_a_directly_passed_identity(tmp_path: Pat
     ctx = PackContext.from_config(tmp_path)
     identity = IdentityIndex.build(tmp_path)
     consulted: list[str] = []
-    original = IdentityIndex.declared_id
+    original = IdentityIndex.urn
 
     def _spy(self: IdentityIndex, kind: ArtifactKind, tok: str) -> str | None:
         consulted.append(tok)
         return original(self, kind, tok)
 
-    monkeypatch.setattr(IdentityIndex, "declared_id", _spy)
+    monkeypatch.setattr(IdentityIndex, "urn", _spy)
 
     survivors = {n.urn for n in filter_graph_by_activation(_identity_graph_with_controls(), ctx, identity=identity).nodes}
 
