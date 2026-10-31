@@ -1,0 +1,43 @@
+           `````````````````````````````````````````````````````````            
+                                                                                
+                      ▄█▄_                            ╓▄█_                      
+                     ▐█ └▀█▄_                      ▄█▀▀ ╙█                      
+                     █"    `▀█▄                  ▄█▀     █▌                     
+                    ▐█        ▀█▄▄▄██████████▄▄▄█"       ▐█                     
+                    ║█          "` ╟█  ╫▌  █" '"          █                     
+                    ║█              ▀  ╚▀  ▀             J█                     
+                     █                                   █▌                     
+                     █▀   ,▄█████▄           ,▄█████▄_   █▌                     
+                    █▌  ▄█"      "██       ╓█▀      `▀█_  █▌                    
+                   ▐█__▐▌    ▄██▄  ╙█_____╒█   ▄██,   '█__'█                    
+                   █▀▀▀█M    ████   █▀╙"""██  ▐████    █▀▀"█▌                   
+                   █─  ╟█    ╙▀▀"  ██      █╕  ╙▀▀    ╓█   ║▌                   
+              ╓▄▄▄▄█▌,_ ╙█▄_    _▄█▀╒██████ ▀█╥     ▄█▀ __,██▄▄▄▄               
+                   ╚█'`"  `╙▀▀▀▀▀"   `▀██▀    "▀▀▀▀▀"   ""▐█                    
+                _,▄▄███▀               █▌              ▀▀███▄▄,_                
+               ▀"`   ▀█_         '▀█▄▄█▀▀█▄▄█▀          ▄█"  '"▀"               
+                      ╙██_                            ▄█▀                       
+                        └▀█▄_                      ,▓█▀                         
+                           └▀▀██▄,__        __╓▄██▀▀                            
+                                `"▀▀▀▀▀▀▀▀▀▀▀╙"`                                
+                                                                                
+           `````````````````````````````````````````````````````````            
+                                                                                
+   Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec Kit)   
+                                   v4.0.0rc8                                    
+
+Installed clone-local merge-driver settings
+╭──────────────────────────── Already Initialized ─────────────────────────────╮
+│                                                                              │
+│  Already initialized.                                                        │
+│  Agent skill surfaces were verified on this re-run: missing per-agent        │
+│  skill roots were restored. A missing or unusable managed surface exits 1    │
+│  naming the affected paths — shared command skills with the recovery         │
+│  command                                                                     │
+│  spec-kitty agent config sync --create-missing --keep-orphaned;              │
+│  an unusable per-agent skill file is preserved untouched, so rename or       │
+│  remove it and re-run init.                                                  │
+│  Run spec-kitty upgrade to migrate to the latest version.                    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+--- exit=0
