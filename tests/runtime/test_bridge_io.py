@@ -54,7 +54,7 @@ _SEAM_OWNED_NAMES = frozenset(
     {
         "_build_run_ref",
         "_mission_key_for_run_ref",
-        "_build_discovery_context",
+        "build_discovery_context",
         "_resolve_runtime_template_in_root",
         "_runtime_template_key",
         "_existing_run_ref",
@@ -257,8 +257,42 @@ def test_project_config_pack_paths_reads_mission_packs(tmp_path: Path) -> None:
     ]
 
 
+def test_mission_loader_builds_its_context_through_this_seam(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`mission run <key>` obtains its context from THIS seam (#6745, finding S7).
+
+    One construction site, patchable in one place: the loader used to keep a
+    byte-identical copy of the builder because this helper was module-private, and
+    mission `up-org-template-fsm-01M06F9K` then had to wire the org tier into both
+    copies by hand. A copy that returns would shadow the seam and fail here -- the
+    sentinel could not reach validation.
+    """
+    from runtime.next._internal_runtime.discovery import DiscoveryContext
+    from specify_cli.mission_loader import command as command_module
+
+    sentinel = DiscoveryContext(project_dir=tmp_path / "from-the-seam")
+    observed: list[Path] = []
+
+    def _fake_builder(repo_root: Path) -> DiscoveryContext:
+        observed.append(repo_root)
+        return sentinel
+
+    monkeypatch.setattr(io_seam, "build_discovery_context", _fake_builder)
+
+    result = command_module.run_custom_mission("no-such-key", "no-such-mission", tmp_path)
+
+    # The seam ran with the caller's repo root, and its context reached validation
+    # (a missing mission is a validation error, not an exception).
+    assert observed == [tmp_path]
+    assert result.exit_code == 2
+    assert result.envelope["result"] == "error"
+    # ...and the loader keeps no constructor of its own to shadow it.
+    assert not hasattr(command_module, "_build_discovery_context")
+
+
 def test_build_discovery_context_anchors_on_repo_root(tmp_path: Path) -> None:
-    context = io_seam._build_discovery_context(tmp_path)
+    context = io_seam.build_discovery_context(tmp_path)
     assert context.project_dir == tmp_path
     assert len(context.builtin_roots) == 1
     assert context.builtin_roots[0].name == "missions"
@@ -315,7 +349,7 @@ def test_build_discovery_context_populates_org_roots_from_configured_pack(
     org_root.mkdir()
     _write_org_pack_config(repo_root, pack_name="acme", local_path=org_root)
 
-    context = io_seam._build_discovery_context(repo_root)
+    context = io_seam.build_discovery_context(repo_root)
 
     assert context.org_roots == [org_root]
 
@@ -328,7 +362,7 @@ def test_build_discovery_context_org_roots_empty_when_unconfigured(tmp_path: Pat
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
-    context = io_seam._build_discovery_context(repo_root)
+    context = io_seam.build_discovery_context(repo_root)
 
     assert context.org_roots == []
     assert context.project_dir == repo_root
@@ -339,7 +373,7 @@ def test_build_discovery_context_propagates_org_pack_subdir_escape_error(
     tmp_path: Path,
 ) -> None:
     """DEC-005/NFR-001: `OrgPackSubdirEscapeError` is not swallowed by
-    `_build_discovery_context` -- it propagates exactly as it does out of
+    `build_discovery_context` -- it propagates exactly as it does out of
     `resolve_org_roots()` itself. No `try/except` wraps the call."""
     from charter.offering.drg.org_pack_config import OrgPackSubdirEscapeError
 
@@ -363,7 +397,7 @@ def test_build_discovery_context_propagates_org_pack_subdir_escape_error(
     )
 
     with pytest.raises(OrgPackSubdirEscapeError):
-        io_seam._build_discovery_context(repo_root)
+        io_seam.build_discovery_context(repo_root)
 
 
 def test_build_discovery_context_malformed_config_still_resolves_with_zero_org_roots(
@@ -371,7 +405,7 @@ def test_build_discovery_context_malformed_config_still_resolves_with_zero_org_r
 ) -> None:
     """NFR-001(b)/DEC-005 (Walk A regression, mirrors WP03's T017): a
     malformed `.kittify/config.yaml` does not raise -- `load_pack_registry`'s
-    pre-existing fail-soft absorbs it, so `_build_discovery_context` still
+    pre-existing fail-soft absorbs it, so `build_discovery_context` still
     returns a usable context with zero org roots contributed.
 
     Regression guard (pre-merge lens, mission
@@ -393,7 +427,7 @@ def test_build_discovery_context_malformed_config_still_resolves_with_zero_org_r
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        context = io_seam._build_discovery_context(repo_root)
+        context = io_seam.build_discovery_context(repo_root)
 
     assert caught == []
     assert context.org_roots == []
@@ -439,7 +473,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
     the same ``name``) is a genuinely misconfigured org pack -- the operator
     demonstrably opted in and deserves to know it's broken. Unlike the
     unparseable-file case, that signal must remain a loud ``UserWarning``
-    through this same resolution hot path (Walk A: ``_build_discovery_context``)."""
+    through this same resolution hot path (Walk A: ``build_discovery_context``)."""
     import warnings
 
     repo_root = tmp_path / "repo"
@@ -460,7 +494,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        context = io_seam._build_discovery_context(repo_root)
+        context = io_seam.build_discovery_context(repo_root)
 
     assert len(caught) == 1
     assert "Invalid org-pack config" in str(caught[0].message)
@@ -1085,17 +1119,17 @@ def test_gather_artifact_presence_never_decides_only_gathers(tmp_path: Path, mon
 def test_runtime_template_key_observes_a_patch_on_build_discovery_context(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """``_build_discovery_context`` is patched in production tests and reached
+    """``build_discovery_context`` is patched in production tests and reached
     only via intra-seam callers: ``_runtime_template_key`` calls it as a module
     global, so one patch on ``runtime_bridge_io`` intercepts it."""
     calls: list[Path] = []
-    sentinel_context = io_seam._build_discovery_context(tmp_path)
+    sentinel_context = io_seam.build_discovery_context(tmp_path)
 
     def _spy(repo_root: Path) -> Any:
         calls.append(repo_root)
         return sentinel_context
 
-    monkeypatch.setattr(io_seam, "_build_discovery_context", _spy)
+    monkeypatch.setattr(io_seam, "build_discovery_context", _spy)
     monkeypatch.setattr(io_seam, "_resolve_runtime_template_in_root", lambda root, mission_type: None)
 
     io_seam._runtime_template_key("software-dev", tmp_path)
@@ -1223,7 +1257,7 @@ def test_build_operational_context_for_claim_observes_a_patch_on_resolve_tech_st
 def test_builtin_tier_is_the_pack_missions_root(tmp_path: Path) -> None:
     from charter.activation.mission_type_profile_repository import builtin_missions_root
 
-    context = io_seam._build_discovery_context(tmp_path)
+    context = io_seam.build_discovery_context(tmp_path)
     assert context.builtin_roots == [builtin_missions_root().resolve()]
     assert io_seam._builtin_missions_root() == builtin_missions_root().resolve()
 
