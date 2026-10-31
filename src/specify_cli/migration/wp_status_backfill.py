@@ -35,8 +35,7 @@ from pydantic import ValidationError
 from kernel.clock import UTC, datetime, parse_iso, timedelta
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.status import Lane, StatusEvent, materialize_snapshot, read_authored_wp_frontmatter, wp_task_files
-from specify_cli.status.actor import build_system_actor
+from specify_cli.status import Lane, StatusEvent, build_system_actor, materialize_snapshot, read_authored_wp_frontmatter, wp_task_files
 
 from .mission_state import deterministic_ulid
 

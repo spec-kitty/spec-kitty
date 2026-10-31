@@ -229,7 +229,7 @@ def record_approved_reviewed_attestation(
     event (``None`` only for the seam's alias-collapse no-op arm).
     """
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
-    from specify_cli.status.actor import build_system_actor
+    from specify_cli.status import build_system_actor
 
     request = TransitionRequest(
         feature_dir=feature_dir,
