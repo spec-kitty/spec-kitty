@@ -1553,6 +1553,20 @@ def reopen_cmd(
         )
         raise typer.Exit(1)
 
+    # A re-open records an audited reason, and `MissionReopenedPayload.reason`
+    # is non-empty by contract (#6438). Fail here with a structured, retryable
+    # error rather than letting the model's ValidationError escape as a
+    # traceback; nothing has been written at this point.
+    if not reason.strip():
+        _emit_mission_error(
+            "[red]Error:[/red] cannot re-open: --reason must not be empty.\n"
+            '[dim]Remediation: pass --reason "<why the mission is being re-opened>"; '
+            "the reason is recorded in the mission's lifecycle log.[/dim]",
+            code="reason_required",
+            json_output=json_output,
+        )
+        raise typer.Exit(1)
+
     # Persist the replacement audit fact while the completion proof is still
     # present. Clearing first made marker-only missions fail the producer's
     # canonical completion guard after their sole proof had already been
