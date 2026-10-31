@@ -1,0 +1,35 @@
+{
+  "accept_commit": "26e9f1ce21c52da9079d323dd1b8e500be40f34b",
+  "acceptance_history": [
+    {
+      "accept_commit": "26e9f1ce21c52da9079d323dd1b8e500be40f34b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T14:00:03.489140+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "2d9fd51fe9ac2c472a28813da66451085250f6d9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T14:00:03.489140+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "2d9fd51fe9ac2c472a28813da66451085250f6d9",
+  "baseline_merge_commit": "dfe9efb0e802f66f6011be3f3dd1cea1e258c7f6",
+  "contracts": "none",
+  "contracts_rationale": "Test remediation only: the mission removes a duplicated literal pin and adds a scan guard. It defines no API, CLI flag, exit code, JSON envelope field or wire contract change, and CONTRACT_VERSION/MIN_PROVIDER_VERSION are unchanged.",
+  "created_at": "2026-10-31T12:43:12.892649+00:00",
+  "flattened": false,
+  "friendly_name": "orchestrator contract version single source",
+  "merged_at": "2026-10-31T14:00:58.331383+00:00",
+  "merged_commit": "984c19f40d3dbf6ce41d0a77b9afa52691487ea4",
+  "mid8": "01M68ZRJ",
+  "mission_id": "01M68ZRJ6SQNMPE3Q05YF3AGZ2",
+  "mission_number": 245,
+  "mission_slug": "orchestrator-contract-version-single-source-01M68ZRJ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances orchestrator contract version single source on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "orchestrator contract version single source",
+  "slug": "orchestrator-contract-version-single-source-01M68ZRJ",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
