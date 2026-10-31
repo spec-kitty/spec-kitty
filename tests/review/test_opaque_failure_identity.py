@@ -155,6 +155,24 @@ def test_shared_generic_last_line_is_not_an_identity(tmp_path: Path) -> None:
     assert new_failures == (candidate_failure,)
 
 
+def test_same_stderr_with_different_stdout_is_a_new_failure(tmp_path: Path) -> None:
+    """Aggregate review fold (#6751): both streams feed the identity.
+
+    A runner can put the failure detail on stdout and a stable banner on stderr.
+    Digesting ``stderr or stdout`` would then hash the banner alone and collapse
+    two unrelated failures — the same defect class this issue is about.
+    """
+    (baseline_failure,) = _parse(tmp_path, returncode=1, stdout="error A: real bug\n", stderr="warning: deprecation\n")
+    (candidate_failure,) = _parse(tmp_path, returncode=1, stdout="error B: real bug\n", stderr="warning: deprecation\n")
+
+    assert baseline_failure.error == candidate_failure.error  # same display summary (the banner)
+
+    outcome, new_failures, _pre_existing = _classify((candidate_failure,), _baseline((baseline_failure,)))
+
+    assert outcome is GateOutcome.NEW_FAILURES
+    assert new_failures == (candidate_failure,)
+
+
 def test_named_and_opaque_failures_never_match() -> None:
     """A named entry that happens to sit in the opaque name is still a different identity."""
     named_in_placeholder = BaselineFailure(test=OPAQUE_FAILURE_TEST_ID, error="boom", file="unknown")

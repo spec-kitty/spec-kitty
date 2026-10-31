@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6751": {
-      "evidence_ref": "WP01 + WP02 approved cycle 1 \u2014 tasks/WP01-bounded-opaque-identity/review-cycle-1.md, tasks/WP02-verdict-candidate-exit/review-cycle-1.md",
+      "evidence_ref": "PR #6856 (branch issue-6751-opaque-failure-identity): WP01 + WP02 approved; red-first satisfied; aggregate review LAND with two folds",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP02"
     },
     "#6798": {

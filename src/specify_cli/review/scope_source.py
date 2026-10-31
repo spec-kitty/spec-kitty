@@ -251,7 +251,8 @@ def _whole_run_failure(raw: RawRunResult) -> BaselineFailure:
     surfaced as failing — never silently swallowed into ``()``.
 
     The returned entry is marked ``opaque`` and carries the run's exit status
-    and a digest of its FULL output tail: together they are its bound,
+    and a digest of BOTH output streams (in a fixed, unambiguous order): together
+    they are its bound,
     comparable identity. The placeholder NAME alone is not an identity — two
     opaque runs may have failed for unrelated reasons (issue #6751) — and the
     one-line summary is not one either, because unrelated failures routinely
@@ -261,11 +262,18 @@ def _whole_run_failure(raw: RawRunResult) -> BaselineFailure:
     """
     from specify_cli.review.baseline import OPAQUE_FAILURE_TEST_ID, BaselineFailure
 
-    tail_source = raw.stderr or raw.stdout
-    normalized = tail_source.replace("\r\n", "\n").strip()
-    tail_lines = normalized.splitlines()
+    # BOTH streams feed the identity: a runner can put the detail on stdout and a
+    # stable banner on stderr, and ``stderr or stdout`` would then digest the
+    # banner alone and collapse two unrelated failures (aggregate-review finding,
+    # same defect class as #6751). The separator keeps the boundary unambiguous,
+    # so "abc"/"def" and "ab"/"cdef" cannot collide.
+    normalized_stdout = raw.stdout.replace("\r\n", "\n")
+    normalized_stderr = raw.stderr.replace("\r\n", "\n")
+    digest_source = f"stdout\x00{normalized_stdout}\x00stderr\x00{normalized_stderr}"
+    digest = hashlib.sha256(digest_source.encode("utf-8")).hexdigest()[:16]  # noqa: TID251 - opaque run identity, not charter content
+    tail_source = raw.stderr if raw.stderr.strip() else raw.stdout
+    tail_lines = tail_source.replace("\r\n", "\n").strip().splitlines()
     summary = tail_lines[-1][:_FAILURE_MESSAGE_MAX_CHARS] if tail_lines else f"exit code {raw.returncode}"
-    digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:16]  # noqa: TID251 - opaque run identity, not charter content
     return BaselineFailure(
         test=OPAQUE_FAILURE_TEST_ID,
         error=summary,
