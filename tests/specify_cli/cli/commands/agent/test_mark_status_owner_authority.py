@@ -167,7 +167,7 @@ def test_wp_shaped_authored_subtask_needs_wp_scope(tmp_path: Path) -> None:
     exit_code, output = _invoke(tmp_path, slug, "WP02")
     assert exit_code == 1, output
     assert "WP02 is a work-package id and a subtask of WP01" in output
-    assert "pass --wp WP01" in output
+    assert "pass --wp <one of them>" in output
     assert "move-task" in output and "--to <lane>" in output
     assert _events(mission_dir) == []
 

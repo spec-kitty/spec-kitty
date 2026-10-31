@@ -395,7 +395,7 @@ def _wp_shaped_ambiguous_message(st: _MarkStatusState, task_id: str, owners: lis
     """
     return (
         f"{task_id} is a work-package id and a subtask of {', '.join(owners)} in Mission {st.mission_slug}; "
-        f"pass --wp {owners[0]} to record the subtask, or use "
+        f"pass --wp <one of them> to record the subtask, or use "
         f"`spec-kitty agent tasks move-task {task_id} --to <lane>` to change the work package."
     )
 
@@ -437,6 +437,7 @@ def _resolve_task_owners(st: _MarkStatusState, tasks_content: str) -> None:
         elif st.wp not in owners:
             _tasks._output_error(st.json_output, _not_an_owner_message(st, task_id, owners))
             raise typer.Exit(1)
+        # Relies on the refusals above: with no --wp, several owners and WP-shaped ids already exited.
         if owners and (st.wp is not None or len(owners) == 1):
             st.task_wps[task_id] = st.wp or owners[0]
 
