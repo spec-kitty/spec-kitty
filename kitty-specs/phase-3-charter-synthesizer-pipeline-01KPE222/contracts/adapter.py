@@ -52,6 +52,11 @@ class SynthesisRequest:
     adapter_hints: Mapping[str, str] | None = None
     run_id: str = ""  # ULID. Excluded from fixture-hash per R-0-6 rule 4.
     evidence: Any = None  # EvidenceBundle | None — added by WP01 (charter phase 3)
+    # Built-in-layer-only DRG snapshot the FR-020 / EC-6 additive-only check runs
+    # against (#6768). None means "use drg_snapshot", the pre-#6768 behaviour;
+    # drg_snapshot keeps its role as the reference universe. Excluded from the
+    # fixture hash.
+    built_in_drg_snapshot: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
