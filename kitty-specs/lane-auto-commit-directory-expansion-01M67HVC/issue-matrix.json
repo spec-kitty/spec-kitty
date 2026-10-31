@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#2549": {
+      "evidence_ref": "context citation only: existing guard/contract this mission preserves unchanged (#2549)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2739": {
+      "evidence_ref": "context citation only (B11 directory contract is the precedent this mission reuses, not its work)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2836": {
+      "evidence_ref": "context citation only (POSIX path normalization already shipped; this mission adds no path comparison)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5100": {
+      "evidence_ref": "context citation only: existing guard/contract this mission preserves unchanged (#5100)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5401": {
+      "evidence_ref": "context citation only: existing guard/contract this mission preserves unchanged (#5401)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5903": {
+      "evidence_ref": "context citation only: existing guard/contract this mission preserves unchanged (#5903)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6750": {
+      "evidence_ref": "lane-a 74405422c9 + lane-b ae07380ca4: collector reads untracked entries expanded (one --untracked-files=all probe), safe_commit refuses a non-gitlink directory pre-mutation (SAFE_COMMIT_DIRECTORY_ARGUMENT), recovery-class failures reported as landed with the SHA; 9 regression tests incl. the issue's empty-hooks-dir fixture and a real hook negative control",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
