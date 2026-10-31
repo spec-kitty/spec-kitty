@@ -1,0 +1,76 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-30T23:20:07.015448Z",
+      "decision_id": "01M67HT2376TS5R9QGDKSGH18D",
+      "final_answer": "writer: the claim carrier's envelope must carry the mission_id meta.json declares, verbatim (seed id namespace unchanged; reader and lenient-tolerance untouched)",
+      "input_key": "fix_layer",
+      "mission_id": "01M67HR86CG32EPCV4K6S9PAMN",
+      "mission_slug": "backfill-runtime-state-idempotent-claim-slots-01M67HR8",
+      "opened_by": "cli",
+      "options": [
+        "writer: envelope carries declared mission_id",
+        "reader: treat slug mission_id as absent",
+        "verifier: tolerate mission_id delta"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Where should #6689 be fixed: (a) the migration writer, so the minted claim row carries the mission_id meta.json declares; (b) the status reader, so a slug-valued mission_id resolves as absent; (c) the verifier, tolerating a mission_id delta?",
+      "rationale": null,
+      "resolved_at": "2026-10-30T23:20:11.635970Z",
+      "resolved_by": null,
+      "slot_key": "specify.fix.write-vs-read",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-30T23:20:14.506212Z",
+      "decision_id": "01M67HT9DA92FCCWHH563K7X48",
+      "final_answer": "no: this Mission fixes only the runtime-state cutover contradiction (the reported blocking defect). backfill-identity, archive create and the no-frontmatter WP file are recorded as separate decisions in ## Deferred / research.md",
+      "input_key": "scope_boundary",
+      "mission_id": "01M67HR86CG32EPCV4K6S9PAMN",
+      "mission_slug": "backfill-runtime-state-idempotent-claim-slots-01M67HR8",
+      "opened_by": "cli",
+      "options": [
+        "no: this Mission fixes only the runtime-state cutover contradiction",
+        "yes: fix all four reported shapes"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Scope: does this Mission also fix backfill-identity's skip of a non-empty (slug) mission_id, wp_status_backfill's identical collapse, and archive create refusing accepted-but-not-merged Missions?",
+      "rationale": null,
+      "resolved_at": "2026-10-30T23:20:19.056194Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.sibling-and-archive",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-30T23:21:11.293763Z",
+      "decision_id": "01M67HW0VXPBAR437KW654Z4BD",
+      "final_answer": "a: rely on read-back equivalence. Event rows are immutable and deduplicated on first write; the module's existing tolerance already accepts an old at / pre-#2985 payload, and an old row without mission_id reads back as the declared id, so parity holds with no rewrite. A rewrite path would be unreachable and would violate the append-only seam.",
+      "input_key": "prefix_row_compat",
+      "mission_id": "01M67HR86CG32EPCV4K6S9PAMN",
+      "mission_slug": "backfill-runtime-state-idempotent-claim-slots-01M67HR8",
+      "opened_by": "cli",
+      "options": [
+        "a: rely on read-back equivalence, no rewrite",
+        "b: add a seed-row repair/rewrite path"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "A project may already carry a pre-fix seed row whose persisted JSON has no mission_id key. Once the writer emits the declared id, that old row still reads back AS the declared id, so payload parity holds without a rewrite. Do we (a) rely on that read-back equivalence (events are immutable; no rewrite possible), or (b) add a repair path that rewrites old seed rows?",
+      "rationale": null,
+      "resolved_at": "2026-10-30T23:21:15.194246Z",
+      "resolved_by": null,
+      "slot_key": "plan.fix.backward-compat",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M67HR86CG32EPCV4K6S9PAMN",
+  "version": 1
+}
