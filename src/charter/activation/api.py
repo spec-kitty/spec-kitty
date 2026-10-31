@@ -168,6 +168,16 @@ from charter.activation.kind_vocabulary import (
     resolve_selected_id_to_stem as resolve_selected_id_to_stem,
 )
 
+# The one selection resolver both activation writers use (#6686): an interview
+# selection resolves through every doctrine layer, as ``charter context`` does, so
+# the interview and the upgrade promotion cannot disagree about the same id. Public
+# per charter.activation.selection.__all__.
+from charter.activation.selection import (
+    SelectionResolution as SelectionResolution,
+    SelectionResolver as SelectionResolver,
+    UnresolvedSelection as UnresolvedSelection,
+)
+
 # Typed governance-resolution diagnostics (#6460): the closed code set and the
 # ``{code, message}`` value object ``GovernanceResolution.diagnostics`` holds, so
 # consumers (doctor) classify by code. Public per charter.activation._diagnostics.__all__.
@@ -273,10 +283,13 @@ __all__ = [
     "RenameReport",
     "RequiredOmission",
     "RequiringPack",
+    "SelectionResolution",
+    "SelectionResolver",
     "SynthesisError",
     "SynthesisLockHeldError",
     "SynthesisLockUnavailableError",
     "UnrepresentableDirectiveIdError",
+    "UnresolvedSelection",
     "append_synthesized_activations",
     "apply_ledger_migration",
     "canonical_mission_type_key",
