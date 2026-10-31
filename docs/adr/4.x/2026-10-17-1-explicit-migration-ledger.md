@@ -3,7 +3,7 @@ title: 'ADR: the applied-migration ledger is an explicit, two-partition record t
 description: 'An explicit two-partition migration ledger replaces metadata.yaml and the version window as the authority for what has run; selection becomes ledger-diff.'
 status: Accepted
 date: '2026-10-17'
-updated: '2026-10-25'
+updated: '2026-10-30'
 ---
 
 **Status:** Accepted (2026-10-17).
@@ -690,7 +690,9 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
   in its authoritative partition, or an unsettled ledger-adoption migration will settle it on apply.
   Reading the ledger directly would miss the second case, so the successor would repair a project the
   adoption backfill is about to mark as done. The gate is a `detect()` guard only: selection stays
-  ledger-diff (§3), and `detect()` remains the runner's idempotency check.
+  ledger-diff (§3), and `detect()` remains the runner's idempotency check. **Extended by Amendment
+  2026-10-30 (#6688):** that same settlement view, applied to the *successor*, is what reopens the
+  retry when the predecessor never settled.
 - **One residue rule, one walk.** The successors share `_residue_successor.py` (a non-migration
   module, never auto-discovered): the lane mixin, `partition_kitty_specs` /
   `partition_checkout_specs` (a Mission walk that also covers `.worktrees/*/kitty-specs/`, each
@@ -703,14 +705,11 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
 
 **Accepted residuals.**
 
-- **C-006: a retry is lost on first adoption.** A pre-ledger project whose `metadata.yaml` records a
-  predecessor as `failed` or `skipped` at a version above it has the successor stamped as settled by
-  the first-adoption backfill (ADR Amendment 2026-10-20: it settles every migration below the recorded
-  version). The backfill migration is frozen (C-006), so the repair the predecessor never finished is
-  not retried by the successor. Neither a selection-view hook (the backfill still writes the
-  `success` record the runner's skip gate reads) nor a manifest slot change reopens it without
-  frozen code or a manifest-semantics change. `test_c006_an_unsettled_predecessor_record_still_lets_the_successor_run`
-  asserts the desired retry as a strict `xfail`.
+- **C-006, closed by Amendment 2026-10-30 (#6688).** A retry used to be lost on first adoption: a
+  pre-ledger project whose `metadata.yaml` records a predecessor as `failed` or `skipped` had the
+  successor stamped `success` by the first-adoption backfill (Amendment 2026-10-20), so the repair
+  the predecessor never finished was never retried. The retry rule in Amendment 2026-10-30 reopens
+  it without touching the frozen backfill or the manifest.
 - **A stale "pending" listing.** A `skipped` record does not settle a migration (§3, Amendment
   2026-10-25), and an inert successor is `skipped`. On a project whose predecessor already ran,
   `migrate ledger` and `upgrade --dry-run --verbose` therefore keep listing the successor as not yet
@@ -732,3 +731,75 @@ byte-frozen (DIRECTIVE_044, `content_hash`), so the fix cannot be an edit.
 - **A degraded probe only warns.** A non-timeout git failure of the tracked-path probe (for example a
   corrupt index) falls back to file-presence mode and logs one warning per checkout and run. A timeout
   is a retryable `failed` record, in the main checkout and in each worktree.
+
+## Amendment 2026-10-30 (#6688: a successor's settlement follows its predecessor's outcome)
+
+**Problem.** First adoption settles every migration below the recorded version from the version
+stamp (Amendment 2026-10-20), including a residue-safe successor whose superseded predecessor never
+settled. On a pre-ledger project whose `metadata.yaml` records the predecessor `failed` or `skipped`,
+the baseline therefore wrote a real `success` for the successor id while the predecessor became a
+recorded no-op, and both consumers of "settled" — ledger-diff selection (§3) and the runner's skip
+gate — read that record. The repair the predecessor would have retried on `main` was lost (residual
+C-006 of Amendment 2026-10-25b, pinned there as a strict `xfail`).
+
+**Decision (issue #6688).** A successor's settlement is derived from its **predecessor's recorded
+outcome**, not from its own record:
+
+- A migration declares `predecessor_id` (`BaseMigration`, `src/specify_cli/upgrade/migrations/base.py`)
+  when it replaces a shipped migration. The four residue-safe successors declare it; no other
+  migration does, and the default is empty.
+- It is settled only when the predecessor's own authoritative partition records `success`, or a
+  pending adoption will record one — the same evidence that settles the predecessor itself, which is
+  what makes the retry behave as the predecessor did before #6669.
+- The rule body is `registry._predecessor_outcome_settled_in_view`, composed into the one
+  selection-view predicate `_settled_in_view` that `settled_in_selection_view` exposes, and exposed
+  directly as `registry.predecessor_outcome_settled`, which the runner's skip gate reaches through
+  `BaseMigration.reselect_when_recorded`. Selection and apply-time settlement cannot disagree, and a
+  run that adopts the ledger and then reaches the successor in the same pass applies it.
+- `detect()` remains the only thing that can trigger `apply()`. The rule widens *who is
+  re-evaluated*, never *what is re-applied*: on a repaired project `detect()` reports nothing to do,
+  and nothing is written: no Mission file changes and no ledger record. A re-evaluation that finds
+  nothing to do never downgrades a held `success` to `skipped` — the read view keeps the last record
+  per id, so that write would claim the repair never ran. The run reports the successor `skipped`
+  without recording it.
+- A predecessor id the registry cannot resolve keeps the migration's own record's word; a migration
+  with no declared predecessor is untouched, so every other registered migration keeps success-only
+  settlement and pays one attribute check.
+
+**Routes rejected.** Marking adoption-baseline records with provenance would edit the frozen
+backfill (DIRECTIVE_044), require a supersession of the adoption migration itself and add a ledger
+field. Moving each successor's `target_version` above the adoption ceiling would change manifest
+semantics and silently drop the repair from every `upgrade --target` between the successor's version
+and rc8. The issue records both routes as considered and rejected.
+
+**Consequences.**
+
+- The runner no longer downgrades a held `success` to `skipped` when a re-evaluated migration finds
+  nothing to do (`runner._record_ledger_result`), so a completed repair keeps its record — and the
+  read view — instead of being reported as never applied.
+- The `xfail` in `tests/specify_cli/upgrade/test_residue_safe_successors_6669.py` is removed;
+  `tests/specify_cli/upgrade/test_successor_retry_6688.py` pins the retry, the no-replay rule, the
+  dry-run preview, the worktree pass and the settled-predecessor gate through
+  `MigrationRunner.upgrade`, plus the declaration audit and the unresolvable-predecessor branch at
+  registry level.
+- **New accepted residual: a successor re-evaluates while its predecessor stays unsettled.** Any
+  predecessor that never recorded `success` leaves its successor re-evaluated once per upgrade run.
+  Two flavours are in scope: a `skipped` the shipped migration recorded itself (a real "not
+  applicable") and the superseded no-op `skipped` that #6669's substitution records once and then
+  re-skips on every run — so a project that only ever saw #6669's no-op has an inert successor that
+  is now re-evaluated on each run. The cost is one residue `detect()` per run (and 2.0.6's stale-asset probe), no re-apply,
+  no Mission file change and no ledger write. That is the same treatment a `skipped` successor
+  already gets, and it is the price of not trusting a record that first adoption can stamp without a
+  run; removing it would need the provenance marker of the rejected route.
+- **The retained record can be an adoption stamp, not a run.** The rule cannot tell a `success` a run
+  wrote from the one first adoption stamps from the version, so on a project whose predecessor
+  recorded a real "not applicable", `migrate ledger` can report the successor `applied` for work that
+  never happened — permanently, since the record is now kept. That is deliberate: `applied` answers
+  "the ledger holds a success", and the *selection view* (`settled_in_selection_view`) is the
+  authority for what may run. It is the same split the "stale pending listing" residual records from
+  the other direction.
+- A predecessor with no record at all is unchanged on a pre-ledger project: the version stamp still
+  settles it and its successor, because nothing contradicts the stamp.
+- The "stale pending listing" residual of Amendment 2026-10-25b is unchanged and now covers the
+  successor's own `success` record too: the read surface reports what the record says, and the
+  settlement authority is the selection view.

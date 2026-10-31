@@ -296,6 +296,10 @@ class MigrationLedger:
 #: "applied" rule, shared with ``registry.migration_settled``.
 SETTLED_RESULT = "success"
 
+#: The ledger result a re-evaluation records when it finds nothing to do. It never
+#: settles a migration and never replaces a held :data:`SETTLED_RESULT` (#6688).
+SKIPPED_RESULT = "skipped"
+
 
 def _safe_detect(migration: object, project_root: Path) -> bool:
     detect = getattr(migration, "detect", None)

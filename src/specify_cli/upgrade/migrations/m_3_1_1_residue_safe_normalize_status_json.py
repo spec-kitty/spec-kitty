@@ -53,6 +53,9 @@ class ResidueSafeNormalizeStatusJsonMigration(BaseMigration):
         "Residue-safe status.json normalisation: replace wall-clock materialized_at with a deterministic value (issue #524), never in a kitty-specs/ residue folder"
     )
     target_version = "3.1.1"
+    #: This successor replaces the shipped normalisation: its own record settles it only
+    #: once that predecessor's outcome proves the repair ran (#6688).
+    predecessor_id = PREDECESSOR_ID
 
     def detect(self, project_path: Path) -> bool:
         """True when any Mission's status.json is out of date."""

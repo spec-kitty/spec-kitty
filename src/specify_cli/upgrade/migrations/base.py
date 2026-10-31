@@ -260,6 +260,24 @@ class BaseMigration(ABC):
     #: gate.
     clone_local_effect: ClassVar[bool] = False
 
+    #: The ``migration_id`` of the shipped migration this one replaces, when this
+    #: migration is a *successor* that re-implements the same repair (#6669,
+    #: #6688). While that predecessor's recorded outcome does not prove the
+    #: repair ran (no ``success`` record and no pending adoption that will write
+    #: one), this migration's own record does not settle it: first adoption can
+    #: stamp a ``success`` for an id whose predecessor recorded ``failed`` or
+    #: ``skipped``, and retrying is exactly what the predecessor itself would do
+    #: (ADR ``2026-10-17-1`` §3). :meth:`detect` stays the idempotency guard, so
+    #: a repair that genuinely completed is re-evaluated, never re-applied. The
+    #: cost is one ``detect()`` per run for as long as the predecessor is not
+    #: ``success`` — including a predecessor whose own ``skipped`` was a real
+    #: "not applicable" — which is the same re-evaluation a ``skipped`` successor
+    #: already gets. Nothing is written and nothing re-applies: no Mission file
+    #: changes, and a held ``success`` is never downgraded to ``skipped``. The
+    #: default is empty, which leaves every ordinary migration's settlement and
+    #: reselection untouched.
+    predecessor_id: ClassVar[str] = ""
+
     #: The stable drift key (ADR ``2026-10-17-1`` §4). Empty by default, in which
     #: case the ledger falls back to :attr:`migration_id`. Declare an explicit
     #: ``identity`` only when a migration's drift should be tracked under a name
@@ -302,10 +320,16 @@ class BaseMigration(ABC):
     def reselect_when_recorded(self, project_path: Path) -> bool:
         """True when a recorded application must not settle this migration.
 
-        Only a ``runs_first`` migration whose :meth:`structural_detect` reports
-        the old state present qualifies (a pulled ``metadata.yaml`` or a merge
-        can bring the legacy state back after the first application). Every other
-        recorded migration is skipped as applied.
+        Two qualifications exist. A ``runs_first`` migration whose
+        :meth:`structural_detect` reports the old state present is re-selected (a
+        pulled ``metadata.yaml`` or a merge can bring the legacy state back after
+        the first application). A migration that declares a
+        :attr:`predecessor_id` is re-selected while that predecessor's recorded
+        outcome does not prove the repair ran: first adoption can stamp this
+        migration ``success`` without the work having happened (#6688, residual
+        ``C-006`` of ADR ``2026-10-17-1``). Every other recorded migration is
+        skipped as applied, and the empty-``predecessor_id`` check runs before
+        any ledger read, so an ordinary migration pays nothing for the rule.
 
         Clone-local reselection is no longer a per-migration hook: under the
         two-partition ledger (ADR ``2026-10-17-1``) a clone-local migration's
@@ -315,7 +339,15 @@ class BaseMigration(ABC):
         already present. The ``clone_local_effect`` flag survives only as the
         ledger's routing key.
         """
-        return self.runs_first and self.structural_detect(project_path)
+        if self.runs_first and self.structural_detect(project_path):
+            return True
+        if not self.predecessor_id:
+            return False
+        # Lazy: ``registry`` imports this package lazily in turn, and ``base``
+        # must stay importable on its own (see the module docstrings).
+        from ..registry import predecessor_outcome_settled
+
+        return not predecessor_outcome_settled(project_path, self)
 
     @abstractmethod
     def detect(self, project_path: Path) -> bool:
