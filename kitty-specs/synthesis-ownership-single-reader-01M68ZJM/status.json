@@ -1,7 +1,7 @@
 {
-  "event_count": 21,
-  "last_event_id": "01M697E9XR4C8Z6S6HABSW0WS2",
-  "materialized_at": "2026-10-31T14:57:24.913429+00:00",
+  "event_count": 22,
+  "last_event_id": "01M698SP53HMCN7QWYEVK9T9YD",
+  "materialized_at": "2026-10-31T15:21:06.467324+00:00",
   "mission_number": "",
   "mission_slug": "synthesis-ownership-single-reader-01M68ZJM",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -123,14 +123,23 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M697E9XR4C8Z6S6HABSW0WS2",
-      "last_transition_at": "2026-10-31T14:57:24.913429+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M698SP53HMCN7QWYEVK9T9YD",
+      "last_transition_at": "2026-10-31T15:21:06.467324+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T15:12:46Z – python-pedro – shell_pid=1712027 – Docs: changelog entry under [Unreleased]/Fixed (1,059 chars, impact-first, #6767). Freshness: check_docs_freshness --ci exits 0, errors=0; the 6 warnings are pre-existing help-drift and link-health findings in unrelated commands (service status, charter activate, migrate activation-ledger, migrate ledger) and two 404 links in docs/api/orchestrator-api.md, none touched by this diff. No docs page other than the changelog names this error code."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 1712027,
-      "shell_pid_created_at": "1793458638.49"
+      "shell_pid_created_at": "1793458638.49",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     }
   }
 }
