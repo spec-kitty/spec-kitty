@@ -81,6 +81,15 @@ what they print, is in [Activation and the activation ledger](#activation-and-th
 that lost at least one id appear. It is `{}` when `--narrow-activation` is not given or nothing
 was narrowed. Without `--json` the same information prints as `No longer in force (N) for <key>: ...`.
 
+**Selection promotion.** After the answers are saved, the interview appends the selected
+directives, tactics and paradigms to the activation list (an absent list is seeded from the
+in-force set; `--narrow-activation` replaces it instead). Every selection is resolved through the
+same layer-aware authority `charter context` reads — the project pack, the org packs and the
+built-in pack — and `spec-kitty upgrade`'s `4.0.0rc8_promote_interview_selections` step uses that
+same resolver, so an org-pack selection promotes to the same stem from either writer. An id no
+layer knows is reported (`Could not resolve selected <kind> id '<id>'; skipped.`) and is not
+promoted.
+
 **Project languages (`languages` in `.kittify/config.yaml`)**: before the questions, the interview
 detects the repository's languages (manifests and source counts) and proposes them. You confirm or
 edit the list, primary language first, and it is stored as a top-level list of catalog tokens:

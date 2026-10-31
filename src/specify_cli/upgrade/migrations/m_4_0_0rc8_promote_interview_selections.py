@@ -47,15 +47,17 @@ Rules
   selected only some of them, the result warns and names the narrowing
   commands (#6408).
 
-Only the built-in doctrine layer resolves interview ids, as in the superseded
-migration; an id it cannot resolve is reported, never dropped silently.
+Resolution is not this step's own rule any more (#6686): every interview id is
+resolved through :class:`charter.activation.selection.SelectionResolver`, the
+layer-aware resolver ``charter interview`` uses, so the project pack, the org
+packs and the built-in pack all answer. An id no layer resolves, or one no file
+stem can represent, is reported, never dropped silently.
 """
 
 from __future__ import annotations
 
 import copy
-from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -63,9 +65,9 @@ from ruamel.yaml import YAML
 
 from charter.activation.api import (
     ActiveCharterConfigError,
-    UnrepresentableDirectiveIdError,
+    SelectionResolution,
+    SelectionResolver,
     resolve_offering_root,
-    resolve_selected_id_to_stem,
 )
 from charter.drg import ArtifactKind
 
@@ -124,51 +126,17 @@ def _load_answers(project_path: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-@dataclass
-class _Selections:
-    """The interview selections, resolved to built-in stems per activation key."""
+def _resolve_selections(answers: Mapping[str, Any], resolver: SelectionResolver) -> SelectionResolution:
+    """The interview selections resolved through every doctrine layer (#6686).
 
-    stems: dict[str, list[str]] = field(default_factory=dict)
-    unresolved: list[str] = field(default_factory=list)
-
-
-class _StemResolver:
-    """Resolve declared ids and stems to activation stems, once per ``(kind, id)``."""
-
-    def __init__(self, offering_root: Path) -> None:
-        self._offering_root = offering_root
-        self._cache: dict[tuple[ArtifactKind, str], str | None] = {}
-
-    def stem(self, kind: ArtifactKind, raw_id: str) -> str | None:
-        key = (kind, raw_id)
-        if key not in self._cache:
-            try:
-                self._cache[key] = resolve_selected_id_to_stem(kind, raw_id, offering_root=self._offering_root)
-            except UnrepresentableDirectiveIdError:
-                self._cache[key] = None
-        return self._cache[key]
-
-    def stems(self, kind: ArtifactKind, raw_ids: Iterable[str]) -> set[str]:
-        """Every id of *raw_ids* as a stem; an id that resolves to none is kept as written."""
-        return {self.stem(kind, raw_id) or raw_id for raw_id in raw_ids}
+    One rule, shared with ``charter interview`` (``charter.activation.selection``),
+    so an org-pack or project-pack selection promotes here exactly as it does
+    there. An id no layer knows, or one no file stem can represent, is reported.
+    """
+    return resolver.resolve({kind: _selected_ids(answers, kind) for kind in PROMOTED_KINDS})
 
 
-def _resolve_selections(answers: Mapping[str, Any], resolver: _StemResolver) -> _Selections:
-    selections = _Selections()
-    for kind in PROMOTED_KINDS:
-        stems: list[str] = []
-        for raw_id in _selected_ids(answers, kind):
-            stem = resolver.stem(kind, raw_id)
-            if stem is None:
-                selections.unresolved.append(f"{kind.operator_token}:{raw_id}")
-            elif stem not in stems:
-                stems.append(stem)
-        if stems:
-            selections.stems[_allow_key(kind)] = stems
-    return selections
-
-
-def _present_lists(data: Mapping[str, Any], selections: _Selections) -> dict[ArtifactKind, list[str]]:
+def _present_lists(data: Mapping[str, Any], selections: SelectionResolution) -> dict[ArtifactKind, list[str]]:
     """The present allow list of every kind the interview selected; an absent key or a non-list value is left out."""
     present: dict[ArtifactKind, list[str]] = {}
     for kind in PROMOTED_KINDS:
@@ -178,7 +146,7 @@ def _present_lists(data: Mapping[str, Any], selections: _Selections) -> dict[Art
     return present
 
 
-def _promotions(present: Mapping[ArtifactKind, list[str]], selections: _Selections, resolver: _StemResolver) -> dict[str, list[str]]:
+def _promotions(present: Mapping[ArtifactKind, list[str]], selections: SelectionResolution, resolver: SelectionResolver) -> dict[str, list[str]]:
     """``{activated_<kind>: [stems]}``: each present list's missing interview stems, in answers order.
 
     A deactivated stem is not filtered here: the promotion primitive applies
@@ -198,7 +166,7 @@ def _discard(path: Path, data: dict[str, Any]) -> None:
     del path, data
 
 
-def _seeded_list_hints(project_path: Path, present: Mapping[ArtifactKind, list[str]], selections: _Selections, resolver: _StemResolver) -> list[str]:
+def _seeded_list_hints(project_path: Path, present: Mapping[ArtifactKind, list[str]], selections: SelectionResolution, resolver: SelectionResolver) -> list[str]:
     """A warning for each present list that holds every available artefact while the interview selected fewer.
 
     The in-force set is resolved once, only for the candidate kinds (a list
@@ -305,7 +273,7 @@ class PromoteInterviewSelectionsMigration(BaseMigration):
         if not any(_selected_ids(answers, kind) for kind in PROMOTED_KINDS):
             return MigrationResult(success=True, changes_made=[_NO_SELECTIONS])
         try:
-            resolver = _StemResolver(resolve_offering_root())
+            resolver = SelectionResolver.build(project_path, offering_root=resolve_offering_root())
         except Exception as exc:  # noqa: BLE001 — surfaced as a structured migration error
             return MigrationResult(success=False, errors=[f"Could not resolve doctrine root: {exc}"])
         selections = _resolve_selections(answers, resolver)
@@ -321,7 +289,7 @@ class PromoteInterviewSelectionsMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=[nothing], warnings=warnings)
         promotions = _promotions(present, selections, resolver)
         if selections.unresolved:
-            warnings.append(_unresolved_warning(selections.unresolved))
+            warnings.append(_unresolved_warning([selection.urn for selection in selections.unresolved]))
 
         if not promotions:
             nothing = _NOTHING_PREVIEW if dry_run else _NOTHING_TO_PROMOTE
