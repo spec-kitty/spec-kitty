@@ -653,7 +653,7 @@ def test_default_discovery_context_is_built_when_none_supplied(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """When ``discovery_context`` is not provided we fall back to the
-    repo-root-derived context. Exercises the `_build_discovery_context`
+    repo-root-derived context. Exercises the runtime seam `build_discovery_context`
     helper without requiring a real built-in tree."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -684,8 +684,8 @@ def test_org_tier_mission_discovered_via_third_wiring_site(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """DEC-006 / User Story 3 Acceptance Scenario 4: this module's own,
-    independently-duplicated `_build_discovery_context` (the "third wiring
-    site" the originating research missed) populates `org_roots` and
+    the runtime seam `build_discovery_context` (the "third wiring site"
+    the originating research missed) populates `org_roots` and
     discovers a mission there -- proving `mission run <key>` sees the org
     tier, not just the generic `spec-kitty next` engine.
 
@@ -717,10 +717,10 @@ def test_org_tier_mission_discovered_via_third_wiring_site(
     monkeypatch.setenv("HOME", str(tmp_path / "fake-home"))
     (tmp_path / "fake-home").mkdir(exist_ok=True)
 
-    # Unit-level proof: this module's own _build_discovery_context (not an
+    # Unit-level proof: the runtime seam builder this module calls (not an
     # injected override) resolves the org root and surfaces the mission at
     # tier "org".
-    ctx = command_mod._build_discovery_context(repo_root)
+    ctx = command_mod.runtime_bridge_io.build_discovery_context(repo_root)
     assert org_root in ctx.org_roots
     discovered = discover_missions_with_warnings(ctx).missions
     match = next(d for d in discovered if d.key == "org-custom-mission")
@@ -750,8 +750,8 @@ def test_build_discovery_context_malformed_config_emits_no_warning_stream(
     tmp_path: Path,
 ) -> None:
     """Regression guard (pre-merge lens, mission
-    ``up-org-template-fsm-01M06F9K``): this module's own
-    `_build_discovery_context` -- the "third wiring site" (DEC-006) -- is a
+    ``up-org-template-fsm-01M06F9K``): the runtime seam builder this module
+    calls -- the "third wiring site" (DEC-006) -- is a
     resolution hot path that may run many times per invocation. A project
     with no readable org-pack intent (this config can't even be parsed by
     `load_pack_registry`) must see ZERO new warning output: NFR-005/SC-007
@@ -770,7 +770,7 @@ def test_build_discovery_context_malformed_config_emits_no_warning_stream(
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        ctx = command_mod._build_discovery_context(repo_root)
+        ctx = command_mod.runtime_bridge_io.build_discovery_context(repo_root)
 
     assert caught == []
     assert ctx.org_roots == []
@@ -808,7 +808,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
 
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        ctx = command_mod._build_discovery_context(repo_root)
+        ctx = command_mod.runtime_bridge_io.build_discovery_context(repo_root)
 
     assert len(caught) == 1
     assert "Invalid org-pack config; ignoring org layer:" in str(caught[0].message)
@@ -824,9 +824,9 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
 
 def test_loader_discovery_context_uses_the_pack_accessor(tmp_path: Path) -> None:
     from charter.activation.mission_type_profile_repository import builtin_missions_root
-    from specify_cli.mission_loader.command import _build_discovery_context
+    from specify_cli.mission_loader import command as command_module
 
-    assert _build_discovery_context(tmp_path).builtin_roots == [builtin_missions_root().resolve()]
+    assert command_module.runtime_bridge_io.build_discovery_context(tmp_path).builtin_roots == [builtin_missions_root().resolve()]
 
 
 def test_ensure_feature_metadata_edits_an_existing_meta_under_the_write_lock(
