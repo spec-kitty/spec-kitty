@@ -31,6 +31,7 @@ from typing import Literal
 
 from kernel.clock import UTC, datetime, parse_iso
 from kernel.paths import is_windows
+from kernel.user_dirs import user_cache_dir
 
 _LOG = logging.getLogger(__name__)
 
@@ -228,12 +229,10 @@ class NagCache:
     def default(cls) -> NagCache:
         """Return a :class:`NagCache` pointed at the standard per-user cache location.
 
-        Cache directory resolution (in order):
-        1. ``platformdirs.user_cache_dir("spec-kitty")`` if *platformdirs* is importable.
-        2. Manual XDG / OS-specific fallback:
-           - Linux/other: ``$XDG_CACHE_HOME/spec-kitty`` (or ``~/.cache/spec-kitty``).
-           - macOS: ``~/Library/Caches/spec-kitty``.
-           - Windows: ``%LOCALAPPDATA%\\spec-kitty\\Cache``.
+        The directory is ``kernel.user_dirs.user_cache_dir()`` (the one authority,
+        ``platformdirs`` semantics): ``$XDG_CACHE_HOME/spec-kitty``, else
+        ``~/.cache/spec-kitty`` on Linux; ``~/Library/Caches/spec-kitty`` on macOS;
+        ``%LOCALAPPDATA%\\spec-kitty\\Cache`` on Windows.
 
         Returns:
             A :class:`NagCache` instance.
@@ -487,26 +486,13 @@ class NagCache:
 
 
 def _resolve_cache_dir() -> str:
-    """Resolve the per-user cache directory for spec-kitty."""
-    try:
-        from platformdirs import user_cache_dir  # type: ignore[import-untyped,unused-ignore]
+    """Resolve the per-user cache directory for spec-kitty.
 
-        return str(user_cache_dir("spec-kitty"))  # type: ignore[no-untyped-call,unused-ignore]
-    except ImportError:
-        pass
-
-    # Manual XDG / OS-specific fallback.
-    if sys.platform == "darwin":
-        return str(Path.home() / "Library" / "Caches" / "spec-kitty")
-    if is_windows():
-        local_app_data = os.environ.get("LOCALAPPDATA", "")
-        if local_app_data:
-            return str(Path(local_app_data) / "spec-kitty" / "Cache")
-        return str(Path.home() / "AppData" / "Local" / "spec-kitty" / "Cache")
-    # Linux / WSL / other POSIX.
-    xdg = os.environ.get("XDG_CACHE_HOME", "")
-    base = xdg if xdg else str(Path.home() / ".cache")
-    return str(Path(base) / "spec-kitty")
+    Delegates to :func:`kernel.user_dirs.user_cache_dir`, the one authority (#6488).
+    ``platformdirs`` is a hard dependency, so there is no manual fallback: a missing
+    ``platformdirs`` is an install defect, not a runtime branch.
+    """
+    return str(user_cache_dir())
 
 
 def _dt_to_iso(dt: datetime) -> str:
