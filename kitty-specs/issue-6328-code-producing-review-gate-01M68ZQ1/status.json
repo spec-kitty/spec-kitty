@@ -1,36 +1,68 @@
 {
-  "event_count": 3,
-  "last_event_id": "01M68ZXDR6XD8RRE857KGHD72S",
-  "materialized_at": "2026-10-31T12:45:51.750806+00:00",
+  "event_count": 10,
+  "last_event_id": "01M691619NQ5JH67N8VGPD87ZW",
+  "materialized_at": "2026-10-31T13:08:02.483054+00:00",
   "mission_number": "",
   "mission_slug": "issue-6328-code-producing-review-gate-01M68ZQ1",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68ZXD724YB23V60WER994Q5",
-      "last_transition_at": "2026-10-31T12:45:51.202474+00:00"
+      "lane": "approved",
+      "last_event_id": "01M6915BQ116KB035Q199MSNCV",
+      "last_transition_at": "2026-10-31T13:07:40.385519+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Capability + public accessor landed; 16 capability tests green",
+        "Review passed: tri-state default preserved, single owning map, facet thunked and memoised, exception breadth mirrors the shipped sibling, api seam identity row added. 16 capability tests + 72 api-reexport + 103 charter neighbour tests green; ruff clean; no new mypy errors."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "python-pedro",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68ZXDFA84HSD8RPP8HG2P0R",
-      "last_transition_at": "2026-10-31T12:45:51.466505+00:00"
+      "implementer_of_record": "python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M691619NQ5JH67N8VGPD87ZW",
+      "last_transition_at": "2026-10-31T13:08:02.483054+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 516540,
+      "shell_pid_created_at": "1793452076.86"
     },
     "WP03": {
       "actor": "finalize-tasks",
