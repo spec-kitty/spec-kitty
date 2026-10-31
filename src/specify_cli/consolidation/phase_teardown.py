@@ -48,6 +48,7 @@ from specify_cli.lanes.single_branch_landing import worktree_lanes
 # under the historical private names this module's call sites use.
 from specify_cli.lanes.compute import lane_created_branch as _created_lane_branch
 from specify_cli.consolidation._constants import (
+    COORD_LATE_PROJECTION_REFUSED_SUFFIX,
     COORD_MOVED_AFTER_LANDING_SUFFIX,
     logger,
 )
@@ -532,7 +533,7 @@ def _late_projection_refusal(branch: str, target: str, refused: LateProjectionRe
         "and the verified landing was not rolled back. `spec-kitty consolidate` exits 1 for this refusal, and "
         "`spec-kitty consolidate --abort` does not clear it (the landing is already verified, so an abort keeps it "
         f"and refuses). To clear it: {_late_projection_remedy(refused, branch, target)} "
-        "Then run `spec-kitty consolidate --resume` again."
+        f"Then run `spec-kitty consolidate --resume` again.{COORD_LATE_PROJECTION_REFUSED_SUFFIX}"
     )
 
 

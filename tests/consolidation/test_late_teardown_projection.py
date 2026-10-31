@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.consolidation._constants import COORD_LATE_PROJECTION_REFUSED
 from specify_cli.coordination.teardown import COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE
 from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefusalKind, LateProjectionRefused, assert_late_window_landed
 from specify_cli.tasks.issue_matrix import IssueMatrixEntry, build_issue_matrix_document
@@ -253,6 +254,7 @@ def test_each_late_projection_refusal_names_the_remedy_that_clears_it(kind: Late
     assert "exits 1" in message and "--abort` does not clear it" in message, message
     assert f"Branch {_BRANCH!r} was NOT deleted" in message, message
     assert "`spec-kitty consolidate --resume` again" in message, message
+    assert message.endswith(f" Error code: {COORD_LATE_PROJECTION_REFUSED}."), message
     assert f"Land the file on {_TARGET!r} yourself" not in message, f"the generic remedy cleared none of these: {message}"
 
 
@@ -378,6 +380,7 @@ def test_resume_refuses_a_window_that_deletes_a_checkpoint_present_record(refuse
     assert _coordination_marker(mission) == mission.coord_branch, f"the coordination marker must be kept\n{output}"
     assert blob_present_at(mission.repo, mission.target_branch, str(rel)), "the target must not lose the record either"
     assert f"restore the deleted file on {mission.coord_branch!r}" in flat, output
+    assert f"Error code: {COORD_LATE_PROJECTION_REFUSED}." in flat, output
     assert "land the named record" not in flat, output
 
 

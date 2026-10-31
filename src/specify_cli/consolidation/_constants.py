@@ -74,6 +74,13 @@ COORD_MOVED_AFTER_LANDING_EXIT_CODE = 75
 COORD_SEED_COMMIT_REFUSED = "COORD_SEED_COMMIT_REFUSED"
 COORD_SEED_COMMIT_REFUSED_SUFFIX = f" Error code: {COORD_SEED_COMMIT_REFUSED}."
 
+# Stable code of the #6791 refusal: a ``--resume`` found a coordination record in the late window
+# (everything the coordination branch changed since the merge began) that it cannot prove landed on
+# the target, so it kept the coordination branch, worktree and marker and did NOT roll the verified
+# landing back. Exit code 1. Rendered as a SUFFIX, like the codes above.
+COORD_LATE_PROJECTION_REFUSED = "COORD_LATE_PROJECTION_REFUSED"
+COORD_LATE_PROJECTION_REFUSED_SUFFIX = f" Error code: {COORD_LATE_PROJECTION_REFUSED}."
+
 # Stable code of the #5750 refusal: the one-directory fold of a bare-slug coordination
 # Mission found an event in the composed ``<slug>-<mid8>`` directory's status log that
 # the primary Mission directory's event log lacks (or a log it cannot read), so it removed nothing.
