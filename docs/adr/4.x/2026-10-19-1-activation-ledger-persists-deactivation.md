@@ -3,12 +3,12 @@ title: 'ADR: one activation ledger persists deactivation, and nothing silently r
 description: 'Activation state moves to one git-tracked file, .kittify/charter/activation.yaml, with a persistent deny-list so a deactivated charter artifact stays deactivated.'
 status: Accepted
 date: '2026-10-19'
-updated: '2026-10-25'
+updated: '2026-10-31'
 ---
 
 # One activation ledger persists deactivation, and nothing silently reinstalls it
 
-**Status:** Accepted (2026-10-19); amended 2026-10-20 and 2026-10-25 (see the amendments at the end).
+**Status:** Accepted (2026-10-19); amended 2026-10-20, 2026-10-25 and 2026-10-31 (see the amendments at the end).
 
 **Date:** 2026-10-19
 
@@ -477,7 +477,7 @@ spelled by its declared id is honoured.
 only, as the shipped step did. An interview id that only an org pack declares is reported as
 unresolved and not promoted.
 
-**Residual kept.** Two operator-time writers still turn an absent key into the full in-force set
+**Residual kept (closed by Amendment 2026-10-31).** Two operator-time writers still turn an absent key into the full in-force set
 when they add to it:
 
 - `charter interview` without `--narrow-activation`;
@@ -485,3 +485,33 @@ when they add to it:
 
 Running either after the upgrade brings the #6629 synthesis behaviour back. #6408 owns those
 writers. This amendment changes only what an upgrade writes.
+
+## Amendment 2026-10-31 (#6685): no writer fills an absent activation key
+
+**Decision.** One rule: an absent `activated_<kind>` key of a kind with
+`effective_when_absent: all` means every available artifact is in force, so no writer fills it.
+`charter interview` (without `--narrow-activation`) and a first `charter activate <kind> <id>`
+(without `--only`) join the upgrade promotion of #6629 and #6683. This reverses #4253's
+materialise-on-first-activate: writing the in-force set froze the catalogue and, read by
+`charter synthesize` as an operator's activation, blocked `implement` with `synthesized_drg
+missing`. Both writers now say what they left absent and how to write a list.
+
+**Exceptions.** The rule does not apply to:
+
+- `mission-type`, whose absent key puts nothing in force;
+- kinds with `effective_when_absent: required` (`skill`), whose absent key puts only the
+  org-required set in force: their selection is written;
+- an id that is not in the resolved effective set, which `activate` materialises as before;
+- an unresolved effective set: `activate` cannot prove the id is in force and writes a list. The
+  interview decides per kind, not per id (its ids are resolved against the catalogue), so it leaves
+  the key absent;
+- `--only` and `--narrow-activation`, which are the explicit choice to write a list;
+- a key that already holds a list, which is appended to.
+
+**Home.** `absent_key_stays_implicit(effective_when_absent, *, key_present)` in
+`charter.activation.activation_engine`, re-exported by `charter.activation.api`. The activate
+planner, the interview split and the org-required seed (`_INTERVIEW_SEEDED_KIND_FIELDS`) call it.
+
+**Consequence for cascade.** `charter deactivate <kind> <id> --cascade` removes a child only from a
+kind with a written list. Children of a kind with none stay in force, and each is reported with its
+`spec-kitty charter deactivate <kind> <id>` command (#6873).

@@ -3901,6 +3901,7 @@ pages:
     - {slug: "decision-7-corrected", text: "Decision 7, corrected", level: 3}
     - {slug: "residuals", text: "Residuals", level: 3}
     - {slug: "amendment-2026-10-25-6629-an-upgrade-never-writes-an-absent-activation-key", text: "Amendment 2026-10-25 (#6629): an upgrade never writes an absent activation key", level: 2}
+    - {slug: "amendment-2026-10-31-6685-no-writer-fills-an-absent-activation-key", text: "Amendment 2026-10-31 (#6685): no writer fills an absent activation key", level: 2}
   - path: "docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md"
     title: "ADR: command skills use spec-conformant spec-kitty-<command> names, and Antigravity gets its commands as skills"
     divio_type: "none"
