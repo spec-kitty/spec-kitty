@@ -1,0 +1,69 @@
+{
+  "mission_slug": "legacy-agent-list-no-widening-01M68J84",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_config_migration.py::TestGetAgentDirsForProject (missing config -> [('.claude','commands')]; no agents section -> [('.opencode','command')]; agents section without available -> [('.gemini','commands')]; two-surface control -> 2 entries). Red on main 35318ef51c (12 entries), green after the fix.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T10:04:15.833634+00:00",
+      "notes": "Verify FR-001 is satisfied"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_config_migration.py::test_missing_config_returns_only_agents_present_on_disk asserts the warning names .kittify/config.yaml, agents.available and the `spec-kitty agent config` remedy; one-warning-per-process pinned by test_legacy_warning_is_emitted_once_per_process_per_project.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T10:04:15.833634+00:00",
+      "notes": "Verify FR-002 is satisfied"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_missing_config_with_no_agent_dirs_returns_nothing, test_ci_github_dir_is_not_a_copilot_surface (no surface -> []); the legacy migration test asserts the ten absent agent dirs are never created.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T10:04:15.833634+00:00",
+      "notes": "Verify FR-003 is satisfied"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/agent/test_agent_config_unit.py (explicit_agent_list, empty list, corrupt config) and test_explicit_empty_list_means_no_agents / test_unreadable_config_fails_closed_with_remedy unchanged and green; tests/agent 1531 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T10:04:15.833634+00:00",
+      "notes": "Verify FR-004 is satisfied"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/api/configuration.md legacy blockquote now states the observed-set rule, the .github exception, the warning, the remedy and the .gitignore breadth; check_docs_freshness --ci errors=0.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T10:04:15.833634+00:00",
+      "notes": "Verify FR-005 is satisfied"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/changelog/CHANGELOG.md [Unreleased]/Fixed entry, 1,035 chars, impact-first with (#6501); tests/docs/test_changelog_style.py 148 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T10:04:15.833634+00:00",
+      "notes": "Verify FR-006 is satisfied"
+    }
+  ],
+  "negative_invariants": []
+}
