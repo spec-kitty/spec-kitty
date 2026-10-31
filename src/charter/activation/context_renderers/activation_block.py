@@ -187,6 +187,7 @@ def _render_activation_block(
                 service,
                 mission_type=mission_type,
                 action=action,
+                scope=scope,
             )
         )
     except Exception:  # noqa: BLE001 — defensive: never crash the prompt build

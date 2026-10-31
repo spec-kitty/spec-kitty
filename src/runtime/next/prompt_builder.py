@@ -534,7 +534,9 @@ def _governance_context(
                 "MISSION_CONTEXT_CONFLICT",
                 "prompt mission differs from the validated owned checkout",
             )
-        scope = CharterScope.resolve(owned.owned_root, feature_dir or owned.mission_dir)
+        from specify_cli.cli.commands._owned_checkout import charter_scope_for_owned
+
+        scope = charter_scope_for_owned(owned, feature_dir)
     if action:
         try:
             if feature_dir is not None:
@@ -560,7 +562,7 @@ def _governance_context(
                     scope=scope,
                 )
             if context.mode != "missing":
-                return context.text
+                return str(context.text)
         except (CharterScopeConflict, CharterScopeNotFound):
             # Scope routing failures mean the operator-authored monorepo
             # governance config does not cover this feature path. Falling back

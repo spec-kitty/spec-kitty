@@ -41,6 +41,8 @@ so they are now imported at top level like every other dependency.
 
 from __future__ import annotations
 
+from charter.activation.scope import CharterScope
+
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Protocol
 
@@ -78,15 +80,6 @@ __all__ = [
 ]
 
 
-# Styleguide and toolguide profile sections are pointer-only by design: their
-# bodies are fetched on demand rather than inlined on every profile load.
-_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON: str = (
-    "styleguide/toolguide profile sections are pointer-only by design "
-    "(NFR-001 token budget): their bodies are pulled on demand via the "
-    "--include fetch stanza, never inlined on every profile load"
-)
-
-
 _PROFILE_DIRECTIVES_HEADER_TPL = "Profile-Cited Directives ({profile_id}):"
 _PROFILE_TACTICS_HEADER_TPL = "Profile-Cited Tactics ({profile_id}):"
 _PROFILE_STYLEGUIDES_HEADER_TPL = "Profile-Cited Styleguides ({profile_id}):"
@@ -95,11 +88,6 @@ _PROFILE_TOOLGUIDES_HEADER_TPL = "Profile-Cited Toolguides ({profile_id}):"
 # inline citation list, so the header reads "Resolved" rather than "Cited".
 _PROFILE_PROCEDURES_HEADER_TPL = "Profile-Resolved Procedures ({profile_id}):"
 _PROFILE_CODE_CHANGE_WHEN = "are about to apply a code change"
-_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON = (
-    "Styleguide and toolguide bodies vary in shape and are fetched on demand "
-    "under the NFR-001 token budget."
-)
-
 # WP01 (deliver-loaded-doctrine, FR-005): the stated reason styleguide/toolguide
 # profile sections render pointer-only (``body_fn=None``). This is a DELIBERATE
 # NFR-001 token-budget decision -- their bodies are large and pulled on demand --
@@ -241,6 +229,7 @@ def _render_selector_entry(
     profile_id: str,
     when_clause: str,
     body_fn: Callable[[object], list[str]] | None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render one selector-ref entry: header line + inline body or fetch stanza.
 
@@ -275,6 +264,7 @@ def _render_selector_entry(
             _render_fetch_stanza(
                 selector=f"{selector_kind}:{artifact_id}",
                 when_clause=when_clause,
+                scope=scope,
             )
         )
     return lines
@@ -290,6 +280,7 @@ def render_profile_selector_refs(
     when_clause: str,
     body_fn: Callable[[object], list[str]] | None,
     when_by_id: dict[str, str | None] | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render one profile section (header + per-entry bodies).
 
@@ -323,6 +314,7 @@ def render_profile_selector_refs(
                 profile_id=profile_id,
                 when_clause=per_entry_when.get(artifact_id) or when_clause,
                 body_fn=body_fn,
+                scope=scope,
             )
         )
 
@@ -337,7 +329,7 @@ def _ref_entries(refs: Iterable[object]) -> list[tuple[str, str]]:
     ]
 
 
-def render_profile_styleguides(profile: AgentProfile, service: object) -> list[str]:
+def render_profile_styleguides(profile: AgentProfile, service: object, *, scope: CharterScope | None = None) -> list[str]:
     """Render the ``Profile-Cited Styleguides (<profile-id>):`` section (T067).
 
     Styleguides are a schema-attested profile reference kind. Each entry renders
@@ -357,10 +349,11 @@ def render_profile_styleguides(profile: AgentProfile, service: object) -> list[s
         profile_id=profile.profile_id,
         when_clause=_PROFILE_CODE_CHANGE_WHEN,
         body_fn=None,
+        scope=scope,
     )
 
 
-def render_profile_toolguides(profile: AgentProfile, service: object) -> list[str]:
+def render_profile_toolguides(profile: AgentProfile, service: object, *, scope: CharterScope | None = None) -> list[str]:
     """Render the ``Profile-Cited Toolguides (<profile-id>):`` section (T067).
 
     Toolguides are a schema-attested profile reference kind, rendered as a header
@@ -380,10 +373,11 @@ def render_profile_toolguides(profile: AgentProfile, service: object) -> list[st
         profile_id=profile.profile_id,
         when_clause=_PROFILE_CODE_CHANGE_WHEN,
         body_fn=None,
+        scope=scope,
     )
 
 
-def render_profile_procedures(profile: AgentProfile, service: object) -> list[str]:
+def render_profile_procedures(profile: AgentProfile, service: object, *, scope: CharterScope | None = None) -> list[str]:
     """Render the ``Profile-Resolved Procedures (<profile-id>):`` section (T068).
 
     Procedures reach a profile through the profile *channel* — the
@@ -410,6 +404,7 @@ def render_profile_procedures(profile: AgentProfile, service: object) -> list[st
         profile_id=profile.profile_id,
         when_clause="are about to run this procedure",
         body_fn=format_inline_named_body,
+        scope=scope,
     )
 
 
@@ -452,7 +447,9 @@ def _consolidate_kind_entries(
 
 
 def render_profile_suggested_doctrine(
-    profile: AgentProfile, service: object
+    profile: AgentProfile, service: object,
+    *,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render the profile channel's ``suggests``-delivered doctrine (WP01, C2–C5).
 
@@ -506,6 +503,7 @@ def render_profile_suggested_doctrine(
                 when_clause=STATED_DEFAULT_WHEN,
                 body_fn=None,
                 when_by_id=when_by_id,
+                scope=scope,
             )
         )
     return lines
@@ -528,6 +526,8 @@ def _render_directive_entry(
     ref: object,
     repo: _CatalogRepoLike | None,
     profile_id: str,
+    *,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render one directive-reference entry: header line + inline body or fetch stanza.
 
@@ -565,6 +565,7 @@ def _render_directive_entry(
             _render_fetch_stanza(
                 selector=f"directive:{code}",
                 when_clause=_PROFILE_CODE_CHANGE_WHEN,
+                scope=scope,
             )
         )
     return lines
@@ -573,6 +574,8 @@ def _render_directive_entry(
 def _render_profile_directives(
     profile: AgentProfile,
     service: object,
+    *,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render the ``Profile-Cited Directives (<profile-id>):`` section as a list of lines.
 
@@ -590,7 +593,7 @@ def _render_profile_directives(
     repo = getattr(service, "directives", None)
 
     for ref in refs:
-        lines.extend(_render_directive_entry(ref, repo, profile.profile_id))
+        lines.extend(_render_directive_entry(ref, repo, profile.profile_id, scope=scope))
 
     return lines
 
@@ -598,6 +601,8 @@ def _render_profile_directives(
 def _render_profile_tactics(
     profile: AgentProfile,
     service: object,
+    *,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render the ``Profile-Cited Tactics (<profile-id>):`` section as a list of lines.
 
@@ -622,6 +627,7 @@ def _render_profile_tactics(
         profile_id=profile.profile_id,
         when_clause=_PROFILE_CODE_CHANGE_WHEN,
         body_fn=format_inline_named_body,
+        scope=scope,
     )
 
 
@@ -632,7 +638,11 @@ def _render_profile_tactics(
 # bind its roster to this exact tuple instead of hand-copying/re-deriving it —
 # a future 7th renderer added here without a matching roster entry now fails
 # that test instead of silently diverging.
-_PROFILE_SECTION_RENDERERS: tuple[Callable[[AgentProfile, object], list[str]], ...] = (
+class _ProfileRenderer(Protocol):
+    def __call__(self, profile: AgentProfile, service: object, *, scope: CharterScope | None = None) -> list[str]: ...
+
+
+_PROFILE_SECTION_RENDERERS: tuple[_ProfileRenderer, ...] = (
     _render_profile_directives,
     _render_profile_tactics,
     render_profile_styleguides,
@@ -652,6 +662,8 @@ _PROFILE_SECTION_RENDERERS: tuple[Callable[[AgentProfile, object], list[str]], .
 def _render_profile_sections(
     profile: AgentProfile | None,
     service: object,
+    *,
+    scope: CharterScope | None = None,
 ) -> str:
     """Render every profile-channel section the profile attests.
 
@@ -667,6 +679,6 @@ def _render_profile_sections(
     blocks = [
         "\n".join(lines)
         for renderer in _PROFILE_SECTION_RENDERERS
-        if (lines := renderer(profile, service))
+        if (lines := (renderer(profile, service) if scope is None else renderer(profile, service, scope=scope)))
     ]
     return "\n\n".join(blocks)
