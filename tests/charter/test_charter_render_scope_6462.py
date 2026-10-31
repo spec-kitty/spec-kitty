@@ -122,8 +122,7 @@ class TestPersonaRenderReadSet:
         _, state = _census_render(project, action)
         unused = state.for_kinds(UNUSED_BY_PERSONA_RENDER)
         assert unused == 0, (
-            f"`{action}` render parsed {unused} document(s) from domains its governance "
-            f"resolution does not read ({UNUSED_BY_PERSONA_RENDER}): {state.describe()}"
+            f"`{action}` render parsed {unused} document(s) from domains its governance resolution does not read ({UNUSED_BY_PERSONA_RENDER}): {state.describe()}"
         )
 
     @pytest.mark.parametrize("action", _CENSUS_ACTIONS)
@@ -131,8 +130,7 @@ class TestPersonaRenderReadSet:
         """The full pack is 265 documents; a persona render may parse at most 60."""
         _, state = _census_render(project, action)
         assert state.total() <= RENDER_PARSE_CEILING, (
-            f"`{action}` render parsed {state.total()} shipped documents, over the "
-            f"{RENDER_PARSE_CEILING} ceiling: {state.describe()}"
+            f"`{action}` render parsed {state.total()} shipped documents, over the {RENDER_PARSE_CEILING} ceiling: {state.describe()}"
         )
 
     def test_positive_control_unscoped_catalog_parses_more(self, project: Path) -> None:
@@ -151,8 +149,7 @@ class TestPersonaRenderReadSet:
 
         assert scoped_text  # the scoped render still produced governance context
         assert unscoped.total() > scoped.total(), (
-            f"unscoped catalog parsed {unscoped.describe()} but the scoped render parsed "
-            f"{scoped.describe()} -- the census is not observing the read set"
+            f"unscoped catalog parsed {unscoped.describe()} but the scoped render parsed {scoped.describe()} -- the census is not observing the read set"
         )
 
 

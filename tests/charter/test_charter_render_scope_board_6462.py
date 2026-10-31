@@ -13,7 +13,6 @@ marker would be a regression, not a fix.
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pytest
