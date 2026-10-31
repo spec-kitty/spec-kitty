@@ -36,6 +36,7 @@ __all__ = [
     "MissionStepInput",
     "MissionStepContractStep",
     "resolve_step_contract_ids",
+    "step_contract_urn",
 ]
 
 
@@ -281,6 +282,38 @@ class MissionStepContractRepository(BaseArtifactRepository[MissionStepContract])
         self._items[contract.id] = contract
         saved: Path = yaml_file
         return saved
+
+
+def step_contract_urn(mission: str, action: str) -> str:
+    """Canonical DRG URN of the step contract for ``(mission, action)``.
+
+    ``mission_step_contract:<mission>/<action>`` — the tail is the owning pair, **not** the
+    contract's declared ``id`` (``mission_step_contract:documentation/accept`` for the contract
+    whose file and activation token say ``documentation-accept``). Two callers depend on that
+    shape: the activation filter's ownership rule
+    (:func:`charter.activation.drg_activation._owning_mission_type`) keeps a step contract only
+    while its owning mission type is active, and the pre-review gate join
+    (:func:`specify_cli.review.gate_bindings.owning_contract_urn`) resolves the owning contract by
+    its ``(mission, action)`` pair.
+
+    This is the one implementation of that spelling. The DRG extractor mints built-in nodes with
+    it and :meth:`charter.activation.identity_index.IdentityIndex.urn` resolves an activation token
+    (stem or declared id) to it, so the graph and every activation surface cannot disagree about
+    which node a contract *is* (#6741).
+
+    Parameters
+    ----------
+    mission:
+        The contract's owning mission-type key (its ``mission`` field).
+    action:
+        The contract's action key (its ``action`` field).
+
+    Returns
+    -------
+    str
+        The full ``kind:tail`` DRG URN.
+    """
+    return f"{ArtifactKind.MISSION_STEP_CONTRACT.value}:{mission}/{action}"
 
 
 def resolve_step_contract_ids(
