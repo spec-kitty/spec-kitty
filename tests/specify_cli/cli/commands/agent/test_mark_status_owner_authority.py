@@ -126,6 +126,18 @@ def test_mixed_sources_refuse_unscoped_and_scope_per_wp(tmp_path: Path) -> None:
     assert [event["wp_id"] for event in _events(mission_dir)] == ["WP02", "WP01"]
 
 
+@pytest.mark.parametrize("task_id", ["T001", "t001"])
+def test_mixed_sources_refuse_unscoped_whatever_the_id_case(tmp_path: Path, task_id: str) -> None:
+    """Both ownership sources upper-case the id, so a lower-case spelling is still shared."""
+    slug = "6463-mixed-case"
+    mission_dir = _write_mission(tmp_path, slug, _MIXED_TASKS_MD, {"WP01": ("T001", "T002"), "WP02": None})
+
+    exit_code, output = _invoke(tmp_path, slug, task_id)
+    assert exit_code == 1, output
+    assert "is a subtask of WP01, WP02" in output
+    assert _events(mission_dir) == []
+
+
 # ---------------------------------------------------------------------------
 # 2. A WP-shaped id is never claimed by a legacy row shape
 # ---------------------------------------------------------------------------
