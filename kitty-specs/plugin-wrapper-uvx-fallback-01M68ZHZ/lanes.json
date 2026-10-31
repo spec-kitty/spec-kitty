@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "plugin-wrapper-uvx-fallback-01M68ZHZ",
+  "mission_id": "01M68ZHZ6TX6Q1Y1KPJFPESJ9D",
+  "mission_branch": "kitty/mission-plugin-wrapper-uvx-fallback-01M68ZHZ",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/installation/install-claude-code-plugin.md",
+        "src/specify_cli/tool_surface/bundles/claude_wrapper.py",
+        "tests/specify_cli/tool_surface/bundles/test_claude_wrapper.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:43:36.233646+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "6f73b2a98e608bc44dcb07c6a304b866f5716441"
+}
