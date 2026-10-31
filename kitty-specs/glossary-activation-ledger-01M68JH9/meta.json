@@ -1,0 +1,40 @@
+{
+  "accept_commit": "2a879a8a3677c38bd5592c6848d5753d4a405f2c",
+  "acceptance_history": [
+    {
+      "accept_commit": "c451f6ac0be6d26c3752319ca5a5c6be16a1e2d9",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:28:54.325549+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "1fff518042894831ec9187c85cde97edcc0f1952"
+    },
+    {
+      "accept_commit": "2a879a8a3677c38bd5592c6848d5753d4a405f2c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:29:01.281484+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "125cc0ca0ff54c45f04f27843bf3d1f6dfd8669c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T09:29:01.281484+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "125cc0ca0ff54c45f04f27843bf3d1f6dfd8669c",
+  "contracts": "none",
+  "contracts_rationale": "Documentation and glossary-data change only: no interface, endpoint, event payload or data model is added or changed, so there is no contract to write.",
+  "created_at": "2026-10-31T08:52:02.462231+00:00",
+  "flattened": false,
+  "friendly_name": "glossary activation ledger",
+  "mid8": "01M68JH9",
+  "mission_branch": "kitty/mission-glossary-activation-ledger-01M68JH9",
+  "mission_id": "01M68JH95NJ6R0EGVWY2MC4FMC",
+  "mission_number": null,
+  "mission_slug": "glossary-activation-ledger-01M68JH9",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances glossary activation ledger on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "glossary activation ledger",
+  "slug": "glossary-activation-ledger-01M68JH9",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

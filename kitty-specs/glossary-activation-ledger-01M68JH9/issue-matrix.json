@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5927": {
+      "evidence_ref": "Pre-existing red cited in the hand-off (not caused by this docs/glossary diff); reproduced/attributed on pristine origin/main.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6496": {
+      "evidence_ref": "Context only: #6496 already landed the activation ledger (commit f86ced9693); this mission's target is #6562.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6562": {
+      "evidence_ref": "Seed and built-in pack carry both entries; pack pinned to open-packs 171883a (PR spec-kitty-open-packs#103); focused test and parity gate green.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6798": {
+      "evidence_ref": "Pre-existing red cited in the hand-off (not caused by this docs/glossary diff); reproduced/attributed on pristine origin/main.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Pre-existing red cited in the hand-off (not caused by this docs/glossary diff); reproduced/attributed on pristine origin/main.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Pre-existing red cited in the hand-off (not caused by this docs/glossary diff); reproduced/attributed on pristine origin/main.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
