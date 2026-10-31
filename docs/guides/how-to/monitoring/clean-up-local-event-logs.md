@@ -2,13 +2,13 @@
 title: Clean Up Local Event Logs
 description: 'Preview, then remove, the local run journals, event logs and caches under .kittify/ that are past retention, with spec-kitty doctor event-logs.'
 doc_status: active
-updated: '2026-10-28'
+updated: '2026-10-30'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 ---
 # Clean Up Local Event Logs
 
-Every `spec-kitty next` run writes a run journal under `.kittify/runtime/runs/`, and the glossary keeps one event log per Mission under `.kittify/events/glossary/`. These files are local: git ignores them, and nothing removes them on its own, so `.kittify/` keeps growing. Use `spec-kitty doctor event-logs` to see what is past retention and remove it.
+Every `spec-kitty next` run writes a run journal under `.kittify/runtime/runs/`, and the glossary keeps event logs under `.kittify/events/glossary/`: one per Mission, plus one per profile invocation (an Op), named `profile-invocation-<id>.events.jsonl`. These files are local: git ignores them, and nothing removes them on its own, so `.kittify/` keeps growing. Use `spec-kitty doctor event-logs` to see what is past retention and remove it.
 
 ## Preview what would be removed
 
@@ -35,7 +35,7 @@ The payload holds:
 
 - `applied`: `true` after `--apply`, `false` for a preview.
 - `limits`: `keep_runs`, `max_age_days` and `source`, which is `.kittify/config.yaml` when the limits come from that file and `default` otherwise.
-- `candidates`, `kept`, `deleted`: lists of items. Every item carries `surface`, `kind` (`run`, `mission_log` or `cache`), `path` (relative to the project), `mission` (the Mission directory name under `kitty-specs/`, or `null` when there is none), `age_days` and `reason`.
+- `candidates`, `kept`, `deleted`: lists of items. Every item carries `surface`, `kind` (`run`, `mission_log`, `op_log` or `cache`), `path` (relative to the project), `mission` (the Mission directory name under `kitty-specs/`, or `null` when there is none), `age_days` and `reason`.
 - `failed`: the items whose deletion failed, each with the item fields plus `error`, the error text.
 - `removed_index_entries`: the run-index entries removed with their runs.
 
@@ -46,19 +46,24 @@ When the command stops with exit code 2, `--json` prints an error envelope inste
 | Reason | Meaning |
 |---|---|
 | `past retention; Mission completed` | A candidate: outside the newest `keep_runs`, older than `max_age_days`, and its work is over (see below). |
+| `past retention; no Mission recorded` | A candidate: a run that names no Mission at all, so it is judged on age alone. |
+| `past retention; Op completed` | A candidate: an Op-scoped glossary log whose Op is completed. |
+| `past retention; no Op recorded` | A candidate: an Op-scoped glossary log whose Op has no record in this checkout, so it is judged on age alone. |
 | `rebuildable cache` | A candidate: a derived Mission view under `.kittify/derived/`. It is rebuildable: Spec Kitty rebuilds it the next time it is read. |
 | `within keep_runs` | Kept: one of the newest `keep_runs` items of its kind. |
 | `younger than max_age_days` | Kept: modified within the last `max_age_days` days. |
 | `Mission is open` | Kept: its work is not over yet (see below). |
+| `Op is open` | Kept: the Op this glossary log belongs to is still running, so its trail and any resume point stay. |
 | `Mission not found` | Kept: this checkout has no Mission with that identity, for example because it lives on another branch. |
 | `lock held` | Kept: another process is using it right now. |
 
 An item is removed only when it is past BOTH limits and its work is over:
 
-- **A run** is over when its Mission is merged, or when the run itself finished (its journal records that the run completed). A run of a Mission whose work packages are all done but which was never merged stays until the Mission is merged or the run finishes.
+- **A run** is over when its Mission is merged, or when the run itself finished (its journal records that the run completed). A run of a Mission whose work packages are all done but which was never merged stays until the Mission is merged or the run finishes. A run that names no Mission at all has no work to wait for, so it is judged on age alone.
 - **A glossary log** is over when its Mission is completed: merged, or every work package done or canceled.
+- **An Op-scoped glossary log** (`.kittify/events/glossary/profile-invocation-<id>.events.jsonl`) belongs to an Op, not to a Mission: it is kept while that Op is open and is over once the Op is completed. When no record of the Op exists in this checkout, there is nothing to wait for and the log is judged on age alone.
 
-A run's Mission is the one `spec-kitty next` recorded for it in the run index. Rebuildable caches are candidates whatever their age, unless locked.
+A run's Mission is the one `spec-kitty next` recorded for it in the run index, or — when that entry is gone — the one the run's own record names by id or slug. Rebuildable caches are candidates whatever their age, unless locked.
 
 ## Tune the limits
 
@@ -94,11 +99,11 @@ The exit code tells you how it went:
 ## What is never removed
 
 - Committed Mission records: `status.events.jsonl` and `decisions.events.jsonl`.
-- The Op records under `kitty-ops/` and the Op index, `kitty-ops/ops-index.jsonl`. `spec-kitty invocations list` reads the index as it is, so removing it would hide Op history.
+- The Op records under `kitty-ops/` and the Op index, `kitty-ops/ops-index.jsonl`. `spec-kitty invocations list` reads the index as it is, so removing it would hide Op history. An Op's glossary log can go while its record stays.
 - The run index file, `.kittify/runtime/feature-runs.json`. Only the entries of deleted runs leave it.
 - Lock files.
 - The glossary logs that belong to no Mission (`_cli`, `_renderer`).
-- The logs and runs whose work is not over, or whose Mission this checkout cannot find.
+- The logs and runs whose work is not over; an Op-scoped log whose Op is still open; and anything whose recorded Mission this checkout cannot find.
 - Anything whose lock another process holds.
 
 ## See also
