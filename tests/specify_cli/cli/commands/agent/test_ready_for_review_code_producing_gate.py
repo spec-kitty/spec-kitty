@@ -147,7 +147,7 @@ def _run_custom_type_preflight(
     tmp_path: Path,
     *,
     declared: bool | None,
-    with_commit: bool,
+    commit_beyond_base: bool,
 ) -> tuple[bool, list[str]]:
     """Pre-flight for the custom org-layer type ``qa``."""
     from unittest.mock import patch
@@ -164,11 +164,12 @@ def _run_custom_type_preflight(
     (org / "missions" / "qa" / "mission-runtime.yaml").write_text(f"mission:\n  key: qa\nsteps:\n{steps}", encoding="utf-8")
     ctx = _StubPack(pack_roots=(Path("/nonexistent-builtin-pack"), org), repo_root=repo)
 
-    # ``with_commit=False`` asks for a lane commit beyond the base; ``True`` has
-    # none. Both fixtures hold a real implementation commit — the difference is
-    # only the ref the gate is asked to diff against, which is exactly what the
-    # gate's contract is (a commit beyond *its* base).
-    review_base_ref = base_sha if with_commit else head_sha
+    # Both fixtures hold a real implementation commit; only the ref the gate is
+    # asked to diff against varies, which is exactly the gate's contract ("a
+    # commit beyond *its* base"). ``commit_beyond_base=True`` points the base at
+    # the commit BEFORE the implementation; ``False`` points it at the tip, so
+    # no commit lies beyond it.
+    review_base_ref = base_sha if commit_beyond_base else head_sha
 
     resolve_layered_mission_types.cache_clear()
     try:
@@ -187,7 +188,7 @@ def _run_custom_type_preflight(
 
 def test_custom_code_producing_type_without_lane_commit_is_refused(tmp_path: Path) -> None:
     """FR-006 / SC-001: the defect. Red before the capability-keyed guard."""
-    passed, guidance = _run_custom_type_preflight(tmp_path, declared=True, with_commit=False)
+    passed, guidance = _run_custom_type_preflight(tmp_path, declared=True, commit_beyond_base=False)
     assert passed is False, "a code-producing custom type must not pass review-readiness with an empty lane"
     text = "\n".join(guidance)
     assert "No implementation commits on lane branch!" in text
@@ -195,14 +196,14 @@ def test_custom_code_producing_type_without_lane_commit_is_refused(tmp_path: Pat
 
 def test_custom_code_producing_type_with_lane_commit_passes(tmp_path: Path) -> None:
     """Same-fixture positive control: the refusal above is not vacuous."""
-    passed, guidance = _run_custom_type_preflight(tmp_path, declared=True, with_commit=True)
+    passed, guidance = _run_custom_type_preflight(tmp_path, declared=True, commit_beyond_base=True)
     assert passed is True, f"a code-producing custom type WITH a lane commit must pass, got {guidance}"
 
 
 @pytest.mark.parametrize("declared", [False, None])
 def test_custom_non_code_type_is_not_applied(tmp_path: Path, declared: bool | None) -> None:
     """FR-007: a custom type that declares false (or nothing) keeps bypassing."""
-    passed, guidance = _run_custom_type_preflight(tmp_path, declared=declared, with_commit=False)
+    passed, guidance = _run_custom_type_preflight(tmp_path, declared=declared, commit_beyond_base=False)
     assert passed is True, f"a non-code custom type must not be gated, got {guidance}"
 
 
