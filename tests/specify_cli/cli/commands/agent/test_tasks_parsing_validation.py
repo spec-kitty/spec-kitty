@@ -370,6 +370,37 @@ def test_done_blocks_uncited_in_mission_row(tmp_path: Path) -> None:
     assert "spec-kitty agent issue-verdict --mission" in blocker
 
 
+def test_done_fully_verdicted_matrix_diagnostic_names_cause_without_verdict_remedy(tmp_path: Path) -> None:
+    """#6450 (7): every row has a verdict -> do not tell the operator to record one.
+
+    The failure here is the empty ``evidence_ref`` (a validation diagnostic), not a missing
+    verdict, so the remedy that sends the operator to ``agent issue-verdict`` is wrong and
+    must not be printed. The refusal itself is unchanged: it still blocks ``done``.
+    """
+    feature_dir = _mission_dir(tmp_path, "Fixes #1234 in this mission.\n")
+    _write_issue_matrix_json(feature_dir, "fixed", evidence_ref="", issue="#1234")
+
+    blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE)
+
+    assert blocker is not None, "an empty evidence_ref must still refuse done"
+    assert "evidence_ref is empty" in blocker
+    assert "Fill in verdicts" not in blocker
+    assert "spec-kitty agent issue-verdict" not in blocker
+
+
+def test_done_missing_verdict_keeps_the_verdict_remedy(tmp_path: Path) -> None:
+    """Positive control for #6450 (7): a genuinely missing verdict keeps the remedy."""
+    feature_dir = _mission_dir(tmp_path, "Fixes #1234 in this mission.\n")
+    _write_issue_matrix_rows_json(feature_dir, {"#9999": "fixed"})
+
+    blocker = _issue_matrix_approval_blocker(feature_dir, target_lane=Lane.DONE)
+
+    assert blocker is not None
+    assert "Missing rows: #1234" in blocker
+    assert "Fill in verdicts before done." in blocker
+    assert "spec-kitty agent issue-verdict" in blocker
+
+
 def test_done_zero_gating_refs_judges_present_matrix_in_mission_row(tmp_path: Path) -> None:
     feature_dir = _mission_dir(tmp_path, _NO_REFS_SPEC)
     _write_issue_matrix_rows_json(feature_dir, {"#5678": "in-mission"})

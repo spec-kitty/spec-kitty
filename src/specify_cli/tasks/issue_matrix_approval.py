@@ -164,6 +164,33 @@ def _issue_matrix_in_mission_rows(
     return sorted(in_mission, key=lambda issue: (issue not in referenced_issues, issue))
 
 
+def _rows_owe_a_verdict(
+    result: IssueMatrixValidationResult,
+    missing_issues: list[str],
+    unresolved_in_mission: list[str],
+) -> bool:
+    """Whether this refusal is "a verdict is missing/unresolved" (#6450 item 7).
+
+    The other family -- a matrix where every row carries a terminal verdict but a
+    row broke a validation rule -- owes no verdict, so the ``issue-verdict``
+    remedy would send the operator to re-record verdicts that already exist.
+
+    A verdict is owed when a required row is absent, a row is still
+    ``in-mission``, a parsed row carries a non-terminal verdict, or a row was
+    rejected as ``unknown`` (a scaffold placeholder rather than a verdict, which
+    the canonical reader therefore leaves out of ``result.rows``).
+    """
+    if missing_issues or unresolved_in_mission:
+        return True
+    terminal = terminal_issue_verdicts()
+    if any(row.verdict.value not in terminal for row in result.rows):
+        return True
+    from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
+
+    unknown_verdict = str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN)
+    return any(diagnostic.get("diagnostic_code") == unknown_verdict for diagnostic in result.diagnostics)
+
+
 def _issue_matrix_diagnostic_lines(result: IssueMatrixValidationResult) -> list[str]:
     """Render every diagnostic as a surfaced message line (#4330).
 
@@ -393,7 +420,24 @@ def _issue_matrix_blocker_outcome(
     diagnostic_lines = _issue_matrix_diagnostic_lines(result)
 
     hint = _FILL_VERDICTS_BEFORE_DONE_HINT if target_lane == Lane.DONE else _FILL_VERDICTS_HINT
-    lines = [f"{_issue_matrix_error_prefix(feature_dir)} has unresolved entries. Fill in verdicts {hint}."]
+    # #6450 (7): two different families reach this point, and only ONE of them is
+    # missing a verdict. A row that is absent, ``in-mission`` or a schema-invalid
+    # ``unknown`` placeholder means the operator owes a verdict, so the header and
+    # the ``issue-verdict`` remedy apply. A matrix where EVERY row carries a
+    # verdict but a row broke a validation rule (an empty ``evidence_ref``, a
+    # deferred verdict with no follow-up handle, schema drift) is a content
+    # problem: telling that operator to "fill in verdicts" sends them to
+    # re-record verdicts that already exist and hides the diagnostic that names
+    # the real cause. The DECISION is identical either way (this function still
+    # returns a blocker, the caller still FAILs); only the cause text differs.
+    rows_need_verdicts = _rows_owe_a_verdict(result, missing_issues, unresolved_in_mission)
+    if rows_need_verdicts:
+        lines = [f"{_issue_matrix_error_prefix(feature_dir)} has unresolved entries. Fill in verdicts {hint}."]
+    else:
+        lines = [
+            f"{_issue_matrix_error_prefix(feature_dir)} has validation errors; every recorded row carries a verdict, "
+            "so no verdict is missing. Fix the row(s) named below."
+        ]
     for message in diagnostic_lines:
         lines.append(f"- {message}")
     # FR-007 (#2555.5): only claim rows are "missing" when rows were actually
@@ -408,7 +452,9 @@ def _issue_matrix_blocker_outcome(
             "Still 'in-mission' (resolve to fixed / verified-already-fixed / deferred-with-followup before done, "
             f"or not-applicable when this Mission owes the issue no work): {', '.join(unresolved_in_mission)}"
         )
-    lines.append(_ISSUE_VERDICT_REMEDY)
+    if rows_need_verdicts:
+        # The remedy only makes sense when a verdict is actually owed (#6450).
+        lines.append(_ISSUE_VERDICT_REMEDY)
     return "\n".join(lines), judged_rows
 
 

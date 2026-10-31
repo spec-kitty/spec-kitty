@@ -1937,17 +1937,31 @@ def _build_acceptance_instructions(
     is_integration_branch: bool,
     *,
     landed_by_consolidate: bool = False,
+    lands_by_consolidation: bool = False,
 ) -> tuple[list[str], list[str]]:
     """Build human-readable next-step and cleanup instruction lists.
 
     ``landed_by_consolidate``: *branch* is a protected single_branch Mission's minted
     branch, which ``spec-kitty consolidate`` lands on the target and then removes.
+
+    ``lands_by_consolidation``: the Mission's topology is coordination-bearing, so
+    `spec-kitty consolidate` is how it lands and no pull request is opened for it
+    (#6450 item 6: the integration-branch arm used to say "Push and open a pull
+    request if needed" on a topology where that instruction cannot be followed).
     """
     instructions: list[str] = []
     cleanup_instructions: list[str] = []
 
     if mode == "pr":
-        if is_integration_branch:
+        if is_integration_branch and lands_by_consolidation:
+            # #6450 (6): a coordination-bearing Mission is landed by consolidate; the
+            # coordination branch is internal, so there is no pull request to open.
+            instructions.append(
+                f"Acceptance recorded on `{branch}`. This Mission lands through "
+                f"`spec-kitty consolidate --mission {summary.feature}`; its coordination "
+                f"branch is internal and that command lands it."
+            )
+        elif is_integration_branch:
             instructions.append(f"Acceptance recorded on integration branch `{branch}`. Push and open a pull request if needed.")
         else:
             instructions.extend(
@@ -1980,6 +1994,25 @@ def _build_acceptance_instructions(
         cleanup_instructions.append(f"Delete the Mission branch when done: `git branch -d {branch}`")
 
     return instructions, cleanup_instructions
+
+
+def _lands_by_consolidation(feature_dir: Path) -> bool:
+    """Whether the Mission's topology is coordination-bearing (#6450 item 6).
+
+    ``coord``/``lanes_with_coord`` Missions land through ``spec-kitty consolidate``;
+    their coordination branch is internal, so an acceptance summary must not tell the
+    operator to push it and open a pull request. Read from the same stored ``meta.json``
+    the target-branch and minted-branch decisions already use — a Mission that records a
+    ``coordination_branch`` is coordination-bearing whatever its explicit ``topology``
+    spelling is.
+    """
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    meta = load_meta_or_empty(feature_dir)
+    return bool(meta.get("coordination_branch")) or str(meta.get("topology") or "") in {
+        "coord",
+        "lanes_with_coord",
+    }
 
 
 def _consolidate_lands_branch(summary: AcceptanceSummary, branch: str, target_branch: str | None) -> bool:
@@ -2024,7 +2057,15 @@ def perform_acceptance(
     is_integration_branch = branch == _target_branch or (_target_branch is None and branch in _WELL_KNOWN_INTEGRATION_BRANCHES)
 
     landed_by_consolidate = _consolidate_lands_branch(summary, branch, _target_branch)
-    instructions, cleanup_instructions = _build_acceptance_instructions(summary, mode, branch, is_integration_branch, landed_by_consolidate=landed_by_consolidate)
+    lands_by_consolidation = _lands_by_consolidation(summary.feature_dir)
+    instructions, cleanup_instructions = _build_acceptance_instructions(
+        summary,
+        mode,
+        branch,
+        is_integration_branch,
+        landed_by_consolidate=landed_by_consolidate,
+        lands_by_consolidation=lands_by_consolidation,
+    )
 
     notes: list[str] = []
     if accept_commit:

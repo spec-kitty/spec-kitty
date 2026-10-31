@@ -1136,6 +1136,43 @@ class TestIntegrationBranchGuard:
         assert "Delete the Mission branch when done" in cleanup
         assert "feature branch" not in cleanup.lower()
 
+    def test_coord_topology_integration_branch_says_consolidate_not_pull_request(self, tmp_path: Path) -> None:
+        """#6450 (6): a coordination-topology Mission is landed by ``consolidate``.
+
+        There is no pull request to open from the coordination topology, so the
+        next steps must name the consolidation instead of the push/PR sentence.
+        """
+        summary = self._make_summary_on_branch(tmp_path, "main", target_branch="main")
+        meta_path = summary.feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text())
+        meta.update(
+            {
+                "topology": "coord",
+                "coordination_branch": "kitty/mission-054-my-feature-01ABCDEF",
+            }
+        )
+        meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+
+        result = perform_acceptance(summary, mode="pr", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions)
+        assert "pull request" not in merged.lower(), f"coordination topology must not suggest a pull request: {result.instructions}"
+        assert "spec-kitty consolidate" in merged, f"coordination topology must name the consolidation: {result.instructions}"
+
+    def test_non_coord_integration_branch_keeps_pull_request_hint(self, tmp_path: Path) -> None:
+        """Positive control for #6450 (6): the existing sentence survives elsewhere."""
+        summary = self._make_summary_on_branch(tmp_path, "main", target_branch="main")
+        meta_path = summary.feature_dir / "meta.json"
+        meta = json.loads(meta_path.read_text())
+        meta["topology"] = "lanes"
+        meta.pop("coordination_branch", None)
+        meta_path.write_text(json.dumps(meta, indent=2) + "\n")
+
+        result = perform_acceptance(summary, mode="pr", actor="tester", auto_commit=False)
+
+        merged = " ".join(result.instructions)
+        assert "Push and open a pull request if needed." in merged, f"flat topologies keep the existing hint: {result.instructions}"
+
     def test_well_known_branch_without_meta_target(self, tmp_path: Path) -> None:
         """When meta.json has no target_branch, well-known names are guarded."""
         repo_root, feature_dir = _create_test_feature(tmp_path)
