@@ -1,0 +1,37 @@
+{
+  "accept_commit": "d0b81e1a5d75dd06ef9095e7a364ee0c0711d21a",
+  "acceptance_history": [
+    {
+      "accept_commit": "d0b81e1a5d75dd06ef9095e7a364ee0c0711d21a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:21:11.006422+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "4343ec5d219af58d3359728b38fa8fefec5e0ce2"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T10:21:11.006422+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "4343ec5d219af58d3359728b38fa8fefec5e0ce2",
+  "baseline_merge_commit": "ffb1618547d61b1db84a8010b9d82bbbb06add0d",
+  "contracts": "none",
+  "contracts_rationale": "This Mission defines no externally visible interface: the per-user directory resolvers are internal Python callables and their only observable effect is a filesystem path.",
+  "created_at": "2026-10-31T08:50:50.262156+00:00",
+  "flattened": true,
+  "friendly_name": "per user locations single authority",
+  "merged_at": "2026-10-31T10:26:50.579409+00:00",
+  "merged_commit": "dd562f878b962478acbeba0c149cea04cc15816d",
+  "mid8": "01M68JF2",
+  "mission_id": "01M68JF2NAWJC6SRCQDK39AZT9",
+  "mission_number": 245,
+  "mission_slug": "per-user-locations-single-authority-01M68JF2",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances per user locations single authority on issue-6488-per-user-locations-single-authority so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "per user locations single authority",
+  "slug": "per-user-locations-single-authority-01M68JF2",
+  "status_phase": "1",
+  "target_branch": "issue-6488-per-user-locations-single-authority",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T08:55:51.244998+00:00"
+}
