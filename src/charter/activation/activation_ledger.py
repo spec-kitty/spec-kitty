@@ -535,12 +535,19 @@ def report_legacy_deny_keys(path: Path, mapping: Mapping[str, Any]) -> None:
 
 
 class DenyListChoice(StrEnum):
-    """The four explicit choices that may change a deny-list (ADR 2026-10-19-1 Decision 4)."""
+    """The explicit choices that may change a deny-list (ADR 2026-10-19-1 Decision 4, amendment 2026-10-31).
+
+    ``RENAME`` is the one *narrowing* choice (#6565): the project-intent rename rewrites the id the
+    user's own ``charter deactivate`` recorded, from the legacy ``mission-type-scope-directive`` stem
+    to ``project-intent-directive``. It moves one entry between two spellings of the same artifact; it
+    never adds and never removes a denial. Every other choice is an operator command.
+    """
 
     ACTIVATE = "activate"
     DEACTIVATE = "deactivate"
     CASCADE_INCLUDE_DEACTIVATED = "cascade-include-deactivated"
     PRESET_FORCE = "preset-force"
+    RENAME = "rename"
 
 
 class DenyListWriteRefused(ActiveCharterConfigError):
@@ -552,7 +559,8 @@ class DenyListWriteRefused(ActiveCharterConfigError):
         self.removed = removed
         super().__init__(
             f"Refused to change {key} without an explicit choice (added: {list(added)}, removed: {list(removed)}). "
-            "Only charter activate/deactivate, --include-deactivated and --preset --force change a deny-list. Nothing was written."
+            "Only charter activate/deactivate, --include-deactivated, --preset --force and the project-intent rename change a deny-list "
+            "(the rename only moves the legacy directive stem; it adds and removes nothing). Nothing was written."
         )
 
 

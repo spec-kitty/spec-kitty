@@ -17,7 +17,9 @@ What moves, when present:
   ``manifest_hash`` recomputed through ``finalize_manifest``;
 * the overlay node label, and the dead ``requires --> mission_type:*`` edge
   (dropped);
-* stem tokens in the resolved activation write target;
+* stem tokens in the resolved activation write target: the allow lists, and — on the activation
+  ledger only — the deny lists too, so an exclusion the user recorded by the old stem keeps applying
+  (#6565);
 * then the manifest's bundle hash is restamped (a no-op when it already matches).
 
 The declared ``PROJECT_00N`` id, its ``directive:PROJECT_00N`` URN, the interview
@@ -40,8 +42,10 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.activation_ledger import DENY_KEYS, DenyListChoice, resolve_ledger_source
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.offering.artifact_kinds import ArtifactKind
+from kernel.activation_ledger_store import ActivationSource
 from kernel.atomic import atomic_write
 from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path
 
@@ -367,7 +371,7 @@ def _apply_overlay(repo_root: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Step: stem tokens in the activation write target
+# Step: stem tokens in the activation write target (allow lists, and the ledger's deny lists)
 # ---------------------------------------------------------------------------
 
 
@@ -381,15 +385,23 @@ def _renamed_tokens(tokens: list[Any]) -> list[Any]:
     return renamed
 
 
-def _legacy_token_keys(data: dict[str, Any]) -> list[str]:
+def _holds_legacy_stem(value: Any) -> bool:
+    return isinstance(value, list) and any(isinstance(token, str) and _rename_stem(token) is not None for token in value)
+
+
+def _legacy_token_keys(data: dict[str, Any], *, include_deny: bool) -> list[str]:
+    """The activation keys whose stem tokens the rename rewrites: the allow keys, plus the deny keys.
+
+    The deny keys join only when the activation source is the ledger (``include_deny``, the same
+    :func:`resolve_ledger_source` predicate the write target itself branches on): a deny entry is
+    authoritative nowhere else. A legacy surface's hand-written ``deactivated_<kind>`` key is never
+    applied (ADR 2026-10-19-1 Amendment 2026-10-20) and its save refuses a deny change, so rewriting
+    it there would turn the rename into a refusal for no behaviour.
+    """
     from charter.activation.pack_manager import ACTIVATION_YAML_KEYS  # deferred: import cycle: pack_manager imports synthesizer modules
 
-    keys = []
-    for key in ACTIVATION_YAML_KEYS:
-        value = data.get(key)
-        if isinstance(value, list) and any(isinstance(t, str) and _rename_stem(t) is not None for t in value):
-            keys.append(key)
-    return keys
+    renamable = (*ACTIVATION_YAML_KEYS, *(DENY_KEYS if include_deny else ()))
+    return [key for key in renamable if _holds_legacy_stem(data.get(key))]
 
 
 def _check_tokens(repo_root: Path) -> _Finding:
@@ -398,10 +410,11 @@ def _check_tokens(repo_root: Path) -> _Finding:
 
     try:
         target_path, data, _save = resolve_activation_write_target(repo_root)
+        include_deny = resolve_ledger_source(repo_root).source is ActivationSource.LEDGER
     except (*_READ_ERRORS, RuntimeError, ActiveCharterConfigError) as exc:
         finding.soft_refusals.append(f"the activation write target is unreadable ({exc})")
         return finding
-    for key in _legacy_token_keys(data):
+    for key in _legacy_token_keys(data, include_deny=include_deny):
         finding.actions.append(f"rewrite '{key}' stem token(s) in {_rel(repo_root, target_path)}")
     return finding
 
@@ -410,11 +423,16 @@ def _apply_tokens(repo_root: Path) -> None:
     from charter.activation.pack_manager import resolve_activation_write_target  # deferred: import cycle
 
     target_path, data, save = resolve_activation_write_target(repo_root)
-    keys = _legacy_token_keys(data)
+    include_deny = resolve_ledger_source(repo_root).source is ActivationSource.LEDGER
+    keys = _legacy_token_keys(data, include_deny=include_deny)
     for key in keys:
         data[key] = _renamed_tokens(list(data[key]))
     if keys:
-        save(target_path, data)
+        # #6565: the rename is the one narrowing authority on a deny list. It moves the entry the
+        # user's own ``charter deactivate`` recorded and adds/removes nothing; the choice is minted
+        # here and here only, and the deny-list gate pins this origin.
+        choice = DenyListChoice.RENAME if any(key in DENY_KEYS for key in keys) else None
+        save(target_path, data, deny_change=choice)
 
 
 # ---------------------------------------------------------------------------
