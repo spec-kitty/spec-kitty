@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M68JJQ75EHM5BX4Z8FQV9853",
-  "materialized_at": "2026-10-31T08:52:49.509593+00:00",
+  "event_count": 3,
+  "last_event_id": "01M68KM97T9APTH8CSK11WG90J",
+  "materialized_at": "2026-10-31T09:11:09.306638+00:00",
   "mission_number": "",
   "mission_slug": "migration-dry-run-payload-authority-01M68JCJ",
   "mission_type": "software-dev",
@@ -10,23 +10,28 @@
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "user",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68JJPW6VTJX54ME1HF4ZWRT",
-      "last_transition_at": "2026-10-31T08:52:49.158525+00:00",
+      "lane": "claimed",
+      "last_event_id": "01M68KM97T9APTH8CSK11WG90J",
+      "last_transition_at": "2026-10-31T09:11:09.306638+00:00",
+      "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-31T09:10:13Z – unknown – Added status/wire_payload.py (contract-model builder + facade export) with red-first tests: 9 passed; ruff/mypy clean; status-module-boundary, integration-boundary and dead-symbol gates green."
       ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "subtasks": {
         "T001": "done",
         "T002": "done",
