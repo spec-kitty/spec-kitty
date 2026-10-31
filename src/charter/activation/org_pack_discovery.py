@@ -18,6 +18,11 @@ relocation — ``charter.activation.context`` continues to re-export both names.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
+
 import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -453,7 +458,7 @@ def _require_readable_required_skills(yaml: YAML, pack_name: str, charter_path: 
         raise SkillPreparationError(f"`required_skills` in {charter_path} of org pack {pack_name!r} must be a list of skill ids")
 
 
-def _load_governance_charter_config(repo_root: Path) -> GovernanceCharterConfig:
+def _load_governance_charter_config(repo_root: Path, *, scope: CharterScope | None = None) -> GovernanceCharterConfig:
     """Return the charter's :class:`GovernanceCharterConfig` for *repo_root*.
 
     Best-effort lookup: a failure (missing governance.yaml, parse error,
@@ -479,7 +484,7 @@ def _load_governance_charter_config(repo_root: Path) -> GovernanceCharterConfig:
     from charter.offering.packs.retired_fields import RetiredPackFieldError
 
     try:
-        governance = load_governance_config(repo_root)
+        governance = load_governance_config(repo_root) if scope is None else load_governance_config(repo_root, scope=scope)
         selection = governance.charter
     except (RetiredPackFieldError, ActiveCharterConfigError):
         # A retired shape is not a parse failure: never dropped in silence (#3732, FR-011).

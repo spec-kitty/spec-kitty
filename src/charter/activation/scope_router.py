@@ -28,6 +28,8 @@ __all__ = ["build_with_scope"]
 def build_with_scope(
     repo_root: Path,
     feature_dir: Path,
+    *,
+    scope: CharterScope | None = None,
     **kwargs: Any,
 ) -> CharterContextResult:
     """Resolve the charter scope for *feature_dir* then build context.
@@ -59,7 +61,7 @@ def build_with_scope(
         When ``charter_scopes:`` is configured but no scope encloses
         *feature_dir*.
     """
-    scope = CharterScope.resolve(repo_root, feature_dir)
+    resolved_scope = scope if scope is not None else CharterScope.resolve(repo_root, feature_dir)
     # For the single-project default, scope.root == repo_root and this call
     # is byte-identical to today. For monorepos, scope.root is the
     # per-package charter root.
@@ -69,4 +71,6 @@ def build_with_scope(
     # proxy).  Callers that already pass ``mission_type``/``feature_dir`` in
     # *kwargs* keep precedence; otherwise the scope feature_dir supplies it.
     kwargs.setdefault("feature_dir", feature_dir)
-    return build_charter_context(scope.root, **kwargs)
+    if scope is not None:
+        kwargs["scope"] = resolved_scope
+    return build_charter_context(resolved_scope.root, **kwargs)

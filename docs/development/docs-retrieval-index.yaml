@@ -14683,6 +14683,25 @@ pages:
     - {slug: "known-limitations-and-delivery", text: "Known limitations and delivery", level: 2}
     - {slug: "resource-custody-and-cleanup", text: "Resource custody and cleanup", level: 2}
     - {slug: "ci-feedback-and-corrective-scope", text: "CI feedback and corrective scope", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-30-owned-analysis-currency.md"
+    title: "Owned analysis currency repair"
+    divio_type: "none"
+    abstract: "Root-custody decisions and qualification scope for owned analysis recording and freshness checks."
+    anchors:
+    - {slug: "objective-and-ownership", text: "Objective and ownership", level: 2}
+    - {slug: "user-experience-findings", text: "User experience findings", level: 2}
+    - {slug: "decisions-and-provenance", text: "Decisions and provenance", level: 2}
+    - {slug: "qualification-and-known-limitations", text: "Qualification and known limitations", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-30-owned-charter-context.md"
+    title: "Owned prompt charter scope repair"
+    divio_type: "none"
+    abstract: "Typed scope propagation keeps prompt policy and charter context reads within the validated owned checkout."
+    anchors:
+    - {slug: "objective-and-ownership", text: "Objective and ownership", level: 2}
+    - {slug: "user-experience-findings", text: "User experience findings", level: 2}
+    - {slug: "decisions-and-provenance", text: "Decisions and provenance", level: 2}
+    - {slug: "known-limitations-and-qualification-boundaries", text: "Known limitations and qualification boundaries", level: 2}
+    - {slug: "resources-and-next-action", text: "Resources and next action", level: 2}
   - path: "docs/plans/engineering-notes/2026-10-30-owned-startup-project-gates.md"
     title: "Owned checkout startup admission repair"
     divio_type: "reference"

@@ -26,6 +26,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
+
+from typing import cast
+
 from charter.bundle import CHARTER_MD
 from charter.activation.context_renderers import render_authority_paths, render_critical_section_bodies
 from charter.activation.context_renderers.token_budget import _enforce_token_budget
@@ -77,6 +82,7 @@ def _render_compact_governance(
     profile: AgentProfile | None = None,
     action: str | None = None,
     suppress_project_resolver: bool = False,
+    scope: CharterScope | None = None,
 ) -> str:
     """Render the compact governance block (FR-034, WP11/T061).
 
@@ -113,6 +119,7 @@ def _render_compact_governance(
         procedure_ids=procedure_ids or (),
         asset_ids=asset_ids or (),
         suppress_project_resolver=suppress_project_resolver,
+        scope=scope,
     )
     text: str = str(view.text)
 
@@ -124,7 +131,7 @@ def _render_compact_governance(
     # (see module docstring); function-local import avoids a load cycle.
     from charter.activation.context import _load_governance_charter_config  # noqa: PLC0415
 
-    charter_config = _load_governance_charter_config(repo_root)
+    charter_config = _load_governance_charter_config(repo_root) if scope is None else _load_governance_charter_config(repo_root, scope=scope)
     authority_block = render_authority_paths(repo_root, charter_config)
     if authority_block:
         augmented_blocks.append(authority_block)
@@ -155,7 +162,10 @@ def _render_compact_governance(
         # Cycle note: ``_build_offering_service`` / ``_render_profile_sections``
         # stay in ``charter.activation.context`` (see module docstring); function-local
         # imports avoid a load cycle.
-        from charter.activation.context import _build_offering_service, _render_profile_sections  # noqa: PLC0415
+        from charter.activation.context import (
+            _build_offering_service,
+            _render_profile_sections,
+        )  # noqa: PLC0415
 
         service = _build_offering_service(repo_root)
         profile_block_str = _render_profile_sections(profile, service)
@@ -169,11 +179,14 @@ def _render_compact_governance(
     # WP05 (NFR-001) — compact view shares the budget cap with the
     # bootstrap path so prompts driven through the compact rail (e.g.
     # via the WP06 wiring) honour the same NFR-001 contract.
-    return _enforce_token_budget(
-        combined,
-        action=action or "",
-        profile_block=profile_block_str,
-        section_block=section_block_str,
+    return cast(
+        str,
+        _enforce_token_budget(
+            combined,
+            action=action or "",
+            profile_block=profile_block_str,
+            section_block=section_block_str,
+        ),
     )
 
 
@@ -184,6 +197,7 @@ def _render_compact_from_bundle(
     profile: AgentProfile | None,
     bundle: _ActionGovernanceBundle,
     suppress_project_resolver: bool = False,
+    scope: CharterScope | None = None,
 ) -> str:
     """Render the widened compact rail (T061): the steady-state render carries
     every delivered kind's ids (FR-010), collapsing only the long-form prose."""
@@ -198,4 +212,5 @@ def _render_compact_from_bundle(
         profile=profile,
         action=action,
         suppress_project_resolver=suppress_project_resolver,
+        scope=scope,
     )

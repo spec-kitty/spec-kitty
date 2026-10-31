@@ -22,9 +22,13 @@ patches ``charter.activation.context.YAML`` directly.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from pathlib import Path
 from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
+
+from typing import Protocol
+from pathlib import Path
 
 if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
@@ -55,12 +59,12 @@ __all__ = [
 ]
 
 
-def _bundle_root_for_json(repo_root: Path) -> Path:
+def _bundle_root_for_json(repo_root: Path, *, scope: CharterScope | None = None) -> Path:
     """Return the canonical charter bundle root, falling back to *repo_root*."""
     try:
         from charter.activation.sync import ensure_charter_bundle_fresh
 
-        refresh_result = ensure_charter_bundle_fresh(repo_root)
+        refresh_result = ensure_charter_bundle_fresh(repo_root, scope=scope)
     except Exception:  # noqa: BLE001 - JSON metadata is best-effort
         return repo_root
     if refresh_result is not None and refresh_result.canonical_root is not None:
@@ -75,7 +79,7 @@ def _relative_json_path(path: Path, root: Path) -> str:
         return str(path)
 
 
-def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
+def _project_charter_json_block(repo_root: Path, *, scope: CharterScope | None = None) -> dict[str, object]:
     """Describe the project-local charter loaded by the context renderer.
 
     FR-006 (charter-pack-usage-journey WP03): ``present``/``path`` key on the
@@ -88,7 +92,7 @@ def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
     site kept consistent with this producer at
     ``specify_cli/cli/commands/charter/context.py:158`` (cross-ref #2787).
     """
-    bundle_root = _bundle_root_for_json(repo_root)
+    bundle_root = _bundle_root_for_json(repo_root, scope=scope)
     charter_dir = bundle_root / KITTIFY_DIRNAME / "charter"
     charter_yaml_path = bundle_root / CHARTER_YAML
     charter_md_path = bundle_root / CHARTER_MD
@@ -132,10 +136,16 @@ def _project_charter_json_block(repo_root: Path) -> dict[str, object]:
     return block
 
 
+class _ScopedDirectiveLoader(Protocol):
+    def __call__(self, repo_root: Path, *, scope: CharterScope | None = None) -> DirectivesConfig: ...
+
+
 def _load_project_directives_with_diagnostics(
     repo_root: Path,
-    load_directives_config: Callable[[Path], DirectivesConfig],
+    load_directives_config: _ScopedDirectiveLoader,
     identity: IdentityIndex | None = None,
+    *,
+    scope: CharterScope | None = None,
 ) -> tuple[dict[str, object], list[str], str | None, list[dict[str, str]]]:
     """Resolve project directive IDs **and** the resolution-level
     ``directives_source`` provenance from a *single* governance resolution.
@@ -154,7 +164,7 @@ def _load_project_directives_with_diagnostics(
     the caller's per-entry-point :class:`IdentityIndex` (NFR-003).
     """
     try:
-        directives_cfg = load_directives_config(repo_root)
+        directives_cfg = load_directives_config(repo_root) if scope is None else load_directives_config(repo_root, scope=scope)
     except Exception:  # noqa: BLE001 - fall through to resolver/catalog path
         local_by_id: dict[str, object] = {}
         directive_ids: list[str] = []
@@ -165,7 +175,9 @@ def _load_project_directives_with_diagnostics(
     try:
         from charter.activation.resolver import resolve_project_governance
 
-        resolution = resolve_project_governance(repo_root, identity=identity)
+        resolution = (
+            resolve_project_governance(repo_root, identity=identity) if scope is None else resolve_project_governance(repo_root, identity=identity, scope=scope)
+        )
     except Exception:  # noqa: BLE001 - keep any directly-loaded directive IDs
         return local_by_id, list(dict.fromkeys(directive_ids)), None, []
     # ``metadata`` is always present on a real ``GovernanceResolution``; the
@@ -197,7 +209,7 @@ def _diagnostics_json(diagnostics: object) -> list[dict[str, str]]:
 
 def _load_project_directives_with_source(
     repo_root: Path,
-    load_directives_config: Callable[[Path], DirectivesConfig],
+    load_directives_config: _ScopedDirectiveLoader,
 ) -> tuple[dict[str, object], list[str], str | None]:
     """3-tuple view of :func:`_load_project_directives_with_diagnostics` (no diagnostics)."""
     local_by_id, directive_ids, directives_source, _ = _load_project_directives_with_diagnostics(repo_root, load_directives_config)
@@ -206,7 +218,7 @@ def _load_project_directives_with_source(
 
 def _load_project_directives(
     repo_root: Path,
-    load_directives_config: Callable[[Path], DirectivesConfig],
+    load_directives_config: _ScopedDirectiveLoader,
 ) -> tuple[dict[str, object], list[str]]:
     """Backward-compatible 2-tuple wrapper over
     :func:`_load_project_directives_with_source`.
@@ -288,6 +300,8 @@ def _assemble_directive_entries(
 def _project_directive_resolution(
     repo_root: Path,
     identity: IdentityIndex | None = None,
+    *,
+    scope: CharterScope | None = None,
 ) -> tuple[list[dict[str, object]], str | None, list[dict[str, str]]]:
     """Return the project directive entries, the resolution-level
     ``directives_source`` provenance **and** the resolution ``diagnostics``
@@ -299,7 +313,7 @@ def _project_directive_resolution(
     """
     from charter.activation.sync import load_directives_config
 
-    local_by_id, directive_ids, directives_source, diagnostics = _load_project_directives_with_diagnostics(repo_root, load_directives_config, identity)
+    local_by_id, directive_ids, directives_source, diagnostics = _load_project_directives_with_diagnostics(repo_root, load_directives_config, identity, scope=scope)
     # An org directive resolved through the identity index must carry its org
     # provenance, so the offering service sees the same org roots (#6407).
     org_roots = list(identity.org_roots) if identity is not None else None

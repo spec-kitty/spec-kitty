@@ -201,6 +201,7 @@ def test_canonical_leaf_refuses_invalid_ownership_before_report_write(currency_c
     result = CliRunner().invoke(app, args)
     assert result.exit_code != 0, result.output
     payload = json.JSONDecoder().raw_decode(result.output.lstrip())[0]
-    assert payload["error_code"] == expected, payload
+    assert payload["ok"] is False, payload
+    assert payload["error"]["code"] == expected, payload
     assert report.read_bytes() == before
     assert _git(checkouts.owned_root, "rev-parse", "HEAD") == head

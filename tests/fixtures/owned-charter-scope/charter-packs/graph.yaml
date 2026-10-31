@@ -1,0 +1,20 @@
+edges: []
+generated_at: '2026-10-30T23:07:54+00:00'
+generated_by: spec-kitty project registration
+nodes:
+- kind: directive
+  label: Proof-first runtime change boundary
+  urn: directive:MANT_001
+- kind: directive
+  label: Zig-first replacement path
+  urn: directive:MANT_002
+- kind: directive
+  label: Manual-memory safety proof
+  urn: directive:MANT_003
+- kind: directive
+  label: Truth-surface synchronization
+  urn: directive:MANT_004
+- kind: directive
+  label: Focused validated delivery
+  urn: directive:MANT_005
+schema_version: '1.0'
