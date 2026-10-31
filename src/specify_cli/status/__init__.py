@@ -147,6 +147,7 @@ from .wp_state import (
     InvalidTransitionError,
     WPState,
     annotate,
+    requires_review_ref,
     wp_state_for,
 )
 from .actor import (
@@ -763,6 +764,7 @@ __all__ = [
     "validate_transition",
     "validate_transition_legality",
     "wp_snapshot_state",
+    "requires_review_ref",
     "wp_state_for",
     "registered_worktree_paths",
     "scan_workspace_husks",

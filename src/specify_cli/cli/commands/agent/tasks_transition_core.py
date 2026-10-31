@@ -89,6 +89,7 @@ from specify_cli.status import (
     GENERIC_IMPLEMENTATION_ACTORS,
     GuardContext,
     Lane,
+    requires_review_ref,
     resolve_lane_alias,
     validate_transition,
     wp_state_for,
@@ -396,7 +397,7 @@ def build_transition_plan(
     # ``spec-kit status validate`` refuses (``for_review->in_progress without
     # review_ref``). Filling it here, after ``emit_force`` is final, keeps the two force
     # routes on one sentinel instead of two behaviours.
-    if emit_review_ref is None and emit_force and old_lane == Lane.FOR_REVIEW and canonical_lane in (Lane.IN_PROGRESS, Lane.PLANNED):
+    if emit_review_ref is None and emit_force and requires_review_ref(old_lane, canonical_lane):
         emit_review_ref = "force-override"
 
     transition_targets = [canonical_lane]

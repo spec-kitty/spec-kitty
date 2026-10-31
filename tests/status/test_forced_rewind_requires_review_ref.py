@@ -353,3 +353,76 @@ def test_a_non_string_pointer_is_not_a_pointer(review_ref: object) -> None:
         }
     )
     assert findings == ["Event 01M68J63NCYKK6X90EG8HYNE6K: for_review->in_progress without review_ref"]
+
+
+@pytest.mark.parametrize(
+    ("from_lane", "to_lane"),
+    [
+        ("done", "in_progress"),
+        ("canceled", "planned"),
+        ("planned", "in_progress"),
+        ("for_review", "planned"),
+        ("in_review", "in_progress"),
+        ("approved", "in_progress"),
+    ],
+)
+def test_force_elsewhere_is_unchanged(from_lane: str, to_lane: str) -> None:
+    """T008: every forced edge outside the requirement set still admits actor + reason."""
+    from specify_cli.status.models import GuardContext, Lane
+    from specify_cli.status.wp_state import requires_review_ref, wp_state_for
+
+    target = Lane(to_lane)
+    assert requires_review_ref(from_lane, to_lane) is False
+    ctx = GuardContext(force=True, actor="admin", reason="operator override")
+
+    ok, error = wp_state_for(from_lane).check_transition(target, ctx)
+
+    assert (ok, error) == (True, None), f"{from_lane} -> {to_lane} changed: {error}"
+
+
+@pytest.mark.parametrize("target", ["planned", "blocked", "canceled"])
+def test_forced_exits_from_done_still_work(target: str) -> None:
+    """The terminal-exit ratchet: ``done`` stays force-only and force still admits it."""
+    from specify_cli.status.models import GuardContext, Lane
+    from specify_cli.status.wp_state import wp_state_for
+
+    ok, error = wp_state_for("done").check_transition(Lane(target), GuardContext(force=True, actor="admin", reason="reopen"))
+
+    assert (ok, error) == (True, None), error
+    # ... and still refuses without force, as before.
+    assert wp_state_for("done").check_transition(Lane(target), GuardContext(actor="admin", reason="reopen"))[0] is False
+
+
+def test_migration_actor_is_exempt_from_the_requirement() -> None:
+    """A ``migration:`` actor reconstructs state; it follows the #5446 exemption, an operator does not."""
+    from specify_cli.status.wp_state import wp_state_for
+
+    state = wp_state_for("for_review")
+
+    assert state.check_transition(_in_progress(), _ctx(actor="migration:backfill")) == (True, None)
+    assert state.check_transition(_in_progress(), _ctx(actor="codex"))[0] is False
+
+
+def test_move_task_for_review_to_planned_is_not_given_the_sentinel_by_the_edge_rule() -> None:
+    """The #6514 sentinel fill follows the owning edge set, not a wider copy of it.
+
+    ``for_review -> planned`` is not in ``REVIEW_REF_REQUIRED_EDGES`` (the validator does not
+    flag it). An explicit ``--force`` still gets ``force-override`` from the command's
+    long-standing rule; an auto-promoted move gets none from the new rule.
+    """
+    from specify_cli.cli.commands.agent.tasks_transition_core import build_transition_plan
+
+    def plan(force: bool):
+        return build_transition_plan(
+            old_lane="for_review",
+            target_lane="planned",
+            force=force,
+            review_feedback_pointer=None,
+            arb_review_ref=None,
+            note_text="reset",
+        )
+
+    assert plan(True).emit_review_ref == "force-override"
+    auto = plan(False)
+    assert auto.emit_force is True
+    assert auto.emit_review_ref is None
