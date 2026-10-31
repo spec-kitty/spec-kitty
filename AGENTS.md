@@ -208,6 +208,8 @@ for agent_root, subdir in agent_dirs:
 
 `clone_local_effect` is the **routing key**: it decides which partition a record is written to and read from (it is no longer a reselection trigger — that #6233 machinery was retired). A clone-local record never propagates, so a freshly pulled clone is `pending` by plain ledger-diff and re-applies — which is why a clone-local migration's `apply()` MUST be idempotent.
 
+Appends to either partition are serialized by a per-file sidecar lock under `.kittify/migrations/` (bounded 30 s; a wait that expires raises `MigrationLedgerLockTimeoutError` having appended nothing, which `upgrade` and `migrate` report as a refusal).
+
 **Authoring a NEW migration:**
 
 - **Order-manifest entry (required).** Add the `migration_id` to `src/specify_cli/upgrade/migrations/order_manifest.txt` in execution order — the single ordering authority (`target_version` is only a monotonicity cross-check). Annotate an intentional equal-`target_version` run with a trailing `# tie: <reason>`, and an entry of the lead block with `# runs-first: <reason>` (today the ledger backfill, the charter-bundle v2 upgrade, then the charter-pack cutover; the block is a contiguous prefix that runs in the listed order, ADR `2026-10-17-1` Amendment 2026-10-22). The build-time gate `tests/architectural/test_migration_order_manifest.py` requires every registered migration to appear exactly once, each entry to resolve to a registered migration, and the order to be version-monotonic save for annotated ties.
