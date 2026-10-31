@@ -1674,7 +1674,9 @@ def accept(
     pr_merge = _verify_merge_commit(run, merge_commit, target_branch, attest_first_landing)
     run = _check_origin_freshness(run, origin_check, read_only=no_commit or diagnose)
     # #6780: the landing commit this run verified stands in for a pruned lane branch's window.
-    landed_commit = pr_merge.merge_commit if pr_merge is not None else None
+    # The resolved full SHA, not the operator's string: it is the commit the evidence window and
+    # the attestation planner are judged on, and the one verification actually proved.
+    landed_commit = pr_merge.evidence.pr_merge_commit if pr_merge is not None else None
     _record_no_implementation_attestations(run, attested, reason, landed_commit=landed_commit)
     evidence_refusal = _refuse_unevidenced_work(run, report_only=diagnose, landed_commit=landed_commit)
     summary = _collect_summary_or_exit(run, lenient=lenient, diagnose=diagnose, normalize_encoding=normalize_encoding)
