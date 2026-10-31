@@ -12,5 +12,7 @@
   "purpose_tldr": "interview and first activate keep absent key absent",
   "slug": "interview-and-first-activate-keep-absent-key-absent-01M67HSF",
   "target_branch": "issue-6685-interview-and-first-activate-keep-absent-key-absent",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:27:24.456401+00:00"
 }

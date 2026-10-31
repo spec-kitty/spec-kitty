@@ -22,6 +22,9 @@ requirement_refs:
 planning_base_branch: issue-6685-interview-and-first-activate-keep-absent-key-absent
 merge_target_branch: issue-6685-interview-and-first-activate-keep-absent-key-absent
 branch_strategy: Planning artifacts for this mission were generated on issue-6685-interview-and-first-activate-keep-absent-key-absent. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6685-interview-and-first-activate-keep-absent-key-absent unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-interview-and-first-activate-keep-absent-key-absent-01M67HSF
+base_commit: 643e0a72f6f3367f436a104c3f1cf11fb9968fa6
+created_at: '2026-10-30T23:27:34.658916+00:00'
 subtasks:
 - T001
 - T002
