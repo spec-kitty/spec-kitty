@@ -101,14 +101,17 @@ gate seam that owns the string); the authorities it consults
 never modified. Tests live beside the existing pre-review gate modules so the
 blast-radius run is a directory-scoped command.
 
-**Interface sketch** (internal, not a public contract):
+**Interface sketch** (internal, not a public contract; the shipped names are the
+source of truth in `tasks_move_task_gates.py`):
 
 ```python
-_PLANNING_LANE_EMPTY_DIFF_REASON = (
-    "planning-lane WP — committed diff not inspected; the pre-review gate does not "
-    "scope a planning_artifact WP's committed change"
+_PRE_REVIEW_NO_CHANGED_FILES_REASON = "no changed files detected for this WP — skipping the gate cheaply"
+_PRE_REVIEW_PLANNING_LANE_REASON = (
+    "planning-lane WP — committed diff not inspected (a planning_artifact WP commits on the target branch, so no workspace diff exists)"
 )
 
+def _mt_declared_execution_mode(st: _MoveTaskState) -> str: ...
+def _mt_lanes_manifest_marks_planning_artifact(st: _MoveTaskState) -> bool: ...
 def _mt_pre_review_planning_lane_wp(st: _MoveTaskState) -> bool: ...
 def _mt_empty_changed_files_reason(st: _MoveTaskState) -> str: ...
 ```
