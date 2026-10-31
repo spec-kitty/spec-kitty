@@ -1,0 +1,213 @@
+{
+  "event_count": 55,
+  "last_event_id": "01M69ADC2XMQW3RTZJ31S9TEAH",
+  "materialized_at": "2026-10-31T15:49:20.093924+00:00",
+  "mission_number": "245",
+  "mission_slug": "companion-services-wheel-01M694B1",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude::architect-alphonso",
+      "lane": "done",
+      "last_event_id": "01M69AD4NK0ZB6K17W97JZ3KEX",
+      "last_transition_at": "2026-10-31T15:49:12.499464+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ADR amendment 2026-10-31, CLAUDE.md clarification, plan §3.4 pointer",
+        "Re-record implementer identity (claude::architect-alphonso) for the independence gate",
+        "Identity-only re-entry: no content change since the pre-review gate passed at d5269969",
+        "Identity re-claim needed; content approved",
+        "Identity-only re-claim: no content change since the pre-review gate passed at d5269969",
+        "Approved: amendment covers all 13 T001 points, matches research §3 rulings and the workspace-member DM; resolution order and SERVICE_BINARY_DIGEST_MISMATCH match resolution.py; fetch_asset owner correct; D-9 untouched. Nits (manifest field naming, cache step also downloads) noted, folded into WP03."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25490,
+      "shell_pid_created_at": "1793456918.11",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M69AD65R24VQC2GNV4G6B8JM",
+      "last_transition_at": "2026-10-31T15:49:14.040203+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Companion package: providers, stdlib wheel writer + manifest, in-tree PEP 517 backend; 38 tests",
+        "Approved. 38/38 tests, ruff/format/mypy --strict clean; pip wheel, pip -e, pip --target and uv pip accept the wheels (exec bit kept). Checklist: dead code PASS (platform path consumed by WP03 build script), synthetic fixture PASS, silent None PASS (documented fall-through), FR coverage PASS, frozen PASS, locked decision PASS (CLI still verifies digest), shared files N/A, fragility PASS. Non-blocking: asset name accepts drive/ADS forms like 'C:x' (Windows join escapes bin/; digest pin still guards); schema tag pattern ^service-v not enforced; ZipInfo.create_system host-dependent (set 3 for cross-host determinism); dist-info sorts before package members; is_symlink branch untested."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 10260,
+      "shell_pid_created_at": "1793457701.03",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M69AD7KSJZY67MW9C9X037D4",
+      "last_transition_at": "2026-10-31T15:49:15.513621+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Builder + verify + size gate + end-to-end; WP02 review folds (wheel.py out-of-map, rationale in commit); 68 tests",
+        "Review cycle 1 folded: byte-identical rebuild verify, stable codes, out-not-empty, floor validation, manifest-validated build; 77 tests",
+        "Cycle 2: --verify now byte-compares each wheel to its deterministic rebuild from pin-verified binaries; .pth/provider/extra-module/WHEEL-tag tampering with consistent RECORD all refused; non-blocking items 2-5 folded. 77 passed, ruff/format/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2903,
+      "shell_pid_created_at": "1793460325.6",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M69AD9192MTM27EMM6YWXQTV",
+      "last_transition_at": "2026-10-31T15:49:16.969657+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "services extra + workspace member + uv.lock + sdist exclude + validate_release three-place check + purity guard; packaging/release/arch gates 196 passed 1 skipped",
+        "Review passed: wheel py3-none-any with exact Requires-Dist spec-kitty-services==4.0.0rc8; extra == 'services'; sdist excludes packages/**; uv lock --check clean; sdist rebuilds; bare install pulls no companion. Non-blocking: validator no-extra branch (validate_release.py:390) passes silently, guarded by test_companion_version_lock.py."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261031",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 26202,
+      "shell_pid_created_at": "1793460039.2",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M69ADAH8BWD4THQNZA46B89N",
+      "last_transition_at": "2026-10-31T15:49:18.504273+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Install-slot ratchet: 5 tests, test_resolution.py 78 passed",
+        "Approved: five install-slot ratchets match resolve_binary (explicit or install short-circuit; _install refuses on mismatch; _jar_argv refuses without Java). Each is non-vacuous with same-fixture controls (warm-cache 'cache' baseline, provider-call counter, cache bytes intact, native-from-slot control). 78 passed; ruff check/format clean. Nit: T016 asserts source and sha256 only, not argv_prefix."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261031",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25849,
+      "shell_pid_created_at": "1793458217.38",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude::reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude::python-pedro",
+      "lane": "done",
+      "last_event_id": "01M69ADC2XMQW3RTZJ31S9TEAH",
+      "last_transition_at": "2026-10-31T15:49:20.093924+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "release.yml sync + companion build/verify/publish jobs, checklist, validator fold; tests/release+ci 441 + tests/ci 2635 passed",
+        "Review passed: release ordering, inputs and verify sound; non-blocking hardening notes (verify ignores non-.whl in DIR; no post-download re-verify; no skip-existing for re-runs; companion job uv sync installs full project)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261031",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2792,
+      "shell_pid_created_at": "1793461574.51",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    }
+  }
+}

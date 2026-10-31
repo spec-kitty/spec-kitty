@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6117": {
+      "evidence_ref": "Parent epic cited for context; the companion wheel's work is tracked by #6904",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6195": {
+      "evidence_ref": "Cited as out of scope (C-006): the EventBridge binding is not delivered here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6904": {
+      "evidence_ref": "Delivered across WP01-WP06 of this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

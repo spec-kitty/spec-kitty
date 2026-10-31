@@ -1,0 +1,129 @@
+{
+  "mission_slug": "companion-services-wheel-01M694B1",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "ADR 2026-10-29-1 Amendment 2026-10-31 (WP01, approved by reviewer-renata)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:47:37.126967+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_package.py (providers, entry points, backend)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:47:41.631291+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_package.py::test_provider_offers_nothing_on_a_cli_version_skew; tests/cross_cutting/packaging/test_companion_services_wheel.py::test_a_companion_for_another_cli_version_falls_through",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:47:45.804851+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py (build from fixture pins via fetch_asset; tampered asset fails)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:47:50.043285+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py::test_the_read_service_is_never_packed",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:47:54.346006+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_package.py::test_platform_tags; tests/cross_cutting/packaging/test_companion_services_wheel.py::test_the_glibc_floor_is_a_build_input",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:47:58.549554+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py size-gate tests (95/60 MB defaults)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:48:03.276413+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_version_lock.py; uv.lock workspace member; built CLI METADATA Requires-Dist spec-kitty-services==4.0.0rc8; extra == 'services' (WP04 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:48:07.227910+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_companion_wheels.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:48:11.553438+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_packaging_safety.py::test_wheel_and_sdist_ship_no_companion_file; tests/cross_cutting/packaging/test_companion_services_wheel.py verify tests (byte-identical rebuild)",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:48:15.646635+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_resolution.py install-slot ratchet (5 tests); end-to-end in tests/cross_cutting/packaging/test_companion_services_wheel.py",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:48:19.871425+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/test_release_companion_wheels.py::test_build_release_verifies_the_pinned_services_before_building; RELEASE_CHECKLIST.md",
+      "pass_fail": "pass",
+      "verified_by": "claude::python-pedro",
+      "verified_at": "2026-10-31T15:48:24.224286+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
