@@ -61,7 +61,7 @@
       "wp": null
     },
     "#6767": {
-      "evidence_ref": "this mission; one reader, one fallback, one coded error, one sidecar parser",
+      "evidence_ref": "One ownership reader (synthesized_urns) + one coded error (SYNTHESIS_MEMBERSHIP_UNREADABLE) + one sidecar parser (sidecar_artifact_urn); reach_only and synthesis_owned_directive_ids both read through it; the JSON envelope wraps the strict reader instead of parsing YAML. Fixed in this mission's PR.",
       "fr": "FR-001",
       "nfr": null,
       "repo": null,
