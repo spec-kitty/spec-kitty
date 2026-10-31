@@ -1,0 +1,42 @@
+{
+  "accept_commit": "9bd74e69ac47867c8bd73bd8cb291cebd83e93da",
+  "acceptance_history": [
+    {
+      "accept_commit": "2b9ccc1a409aec196f9e304744b45de05a4adcb1",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T15:02:28.990096+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "8d02bf186a1643736e7ead05e28595966d6250bc"
+    },
+    {
+      "accept_commit": "9bd74e69ac47867c8bd73bd8cb291cebd83e93da",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T15:06:00.330352+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "d094f169cf91b851738b8d6b97f660a70e9f8580"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T15:06:00.330352+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "d094f169cf91b851738b8d6b97f660a70e9f8580",
+  "baseline_merge_commit": "4fb5f6d24932c9a3c8342b8f9e8e0e3a324ef776",
+  "created_at": "2026-10-30T13:18:24.272724+00:00",
+  "flattened": true,
+  "friendly_name": "charter packs refusal code convergence",
+  "merged_at": "2026-10-30T16:35:21.696407+00:00",
+  "merged_commit": "b4e6353993374959c5f05712527efbad267a982b",
+  "mid8": "01M66FC9",
+  "mission_id": "01M66FC9DRM5FHK9G9VH2YYQJY",
+  "mission_number": 244,
+  "mission_slug": "charter-packs-refusal-code-convergence-01M66FC9",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances charter packs refusal code convergence on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter packs refusal code convergence",
+  "slug": "charter-packs-refusal-code-convergence-01M66FC9",
+  "status_phase": "1",
+  "target_branch": "issue-6772-charter-packs-refusal-code",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T13:31:05.540053+00:00"
+}

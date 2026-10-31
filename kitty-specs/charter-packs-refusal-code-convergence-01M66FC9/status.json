@@ -1,0 +1,49 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M66TMC15VSJ17FY9T66DHBCE",
+  "materialized_at": "2026-10-30T16:35:03.333728+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-packs-refusal-code-convergence-01M66FC9",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "maintainer-a",
+      "force_count": 1,
+      "implementer_of_record": "maintainer-a",
+      "lane": "done",
+      "last_event_id": "01M66TMAQZDCR4CYBK372HW178",
+      "last_transition_at": "2026-10-30T16:35:02.015436+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "shell_pid": 395296,
+      "shell_pid_created_at": "1793367059.48"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M66TMC15VSJ17FY9T66DHBCE",
+      "last_transition_at": "2026-10-30T16:35:03.333728+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      }
+    }
+  }
+}
