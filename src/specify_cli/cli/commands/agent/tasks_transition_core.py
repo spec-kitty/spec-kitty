@@ -271,8 +271,6 @@ def _wire_contract_allows_force_free(
     try:
         candidate = StatusTransitionPayload(
             mission_slug="_wire_probe",
-            mission_id=None,
-            summary=None,
             wp_id="_wire_probe",
             from_lane=Lane(old_lane),
             to_lane=Lane(new_lane),
