@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "drg-orphan-residual-live-record-01M68ZV0",
+  "mission_id": "01M68ZV0YVQ02CMX6QYD38QKGE",
+  "mission_branch": "kitty/mission-drg-orphan-residual-live-record-01M68ZV0",
+  "target_branch": "issue-6513-drg-orphan-residual-live-record",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/architecture/charter-synthesis-drg.md",
+        "docs/changelog/CHANGELOG.md",
+        "tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:46:16.421910+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ca96434b8204c60e99295f9f8587abc68fe56d9a"
+}
