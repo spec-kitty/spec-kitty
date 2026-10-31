@@ -2,10 +2,9 @@
   "event_count": 21,
   "last_event_id": "01M696G0XN0RH25V9CSY73RJ10",
   "materialized_at": "2026-10-31T14:40:52.661895+00:00",
-  "mission_number": "245",
+  "mission_number": "",
   "mission_slug": "charter-resynth-project-directive-layer-split-01M690W8",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,113 +19,51 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "python-pedro",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
       "lane": "done",
       "last_event_id": "01M696FY6CHE7MQN4MPVR1DM34",
       "last_transition_at": "2026-10-31T14:40:49.868405+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-31T13:24:57Z – python-pedro – shell_pid=520754 – Red proof on the un-fixed tree (SPEC_KITTY_RUN_P0_REPRO=1 uv run pytest tests/charter/synthesizer/test_project_directive_layer_split_6768.py -q): 6 failed / 2 passed. resynthesize --topic directive:PROJECT_007 exits 1 with: Project DRG validation failed (1 error(s)): Additive-only violation (FR-020 / EC-6): URN 'directive:PROJECT_007' is already present in the synthesis input graph ... built_in_nodes=1, colliding_urn='directive:PROJECT_007'. The named-layer test reds with AttributeError: 'SynthesisRequest' object has no attribute 'built_in_drg_snapshot'; the fallback test reds with ImportError: cannot import name 'built_in_snapshot'. Controls: the shipped built-in URN still refuses while directive:PROJECT_007 does not (same graph, same root); build_targets accepts directive:PROJECT_007 and refuses directive:PROJECT_999 on the same reference snapshot; a full charter synthesize promotes the companion tactic. T006's production case (synthesize) is green before and after because a full run derives directive targets from interview sections only -- the activated project directive is reached only through the resynthesis topic.",
-        "Ready for review: red proof recorded, controls green, ruff clean.",
-        "Review passed: repro is the reported refusal; controls non-vacuous on one fixture; single-file scope; p0_repro(issue=6768) present; ruff clean."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261031",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 832969,
-      "shell_pid_created_at": "1793454131.72",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done"
-      },
-      "tracker_refs": [
-        "#6768"
-      ]
+      "shell_pid": 520754,
+      "shell_pid_created_at": "1793452095.87"
     },
     "WP02": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "python-pedro",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
       "lane": "done",
       "last_event_id": "01M696FZK9HN5PT8BE8S56T4HG",
       "last_transition_at": "2026-10-31T14:40:51.305678+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-31T14:22:24Z – python-pedro – shell_pid=856565 – Implemented the split. src/charter/activation/synthesizer/request.py: SynthesisRequest.built_in_drg_snapshot (optional, last, excluded from normalize_request_for_hash) + built_in_snapshot() as the one fallback rule. _build_synthesis_request authors the field from load_built_in_graph() with a DRGLoadError -> None fallback; drg_snapshot unchanged. Additive-only consumers (orchestrator.synthesize, resynthesize_pipeline step 7, _build_synthesis_validation_callback, _reconciliation_preview) read the built-in layer; reference consumers (build_targets EC-2, validation_gate.validate, reconcile_synthesis base) keep request.drg_snapshot. Derived requests forward the field (synthesize_pipeline per-target, resynthesize bounded). Two out-of-map edits, both one-line-justified: (1) kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/contracts/adapter.py -- the documented SynthesisRequest envelope must declare the new field or tests/charter/synthesizer/test_adapter_contract.py fails by contract, and a code WP cannot own a kitty-specs path; (2) tests/charter/synthesizer/test_collision_refusal_6510.py -- its four CLI cases pinned the defect itself (a lost-ownership project directive refusing with a remedy); re-pinned to the new contract (no refusal) while the collision_remedy classifier units and the new emitter-level built-in positive control keep the gate covered. The p0_repro(issue=6768) marker is removed from the WP01 repro, which now runs in per-PR lanes. Results: tests/charter/synthesizer 686 passed, 14 skipped; tests/charter 4830 passed after make sync-packs in the lane (3 failures were the missing org pack tree, not the diff); mypy clean on the changed surface (one pre-existing generate.py:475 no-any-return red, untouched); ruff clean.",
-        "Ready for review. Split implemented at the request builder; 686 synthesis tests + 4830 charter tests green; mypy/ruff clean on the changed surface. The contract declaration for the new field lands on the planning branch (kitty-specs/ cannot travel on a lane).",
-        "Review passed. Checked: (1) every emit_project_layer call site now reads a built-in-only layer -- orchestrator (built_in_drg), resynthesize step 7, the dry-run callback and the reconciliation preview (additive_drg), and the preflight already used load_built_in_graph(); (2) every reference consumer keeps request.drg_snapshot -- build_targets EC-2 in all three call sites, validation_gate.validate in all three, and reconcile_synthesis's conflict base (so preview and run classify identically); (3) the fallback rule lives once in built_in_snapshot(), is exercised by two tests (None and DRGLoadError), and normalize_request_for_hash is byte-identical so fixtures still load; (4) derived requests forward the field (per-target and bounded) -- a bounded resynthesize would otherwise silently regress; (5) no PROJECT_ prefix mechanism, emit_project_layer and validation_gate.validate bodies untouched, colliding_urn contract unchanged; (6) the two out-of-map edits are justified: the contract declaration moved to the planning branch because a lane branch may not carry kitty-specs/, and the four #6510 CLI cases pinned the defect itself -- they now assert the new contract while the classifier units and the emitter-level built-in control keep the remedy path covered."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261031",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 1452380,
-      "shell_pid_created_at": "1793456955.0",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done",
-        "T007": "done"
-      },
-      "tracker_refs": [
-        "#6768"
-      ]
+      "shell_pid": 856565,
+      "shell_pid_created_at": "1793454248.12"
     },
     "WP03": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "scribe-sally",
       "force_count": 0,
       "implementer_of_record": "scribe-sally",
       "lane": "done",
       "last_event_id": "01M696G0XN0RH25V9CSY73RJ10",
       "last_transition_at": "2026-10-31T14:40:52.661895+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-31T14:33:50Z – scribe-sally – shell_pid=1457307 – Changelog [Unreleased]/Fixed entry (820 chars, impact-first, #6768) and the resynthesize narrative note in docs/api/charter-commands.md. check_docs_freshness --ci: exit=0 errors=0 warnings=6 (all pre-existing: help-drift on service/charter activate/migrate commands and two 404 LINK-HEALTH warnings in docs/guides/gstack-glossary-observations.md); tests/architectural/test_no_legacy_terminology.py 98 passed.",
-        "Ready for review: changelog entry and command-reference note; docs freshness errors=0.",
-        "Review passed: the entry leads with what the operator can now do, names the exact refusal as the before state, keeps to 820 characters with the (#6768) reference, and does not contradict the neighbouring #6510 entry; the command-reference note states the built-in-only scope of the guard without promising anything the code does not do. Freshness check errors=0."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP03:20261031",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 1555026,
-      "shell_pid_created_at": "1793457439.38",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done"
-      },
-      "tracker_refs": [
-        "#6768"
-      ]
+      "shell_pid": 1457307,
+      "shell_pid_created_at": "1793456990.62"
     }
   }
 }
