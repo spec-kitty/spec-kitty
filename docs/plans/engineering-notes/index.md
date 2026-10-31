@@ -43,7 +43,6 @@ pages are kept as a record and are not current guidance. The active cycle is 4.0
 
 - [Migration project write admission](2026-10-31-migration-project-admission.md) — fresh Git authority and global runtime storage boundaries.
 
-- [Owned startup project gates](2026-10-30-owned-startup-project-gates.md) — isolated runtime startup custody.
 - [Owned analysis currency](2026-10-30-owned-analysis-currency.md) — binding analysis artifacts to their owned governing roots.
 
 - [Owned prompt charter scope](2026-10-30-owned-charter-context.md) — typed context reads for validated owned checkouts.
