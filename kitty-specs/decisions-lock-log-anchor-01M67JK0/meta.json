@@ -1,0 +1,36 @@
+{
+  "accept_commit": "4a58ebc7d2a622fb2d2922abc6eda1a067d325fe",
+  "acceptance_history": [
+    {
+      "accept_commit": "4a58ebc7d2a622fb2d2922abc6eda1a067d325fe",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T04:36:24.458472+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "9b2e088915035ec00c4e2d6fd1cfc5c8c8ad63ee"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T04:36:24.458472+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "9b2e088915035ec00c4e2d6fd1cfc5c8c8ad63ee",
+  "baseline_merge_commit": "09f1612d585f8677661cef18d8f068d1df9e7ec0",
+  "contracts": "none",
+  "contracts_rationale": "Internal lock-keying change in the decisions service: no new or changed API, CLI surface, event payload or file format. The only externally observable difference is which lock file a decision write takes, and the anchor lock path is owned by kernel.event_log_append.event_log_lock_path.",
+  "created_at": "2026-10-30T23:33:45.268574+00:00",
+  "flattened": true,
+  "friendly_name": "decisions lock log anchor",
+  "merged_at": "2026-10-31T04:37:14.098550+00:00",
+  "merged_commit": "5e00136a8d18a4841203196e1ce99b73035c30bf",
+  "mid8": "01M67JK0",
+  "mission_id": "01M67JK0MZT18PW8D8S4MD3737",
+  "mission_number": 244,
+  "mission_slug": "decisions-lock-log-anchor-01M67JK0",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances decisions lock log anchor on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "decisions lock log anchor",
+  "slug": "decisions-lock-log-anchor-01M67JK0",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:38:48.126210+00:00"
+}
