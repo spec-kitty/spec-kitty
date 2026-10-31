@@ -1,7 +1,7 @@
 {
-  "event_count": 8,
-  "last_event_id": "01M68KP29S41QAWVZMQTJ4J8PG",
-  "materialized_at": "2026-10-31T09:12:07.737216+00:00",
+  "event_count": 9,
+  "last_event_id": "01M68N4S6B41XFK0JV6NBE6D4B",
+  "materialized_at": "2026-10-31T09:37:38.507727+00:00",
   "mission_number": "",
   "mission_slug": "step-contract-urn-identity-01M68JDC",
   "mission_type": "software-dev",
@@ -10,12 +10,12 @@
     "approved": 1,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -48,11 +48,27 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68JK8ERH58H5KHPKEWB84ZA",
-      "last_transition_at": "2026-10-31T08:53:07.160369+00:00"
+      "lane": "claimed",
+      "last_event_id": "01M68N4S6B41XFK0JV6NBE6D4B",
+      "last_transition_at": "2026-10-31T09:37:38.507727+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T09:37:32Z – unknown – T006 written first; 6 of 10 cases red on the WP01 head (parity gap, deny inert, missing full_urns kwarg). Implemented T007-T010. 10/10 green; deny-by-declared-id now drops the node; default-ledger surviving set still 21 nodes; parity-guard test updated to the more accurate filtered-out wording (#6741). 73 activation tests + 43 review/gate tests + 15 parity-guard tests + 968 charter-offering selection green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP03": {
       "actor": "finalize-tasks",
