@@ -12,6 +12,7 @@ edits (FR-006, C-002). One-way import: this module never imports the command shi
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 
 from specify_cli.core.constants import KITTIFY_DIR
@@ -232,6 +233,7 @@ def _load_or_create_merge_state(
     strategy: str | None = None,
     delete_branch: bool | None = None,
     remove_worktree: bool | None = None,
+    dependency_refs: Sequence[str] = (),
 ) -> tuple[ConsolidationState, bool]:
     """Load canonical/legacy merge state, migrating legacy state to canonical.
 
@@ -246,9 +248,20 @@ def _load_or_create_merge_state(
     its FIRST write is already truthful. Stamping it only in a second save
     left a hard-kill window where a resumable record carried the inert
     ``"merge"`` default instead of the operator's strategy.
+
+    ``dependency_refs`` (#6771) are the operator's ``--dependency-ref`` declarations. A
+    fresh record is born with them; a LOADED record keeps its own unless this run
+    restates a declaration (``--dependency-ref`` on the resuming command), which replaces
+    them — the operator is the only authority for the declaration, and a resume that
+    inherited nothing must not silently lose the attribution the interrupted run used.
+    Only the LIST is recorded here; each ref is verified when the claim is built.
     """
+    declared = tuple(dict.fromkeys(ref.strip() for ref in dependency_refs if ref.strip()))
     canonical_state = load_state(main_repo, canonical_id)
     if canonical_state is not None:
+        if declared and tuple(canonical_state.dependency_refs) != declared:
+            canonical_state.dependency_refs = list(declared)
+            save_state(canonical_state, main_repo)
         return canonical_state, True
 
     entry = _load_merge_state_entry_for_mission(main_repo, mission_slug)
@@ -269,6 +282,9 @@ def _load_or_create_merge_state(
             save_state(state, main_repo)
             if source_key is not None and source_key != canonical_id:
                 clear_state(main_repo, source_key)
+        if declared and tuple(state.dependency_refs) != declared:
+            state.dependency_refs = list(declared)
+            save_state(state, main_repo)
         return state, True
 
     state = ConsolidationState(
@@ -281,6 +297,7 @@ def _load_or_create_merge_state(
         delete_branch=delete_branch,
         remove_worktree=remove_worktree,
     )
+    state.dependency_refs = list(declared)
     if strategy is not None:
         state.strategy = strategy
     # #5111 / FR-012: the reconciliation marker is part of the fresh transaction

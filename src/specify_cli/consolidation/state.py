@@ -98,7 +98,7 @@ def _str_map_or_empty(value: object) -> dict[str, str]:
     return {}
 
 
-_REF_LIST_FIELDS = ("snapshot_lane_branches", "resume_seeded_refs")
+_REF_LIST_FIELDS = ("snapshot_lane_branches", "resume_seeded_refs", "dependency_refs")
 
 
 def _str_list_or_empty(value: object) -> list[str]:
@@ -204,6 +204,13 @@ class ConsolidationState:
     # exactly like ``mission_number_baked`` — back-compat for state files
     # written before this field existed (absent key -> default ``False``).
     skip_lanes: bool = False
+    # #6771: the external dependency refs the operator DECLARED for this transaction
+    # (``consolidate --dependency-ref``), persisted so a ``--resume`` re-derives the same
+    # reconciliation claim, and so the claim the interrupted run built is auditable. A ref
+    # is only *recorded* here; it is verified (resolves, the mission branch reaches it, no
+    # mission-spine commit in it) when the claim is built, and the sets it exempts are
+    # emptied the moment a guard fails. Empty for every run that declared none.
+    dependency_refs: list[str] = field(default_factory=list)
     # terminus-merge-integrity-01M380R6 #5001 pre-merge FOLD-4: the target ref's
     # tip at TRANSACTION START (before any lane/mission->target advance) -- the
     # excluded/closed-world reconciliation window base AND the rollback CAS anchor.

@@ -423,6 +423,7 @@ def _run_lane_based_consolidation_locked(
     attest_reason: str | None = None,
     attest_approved_reviewed: tuple[str, ...] = (),
     attest_no_implementation: tuple[str, ...] = (),
+    dependency_refs: tuple[str, ...] = (),
 ) -> None:
     """Inner merge flow, called with the global merge lock held.
 
@@ -494,6 +495,7 @@ def _run_lane_based_consolidation_locked(
         strategy=strategy.value,
         delete_branch=delete_branch,
         remove_worktree=remove_worktree,
+        dependency_refs=dependency_refs,
     )
 
     # terminus-merge-integrity WP06 (C-1 wiring half / T029): reseed the manifest
@@ -527,6 +529,10 @@ def _run_lane_based_consolidation_locked(
         state=state,
         is_resume=is_resume,
         skip_lanes=skip_lanes,
+        # #6771: the DURABLE declaration is ``state.dependency_refs`` (a resume keeps it);
+        # this run reads it through the state so the CLI threading and the persisted
+        # record can never disagree about what the claim was built against.
+        dependency_refs=tuple(state.dependency_refs),
         recorded_attestations=recorded_attestations,
         own_pre_claim_moves=own_pre_claim_moves,
     )
@@ -777,6 +783,7 @@ def _run_lane_based_consolidation(
     attest_no_implementation: tuple[str, ...] = (),
     origin_check: str | None = None,
     origin_gated: bool = False,
+    dependency_refs: tuple[str, ...] = (),
 ) -> None:
     """Execute the lane-only merge flow with ConsolidationState lifecycle for recovery.
 
@@ -806,6 +813,10 @@ def _run_lane_based_consolidation(
         origin_gated: ``True`` when the caller already ran the origin freshness gate
             with its own resolved setting (``orchestrator-api consolidate-mission``),
             so this entry neither re-checks nor contacts the remote a second time.
+        dependency_refs: #6771 — the operator's declared external dependency refs
+            (``consolidate --dependency-ref``). Persisted on the transaction record and
+            threaded into the reconciliation claim, where each ref is VERIFIED before its
+            commits are exempted; a declaration that fails a guard refuses at claim time.
         skip_lanes: T021 (FR-012, FOLD 1) — the executor capability behind
             ``merge --skip-lanes``/``--no-lanes``. When ``True`` AND
             ``lanes.json`` is genuinely absent, synthesizes a NO-LANE
@@ -990,6 +1001,7 @@ def _run_lane_based_consolidation(
             attest_reason=attest_reason,
             attest_approved_reviewed=attest_approved_reviewed,
             attest_no_implementation=attest_no_implementation,
+            dependency_refs=dependency_refs,
         )
     finally:
         release_merge_lock(_GLOBAL_MERGE_LOCK_ID, main_repo)
