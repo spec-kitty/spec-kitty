@@ -1,0 +1,40 @@
+{
+  "accept_commit": "0245b82ea31d2b1faea1d8727074035bc0bedb7a",
+  "acceptance_history": [
+    {
+      "accept_commit": "2425d4b90b5f9f67b9c2550f90baf6a0c7a4f51b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:38:59.028712+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "2b46ef48bfae87a65b6a0626e3a3dc354f69e987"
+    },
+    {
+      "accept_commit": "0245b82ea31d2b1faea1d8727074035bc0bedb7a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:39:04.327806+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "db80eccfdc00d1f7336c3564d54b799ca44d26c8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T09:39:04.327806+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "db80eccfdc00d1f7336c3564d54b799ca44d26c8",
+  "baseline_merge_commit": "8131780083403c1160dcf5fcd4d1b00e9fbe8af3",
+  "created_at": "2026-10-31T08:49:19.136745+00:00",
+  "flattened": false,
+  "friendly_name": "sparse checkout managed lane branch independent",
+  "merged_at": "2026-10-31T09:39:24.068037+00:00",
+  "merged_commit": "8131780083403c1160dcf5fcd4d1b00e9fbe8af3",
+  "mid8": "01M68JC9",
+  "mission_id": "01M68JC9NAFKH1VX26EHPSZ3JR",
+  "mission_number": 245,
+  "mission_slug": "sparse-checkout-managed-lane-branch-independent-01M68JC9",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances sparse checkout managed lane branch independent on issue-6844-sparse-checkout-managed-lane-branch-independent so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "sparse checkout managed lane branch independent",
+  "slug": "sparse-checkout-managed-lane-branch-independent-01M68JC9",
+  "status_phase": "1",
+  "target_branch": "issue-6844-sparse-checkout-managed-lane-branch-independent",
+  "topology": "single_branch"
+}
