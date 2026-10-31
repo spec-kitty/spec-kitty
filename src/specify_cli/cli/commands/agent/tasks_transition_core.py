@@ -396,12 +396,7 @@ def build_transition_plan(
     # ``spec-kit status validate`` refuses (``for_review->in_progress without
     # review_ref``). Filling it here, after ``emit_force`` is final, keeps the two force
     # routes on one sentinel instead of two behaviours.
-    if (
-        emit_review_ref is None
-        and emit_force
-        and old_lane == Lane.FOR_REVIEW
-        and canonical_lane in (Lane.IN_PROGRESS, Lane.PLANNED)
-    ):
+    if emit_review_ref is None and emit_force and old_lane == Lane.FOR_REVIEW and canonical_lane in (Lane.IN_PROGRESS, Lane.PLANNED):
         emit_review_ref = "force-override"
 
     transition_targets = [canonical_lane]
