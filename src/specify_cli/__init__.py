@@ -137,16 +137,9 @@ def main_callback(
 
         # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
         # Must run BEFORE check_version_pin() so global assets are available.
-        from specify_cli.runtime.agent_commands import ensure_global_agent_commands
-        from specify_cli.runtime.agent_skills import ensure_global_agent_skills
-        from specify_cli.runtime.bootstrap import ensure_runtime
         from specify_cli.runtime.startup_assets import prepare_startup_assets
 
-        # #6473: an unwritable home folder warns and lets the command run.
-        owners: list[tuple[str, Callable[[], None]]] = [("runtime assets", ensure_runtime), ("agent skills", ensure_global_agent_skills)]
-        if not _is_doctor_skills_invocation(sys.argv):
-            owners.append(("agent commands", ensure_global_agent_commands))
-        prepare_startup_assets(owners)
+        prepare_startup_assets(_startup_owners(sys.argv))
 
     if not live_work_hook_path and not session_start_path:
         # The live-work hook is passive capture on the harness's per-tool-call
@@ -157,6 +150,40 @@ def main_callback(
         # (#4703): check_schema_version's SystemExit on a stale project would
         # break the Claude Code SessionStart hook, so it skips the gates too.
         _run_startup_project_gates(ctx)
+
+
+def _discard_legacy_user_dirs() -> None:
+    """Drop the per-user cache and state directories the pre-#6488 rules wrote (#6488).
+
+    Best effort by construction: :func:`kernel.user_dirs_legacy.discard_legacy_locations`
+    never raises and removes nothing that a caller still writes to, so this owner can
+    never fail a command and never touches a live directory.
+    """
+    from kernel.user_dirs_legacy import discard_legacy_locations
+
+    discard_legacy_locations()
+
+
+def _startup_owners(argv: list[str]) -> list[tuple[str, Callable[[], None]]]:
+    """The per-invocation home-folder owners, in run order (#6473, #6488).
+
+    ``prepare_startup_assets`` isolates an unwritable home per owner, so one failing
+    owner only warns and the command still runs.
+    """
+    from specify_cli.runtime.agent_commands import ensure_global_agent_commands
+    from specify_cli.runtime.agent_skills import ensure_global_agent_skills
+    from specify_cli.runtime.bootstrap import ensure_runtime
+
+    # #6488 first: it is a handful of stats, and it only ever removes directories
+    # the current rules no longer use.
+    owners: list[tuple[str, Callable[[], None]]] = [
+        ("per-user cache locations", _discard_legacy_user_dirs),
+        ("runtime assets", ensure_runtime),
+        ("agent skills", ensure_global_agent_skills),
+    ]
+    if not _is_doctor_skills_invocation(argv):
+        owners.append(("agent commands", ensure_global_agent_commands))
+    return owners
 
 
 def _run_startup_project_gates(ctx: typer.Context) -> None:
