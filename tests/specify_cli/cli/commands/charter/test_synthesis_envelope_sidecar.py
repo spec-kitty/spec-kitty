@@ -162,9 +162,9 @@ def test_the_display_module_does_not_parse_the_sidecar(tmp_path: Path) -> None:
         if not isinstance(node, ast.Call):
             continue
         name = getattr(node.func, "id", None)
-        if name in {"YAML", "safe_load"}:
-            offenders.append(node.lineno)
-        elif name == "load_yaml" and any("provenance" in ast.unparse(arg) for arg in node.args):
+        raw_parse = name in {"YAML", "safe_load"}
+        sidecar_load = name == "load_yaml" and any("provenance" in ast.unparse(arg) for arg in node.args)
+        if raw_parse or sidecar_load:
             offenders.append(node.lineno)
 
     assert offenders == [], f"_synthesis.py parses the sidecar itself at lines {offenders}; use the strict sidecar reader"
