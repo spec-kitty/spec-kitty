@@ -45,7 +45,7 @@ from specify_cli.cli.commands.charter._widen import (
 import specify_cli.cli.commands.charter as _charter_pkg
 
 if TYPE_CHECKING:
-    from charter.activation.api import LanguageSettlement
+    from charter.activation.api import LanguageSettlement, SelectionResolver
     from charter.drg import ArtifactKind
 
 __all__ = ["interview"]
@@ -62,22 +62,22 @@ def _narrow_bases(repo_root: Path, promotions: dict[str, list[str]], warnings: l
     return bases
 
 
-def _stem_spelled_config(repo_root: Path, config_data: dict[str, Any], kinds: dict[str, ArtifactKind], promotions: dict[str, list[str]]) -> dict[str, Any]:
+def _stem_spelled_config(
+    resolver: SelectionResolver, config_data: dict[str, Any], kinds: dict[str, ArtifactKind], promotions: dict[str, list[str]]
+) -> dict[str, Any]:
     """*config_data* with each promoted key's PRESENT list spelled as activation stems.
 
     A list holding a declared id (``DIRECTIVE_003``) would otherwise be compared raw
     against the stem the interview selected and report the same artifact as dropped (#6408).
+    The spelling is the shared resolver's, so both writers compare in one space.
     """
-    from charter.activation.api import IdentityIndex
-
-    index = IdentityIndex.build(repo_root)
     mapped = dict(config_data)
     for yaml_key in promotions:
         kind = kinds.get(yaml_key)
         current = config_data.get(yaml_key)
         if kind is None or not isinstance(current, list):
             continue
-        mapped[yaml_key] = [index.stem(kind, str(item)) or str(item) for item in current]
+        mapped[yaml_key] = [resolver.spell(kind, str(item)) for item in current]
     return mapped
 
 
@@ -168,8 +168,9 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     (``4.0.0rc8_promote_interview_selections``, which superseded
     ``m_unify_charter_activation``, #6629), not this per-interview-run wiring.
     Routes through the shared :func:`charter.activation.activation_engine.promote_activations`
-    primitive — the same append-only seam the migration uses — with the WP01
-    ID-form resolver (:func:`charter.activation.kind_vocabulary.resolve_selected_id_to_stem`).
+    primitive — the same append-only seam the migration uses. Every selection resolves
+    through :class:`charter.activation.selection.SelectionResolver`, the same layer-aware
+    rule the upgrade promotion uses (#6686).
     An **absent** key is never written (#6685): while it is absent every available
     artifact of the kind is in force, so a resolved selection is already in force and
     a list would only turn "nothing chosen yet" into an operator's activation, which
@@ -199,9 +200,8 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     when narrowing is off).
     """
     from charter.activation.activation_engine import promote_activations
-    from charter.activation.catalog import resolve_offering_root
+    from charter.activation.api import SelectionResolver
     from charter.activation.effective_set import resolve_effective_sets
-    from charter.activation.api import IdentityIndex
     from charter.activation.pack_manager import resolve_activation_write_target
     from charter.drg import ArtifactKind
 
@@ -211,28 +211,13 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
         ArtifactKind.PARADIGM: list(interview_data.selected_paradigms),
     }
 
-    from charter.activation.layer_roots import (
-        resolve_layer_roots,
-        resolve_pack_chain,
-    )
-
-    offering_root = resolve_offering_root()
-    org_roots = resolve_pack_chain(repo_root, strict=False)
-    layer_roots = resolve_layer_roots(repo_root)
-    index = IdentityIndex.from_roots(offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
-    promotions: dict[str, list[str]] = {}
-    warnings: list[str] = []
-    for kind, raw_ids in kind_to_selection.items():
-        stems: list[str] = []
-        for raw_id in raw_ids:
-            # Decision ``file_name_collision``: a known id with no stem raises the one collision refusal.
-            stem = index.stored_spelling(kind, raw_id) if index.knows(kind, raw_id) else None
-            if stem is None:
-                warnings.append(f"Could not resolve selected {kind.operator_token} id {raw_id!r}; skipped.")
-            elif stem not in stems:
-                stems.append(stem)
-        if stems:
-            promotions[f"activated_{kind.plural}"] = stems
+    # One resolution rule for both writers (#6686): `refuse_ambiguous=True` keeps this
+    # writer's Decision ``file_name_collision`` refusal (a known id with no single stem),
+    # which the upgrade reports instead.
+    resolver = SelectionResolver.build(repo_root)
+    resolution = resolver.resolve(kind_to_selection, refuse_ambiguous=True)
+    promotions: dict[str, list[str]] = dict(resolution.stems)
+    warnings: list[str] = [f"Could not resolve selected {item.kind.operator_token} id {item.raw_id!r}; skipped." for item in resolution.unresolved]
 
     if not promotions:
         return warnings, {}
@@ -242,7 +227,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     effective_sets: dict[str, Any] = {}
     if narrow:
         # The effective set is already in stem spelling (#6435); a present list may still hold a legacy declared id.
-        config_data = _stem_spelled_config(repo_root, config_data, {f"activated_{kind.plural}": kind for kind in kind_to_selection}, promotions)
+        config_data = _stem_spelled_config(resolver, config_data, {f"activated_{kind.plural}": kind for kind in kind_to_selection}, promotions)
         # Narrowing is the explicit choice, so it *does* write an absent key: the selection plus the org-required ids.
         absent = [key for key in promotions if config_data.get(key) is None]
         effective_sets = resolve_effective_sets(repo_root, absent) if absent else {}

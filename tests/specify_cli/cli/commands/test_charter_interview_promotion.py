@@ -23,6 +23,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app as charter_app
 from charter.activation.effective_set import resolve_effective_sets
+from charter.offering.artifact_kinds import ArtifactKind
 from kernel.activation_ledger_store import activation_ledger_path
 from tests._factories.activation_ledger import seed_activation_ledger
 
@@ -578,3 +579,82 @@ def test_org_required_promotion_restamps_the_bundle_hash(tmp_path: Path) -> None
 
     assert _DIRECTIVE_010_STEM in read_activation_ledger(tmp_path)["activated_directives"]
     assert _stamp_is_current(tmp_path)
+
+
+# --------------------------------------------------------------------------- #
+# The interview and the upgrade promotion resolve the same selection (#6686)
+# --------------------------------------------------------------------------- #
+
+_ORG_DIRECTIVE_STEM = "qa-003-no-fake-green"
+_ORG_DIRECTIVE_ID = "QA_003"
+
+
+def _identity_org_pack_project(tmp_path: Path) -> Path:
+    """A git project registering the identity org pack, with one present activation list.
+
+    The present list is deliberate: an absent key seeds the whole in-force set
+    (which already holds the org artifact), so only a present list can show that
+    the selection itself was resolved and appended.
+    """
+    from tests.charter.org_pack_identity_support import write_identity_org_pack
+
+    _git_init(tmp_path)
+    write_identity_org_pack(tmp_path, activated_directives=[_DIRECTIVE_010_STEM])
+    return tmp_path
+
+
+def _stored_directives(repo_root: Path) -> list[str]:
+    """The stored ``activated_directives`` list: the activation ledger, else the legacy config.yaml."""
+    yaml = YAML(typ="safe")
+    for path in (activation_ledger_path(repo_root), repo_root / ".kittify" / "config.yaml"):
+        if not path.exists():
+            continue
+        loaded = yaml.load(path.read_text(encoding="utf-8"))
+        if isinstance(loaded, dict) and isinstance(loaded.get("activated_directives"), list):
+            return [str(item) for item in loaded["activated_directives"]]
+    raise AssertionError(f"no activated_directives list written under {repo_root}")
+
+
+def test_interview_promotes_an_org_pack_selection_to_the_stem_the_upgrade_stores(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#6686: the same org id resolves to the same stem on both writers' paths.
+
+    The upgrade half is the migration test's expectation (the stem, not the
+    declared id); this half drives the production CLI entry point.
+    """
+    from specify_cli.upgrade.migrations.m_4_0_0rc8_promote_interview_selections import PROMOTED_KINDS
+
+    assert ArtifactKind.DIRECTIVE in PROMOTED_KINDS, "control: the kind is promoted by both writers"
+    project = _identity_org_pack_project(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(project))
+    monkeypatch.chdir(project)
+
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal", "--selected-directives", _ORG_DIRECTIVE_ID],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    directives = _stored_directives(project)
+    assert _ORG_DIRECTIVE_STEM in directives, directives
+    assert _ORG_DIRECTIVE_ID not in directives, directives
+    assert f"Could not resolve selected directive id {_ORG_DIRECTIVE_ID!r}" not in result.stdout
+
+
+def test_interview_still_warns_for_an_id_no_layer_knows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The positive control for the parity test: an unknown id is still reported, not promoted."""
+    project = _identity_org_pack_project(tmp_path)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(project))
+    monkeypatch.chdir(project)
+
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal", "--selected-directives", "999-does-not-exist-anywhere"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "Could not resolve selected directive id '999-does-not-exist-anywhere'; skipped." in " ".join(result.stdout.split())
+    assert "999-does-not-exist-anywhere" not in _stored_directives(project)

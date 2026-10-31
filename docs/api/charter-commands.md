@@ -96,6 +96,12 @@ puts everything in force already has them in force. (`charter activate` differs:
 resolve the effective set it cannot prove the id is in force, so it writes a list.) A kind whose
 absent key puts only the org-required set in force, such as `skill`, is written.
 
+Every selected id is resolved through the same layer-aware authority `charter context` reads (the
+project pack, the org packs and the built-in pack), and `spec-kitty upgrade`'s
+`4.0.0rc8_promote_interview_selections` step uses that same resolver, so an org-pack selection
+promotes to the same stem from either writer. An id no layer knows is reported
+(`Could not resolve selected <kind> id '<id>'; skipped.`) and is not promoted.
+
 **Project languages (`languages` in `.kittify/config.yaml`)**: before the questions, the interview
 detects the repository's languages (manifests and source counts) and proposes them. You confirm or
 edit the list, primary language first, and it is stored as a top-level list of catalog tokens:
