@@ -742,7 +742,10 @@ def test_accept_pr_mode_without_merge_commit_names_the_pruned_lane_branch(
     assert exit_info.value.exit_code == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["error_code"] == "IMPLEMENTATION_UNREADABLE"
-    assert _lane_branch() in payload["error"], "the refusal must name the absent lane branch"
+    assert f"the window tip {_lane_branch()} no longer exists" in payload["error"], (
+        "the refusal must name the absent lane branch as the cause, not leave it to git's own paraphrase of the refspec"
+    )
+    assert "could not be diffed" not in payload["error"], "a pruned tip is diagnosed, not reported as an unreadable diff"
     assert "--merge-commit" in payload["error"], "the refusal must name the landing-commit remedy"
     assert "--mode pr" in payload["error"]
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
