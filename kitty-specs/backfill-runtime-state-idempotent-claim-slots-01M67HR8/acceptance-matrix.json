@@ -1,0 +1,99 @@
+{
+  "mission_slug": "backfill-runtime-state-idempotent-claim-slots-01M67HR8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_backfill_verifies_on_slug_identified_mission",
+      "evidence": "commit bb300ee98f; tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_backfill_verifies_on_slug_identified_mission (11/11 green, 9/11 red pre-fix)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:29:47.922278+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_seed_row_carries_the_declared_mission_id",
+      "evidence": "tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_seed_row_carries_the_declared_mission_id asserts claim['mission_id'] == slug and event_id == 0RWXZFHX7REDZWCZC43GQB3SPF",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:29:52.041520+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_undeclared_mission_id_stays_absent",
+      "evidence": "tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_undeclared_mission_id_stays_absent asserts no mission_id key on the row",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:29:56.565822+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_seed_row_carries_the_declared_mission_id + test_cli_second_run_seeds_nothing_and_still_verifies",
+      "evidence": "seed id pinned to the literal pre-fix value; second run seeded==0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:30:00.656243+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_cli_second_run_seeds_nothing_and_still_verifies",
+      "evidence": "second CLI run: summary.seeded == 0, event log bytes unchanged, verify ok",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:30:04.653072+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_tampered_claim_payload_still_fails_closed + ::test_missing_claim_seed_still_fails_closed",
+      "evidence": "both refusals still report claim mismatch / deterministic seed missing, with a same-fixture positive control",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:30:08.820913+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_strip_before_verify_still_raises_ordering_error",
+      "evidence": "MigrationOrderingError 'strip_mutable_fields ran before verify' still raised",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:30:12.815996+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_cli_flips_slug_identified_mission",
+      "evidence": "spec-kitty migrate backfill-runtime-state --mission <slug>: exit 0, summary.flipped==1, status_phase=='1'",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:30:17.344100+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "pytest tests/specify_cli/migration/test_backfill_runtime_state_slug_identity_6689.py::test_pre_fix_seed_row_without_mission_id_is_sound",
+      "evidence": "a persisted row with the mission_id key removed still verifies ok",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:30:23.479416+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
