@@ -1,0 +1,59 @@
+{
+  "mission_slug": "promote-answers-post-fold-convergence-01M68JDG",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_promote_answers_post_fold_convergence_6549.py::test_a_second_upgrade_changes_nothing_for_a_fold_crossing_project",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T09:26:18.825414+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "57 remaining tests in tests/upgrade/test_promote_answers_post_fold_convergence_6549.py plus neighbours: 60 passed; src/ diff empty; ADR cross-reference added",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T09:26:26.674267+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "57 remaining tests in tests/upgrade/test_promote_answers_post_fold_convergence_6549.py plus neighbours: 60 passed; src/ diff empty; ADR cross-reference added",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T09:26:33.589300+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "57 remaining tests in tests/upgrade/test_promote_answers_post_fold_convergence_6549.py plus neighbours: 60 passed; src/ diff empty; ADR cross-reference added",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T09:26:38.305414+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "57 remaining tests in tests/upgrade/test_promote_answers_post_fold_convergence_6549.py plus neighbours: 60 passed; src/ diff empty; ADR cross-reference added",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T09:26:42.597549+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

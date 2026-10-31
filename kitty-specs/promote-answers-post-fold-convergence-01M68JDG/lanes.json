@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "promote-answers-post-fold-convergence-01M68JDG",
+  "mission_id": "01M68JDGBJGY6AWK7YRW9GSNMD",
+  "mission_branch": "kitty/mission-promote-answers-post-fold-convergence-01M68JDG",
+  "target_branch": "issue-6549-promote-answers-post-fold-convergence",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md",
+        "tests/upgrade/test_promote_answers_post_fold_convergence_6549.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:51:57.925312+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a1c2d82b4e31077ab7a19d056136d34ee3c8d716"
+}
