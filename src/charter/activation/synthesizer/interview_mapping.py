@@ -52,10 +52,18 @@ from charter.offering.missions.mission_type_repository import builtin_mission_ty
 from charter.offering.shared.language_catalog import is_language_family
 
 __all__ = [
+    "COMPANION_TACTIC_SECTION",
     "canonicalize_interview_section_label",
     "normalize_interview_snapshot",
     "resolve_sections",
 ]
+
+#: The interview section whose per-item expansion produces one **companion tactic**
+#: per selected directive (``tactic:how-we-apply-<directive-id>``). It is also the
+#: ``source_section`` those tactics carry in provenance, which is how a reader
+#: recognizes a companion artifact without parsing its machine-derived slug. Declared
+#: here because this module owns the expansion; consumers import it (#6724).
+COMPANION_TACTIC_SECTION: str = "selected_directives"
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +204,7 @@ _ALIAS_TO_SECTION: dict[str, str] = {
 # a distinct artifact, not a single fixed artifact per section.
 _EXPANDED_SECTIONS: frozenset[str] = frozenset(
     {
-        "selected_directives",  # each directive → tactic:how-we-apply-<directive-id>
+        COMPANION_TACTIC_SECTION,  # each directive → tactic:how-we-apply-<directive-id>
         "language_scope",  # each language → styleguide:<lang>-style-guide
     }
 )
@@ -369,15 +377,15 @@ def _append_selected_directives(
 ) -> None:
     """Append one tactic entry per selected directive."""
     for directive_id in _iter_clean_strings(
-        interview_snapshot.get("selected_directives", [])
+        interview_snapshot.get(COMPANION_TACTIC_SECTION, [])
     ):
         results.append(
             (
-                "selected_directives",
+                COMPANION_TACTIC_SECTION,
                 {
                     "answer": directive_id,
                     "kinds": ["tactic"],
-                    "source_section": "selected_directives",
+                    "source_section": COMPANION_TACTIC_SECTION,
                     "source_urns": (f"directive:{directive_id}",),
                     "directive_id": directive_id,
                 },
