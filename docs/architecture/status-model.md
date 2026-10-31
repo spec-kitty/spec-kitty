@@ -317,7 +317,7 @@ approved    -> canceled
 blocked     -> canceled
 ```
 
-**Force override**: Any transition can be forced with `--force --actor <name> --reason <text>`. Forced transitions from terminal states (done, canceled) are allowed. All force events carry a full audit trail.
+**Force override**: Any transition can be forced with `--force --actor <name> --reason <text>`. Forced transitions from terminal states (done, canceled) are allowed. All force events carry a full audit trail. One refusal is not force-overridable: a rewind out of `for_review` into `in_progress` must carry a `review_ref` whether or not it is forced — see [Forced rewinds out of review](#forced-rewinds-out-of-review).
 
 ### Guard Conditions
 
@@ -333,7 +333,44 @@ blocked     -> canceled
 | `approved -> in_progress` | Review feedback reference required | "Missing review feedback reference" |
 | `approved -> planned` | Review feedback reference required | "Missing review feedback reference" |
 | `in_progress -> planned` | Reason required | "Transition in_progress -> planned requires reason" |
+| `for_review -> in_progress` (forced) | `review_ref` required — force does **not** override it | "Transition for_review -> in_progress requires review_ref: ..." |
 | Any forced transition | Actor AND reason required | "Force transitions require actor and reason" |
+
+### Forced rewinds out of review
+
+`for_review` has no backward edge in the lane graph, so `for_review -> in_progress` is
+reachable **only** by force. That makes the force gate the only gate on the edge, and a
+force carrying nothing but `--reason` used to append a
+`for_review -> in_progress` event with `review_ref: null` — an event `status validate`
+refuses (`for_review->in_progress without review_ref`). Because the log is append-only, the
+row was permanent: a command that reported success left the Mission's canonical ledger in a
+state its own auditor calls invalid.
+
+The requirement is therefore **force-insurmountable**. `--force --reason` still overrides a
+missing edge or a guard, but it cannot override this: a rewind out of review must cite the
+review feedback it is rewinding.
+
+| Writer | Supplies the pointer how |
+|---|---|
+| `spec-kitty agent status emit --to in_progress` | the caller's `--review-ref <ref>`; blank or missing is refused |
+| `spec-kitty orchestrator-api transition --to in_progress` | the caller's `--review-ref <ref>`; blank or missing is refused |
+| `spec-kitty agent tasks move-task --to in_progress` | `force-override` — the command's own sentinel for an operator rewind, set for both the explicit `--force` form and the auto-promoted backward move |
+| `spec-kitty agent action implement` (implementer of record or `--force --note` withdrawal) | `force-override`, the same sentinel |
+
+A refused command exits non-zero, names `review_ref` and `--review-ref`, and writes nothing:
+`status.events.jsonl` and `status.json` are byte-identical afterwards, and
+`status validate` still passes. The rule is evaluated during validation, before the
+lock-protected append, the snapshot materialization and the frontmatter mirror.
+
+**Rows written before this refusal.** An event already in the log is untouched: the tool
+never rewrites historical event bytes, because event-sourced consumers replay them.
+`spec-kitty agent status validate --mission <slug> --json` names each offending
+`event_id`, and that finding stays until the row is corrected. There is no automatic
+repair, and this release ships none. The only supported correction is append-only: a
+maintainer authors a migration that appends a correction preserving the original record
+(never an in-place rewrite) and records why, so the correction is auditable alongside the
+row it corrects. Do not hand-edit `status.events.jsonl`; the materialized `status.json` is
+derived and would diverge.
 
 ## Migration Phases
 
