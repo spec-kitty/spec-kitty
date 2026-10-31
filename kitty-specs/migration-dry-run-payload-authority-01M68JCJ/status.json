@@ -52,6 +52,7 @@
     },
     "WP02": {
       "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
@@ -61,7 +62,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-31T10:04:17Z – unknown – Call site routed through the facade builder; the payload literal and canonical-producer-exempt marker are gone; a model rejection is reported as PAYLOAD_INVALID (mapped violations) instead of raising. 5 red-first parity/authority tests in tests/migration/test_mission_state_teamspace_payload_authority.py pass; tests/migration 204 passed / 4 pre-existing birth-cutover reds (#6801); doctor CLI 48 passed; integration/migration 40 passed / 1 pre-existing red (#6787); ruff+mypy clean; canonical-producer lint identical to pristine main; docs freshness errors=0.",
-        "Implementation and tests are committed (38d646301c, 85a2a7cdeb); the in_progress claim was recorded after the commits, so the claim-base window is empty"
+        "Implementation and tests are committed (38d646301c, 85a2a7cdeb); the in_progress claim was recorded after the commits, so the claim-base window is empty",
+        "Review round 2 (reviewer-renata): 1 finding raised and fixed in 46e4a0f — envelope_count incremented before payload construction, so a rejected row inflated the count and broke its 1:1 relation with row_mappings; the increment now happens only for rows that produced an envelope, pinned by an assertion in the rejection test. Anti-pattern checklist: dead code PASS (migration call site is the production caller), synthetic-fixture PASS (tests drive teamspace_dry_run and compare against the durable row), silent-return PASS, FR-002/004/005/006 all asserted, frozen surface none, C-004 PASS (evidence normalization documented in contracts/), shared-file PASS (single lane), fragility PASS (documented non-raising report). tests/migration 204 passed with only the 4 pre-existing #6801 birth-cutover reds; ruff/mypy clean; canonical-producer lint identical to pristine main."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "reviewer",
