@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#2171": {
+      "evidence_ref": "Context citation only (prior design decision / prior exemption / historical incident); no work owed to this issue.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6367": {
+      "evidence_ref": "Context citation only (prior design decision / prior exemption / historical incident); no work owed to this issue.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6516": {
+      "evidence_ref": "442d451599 (fix) + 8585b377b2 (red): the runtime-state directory name is owned once by specify_cli.paths.RUNTIME_STATE_DIR_NAME; status/locking.py and review/lock.py no longer hand-roll it, and both leave the audit gate's allowlist.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6582": {
+      "evidence_ref": "Context citation only (prior design decision / prior exemption / historical incident); no work owed to this issue.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
