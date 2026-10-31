@@ -117,7 +117,7 @@ Reuse the fixture shape of `tests/specify_cli/lanes/test_worktree_allocator_coor
 Add the #6753 step: advance `main` past the coordination branch with a real commit
 (the issue's "reviewed prerequisite merge"), then call
 `allocate_lane_worktree(repo_root=..., mission_slug=..., wp_id="WP01", lanes_manifest=...)`
-with no `base` and capture stdout with `capsys`.
+with no `base` and capture stderr with `capsys` (the report goes to stderr — C-004 as amended — so assert `captured.out == ""` too).
 
 Assert the warning is present and carries the four NFR-003 elements. **This test
 must fail against the current tree** — run it and record the failure before writing
