@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-dry-run-sequenced-verdict-01M68J9V",
+  "mission_id": "01M68J9V2MJ319PKD4QAGN2GCT",
+  "mission_branch": "issue-6552-upgrade-dry-run-sequenced-verdict",
+  "target_branch": "issue-6552-upgrade-dry-run-sequenced-verdict",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/upgrade/migrations/README.md",
+        "src/specify_cli/upgrade/migrations/base.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_6_issue_matrix_driver_repoint.py",
+        "src/specify_cli/upgrade/runner.py",
+        "tests/upgrade/test_dry_run_sequenced_verdict.py",
+        "tests/upgrade/test_dry_run_sequenced_verdict_cli.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:51:26.647730+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ba9ade2149ce95b3bd8f85dc9d4104659ff40f68"
+}
