@@ -668,7 +668,7 @@ def test_the_stop_proof_window_covers_a_service_started_with_a_longer_budget(mon
 )
 def test_a_jar_launch_drops_the_ambient_jvm_option_variables(monkeypatch: pytest.MonkeyPatch, argv: list[str], jvm_vars_kept: bool) -> None:
     for name in launcher_module.JVM_OPTION_ENV_VARS:
-        monkeypatch.setenv(name, "-javaagent:/tmp/evil.jar")
+        monkeypatch.setenv(name, "-javaagent:/srv/evil/evil.jar")
     monkeypatch.setenv("PATH", "/usr/bin")
     popen = mock.Mock()
     monkeypatch.setattr(launcher_module.subprocess, "Popen", popen)
