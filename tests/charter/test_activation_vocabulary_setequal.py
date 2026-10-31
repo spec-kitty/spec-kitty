@@ -30,6 +30,8 @@ relocation loops still hand-drift independently).
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -302,3 +304,85 @@ def test_finalize_migration_relocates_glossary_pack_onto_existing_charter_yaml(
 
     composed = _load_yaml(charter_dir / "charter.yaml")
     assert composed["activated_glossary_packs"] == ["spec-kitty-core"]
+
+
+# ---------------------------------------------------------------------------
+# #6556 -- the CharterYaml model's activation fields are the fourth copy
+# ---------------------------------------------------------------------------
+
+#: The one authority-owned shape rule for the model's activation fields: a
+#: declared field is an activation field iff its name is ``mission_type_activations``
+#: or starts with ``activated_`` (mirrors ``pack_manager._yaml_key_for_token``'s
+#: ``activated_<plural>`` + mission-type outlier naming). This is a naming
+#: predicate, not a vocabulary: it names no kind.
+_MISSION_TYPE_KEY = "mission_type_activations"
+
+
+def _model_activation_fields() -> frozenset[str]:
+    """The activation-shaped field names declared on ``CharterYaml``."""
+    from charter.activation.schemas import CharterYaml
+
+    return frozenset(
+        name
+        for name in CharterYaml.model_fields
+        if name == _MISSION_TYPE_KEY or name.startswith("activated_")
+    )
+
+
+def test_charter_yaml_activation_fields_set_equal_to_authority() -> None:
+    """``CharterYaml``'s activation fields must be set-equal to the authority.
+
+    #6556: the model is documented as the shape of ``charter.yaml`` and its
+    activation fields are a static list (pydantic needs them at class-definition
+    time), while the writer's vocabulary is derived from ``ArtifactKind``. The
+    list had fallen three keys behind -- ``activated_glossary_packs``,
+    ``activated_skills`` and ``activated_anti_patterns`` -- so a charter the
+    activation writer produced failed ``model_validate`` with
+    ``extra_forbidden``. The expectation is read from the authority, so a new
+    activatable kind fails here until the model declares its field.
+    """
+    authority = _authority()
+    declared = _model_activation_fields()
+
+    missing = sorted(authority - declared)
+    stray = sorted(declared - authority)
+    assert declared == authority, (
+        "CharterYaml's activation fields drifted from "
+        "pack_manager.ACTIVATION_YAML_KEYS. Hidden by the model: "
+        f"{missing or 'none'} -- declare them on CharterYaml. Declared but not "
+        f"a legal activation key: {stray or 'none'} -- drop them, the activation "
+        "writer refuses those keys."
+    )
+
+
+def test_charter_yaml_has_no_activated_assets_field() -> None:
+    """Regression for the stale half of #6556: no ``activated_assets`` field.
+
+    ``ArtifactKind.ASSET.activatable`` is ``False`` -- an asset is a
+    loose-contract blob, never a live governance rule -- and
+    ``prepare_activation_write`` refuses ``activated_assets`` with "Unknown
+    activation ledger key(s)". The issue listed it because it had drifted in the
+    opposite direction earlier; pinning the absence keeps a future reader from
+    "completing" the four-key list.
+    """
+    from charter.activation.schemas import CharterYaml
+
+    assert "activated_assets" not in CharterYaml.model_fields
+
+
+def test_schemas_import_does_not_pull_in_pack_manager() -> None:
+    """NFR-001: ``schemas`` must not import the authority at module scope.
+
+    ``charter.activation.pack_manager`` already imports this module's package,
+    so a module-level back-import would be a circular import. The parity guard
+    above is a test-time dependency; the library import graph is unchanged.
+    """
+    code = (
+        "import sys; import charter.activation.schemas; "
+        "assert 'charter.activation.pack_manager' not in sys.modules, "
+        "'schemas imported pack_manager at module scope'"
+    )
+    completed = subprocess.run(  # noqa: S603 -- fixed argv, this interpreter
+        [sys.executable, "-c", code], capture_output=True, text=True, check=False
+    )
+    assert completed.returncode == 0, completed.stderr
