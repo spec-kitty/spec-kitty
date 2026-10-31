@@ -540,21 +540,23 @@ class TestCachePath:
     @pytest.mark.parametrize(
         ("platform", "env", "expected"),
         [
-            ("linux", {"XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, "xdg"),
-            ("linux", {"XDG_STATE_HOME": "state"}, "home/.cache"),
-            ("darwin", {"XDG_CACHE_HOME": "xdg"}, "xdg"),
-            ("darwin", {}, "home/.cache"),
-            ("windows", {"LOCALAPPDATA": "lad", "XDG_CACHE_HOME": "xdg"}, "lad"),
-            ("windows", {"XDG_CACHE_HOME": "xdg"}, "home/AppData/Local"),
+            ("linux", {"XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, ("xdg", "spec-kitty")),
+            ("linux", {"XDG_STATE_HOME": "state"}, ("home", ".cache", "spec-kitty")),
+            ("darwin", {"XDG_CACHE_HOME": "xdg"}, ("xdg", "spec-kitty")),
+            ("darwin", {}, ("home", "Library", "Caches", "spec-kitty")),
+            ("windows", {"LOCALAPPDATA": "lad", "XDG_CACHE_HOME": "ignored"}, ("lad", "spec-kitty", "Cache")),
+            ("windows", {"LOCALAPPDATA": "lad"}, ("lad", "spec-kitty", "Cache")),
         ],
     )
-    def test_location_pinned_per_platform(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: str) -> None:
-        """#6481: moving onto ``kernel.user_dirs.user_cache_dir`` changed no location."""
+    def test_location_pinned_per_platform(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: tuple[str, ...]
+    ) -> None:
+        """#6488: the cache path follows the one authority, ``platformdirs`` semantics."""
         from specify_cli.core.upgrade_notifier import _default_cache_path
         from tests.kernel._user_dirs_pins import fake_platform
 
         fake_platform(monkeypatch, tmp_path, platform, env)
-        assert _default_cache_path() == tmp_path / expected / "spec-kitty" / "upgrade-check.json"
+        assert _default_cache_path() == tmp_path.joinpath(*expected, "upgrade-check.json")
 
 
 # ---------------------------------------------------------------------------

@@ -76,8 +76,8 @@ class ServiceArtifactError(RuntimeError):
 
 
 def default_cache_root() -> Path:
-    """``${XDG_CACHE_HOME:-~/.cache}/spec-kitty/services``, on Windows too (no ``LOCALAPPDATA`` branch)."""
-    return user_cache_dir(windows_local_appdata=False) / "spec-kitty" / "services"
+    """``<user_cache_dir>/services`` -- the one per-user cache authority (#6488)."""
+    return user_cache_dir() / "services"
 
 
 def _hash_stream(fd: int) -> str:
