@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "pi",
-      "agent": "claude",
+      "agent": "pi:tokenfactory/kimi-k3:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -29,7 +29,8 @@
       "last_transition_at": "2026-10-31T09:12:07.737216+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-10-31T08:58:13Z – claude – T005 written first (collection error: no step_contract_urn). Implemented step_contract_urn + facade re-export + extractor minting through it (minted URN set == shipped fragment, 21/21) + IdentityIndex.urn with cached mission/action pair read. 7 new tests green; extractor projection suite green; ruff clean; mypy errors in identity_index.py are pre-existing (present on origin/main)."
+        "- 2026-10-31T08:58:13Z – claude – T005 written first (collection error: no step_contract_urn). Implemented step_contract_urn + facade re-export + extractor minting through it (minted URN set == shipped fragment, 21/21) + IdentityIndex.urn with cached mission/action pair read. 7 new tests green; extractor projection suite green; ruff clean; mypy errors in identity_index.py are pre-existing (present on origin/main).",
+        "PASS. Reviewer-renata verdict on WP01 (issue #6741): the single URN authority is correctly established — step_contract_urn(mission, action) (src/charter/offering/missions/step_contracts.py:287) is minted from one implementation by both the DRG extractor (extractor.py:1536) and IdentityIndex.urn (identity_index.py:297-319), with the mission_steps facade as a documented forward surface wired by WP02 of this same mission. Shipped graph URN set is byte-verified unchanged (extractor vs packs/built-in/mission_step_contract.graph.yaml: True, 21 nodes), no file under packs/ is touched, the pair read is cached per path per index instance (NFR-001/NFR-003 hold, no per-node I/O in the hot path), the duplicate-id/duplicate-(mission,action) guard fails loud with a documented rationale (extractor.py:1524-1533), and the new tests pin behavior against the real shipped corpus across stem/declared-id/kind-prefixed tokens, unknown-token None semantics, and project-overlay layer precedence — they are RED on origin/main (ImportError) without the implementation. Both target pytest runs green: 7 passed, 10 passed."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
