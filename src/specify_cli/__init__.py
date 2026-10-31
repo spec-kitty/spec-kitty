@@ -161,7 +161,6 @@ def main_callback(
 
 def _run_startup_project_gates(ctx: typer.Context) -> None:
     """Run project-local safety gates shared by normal and startup-fast paths."""
-    from specify_cli.cli.helpers import ROOT_COMMAND_ARGS_META_KEY
     from specify_cli.core._ownership_claim_scope import owned_claim_scope
     from specify_cli.runtime.bootstrap import check_version_pin
 
@@ -169,10 +168,11 @@ def _run_startup_project_gates(ctx: typer.Context) -> None:
     # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
     project_root = locate_project_root()
     repository_root = project_root
-    args = ctx.meta.get(ROOT_COMMAND_ARGS_META_KEY, ())
-    if project_root is not None and any(arg == "--owned-checkout" or arg.startswith("--owned-checkout=") for arg in args):
+    if project_root is not None:
         from specify_cli.cli.commands._owned_checkout import startup_project_checkout
 
+        # One owner for the claim scan: the helper decides whether the command
+        # names a checkout, so the two call sites cannot drift.
         project_root = startup_project_checkout(ctx, project_root)
     if project_root is not None:
         check_version_pin(project_root)

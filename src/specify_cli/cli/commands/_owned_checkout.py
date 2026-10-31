@@ -98,11 +98,18 @@ def startup_project_checkout(ctx: typer.Context, repository_root: Path) -> Path:
     a positional argument or on a command without the owned option grants no
     authority. Full mission/topology/write validation remains the leaf's job;
     invalid claims keep normal startup and leaf refusal behavior.
+
+    This is the single owner of the claim scan: callers pass the repository
+    root and get it back unchanged when the command names no checkout.
     """
     from specify_cli.cli.helpers import ROOT_COMMAND_ARGS_META_KEY
 
     args = list(ctx.meta.get(ROOT_COMMAND_ARGS_META_KEY, ()))
-    if not any(arg == "--owned-checkout" or arg.startswith("--owned-checkout=") for arg in args):
+    # Cheap prefix scan only: an unambiguous click abbreviation (`--owned <P>`)
+    # is a claim the leaf honors, so the parse walk below must see it too. A
+    # positional that merely looks like the flag costs one failed parse and
+    # grants nothing.
+    if not any(arg.startswith("--owned") for arg in args):
         return repository_root
     from specify_cli.core.owned_mission import resolve_owned_create_root
 
