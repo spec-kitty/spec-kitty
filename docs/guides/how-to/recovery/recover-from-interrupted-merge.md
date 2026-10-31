@@ -96,8 +96,9 @@ The resume proves that before it deletes anything, and refuses when it cannot:
   already holds, or turn an established judgment (a terminal issue-matrix
   verdict, a `pass` acceptance criterion, a terminal negative-invariant result)
   into a non-established one.
-- It will not express a deletion: a coordination record removed on the
-  coordination branch stays on the target.
+- It will not express a deletion. A coordination record the window deletes does
+  stay on the target — a projection can only bring content forward — so the
+  resume REFUSES the window instead of treating the deletion as landed.
 - It refuses if any coordination record changed in that window is not on the
   target.
 
