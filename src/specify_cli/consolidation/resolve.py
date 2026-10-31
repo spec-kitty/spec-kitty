@@ -223,20 +223,23 @@ def _load_merge_state_entry_for_mission(
     return None
 
 
+def set_changed_message(recorded: Sequence[str], declared: Sequence[str]) -> str:
+    """The ``DEPENDENCY_REF_SET_CHANGED`` refusal text, shared by the real run and ``--dry-run``."""
+    return (
+        f"This consolidation already recorded dependency ref(s) {', '.join(recorded)}; "
+        f"--dependency-ref {', '.join(declared)} is a different set, and the record is the audit trail of what the "
+        "interrupted run exempted. Re-run with the recorded set (or none), or run `spec-kitty consolidate --abort` "
+        f"and start again.{error_code_suffix(DEPENDENCY_REF_SET_CHANGED)}"
+    )
+
+
 def _check_declared_set(state: ConsolidationState, declared: tuple[str, ...]) -> None:
     """Refuse (exit 1) a ``--dependency-ref`` set that differs from the one the loaded record holds (#6771)."""
     if not declared or not state.dependency_refs or set(state.dependency_refs) == set(declared):
         return
     from specify_cli.cli.console import console
 
-    console.print(
-        f"This consolidation already recorded dependency ref(s) {', '.join(state.dependency_refs)}; "
-        f"--dependency-ref {', '.join(declared)} is a different set, and the record is the audit trail of what the "
-        "interrupted run exempted. Re-run with the recorded set (or none), or run `spec-kitty consolidate --abort` "
-        f"and start again.{error_code_suffix(DEPENDENCY_REF_SET_CHANGED)}",
-        markup=False,
-        soft_wrap=True,
-    )
+    console.print(set_changed_message(state.dependency_refs, declared), markup=False, soft_wrap=True)
     raise typer.Exit(1)
 
 

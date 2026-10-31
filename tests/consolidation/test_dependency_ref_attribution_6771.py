@@ -135,3 +135,16 @@ def test_declared_dependency_merge_after_approval_is_still_refused_by_the_approv
     assert real.returncode != 0, real.stdout[-2000:]
     assert "LANE_MOVED_AFTER_APPROVAL" in real.stdout
     assert mission.rev(mission.target_branch) == pre_target
+
+
+def test_a_declaration_naming_mission_work_is_refused_end_to_end(tmp_path: Path) -> None:
+    """No bypass: declaring a lane branch (mission-authored work) refuses with its stable code before any ref moves."""
+    mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M6771P")
+    _restack_lane_b_onto_a_dependency(mission, tmp_path)
+    pre_target = mission.rev(mission.target_branch)
+
+    real = _consolidate(mission, "--strategy", "merge", "--dependency-ref", mission.lane_branch("WP02"))
+
+    assert real.returncode != 0
+    assert "Error code: DEPENDENCY_REF_COVERS_MISSION_WORK." in real.stdout
+    assert mission.rev(mission.target_branch) == pre_target

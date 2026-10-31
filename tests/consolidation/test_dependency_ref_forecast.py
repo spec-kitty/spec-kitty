@@ -139,6 +139,10 @@ def test_forecast_unions_the_recorded_declaration_with_the_command_line(tmp_path
     result = _dry_run(mission)
 
     assert result.returncode == 0, result.stdout[-2000:]
+    # A command-line set that differs from the recorded one is the refusal the real run gives, not a green preview.
+    differing = _dry_run(mission, "--dependency-ref", "other-ref")
+    assert differing.returncode != 0
+    assert "Error code: DEPENDENCY_REF_SET_CHANGED." in " ".join(differing.stdout.split())
 
 
 def test_forecast_refuses_a_recorded_ref_that_moved_since_it_was_pinned(tmp_path: Path) -> None:
