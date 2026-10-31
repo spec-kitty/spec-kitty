@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "late-teardown-verdict-projection-01M67J85",
+  "mission_id": "01M67J85893JJWVPCF48SVWBW8",
+  "mission_branch": "kitty/mission-late-teardown-verdict-projection-01M67J85",
+  "target_branch": "issue-6791-late-teardown-verdict-projection",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/bookkeeping_projection.py",
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "tests/consolidation/test_issue_6791_late_verdict_projection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/recovery/recover-from-interrupted-merge.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T23:31:21.806897+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "bff6c43aff93009f9806a5e64aef1f456363af05"
+}
