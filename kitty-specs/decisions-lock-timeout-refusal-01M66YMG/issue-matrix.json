@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#4848": {
+      "evidence_ref": "context only: PR #6762 introduced the _decisions_lock seam this mission reuses",
+      "fr": null,
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "research.md",
+      "title": "Active decision runtime lock work (PR #6762) \u2014 source of the _decisions_lock seam",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6763": {
+      "evidence_ref": "branch issue-6763-decisions-lock-timeout-refusal: four decisions-lock acquisitions through _decisions_lock, DECISION_LOCK_TIMEOUT in all three commands (commits e0fbe49cc6, 1cc2e111ba, 817e61862d, 22ff215e11); tests/decisions 94 passed, owned-next suite 35 passed, repair integration 36 passed",
+      "fr": "FR-001, FR-002, FR-003, FR-004, FR-005",
+      "nfr": "NFR-001, NFR-002, NFR-003",
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-001, SC-002, SC-003",
+      "scope": "full",
+      "source_file": "spec.md",
+      "title": "Decisions lock timeouts in doctor --repair, next and decision repair-runtime-lock escape as a raw LockAcquireTimeout traceback",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6764": {
+      "evidence_ref": "out of scope per spec.md C-003; sibling mission owns doctor findings semantics",
+      "fr": null,
+      "nfr": null,
+      "repo": "spec-kitty/spec-kitty",
+      "sc": null,
+      "scope": "out-of-scope",
+      "source_file": "spec.md",
+      "title": "doctor decisions finding semantics (C-003 exclusion)",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

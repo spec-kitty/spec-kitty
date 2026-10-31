@@ -1,0 +1,20 @@
+{
+  "wp_id": "WP01",
+  "captured_at": "2026-10-30T18:58:42Z",
+  "base_branch": "f7407d91cc4c20c83a80b5631214f3c23aa92ced",
+  "base_commit": "f7407d91cc4c20c83a80b5631214f3c23aa92ced",
+  "test_runner": "custom",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<declared-command>",
+      "error": "make: *** [Makefile:92: test-fast] Terminated",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/text",
+  "test_timeout_seconds": 300
+}

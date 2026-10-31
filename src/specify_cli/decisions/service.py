@@ -146,13 +146,17 @@ def _decisions_lock_path(ledger_dir: Path) -> Path:
 
 
 @contextmanager
-def _decisions_lock(lock_path: Path, *, timeout_s: float | None, mission_slug: str, decision_id: str | None) -> Iterator[None]:
+def _decisions_lock(lock_path: Path, *, timeout_s: float | None, mission_slug: str | None, decision_id: str | None) -> Iterator[None]:
     """Hold the decisions lock; a timed-out wait becomes ``DecisionError(LOCK_TIMEOUT)``.
 
     Only the ACQUIRE is translated: an exception raised inside the held
     section propagates unchanged. ``timeout_s=None`` waits without a bound.
     A timeout leaves nothing written, since the caller's critical section
     never ran.
+
+    ``mission_slug`` is optional only because ``doctor decisions --repair``
+    can run without one; it is carried into the error ``details`` verbatim
+    (never invented) and does not affect the acquire.
     """
     with ExitStack() as stack:
         try:
