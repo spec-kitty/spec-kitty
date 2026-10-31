@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "pack-skill-body-path-containment-01M66FEC",
+  "mission_id": "01M66FECNVSH097T6M06F5DRAB",
+  "mission_branch": "kitty/mission-pack-skill-body-path-containment-01M66FEC",
+  "target_branch": "issue-6734-pack-skill-body-path-containment",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/offering/pack_skills/repository.py",
+        "src/charter/offering/pack_skills/validation.py",
+        "tests/charter_offering/pack_skills/test_repository.py",
+        "tests/charter_offering/pack_skills/test_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/create-a-pack-skill.md",
+        "src/charter/offering/drg/org_pack_config.py",
+        "src/charter/offering/packs/pack_validator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T13:25:09.912175+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "71d001f8cc6ca18cfab8182d09ed0be366752c7d"
+}
