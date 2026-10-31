@@ -47,8 +47,9 @@ class ActorRole(StrEnum):
 
     ``implementer`` and ``reviewer`` are set by the action (:func:`role_for_hop`),
     never by the profile. ``system`` is set only by :func:`build_system_actor`: the
-    program wrote the event itself (a seed, a recovery catch-up, consolidation
-    bookkeeping, an attestation), with no agent dispatch behind it (#6722).
+    program wrote the event, with no agent dispatch behind it, either on its own (a
+    seed, a recovery catch-up, consolidation bookkeeping) or on the operator's behalf
+    (an attestation, whose ``tool`` is the operator identity it records) (#6722).
     """
 
     IMPLEMENTER = "implementer"
