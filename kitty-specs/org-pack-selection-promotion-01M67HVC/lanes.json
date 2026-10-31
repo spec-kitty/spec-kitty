@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "org-pack-selection-promotion-01M67HVC",
+  "mission_id": "01M67HVCEB3342MZJ3GRPD49GJ",
+  "mission_branch": "issue-6686-org-pack-selection-promotion",
+  "target_branch": "issue-6686-org-pack-selection-promotion",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/activation-ledger-and-charter-contract.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/api.py",
+        "src/charter/activation/selection.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc8_promote_interview_selections.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/charter_activation_boundary_baseline.yaml",
+        "tests/architectural/test_charter_activation_api_reexport.py",
+        "tests/charter/activation/test_selection_resolver.py",
+        "tests/specify_cli/cli/commands/test_charter_interview_promotion.py",
+        "tests/upgrade/migrations/test_m_4_0_0rc8_promote_interview_selections.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T23:23:58.695913+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1111f13909e6cf6d3874f1c976dbf4ccb67f5f0a"
+}
