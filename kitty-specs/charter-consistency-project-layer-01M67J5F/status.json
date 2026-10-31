@@ -1,0 +1,62 @@
+{
+  "event_count": 15,
+  "last_event_id": "01M67TZQ9KZSBG0GQ1AEWZAX3Y",
+  "materialized_at": "2026-10-31T02:00:29.747269+00:00",
+  "mission_number": "244",
+  "mission_slug": "charter-consistency-project-layer-01M67J5F",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "reviewer-renata",
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01M67TZQ9KZSBG0GQ1AEWZAX3Y",
+      "last_transition_at": "2026-10-31T02:00:29.747269+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Fix + red-first acceptance + changelog committed; suites green (tests/charter 4829p, tests/charter_offering 4330p, CLI charter 504p, arch subset 251p); half-by-half revert proof in the fix commit.",
+        "Review started; single harness switches personas (python-pedro implemented, reviewer-renata reviews), so the reviewer identity is recorded explicitly and differs from the implementer.",
+        "Review passed; evidence in WP01 notes and issue-matrix rows.",
+        "Implementer identity repair: the original planned->in_progress claim was recorded without --agent, so the single_branch independence check saw no implementer of record (SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT). Re-claiming under the implementer identity so the implementer of record and the approving reviewer are both recorded and provably distinct. No code changed in this transition.",
+        "Implementation complete (commits a1ac02bd4e, 65cfb4654d, 83e19c3d2f); re-recording the review hand-off with the implementer identity.",
+        "Independent review by reviewer-renata (distinct identity from implementer python-pedro); single harness persona switch.",
+        "Review passed (round 2, after implementer-identity repair). Correctness: one membership authority per kind; fail-closed roster arm; _find_owning_kind guard. Boundaries: no re-derived scan, no pack_manager/layer_roots/identity_index edits, charter.missions facade only. Tests: red-first proven, half-by-half revert proof in 65cfb4654d; suites tests/charter 4829p/20s, tests/charter_offering 4330p/11s, CLI charter 504p/2s, arch subset 251p; changelog 0 errors; docs freshness errors=0.",
+        "FR-007 follow-up: the project-layer directive/styleguide CLI ratchet (3fa2d55278) landed after the first approval; reopening for a fresh independent review of the added test.",
+        "FR-007 ratchet test committed (3fa2d55278); full CLI charter consistency suite green (8 passed).",
+        "Review round 3: FR-007 CLI ratchet test.",
+        "Review passed (round 3). Added test guards the #6433 project-layer directive/styleguide path at the CLI with a same-fixture identity-index positive control; the project registration overlay fixture mirrors production shape (generated_at/generated_by present, as production writes). No source change in this round, so prior correctness review stands. Suites: CLI charter consistency 8 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    }
+  }
+}

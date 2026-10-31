@@ -1,0 +1,33 @@
+{
+  "accept_commit": "9487c29f829d9bcfedf4e32ccb701d1896962973",
+  "acceptance_history": [
+    {
+      "accept_commit": "9487c29f829d9bcfedf4e32ccb701d1896962973",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T02:00:01.061934+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "6ba5017a9a57d452c720b51b39ae798f07e05f57"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T02:00:01.061934+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "6ba5017a9a57d452c720b51b39ae798f07e05f57",
+  "baseline_merge_commit": "fc548f55d0b7f29812322868cbaf9b33cba65bfd",
+  "created_at": "2026-10-30T23:26:20.890300+00:00",
+  "flattened": false,
+  "friendly_name": "charter consistency project layer",
+  "merged_at": "2026-10-31T02:00:29.678176+00:00",
+  "merged_commit": "fc548f55d0b7f29812322868cbaf9b33cba65bfd",
+  "mid8": "01M67J5F",
+  "mission_id": "01M67J5F2HE3ZH8XN0K39EDEWH",
+  "mission_number": 244,
+  "mission_slug": "charter-consistency-project-layer-01M67J5F",
+  "mission_type": "software-dev",
+  "purpose_context": "The charter consistency check resolves activated tokens through a known-id catalog that never scans the project layer; a project-layer activated artifact that every other reader resolves is reported as unknown. Include the project layer through the same activation authority the readers use.",
+  "purpose_tldr": "charter consistency-check honours project-layer activated artifacts (#6749)",
+  "slug": "charter-consistency-project-layer-01M67J5F",
+  "status_phase": "1",
+  "target_branch": "issue-6749-charter-consistency-project-layer",
+  "topology": "single_branch"
+}
