@@ -226,4 +226,23 @@ This follow-up supersedes, for forced moves into `approved`, the residual above 
 - **Attestations are not atomic.** If writing several attestations fails partway, the earlier ones stay recorded. An attestation recorded before a claim that then refuses for another reason also stays.
 - **Owned files carry the check.** On every topology the verdict is only as accurate as each work package's `owned_files`.
 - **Same-tool review needs full identities.** Under ruling 7 an implementer recorded as bare `claude` can only be independently reviewed by another tool; a same-tool review needs a model or profile recorded on both sides (`--agent <tool>:<model>:<profile>` on implement and review).
-- **PR-mode accept on pruned lane branches.** `accept` of a Mission whose lane branches were already deleted after a pull-request merge refuses with `IMPLEMENTATION_UNREADABLE`. Follow-up: #6780.
+- **PR-mode accept on pruned lane branches.** Settled by the 2026-10-31 amendment below (#6780).
+
+### Amendment 2026-10-31 — a pruned lane is judged on the pull request's own side of the landing merge (#6780)
+
+**Reader:** a maintainer who needs to know why `accept --mode pr --merge-commit <sha>` accepts, or refuses, a Mission whose lane branches were deleted after the pull request merged.
+
+**Problem.** `accept --mode pr` never runs `consolidate`, and the lane branches are normally pruned once the landing is on the target, so the window `planning_commit..<lane branch>` could not be read and every approved work package refused with `IMPLEMENTATION_UNREADABLE`, which no attestation lifts.
+
+**Decision.**
+
+- **A stand-in, narrowly.** Only `accept --mode pr` passes a landing commit, and only after it verified it as the Mission's PR landing commit. It stands in only for a lane whose branch ref is truly absent (`git show-ref --verify` exits 1). A ref that exists but cannot be read (a missing object, a corrupt ref, a git error) refuses `IMPLEMENTATION_UNREADABLE`; it never falls back.
+- **The PR's own side.** The window is `landing^1..landing`, the net change the merge brought onto the target, so unrelated work that reached the target before the merge is never evidence. Every other rule (owned-files matcher, bookkeeping exclusion, independence) is unchanged, and a work package with no owned change there still refuses `IMPLEMENTATION_MISSING`.
+- **Ancestry precondition.** The planning commit must be an ancestor of the landing and sit on a non-first-parent side of it, and the landing must be a merge commit. A squash or fast-forward landing, or a merge that did not carry the planning commit, refuses `IMPLEMENTATION_UNREADABLE` with that reason.
+- **Overlap refusal.** The window holds every work package of the PR, so a work package whose `owned_files` overlap another approved work package's (glob-aware, conservative) is refused `IMPLEMENTATION_UNREADABLE`: the merge alone cannot say which of them made a change there. The remedy is to restore the lane branch from `refs/spec-kitty/lane-tip/<branch>` or the PR's head and re-run.
+
+**Residuals.** Each stays open.
+
+- **Rebased stacks.** A Mission whose corpus was rebased first sees only changes up to the corpus commit on the PR side, so its work packages refuse `IMPLEMENTATION_MISSING` (fail closed).
+- **Squash landings** cannot use the stand-in; the lane branch must be restored.
+- **Overlap is approximate.** The glob comparison errs toward refusing, so disjoint-in-practice globs that look nested also refuse.

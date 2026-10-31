@@ -763,18 +763,22 @@ been fixed, the end-state is stated instead of the trap.
   `spec-kitty consolidate`, so nothing records how each lane landed, and the
   implementation-evidence gate windows each work package on
   `planning_commit..<lane branch>`. Prune the lane branches after the acceptance, not
-  between the PR merge and it — or simply keep `--merge-commit` on every re-run: with
-  the verified landing commit supplied, a lane whose branch no longer resolves is
-  judged on `planning_commit..<landing commit>` instead. **That window is wider than the
-  lane's**, so it is a weaker check with the same matcher: it also contains everything
-  else that landed on the target between the planning commit and the landing, so a work
-  package whose `owned_files` unrelated target-side work touched in that interval can
-  read as evidenced. The `owned_files` match and the bookkeeping exclusion are unchanged,
-  and a work package whose owned files nothing touched there still refuses
-  `IMPLEMENTATION_MISSING` — so read this acceptance as "the mission's content landed",
-  not as a substitute for reviewing the PR's own file list. A refusal reading
-  `IMPLEMENTATION_UNREADABLE` beside a pruned branch is the signal to re-run with the
-  landing commit, not to restore a branch whose work has already landed.
+  between the PR merge and it — or, **for a Mission that landed through a pull request
+  merge commit (not a squash)**, keep `--merge-commit` on every re-run: with the verified
+  landing commit supplied, a lane whose branch ref is truly absent is judged on
+  `landing^1..landing` — the PR's merge commit on the target, not a lane consolidation —
+  that is, the PR's own side of the merge, so unrelated work that reached the target first
+  never counts. The planning commit must sit on the merged-in side of that merge. A work
+  package whose `owned_files` overlap another approved work package's is refused
+  `IMPLEMENTATION_UNREADABLE` (the merge alone cannot attribute the change): restore the
+  lane branch from `refs/spec-kitty/lane-tip/<branch>` or the PR's head and re-run. A
+  squash landing cannot use this path, and a branch ref that exists but cannot be read
+  refuses rather than falling back. **Residual:** a Mission whose corpus was rebased first
+  (a rebased stack) shows only changes up to the corpus commit on the PR side, so its work
+  packages refuse `IMPLEMENTATION_MISSING`, fail closed. A work package whose owned files
+  nothing touched on the PR side still refuses `IMPLEMENTATION_MISSING`; read this
+  acceptance as "the mission's content landed", not as a substitute for reviewing the PR's
+  own file list.
 
 ## PR-body contract
 
