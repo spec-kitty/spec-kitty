@@ -12,8 +12,9 @@ related:
 # How to fetch, verify and bump the pinned service binaries
 
 Core runs services it does not build: the write service, the Mission Status read service and the
-charter service. Their source and their releases live in `spec-kitty-events`, which publishes each
-build as a `service-vX.Y.Z` GitHub release: per-OS native binaries, a portable jar, the contract
+charter service. The events services (write and read) have their source and releases in
+`spec-kitty-events`, which publishes each build as a `service-vX.Y.Z` GitHub release; the charter
+service's releases live in `spec-kitty-charter`. Each release carries per-OS native binaries, a portable jar, the contract
 bundles and the conformance fixtures, each with a SHA-256 digest
 ([ADR 2026-10-29-1](../../adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md)).
 

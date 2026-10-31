@@ -67,7 +67,7 @@ DEFAULT_ASSET_PREFIXES: Mapping[str, str] = types.MappingProxyType(
         "read-service": "mission-status-api",
         # Agreed with spec-kitty-events (its ADR 0003): command-cli's binary is the write service.
         "write-service": "command-cli",
-        # Provisional: until spec-kitty-events names the charter service's release asset.
+        # Provisional: until spec-kitty-charter (where the charter service's releases live) names its release asset.
         "charter-service": "spec-kitty-charter-service",
     }
 )

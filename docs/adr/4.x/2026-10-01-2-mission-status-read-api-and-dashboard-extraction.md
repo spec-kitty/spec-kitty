@@ -6,7 +6,7 @@ date: '2026-10-01'
 updated: '2026-10-29'
 ---
 
-**Status:** Accepted (2026-10-12). D-1 and D-2 recorded a direction the operator stated on Amended by [ADR 2026-10-29-1](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) (the events services live in spec-kitty-events); see Amendment 2026-10-29.
+**Status:** Accepted (2026-10-12). D-1 and D-2 recorded a direction the operator stated on
 2026-10-01 and were **Accepted** then. D-8 was **amended and accepted** later on 2026-10-01:
 the operator moved deletion to the front (see D-8). D-3 to D-7 began as architect amendments
 awaiting ratification; the Amendment 2026-10-03 settled the Java-service shape of D-4/D-5/D-7,
