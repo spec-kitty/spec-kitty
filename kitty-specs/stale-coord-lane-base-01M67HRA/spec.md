@@ -161,7 +161,7 @@ raises.
 | C-001 | Default parent unchanged | `_resolve_lane_parent` keeps returning the coordination branch when `base is None`; this Mission instruments the stale case and never re-parents it (#6753 "does not dispute the default"). | Technical | Open |
 | C-002 | Warn, do not refuse | A stale coordination branch is reported; it is never turned into a new `StructuredError`/refusal route. The issue permits warn or refuse; warn is chosen and pinned by tests because a refusal would block every coord Mission whose target advanced. | Technical | Open |
 | C-003 | One new option only | The only new CLI surface is `--base` on `agent action implement`, mirroring the existing top-level `spec-kitty implement --base` help text and semantics. | Technical | Open |
-| C-004 | Existing output convention | The warning uses the module's existing `WARNING: ...` stdout convention (`_merge_dependency_lane_tips`), not a new logging channel, so it lands in the same place operators already read. | Technical | Open |
+| C-004 | Existing output convention, on the diagnostic channel | The warning uses the module's existing `WARNING: ...` convention, emitted on **stderr** — not stdout and not a new logging channel. Amended during implementation after the review found that `spec-kitty implement --json` keeps stdout for its machine-readable payload and `_json_safe_output` captures only the rich console, so a stdout warning would prepend a line to the JSON on the common stale-coord cut. | Technical | Open |
 | C-005 | No automatic history changes | Neither the coordination branch nor the lane is merged, rebased or fast-forwarded by this Mission; only probing, reporting and the explicit operator-supplied base. | Technical | Open |
 
 ### Key Entities
