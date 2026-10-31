@@ -30,7 +30,12 @@ git configuration or sparse-checkout state; remediation lives in WP03.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_id_for_worktree_dir, resolve_mid8
+from specify_cli.lanes.branch_naming import (
+    code_lane_branch_name,
+    lane_id_for_worktree_dir,
+    parse_lane_worktree_dir,
+    resolve_mid8,
+)
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.mission_metadata import load_meta
 import enum
@@ -250,44 +255,95 @@ def _read_patterns(path: Path) -> frozenset[str] | None:
     return frozenset(line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#"))
 
 
+def _policy_from_meta(raw: dict[str, object] | None) -> _ManagedLanePolicy | None:
+    """Build a managed-lane policy from one Mission's ``meta.json``, or ``None``.
+
+    The single gate for "this Mission has lane policy": a non-empty
+    ``coordination_branch`` string, a non-empty ``mission_slug`` and a
+    ``mission_id`` of at least 8 characters. Both policy sources (the
+    repository-root checkout's ``kitty-specs/`` and a lane worktree's own tree)
+    route through it, so the managed pattern set has exactly one definition and
+    a Mission without coordination topology can never be classified as managed.
+    """
+    if raw is None:
+        return None
+
+    try:
+        from specify_cli.coordination.workspace import lane_sparse_checkout_patterns
+    except ImportError:
+        return None
+
+    coord_branch = raw.get("coordination_branch")
+    mission_slug = raw.get("mission_slug") or raw.get("slug")
+    mission_id = raw.get("mission_id")
+    if not (
+        isinstance(coord_branch, str) and coord_branch and isinstance(mission_slug, str) and mission_slug and isinstance(mission_id, str) and len(mission_id) >= 8
+    ):
+        return None
+    # Route through the canonical resolver (FR-001): the guard above
+    # guarantees a full str ``mission_id`` (>= 8) and a str ``mission_slug``,
+    # so this is byte-identical to the prior ``mission_id[:8]``.
+    mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
+    return _ManagedLanePolicy(
+        mission_slug=mission_slug,
+        expected_patterns=frozenset(lane_sparse_checkout_patterns(mission_slug, mid8)),
+    )
+
+
 def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ...]:
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.is_dir():
         return ()
 
-    try:
-        from specify_cli.coordination.workspace import lane_sparse_checkout_patterns
-    except ImportError:
-        return ()
-
     policies: list[_ManagedLanePolicy] = []
     for meta_path in sorted(specs_dir.glob("*/meta.json")):
-        raw = load_meta(meta_path.parent, on_malformed="none")
-        if raw is None:
-            continue
-        coord_branch = raw.get("coordination_branch")
-        mission_slug = raw.get("mission_slug") or raw.get("slug")
-        mission_id = raw.get("mission_id")
-        if not (
-            isinstance(coord_branch, str)
-            and coord_branch
-            and isinstance(mission_slug, str)
-            and mission_slug
-            and isinstance(mission_id, str)
-            and len(mission_id) >= 8
-        ):
-            continue
-        # Route through the canonical resolver (FR-001): the guard above
-        # guarantees a full str ``mission_id`` (>= 8) and a str ``mission_slug``,
-        # so this is byte-identical to the prior ``mission_id[:8]``.
-        mid8 = resolve_mid8(mission_slug, mission_id=mission_id)
-        policies.append(
-            _ManagedLanePolicy(
-                mission_slug=mission_slug,
-                expected_patterns=frozenset(lane_sparse_checkout_patterns(mission_slug, mid8)),
-            )
-        )
+        policy = _policy_from_meta(load_meta(meta_path.parent, on_malformed="none"))
+        if policy is not None:
+            policies.append(policy)
     return tuple(policies)
+
+
+def _policy_from_lane_worktree(path: Path) -> _ManagedLanePolicy | None:
+    """Resolve a lane worktree's managed policy from the lane's OWN Mission record.
+
+    ``_load_managed_lane_policies`` reads the repository-root checkout's
+    ``kitty-specs/``, i.e. whatever its *current branch* committed, so a branch
+    that does not carry a (possibly long-merged) Mission's ``kitty-specs/<slug>/``
+    hides that Mission entirely and its own lane worktrees fall back to legacy
+    state (#6844). The lane worktree carries the same ``meta.json`` in its own
+    tree, pinned to its own branch, so reading it here makes the classification
+    independent of which branch the repository-root checkout stands on.
+
+    Fail closed: an unrecognised directory name, a missing ``meta.json``, or a
+    record that fails the shared gate returns ``None``, which leaves the caller
+    with the pre-#6844 verdict. No read failure escapes either: under
+    ``on_malformed="none"`` :func:`load_meta` absorbs both a plain read failure
+    (``OSError``) and a non-UTF-8 file (``UnicodeDecodeError``) to ``None``, so
+    no ``except`` clause is needed here.
+    """
+    parsed = parse_lane_worktree_dir(path.name)
+    if parsed is None:
+        return None
+    mission_dir = parsed[0]
+    return _policy_from_meta(load_meta(path / KITTY_SPECS_DIR / mission_dir, on_malformed="none"))
+
+
+def _policies_for_worktree(path: Path, root_policies: tuple[_ManagedLanePolicy, ...], *, is_active: bool) -> tuple[_ManagedLanePolicy, ...]:
+    """Policies to classify ``path`` with: the root-derived set, plus the lane's own.
+
+    The lane-local record is consulted **only** when no root-derived policy
+    already matches the path, because :func:`_classify_worktree_state` treats
+    more than one candidate as ``UNKNOWN``: adding a second, identical policy for
+    the common case (the root branch knows the Mission too) would turn a correct
+    ``MANAGED_LANE`` verdict into ``UNKNOWN``. An inactive worktree needs no
+    policy at all (the classifier returns early), so it is not read.
+    """
+    if not is_active or any(policy.matches_path(path) for policy in root_policies):
+        return root_policies
+    local = _policy_from_lane_worktree(path)
+    if local is None:
+        return root_policies
+    return (*root_policies, local)
 
 
 def _registered_worktree_paths(repo_root: Path) -> frozenset[Path]:
@@ -357,6 +413,11 @@ def scan_repo(repo_root: Path) -> SparseCheckoutScanReport:
     Worktree candidates are immediate children of ``<repo_root>/.worktrees`` that
     are directories and contain a ``.git`` entry (file or dir — git worktrees
     use a file pointer). Non-worktree directories are skipped silently.
+
+    Each candidate's managed-lane policy comes from the repository-root
+    checkout's ``kitty-specs/`` when that branch knows the Mission, and from the
+    lane's own ``kitty-specs/<slug>/meta.json`` otherwise, so a branch switch
+    cannot reclassify a managed lane as legacy state (#6844).
     """
     primary = scan_path(repo_root, is_worktree=False)
     policies = _load_managed_lane_policies(repo_root)
@@ -373,7 +434,7 @@ def scan_repo(repo_root: Path) -> SparseCheckoutScanReport:
             worktree_states.append(
                 _classify_worktree_state(
                     state,
-                    policies=policies,
+                    policies=_policies_for_worktree(child, policies, is_active=state.is_active),
                     registered_worktrees=registered_worktrees,
                 )
             )
