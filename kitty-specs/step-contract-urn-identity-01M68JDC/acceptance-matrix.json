@@ -2,77 +2,77 @@
   "mission_slug": "step-contract-urn-identity-01M68JDC",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Verify FR-001 is satisfied",
+      "description": "IdentityIndex.urn maps a stem, a declared id and a <kind>: token to the canonical DRG URN, or None.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/activation/test_identity_index_urn.py (7 tests)",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:implementer-ivan + pi:tokenfactory/kimi-k3:reviewer-renata",
+      "verified_at": "2026-10-31T09:40:00+00:00",
+      "notes": "Verified by the mission's own tests (see evidence path)."
     },
     {
       "criterion_id": "FR-002",
-      "description": "Verify FR-002 is satisfied",
+      "description": "step_contract_urn is the one tail rule; the extractor's minted node set equals the shipped fragment.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/architectural/test_drg_urn_identity_parity.py::test_the_shipped_step_contract_nodes_are_exactly_the_shipped_contracts",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:implementer-ivan + pi:tokenfactory/kimi-k3:reviewer-renata",
+      "verified_at": "2026-10-31T09:40:00+00:00",
+      "notes": "Verified by the mission's own tests (see evidence path)."
     },
     {
       "criterion_id": "FR-003",
-      "description": "Verify FR-003 is satisfied",
+      "description": "An activated step contract reports no parity gap.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/activation/test_step_contract_urn_identity.py::test_an_activated_step_contract_reports_no_graph_gap",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:implementer-ivan + pi:tokenfactory/kimi-k3:reviewer-renata",
+      "verified_at": "2026-10-31T09:40:00+00:00",
+      "notes": "Verified by the mission's own tests (see evidence path)."
     },
     {
       "criterion_id": "FR-004",
-      "description": "Verify FR-004 is satisfied",
+      "description": "The filter's resolved set holds the shipped node URN, not the declared-id spelling.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/activation/test_step_contract_urn_identity.py::test_the_activated_step_contract_survives_the_filter",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:implementer-ivan + pi:tokenfactory/kimi-k3:reviewer-renata",
+      "verified_at": "2026-10-31T09:40:00+00:00",
+      "notes": "Verified by the mission's own tests (see evidence path)."
     },
     {
       "criterion_id": "FR-005",
-      "description": "Verify FR-005 is satisfied",
+      "description": "Denying by declared id drops the node; the mission-scoped spelling still works.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/activation/test_step_contract_urn_identity.py::test_denying_a_step_contract_by_its_declared_id_drops_its_node",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:implementer-ivan + pi:tokenfactory/kimi-k3:reviewer-renata",
+      "verified_at": "2026-10-31T09:40:00+00:00",
+      "notes": "Verified by the mission's own tests (see evidence path)."
     },
     {
       "criterion_id": "FR-006",
-      "description": "Verify FR-006 is satisfied",
+      "description": "A filtered-out node names activated_mission_types; an absent node keeps the regenerate wording.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/charter/activation/test_step_contract_urn_identity.py::test_a_filtered_out_step_contract_names_the_activation_keys_not_a_resynthesis",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:implementer-ivan + pi:tokenfactory/kimi-k3:reviewer-renata",
+      "verified_at": "2026-10-31T09:40:00+00:00",
+      "notes": "Verified by the mission's own tests (see evidence path)."
     },
     {
       "criterion_id": "FR-007",
-      "description": "Verify FR-007 is satisfied",
+      "description": "Drift gate green on the shipped graph and red on two planted divergences.",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "tests/architectural/test_drg_urn_identity_parity.py (5 tests)",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/deepseek-v4.1-flash-1017:implementer-ivan + pi:tokenfactory/kimi-k3:reviewer-renata",
+      "verified_at": "2026-10-31T09:40:00+00:00",
+      "notes": "Verified by the mission's own tests (see evidence path)."
     }
   ],
   "negative_invariants": []
