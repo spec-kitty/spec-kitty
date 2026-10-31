@@ -54,11 +54,14 @@ def _resolve(kind: str) -> Path:
 
 
 @pytest.mark.parametrize("platform", ["linux", "darwin"])
-@pytest.mark.parametrize(("kind", "variable", "expected"), [
-    ("cache", "XDG_CACHE_HOME", "xdg"),
-    ("state", "XDG_STATE_HOME", "xdg"),
-    ("config", "XDG_CONFIG_HOME", "xdg"),
-])
+@pytest.mark.parametrize(
+    ("kind", "variable", "expected"),
+    [
+        ("cache", "XDG_CACHE_HOME", "xdg"),
+        ("state", "XDG_STATE_HOME", "xdg"),
+        ("config", "XDG_CONFIG_HOME", "xdg"),
+    ],
+)
 def test_posix_honours_the_xdg_variable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, kind: str, variable: str, expected: str) -> None:
     fake_platform(monkeypatch, tmp_path, platform, {variable: expected})
     assert _resolve(kind) == tmp_path / expected / APP
@@ -80,11 +83,14 @@ def test_posix_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platfor
     assert _resolve(kind) == home.joinpath(*_DEFAULTS[(kind, platform)])
 
 
-@pytest.mark.parametrize(("kind", "expected"), [
-    ("cache", ("lad", APP, "Cache")),
-    ("state", ("lad", APP)),
-    ("config", ("lad", APP)),
-])
+@pytest.mark.parametrize(
+    ("kind", "expected"),
+    [
+        ("cache", ("lad", APP, "Cache")),
+        ("state", ("lad", APP)),
+        ("config", ("lad", APP)),
+    ],
+)
 def test_windows_defaults(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, kind: str, expected: tuple[str, ...]) -> None:
     """``%LOCALAPPDATA%`` for all three; the cache additionally gets ``Cache``."""
     fake_platform(monkeypatch, tmp_path, "windows", {"LOCALAPPDATA": "lad"})
