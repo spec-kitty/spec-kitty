@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "mission_slug": "step-contract-urn-identity-01M68JDC",
+  "mission_id": "01M68JDC2W9RGKEHN7M3VBQ0CK",
+  "mission_branch": "kitty/mission-step-contract-urn-identity-01M68JDC",
+  "target_branch": "issue-6741-step-contract-urn-identity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/identity_index.py",
+        "src/charter/mission_steps.py",
+        "src/charter/offering/drg/migration/extractor.py",
+        "src/charter/offering/missions/step_contracts.py",
+        "tests/charter/activation/test_identity_index_urn.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/activation_ledger.py",
+        "src/charter/activation/consistency_check.py",
+        "src/charter/activation/drg_activation.py",
+        "src/specify_cli/review/gate_bindings.py",
+        "tests/charter/activation/test_deny_identity_space.py",
+        "tests/charter/activation/test_step_contract_urn_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/doctrine-kinds.md",
+        "docs/changelog/CHANGELOG.md",
+        "tests/architectural/test_drg_urn_identity_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-31T08:53:07.766008+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "8ac489a45c51044973e5f2fa99fc5ad0e82204fb"
+}
