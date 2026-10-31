@@ -266,9 +266,10 @@ def test_g4_negative_org_pack_module_rule_exempts_effective_root_param(rel_path:
     src = "def f(effective_root: Path | None = None): ...\n"
     tree = _parse(src)
     assert effective_root_identifiers(tree, rel_path) == []
-    # ORG_PACK_MODULE_RULE takes the covered paths out of BOTH G4 and G5
-    # scope (contracts/architectural-gate.md); the same parameter is also a
-    # G5 shape (a bare-Path `effective_root`), so it must be empty there too.
+    # For G4, ORG_PACK_MODULE_RULE takes the covered paths out of scope. For
+    # G5 it is name-scoped: `effective_root` stays exempt, while every other
+    # banned owned-root name in these paths is still scanned (see
+    # test_g5_org_pack_exemption_does_not_hide_an_owned_root_in_the_charter_layer).
     assert bare_owned_root_paths(tree, rel_path) == []
 
 
