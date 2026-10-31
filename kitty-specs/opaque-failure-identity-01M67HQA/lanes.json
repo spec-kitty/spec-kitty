@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "opaque-failure-identity-01M67HQA",
+  "mission_id": "01M67HQAD9Z47WWK9XGGZ8WMZ1",
+  "mission_branch": "kitty/mission-opaque-failure-identity-01M67HQA",
+  "target_branch": "issue-6751-opaque-failure-identity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/baseline.py",
+        "src/specify_cli/review/scope_source.py",
+        "tests/review/test_opaque_failure_identity.py",
+        "tests/review/test_scope_source.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task_gates.py",
+        "src/specify_cli/review/pre_review_gate.py",
+        "tests/review/test_verdict_candidate_exit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T23:21:05.880887+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6749877aee754aa5db25833edba2b232434fb35f"
+}

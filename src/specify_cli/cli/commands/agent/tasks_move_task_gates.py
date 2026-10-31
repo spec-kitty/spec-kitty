@@ -570,6 +570,12 @@ def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *,
             "pre_review_test_scope or use --skip-pre-review-gate explicitly.[/red]"
         )
     if outcome is pre_review_gate.GateOutcome.NO_NEW_FAILURES:
+        # Issue #6751: a baseline-relative verdict carries its own reason (the
+        # candidate's observed exit status and counts). Append it only when it is
+        # present, so a reason-less verdict — every base-captured parity fixture —
+        # still renders this exact line.
+        if verdict.reason:
+            return f"[dim]Pre-review regression gate: no new failures — {verdict.reason}[/dim]"
         return "[dim]Pre-review regression gate: no new failures[/dim]"
     # Defensive: a future ``GateOutcome`` member must never silently render as
     # a clean pass (mission scopesource-gate-followup-01KY6S9P WP04, T023) —
