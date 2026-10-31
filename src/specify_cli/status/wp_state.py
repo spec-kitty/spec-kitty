@@ -22,7 +22,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Protocol
 
-from specify_cli.status.models import ActorField, InnerStateChanged, Lane, WPInnerStateDelta
+from specify_cli.status.models import ActorField, InnerStateChanged, Lane, WPInnerStateDelta, is_migration_actor
 
 # Shared error message constants (single source for parity with the historical
 # ``transitions.py`` implementation these guards were migrated from).
@@ -251,7 +251,14 @@ class WPState(ABC):
         # persist an event the status schema validator refuses. Evaluated here, never
         # in ``guard_for``: force bypasses guards entirely, so a guard-side rule would
         # be dead on the only route this edge has.
-        if requires_review_ref(self.lane, target) and not has_review_ref(ctx.review_ref):
+        # A ``migration:`` actor reconstructs state rather than acting (the #5446
+        # precedent in ``transition_pipeline._refuse_unnoted_review_exit``), so it is
+        # exempt; the validator still reports such a row, as it does for legacy rows.
+        if (
+            requires_review_ref(self.lane, target)
+            and not has_review_ref(ctx.review_ref)
+            and not is_migration_actor(ctx.actor)
+        ):
             return False, review_ref_required_message(self.lane, target)
 
         if ctx.force:
