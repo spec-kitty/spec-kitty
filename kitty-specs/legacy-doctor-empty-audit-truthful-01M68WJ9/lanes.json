@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "legacy-doctor-empty-audit-truthful-01M68WJ9",
+  "mission_id": "01M68WJ9PT51PG0WTGAP1GWE12",
+  "mission_branch": "kitty/mission-legacy-doctor-empty-audit-truthful-01M68WJ9",
+  "target_branch": "issue-6891-legacy-doctor-empty-audit-truthful",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/_command_surface_doctor.py",
+        "tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T11:51:50.959680+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e6c962f99fe5f7e171858111852fedbfbfb13eb1"
+}
