@@ -523,6 +523,18 @@ def test_us5_opt_in_with_explicit_path_runs_unpinned_with_a_warning(tmp_path: Pa
     )
 
 
+def test_us5_opt_in_with_an_unreadable_path_refuses_as_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    release = _release(tmp_path)
+
+    def _unreadable(path: Path) -> str:
+        raise PermissionError(13, "Permission denied", str(path))
+
+    monkeypatch.setattr(resolution, "sha256_file", _unreadable)
+    refusal = _refusal(lambda: _resolve(release, {EXPLICIT_ENV: str(_foreign_build(tmp_path)), UNPINNED_ENV: "1"}))
+    assert refusal.code is ServiceRefusalCode.BINARY_MISSING
+    assert EXPLICIT_ENV in refusal.remedy
+
+
 def test_us5_opt_in_with_a_matching_path_stays_pinned(tmp_path: Path) -> None:
     release = _release(tmp_path)
     resolved = _resolve(release, {EXPLICIT_ENV: str(release.native()), UNPINNED_ENV: "1"})

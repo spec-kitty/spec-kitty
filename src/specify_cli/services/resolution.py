@@ -260,9 +260,21 @@ def _match_supplied(ctx: _Context, path: Path) -> tuple[tuple[str, ...], Service
 
 
 def _unpinned(service: str, path: Path) -> ResolvedBinary:
-    """The opt-in result. It runs *path* directly, so an unpinned ``.jar`` must be wrapped by the developer."""
+    """The opt-in result. It runs *path* directly, so an unpinned ``.jar`` must be wrapped by the developer.
+
+    A file that cannot be read (to record its digest) is the ``SERVICE_BINARY_MISSING`` refusal.
+    """
+    try:
+        digest = sha256_file(path)
+    except OSError as exc:
+        env_var = binary_env_var(service)
+        raise ServiceRefusal(
+            ServiceRefusalCode.BINARY_MISSING,
+            f"{env_var} names {path}, which cannot be read ({type(exc).__name__})",
+            remedy_for(ServiceRefusalCode.BINARY_MISSING, variant="explicit", env_var=env_var),
+        ) from exc
     warning = f"Running an UNPINNED {service} binary at {path} ({UNPINNED_ENV}=1). This build is not verified against the pin."
-    return ResolvedBinary(argv_prefix=(str(path),), path=path, source="unpinned", sha256=sha256_file(path), pinned=False, warning=warning)
+    return ResolvedBinary(argv_prefix=(str(path),), path=path, source="unpinned", sha256=digest, pinned=False, warning=warning)
 
 
 def _explicit(ctx: _Context) -> ResolvedBinary | None:
