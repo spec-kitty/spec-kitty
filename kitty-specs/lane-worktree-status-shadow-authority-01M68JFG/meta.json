@@ -1,0 +1,33 @@
+{
+  "accept_commit": "15aeac8fce66faa2d2281352140eff20d1e2a2a7",
+  "acceptance_history": [
+    {
+      "accept_commit": "15aeac8fce66faa2d2281352140eff20d1e2a2a7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:49:04.469844+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "59b8285bc30359132096f8726431c2513c1aecc0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T09:49:04.469844+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "59b8285bc30359132096f8726431c2513c1aecc0",
+  "baseline_merge_commit": "5c1555998ddd3f1b8514a7aae9e81c05d099c82c",
+  "created_at": "2026-10-31T08:51:04.007388+00:00",
+  "flattened": false,
+  "friendly_name": "lane worktree status shadow authority",
+  "merged_at": "2026-10-31T09:49:19.264511+00:00",
+  "merged_commit": "5c1555998ddd3f1b8514a7aae9e81c05d099c82c",
+  "mid8": "01M68JFG",
+  "mission_id": "01M68JFG1ZESDGZS6ZQEDEB8MJ",
+  "mission_number": 245,
+  "mission_slug": "lane-worktree-status-shadow-authority-01M68JFG",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances lane worktree status shadow authority on issue-6466-lane-status-shadow so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "lane worktree status shadow authority",
+  "slug": "lane-worktree-status-shadow-authority-01M68JFG",
+  "status_phase": "1",
+  "target_branch": "issue-6466-lane-status-shadow",
+  "topology": "single_branch"
+}

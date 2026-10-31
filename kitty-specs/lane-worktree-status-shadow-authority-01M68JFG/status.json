@@ -1,0 +1,58 @@
+{
+  "event_count": 11,
+  "last_event_id": "01M68NT5M7YQD41VPR8AK1JA7R",
+  "materialized_at": "2026-10-31T09:49:19.367520+00:00",
+  "mission_number": "245",
+  "mission_slug": "lane-worktree-status-shadow-authority-01M68JFG",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M68NT5M7YQD41VPR8AK1JA7R",
+      "last_transition_at": "2026-10-31T09:49:19.367520+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Lane-worktree status shadow re-anchor",
+        "Review passed",
+        "Round 2: common-path cost pinned",
+        "Round 2: no registry call on the common path; relative lane roots now judged on the resolved path. Verified: 302 tests in tests/specify_cli/missions, mypy --strict clean, ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1510360,
+      "shell_pid_created_at": "1793439858.47",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "6466"
+      ]
+    }
+  }
+}

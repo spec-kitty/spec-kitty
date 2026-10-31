@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#4955": {
+      "evidence_ref": "Follow-up: #4955 (union drivers for mission-events.jsonl / kitty-ops lifecycle, decisions re-fold) is the both-sides merge path, out of scope here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#5160": {
+      "evidence_ref": "status.json stays a derived snapshot regenerated from the event log; this fix adds no copy or newest-wins rule",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#5440": {
+      "evidence_ref": "Reproduction: a lanes_with_coord mission keeps status only on the coordination husk; lane worktrees carry no status copy",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6466": {
+      "evidence_ref": "_read_path_resolver._canonical_status_read_root + tests/specify_cli/missions/test_lane_worktree_status_shadow.py (red-first)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
