@@ -54,7 +54,7 @@
     },
     "WP02": {
       "actor": "reviewer-renata",
-      "agent": "reviewer-renata",
+      "agent": "reviewer-renata::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -65,7 +65,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-31T14:24:30Z – python-pedro – shell_pid=751776 – Out-of-map edits with rationale: manifest.py/errors.py (reader identity rule + SynthesisError base - the styleguide/append fixtures proved the reader was over-strict; a missing sidecar for a slug-keyed kind must answer from the entry), _collision_remedy.py (one catch added so the coded error classifies as an unreadable record, WP03 verifies), tests/architectural/test_charter_activation_api_reexport.py (seam table must list the new identity re-exports), test_styleguide_reach_only.py + test_synthesize_activation_append.py (record path now imported from the record module; _manifest_slugs monkeypatch targets manifest_slugs).",
-        "Reach-only delivery reads the one reader; fixtures describe a real synthesis tree; 1215 targeted tests pass."
+        "Reach-only delivery reads the one reader; fixtures describe a real synthesis tree; 1215 targeted tests pass.",
+        "Review passed. reach_only.py now has no manifest/sidecar read (grep for load_yaml/MANIFEST_PATH/YAML is empty) and no second error body; delivery policy (lazy read, org-required exclusion, activation-list semantics, the unreadable-record warning, the synthesis lock) is unchanged. Verified the two reader corrections are justified and pinned: the slug-keyed identity rule (missing/corrupt sidecar for tactic or styleguide answers from the manifest entry, directive keeps the record fallback and the coded refusal) and the SynthesisError second base (existing panels still render the remedy; charter context still prints code+body). The added _collision_remedy catch is correct and WP03 will re-verify it. 1215 passed / 16 skipped."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
