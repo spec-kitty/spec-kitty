@@ -86,9 +86,9 @@ src/specify_cli/
 tests/
 ├── specify_cli/lanes/
 │   ├── test_worktree_allocator_coord.py            # existing coord fixtures (reused shapes)
-│   └── test_issue_6753_stale_coord_lane_base.py    # NEW: probe + warning + parentage
+│   └── test_stale_coord_lane_base_report.py    # NEW: probe + warning + parentage
 └── specify_cli/cli/commands/agent/
-    └── test_issue_6753_agent_action_implement_base.py  # NEW: --base accepted + threaded
+    └── test_agent_action_implement_base.py  # NEW: --base accepted + threaded
 ```
 
 **Structure Decision**: single project; the mission touches the allocator that
@@ -126,7 +126,7 @@ No charter violations; nothing to justify.
   NFR-003, SC-001, SC-002.
 - **Affected surfaces**: `src/specify_cli/lanes/worktree_allocator.py` (the
   `FRESH_COORD` arm of `allocate_lane_worktree`, a new private probe helper
-  beside `_ensure_branch_exists`); `tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py`.
+  beside `_ensure_branch_exists`); `tests/specify_cli/lanes/test_stale_coord_lane_base_report.py`.
 - **Sequencing/depends-on**: none (first).
 - **Risks**: the message must name a commit id that a reader can verify; it must
   degrade to silence when `capture_branch_tip` returns `None` or git fails, and
@@ -141,7 +141,7 @@ No charter violations; nothing to justify.
 - **Affected surfaces**: `src/specify_cli/cli/commands/agent/workflow.py`
   (`implement` option surface + the `_create_workspace` dispatch),
   `src/specify_cli/cli/commands/agent/workflow_cores.py` (`ImplementRequest`);
-  `tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py`.
+  `tests/specify_cli/cli/commands/agent/test_agent_action_implement_base.py`.
 - **Sequencing/depends-on**: IC-01 (the warning is what points at the option),
   but the two are independently revertible — see SC-004's half-by-half proof.
 - **Risks**: the option must reach the allocator only on the create path, must

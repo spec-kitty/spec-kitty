@@ -29,12 +29,12 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/cli/commands/agent/
 create_intent:
-- tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py
+- tests/specify_cli/cli/commands/agent/test_agent_action_implement_base.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/agent/workflow.py
 - src/specify_cli/cli/commands/agent/workflow_cores.py
-- tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py
+- tests/specify_cli/cli/commands/agent/test_agent_action_implement_base.py
 role: implementer
 tags: []
 tracker_refs:
@@ -95,7 +95,7 @@ repository-root lane). This WP only carries the operator's value to that seam.
 
 ### Subtask T007 – Red-first: the option does not exist
 
-Create `tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py`.
+Create `tests/specify_cli/cli/commands/agent/test_agent_action_implement_base.py`.
 Drive the real command through `typer.testing.CliRunner`:
 `CliRunner().invoke(workflow.app, ["implement", "WP01", "--mission", "<slug>", "--agent",
 "<agent>", "--base", "main"])`. Against the current tree this exits 2 with
@@ -139,10 +139,10 @@ In the same test module:
 Run, and record the results:
 
 ```
-uv run pytest tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py -q
+uv run pytest tests/specify_cli/cli/commands/agent/test_agent_action_implement_base.py -q
 uv run pytest tests/specify_cli/cli/commands/agent -q
 uv run pytest tests/agent -q
-uv run ruff check src/specify_cli/cli/commands/agent/workflow.py src/specify_cli/cli/commands/agent/workflow_cores.py tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py
+uv run ruff check src/specify_cli/cli/commands/agent/workflow.py src/specify_cli/cli/commands/agent/workflow_cores.py tests/specify_cli/cli/commands/agent/test_agent_action_implement_base.py
 uv run ruff format --check src/specify_cli/cli/commands/agent/workflow.py src/specify_cli/cli/commands/agent/workflow_cores.py
 ```
 
