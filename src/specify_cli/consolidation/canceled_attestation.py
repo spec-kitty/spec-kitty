@@ -157,13 +157,14 @@ def record_canceled_superseded_attestation(
     persisted event (``None`` only for the seam's alias-collapse no-op arm).
     """
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
+    from specify_cli.status import build_system_actor
 
     request = TransitionRequest(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_id=wp_id,
         to_lane=Lane.CANCELED,
-        actor=actor,
+        actor=build_system_actor(actor),
         repo_root=repo_root,
         force=True,
         reason=f"{_REASON_PREFIX}{reason.strip()}",

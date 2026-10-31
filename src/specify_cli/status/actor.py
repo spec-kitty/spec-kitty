@@ -35,6 +35,7 @@ __all__ = [
     "ActorRole",
     "actor_from_option",
     "build_status_actor",
+    "build_system_actor",
     "compose_status_actor",
     "role_for_hop",
     "role_for_wp",
@@ -42,10 +43,17 @@ __all__ = [
 
 
 class ActorRole(StrEnum):
-    """The role an actor played on a hop; set by the action (FR-006)."""
+    """The closed role vocabulary: what kind of agency wrote the event (FR-006).
+
+    ``implementer`` and ``reviewer`` are set by the action (:func:`role_for_hop`),
+    never by the profile. ``system`` is set only by :func:`build_system_actor`: the
+    program wrote the event itself (a seed, a recovery catch-up, consolidation
+    bookkeeping, an attestation), with no agent dispatch behind it (#6722).
+    """
 
     IMPLEMENTER = "implementer"
     REVIEWER = "reviewer"
+    SYSTEM = "system"
 
 
 #: Lanes whose entry is a reviewer act (claiming review, approving, completing).
@@ -133,6 +141,25 @@ def build_status_actor(
         agent_profile=agent_profile,
         agent_model=agent_model,
     )
+
+
+def build_system_actor(tool: str) -> dict[str, str | None]:
+    """The structured actor of a system write (#6722): ``{tool, role: system, profile: null, model: null}``.
+
+    The same 4-key shape #6400 gave the agent and operator paths, so no consumer branches
+    on who wrote the event. ``tool`` is the identity the writer records, kept **whole**:
+    a ``migration:<id>`` seed identity is never routed through
+    :func:`~specify_cli.status.models.parse_agent_boundary_string`, which would split it
+    into a tool and a model and quietly stop it being a seed.
+
+    ``profile`` and ``model`` are literals, not arguments: a system writer has no dispatch
+    binding, and nothing is invented to fill the gap (the rule #6400 pinned). A blank
+    identity raises rather than recording an actor that names nobody.
+    """
+    identity = tool.strip()
+    if not identity:
+        raise ValueError("system actor requires a non-blank tool identity")
+    return compose_status_actor(role=str(ActorRole.SYSTEM), tool=identity, binding=None)
 
 
 #: Segments of the compact ``tool:model:profile:role`` form; a value with more is not one.

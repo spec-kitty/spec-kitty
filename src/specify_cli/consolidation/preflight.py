@@ -56,6 +56,7 @@ from specify_cli.status import (
     _actor_key,
     actor_full_identity,
     actor_identities_independent,
+    build_system_actor,
     is_migration_actor,
     latest_implementer_event,
     read_events_lenient,
@@ -442,11 +443,13 @@ def _record_review_artifact_skip_evidence(
         # coordination ref) it commits on the write branch instead (#5655);
         # only a flat/legacy mission with no stored topology delegates to the
         # untouched partition-agnostic emit (no-op parity).
+        # #6722: the event's actor is the structured system actor; the override's own
+        # four-field slot keeps the plain operator identity (its shape is pinned).
         emit_inner_state_changed_transactional(
             feature_dir,
             wp_id,
             WPInnerStateDelta(review=ReviewOverride(at=timestamp, actor=actor, wp_id=wp_id, reason=note)),
-            actor=actor,
+            actor=build_system_actor(actor),
             mission_slug=mission_slug,
             at=timestamp,
             repo_root=repo_root,
@@ -1223,7 +1226,7 @@ def refuse_protected_status_target(
     ``excluded_canceled_wp_ids`` defaults to ``acceptably_canceled_wp_ids``.
     """
     from mission_runtime import MissionArtifactKind, placement_seam
-    from specify_cli.consolidation.done_bookkeeping import acceptably_canceled_wp_ids
+    from specify_cli.consolidation.done_bookkeeping import MERGE_ACTOR, acceptably_canceled_wp_ids
     from specify_cli.coordination.status_transition import status_write_refusal
     from specify_cli.status import TransitionRequest
 
@@ -1237,7 +1240,7 @@ def refuse_protected_status_target(
         mission_slug=mission_slug,
         wp_id=pending[0],
         to_lane="done",
-        actor="merge",
+        actor=build_system_actor(MERGE_ACTOR),
         repo_root=main_repo,
     )
     return status_write_refusal(request)

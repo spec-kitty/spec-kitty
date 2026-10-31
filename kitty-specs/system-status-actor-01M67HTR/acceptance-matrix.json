@@ -1,0 +1,139 @@
+{
+  "mission_slug": "system-status-actor-01M67HTR",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "One builder for the system actor",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_system_actor_6722.py::test_system_actor_has_exactly_the_four_written_keys and its whole-tool/blank-refusal/no-role-argument family (25 passed, red-first: ImportError on the base)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The finalize-tasks bootstrap seed writes the system actor",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_system_actor_bootstrap_6722.py (4 passed; red-first: the shape arm failed on the base while the payload, snapshot and legacy-row arms passed); tests/status/test_bootstrap.py 28 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The lane recovery catch-up writes the system actor",
+      "proof_type": "automated_test",
+      "evidence": "tests/lanes/test_system_actor_6722.py (3 passed; red-first: the shape arm failed on the base while the emission-count and lane arms passed); tests/lanes + tests/specify_cli/lanes 1225 passed, 2 skipped",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Consolidation bookkeeping writes the system actor (replay, done mark, refusal probe)",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_system_actor_6722.py::test_done_mark_records_the_system_merge_actor and ::test_done_refusal_probe_builds_the_system_merge_actor; tests/consolidation + tests/specify_cli/consolidation 2614 passed, 1 skipped, 9 xfailed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The review-artifact override's event actor is structured and its slot stays a string",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_system_actor_6722.py::test_skip_evidence_records_the_system_actor_and_keeps_the_override_slot (asserts delta.review == ReviewOverride(actor=<plain str>) and the event actor dict)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Both attestations write the system actor and stay out of the reviewer read",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_system_actor_6722.py::test_approved_attestation_records_the_system_actor, ::test_canceled_attestation_records_the_system_actor, ::test_attestation_is_still_recognised_by_its_kind_not_its_role",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "All three migration writers write the system actor",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_system_actor_6722.py (3 writer tests, red-first); tests/unit/migration + tests/migration 442 passed, 1 skipped, the only 4 failures being the pre-existing #6801 set reproduced on pristine origin/main",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The role vocabulary gains exactly one value, system",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_system_actor_6722.py::test_system_actor_role_is_the_new_third_value ({implementer, reviewer, system}); tests/status/test_status_actor.py::test_actor_role_values updated to the same set",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Seed recognition is shape-blind and the per-backfill predicate stays narrow",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_system_actor_6722.py::test_per_backfill_predicate_recognises_both_shapes, ::test_per_backfill_predicate_stays_narrower_than_the_shared_one, ::test_a_mixed_shape_log_still_separates_seeds_from_history",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "A pre-change corpus still verifies, and the tolerance is shape-only",
+      "proof_type": "automated_test",
+      "evidence": "tests/unit/migration/test_system_actor_6722.py::test_a_pre_change_corpus_verifies_ok, ::test_the_tolerance_is_shape_only_not_identity_blind (three arms: same identity/other shape sound; different identity mismatch; different payload mismatch), ::test_a_corrupted_slot_is_still_a_mismatch",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The CLI decoder and the shared events decoder accept role: system",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_system_actor_6722.py::test_cli_decoder_keeps_a_system_actor, ::test_shared_events_decoder_keeps_a_system_actor, ::test_system_actor_survives_the_event_round_trip, ::test_five_key_actor_stays_a_reader_only_shape",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Readers are unchanged; a mixed-shape log reduces like an all-string one",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_system_actor_6722.py::test_mixed_shape_log_reduces_to_the_all_string_snapshot, ::test_reducer_seed_arm_is_shape_blind, ::test_timestamp_continuity_exemption_is_shape_blind, ::test_system_actor_and_string_seed_share_the_snapshot_actor_slot; tests/status 1795 passed, 5 skipped",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "The rule and the changelog are documented",
+      "proof_type": "automated_test",
+      "evidence": "docs/architecture/status-model.md 'System writes' (writer table + null-profile rule + shape-blind seed classification); docs/changelog/CHANGELOG.md [Unreleased] entry, 1,075 chars; check_docs_freshness --ci errors=0; test_no_legacy_terminology + test_events_import_frozen 113 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T01:36:39.531750+00:00",
+      "notes": "Verified on the mission branch with the tests named in evidence; no criterion is a TODO placeholder."
+    }
+  ],
+  "negative_invariants": []
+}

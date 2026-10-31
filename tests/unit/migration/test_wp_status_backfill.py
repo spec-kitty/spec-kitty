@@ -18,7 +18,7 @@ from specify_cli.status import MIGRATION_ACTOR_PREFIX
 from specify_cli.migration import backfill_runtime_state as b
 from specify_cli.migration import wp_status_backfill as planner
 from specify_cli.review.rejection_signal import is_documented_review_rejection
-from specify_cli.status.models import GuardContext, Lane
+from specify_cli.status.models import actor_identity_str, GuardContext, Lane
 from specify_cli.status.reducer import materialize_snapshot
 from specify_cli.status.store import read_event_stream
 from specify_cli.status.transitions import validate_transition
@@ -107,7 +107,7 @@ def _log_bytes(feature_dir: Path) -> bytes | None:
 
 
 def _seed_events(feature_dir: Path) -> list[Any]:
-    return [e for e in read_event_stream(feature_dir).transitions if e.actor == planner.WP_STATUS_BACKFILL_ACTOR]
+    return [e for e in read_event_stream(feature_dir).transitions if actor_identity_str(e.actor) == planner.WP_STATUS_BACKFILL_ACTOR]
 
 
 def _append_raw(feature_dir: Path, row: dict[str, object]) -> None:

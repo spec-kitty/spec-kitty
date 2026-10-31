@@ -1,0 +1,35 @@
+{
+  "accept_commit": "f7f16f25a69b49bdf50a6361603ebd6d1ff636bb",
+  "acceptance_history": [
+    {
+      "accept_commit": "f7f16f25a69b49bdf50a6361603ebd6d1ff636bb",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T01:36:44.621362+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "4b2a1c0272880da62a89f8ed6e4d71479125a81a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T01:36:44.621362+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "4b2a1c0272880da62a89f8ed6e4d71479125a81a",
+  "baseline_merge_commit": "92cb8a0fbd8469276f7b43f1cd010b94322d8841",
+  "created_at": "2026-10-30T23:20:30.469734+00:00",
+  "flattened": false,
+  "friendly_name": "system status actor",
+  "merged_at": "2026-10-31T01:46:20.582822+00:00",
+  "merged_commit": "17673c2521faa2f7cabe788dc6d267421f03a2f9",
+  "mid8": "01M67HTR",
+  "mission_id": "01M67HTRX6QF65J2S1P00K2NGS",
+  "mission_number": 244,
+  "mission_slug": "system-status-actor-01M67HTR",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances system status actor on issue-6722-system-status-actor so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "system status actor",
+  "slug": "system-status-actor-01M67HTR",
+  "status_phase": "1",
+  "target_branch": "issue-6722-system-status-actor",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:51:34.882081+00:00"
+}

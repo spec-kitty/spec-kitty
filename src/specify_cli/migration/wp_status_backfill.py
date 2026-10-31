@@ -35,7 +35,7 @@ from pydantic import ValidationError
 from kernel.clock import UTC, datetime, parse_iso, timedelta
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.status import Lane, StatusEvent, materialize_snapshot, read_authored_wp_frontmatter, wp_task_files
+from specify_cli.status import Lane, StatusEvent, build_system_actor, materialize_snapshot, read_authored_wp_frontmatter, wp_task_files
 
 from .mission_state import deterministic_ulid
 
@@ -276,7 +276,7 @@ def _planned_event(slug: str, mission_id: str | None, mission_key: str, wp_id: s
         from_lane=Lane.GENESIS,
         to_lane=Lane.PLANNED,
         at=at,
-        actor=WP_STATUS_BACKFILL_ACTOR,
+        actor=build_system_actor(WP_STATUS_BACKFILL_ACTOR),
         force=False,
         execution_mode="worktree",
         reason=_PLANNED_REASON,
@@ -299,7 +299,7 @@ def _done_event(
         from_lane=Lane.PLANNED,
         to_lane=Lane.DONE,
         at=at,
-        actor=WP_STATUS_BACKFILL_ACTOR,
+        actor=build_system_actor(WP_STATUS_BACKFILL_ACTOR),
         force=True,
         execution_mode="worktree",
         reason=_DONE_REASON_TEMPLATE.format(evidence=evidence.description),
