@@ -526,10 +526,14 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
             coord_base_ref=coord_base,
             excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
             excluded_window_base=run.target_expected_old_sha,
+            # #6771: the declared external dependency refs (verified fail-closed inside the
+            # claim builder, so a bad declaration refuses HERE, before the first mutation).
+            external_dependency_refs=run.dependency_refs,
         )
     except GitProbeError as exc:
         _exit_on_claim_probe_error(exc)
 
+    _print_dependency_refs(run)
     _print_no_implementation_lifts(run.feature_dir, run.approved_wp_set.no_implementation_attested_wp_ids)
     run.validated_lane_tips = dict(run.approved_wp_set.bound_lane_tips)
     run.bound_anchor_shas = _bound_anchor_shas(run, coord_base)
@@ -545,6 +549,24 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # #5318 / #5332: snapshot every branch this attempt may move, strictly before
     # the first mutating phase, and fix this attempt's restore targets.
     _capture_snapshot_and_begin_attempt(run)
+
+
+def _print_dependency_refs(run: _MergeRunState) -> None:
+    """Name the declared external dependency refs this run's claim was built against (#6771).
+
+    The declaration is what keeps a lane's merged dependency content out of the closed-world
+    FAIL, so the run says which refs it used — an audit line, not a warning. The claim already
+    verified each one fail-closed (a bad declaration never reaches here: it refuses).
+    """
+    if not run.dependency_refs:
+        return
+    from specify_cli.cli.console import console
+
+    console.print(
+        f"  [cyan]Declared dependency ref(s):[/cyan] {', '.join(run.dependency_refs)} — "
+        "their commits are attributed as inherited history (verified: the mission branch reaches them, "
+        "no mission spine sits in them)."
+    )
 
 
 def _print_no_implementation_lifts(feature_dir: Path, lifted_wp_ids: frozenset[str]) -> None:
