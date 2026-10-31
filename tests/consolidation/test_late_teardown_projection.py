@@ -51,12 +51,15 @@ def _matrix_path(base: Path, mission: CoordMission) -> Path:
     return base / "kitty-specs" / mission.slug / "issue-matrix.json"
 
 
-def _write_matrix(base: Path, mission: CoordMission, *, verdict: str, evidence_ref: str) -> Path:
+def _write_matrix_rows(base: Path, mission: CoordMission, rows: dict[str, IssueMatrixEntry]) -> Path:
     """Seed the structured issue matrix in the SHAPE the canonical writer produces."""
-    rows = {_ISSUE: IssueMatrixEntry(verdict=verdict, evidence_ref=evidence_ref, title="late projection")}
     path = _matrix_path(base, mission)
     path.write_text(json.dumps(build_issue_matrix_document(rows), indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
+
+
+def _write_matrix(base: Path, mission: CoordMission, *, verdict: str, evidence_ref: str) -> Path:
+    return _write_matrix_rows(base, mission, {_ISSUE: IssueMatrixEntry(verdict=verdict, evidence_ref=evidence_ref, title="late projection")})
 
 
 def _target_verdict(mission: CoordMission) -> tuple[str, str]:
@@ -299,6 +302,155 @@ def _checkpoint_sha(mission: CoordMission) -> str:
     return str(state["pre_mutation_coord_sha"])
 
 
+def _coordination_marker(mission: CoordMission) -> str | None:
+    """The Mission's coordination marker (``meta.json`` on the target branch)."""
+    meta = json.loads((mission.repo / "kitty-specs" / mission.slug / "meta.json").read_text(encoding="utf-8"))
+    value = meta.get("coordination_branch")
+    return None if value is None else str(value)
+
+
+def _seed_checkpoint_tracer(mission: CoordMission) -> Path:
+    """A coordination tracer committed on BOTH branches BEFORE the merge runs.
+
+    It is therefore present at the pre-mutation checkpoint the late window starts from -- the
+    state a window DELETION of it is measured against (the #6791 review case).
+    """
+    rel = Path("kitty-specs") / mission.slug / "traces" / "checkpoint-tracer.md"
+    for base in (mission.repo, _coord_worktree(mission)):
+        path = base / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("# checkpoint tracer\nrecorded before the merge began.\n", encoding="utf-8")
+        _git(base, "add", str(rel))
+        _git(base, "commit", "-qm", "chore(fixture): record a tracer before the merge")
+    return rel
+
+
+@pytest.fixture
+def refused_run_with_checkpoint_tracer(tmp_path: Path) -> tuple[_RefusedRun, Path]:
+    mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M6791C")
+    _declare_subtask_rosters(mission)
+    _seed_matrix(mission)
+    tracer_rel = _seed_checkpoint_tracer(mission)
+    return _refuse_teardown(mission, tmp_path), tracer_rel
+
+
+def test_resume_refuses_a_window_that_deletes_a_checkpoint_present_record(refused_run_with_checkpoint_tracer: tuple[_RefusedRun, Path]) -> None:
+    """#6791: the ASSERTION's own failing branch, end to end.
+
+    The existing "late deletion" case trips the gate-matrix projection's forward-only guard before
+    the assertion runs. Here the deleted record is a TRACER -- no projection seam carries it, so
+    only :func:`assert_late_window_landed` can catch it: it must exit 1, name the file, and keep
+    the coordination branch, its worktree and the Mission's coordination marker.
+    """
+    run, tracer_rel = refused_run_with_checkpoint_tracer
+    mission = run.mission
+    assert blob_present_at(mission.repo, mission.target_branch, str(tracer_rel)), "fixture invalid: the checkpoint must hold the tracer on the target"
+    assert blob_present_at(mission.repo, mission.coord_branch, str(tracer_rel)), "fixture invalid: the checkpoint must hold the tracer on the coordination branch"
+    _git(run.worktree, "rm", "-q", str(tracer_rel))
+    _git(run.worktree, "commit", "-qm", "chore: delete the checkpoint tracer on the coordination branch")
+
+    resumed = run.resume()
+
+    output = f"stdout:\n{resumed.stdout}\nstderr:\n{resumed.stderr}"
+    flat = " ".join((resumed.stdout + resumed.stderr).split())
+    assert resumed.returncode == 1, output
+    assert str(tracer_rel) in flat, f"the refusal must name the record it could not land\n{output}"
+    assert "not landed on the target" in flat, output
+    assert run.branch_exists(), f"the coordination branch must be kept\n{output}"
+    assert run.worktree.is_dir(), f"the coordination worktree must be kept\n{output}"
+    assert _coordination_marker(mission) == mission.coord_branch, f"the coordination marker must be kept\n{output}"
+    assert blob_present_at(mission.repo, mission.target_branch, str(tracer_rel)), "the target must not lose the record either"
+    # The remedy is the per-kind one for an unlanded record, not the generic "land the file".
+    assert f"land the named record on {mission.target_branch!r}" in flat, output
+
+
+def test_late_projection_refuses_a_copy_that_drops_a_row_the_target_holds(refused_run: _RefusedRun) -> None:
+    """The DROP branch (distinct from the overturn branch): the coordination copy omits a row."""
+    from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefusalKind, project_late_gate_matrix_commits
+
+    run, mission = refused_run, refused_run.mission
+    checkpoint = _checkpoint_sha(mission)
+    other_issue = "#6800"
+    _write_matrix_rows(
+        mission.repo,
+        mission,
+        {
+            _ISSUE: IssueMatrixEntry(verdict="verified-already-fixed", evidence_ref="verified on main", title="kept"),
+            other_issue: IssueMatrixEntry(verdict="fixed", evidence_ref="tests/other", title="kept too"),
+        },
+    )
+    _git(mission.repo, "add", f"kitty-specs/{mission.slug}/issue-matrix.json")
+    _git(mission.repo, "commit", "-qm", "chore: record two verdicts on the target")
+    _write_matrix_rows(run.worktree, mission, {other_issue: IssueMatrixEntry(verdict="fixed", evidence_ref="tests/other", title="kept too")})
+    _git(run.worktree, "add", f"kitty-specs/{mission.slug}/issue-matrix.json")
+    _git(run.worktree, "commit", "-qm", "chore: coordination copy that drops a row")
+    target_bytes = (mission.repo / "kitty-specs" / mission.slug / "issue-matrix.json").read_bytes()
+
+    with pytest.raises(LateProjectionRefused) as refused:
+        project_late_gate_matrix_commits(main_repo=mission.repo, mission_slug=mission.slug, coord_ref=mission.coord_branch, checkpoint_sha=checkpoint)
+
+    message = str(refused.value)
+    assert refused.value.kind is LateProjectionRefusalKind.EVIDENCE_WOULD_BE_LOST, message
+    assert f"drops row {_ISSUE}" in message, message
+    assert "overturns" not in message, f"a dropped row must be reported as dropped, not overturned\n{message}"
+    assert (mission.repo / "kitty-specs" / mission.slug / "issue-matrix.json").read_bytes() == target_bytes
+
+
+def _acceptance_matrix(criteria: list[tuple[str, str]], invariants: list[tuple[str, str]]) -> str:
+    """An ``acceptance-matrix.json`` in the shape ``acceptance.matrix`` writes."""
+    document = {
+        "schema_version": 1,
+        "overall_verdict": "pass",
+        "criteria": [{"criterion_id": criterion_id, "pass_fail": result, "evidence_ref": "tests/acceptance"} for criterion_id, result in criteria],
+        "negative_invariants": [{"invariant_id": invariant_id, "result": result, "evidence_ref": "tests/acceptance"} for invariant_id, result in invariants],
+    }
+    return json.dumps(document, indent=2, sort_keys=True) + "\n"
+
+
+def test_late_projection_refuses_an_acceptance_matrix_that_overturns_a_pass_criterion(refused_run: _RefusedRun) -> None:
+    """The ACCEPTANCE-matrix branch, never exercised before: a ``pass`` criterion regressed."""
+    from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefusalKind, project_late_gate_matrix_commits
+
+    run, mission = refused_run, refused_run.mission
+    checkpoint = _checkpoint_sha(mission)
+    matrix_rel = Path("kitty-specs") / mission.slug / "acceptance-matrix.json"
+    _commit_raw(
+        mission.repo, mission, matrix_rel, _acceptance_matrix([("T1", "pass")], [("NI-1", "still_present")]), "chore: record the accepted criteria on the target"
+    )
+    _commit_raw(
+        run.worktree,
+        mission,
+        matrix_rel,
+        _acceptance_matrix([("T1", "fail")], [("NI-1", "still_present")]),
+        "chore: coordination copy that regresses an accepted criterion",
+    )
+    target_bytes = (mission.repo / matrix_rel).read_bytes()
+
+    with pytest.raises(LateProjectionRefused) as refused:
+        project_late_gate_matrix_commits(main_repo=mission.repo, mission_slug=mission.slug, coord_ref=mission.coord_branch, checkpoint_sha=checkpoint)
+
+    message = str(refused.value)
+    assert refused.value.kind is LateProjectionRefusalKind.EVIDENCE_WOULD_BE_LOST, message
+    assert "acceptance-matrix.json" in message, message
+    assert "overturns criterion T1" in message, message
+    assert (mission.repo / matrix_rel).read_bytes() == target_bytes, "a refused projection must not touch the target"
+
+    # -- positive control, same fixture: a criterion ADDED alongside is projected -----------
+    _commit_raw(
+        run.worktree,
+        mission,
+        matrix_rel,
+        _acceptance_matrix([("T1", "pass"), ("T2", "pass")], [("NI-1", "still_present")]),
+        "chore: add a criterion on the coordination branch",
+    )
+
+    written = project_late_gate_matrix_commits(main_repo=mission.repo, mission_slug=mission.slug, coord_ref=mission.coord_branch, checkpoint_sha=checkpoint)
+
+    assert [path.name for path in written] == ["acceptance-matrix.json"], written
+    criteria = json.loads((mission.repo / matrix_rel).read_text(encoding="utf-8"))["criteria"]
+    assert [criterion["criterion_id"] for criterion in criteria] == ["T1", "T2"], criteria
+
+
 def _commit_matrix(base: Path, mission: CoordMission, *, verdict: str, evidence_ref: str, message: str) -> None:
     path = _write_matrix(base, mission, verdict=verdict, evidence_ref=evidence_ref)
     _git(base, "add", str(path.relative_to(base)))
@@ -317,7 +469,7 @@ def _commit_raw(base: Path, mission: CoordMission, rel: Path, content: str, mess
 def test_late_projection_never_overturns_a_terminal_verdict_the_target_holds(refused_run: _RefusedRun) -> None:
     """The projection the CLI calls refuses to overturn established evidence, and projects when it can.
 
-    Seam-level on the SAME real refusd-teardown fixture the CLI cases use, because the target-side
+    Seam-level on the SAME real refused-teardown fixture the CLI cases use, because the target-side
     evidence has to be authored after the coordination branch was cut: the CLI refuses such a
     target move as ``UNEXPLAINED_BRANCH_MOVE`` long before the projection, which is a different
     guard with its own tests. The projection seam itself is the production function

@@ -986,7 +986,9 @@ def _assert_projection_preserves_evidence(
                 kind=LateProjectionRefusalKind.TARGET_GATE_DOCUMENT_UNREADABLE,
             ) from exc
     dropped = sorted(key for key in held if key not in candidate)
-    overturned = sorted(key for key, established in held.items() if established and not candidate.get(key, False))
+    # An OVERTURN is a judgement the copy still records and de-establishes; a key the copy dropped
+    # entirely is reported once, as dropped, not twice (#6791 review: the two branches are distinct).
+    overturned = sorted(key for key, established in held.items() if key in candidate and established and not candidate[key])
     if not dropped and not overturned:
         return
     detail = "; ".join(
