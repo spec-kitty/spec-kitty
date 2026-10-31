@@ -208,7 +208,7 @@ for agent_root, subdir in agent_dirs:
 
 `clone_local_effect` is the **routing key**: it decides which partition a record is written to and read from (it is no longer a reselection trigger — that #6233 machinery was retired). A clone-local record never propagates, so a freshly pulled clone is `pending` by plain ledger-diff and re-applies — which is why a clone-local migration's `apply()` MUST be idempotent.
 
-Appends to either partition are serialized by a per-file sidecar lock under `.kittify/migrations/` (bounded 30 s; a wait that expires raises `MigrationLedgerLockTimeoutError` having appended nothing, which `upgrade` and `migrate` report as a refusal).
+Appends to either partition are serialized by a per-file sidecar lock in the per-user machine lock directory (`<state dir>/spec-kitty/locks/migration-ledger/`, never in the checkout) (bounded 30 s; a wait that expires raises `MigrationLedgerLockTimeoutError` having appended nothing, which `upgrade` and `migrate` report as a refusal).
 
 **Authoring a NEW migration:**
 

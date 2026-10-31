@@ -272,7 +272,7 @@ def test_held_ledger_lock_exits_1_with_the_message(tmp_path: Path, monkeypatch: 
     root = _project(tmp_path, migration_ledger=True)
     monkeypatch.setattr(ledger_module, "LEDGER_LOCK_TIMEOUT_S", 0.2)
 
-    with machine_file_lock(ledger_lock_path(root, MigrationLedger(root).tracked_path), blocking=True, timeout_s=20.0):
+    with machine_file_lock(ledger_lock_path(MigrationLedger(root).tracked_path), blocking=True, timeout_s=20.0):
         result = _run(root, monkeypatch)
 
     assert result.exit_code == 1, result.output
