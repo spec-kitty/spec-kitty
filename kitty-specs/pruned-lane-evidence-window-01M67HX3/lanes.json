@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "pruned-lane-evidence-window-01M67HX3",
+  "mission_id": "01M67HX34AHK643T30QMMHMFK7",
+  "mission_branch": "kitty/mission-pruned-lane-evidence-window-01M67HX3",
+  "target_branch": "issue-6780-pruned-lane-evidence-window",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/consolidation/no_implementation_attestation.py",
+        "src/specify_cli/consolidation/wp_evidence.py",
+        "tests/specify_cli/cli/commands/test_accept_merge_commit.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/pr-landing.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T23:25:10.219059+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "05bd882045e9adc1e58af68ccbd6ceb1f7d9990d"
+}
