@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "project-intent-deny-rename-01M68J6A",
+  "mission_id": "01M68J6A4CSR6G3QFC88V70AGE",
+  "mission_branch": "kitty/mission-project-intent-deny-rename-01M68J6A",
+  "target_branch": "kitty/mission-project-intent-deny-rename-01M68J6A",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "AGENTS.md",
+        "docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/activation_ledger.py",
+        "src/charter/activation/synthesizer/legacy_rename.py",
+        "tests/architectural/test_deny_list_survives_upgrade.py",
+        "tests/charter/synthesizer/test_legacy_rename.py",
+        "tests/specify_cli/upgrade/migrations/test_m_4_0_0rc8_project_intent_directive_rename.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:49:19.454669+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "c2a47fac697ce5ed7429ed84376727c5cc4721e6"
+}
