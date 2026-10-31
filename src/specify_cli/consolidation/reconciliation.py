@@ -154,6 +154,32 @@ _BOTH_NEEDED = (
 PresenceGap = Literal["absent", "unchanged"]
 _GAP_ABSENT: PresenceGap = "absent"
 _GAP_UNCHANGED: PresenceGap = "unchanged"
+# Declared external dependency refs (#6771). A lane that merges a dependency branch's
+# newer head in (a two-parent merge, so the lane is still reviewed on one tree) brings
+# that branch's commits into the closed-world window. The window's authorship authority is
+# each approved lane's OWN first-parent spine, so every one of those commits reads as
+# "belongs to NO approved WP" and the landing is refused. The closed world cannot tell
+# that apart from a removed WP riding a carrier lane by structure alone (#4945 is the same
+# shape), so the operator DECLARES the ref: `specify_cli consolidate --dependency-ref`.
+# These are the fail-closed refusals of a declaration that cannot be honoured; each names
+# the declaration, because the operator has to fix the command, not the repository.
+_REFUSE_DEPENDENCY_UNRESOLVED = (
+    "external dependency ref '{ref}' does not resolve to a commit; declare a ref that resolves (a branch, tag or SHA), "
+    "or drop --dependency-ref. Nothing was exempted"
+)
+_REFUSE_DEPENDENCY_NOT_MERGED = (
+    "external dependency ref '{ref}' is not reachable from the mission branch {mission_branch} or from any lane branch, so the "
+    "mission never merged it in and it cannot explain any content in the landing window. Nothing was exempted"
+)
+_REFUSE_DEPENDENCY_COVERS_MISSION_WORK = (
+    "external dependency ref '{ref}' would exempt commit {sha} which sits on {spine} — an external dependency may never cover "
+    "mission-authored work (that is exactly how a removed work package's commit rides a carrier lane). Nothing was exempted"
+)
+_REFUSE_DEPENDENCY_NO_WINDOW_BASE = (
+    "dependency ref(s) {refs} are declared but the target's pre-run commit could not be resolved, so the window a "
+    "declaration would exempt cannot be bounded (fail-closed). Nothing was exempted"
+)
+
 #: Error code of the #5571 verdict: an approved lane's final authored content is
 #: absent from (or not applied to) the target and no later approved lane
 #: superseded the path -- e.g. the operator committed the staged deletions an
@@ -369,6 +395,30 @@ class Divergence:
         return "; ".join(parts) if parts else "no divergence"
 
 
+def _with_attribution_hint(result: VerifyResult, claim: ApprovedWpCommitSet) -> VerifyResult:
+    """Add the #6771 recovery to an un-attributable FAIL that declared no external dependency.
+
+    A mission whose work-package branch brought a dependency branch's newer head in (with a
+    real ``git merge --no-ff``, so the reviewed commits stand) sees every one of that
+    branch's commits reported as un-attributable, which reads as "removed work would ship" and
+    names no way out. The hint names the declaration that resolves it. It is added ONLY when
+    the claim declared nothing (a declared run is refused for a different, self-explaining
+    reason) and only to the un-attributable axes — never to a refusal, and never to a
+    divergence this change does not own.
+    """
+    if result.divergence is None or claim.external_dependency_refs:
+        return result
+    divergence = result.divergence
+    if not (divergence.unattributable_content or divergence.unattributable_blobs or divergence.unattributable_deletions):
+        return result
+    hint = (
+        "If a work-package branch brought an external dependency branch's newer head in, declare it and re-run: "
+        "spec-kitty consolidate --dependency-ref <ref>. Only a ref the mission branch or one of its lane branches reaches, "
+        "on which no commit of any mission lane or mission branch sits, is accepted — mission-authored work is never exempt."
+    )
+    return replace(result, attribution_hint=hint)
+
+
 def _describe_canceled_content(entry: CanceledPathState) -> str:
     """Render one mixed-lane canceled-content divergence clause (contract C4).
 
@@ -463,6 +513,11 @@ class VerifyResult:
     status: VerifyStatus
     divergence: Divergence | None = None
     refusal_reason: str | None = None
+    #: #6771: on a FAIL whose divergence is un-attributable content and whose claim declared no
+    #: external dependency ref, the recovery that names the declaration. Set by :meth:`verify`,
+    #: printed by :meth:`recovery_guidance` — ``Divergence.describe()``'s wording is pinned by the
+    #: terminus suites and stays untouched.
+    attribution_hint: str | None = None
 
     @property
     def is_pass(self) -> bool:
@@ -480,8 +535,9 @@ class VerifyResult:
             reason = (self.refusal_reason or "").rstrip(".")
             return f"Reconciliation refused (fail-closed): {reason}. {_RESTORE_IN_PROGRESS} no teardown ran. Resolve the issue above, then re-run the merge."
         detail = self.divergence.describe() if self.divergence else "unknown divergence"
+        hint = f" {self.attribution_hint}" if self.attribution_hint else ""
         return (
-            f"Reconciliation FAILED: {detail.rstrip('.')}. {_RESTORE_IN_PROGRESS} "
+            f"Reconciliation FAILED: {detail.rstrip('.')}.{hint} {_RESTORE_IN_PROGRESS} "
             "nothing was torn down. Inspect the target branch and the lane tips, then "
             "re-run the merge."
         )
@@ -649,6 +705,17 @@ class ApprovedWpCommitSet:
     # integrity applies to both strategies. ``True`` (merge/rebase — the Tier-0
     # clean-merge strategy) runs the full per-SHA reachability + excluded checks.
     verify_reachability: bool = True
+    # Declared external dependency refs (#6771) and the sets they contribute, computed ONCE
+    # by :func:`resolve_external_dependency_refs` in the production claim builder. The
+    # verifier treats these exactly like content that predates the window: ``shas`` are
+    # skipped by the closed-world commit axis (merge/rebase), ``blobs``/``deletions`` by the
+    # squash blob/deletion axis. All four are empty for a hand-built claim and for a run with
+    # no declaration, so the pre-#6771 behavior holds byte-for-byte (NFR-003). A declaration
+    # never widens what is attributed to a WORK PACKAGE; it narrows what is flagged.
+    external_dependency_refs: tuple[str, ...] = ()
+    external_dependency_shas: frozenset[str] = frozenset()
+    external_dependency_blobs: frozenset[tuple[str, str]] = frozenset()
+    external_dependency_deletions: frozenset[str] = frozenset()
     # Mixed-lane canceled-content axis (mixed-lane-authorship-soundness / #5046,
     # WP05). Every :class:`~specify_cli.consolidation.wp_attribution.CanceledPathState`
     # resolved for a canceled-with-provenance WP sharing an approved lane with a
@@ -852,7 +919,7 @@ class MergeOutcomeVerifier:
             strategy_result = self._verify_merge_reachability(target_ref, approved_wp_set)
         with_canceled = _merge_canceled_content_into_result(strategy_result, canceled_fail)
         with_missing = _fold_divergence(with_canceled, "approved_content_missing", missing_content)
-        return _fold_divergence(with_missing, "canceled_reachable_via_dependency", carried)
+        return _with_attribution_hint(_fold_divergence(with_missing, "canceled_reachable_via_dependency", carried), approved_wp_set)
 
     def _verify_merge_reachability(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
         """The Tier-0 merge/rebase axis: per-SHA reachability + excluded/closed-world.
@@ -1019,6 +1086,15 @@ class MergeOutcomeVerifier:
         carrier lane onto the target (#4945/#4977/#4981) — it is returned as a
         ``(sha, patch_id)`` divergence.
 
+        A commit in :attr:`ApprovedWpCommitSet.external_dependency_shas` is NOT a
+        divergence: that set is the verified result of the operator's explicit
+        ``--dependency-ref`` declaration (#6771), and its commits are the external
+        dependency a work-package branch brought in — content that predates the mission's own work,
+        with the same standing as commits already on the target. The set is empty
+        unless the operator declared a ref that passed every guard, so this never
+        widens attribution on its own (see
+        :func:`resolve_external_dependency_refs`).
+
         NON-content commits are never flagged: merge commits (empty patch-id) and
         spec-kitty housekeeping commits (status/meta/matrix/retrospective
         projections — every changed path is bookkeeping) are excluded from the
@@ -1029,19 +1105,35 @@ class MergeOutcomeVerifier:
         builder turns it on), so a hand-built claim keeps the pre-widening
         behavior; also a no-op when the window base is unknown.
         """
+        return self._unattributable_in((target_ref,), claim)
+
+    def _unattributable_in(self, refs: Sequence[str], claim: ApprovedWpCommitSet) -> list[tuple[str, str]]:
+        """The closed-world window scan, over every commit *refs* reach (ONE authority).
+
+        :meth:`_unattributable_content` scans the landed target; the ``--dry-run``
+        forecast (#6771) scans the refs a landing WOULD introduce (the mission branch
+        and the target) so the refusal is predictable before any ref moves. Both run
+        this same per-commit filter, so the forecast and the real run cannot disagree
+        about what is attributable.
+        """
         if not claim.enforce_closed_world or claim.excluded_window_base is None:
             return []
-        unattributable: list[tuple[str, str]] = []
-        for sha in commits_in_range(self._repo, claim.excluded_window_base, target_ref):
-            pid = patch_id_of(self._repo, sha)
-            if not pid:
-                continue  # merge commit / empty diff — never content
-            if not self._commit_is_content(sha, claim):
-                continue  # spec-kitty housekeeping — status/meta/matrix/retrospective
-            if sha in claim.authored_shas or pid in claim.authored_patch_ids:
-                continue  # attributable to an approved WP's own authorship
-            unattributable.append((sha, pid))
-        return unattributable
+        unattributable: dict[str, str] = {}
+        for ref in refs:
+            for sha in commits_in_range(self._repo, claim.excluded_window_base, ref):
+                if sha in unattributable:
+                    continue
+                pid = patch_id_of(self._repo, sha)
+                if not pid:
+                    continue  # merge commit / empty diff — never content
+                if not self._commit_is_content(sha, claim):
+                    continue  # spec-kitty housekeeping — status/meta/matrix/retrospective
+                if sha in claim.authored_shas or pid in claim.authored_patch_ids:
+                    continue  # attributable to an approved WP's own authorship
+                if sha in claim.external_dependency_shas:
+                    continue  # a declared, verified external dependency (#6771) — predates the window
+                unattributable[sha] = pid
+        return list(unattributable.items())
 
     def _verify_squash_content(self, target_ref: str, claim: ApprovedWpCommitSet) -> VerifyResult:
         """Squash-sound content verdict via closed-world BLOB attribution (#5013 WS1).
@@ -1181,12 +1273,14 @@ class MergeOutcomeVerifier:
             if self._is_bookkeeping_path(path, claim):
                 continue  # status/meta/matrix/retrospective/planning churn — not content
             if status.startswith("D"):
-                if path not in claim.authored_deletions:
+                if path not in claim.authored_deletions and path not in claim.external_dependency_deletions:
                     unattributable_deletions.append(path)
                 continue
             blob = blob_id_at(self._repo, target_ref, path)  # raises → REFUSE (F1)
             if (path, blob) in claim.authored_blobs:
                 continue
+            if (path, blob) in claim.external_dependency_blobs:
+                continue  # a declared, verified external dependency's own final content (#6771)
             if is_legitimate_three_way_resolution(self._repo, claim, path, blob):
                 continue
             unattributable_blobs.append((path, blob))
@@ -1475,6 +1569,7 @@ def build_approved_wp_set(
     coord_base_ref: str,
     excluded_canceled_wp_ids: Iterable[str] = (),
     excluded_window_base: str | None = None,
+    external_dependency_refs: Sequence[str] = (),
 ) -> ApprovedWpCommitSet:
     """Derive the fail-closed, reduced-snapshot claim once per transaction (T027).
 
@@ -1494,15 +1589,32 @@ def build_approved_wp_set(
       content beyond what the approval stamps name, so the live tip equals the approved
       content up to tool-made merges and bookkeeping commits;
     * fail-closed: an unmaterializable coord surface, or a claim that is empty
-      while the manifest lists WPs, yields a REFUSE-shaped claim.
+      while the manifest lists WPs, yields a REFUSE-shaped claim;
+    * *external_dependency_refs* (#6771) are the operator's declared external dependency
+      refs (``specify_cli consolidate --dependency-ref``). They are verified once, HERE,
+      before any collector reads a lane tip, and the resulting exempt sets ride on the
+      claim so the verifier and the ``--dry-run`` forecast attribute the same content. A
+      declaration that cannot be honoured yields a REFUSE-shaped claim, so it refuses at
+      claim time (before the first mutating phase) instead of at the gate.
     """
     # Imported lazily so this module stays import-light and the status facade is
     # resolved through ``specify_cli.status`` (C-002: the status facade, not a
     # direct ``spec_kitty_events`` import).
     from specify_cli.status import materialize_snapshot
 
+    external_dependency = resolve_external_dependency_refs(
+        repo_root,
+        refs=external_dependency_refs,
+        window_base=excluded_window_base,
+        mission_branch=lanes_manifest.mission_branch,
+        lanes_manifest=lanes_manifest,
+        coord_base_ref=coord_base_ref,
+    )
+
     manifest_wp_ids = frozenset(wp for lane in lanes_manifest.lanes for wp in lane.wp_ids)
     planning_prefix = _planning_prefix(repo_root, feature_dir)
+    if external_dependency.refusal is not None:
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, external_dependency.refusal)
     try:
         snapshot = materialize_snapshot(feature_dir)
     except Exception as exc:  # noqa: BLE001 — any unmaterializable surface fails closed
@@ -1653,6 +1765,10 @@ def build_approved_wp_set(
         canceled_dependency_content=dependency.content,
         bound_lane_tips=bound.lane_tips,
         no_implementation_attested_wp_ids=evidence.lifted_wp_ids,
+        external_dependency_refs=external_dependency.refs,
+        external_dependency_shas=external_dependency.shas,
+        external_dependency_blobs=external_dependency.blobs,
+        external_dependency_deletions=external_dependency.deletions,
     )
 
 
@@ -3008,6 +3124,141 @@ def _lane_first_parent_spine(repo_root: Path, coord_base_ref: str, branch: str) 
         return spine
     except GitProbeError:
         return []
+
+
+@dataclass(frozen=True)
+class ExternalDependencyAttribution:
+    """The verified result of the operator's ``--dependency-ref`` declarations (#6771).
+
+    ``shas`` are the declared refs' commits inside the closed-world window
+    (``window_base..ref``), ``blobs``/``deletions`` their final per-path state from the SAME
+    :func:`_final_authored_walk` the lane authorship uses (C-002 — never a second walk).
+    ``refusal`` is set when a declaration cannot be honoured fail-closed; the sets are then
+    EMPTY, so a refused declaration exempts nothing.
+    """
+
+    refs: tuple[str, ...] = ()
+    shas: frozenset[str] = frozenset()
+    blobs: frozenset[tuple[str, str]] = frozenset()
+    deletions: frozenset[str] = frozenset()
+    refusal: str | None = None
+
+
+def _mission_spines(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    *,
+    coord_base_ref: str,
+    window_base: str,
+) -> dict[str, str]:
+    """Commit SHA -> the mission spine it sits on, for the #6771 declaration guard.
+
+    Every commit a mission AUTHORED or CARRIED onto a first-parent spine is mission work: a
+    lane's own spine (``coord_base_ref..lane-branch --first-parent``, tolerant of an
+    unresolvable lane exactly as :func:`_lane_first_parent_spine` is) and the mission
+    branch's own spine above the window base. A declaration that would exempt one of these
+    is refused, which keeps the closed world from being widened into a bypass: a removed work
+    package's commit is on its lane's spine, and a direct commit on the mission branch is on
+    the mission branch's spine. An external dependency's commits are on neither (they arrived
+    as a merge's second parent), which is exactly what makes them declarable.
+    """
+    spines: dict[str, str] = {}
+    for lane in lanes_manifest.lanes:
+        label = f"lane {lane.lane_id}'s first-parent spine"
+        for sha in _lane_first_parent_spine(repo_root, coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id)):
+            spines.setdefault(sha, label)
+    mission_label = f"the mission branch {lanes_manifest.mission_branch}'s first-parent spine"
+    # The mission branch is READ, not tolerated: a spine this guard cannot read is a spine it
+    # cannot defend, and the caller turns the resulting GitProbeError into a REFUSE. Lane
+    # branches stay tolerant (a fully-canceled lane has no branch; a missing one guards
+    # nothing, exactly as :func:`_lane_first_parent_spine` documents for authorship).
+    for sha in first_parent_commits_in_range(repo_root, window_base, lanes_manifest.mission_branch):
+        spines.setdefault(sha, mission_label)
+    return spines
+
+
+def _mission_work_reaches(
+    repo_root: Path,
+    sha: str,
+    mission_branch: str,
+    lanes_manifest: LanesManifest,
+) -> bool:
+    """True when the mission branch OR any lane branch reaches *sha* (#6771).
+
+    A work-package branch brings its dependency branch in during implementation, which is BEFORE the
+    consolidation folds the lanes into the mission branch — so at claim time the merged head is
+    reachable from the LANE, not yet from the mission branch. Both are the mission's own work
+    reaching the ref, so both count. An unresolvable lane branch (a fully-canceled lane, a
+    topology that cut it after this read) contributes nothing rather than failing the probe:
+    the same tolerance :func:`_lane_first_parent_spine` documents for authorship.
+    """
+    if sha_reachable_from(repo_root, sha, mission_branch):
+        return True
+    for lane in lanes_manifest.lanes:
+        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        if branch_exists(repo_root, branch) and sha_reachable_from(repo_root, sha, branch):
+            return True
+    return False
+
+
+def resolve_external_dependency_refs(
+    repo_root: Path,
+    *,
+    refs: Sequence[str],
+    window_base: str | None,
+    mission_branch: str,
+    lanes_manifest: LanesManifest,
+    coord_base_ref: str,
+) -> ExternalDependencyAttribution:
+    """Verify the declared dependency refs and return the sets that are outside the closed world.
+
+    A declared ref is honoured only when it is an external branch the mission really merged
+    in: it resolves, the mission branch reaches it, and NONE of its window commits sits on a
+    mission spine (:func:`_mission_spines`). Those commits then join the content that predates
+    the window — the standing commits already on the target have. Nothing else changes: an
+    undeclared commit stays un-attributable. Attribution is never widened toward merge
+    simulation (C-001: #4945 and #6771 are structurally identical, so only an explicit
+    declaration separates them).
+
+    No declaration short-circuits before any git probe, so an undeclared run costs exactly
+    what it costs today (NFR-001). Every failure is a REFUSE with the sets left EMPTY: an
+    unresolvable ref, a ref the mission never merged, a ref that would cover mission work, an
+    unbounded window, or any :class:`GitProbeError` (NFR-002).
+    """
+    declared = tuple(dict.fromkeys(ref for ref in refs if ref.strip()))
+    if not declared:
+        return ExternalDependencyAttribution()
+    if window_base is None:
+        return ExternalDependencyAttribution(refs=declared, refusal=_REFUSE_DEPENDENCY_NO_WINDOW_BASE.format(refs=", ".join(declared)))
+    try:
+        spines = _mission_spines(repo_root, lanes_manifest, coord_base_ref=coord_base_ref, window_base=window_base)
+    except GitProbeError as exc:
+        return ExternalDependencyAttribution(refs=declared, refusal=f"a git probe failed while reading the mission spines: {exc}")
+    shas: set[str] = set()
+    blobs: set[tuple[str, str]] = set()
+    deletions: set[str] = set()
+    for ref in declared:
+        try:
+            tip = resolve_commit(repo_root, ref)
+        except GitProbeError:
+            return ExternalDependencyAttribution(refs=declared, refusal=_REFUSE_DEPENDENCY_UNRESOLVED.format(ref=ref))
+        try:
+            if not _mission_work_reaches(repo_root, tip, mission_branch, lanes_manifest):
+                return ExternalDependencyAttribution(refs=declared, refusal=_REFUSE_DEPENDENCY_NOT_MERGED.format(ref=ref, mission_branch=mission_branch))
+            window = commits_in_range(repo_root, window_base, tip)
+            covered = [sha for sha in window if sha in spines]
+            if covered:
+                return ExternalDependencyAttribution(
+                    refs=declared,
+                    refusal=_REFUSE_DEPENDENCY_COVERS_MISSION_WORK.format(ref=ref, sha=covered[0][:10], spine=spines[covered[0]]),
+                )
+            ref_blobs, ref_deletions = _final_authored_walk(repo_root, window)
+        except GitProbeError as exc:
+            return ExternalDependencyAttribution(refs=declared, refusal=f"a git probe failed while verifying external dependency ref '{ref}': {exc}")
+        shas.update(window)
+        blobs |= ref_blobs
+        deletions |= ref_deletions
+    return ExternalDependencyAttribution(refs=declared, shas=frozenset(shas), blobs=frozenset(blobs), deletions=frozenset(deletions))
 
 
 def _final_authored_walk(repo_root: Path, first_parent_shas: list[str]) -> tuple[set[tuple[str, str]], set[str]]:
