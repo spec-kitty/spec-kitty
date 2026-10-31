@@ -1357,7 +1357,6 @@ exclude = [
     "tests/retrospective/test_strict_flow_skip_empty_reason_rejected.py",
     "tests/retrospective/test_wp04_coverage_branches.py",
     "tests/integration/review/test_reject_from_in_review.py",
-    "tests/integration/sparse_checkout/test_detection.py",
     "tests/integration/sparse_checkout/test_doctor_finding.py",
     "tests/integration/sparse_checkout/test_doctor_non_interactive.py",
     "tests/integration/sparse_checkout/test_merge_refresh_and_invariant.py",
