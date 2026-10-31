@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "mission_slug": "effective-set-one-spelling-01M68ZYF",
+  "mission_id": "01M68ZYFF8D26JST6CBJSJ794N",
+  "mission_branch": "kitty/mission-effective-set-one-spelling-01M68ZYF",
+  "target_branch": "issue-6435-effective-set-one-spelling",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/pack_manager.py",
+        "tests/specify_cli/cli/commands/charter/test_activate_required_key_stems_6435.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/effective_set.py",
+        "tests/charter/activation/test_effective_set.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:48:53.388614+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f1471b6e619e402e286355caa3516b428a1985a3"
+}
