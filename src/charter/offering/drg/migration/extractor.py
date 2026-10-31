@@ -30,6 +30,7 @@ from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Re
 from charter.offering.drg.validator import assert_valid
 from charter.offering.missions.mission_step_repository import MissionStepRepository
 from charter.offering.missions.repository import MissionTemplateRepository
+from charter.offering.missions.step_contracts import step_contract_urn
 from charter.offering.missions.step_projection import (
     iter_template_refs,
     project_action_sequence,
@@ -1489,6 +1490,12 @@ def _discover_mission_step_contract_nodes(
     so a node exists **iff** a contract exists. Mirrors how
     :func:`extract_action_edges` mints ``action:<mission>/<action>`` nodes.
 
+    The URN spelling is :func:`charter.offering.missions.step_contracts.step_contract_urn` --
+    the same function :meth:`charter.activation.identity_index.IdentityIndex.urn` uses to resolve an
+    activation token (a contract's declared ``id``, e.g. ``documentation-accept``) to its node. Minting
+    the URN here and there from one implementation is what keeps the graph and the activation surfaces
+    from disagreeing (#6741).
+
     These nodes are what the pre-review activation ⋈ binding join
     (``review/gate_bindings.py``) resolves against: without
     ``mission_step_contract:software-dev/review`` the transition gate resolves
@@ -1498,14 +1505,17 @@ def _discover_mission_step_contract_nodes(
 
     Raises:
         ValueError: if two contracts declare the same ``mission``/``action``
-            pair. Left unchecked, ``_ensure_node`` would silently collapse the
-            pair onto one URN, masking an authoring collision behind a
-            freshness-clean graph.
+            pair, or the same declared ``id``. Left unchecked, ``_ensure_node``
+            would silently collapse the pair onto one URN, masking an authoring
+            collision behind a freshness-clean graph; a duplicate declared id is
+            the same collision one identity surface further out (the URN tail no
+            longer carries the id, so ``seen_urns`` alone would not catch it).
     """
     contracts_dir = _missions_root(pack_root) / "built_in_step_contracts"
     if not contracts_dir.is_dir():
         return
     seen_urns: dict[str, Path] = {}
+    seen_ids: dict[str, Path] = {}
     for path in sorted(contracts_dir.glob("*.step-contract.yaml")):
         data = _load_yaml(path)
         if data is None:
@@ -1514,7 +1524,16 @@ def _discover_mission_step_contract_nodes(
         action: str = data.get("action", "")
         if not mission or not action:
             continue
-        urn = artifact_to_urn("mission_step_contract", f"{mission}/{action}")
+        contract_id: str = data.get("id", "")
+        if contract_id:
+            if contract_id in seen_ids:
+                msg = (
+                    f"Duplicate mission_step_contract id {contract_id!r} declared by both "
+                    f"{seen_ids[contract_id].name} and {path.name} in {path.parent}"
+                )
+                raise ValueError(msg)
+            seen_ids[contract_id] = path
+        urn = step_contract_urn(mission, action)
         if urn in seen_urns:
             msg = (
                 f"Duplicate mission_step_contract {urn!r} declared by both "
