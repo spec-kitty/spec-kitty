@@ -41,7 +41,10 @@ from specify_cli.consolidation._constants import (
 )
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
-from specify_cli.consolidation.preflight import refuse_protected_status_target
+from specify_cli.consolidation.preflight import (
+    refuse_protected_status_target,
+    refuse_protected_target_override,
+)
 from specify_cli.consolidation.state import needs_number_assignment
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_artifact_surface
 from specify_cli.post_merge.review_artifact_consistency import (
@@ -260,6 +263,43 @@ def _refuse_protected_status_target_in_forecast(main_repo: Path, mission_slug: s
     raise typer.Exit(1)
 
 
+def _forecast_recorded_target(main_repo: Path, mission_slug: str, *, fallback: str) -> str:
+    """The Mission's recorded target, resolved the way the real run resolves it (#6464).
+
+    The forecast holds the UN-retargeted ``lanes.json``, whose ``target_branch`` is also
+    written from the same resolution, so *fallback* is normally identical. Resolving
+    ``meta.json`` anyway (explicit target ``None``) keeps the preview and the real run
+    from disagreeing when the two records have drifted apart; an unreadable
+    ``meta.json`` keeps the manifest's value, because this is a preview and the real
+    run's own preflights own that failure.
+    """
+    from specify_cli.core.paths import MissionMetaReadError, resolve_merge_target_branch
+
+    try:
+        recorded_target, _source = resolve_merge_target_branch(main_repo, mission_slug, None)
+    except MissionMetaReadError:
+        return fallback
+    return recorded_target
+
+
+def _refuse_protected_target_override_in_forecast(main_repo: Path, mission_slug: str, *, recorded_target: str, effective_target: str, json_output: bool) -> None:
+    """``--dry-run`` parity for the #6464 override guard: report the policy's own ``error_code``."""
+    verdict = refuse_protected_target_override(
+        main_repo,
+        mission_slug,
+        recorded_target=recorded_target,
+        effective_target=effective_target,
+    )
+    if verdict is None:
+        return
+    _emit_dry_run_error(
+        error_msg=f"{verdict.error_code}: {verdict.message} Next step: {verdict.next_step}",
+        json_output=json_output,
+        error_code=verdict.error_code,
+    )
+    raise typer.Exit(1)
+
+
 def run_dry_run_forecast(
     *,
     repo_root: Path,
@@ -310,6 +350,19 @@ def run_dry_run_forecast(
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
     _refuse_protected_status_target_in_forecast(get_main_repo_root(repo_root), resolved_feature, lanes_manifest, json_output=json_output)
+    # #6464: the forecast holds the UN-retargeted manifest, so the recorded target is its
+    # ``target_branch`` while the effective one is the resolved ``--target``.
+    _refuse_protected_target_override_in_forecast(
+        get_main_repo_root(repo_root),
+        resolved_feature,
+        recorded_target=_forecast_recorded_target(
+            get_main_repo_root(repo_root),
+            resolved_feature,
+            fallback=lanes_manifest.target_branch,
+        ),
+        effective_target=resolved_target_branch,
+        json_output=json_output,
+    )
 
     # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate
     # that real merge runs (issue #991). When a rejected review-cycle
