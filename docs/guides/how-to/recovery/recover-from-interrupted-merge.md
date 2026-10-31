@@ -102,10 +102,12 @@ The resume proves that before it deletes anything, and refuses when it cannot:
 - It refuses if any coordination record changed in that window is not on the
   target.
 
-**This is stricter than earlier releases.** On an ordinary resume — not only one
-that follows a refusal — a window that deletes a coordination record the target
-holds now makes `spec-kitty consolidate` exit 1, where it used to exit 0 and let
-the deletion vanish with the coordination branch.
+**This is stricter than earlier releases.** On ANY `--resume` -- not only one
+that follows `COORD_TEARDOWN_KEPT_ONLY_COPY` -- a window that holds a record the
+resume cannot land (a deleted record, a copy that would lose evidence, an
+unreadable matrix) now makes `spec-kitty consolidate` exit 1, where it used to
+exit 0 and let the record vanish with the coordination branch. The message ends
+with `Error code: COORD_LATE_PROJECTION_REFUSED.`
 
 A refusal there names the file, exits 1 and keeps the coordination
 branch, its worktree and the Mission's coordination marker together, so nothing
