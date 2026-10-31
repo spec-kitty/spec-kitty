@@ -2,8 +2,8 @@
 
 Ledger-seeded.
 Drives the manager's activation-side deny glue: the stored stem is cleared for
-a declared id, an absent list is materialised without the denied id, a
-present-list round trip leaves no deny key, and a deny list plus an
+a declared id, an absent list is left absent with its deny untouched (#6685),
+a present-list round trip leaves no deny key, and a deny list plus an
 unreadable declared org pack refuses with every activation file
 byte-identical (after a same-fixture positive control). Also pins the
 cascade-child branches of ``charter deactivate`` and the empty-ledger write
