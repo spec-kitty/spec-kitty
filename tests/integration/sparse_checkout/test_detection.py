@@ -32,6 +32,7 @@ from specify_cli.git.sparse_checkout import (
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+
 def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,
@@ -292,9 +293,7 @@ class TestEndToEndDetection:
         assert report.any_active is True
         assert repo in report.affected_paths
 
-    def test_pattern_file_line_count_counted_without_comments(
-        self, tmp_path: Path
-    ) -> None:
+    def test_pattern_file_line_count_counted_without_comments(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         _init_repo_with_commit(repo)
         _run(["git", "-C", str(repo), "config", "core.sparseCheckout", "true"])
@@ -320,9 +319,7 @@ class TestEndToEndDetection:
         assert state.pattern_file_present is True
         assert state.pattern_line_count == 3
 
-    def test_managed_lane_sparse_checkout_is_not_blocking(
-        self, tmp_path: Path
-    ) -> None:
+    def test_managed_lane_sparse_checkout_is_not_blocking(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         lane_path = _init_coordination_lane_repo(repo)
 
@@ -333,14 +330,9 @@ class TestEndToEndDetection:
         assert report.affected_paths == ()
         assert len(report.worktrees) == 1
         assert report.worktrees[0].path == lane_path
-        assert (
-            report.worktrees[0].sparse_checkout_kind
-            is SparseCheckoutKind.MANAGED_LANE
-        )
+        assert report.worktrees[0].sparse_checkout_kind is SparseCheckoutKind.MANAGED_LANE
 
-    def test_managed_lane_sparse_checkout_with_drift_is_blocking_unknown(
-        self, tmp_path: Path
-    ) -> None:
+    def test_managed_lane_sparse_checkout_with_drift_is_blocking_unknown(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         lane_path = _init_coordination_lane_repo(repo)
         raw = _run(
@@ -358,9 +350,7 @@ class TestEndToEndDetection:
         assert report.affected_paths == (lane_path,)
         assert report.worktrees[0].sparse_checkout_kind is SparseCheckoutKind.UNKNOWN
 
-    def test_manual_matching_worktree_is_blocking_unknown(
-        self, tmp_path: Path
-    ) -> None:
+    def test_manual_matching_worktree_is_blocking_unknown(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         _init_coordination_lane_repo(repo)
         manual_path = repo / ".worktrees" / f"{MISSION_SLUG}-lane-b"
@@ -423,14 +413,9 @@ class TestManagedLaneIsBranchIndependent:
         assert off_branch.any_blocking is False
         assert off_branch.affected_paths == ()
         # The invariant, stated directly: the branch is not an input.
-        assert (
-            off_branch.worktrees[0].sparse_checkout_kind
-            is on_branch.worktrees[0].sparse_checkout_kind
-        )
+        assert off_branch.worktrees[0].sparse_checkout_kind is on_branch.worktrees[0].sparse_checkout_kind
 
-    def test_implement_preflight_does_not_refuse_on_mission_free_branch(
-        self, tmp_path: Path
-    ) -> None:
+    def test_implement_preflight_does_not_refuse_on_mission_free_branch(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         _init_lane_repo_with_mission_free_branch(repo)
         _switch_root(repo, MISSION_FREE_BRANCH)
@@ -446,9 +431,7 @@ class TestManagedLaneIsBranchIndependent:
             mission_id="01M68JC9ABCDEFGHJKMNPQRSTV",
         )
 
-    def test_genuine_legacy_state_still_refuses_on_mission_free_branch(
-        self, tmp_path: Path
-    ) -> None:
+    def test_genuine_legacy_state_still_refuses_on_mission_free_branch(self, tmp_path: Path) -> None:
         """Same fixture family, opposite verdict: the escape did not widen.
 
         The lane's pattern file keeps ``/*`` only, so it is not the managed
@@ -501,9 +484,25 @@ class TestManagedLaneIsBranchIndependent:
         assert orphan_state.sparse_checkout_kind is not SparseCheckoutKind.MANAGED_LANE
         assert orphan_state.is_blocking is True
 
-    def test_root_policy_alone_is_enough_and_not_duplicated(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unreadable_lane_meta_json_fails_closed_without_raising(self, tmp_path: Path) -> None:
+        """C-003: a probe failure never escapes ``scan_repo`` and never widens.
+
+        A non-UTF-8 ``meta.json`` in the lane's own tree is the read failure the
+        classifier must absorb. The verdict stays blocking (fail closed) and the
+        scan raises nothing -- ``scan_repo`` is also reached from
+        ``warn_if_sparse_once``, which must never break the invoking command.
+        """
+        repo = tmp_path / "r"
+        lane_path, mission_free = _init_lane_repo_with_mission_free_branch(repo)
+        (lane_path / "kitty-specs" / MISSION_SLUG / "meta.json").write_bytes(b"\xff\xfe not utf-8\n")
+        _switch_root(repo, mission_free)
+
+        report = scan_repo(repo)
+
+        assert report.worktrees[0].sparse_checkout_kind is not SparseCheckoutKind.MANAGED_LANE
+        assert report.any_blocking is True
+
+    def test_root_policy_alone_is_enough_and_not_duplicated(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Two policy sources that agree must stay one candidate (NFR-001).
 
         ``_classify_worktree_state`` treats more than one candidate policy as
@@ -588,9 +587,7 @@ class TestPreflight:
         assert "--allow-sparse-checkout" in msg
         assert str(repo) in msg
 
-    def test_override_flag_emits_structured_log_and_does_not_raise(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
+    def test_override_flag_emits_structured_log_and_does_not_raise(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         import logging
 
         from specify_cli.git import sparse_checkout as sc_mod
@@ -610,11 +607,7 @@ class TestPreflight:
             mission_id="01HXYZ",
         )
 
-        override_hits = [
-            r
-            for r in caplog.records
-            if "spec_kitty.override.sparse_checkout" in r.getMessage()
-        ]
+        override_hits = [r for r in caplog.records if "spec_kitty.override.sparse_checkout" in r.getMessage()]
         assert len(override_hits) == 1
         msg = override_hits[0].getMessage()
         assert "command=merge" in msg
@@ -623,9 +616,7 @@ class TestPreflight:
         assert "actor=tester" in msg
         assert str(repo) in msg
 
-    def test_managed_lane_sparse_checkout_passes_preflight(
-        self, tmp_path: Path
-    ) -> None:
+    def test_managed_lane_sparse_checkout_passes_preflight(self, tmp_path: Path) -> None:
         repo = tmp_path / "r"
         _init_coordination_lane_repo(repo)
 
