@@ -182,7 +182,8 @@ def _usage_error_class(ctx: Any) -> Callable[..., Exception]:
 
 def _given_on_command_line(ctx: Any, name: str) -> bool:
     """True when ``name`` was typed on the command line (click-era agnostic)."""
-    return parameter_source_name(ctx, name) == _COMMANDLINE_SOURCE
+    source_name: str | None = parameter_source_name(ctx, name)
+    return source_name == _COMMANDLINE_SOURCE
 
 
 #: #5294: scope-neutral on purpose -- accurate for corpus-walk, pack-scoped
@@ -1593,6 +1594,13 @@ def rebaseline_dossier_hashes(
         _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
+    from specify_cli.cli.commands.migrate._project_admission import admit_migration_project_root
+
+    try:
+        repo_root = admit_migration_project_root(repo_root)
+    except RuntimeError as exc:
+        _error(str(exc))
+        raise typer.Exit(1) from exc
     outcomes = rebaseline_recorded_snapshots(repo_root, dry_run=dry_run)
     changed = [o for o in outcomes if o.changed]
     errored = [o for o in outcomes if o.error]

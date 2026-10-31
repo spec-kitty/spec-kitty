@@ -159,7 +159,8 @@ def install(repo_root: Path) -> HookInstallRecord:
     )
 
     hooks_dir = repo_root / ".git" / "hooks"
-    hooks_dir.mkdir(parents=True, exist_ok=True)
+    # The admitted repository supplies .git; only its hooks directory may be created.
+    hooks_dir.mkdir(exist_ok=True)
     hook_path = hooks_dir / "pre-commit"
 
     fd, tmp_path_str = tempfile.mkstemp(prefix="pre-commit.", dir=str(hooks_dir))

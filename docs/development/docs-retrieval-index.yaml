@@ -14712,6 +14712,15 @@ pages:
     - {slug: "engineering-decisions", text: "Engineering Decisions", level: 2}
     - {slug: "known-limitations", text: "Known Limitations", level: 2}
     - {slug: "publication-documentation-repair", text: "Publication documentation repair", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-31-migration-project-admission.md"
+    title: "Migration project write admission"
+    divio_type: "none"
+    abstract: "Preserve project discovery while preventing global runtime storage from authorizing unrelated migrations."
+    anchors:
+    - {slug: "objective-and-observed-user-experience", text: "Objective and observed user experience", level: 2}
+    - {slug: "admission-boundary-and-compatibility", text: "Admission boundary and compatibility", level: 2}
+    - {slug: "regression-evidence-and-limitations", text: "Regression evidence and limitations", level: 2}
+    - {slug: "owner-resources-and-next-event", text: "Owner, resources and next event", level: 2}
   - path: "docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md"
     title: "Infra-to-logic separation (#2173) — investigation synthesis"
     divio_type: "none"

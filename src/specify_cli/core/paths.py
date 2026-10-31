@@ -194,6 +194,15 @@ def _read_worktree_gitdir(git_marker: Path) -> Path | None:
     return gitdir
 
 
+def get_project_root_override() -> Path | None:
+    """Return the valid explicit operator root using the canonical Tier 1 rule."""
+    if env_root := os.getenv("SPECIFY_REPO_ROOT"):
+        env_path = Path(env_root).resolve()
+        if env_path.is_dir():
+            return get_main_repo_root(env_path)
+    return None
+
+
 def locate_project_root(start: Path | None = None, *, stop: Path | None = None) -> Path | None:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
@@ -244,11 +253,9 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
     # returning a bogus root. Real ``.kittify/`` projects are unaffected: both
     # this branch and the walk-up resolve the same directory via
     # ``get_main_repo_root`` (C-003 regression-guarded).
-    if env_root := os.getenv("SPECIFY_REPO_ROOT"):
-        env_path = Path(env_root).resolve()
-        if env_path.is_dir():
-            return get_main_repo_root(env_path)
-        # Missing or non-directory env var path - fall through to other methods
+    if override := get_project_root_override():
+        return override
+    # Missing or non-directory overrides fall through to the directory walk.
 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
