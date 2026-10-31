@@ -2,10 +2,9 @@
   "event_count": 21,
   "last_event_id": "01M67R6WYTB19EEHGWAXQN082R",
   "materialized_at": "2026-10-31T01:11:59.194244+00:00",
-  "mission_number": "244",
+  "mission_number": "",
   "mission_slug": "cascade-stem-resolution-pass-01M67JG7",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,98 +19,51 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "reviewer-glm-5.3",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "pi",
       "force_count": 0,
       "implementer_of_record": "pi",
       "lane": "done",
       "last_event_id": "01M67R6SSQAXSAESX6DKZ0TXBH",
       "last_transition_at": "2026-10-31T01:11:55.959918+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "One shared resolution pass for the whole cascade target batch, resolved before the first write; RED-first guard added; parses 5028->240",
-        "- 2026-10-31T00:33:22Z – pi – shell_pid=982467 – REVIEW (round 1, pi/deepseek-v4.1-flash): APPROVE. Diff read cold: _CascadeIds.config_id gains an optional pass (default path unchanged: render_pass, else call-local); _activate_cascade_targets resolves the batch via _cascade_target_refs then activates in the same sorted-kind/walk order, so entry order and per-target ValueError handling are unchanged. ref.kind is the same kind token the loop used before. drg_urn_to_config_id never raises (UnknownArtifactIdError/UnrepresentableDirectiveIdError are ValueErrors, both caught by its fallback to the bare id), so pre-resolving cannot add a failure mode before the first write. Render pass at :540 and the no-cascade report at :661 are untouched; no specify_cli import added to the charter layer. Guard test: 2 tests, red on main with the real reason, green after; positive control asserts one resolution per target was observed.",
-        "- 2026-10-31T00:43:34Z – pi – shell_pid=982467 – REVIEW round 1 (independent, pi/glm-5.3 via delegate): REQUEST CHANGES with 1 blocker + 5 minor/nits. Blocker: activate.py is a [tool.ruff.format].exclude entry, so the whole-file ruff format broke tests/architectural/test_ruff_format_exclude_ratchet.py::test_every_exclude_entry_still_genuinely_reformats. Fixed by reverting the excluded-file formatting churn and keeping only the three semantic hunks (ruff check clean, ruff format still reports 'Would reformat'). Minor/nits fixed: exact numbers (121 lookups = 114 targets + 7 render-only; 5309 id reads, 5028 parses), crash-path ordering documented, 'unmemoized' wording, StopIteration -> assertion. Reviewer confirmed: behaviour order, failed-entry path, ref.kind equivalence, no new exception type escapes, pass-never-spans-a-write contract, and both new guards non-vacuous. Changelog entry added after the review (Fixed + Internal).",
-        "Round 1 review fixes applied and verified"
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261031",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 982467,
-      "shell_pid_created_at": "1793403293.11",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done"
-      }
+      "shell_pid_created_at": "1793403293.11"
     },
     "WP02": {
       "actor": "merge",
-      "agent": "reviewer-glm-5.3",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "pi",
       "force_count": 0,
       "implementer_of_record": "pi",
       "lane": "done",
       "last_event_id": "01M67R6VH3H09847XPJ5X3112W",
       "last_transition_at": "2026-10-31T01:11:57.731928+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "- 2026-10-31T00:48:40Z – pi – shell_pid=2112260 – REVIEW round 1 (independent, pi/glm-5.3 via delegate): no blocker in the test-module half. Reviewer verified _parametrised_marks walks pytestmark -> parametrize args[1] -> ParameterSet.values/.marks, that the guard fails if a per-test timeout marker returns, and that the positive control proves the probe detects a present mark; it judged removing the 600 s override safe (worst post-fix 66.4 s x ~2.2 slow-runner factor ~146 s vs the 240 s backstop) with the 'slow' marker still selected in module-tests (-m 'not performance and not stress'). Verified again in lane-b after the dependency merge: 4 passed (both guards + mark probe) with the override gone. Changelog Internal entry added after the review.",
-        "Override retired, slow tier pinned, guards red on main and green here; 4 passed in lane-b",
-        "Independent review round 1 covered this WP; verified in lane-b after the dependency merge"
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261031",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 2112260,
-      "shell_pid_created_at": "1793407478.31",
-      "subtasks": {
-        "T005": "done",
-        "T006": "done",
-        "T007": "done"
-      }
+      "shell_pid_created_at": "1793407478.31"
     },
     "WP03": {
       "actor": "merge",
-      "agent": "reviewer-glm-5.3",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "agent": "pi",
       "force_count": 0,
       "implementer_of_record": "pi",
       "lane": "done",
       "last_event_id": "01M67R6WYTB19EEHGWAXQN082R",
       "last_transition_at": "2026-10-31T01:11:59.194244+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Policy disposition + changelog; module 10 passed under the default 240 s timeout; 965 neighbour tests passed; docs freshness errors=0; changelog style 0 errors",
-        "Docs/policy round: changelog style 0 errors, docs freshness errors=0, 965 neighbour tests green, module 10 passed under the 240 s default"
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP03:20261031",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 2268827,
-      "shell_pid_created_at": "1793408049.02",
-      "subtasks": {
-        "T008": "done",
-        "T009": "done",
-        "T010": "done",
-        "T011": "done"
-      }
+      "shell_pid_created_at": "1793408049.02"
     }
   }
 }
