@@ -37,7 +37,7 @@ from specify_cli.migration.verdict_provenance_backfill import (
     terminal_review_artifact,
 )
 from specify_cli.review.artifacts import ReviewCycleArtifact
-from specify_cli.status.models import Lane, ReviewResult, StatusEvent
+from specify_cli.status.models import Lane, ReviewResult, StatusEvent, actor_identity_str
 from specify_cli.status.reducer import (
     event_sourced_review_result,
     materialize,
@@ -271,7 +271,7 @@ class TestIdempotentBackfill:
         backfill_verdict_provenance(feature_dir)
         events = read_events(feature_dir)
         assert len(events) == 1
-        assert events[0].actor == BACKFILL_ACTOR
+        assert actor_identity_str(events[0].actor) == BACKFILL_ACTOR
         assert events[0].event_id  # non-empty deterministic ULID
 
     def test_wp_with_existing_event_slot_is_skipped(self, tmp_path: Path) -> None:

@@ -38,6 +38,8 @@ import pytest
 
 from mission_runtime import MissionTopology
 
+from specify_cli.status.models import actor_identity_str
+
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
 
 # Reused, PROVEN git/CLI harness primitives (T009 —
@@ -670,7 +672,7 @@ def test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed(
     new_seed_rows = [
         event
         for event in (*stream.transitions, *stream.annotations)
-        if event.actor == BACKFILL_ACTOR and event.event_id != _seed_id(_mission_id(feature_dir), "WP01", "claim")
+        if actor_identity_str(event.actor) == BACKFILL_ACTOR and event.event_id != _seed_id(_mission_id(feature_dir), "WP01", "claim")
     ]
     assert new_seed_rows
     assert all((seed.at, seed.event_id) < history_key for seed in new_seed_rows for history_key in legitimate_keys[seed.wp_id])

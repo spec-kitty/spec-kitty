@@ -81,7 +81,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from kernel.clock import UTC, datetime, timedelta, parse_iso, from_epoch
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -116,6 +116,8 @@ from specify_cli.status import (
     read_event_stream,
     reduce,
 )
+from specify_cli.status.actor import build_system_actor
+from specify_cli.status.models import ActorField, actor_identity_str
 from specify_cli.status._unsafe import append_event_stream_atomic_verified
 from specify_cli.workspace import canonicalize_feature_dir
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
@@ -329,8 +331,21 @@ def _seed_id(mission_id: str, wp_id: str, field_name: str) -> str:
 
 
 def _is_migration_actor(actor: object) -> bool:
-    """True for a backfill seed event (migration provenance)."""
-    return actor == BACKFILL_ACTOR
+    """True for **this** backfill's seed event (#6722), in either actor shape.
+
+    Narrower than the shared :func:`specify_cli.status.models.is_migration_actor`,
+    which answers "any seed": the ordering guards below are scoped to this module's own
+    rows, so another migration's seed must not count as this one's.
+
+    Shape-blind by construction: the comparison is on the projected identity
+    (:func:`specify_cli.status.models.actor_identity_str`), so the plain string this
+    module wrote before #6722 and the structured actor it writes now are the same seed.
+    Comparing the raw value (``actor == BACKFILL_ACTOR``) would have stopped recognising
+    every row already in a log the moment the written shape changed, and
+    :func:`_stream_without_migration` would then have read those seeds as history.
+    """
+    projected = actor_identity_str(cast("ActorField", actor))
+    return bool(projected) and projected == BACKFILL_ACTOR
 
 
 def _parse_ordering_timestamp(raw: str, *, wp_id: str) -> datetime:
@@ -870,7 +885,7 @@ def _claim_carrier(
         from_lane=Lane.PLANNED,
         to_lane=Lane.CLAIMED,
         at=at,
-        actor=BACKFILL_ACTOR,
+        actor=build_system_actor(BACKFILL_ACTOR),
         force=False,
         execution_mode="worktree",
         policy_metadata=policy_metadata,
@@ -1019,7 +1034,7 @@ def _append_annotation(
         annotate(
             wp_id,
             delta,
-            actor=BACKFILL_ACTOR,
+            actor=build_system_actor(BACKFILL_ACTOR),
             at=at,
             event_id=_seed_id(mission_id, wp_id, field_name),
         )
@@ -1032,6 +1047,23 @@ def _event_payload_without_at(
     """Return the typed wire payload without its historical envelope time."""
     payload: dict[str, Any] = event.to_dict()
     payload.pop("at", None)
+    return payload
+
+
+def _event_payload_actor_shape_agnostic(
+    event: StatusEvent | InnerStateChanged,
+) -> dict[str, Any]:
+    """The payload without its envelope time, with the actor projected to its identity (#6722).
+
+    Used only where a rebuilt seed row is compared to an **immutable** row already in the
+    log: a corpus seeded before the system actor existed holds the plain string while this
+    code rebuilds the structured form of the same identity, and a row cannot be rewritten.
+    Two actors of one identity project to the same text
+    (:func:`specify_cli.status.models.actor_identity_str`); two different seeds do not, so
+    this tolerates the shape and nothing else.
+    """
+    payload: dict[str, Any] = _event_payload_without_at(event)
+    payload["actor"] = actor_identity_str(payload.get("actor"))
     return payload
 
 
@@ -1080,7 +1112,10 @@ def _matches_legacy_contract(
     carrier = legacy_carriers.get(actual.event_id)
     if carrier is None:
         return False
-    return _event_payload_without_at(actual) == _event_payload_without_at(carrier)
+    # #6722: the reference carrier is rebuilt by today's builder, so a stored row written
+    # before the system actor existed differs in the actor's shape only -- the same
+    # tolerance the exact-payload comparison above applies.
+    return _event_payload_actor_shape_agnostic(actual) == _event_payload_actor_shape_agnostic(carrier)
 
 
 def _stream_without_migration(stream: EventStream) -> EventStream:
@@ -1659,19 +1694,30 @@ def _seed_row_mismatch(
     """Return one expected seed row's mismatch text, or ``None`` if it is sound.
 
     Absence is always a mismatch. A row that is present but not byte-identical
-    is tolerated in exactly two cases — an old (pre-floor) ``at`` with an
-    otherwise identical payload, and the pre-#2985 full-payload claim carrier
-    (:func:`_matches_legacy_contract`). Event rows are immutable and deduplicated
-    on first write, so those legitimately-shaped pre-floor rows cannot be
+    is tolerated in four cases, each one a difference a *legitimate* older writer
+    produced for the same seed: an old (pre-floor) ``at`` with an otherwise
+    identical payload; the same payload with the actor in its other shape
+    (``string`` vs the 4-key dict, #6722); the pre-#2985 full-payload claim
+    carrier (:func:`_matches_legacy_contract`); and a ``subtasks`` seed
+    superseded by legitimate later history. Event rows are immutable and
+    deduplicated on first write, so those legitimately-shaped rows cannot be
     rewritten in place and are accepted as sound; under the events 10.4.4
     reducer the old seed's claim slots fold into the snapshot correctly with no
-    further action. Any other divergence is tampering and stays red.
+    further action. Any other divergence -- a different actor identity, a changed
+    slot value, a different lane -- is tampering and stays red.
     """
     if actual is None:
         return f"{expected.wp_id}: {field_name} mismatch (deterministic seed missing)"
     if actual.to_dict() == expected.to_dict():
         return None
     if _event_payload_without_at(actual) == _event_payload_without_at(expected):
+        return None
+    if _event_payload_actor_shape_agnostic(actual) == _event_payload_actor_shape_agnostic(expected):
+        # #6722 tolerates exactly one further difference: the actor's *shape*. A seed
+        # row is immutable and deduplicated on its id, so a corpus seeded before the
+        # system actor existed holds the string form while this code rebuilds the
+        # structured form of the same identity. Reporting that as tampering would fail
+        # a healthy mission closed. A different identity still differs here.
         return None
     if _matches_legacy_contract(actual, legacy_carriers):
         return None

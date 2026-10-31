@@ -83,6 +83,7 @@ from specify_cli.status import (
     mission_lock_key,
 )
 from specify_cli.status._unsafe import append_events_atomic_verified
+from specify_cli.status.actor import build_system_actor
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
 #: Actor identity stamped on every backfilled event, matching the
@@ -391,7 +392,7 @@ def _backfill_event_for_wp(
         from_lane=Lane.IN_REVIEW,
         to_lane=_TO_LANE_BY_BRIDGED_VERDICT[bridged_verdict],
         at=artifact.reviewed_at,
-        actor=BACKFILL_ACTOR,
+        actor=build_system_actor(BACKFILL_ACTOR),
         force=False,
         execution_mode="worktree",
         review_result=review_result,
