@@ -1960,6 +1960,7 @@ def activation_ledger(
         spec-kitty migrate activation-ledger --json
     """
     from charter.activation.api import ActiveCharterConfigError
+    from specify_cli.upgrade.ledger import MigrationLedgerLockTimeoutError
     from specify_cli.upgrade.migrations.base import legacy_upgrade_scope
 
     repo_root = locate_project_root()
@@ -1968,6 +1969,8 @@ def activation_ledger(
     try:
         with legacy_upgrade_scope(repo_root):
             payload, refusal_message = _activation_ledger_payload(repo_root, dry_run=dry_run)
+    except MigrationLedgerLockTimeoutError as exc:
+        _activation_ledger_error("MIGRATION_LEDGER_LOCK_TIMEOUT", str(exc), json_output=json_output)
     except (ActiveCharterConfigError, ValueError) as exc:
         message = exc.body if isinstance(exc, ActiveCharterConfigError) else str(exc)
         _activation_ledger_error("ACTIVATION_LEDGER_MIGRATION_FAILED", message, json_output=json_output)

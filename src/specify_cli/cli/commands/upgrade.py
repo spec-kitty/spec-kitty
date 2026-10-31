@@ -49,7 +49,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager, suppress
 from kernel.clock import now_utc
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import typer
 
@@ -89,6 +89,7 @@ from specify_cli.upgrade.outcome import (
     UpgradeOutcome,
     UpgradeOutcomeKind,
 )
+from specify_cli.upgrade.ledger import MigrationLedgerLockTimeoutError
 from specify_cli.upgrade.runner import RepositoryProbe, UpgradeResult, migration_skipped_outside_repository
 from specify_cli.upgrade.version_stamp_boundary import version_stamp_boundary
 
@@ -169,6 +170,15 @@ def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[s
 # ---------------------------------------------------------------------------
 # T035 — --cli mode helper
 # ---------------------------------------------------------------------------
+
+
+def _render_ledger_lock_refusal(exc: MigrationLedgerLockTimeoutError, *, json_output: bool) -> NoReturn:
+    """Refuse (exit 1) when the migration ledger lock stayed held; the append never happened."""
+    if json_output:
+        print(json.dumps({"ok": False, "error": {"code": "MIGRATION_LEDGER_LOCK_TIMEOUT", "message": str(exc)}}, indent=2))
+    else:
+        console.print(f"[red]Refused:[/red] {escape(str(exc))}")
+    raise typer.Exit(1)
 
 
 def _run_cli_mode(
@@ -2175,13 +2185,17 @@ def upgrade(
             # dirty coord/lane worktrees. D-10: the worktree-scope decision, not a
             # bare `not dry_run`. The main checkout is committed by the finalizer
             # below.
-            result = MigrationRunner(project_path, console).upgrade(
-                target_version,
-                dry_run=dry_run,
-                force=confirm,  # pass the unified confirm flag
-                include_worktrees=not no_worktrees,
-                auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
-            )
+            try:
+                result = MigrationRunner(project_path, console).upgrade(
+                    target_version,
+                    dry_run=dry_run,
+                    force=confirm,  # pass the unified confirm flag
+                    include_worktrees=not no_worktrees,
+                    auto_commit=should_auto_commit_for_worktree(project_path, dry_run=dry_run),
+                )
+            except MigrationLedgerLockTimeoutError as exc:
+                # Another process holds the ledger lock: a refusal, not a crash (#6613).
+                _render_ledger_lock_refusal(exc, json_output=json_output)
             manual_review_paths = _collect_manual_review_paths(result.migration_results)
             outcome = UpgradeOutcome(
                 result=result,
