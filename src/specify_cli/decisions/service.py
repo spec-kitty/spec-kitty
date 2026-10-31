@@ -28,7 +28,7 @@ import ulid as _ulid_mod
 
 from kernel.clock import datetime, now_utc
 from kernel.errors import GuardedReadError
-from kernel.event_log_append import event_log_lock_path
+from kernel.event_log_append import EventLogLockTimeoutError, event_log_lock, event_log_lock_path
 from kernel.guarded_read import read_guarded
 from kernel.locks import LockAcquireTimeout, machine_file_lock
 from specify_cli.decisions import emit as _emit
@@ -147,7 +147,7 @@ def _decisions_lock_path(ledger_dir: Path) -> Path:
 
 
 def _decisions_anchor_lock_path(events_path: Path) -> Path:
-    """Return the log-anchor lock path that every writer of *events_path* takes.
+    """Return the log-anchor lock path that every decision writer of *events_path* takes.
 
     The sidecar lock above is keyed on the per-checkout LEDGER directory, but
     the row the critical section protects is appended to the Mission EVENT LOG
@@ -189,11 +189,16 @@ def _decisions_write_locks(
     owned-commit guard) takes only that lock, so nothing can already hold the
     sidecar and then wait for the anchor.
 
-    Both takes go through :func:`_decisions_lock`, so a timed-out wait keeps
-    its existing single refusal shape (``DecisionError`` with
-    ``LOCK_TIMEOUT``, owned by #6841) and this change adds no error surface
-    (NFR-003). ``timeout_s=None`` waits without a bound on both takes, which
-    is what ``open_decision`` needs (NFR-001).
+    The anchor is taken through :func:`kernel.event_log_append.event_log_lock`
+    (:func:`_decisions_anchor_lock`), not a raw file lock, so its per-thread
+    re-entrancy registry applies: a nested ``event_log_lock`` on the same log
+    inside the critical section (a status-store append, #6193) yields the held
+    lock instead of self-deadlocking. The sidecar is taken through
+    :func:`_decisions_lock`. A timed-out wait on either keeps the existing
+    single refusal shape (``DecisionError`` with ``LOCK_TIMEOUT``, owned by
+    #6841), so this adds no error surface (NFR-003). ``timeout_s=None`` waits
+    without a bound on both takes, which is what ``open_decision`` needs
+    (NFR-001).
 
     The caller passes paths it has ALREADY resolved: resolving the log may
     materialize the coordination surface, and a placement refusal must fail
@@ -201,8 +206,8 @@ def _decisions_write_locks(
     """
     with ExitStack() as stack:
         stack.enter_context(
-            _decisions_lock(
-                _decisions_anchor_lock_path(events_path),
+            _decisions_anchor_lock(
+                events_path,
                 timeout_s=timeout_s,
                 mission_slug=mission_slug,
                 decision_id=decision_id,
@@ -216,6 +221,34 @@ def _decisions_write_locks(
                 decision_id=decision_id,
             )
         )
+        yield
+
+
+@contextmanager
+def _decisions_anchor_lock(events_path: Path, *, timeout_s: float | None, mission_slug: str, decision_id: str | None) -> Iterator[None]:
+    """Hold the event-log anchor lock; a timed-out wait becomes ``DecisionError(LOCK_TIMEOUT)``.
+
+    Only the ACQUIRE is translated, as in :func:`_decisions_lock`; the held
+    section is not wrapped, so its own exceptions propagate unchanged.
+    """
+    with ExitStack() as stack:
+        try:
+            stack.enter_context(event_log_lock(events_path, timeout_s=timeout_s))
+        except EventLogLockTimeoutError as exc:
+            lock_path = _decisions_anchor_lock_path(events_path)
+            raise DecisionError(
+                code=DecisionErrorCode.LOCK_TIMEOUT,
+                details={
+                    "decision_id": decision_id,
+                    "mission_slug": mission_slug,
+                    "lock_path": str(lock_path),
+                    "timeout_seconds": timeout_s,
+                },
+                message=(
+                    f"Timed out after {timeout_s:g}s waiting for the decisions lock {str(lock_path)!r}; "
+                    "another decision command is holding it. Nothing was written; retry the command."
+                ),
+            ) from exc
         yield
 
 

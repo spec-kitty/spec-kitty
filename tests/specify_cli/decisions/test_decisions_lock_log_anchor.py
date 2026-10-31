@@ -38,7 +38,8 @@ import pytest
 # append. Resolving it here (module import, main thread) keeps the threaded tests about
 # lock exclusion instead of about CPython's cross-thread import machinery.
 import specify_cli.status  # noqa: F401
-from kernel.event_log_append import event_log_lock_path
+from kernel import event_log_append as _event_log_append
+from kernel.event_log_append import event_log_lock, event_log_lock_path
 from kernel.locks import machine_file_lock as _real_machine_file_lock
 from specify_cli.decisions import emit as _emit
 from specify_cli.decisions import service as _service
@@ -97,6 +98,7 @@ def _record_lock_paths(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
         return _real_machine_file_lock(lock_path, *args, **kwargs)
 
     monkeypatch.setattr(_service, "machine_file_lock", _recording)
+    monkeypatch.setattr(_event_log_append, "machine_file_lock", _recording)
     return taken
 
 
@@ -334,6 +336,7 @@ def test_the_anchor_lock_lives_outside_the_working_tree(tmp_path: Path) -> None:
 
     with pytest.MonkeyPatch.context() as m:
         m.setattr(_service, "machine_file_lock", _recording)
+        m.setattr(_event_log_append, "machine_file_lock", _recording)
         open_decision(
             root,
             MISSION_SLUG,
@@ -376,3 +379,40 @@ def test_a_non_git_anchor_falls_back_to_a_sibling_lock(tmp_path: Path) -> None:
     assert lock == log.with_name(log.name + ".event-log.lock")
     assert not lock.exists(), "computing the lock path must not create the lock file"
     assert not log.exists()
+
+
+# ---------------------------------------------------------------------------
+# The anchor goes through event_log_lock, so a nested same-log take is re-entrant
+# ---------------------------------------------------------------------------
+
+
+def test_a_nested_event_log_lock_inside_a_decision_write_does_not_deadlock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A same-log ``event_log_lock`` taken inside the critical section yields the held lock.
+
+    The anchor is acquired through ``event_log_lock`` so its per-thread registry
+    sees it; a raw file lock would make the nested take wait on our own hold
+    until it timed out. The short timeout makes a regression fail fast.
+    """
+    root = _checkout(tmp_path, "nested")
+    log = _shared_log(tmp_path)
+    nested: list[Path] = []
+
+    def _emit_with_nested_lock(*args: Any, **kwargs: Any) -> int:
+        with event_log_lock(log, timeout_s=0.5) as held:
+            nested.append(held)
+        return 1
+
+    with _resolved_as(monkeypatch, {root: _mission_dir(root) / "decisions"}, log):
+        monkeypatch.setattr(_service._emit, "emit_decision_opened", _emit_with_nested_lock)
+        open_decision(
+            root,
+            MISSION_SLUG,
+            origin_flow=OriginFlow.CHARTER,
+            step_id="step-nested",
+            input_key="nested",
+            question="Nested?",
+            options=("a", "b"),
+            actor="alice",
+        )
+
+    assert nested == [event_log_lock_path(log)]
