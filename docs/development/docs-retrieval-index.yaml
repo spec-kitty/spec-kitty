@@ -6110,6 +6110,7 @@ pages:
     - {slug: "canonical-lanes", text: "Canonical Lanes", level: 3}
     - {slug: "allowed-transitions-27-pairs", text: "Allowed Transitions (27 pairs)", level: 3}
     - {slug: "guard-conditions", text: "Guard Conditions", level: 3}
+    - {slug: "forced-rewinds-out-of-review", text: "Forced rewinds out of review", level: 3}
     - {slug: "migration-phases", text: "Migration Phases", level: 2}
     - {slug: "configuration", text: "Configuration", level: 3}
     - {slug: "migration-workflow", text: "Migration Workflow", level: 3}

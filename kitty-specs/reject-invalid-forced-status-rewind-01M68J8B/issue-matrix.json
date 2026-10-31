@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#3307": {
+      "evidence_ref": "Cited for context: #3307 made move-task carry review_ref on the review-rollback wire edges; this mission reaches the same conclusion for the generic doors by refusing instead of inventing a pointer. No work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5446": {
+      "evidence_ref": "Cited for context: #5446 gates forced exits from in_review/approved on a note and does not cover the for_review edge; no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5927": {
+      "evidence_ref": "Pre-existing red on main, cited in the PR's Deferred section; not caused by and not touched by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6514": {
+      "evidence_ref": "PR #6897 (6 commits, CI green): one shared review_ref requirement in status/wp_state.py enforced before any append on every write door; move-task's auto-promoted rewind and agent action implement's review-lane withdrawal cite the force-override sentinel; guard-table row + append-only recovery position in docs/architecture/status-model.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Reject invalid forced status rewinds before append",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6798": {
+      "evidence_ref": "Pre-existing red on main, cited in the PR's Deferred section; not caused by and not touched by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Pre-existing red on main, cited in the PR's Deferred section; not caused by and not touched by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Pre-existing red on main, cited in the PR's Deferred section; not caused by and not touched by this mission.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

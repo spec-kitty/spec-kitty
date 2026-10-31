@@ -30,6 +30,59 @@ _FORCE_REQUIRES_ACTOR_AND_REASON = "Force transitions require actor and reason"
 _REVIEWER_APPROVAL_REQUIRED = "Transition to approved/done requires evidence (reviewer identity and approval reference)"
 _DEPENDENCIES_UNSATISFIED = "Transition {source} -> {target} blocked: unsatisfied dependencies (force with reason to override)"
 
+#: Edges whose persisted events the status schema validator refuses without a
+#: ``review_ref`` (#6514). ONE owning definition, consumed by the write path
+#: (:meth:`WPState.check_transition`) and by the auditor
+#: (``status.validate.validate_event_schema``) -- see
+#: :func:`requires_review_ref`. Force may bridge a missing structural edge;
+#: it may not produce an event this tool's own auditor calls malformed.
+REVIEW_REF_REQUIRED_EDGES: frozenset[tuple[Lane, Lane]] = frozenset(
+    {(Lane.FOR_REVIEW, Lane.IN_PROGRESS)},
+)
+
+
+def requires_review_ref(from_lane: Lane | str, to_lane: Lane | str) -> bool:
+    """True when an event on this edge must carry a ``review_ref`` (#6514).
+
+    A plain membership test over :data:`REVIEW_REF_REQUIRED_EDGES`, tolerant of
+    raw lane strings (the auditor reads decoded event dicts). It answers only
+    *which* edges carry the requirement; *whether a given request satisfies it*
+    is :func:`has_review_ref`, which the writer (:meth:`WPState.check_transition`)
+    and the auditor (``status.validate.validate_event_schema``) both read.
+
+    An unknown lane string is not a member (``Lane(...)`` raises ``ValueError``),
+    so a malformed lane never makes this predicate raise; the schema validator's
+    canonical-lane finding already covers that case.
+    """
+    try:
+        return (Lane(from_lane), Lane(to_lane)) in REVIEW_REF_REQUIRED_EDGES
+    except ValueError:
+        return False
+
+
+def has_review_ref(review_ref: object) -> bool:
+    """True when *review_ref* is a usable pointer: a non-blank string.
+
+    The single definition of "the requirement is satisfied", so the writer and the
+    auditor cannot disagree on whitespace or on a non-string that a corrupt log may
+    carry. A value that is not a string is not a pointer.
+    """
+    return isinstance(review_ref, str) and bool(review_ref.strip())
+
+
+def review_ref_required_message(source: Lane, target: Lane) -> str:
+    """The refusal for a review rewind that cites no review feedback (#6514).
+
+    Kept as a plain interpolated sentence rather than a ``str.format`` template keyed on
+    lane operands: the worktree-name gate reads a ``.format(...)`` whose arguments are
+    lane-shaped as a hand-rolled lane-name compose, and this is a human-facing refusal,
+    not a name.
+    """
+    return (
+        f"Transition {source.value} -> {target.value} requires review_ref: a forced rewind out of review "
+        "must cite the review feedback it is rewinding (pass `--review-ref <ref>`)."
+    )
+
 
 class TransitionInputs(Protocol):
     """Structural protocol over the guard inputs a transition consults.
@@ -169,21 +222,40 @@ class WPState(ABC):
         overrides both the edge check and the guards — including terminal
         force-exit from ``done``/``canceled`` to any display lane. ``genesis``
         remains a non-display seed source and is never a valid target.
+
+        Two refusals are deliberately NOT force-overridable: a ``genesis`` target,
+        and the ``review_ref`` requirement of an edge in
+        :data:`REVIEW_REF_REQUIRED_EDGES` (#6514) — force may bridge a missing edge
+        or a guard, never the status schema validator's own invariants.
         """
         if target == Lane.GENESIS:
             # Genesis is a seed source, not a persisted/display target. Force may
             # bypass edges and guards, but it must not create a current genesis WP.
             return False, f"Illegal transition: {self.lane.value} -> {target.value}"
-        if not self.may_transition_to(target):
+        if not self.may_transition_to(target) and not ctx.force:
             # Edge does not exist: only force (with actor + reason) can override.
-            if ctx.force:
-                return self._check_force(ctx)
+            # This early return keeps the historical refusal text for an unforced
+            # attempt on a force-only edge (#6514 contract C-5).
             return False, f"Illegal transition: {self.lane.value} -> {target.value}"
 
-        # Structurally-allowed edge. Force bypasses the guard but still requires
-        # actor + reason for audit; otherwise run this state's entry guard.
+        # Force bypasses the guard but still requires actor + reason for audit. The
+        # audit requirement is checked FIRST so a reasonless force keeps its historical
+        # message instead of being reported as a missing review_ref.
         if ctx.force:
-            return self._check_force(ctx)
+            ok, error = self._check_force(ctx)
+            if not ok:
+                return ok, error
+
+        # A review_ref requirement is FORCE-INSURMOUNTABLE (#6514): force's contract is
+        # to override a missing edge or a guard with actor + reason for audit, not to
+        # persist an event the status schema validator refuses. Evaluated here, never
+        # in ``guard_for``: force bypasses guards entirely, so a guard-side rule would
+        # be dead on the only route this edge has.
+        if requires_review_ref(self.lane, target) and not has_review_ref(ctx.review_ref):
+            return False, review_ref_required_message(self.lane, target)
+
+        if ctx.force:
+            return True, None
         return self.guard_for(target, ctx)
 
     @staticmethod

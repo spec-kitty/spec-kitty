@@ -1,0 +1,48 @@
+{
+  "accept_commit": "7c232d3f69da0582061e80df823e2532e13e01e0",
+  "acceptance_history": [
+    {
+      "accept_commit": "4a3f83345603690e23dedd11d66542e77f801af5",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:33:56.776887+00:00",
+      "accepted_by": "pi/claude-sonnet-4.5",
+      "accepted_from_commit": "d6418a610f8fdedea3a2d7de5d225857577ecfd3"
+    },
+    {
+      "accept_commit": "dead926b334dcf73017c6f45f9beed571f3ea754",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:34:05.736028+00:00",
+      "accepted_by": "pi/claude-sonnet-4.5",
+      "accepted_from_commit": "ba87d6b1eaf7d74d065edfc1b015eb79943e736c"
+    },
+    {
+      "accept_commit": "7c232d3f69da0582061e80df823e2532e13e01e0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:34:11.895044+00:00",
+      "accepted_by": "pi/claude-sonnet-4.5",
+      "accepted_from_commit": "1b9330c851394c4b541e143c6d3ebac943d20379"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T10:34:11.895044+00:00",
+  "accepted_by": "pi/claude-sonnet-4.5",
+  "accepted_from_commit": "1b9330c851394c4b541e143c6d3ebac943d20379",
+  "baseline_merge_commit": "d4c3433dd3e3e4ec4aa1c7ce745e2cc6a74f5818",
+  "created_at": "2026-10-31T08:47:09.526233+00:00",
+  "flattened": true,
+  "friendly_name": "reject invalid forced status rewind",
+  "merged_at": "2026-10-31T10:35:32.630982+00:00",
+  "merged_commit": "bee214c53061137cf966c9495829bfb891c9093c",
+  "mid8": "01M68J8B",
+  "mission_id": "01M68J8B3G2N6W1D4Y1FADR15Z",
+  "mission_number": 245,
+  "mission_slug": "reject-invalid-forced-status-rewind-01M68J8B",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances reject invalid forced status rewind on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "reject invalid forced status rewind",
+  "slug": "reject-invalid-forced-status-rewind-01M68J8B",
+  "status_phase": "1",
+  "target_branch": "issue-6514-reject-invalid-forced-status-rewind",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T08:51:18.872710+00:00"
+}

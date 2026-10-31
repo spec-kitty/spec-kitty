@@ -388,6 +388,17 @@ def build_transition_plan(
             reason_parts.append(original_reason)
         emit_reason = ": ".join(reason_parts)
 
+    # #6514: whenever this plan EMITS force on a review-rewind edge it must carry a
+    # ``review_ref`` -- ``force-override`` is this command's established sentinel for an
+    # operator-driven rewind (``review.cycle.REVIEW_FEEDBACK_SENTINELS``). Until now the
+    # sentinel was set only for an explicit ``--force``; an auto-promoted backward move
+    # (the branch above) emitted ``force=True`` with no pointer, which is the same row
+    # ``spec-kit status validate`` refuses (``for_review->in_progress without
+    # review_ref``). Filling it here, after ``emit_force`` is final, keeps the two force
+    # routes on one sentinel instead of two behaviours.
+    if emit_review_ref is None and emit_force and old_lane == Lane.FOR_REVIEW and canonical_lane in (Lane.IN_PROGRESS, Lane.PLANNED):
+        emit_review_ref = "force-override"
+
     transition_targets = [canonical_lane]
     if not emit_force:
         transition_targets = _lane_targets_for_emit(old_lane, canonical_lane)
