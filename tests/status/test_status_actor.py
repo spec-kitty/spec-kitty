@@ -72,7 +72,8 @@ def test_role_for_hop(from_lane: str | Lane | None, to_lane: str | Lane, expecte
 
 
 def test_actor_role_values() -> None:
-    assert {member.value for member in ActorRole} == {"implementer", "reviewer"}
+    # #6722 adds the third value: `system` for the writes the program makes itself.
+    assert {member.value for member in ActorRole} == {"implementer", "reviewer", "system"}
 
 
 # ---------------------------------------------------------------------------

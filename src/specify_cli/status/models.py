@@ -164,15 +164,20 @@ class ProfileSource(StrEnum):
 
 
 #: The ``actor`` on a ``StatusEvent`` / ``InnerStateChanged`` is EITHER a plain
-#: ``str`` identity (legacy and system writers) OR a structured dict: the
-#: ``{role, profile, tool, model}`` resolved-binding actor (FR-015 / IC-09) that
-#: writers emit today, or the ``{tool, role, profile, profile_source, model}`` actor
-#: (#6400) that readers accept ahead of the events release whose diary decoder takes
-#: the fifth key (spec C-006). ``spec_kitty_events`` ``StatusTransitionPayload.actor``
-#: accepts ``Union[str, Dict]``.
+#: ``str`` identity (every event written before #6400, and every system row written
+#: before #6722) OR a structured dict: the ``{role, profile, tool, model}`` actor
+#: that every writer emits today -- agent and operator writes (#6400) and system
+#: writes (#6722, ``role: "system"``) alike -- or the
+#: ``{tool, role, profile, profile_source, model}`` actor (#6400) that readers accept
+#: ahead of the events release whose diary decoder takes the fifth key (spec C-006).
+#: ``role`` is the closed vocabulary of :class:`~specify_cli.status.actor.ActorRole`
+#: (``implementer``, ``reviewer``, ``system``); it is never enumerated here, so the
+#: reader stays compatible with the shared package's own rule.
+#: ``spec_kitty_events`` ``StatusTransitionPayload.actor`` accepts ``Union[str, Dict]``.
 ActorField: TypeAlias = str | dict[str, str | None]
 
 #: Key set of the structured actor written today (``spec_kitty_events`` 11 diary accepts only these).
+#: One shape for every writer: agent and operator writes (#6400) and system writes (#6722).
 _STRUCTURED_ACTOR_FIELDS = ("role", "profile", "tool", "model")
 #: Key set of the provenance-carrying actor: those keys plus ``profile_source`` (read-only until C-006 lifts).
 #: The package reducer (``spec_kitty_events`` 11.0.0 ``diary.decode_actor``) does NOT accept it yet, so no
