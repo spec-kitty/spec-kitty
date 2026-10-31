@@ -1170,12 +1170,14 @@ def _evidence_lanes_manifest(run: _AcceptRun) -> LanesManifest | None:
         _fail(run.json_output, message, extra_json={"error_code": EVIDENCE_WINDOW_UNCOMPUTABLE, "error_codes": [EVIDENCE_WINDOW_UNCOMPUTABLE]})
 
 
-def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, ...], reason: str) -> None:
+def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, ...], reason: str, *, landed_commit: str | None = None) -> None:
     """Validate every ``--attest-no-implementation`` request, then record each (#6715).
 
     A refused request (a work package outside the approved claim, an unreadable status log, no
     ``lanes.json``, a work package whose evidence cannot be read) exits 1 with nothing recorded. Recorded before the evidence preflight, so the
     preflight reads the attestation. Notices go to stderr so a ``--json`` stdout stays one payload.
+    *landed_commit* is the verified PR landing commit the preflight will judge with (#6780), so
+    the planner and the preflight read one evidence window.
     """
     if not wp_ids:
         return
@@ -1190,6 +1192,7 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
             reason,
             repo_root=run.repo_root,
             excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
+            landed_commit=landed_commit,
         )
     except AttestationError as exc:
         _fail(run.json_output, str(exc))
@@ -1208,7 +1211,7 @@ def _record_no_implementation_attestations(run: _AcceptRun, wp_ids: tuple[str, .
         typer.echo(f"Operator attestation recorded for {wp_id} (no implementation owed) by {actor}: {reason}", err=True)
 
 
-def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False) -> EvidenceReport | None:
+def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False, landed_commit: str | None = None) -> EvidenceReport | None:
     """Refuse (exit 1) an approved work package with no implementation evidence or no independent review (#6715).
 
     The shared predicate consolidate and orchestrator-api read
@@ -1221,6 +1224,9 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False) -> E
     and ``error_codes`` (every code), like the origin-freshness refusal. With *report_only*
     (``--diagnose``) the refused report is returned instead, so the diagnosis can show it as a
     blocked check beside the rest of the readiness report (:func:`_report_evidence_diagnosis`).
+    *landed_commit* is the PR landing commit this run already verified
+    (``--merge-commit``, :func:`_verify_merge_commit`); it lets a lane whose branch ref was
+    pruned be judged on the landed tree instead of refusing the whole lane (#6780).
     """
     manifest = _evidence_lanes_manifest(run)
     if manifest is None:
@@ -1231,6 +1237,7 @@ def _refuse_unevidenced_work(run: _AcceptRun, *, report_only: bool = False) -> E
             _evidence_status_dir(run),
             manifest,
             excluded_canceled_wp_ids=acceptably_canceled_wp_ids(run.repo_root, run.mission_slug),
+            landed_commit=landed_commit,
         )
     except (StoreError, OSError) as exc:
         _fail(run.json_output, f"The Mission could not be checked for implementation evidence ({exc}); nothing was accepted.")
@@ -1666,8 +1673,12 @@ def accept(
     attested, reason = _validated_no_implementation_request(json_output, attest_no_implementation, attest_reason, read_only_flag=read_only_flag)
     pr_merge = _verify_merge_commit(run, merge_commit, target_branch, attest_first_landing)
     run = _check_origin_freshness(run, origin_check, read_only=no_commit or diagnose)
-    _record_no_implementation_attestations(run, attested, reason)
-    evidence_refusal = _refuse_unevidenced_work(run, report_only=diagnose)
+    # #6780: the landing commit this run verified stands in for a pruned lane branch's window.
+    # The resolved full SHA, not the operator's string: it is the commit the evidence window and
+    # the attestation planner are judged on, and the one verification actually proved.
+    landed_commit = pr_merge.evidence.pr_merge_commit if pr_merge is not None else None
+    _record_no_implementation_attestations(run, attested, reason, landed_commit=landed_commit)
+    evidence_refusal = _refuse_unevidenced_work(run, report_only=diagnose, landed_commit=landed_commit)
     summary = _collect_summary_or_exit(run, lenient=lenient, diagnose=diagnose, normalize_encoding=normalize_encoding)
     if evidence_refusal is not None:
         _report_evidence_diagnosis(run, summary, evidence_refusal)

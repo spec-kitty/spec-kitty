@@ -112,10 +112,17 @@ def _write_events(fd: Path, events: list[dict[str, object]]) -> None:
 
 
 def _evaluate(
-    repo: Path, fd: Path, manifest: LanesManifest, approved: dict[str, str], *, events: list[object] | None = None, single_branch: bool = False
+    repo: Path,
+    fd: Path,
+    manifest: LanesManifest,
+    approved: dict[str, str],
+    *,
+    events: list[object] | None = None,
+    single_branch: bool = False,
+    landed_commit: str | None = None,
 ) -> ev.EvidenceReport:
     work_packages = {wp: {"lane": lane} for wp, lane in approved.items()}
-    return ev.evaluate_evidence(repo, fd, manifest, work_packages, (), events=lambda: events or [], is_single_branch=single_branch)
+    return ev.evaluate_evidence(repo, fd, manifest, work_packages, (), events=lambda: events or [], is_single_branch=single_branch, landed_commit=landed_commit)
 
 
 # --------------------------------------------------------------------------- pure helpers
@@ -460,6 +467,77 @@ def test_unreadable_window_is_unreadable(tmp_path: Path) -> None:
     report = _evaluate(repo, fd, _manifest([_lane("lane-a", ["WP01"])], "0" * 40), {"WP01": "approved"})
     assert report.codes == [ev.IMPLEMENTATION_UNREADABLE]
     assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE}
+
+
+# ------------------------------------------------------- the landed window for a pruned tip (#6780)
+
+
+def _implemented_lane_with_a_later_target_commit(tmp_path: Path) -> tuple[Path, Path, str, str]:
+    """A lane branch with WP01's change, plus a commit on the target after the planning commit."""
+    repo, fd, planning = _lane_fixture(tmp_path)
+    _git(repo, "checkout", "-q", _LANE_BRANCH)
+    _commit(repo, "src/m1/real.py")
+    _git(repo, "checkout", "-q", "main")
+    landing = _commit(repo, "src/unrelated.py", message="unrelated work on the target")
+    return repo, fd, planning, landing
+
+
+def test_the_landed_window_keeps_a_tip_that_still_resolves(tmp_path: Path) -> None:
+    """#6780 precedence: the lane window is the first choice even when a landing commit is supplied.
+
+    Non-vacuity: an implementation that always prefers the supplied landing commit turns this
+    window into ``planning..<landing>``, which every assertion below catches.
+    """
+    repo, _fd, planning, landing = _implemented_lane_with_a_later_target_commit(tmp_path)
+    assert ev._tip_resolves(repo, _LANE_BRANCH), "the lane branch must still resolve for this arm"
+
+    judged = ev._landed_window(repo, (planning, _LANE_BRANCH), landing)
+
+    assert judged.window == (planning, _LANE_BRANCH)
+    assert judged.absent_ref is None
+    assert judged.landed_commit is None
+
+
+def test_the_landed_window_stands_in_for_a_pruned_tip(tmp_path: Path) -> None:
+    """A tip that no longer resolves is replaced by the supplied landing commit, and recorded (#6780)."""
+    repo, _fd, planning, landing = _implemented_lane_with_a_later_target_commit(tmp_path)
+    _git(repo, "branch", "-D", _LANE_BRANCH)
+
+    judged = ev._landed_window(repo, (planning, _LANE_BRANCH), landing)
+
+    assert judged.window == (planning, landing)
+    assert judged.absent_ref == _LANE_BRANCH
+    assert judged.landed_commit == landing
+
+
+def test_a_stand_in_that_does_not_contain_the_planning_commit_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6780 ancestor guard: a stand-in whose history lacks the planning commit is refused, never diffed.
+
+    Non-vacuity: disabling the ``sha_reachable_from`` guard makes this arm diff the unrelated
+    history instead of refusing, so the empty ``calls`` list and the code both fail.
+    """
+    repo, fd, planning, _landing = _implemented_lane_with_a_later_target_commit(tmp_path)
+    _git(repo, "branch", "-D", _LANE_BRANCH)
+    # A commit that resolves but does not descend from the recorded planning commit: exactly the
+    # shape a wrong --merge-commit has. A root commit is the extreme case of it.
+    stray = _git(repo, "commit-tree", _git(repo, "rev-parse", "HEAD^{tree}"), "-m", "unrelated history")
+    assert subprocess.run(["git", "merge-base", "--is-ancestor", planning, stray], cwd=repo, check=False).returncode != 0
+
+    diffs: list[tuple[str, str]] = []
+
+    def _record(_repo: Path, base: str, tip: str) -> list[tuple[str, str]]:
+        diffs.append((base, tip))
+        return []
+
+    monkeypatch.setattr(ev, "changed_paths_in_range", _record)
+    _write_events(fd, _independent_review(fd, "WP01"))
+    report = _evaluate(repo, fd, _manifest([_lane("lane-a", ["WP01"])], planning), {"WP01": "approved"}, landed_commit=stray)
+
+    assert report.codes == [ev.IMPLEMENTATION_UNREADABLE]
+    assert "does not contain the recorded planning commit" in str(report.refusal)
+    assert diffs == [], "an unproven stand-in must be refused before any window is diffed"
+    with pytest.raises(ev.GitProbeError):
+        ev._landed_window(repo, (planning, _LANE_BRANCH), stray)
 
 
 def test_planning_lane_is_windowed_to_the_target(tmp_path: Path) -> None:

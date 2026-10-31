@@ -1,0 +1,35 @@
+{
+  "accept_commit": "62210f282c40e994748fffa46352004202fb93be",
+  "acceptance_history": [
+    {
+      "accept_commit": "62210f282c40e994748fffa46352004202fb93be",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T01:16:03.991421+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "6f019760fb01f265b171f09ef447f413dc532440"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T01:16:03.991421+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "6f019760fb01f265b171f09ef447f413dc532440",
+  "baseline_merge_commit": "87283e05c56e6fb6f68e4363fbdeb9ec04797c35",
+  "created_at": "2026-10-30T23:21:46.533291+00:00",
+  "flattened": false,
+  "friendly_name": "pruned lane evidence window",
+  "merged_at": "2026-10-31T01:17:21.294128+00:00",
+  "merged_commit": "a27172625832579192d58d660b77de759e17509c",
+  "mid8": "01M67HX3",
+  "mission_id": "01M67HX34AHK643T30QMMHMFK7",
+  "mission_number": 244,
+  "mission_slug": "pruned-lane-evidence-window-01M67HX3",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances pruned lane evidence window on issue-6780-pruned-lane-evidence-window so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "pruned lane evidence window",
+  "slug": "pruned-lane-evidence-window-01M67HX3",
+  "status_phase": "1",
+  "target_branch": "issue-6780-pruned-lane-evidence-window",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:26:18.937613+00:00"
+}

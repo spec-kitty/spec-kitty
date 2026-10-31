@@ -1,0 +1,88 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M67RGRYVX6BTD3YEED5N5726",
+  "materialized_at": "2026-10-31T01:17:22.779070+00:00",
+  "mission_number": "244",
+  "mission_slug": "pruned-lane-evidence-window-01M67HX3",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67RGQK45697DAEBKXQBGPDG",
+      "last_transition_at": "2026-10-31T01:17:21.380990+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T00:49:38Z – python-pedro – shell_pid=863723 – T001/T004/T005: call chain surveyed — accept() verifies --merge-commit (baseline.verify_pr_merge_evidence) before _refuse_unevidenced_work, so the verified landing commit is threaded from the request into mission_evidence_report and into plan_no_implementation_attestations; the window choice lives in wp_evidence._landed_window (lane branch first, verified landing as the stand-in, ancestor guard). T002/T003: red-first reproduction + hollow/intact-lane/dependency control arms in tests/specify_cli/cli/commands/test_accept_merge_commit.py. T006: 92 passed across test_accept_merge_commit, test_accept_evidence_preflight, test_evidence_code_literals, test_single_branch_evidence_axis, test_move_task_evidence_gate; tests/integration/test_6715_squad_identity_and_evidence.py 8 passed. T007: ruff check+format clean, mypy clean on the three touched modules. Non-vacuity: reverting the fallback fails 3 of the new arms; reverting the dependency-tip threading fails the dependency arm. Pre-existing red on origin/main (not this diff): tests/specify_cli/cli/commands/test_issue_4891_accept_missing_lanes.py::test_accept_cli_positive_control_with_lanes_json_and_passing_matrix.",
+        "WP01 ready for review",
+        "Review passed: window stand-in keeps the lane branch first, the #6715 owned-files criterion is unchanged (hollow WP still refuses IMPLEMENTATION_MISSING), the ancestor guard fails closed, the dependency widening uses the effective tip, and only the accept --mode pr caller supplies the verified landing commit. Control arms pin all four properties."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2554656,
+      "shell_pid_created_at": "1793408440.3",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67RGRYVX6BTD3YEED5N5726",
+      "last_transition_at": "2026-10-31T01:17:22.779070+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T01:08:18Z – python-pedro – shell_pid=2578803 – T008/T009: changelog [Unreleased] entry (#6780, 924 chars) and pr-landing.md gotcha quoting the shipped wording. T010: check_docs_freshness --ci exit=0 errors=0 (3 pre-existing help-drift warnings + 1 link-health 400 on an ADR); tests/architectural/test_no_legacy_terminology.py 98 passed after rewording 'per-lane merge' to 'how each lane landed'; tests/docs/test_changelog_style.py 148 passed. Note: the lane worktree needed 'make sync-packs' for the terminology gate's pack scan.",
+        "WP02 ready for review",
+        "Review passed: the changelog entry is under [Unreleased], carries (#6780), states before/after and stays under 1,200 characters; the runbook gotcha quotes the shipped wording (landing commit stand-in, owned-files criterion unchanged, prune after acceptance) and the terminology gate is clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2953325,
+      "shell_pid_created_at": "1793409223.51",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    }
+  }
+}

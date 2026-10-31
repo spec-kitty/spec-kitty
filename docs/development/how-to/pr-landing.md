@@ -758,6 +758,24 @@ been fixed, the end-state is stated instead of the trap.
   `docs/adr/4.x/YYYY-MM-DD-N-<slug>.md` with status Accepted; check the day's highest
   `-N-` on `main` first. Markdownlint is advisory in CI, so do not spend landing time
   on a file's pre-existing findings.
+- **A PR-landed lanes Mission keeps its evidence window on a branch you are about to
+  delete (#6780).** `accept --mode pr --merge-commit <sha>` never runs
+  `spec-kitty consolidate`, so nothing records how each lane landed, and the
+  implementation-evidence gate windows each work package on
+  `planning_commit..<lane branch>`. Prune the lane branches after the acceptance, not
+  between the PR merge and it — or simply keep `--merge-commit` on every re-run: with
+  the verified landing commit supplied, a lane whose branch no longer resolves is
+  judged on `planning_commit..<landing commit>` instead. **That window is wider than the
+  lane's**, so it is a weaker check with the same matcher: it also contains everything
+  else that landed on the target between the planning commit and the landing, so a work
+  package whose `owned_files` unrelated target-side work touched in that interval can
+  read as evidenced. The `owned_files` match and the bookkeeping exclusion are unchanged,
+  and a work package whose owned files nothing touched there still refuses
+  `IMPLEMENTATION_MISSING` — so read this acceptance as "the mission's content landed",
+  not as a substitute for reviewing the PR's own file list. A refusal reading
+  `IMPLEMENTATION_UNREADABLE` beside a pruned branch is the signal to re-run with the
+  landing commit, not to restore a branch whose work has already landed.
+
 ## PR-body contract
 
 Spec Kitty PRs use a fixed body shape; an ad-hoc body (Summary/Changes/Why/…) draws a
