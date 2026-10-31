@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6494": {
+      "evidence_ref": "Fixed on main 0356bbdcb7; its empty-list and corrupt-config behaviour is preserved unchanged by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6501": {
+      "evidence_ref": "WP01: observed-set read + once-per-process warning (src/specify_cli/agent_utils/directories.py); WP02: agent config add/remove state the observed set, docs + changelog. Tests: 1531 passed in tests/agent + agent_utils + doctor; red-first proved on both legacy shapes.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
