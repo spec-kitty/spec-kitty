@@ -77,9 +77,13 @@ def ignored_agent_keys(project_path: Path) -> tuple[str, ...]:
     """Agents whose generated files are ignored, read from ``.kittify/config.yaml``.
 
     An explicit list (empty included, #6494) is used as is. A config with no
-    ``available`` list at all is a legacy project and keeps every agent, the
-    same fallback as ``get_agent_dirs_for_project`` (#6501 owns that case).
-    An unreadable config raises ``AgentConfigError``.
+    ``available`` list at all is a legacy project and keeps every agent.
+
+    This is deliberately *not* ``get_agent_dirs_for_project``'s observed set
+    (#6501): over-ignoring generated files is harmless -- it only keeps
+    untracked files out of ``git status`` -- while over-*acting* rewrites a
+    user's files, which is what that read must never widen to. An unreadable
+    config raises ``AgentConfigError``.
     """
     from specify_cli.core.agent_config import load_agent_config
 
