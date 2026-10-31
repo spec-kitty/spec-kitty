@@ -2,7 +2,7 @@
 title: spec-kitty upgrade lifecycle
 description: Reference for the spec-kitty upgrade command lifecycle. Understand the project schema check, CLI migrations, and agent command synchronization.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-31'
 type: reference
 related:
 - docs/api/cli-commands.md
@@ -49,7 +49,7 @@ spec-kitty upgrade [OPTIONS]
 Project upgrade walks pending migrations in version order. For each migration, it may:
 
 1. **Read `.kittify/config.yaml`** to learn which agents are configured. Migrations are *config-aware* and only touch directories for agents you have enabled.
-2. **Refresh agent command directories** for configured agents (`.claude/commands/`, `.agents/skills/spec-kitty-*/`, `.amazonq/prompts/`, etc.) from the CLI's bundled source templates.
+2. **Refresh the generated command surfaces it owns** — the project-local `.agents/skills/spec-kitty-*/` projection and the other agent-surface files the CLI generates — from the CLI's bundled source templates. The per-project `spec-kitty.*` slash-command files themselves are not written by an upgrade: since 3.1.2 they are installed once in your home agent directories at CLI startup (see [Project-local command files stay retired](#project-local-command-files-stay-retired)).
 3. **Update `.kittify/` scaffold files** — `memory/`, `command-skills-manifest.json`, and config schemas — to the new layout.
 4. **Bump `.kittify/metadata.yaml`** to record the new schema version after each migration step.
 5. **Leave user data alone** — `kitty-specs/`, `architecture/`, `docs/`, `src/`, and anything else you author is untouched.
@@ -97,6 +97,24 @@ only reports TeamSpace mission-state blockers (last, never committed); it never
 repairs. The repair runs only via `spec-kitty doctor mission-state --fix`.
 Owner preconditions are rechecked immediately before writes; a changed input
 requires reassessment rather than replaying stale prepared bytes.
+
+### Project-local command files stay retired
+
+Since 3.1.2 the `spec-kitty.*` slash-command files are installed once, globally, in your home
+agent directories (`~/.claude/commands/`, `~/.gemini/commands/`, …). A pre-3.1.2 project's
+per-project copies are removed by `3.1.2_globalize_commands` and
+`3.2.0a4_safe_globalize_commands`, which delete only a file that is proven generated (it carries
+a `<!-- spec-kitty-command-version: … -->` marker), that has an exact global replacement, and only
+while the global runtime (`~/.kittify/missions/`) is present. A file without the marker is yours
+and is never touched; one that fails either of the other two conditions is kept and reported.
+
+The migrations that used to *write* those per-project copies — `2.1.4_enforce_command_file_state`
+and `3.0.2_restore_prompt_commands` — are recorded no-ops superseded by
+`3.2.0a4_safe_globalize_commands`. An upgrade can therefore never reintroduce them, whatever
+state `.kittify/migration-ledger.jsonl` is in (including a ledger adopted before the 4.0.0rc8
+adoption floor recorded what had run), and `upgrade --dry-run` previews the same (#6547). It also
+cannot remove a copy an earlier, affected upgrade already wrote: the retiring migrations are
+recorded as done, so nothing re-runs them — delete such a copy by hand.
 
 ## What does **not** get modified
 

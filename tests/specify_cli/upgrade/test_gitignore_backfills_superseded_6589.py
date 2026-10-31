@@ -35,6 +35,8 @@ from specify_cli.upgrade.migrations.base import BaseMigration, SupersededMigrati
 from specify_cli.upgrade.migrations.m_0_9_0_frontmatter_only_lanes import FrontmatterOnlyLanesMigration
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import CompleteLaneMigration
 from specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep import ConsistencySweepMigration
+from specify_cli.upgrade.migrations.m_2_1_4_enforce_command_file_state import EnforceCommandFileStateMigration
+from specify_cli.upgrade.migrations.m_3_0_2_restore_prompt_commands import RestorePromptCommandsMigration302
 from specify_cli.upgrade.migrations.m_3_1_1_normalize_status_json import NormalizeStatusJsonMigration
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import AgentsSkillsGitignoreBackfillMigration
 from specify_cli.upgrade.migrations.m_3_2_6rc3_narrow_cursor_gitignore import NarrowCursorGitignoreMigration
@@ -51,7 +53,8 @@ CURSOR_BACKFILL = NarrowCursorGitignoreMigration.migration_id
 NARROW = NarrowAgentGitignoreMigration.migration_id
 TARGET = "4.0.0rc8"
 
-#: Every shipped class in SUPERSEDED_MIGRATIONS (the #6589 gitignore backfills and the #6669 residue-aware pairs).
+#: Every shipped class in SUPERSEDED_MIGRATIONS (the #6589 gitignore backfills, the #6669 residue-aware
+#: pairs and the #6547 pre-globalize command writers).
 SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
     cls.migration_id: cls
     for cls in (
@@ -62,6 +65,8 @@ SHIPPED_SUPERSEDED: dict[str, type[BaseMigration]] = {
         ConsistencySweepMigration,
         NormalizeStatusJsonMigration,
         UnifyCharterActivationMigration,
+        EnforceCommandFileStateMigration,
+        RestorePromptCommandsMigration302,
     )
 }
 

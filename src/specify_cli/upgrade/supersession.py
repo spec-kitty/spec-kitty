@@ -43,6 +43,12 @@ SUPERSEDED_MIGRATIONS: dict[str, str] = {
     "0.9.1_complete_migration": "0.9.1_residue_safe_complete_migration",  # #6669: residue-aware successor
     "2.0.6_consistency_sweep": "2.0.6_residue_safe_consistency_sweep",  # #6669: residue-aware successor
     "3.1.1_normalize_status_json": "3.1.1_residue_safe_normalize_status_json",  # #6669: residue-aware successor
+    # Both wrote the per-project ``spec-kitty.*`` command files that 3.1.2 made
+    # global; the successor removes them, so a ledger that does not settle the
+    # writers (#6547: a cutover before the #6431 adoption floor) re-selected them
+    # after 3.1.2 and wrote 14 files back while the retirees were skipped.
+    "2.1.4_enforce_command_file_state": "3.2.0a4_safe_globalize_commands",  # #6547
+    "3.0.2_restore_prompt_commands": "3.2.0a4_safe_globalize_commands",  # #6547
 }
 
 #: Class attributes the substitute carries over from the shipped class.
