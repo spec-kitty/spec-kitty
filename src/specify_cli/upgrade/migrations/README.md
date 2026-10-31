@@ -48,6 +48,35 @@ Key rules:
 - **Skip** missing directories (`continue`) — do not recreate them.
 - **Idempotent**: migrations may be applied multiple times safely.
 
+## Declaring a detect-input predecessor (`sequenced_after`)
+
+`spec-kitty upgrade --dry-run` runs the real, ordered loop but every `apply(dry_run=True)`
+returns without writing, so a migration whose `detect()` reads state an earlier migration in
+the same run writes would be judged against the pre-run tree and reported `not needed` while
+the real run applies it (#6552). If your `detect()` reads something another migration writes,
+declare it:
+
+```python
+class MyFollowUpMigration(MergeDriverSeedingMigration):
+    migration_id = "3.2.6_my_followup"
+    # The migrations whose writes this migration's detect() reads. The dry run reports this
+    # migration applied once a declared predecessor is applied in the same run.
+    sequenced_after = ("3.2.6_gate_artifact_merge_drivers",)
+```
+
+Rules:
+
+- **It is not ordering.** `order_manifest.txt` is the single execution-order authority; a
+  declaration never reorders a run, and the predecessor must already precede you there
+  (`tests/upgrade/test_dry_run_sequenced_verdict.py` audits every declaration).
+- **It states an assumption**: the predecessor's write lands in every project where both
+  migrations apply. Do not declare a predecessor whose `apply()` conditions the write you
+  rely on (for example a clone-local config write it skips outside a git repository).
+- **Leaving it empty is safe, not silent**: an undeclared dry-run skip says `not needed on
+  the current tree` instead of claiming the project is already in its target state, and the
+  real run still decides for itself.
+- A declared id that is not selected, or not registered, changes nothing.
+
 ## Chain Integrity Gate
 
 `tests/architectural/test_migration_chain_integrity.py` verifies:
