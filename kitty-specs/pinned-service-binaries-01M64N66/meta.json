@@ -1,0 +1,35 @@
+{
+  "accept_commit": "c7f44555b26344317040beaa016fd8586129b448",
+  "acceptance_history": [
+    {
+      "accept_commit": "c7f44555b26344317040beaa016fd8586129b448",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T03:26:43.059909+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "fd90d5a8024145b8f4af3d556983bc32a4446fa8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T03:26:43.059909+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "fd90d5a8024145b8f4af3d556983bc32a4446fa8",
+  "baseline_merge_commit": "d204b919bd285d4ff670f606b816a32cdf671841",
+  "created_at": "2026-10-29T20:21:28.325207+00:00",
+  "flattened": true,
+  "friendly_name": "Pinned service binaries",
+  "merged_at": "2026-10-30T03:31:15.403972+00:00",
+  "merged_commit": "77672bf2d68ae876e13f3c450769c754722710cd",
+  "mid8": "01M64N66",
+  "mission_id": "01M64N66GS3NT6K1W89PTC28AS",
+  "mission_number": 244,
+  "mission_slug": "pinned-service-binaries-01M64N66",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The events domain's Java services now live in spec-kitty-events (ADR 2026-10-29-1). Core needs one dependable way to consume a released service build: a pinned, checksummed reference, a verified download into a shared cache for developers, CI and users, and a launcher that fails closed with a named reason and remedy. The same mechanism serves the charter backend service (#6590) and the write-service launcher (#6676).",
+  "purpose_tldr": "Core pins, fetches, verifies and launches the backend service binaries released by spec-kitty-events (and later spec-kitty-charter), and refuses to run without a verified one.",
+  "slug": "pinned-service-binaries-01M64N66",
+  "status_phase": "1",
+  "target_branch": "issue-6590-pinned-service-binaries",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-29T21:55:13.239074+00:00"
+}

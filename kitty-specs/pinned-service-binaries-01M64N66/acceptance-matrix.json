@@ -1,0 +1,149 @@
+{
+  "mission_slug": "pinned-service-binaries-01M64N66",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/kernel/test_service_pin.py (valid pin loads; every schema rule, placeholder tag/commit refused; byte-stable round trip) \u2014 lane-f 2026-10-30, 423 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:25:15.967817+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/kernel/test_service_artifacts.py (fetch into cache, re-verify on resolve, flipped byte evicted and refetched, symlink refused)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:25:21.765995+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_release_asset_download_owner.py (empty allowlist, floor, planted import/attribute/literal violations, owner positive control) + tests/kernel/test_release_assets.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:25:27.779773+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_resolution.py (each tier selected when only it is available: explicit, install entry point, cache, jar with Java>=25, refusal)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:25:33.559345+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_resolution.py + test_launcher.py (each SERVICE_* code with remedy; autouse no-spawn guard proves nothing executes on refusal)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:25:39.382126+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_launcher.py (first ensure starts, second reuses with one spawn; two-thread race leaves one survivor)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:25:46.100851+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_launcher.py + test_client.py (handshake repositoryId/protocol/instanceId and health checked; wrong_repo/wrong_protocol refused)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:25:52.669047+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_launcher.py (killed instance replaced with new instance_id; stale port serving another clone recovered; creation_proof reused pid -> not_running)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:25:58.428695+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_launcher.py + test_service_cli.py (stop: stopped/not_running/forced/unconfirmed; endpoint gone, later ensure starts anew; UNCONFIRMED exits 1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:26:04.064105+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_service_cli.py (service fetch) + tests/kernel/test_service_artifacts.py (asset dir flat/tagged, digest-checked, copied into cache, bad file kept and named)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:26:10.175313+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_resolution.py (unpinned explicit path refused without opt-in; started with SPEC_KITTY_SERVICE_UNPINNED=1 and warning; non-'1' values ignored)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:26:15.973140+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_sync_services.py (online, --offline warm cache, --check fails on flipped byte without changing it, no pins exits 0; action cache key/inputs/SHA; wiring ratchet)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:26:21.801592+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_vendor.py + test_service_cli.py (single bump path; exact asset matching; corrupt asset/requires_core/credentials refused with lockfile byte-identical; --check flags tampered digest)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:26:27.257809+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_packaging_safety.py (no service binary or cache content in wheel/sdist with planted self-test; pins/README ships; pins mapped to specify_cli/_pins)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T03:26:33.275690+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

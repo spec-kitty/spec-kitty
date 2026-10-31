@@ -1,0 +1,152 @@
+{
+  "version": 1,
+  "mission_slug": "pinned-service-binaries-01M64N66",
+  "mission_id": "01M64N66GS3NT6K1W89PTC28AS",
+  "mission_branch": "kitty/mission-pinned-service-binaries-01M64N66",
+  "target_branch": "issue-6590-pinned-service-binaries",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "pins/README.md",
+        "src/kernel/service_pin.py",
+        "tests/kernel/test_service_pin.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/kernel/release_assets.py",
+        "src/kernel/service_artifacts.py",
+        "tests/architectural/test_release_asset_download_owner.py",
+        "tests/kernel/service_release_fixture.py",
+        "tests/kernel/test_release_assets.py",
+        "tests/kernel/test_service_artifacts.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/services/__init__.py",
+        "src/specify_cli/services/errors.py",
+        "src/specify_cli/services/host.py",
+        "src/specify_cli/services/resolution.py",
+        "tests/specify_cli/services/__init__.py",
+        "tests/specify_cli/services/test_host.py",
+        "tests/specify_cli/services/test_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/services/client.py",
+        "src/specify_cli/services/launcher.py",
+        "src/specify_cli/services/policies.py",
+        "tests/specify_cli/services/fake_service.py",
+        "tests/specify_cli/services/test_client.py",
+        "tests/specify_cli/services/test_launcher.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/__init__.py",
+        "src/specify_cli/cli/commands/service.py",
+        "src/specify_cli/services/vendor.py",
+        "tests/specify_cli/services/test_service_cli.py",
+        "tests/specify_cli/services/test_vendor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        ".github/actions/sync-services/action.yml",
+        ".github/ci-module-registry.yml",
+        "Makefile",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/how-to/service-pins.md",
+        "docs/development/page-inventory.yaml",
+        "pyproject.toml",
+        "scripts/sync_services.py",
+        "tests/ci/test_sync_services.py",
+        "tests/cross_cutting/packaging/test_packaging_safety.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-e"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-10-29T21:33:55.150170+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "bee9b960caf7d9b67c1b82e3422b17a3637bb6d4"
+}

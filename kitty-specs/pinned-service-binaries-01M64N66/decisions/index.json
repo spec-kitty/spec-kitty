@@ -1,0 +1,77 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-29T20:21:58.469006Z",
+      "decision_id": "01M64N7524YHFFNB9HJKBX1EVA",
+      "final_answer": "Full lifecycle now: resolve, verify, start/reuse, health, stale recovery, fail-closed codes; tested against a fake service speaking the ADR 2026-10-27-1 protocol",
+      "input_key": "launcher_lifecycle_scope",
+      "mission_id": "01M64N66GS3NT6K1W89PTC28AS",
+      "mission_slug": "pinned-service-binaries-01M64N66",
+      "opened_by": "cli",
+      "options": [
+        "Resolve, verify and refuse only; start, health and stale recovery follow with #6195",
+        "Full lifecycle now: start, reuse, health, stale recovery, tested against a fake service that speaks the 2026-10-27-1 protocol",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How much of the launcher lifecycle does this mission build, given that the write-service binary (command-cli) does not exist yet?",
+      "rationale": null,
+      "resolved_at": "2026-10-29T20:32:26.210407Z",
+      "resolved_by": null,
+      "slot_key": "specify.launcher.lifecycle-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-29T20:22:01.766194Z",
+      "decision_id": "01M64N7896B6GT50FWXZ3E5K70",
+      "final_answer": "Opt-in escape hatch: SPEC_KITTY_SERVICE_UNPINNED=1 plus an explicit binary path; warning on every start; never set by CLI tests or CI",
+      "input_key": "unpinned_local_binary",
+      "mission_id": "01M64N66GS3NT6K1W89PTC28AS",
+      "mission_slug": "pinned-service-binaries-01M64N66",
+      "opened_by": "cli",
+      "options": [
+        "Yes, only behind an explicit opt-in (env var SPEC_KITTY_SERVICE_UNPINNED=1) that prints a warning on every start",
+        "No, every executed binary must match a pinned sha256; developers bump a local pin instead",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "May a developer run a locally built service binary that matches no pin (for example while working in spec-kitty-events)?",
+      "rationale": null,
+      "resolved_at": "2026-10-29T20:32:29.727444Z",
+      "resolved_by": null,
+      "slot_key": "specify.security.unpinned-local-binary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-29T20:36:58.568539Z",
+      "decision_id": "01M64P2M28X8F8YJM77H3V028Q",
+      "final_answer": "Approved alignment: kernel stdlib pin/verify/cache/download owner + gate; specify_cli/services launcher + service CLI group, sync script/make/action; process contract accepted by spec-kitty-events operator 2026-10-29; fake service + file:// fixture release, no real pin",
+      "input_key": "launch_stop_contract",
+      "mission_id": "01M64N66GS3NT6K1W89PTC28AS",
+      "mission_slug": "pinned-service-binaries-01M64N66",
+      "opened_by": "cli",
+      "options": [
+        "Accept proposed alignment",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Launch/stop contract between core and service binaries, plus engineering alignment",
+      "rationale": null,
+      "resolved_at": "2026-10-29T21:25:28.649874Z",
+      "resolved_by": null,
+      "slot_key": "plan.launcher.launch-and-stop-contract",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M64N66GS3NT6K1W89PTC28AS",
+  "version": 1
+}

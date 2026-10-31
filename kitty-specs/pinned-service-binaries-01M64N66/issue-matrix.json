@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6195": {
+      "evidence_ref": "spec.md C-005: binding the EventBridge to the write service (#6195) is out of scope; cited for context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
