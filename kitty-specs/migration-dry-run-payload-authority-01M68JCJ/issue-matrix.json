@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#1198": {
+      "evidence_ref": "cited only as the tracking epic of the canonical-producer-exempt marker this mission retires at migration/mission_state.py; the epic itself owes no work to this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2270": {
+      "evidence_ref": "precedent only: core/mission_payload.build_mission_created_payload, the construction pattern this builder mirrors; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4327": {
+      "evidence_ref": "context only: the display-only summary payload field, deliberately not produced from a local transition; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6164": {
+      "evidence_ref": "context only: the removal of the hosted/sync transport that made this payload builder the last surviving dry-run site; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6449": {
+      "evidence_ref": "src/specify_cli/status/wire_payload.py builds the payload through StatusTransitionPayload; migration/mission_state.py routes the dry-run through it and the exemption marker is retired; parity pinned in tests/migration/test_mission_state_teamspace_payload_authority.py; PR #6893",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

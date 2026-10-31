@@ -187,6 +187,14 @@ from .wp_metadata import (
 from .wp_status_metadata import (
     WPStatusChangeMetadata,
 )
+
+# The ONE canonical constructor for the ``WPStatusChanged`` envelope payload
+# (#6449): promoted onto the facade so the mission-state dry-run builds the
+# payload through the contract model instead of hand-shaping a second dict.
+from .wire_payload import (
+    build_status_event_payload,
+    build_wp_status_changed_payload,
+)
 from .wp_review import (
     resolve_event_stream_review,
     resolve_snapshot_review,
@@ -556,6 +564,8 @@ __all__ = [
     "ResolvedGroup",
     "WPView",
     "reconstruct_wp_view",
+    "build_status_event_payload",
+    "build_wp_status_changed_payload",
     "resolve_event_stream_review",
     "read_event_stream",
     "read_event_stream_from_text",

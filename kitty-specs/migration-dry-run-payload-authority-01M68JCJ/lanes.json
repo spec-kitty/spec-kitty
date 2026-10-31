@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "migration-dry-run-payload-authority-01M68JCJ",
+  "mission_id": "01M68JCJ9ACY7K2HH4TVY8G19V",
+  "mission_branch": "issue-6449-migration-dry-run-payload-authority",
+  "target_branch": "issue-6449-migration-dry-run-payload-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/migration/mission_state.py",
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/wire_payload.py",
+        "tests/migration/test_mission_state_teamspace_payload_authority.py",
+        "tests/status/test_wire_payload.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:53:25.869444+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "63dbdfdee5df8e18c9fa2f2f5b89f30ff4ef32a0"
+}
