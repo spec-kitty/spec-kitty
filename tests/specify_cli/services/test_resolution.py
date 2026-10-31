@@ -307,7 +307,9 @@ def test_explicit_tier_follows_a_symlink_to_the_real_file(tmp_path: Path) -> Non
     link.symlink_to(release.native())
     resolved = _resolve(release, {EXPLICIT_ENV: str(link)})
     assert resolved.source == "explicit"
-    assert resolved.path.read_bytes() == release.native().read_bytes()
+    cached = cached_path(release.pin, release.pin.assets[ServiceTarget.LINUX_X64], release.cache_root)
+    assert resolved.path == cached
+    assert cached.read_bytes() == release.native().read_bytes()
 
 
 def test_explicit_tier_with_jar_digest_runs_under_java(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
