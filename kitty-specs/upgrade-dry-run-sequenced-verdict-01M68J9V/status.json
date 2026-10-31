@@ -1,0 +1,36 @@
+{
+  "event_count": 2,
+  "last_event_id": "01M68JG62KZTE7GQB54KTTCTVJ",
+  "materialized_at": "2026-10-31T08:51:26.419695+00:00",
+  "mission_number": "",
+  "mission_slug": "upgrade-dry-run-sequenced-verdict-01M68J9V",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 2
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M68JG5SY0MBQPPGTAXGSP8K0",
+      "last_transition_at": "2026-10-31T08:51:26.142308+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M68JG62KZTE7GQB54KTTCTVJ",
+      "last_transition_at": "2026-10-31T08:51:26.419695+00:00"
+    }
+  }
+}
