@@ -1063,7 +1063,7 @@ def _event_payload_actor_shape_agnostic(
     this tolerates the shape and nothing else.
     """
     payload: dict[str, Any] = _event_payload_without_at(event)
-    payload["actor"] = actor_identity_str(payload.get("actor"))
+    payload["actor"] = actor_identity_str(payload["actor"])
     return payload
 
 
