@@ -1,7 +1,7 @@
 {
   "rows": {
     "#1198": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited only as the tracking epic of the canonical-producer-exempt marker this mission retires at migration/mission_state.py; the epic itself owes no work to this mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,7 +9,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     }
   },
