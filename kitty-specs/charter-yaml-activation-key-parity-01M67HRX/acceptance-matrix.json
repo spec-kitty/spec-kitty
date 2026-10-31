@@ -1,0 +1,49 @@
+{
+  "mission_slug": "charter-yaml-activation-key-parity-01M67HRX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_charter_yaml_model.py::TestActivationIsFlatAtRoot::test_activation_field_is_flat_root_attribute (13/13 authority keys) + TestWriterAndModelAgreeOnActivationKeys (3/3 writer keys)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:39:36.169759+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "CharterYaml declares no activation field outside ACTIVATION_YAML_KEYS; tests/charter/test_activation_vocabulary_setequal.py::test_charter_yaml_activation_fields_set_equal_to_authority (stray=[]) and ::test_charter_yaml_has_no_activated_assets_field",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:39:44.388379+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_activation_vocabulary_setequal.py::test_charter_yaml_activation_fields_set_equal_to_authority failed red before the fix naming the 3 missing keys, and passes after; missing/stray are named in the assertion message",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:39:49.456325+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_charter_yaml_model.py::TestWriterAndModelAgreeOnActivationKeys::test_written_activation_key_validates_through_the_model (3/3: prepare_activation_write -> apply_yaml_write -> load_charter_yaml -> CharterYaml.model_validate, target asserted as charter.yaml); red on main",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:39:53.942863+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
