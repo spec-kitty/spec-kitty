@@ -285,6 +285,7 @@ def _load_command_skill_state(
     states no agent list (#6501), and an audit over that shape must not
     claim health over the surfaces it never examined (#6891). Carrying it here adds
     no YAML read of its own.
+    The same config names the stated-empty shape (#6493).
     """
     from specify_cli.core.agent_config import load_agent_config
     from specify_cli.skills import command_installer, manifest_store
@@ -423,6 +424,7 @@ def _command_skill_payload(
     pruned: list[str],
     repaired_vibe_config: bool,
     repair_errors: list[str],
+    config: AgentConfig,
 ) -> dict[str, object]:
     """Build the JSON/human report payload for ``doctor skills``."""
     from specify_cli.skills import command_installer
@@ -452,6 +454,7 @@ def _command_skill_payload(
         "legacy": sorted(report.legacy),
         _LEGACY_OWNED_KEY: sorted(report.legacy_owned),
         _LEGACY_RECORDED_KEY: _recorded_legacy_paths(manifest),
+        _EMPTY_AGENT_LIST_KEY: _empty_agent_list_report(config),
         "collisions": sorted(report.collisions),
         "uninstalled_agents": uninstalled_agents,
         "vibe_config_missing": vibe_config_missing,
@@ -480,7 +483,11 @@ _LEGACY_FIX_REMEDY = " — run `spec-kitty doctor skills --fix` to retire it"
 _LEGACY_OWNED_KEY = "_legacy_owned"
 _LEGACY_RECORDED_KEY = "_legacy_recorded"
 _NO_STATED_AGENT_LIST_KEY = "_no_stated_agent_list"
-_HUMAN_ONLY_KEYS = frozenset({_LEGACY_OWNED_KEY, _LEGACY_RECORDED_KEY, _NO_STATED_AGENT_LIST_KEY})
+#: The honest human summary line for a project with no CLI-managed agents (#6493).
+_EMPTY_AGENT_LIST_KEY = "_empty_agent_list"
+_HUMAN_ONLY_KEYS = frozenset(
+    {_LEGACY_OWNED_KEY, _LEGACY_RECORDED_KEY, _NO_STATED_AGENT_LIST_KEY, _EMPTY_AGENT_LIST_KEY}
+)
 
 #: The truthful summary clause for an audit that examined nothing in a legacy project
 #: (``.kittify/config.yaml`` with no ``agents.available`` list, the #6501 legacy shape).
@@ -512,6 +519,36 @@ def _print_nothing_to_check(subject: str, examined: str) -> None:
     """
     console.print(f"[yellow]{subject}[/yellow]: {_NO_STATED_AGENT_LIST} ({examined})")
     console.print(f"  ! {_NO_STATED_AGENT_LIST_DETAIL}", markup=False)
+
+
+def _empty_agent_list_report(config: AgentConfig) -> str | None:
+    """Return the honest "nothing to check" summary for an empty agent list, else ``None``.
+
+    #6493: a stated-empty list means the CLI manages no agent surfaces (#6494), so
+    the audit examined nothing and may not print "all ... healthy (0 ...)". A
+    config with no list at all is the legacy every-agent fallback (#6501) and is
+    deliberately out of this branch: its own findings already report it.
+    """
+    from specify_cli.core.agent_config import no_cli_managed_agents
+
+    if no_cli_managed_agents(config):
+        return "no CLI-managed agents (the project states an explicitly empty agent list) — nothing to check"
+    return None
+
+
+def _empty_agent_list_report_best_effort(project_path: Path) -> str | None:
+    """The honest line for *project_path*, or ``None`` when its config cannot be read.
+
+    Defensive only: this call site never resolved a config error before #6493 (a
+    corrupt config already fails earlier, in ``check_command_file_health``), so the
+    guard keeps the new line from becoming a *new* failure path.
+    """
+    from specify_cli.core.agent_config import AgentConfigError, load_agent_config
+
+    try:
+        return _empty_agent_list_report(load_agent_config(project_path))
+    except AgentConfigError:
+        return None
 
 
 def _recorded_legacy_paths(manifest: SkillsManifest) -> list[str]:
@@ -598,10 +635,14 @@ def _print_command_skill_report(payload: dict[str, object], fix: bool) -> None:
             _print_nothing_to_check("Command Skills", "0 manifest entries were examined")
             _print_command_skill_guidance(payload)
             return
-        console.print(
-            "[green]Command Skills[/green]: all manifest entries healthy "
-            f"({payload['entries']} file(s))"
-        )
+        empty_line = payload.get(_EMPTY_AGENT_LIST_KEY)
+        if isinstance(empty_line, str):
+            console.print(f"[green]Command Skills[/green]: {empty_line}")
+        else:
+            console.print(
+                "[green]Command Skills[/green]: all manifest entries healthy "
+                f"({payload['entries']} file(s))"
+            )
         # A kept, edited legacy skill is a warning (the user's choice), never a failure.
         _print_command_skill_guidance(payload)
         return
@@ -684,6 +725,12 @@ def run_command_files(json_output: bool) -> None:
         raise typer.Exit(1 if issues else 0)
 
     if not issues:
+        empty_line = _empty_agent_list_report_best_effort(project_path)
+        if empty_line is not None:
+            # #6493: no command file was examined, so "all files healthy" would be
+            # a vacuous green.
+            console.print(f"[green]Command Files[/green]: {empty_line}")
+            raise typer.Exit(0)
         console.print("[green]Command Files[/green]: all files healthy")
         raise typer.Exit(0)
 
@@ -825,6 +872,7 @@ def _assemble_skills_payload(
         pruned,
         repaired_vibe_config,
         repair_errors,
+        agent_config,
     )
 
     slash_payload = _load_and_optionally_repair_slash_commands(project_path, fix)
@@ -1075,6 +1123,12 @@ def run_tool_surfaces_audit(
         exit_code = 1
     if json_output:
         console.print_json(json.dumps(outcome.to_json(), indent=2))
+        raise typer.Exit(exit_code)
+    empty_line = _empty_agent_list_report(agent_config)
+    if empty_line is not None and outcome.report.ok and not outcome.report.findings:
+        # #6493: "all surfaces healthy (0 checked)" claims health over a surface
+        # set the audit never examined.
+        console.print(f"[green]Tool Surfaces[/green]: {empty_line}")
         raise typer.Exit(exit_code)
     _print_tool_surface_human(outcome, stated_agent_list=agent_config.explicit_agent_list)
     raise typer.Exit(exit_code)
