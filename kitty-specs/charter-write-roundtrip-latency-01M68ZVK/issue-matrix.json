@@ -1,0 +1,113 @@
+{
+  "rows": {
+    "#2772": {
+      "evidence_ref": "Referenced in prose as prior art or a pre-existing failure; outside this mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#3787": {
+      "evidence_ref": "Referenced in prose as prior art or a pre-existing failure; outside this mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4785": {
+      "evidence_ref": "Referenced in prose as prior art or a pre-existing failure; outside this mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5927": {
+      "evidence_ref": "Pre-existing red on main (status tests); cited in the PR Deferred section, not fixed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6366": {
+      "evidence_ref": "Referenced in prose as prior art or a pre-existing failure; outside this mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6506": {
+      "evidence_ref": "WP01 commit: structural document equality + one-cycle multi-section prepare",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#6798": {
+      "evidence_ref": "Referenced in prose as prior art or a pre-existing failure; outside this mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6801": {
+      "evidence_ref": "Referenced in prose as prior art or a pre-existing failure; outside this mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6816": {
+      "evidence_ref": "Referenced in prose as prior art or a pre-existing failure; outside this mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

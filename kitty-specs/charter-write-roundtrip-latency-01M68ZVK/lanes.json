@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "mission_slug": "charter-write-roundtrip-latency-01M68ZVK",
+  "mission_id": "01M68ZVKS6R1MKZ6YWBMCJWF1S",
+  "mission_branch": "kitty/mission-charter-write-roundtrip-latency-01M68ZVK",
+  "target_branch": "issue-6506-charter-write-roundtrip-latency",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/charter_yaml_io.py",
+        "tests/charter/activation/test_charter_yaml_io_equality.py",
+        "tests/charter/activation/test_charter_yaml_io_sections.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/compiler.py",
+        "tests/specify_cli/charter_runtime/test_references_parity_refresh.py",
+        "tests/specify_cli/cli/commands/charter/**"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/_perf_helpers.py",
+        "tests/performance/test_charter_write_repo_scale_timing.py",
+        "tests/performance/test_charter_write_roundtrips.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/**",
+        "docs/adr/index.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/page-inventory.yaml"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-31T12:50:24.167976+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "9fb83b2aa6b31ceea0a7783be95979cc3f4c1613"
+}

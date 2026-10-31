@@ -1,0 +1,41 @@
+{
+  "accept_commit": "b9877b890e0fbfd27fa05ebced7e938cf1a207b6",
+  "acceptance_history": [
+    {
+      "accept_commit": "634253367d597d62916396ccdc486fa08cacd368",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T16:24:14.535023+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "d25632997a58eae05662a9c18d9bfd8fba2468ee"
+    },
+    {
+      "accept_commit": "b9877b890e0fbfd27fa05ebced7e938cf1a207b6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T16:24:24.577689+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "0c7d95ffe4b0842a87976762901a0e27bcf03c7e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T16:24:24.577689+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "0c7d95ffe4b0842a87976762901a0e27bcf03c7e",
+  "baseline_merge_commit": "d16a83f2a3a27dfcaf0da87702be63862b6df186",
+  "created_at": "2026-10-31T12:44:52.741423+00:00",
+  "flattened": true,
+  "friendly_name": "charter write roundtrip latency",
+  "merged_at": "2026-10-31T16:25:55.376961+00:00",
+  "merged_commit": "5ece2adfeb245df826d8034fa814bca6a7d90302",
+  "mid8": "01M68ZVK",
+  "mission_id": "01M68ZVKS6R1MKZ6YWBMCJWF1S",
+  "mission_number": 245,
+  "mission_slug": "charter-write-roundtrip-latency-01M68ZVK",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter write roundtrip latency on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter write roundtrip latency",
+  "slug": "charter-write-roundtrip-latency-01M68ZVK",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T12:51:43.561830+00:00"
+}
