@@ -1,0 +1,4 @@
+No agents configured.
+
+Run 'spec-kitty init' or use 'spec-kitty agent config add' to add agents.
+--- exit=0

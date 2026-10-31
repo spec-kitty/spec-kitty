@@ -1,0 +1,2 @@
+Command Files: all files healthy
+--- exit=0
