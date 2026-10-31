@@ -21,11 +21,16 @@
     "WP01": {
       "actor": "python-pedro",
       "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
       "lane": "in_progress",
       "last_event_id": "01M68ZX68CRKFJQ7MQAT89J4PC",
       "last_transition_at": "2026-10-31T12:45:44.070152+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "shell_pid": 132118,
       "shell_pid_created_at": "1793450736.99"
     },
