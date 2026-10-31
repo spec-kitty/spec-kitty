@@ -81,6 +81,15 @@ what they print, is in [Activation and the activation ledger](#activation-and-th
 that lost at least one id appear. It is `{}` when `--narrow-activation` is not given or nothing
 was narrowed. Without `--json` the same information prints as `No longer in force (N) for <key>: ...`.
 
+**Selection promotion**: the captured decisions, directives and paradigms are appended to their
+`activated_<kind>` lists when those lists are present. An **absent** key is never filled
+(#6685): while it is absent, every available artifact of that kind is in force, so writing a list
+would only turn "nothing chosen yet" into an activation that `charter synthesize` reads as one
+(it would demand a companion tactic per directive and skip the fresh-project seed). The run names
+each key it left absent, and names any selected id you deactivated separately — the interview
+never clears a deny list, so that id stays out of force (`kept deactivated: directive <id>`).
+`--narrow-activation` is the way to keep activation narrow and write an explicit list.
+
 **Project languages (`languages` in `.kittify/config.yaml`)**: before the questions, the interview
 detects the repository's languages (manifests and source counts) and proposes them. You confirm or
 edit the list, primary language first, and it is stored as a top-level list of catalog tokens:
@@ -591,6 +600,16 @@ command and reported as `LEGACY_KEYS_PRESENT`.
 
 - Clears the artifact's own exclusion and adds it to a present allow list. `--only` does the
   same and narrows the list; ids dropped by narrowing get no exclusion.
+- **An absent allow list is never filled** (#6685). While `activated_<kind>` is absent, every
+  available artifact of that kind is in force, so activating one of them changes nothing: the
+  command reports the artifact as activated, writes no list, and says that a list would freeze
+  the kind (`Kind 'directive' keeps no explicit activation set, …`). Use
+  `charter activate <kind> <id> --only` to write a list. A kind whose absent key puts only its
+  org-required ids in force (`skill`) and `mission-type` still write their list, because there
+  writing nothing would lose the activation. One consequence: `--cascade` deactivation removes a
+  child only from a kind that has a written list; with none, it reports the child as
+  `still active (no allow-list; …)` — use `charter deactivate <kind> <id>` to record an exclusion
+  (#6873).
 - Accepts the file stem or the declared id (`024-locality-of-change` or `DIRECTIVE_024`); the
   allow list keeps one stem spelling per artifact.
 - A mission type is a cascade source: `charter activate mission-type <id> --cascade all`
