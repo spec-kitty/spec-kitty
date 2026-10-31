@@ -25,9 +25,12 @@ uv run pytest tests/architectural/test_status_module_boundary.py \
 ```bash
 # Run the dry-run over a repo and inspect one synthesized payload
 spec-kitty doctor mission-state --teamspace-dry-run --json > /tmp/dry-run.json
+```
 
-# A model-rejected row shows up as a report entry, never a traceback:
-#   {"error": "PAYLOAD_INVALID", "event_id": "...", "model_violations": [...]}
+A model-rejected row appears in that report as an error entry (never a traceback):
+
+```json
+{"error": "PAYLOAD_INVALID", "event_id": "...", "model_violations": [...]}
 ```
 
 ## What to look for
