@@ -1,0 +1,115 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M67S0CF4XSWDW91E8KWB4TSC",
+  "materialized_at": "2026-10-31T01:25:54.276495+00:00",
+  "mission_number": "244",
+  "mission_slug": "org-pack-selection-promotion-01M67HVC",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67S0BSE3GBCWWA6GQB1NK7P",
+      "last_transition_at": "2026-10-31T01:25:53.582637+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Shared resolver behind the activation seam; unit + seam gate green, ruff/mypy clean.",
+        "Independent review (delegate on tokenfactory/glm-5.3): no blockers; vacuous seam assertion and untested stems() collision branch fixed in 676813a."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 993484,
+      "shell_pid_created_at": "1793403315.26",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67S0C3YV4RHWKHZ6SGS3TSM",
+      "last_transition_at": "2026-10-31T01:25:53.918559+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Org/project-pack promotion wired through the shared resolver; migration module 35 tests green, ruff clean.",
+        "Independent review (delegate, glm-5.3): no blockers. Behaviour preserved, warning text byte-identical, ambiguity policy split sound. Nits: dead constant removed in 1863f07; try-scope kept (strict=False makes a non-doctrine escape implausible)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1233972,
+      "shell_pid_created_at": "1793404302.85",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67S0CF4XSWDW91E8KWB4TSC",
+      "last_transition_at": "2026-10-31T01:25:54.276495+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Interview rewired onto the shared resolver; CLI parity + ratchet drain + changelog/docs done.",
+        "Independent review (delegate, kimi-k3): no findings after the step-contract changelog correction in 1863f07. Collision refusal, warning text, seeding/narrow semantics, ratchet count and CLI parity all verified."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1664059,
+      "shell_pid_created_at": "1793406328.7",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}
