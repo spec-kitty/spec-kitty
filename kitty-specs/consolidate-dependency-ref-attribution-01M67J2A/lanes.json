@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "mission_slug": "consolidate-dependency-ref-attribution-01M67J2A",
+  "mission_id": "01M67J2AD9X6A41HWENEM7MNVH",
+  "mission_branch": "kitty/mission-consolidate-dependency-ref-attribution-01M67J2A",
+  "target_branch": "issue-6771-consolidate-dependency-ref-attribution",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/reconciliation.py",
+        "tests/consolidation/test_dependency_ref_claim.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/consolidate.py",
+        "src/specify_cli/consolidation/forecast.py",
+        "src/specify_cli/consolidation/phase_claim.py",
+        "src/specify_cli/consolidation/phase_gate.py",
+        "src/specify_cli/consolidation/run_state.py",
+        "src/specify_cli/consolidation/state.py",
+        "tests/consolidation/test_dependency_ref_forecast.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/missions/merge-mission.md",
+        "tests/consolidation/test_dependency_ref_attribution_6771.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-30T23:26:49.208991+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a80f22761b7d5757d3da08d42753aa42dca6e04e"
+}
