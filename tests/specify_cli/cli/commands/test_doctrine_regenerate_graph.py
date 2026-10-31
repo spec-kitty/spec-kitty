@@ -13,6 +13,7 @@ target a temporary doctrine root assembled from the shipped one.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -21,6 +22,7 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.models import NodeKind
 from specify_cli.cli.commands.charter import charter_app
 
 if TYPE_CHECKING:
@@ -34,6 +36,40 @@ runner = CliRunner()
 # the top-level ``packs/built-in`` pack root (mission relocate-builtin-doctrine-packs);
 # regenerate-graph resolves and rewrites them there.
 DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "packs" / "built-in"
+
+#: The LIVE, non-frozen current-state record of the shipped-graph orphan residual.
+#:
+#: The historical record the ceiling's own docstring cites,
+#: ``kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md``,
+#: is parked under ``kitty-specs/`` — an immutable archive root
+#: (``tests/architectural/test_archive_root_byte_identical.py``) — so it can be *cited*
+#: but never *updated*; its last recorded state (ceiling 29 -> 30 over 17 step
+#: contracts) is therefore as-of-date history, not current state. The live record is a
+#: ``docs/architecture/`` page an operator can actually edit, and the guard below binds
+#: it to the measurement so the two cannot drift silently (#6513).
+LIVE_RESIDUAL_RECORD = (
+    Path(__file__).resolve().parents[4]
+    / "docs"
+    / "architecture"
+    / "charter-synthesis-drg.md"
+)
+
+#: Markers delimiting the record's machine-readable current-state block. Only the
+#: backticked URNs between them take part in the guard: prose, historical sections and
+#: tables in the same page cannot accidentally satisfy it.
+RESIDUAL_BLOCK_BEGIN = "<!-- drg-orphan-residual:begin -->"
+RESIDUAL_BLOCK_END = "<!-- drg-orphan-residual:end -->"
+
+#: A whole backticked span that is a DRG node URN (``<kind>:<id>``). The kind set is
+#: derived from :class:`~charter.offering.drg.models.NodeKind`, never hand-listed, so a
+#: doctrine kind added later still parses here — a hand-written alternation would make a
+#: *recorded* URN of a new kind drop out of the parsed set and report the confusing
+#: "measured but not recorded" for a URN that is recorded. A stray inline code span such
+#: as ``edges: []`` still cannot parse (the id pattern allows no whitespace).
+_KIND_ALTERNATION = "|".join(
+    re.escape(kind.value) for kind in sorted(NodeKind, key=lambda k: -len(k.value))
+)
+_URN_SPAN = re.compile(rf"`((?:{_KIND_ALTERNATION}):[A-Za-z0-9_./\-]+)`")
 
 
 def _graph_files(doctrine_dir: Path) -> list[Path]:
@@ -130,22 +166,67 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: ``(mission_type, action)`` join, never by traversal; see
 #: ``_EDGELESS_BY_CONSTRUCTION`` in ``test_extractor_projection.py``), so the
 #: ceiling rises **21 -> 25**. No edge was wired and ``packs/built-in/`` is untouched.
+#:
+#: 2026-10-31 (#6513, mission drg-orphan-residual-live-record-01M68ZV0): the
+#: CURRENT-STATE record moved to a writable home. The historical
+#: ``kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md``
+#: is a frozen archive root (``tests/architectural/test_archive_root_byte_identical.py``),
+#: so "update drg-orphan-residual.md" — what this ceiling's failure message used to
+#: say — was an unexecutable remedy, and that file's last recorded state (29 -> 30
+#: over 17 step contracts) is as-of-date history, not current state. The LIVE record
+#: is the "The shipped-graph orphan residual (current state)" section of
+#: ``docs/architecture/charter-synthesis-drg.md``, and it is bound to the
+#: measurement by ``test_documented_residual_matches_measured_shipped_orphans``:
+#: the record's URN set must equal ``_orphan_urns(load_built_in_graph())`` exactly.
+#: A raise of this ceiling therefore requires a recorded row in the SAME change —
+#: the numeric assertion alone cannot see a raise, only an excess. The pure-extractor
+#: membership pins (``_INTENTIONAL_ORPHANS`` / ``_SHIPPED_ORPHANS`` in
+#: ``tests/charter_offering/drg/migration/test_extractor_projection.py``) remain the
+#: extracted-frame authority; this ceiling remains the *shipped*-frame guard, and the
+#: two differ only by ``_ORPHANS_RESOLVED_BY_OVERLAY``.
 DOCUMENTED_ORPHAN_RESIDUAL = 25
 
 
-def _count_orphans(graph: DRGGraph) -> int:
-    """Return the number of nodes with no inbound or outbound edge.
+def _orphan_urns(graph: DRGGraph) -> set[str]:
+    """Return the URNs of nodes with no inbound and no outbound edge.
 
     Operates on a loaded :class:`~charter.offering.drg.models.DRGGraph` so the caller can
     read *whatever layout is on disk* through the seam (monolith today, fragments
     post-WP05) rather than re-parsing a hardcoded ``graph.yaml`` path.
+
+    The membership form is what binds the live record to the graph (#6513); the count
+    form is the regression ceiling.
     """
     urns = {node.urn for node in graph.nodes}
     incident: set[str] = set()
     for edge in graph.edges:
         incident.add(edge.source)
         incident.add(edge.target)
-    return len(urns - incident)
+    return urns - incident
+
+
+def _count_orphans(graph: DRGGraph) -> int:
+    """Return the number of nodes with no inbound or outbound edge."""
+    return len(_orphan_urns(graph))
+
+
+def _documented_orphan_urns(record_path: Path = LIVE_RESIDUAL_RECORD) -> set[str] | None:
+    """Return the URNs recorded in the live record's current-state block.
+
+    Only the delimited block counts (see :data:`RESIDUAL_BLOCK_BEGIN`). ``None`` means the
+    block itself is absent — a missing file or missing markers — which the guard reports as
+    its own failure ("the record has no machine-readable block") instead of blaming 25
+    individual URNs for being unrecorded. A present-but-empty block returns an empty set.
+    """
+    if not record_path.is_file():
+        return None
+    text = record_path.read_text(encoding="utf-8")
+    try:
+        start = text.index(RESIDUAL_BLOCK_BEGIN) + len(RESIDUAL_BLOCK_BEGIN)
+        end = text.index(RESIDUAL_BLOCK_END, start)
+    except ValueError:
+        return None
+    return set(_URN_SPAN.findall(text[start:end]))
 
 
 def test_check_reports_committed_graph_fresh() -> None:
@@ -234,8 +315,49 @@ def test_shipped_graph_orphan_count_within_documented_residual() -> None:
     orphans = _count_orphans(load_built_in_graph())
     assert orphans <= DOCUMENTED_ORPHAN_RESIDUAL, (
         f"DRG orphan count {orphans} exceeds documented residual "
-        f"{DOCUMENTED_ORPHAN_RESIDUAL}; wire a real inbound edge or update "
-        f"drg-orphan-residual.md and raise the ceiling with rationale."
+        f"{DOCUMENTED_ORPHAN_RESIDUAL}. Two honest remedies, no third: wire a real "
+        f"inbound edge, or record the new orphan(s) in the LIVE residual record "
+        f"({LIVE_RESIDUAL_RECORD.relative_to(LIVE_RESIDUAL_RECORD.parents[2])}) and "
+        f"raise this ceiling in the same change, with the rationale. The historical "
+        f"``kitty-specs/.../drg-orphan-residual.md`` is a frozen archive: cite it, "
+        f"never edit it."
+    )
+
+
+def test_documented_residual_matches_measured_shipped_orphans() -> None:
+    """The live record's membership must equal the measured shipped orphan set (#6513).
+
+    A numeric ceiling alone cannot see a *raise*: bumping
+    ``DOCUMENTED_ORPHAN_RESIDUAL`` with a comment goes green while the documented
+    residual says nothing about the new orphan. This guard closes that hole in both
+    directions — an orphan measured but not recorded fails, and a recorded URN that is
+    no longer an orphan fails, so a shrink has to be recorded too.
+
+    The record is the *shipped* frame (``load_built_in_graph()``), matching what the
+    ceiling measures. ``_SHIPPED_ORPHANS`` in
+    ``tests/charter_offering/drg/migration/test_extractor_projection.py`` is the
+    *pure-extractor* frame; the two differ only by ``_ORPHANS_RESOLVED_BY_OVERLAY``,
+    so neither may be "corrected" against the other.
+    """
+    measured = _orphan_urns(load_built_in_graph())
+    documented = _documented_orphan_urns()
+    assert documented is not None, (
+        f"The live DRG orphan residual record has no machine-readable current-state "
+        f"block: {RESIDUAL_BLOCK_BEGIN} … {RESIDUAL_BLOCK_END} not found in "
+        f"{LIVE_RESIDUAL_RECORD}. Restore the delimited block (one backticked URN per "
+        f"line) rather than removing it — it is what binds this record to the graph."
+    )
+    undocumented = sorted(measured - documented)
+    stale = sorted(documented - measured)
+    assert not undocumented and not stale, (
+        "The live DRG orphan residual record and the measured shipped graph disagree "
+        f"({LIVE_RESIDUAL_RECORD}).\n"
+        f"  Measured but not recorded ({len(undocumented)}): {undocumented}\n"
+        f"  Recorded but no longer an orphan ({len(stale)}): {stale}\n"
+        "Update the record's current-state block and, if the measured count moved, "
+        "DOCUMENTED_ORPHAN_RESIDUAL, in the same change — wire a real inbound edge "
+        "first if a genuine referent exists (D-C2 / C-003 forbid deleting or "
+        "manufacturing an edge to zero the metric)."
     )
 
 
