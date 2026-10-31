@@ -39,7 +39,7 @@ from charter.activation.synthesizer.manifest import (
     UnreadableCreatedRecordError,
     manifest_slugs,
     read_created_record,
-    synthesized_slugs,
+    synthesized_ids,
     write_created_record,
 )
 from charter.activation.synthesizer.reconcile import REACH_ONLY_KINDS, ReconciliationDelta, is_synthesized_source_edge
@@ -78,7 +78,7 @@ def reach_only_ids(repo_root: Path, kind: str) -> frozenset[str]:
     does not change when the owning directive is deactivated. An absent or
     unloadable overlay or an absent manifest yields the empty set (matches
     ``project_degrade``). Ownership comes from the one reader
-    (:func:`charter.activation.synthesizer.manifest.synthesized_slugs`), so its
+    (:func:`charter.activation.synthesizer.manifest.synthesized_ids`), so its
     fallback and its single coded "unreadable record" refusal apply here unchanged
     (#6454, #6767).
     """
@@ -94,7 +94,7 @@ def reach_only_ids(repo_root: Path, kind: str) -> frozenset[str]:
     candidates = {edge.target for edge in graph.edges if is_synthesized_source_edge(edge) and edge.target in node_urns}
     if not candidates:
         return frozenset()  # the manifest is read only when an edge could make something reach-only
-    registered = {f"{prefix}{slug}" for slug in synthesized_slugs(repo_root, kind)}
+    registered = {f"{prefix}{slug}" for slug in synthesized_ids(repo_root, kind)}
     reached = candidates & registered
     if not reached:
         return frozenset()

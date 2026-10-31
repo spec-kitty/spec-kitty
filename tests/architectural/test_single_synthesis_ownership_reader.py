@@ -58,23 +58,73 @@ def test_the_ownership_reader_is_defined_once_in_the_record_module() -> None:
     assert definers == [_RECORD_MODULE], f"{_OWNERSHIP_READER} must be defined exactly once, in {_RECORD_MODULE}; found {definers}"
 
 
-def test_only_the_record_module_parses_the_provenance_sidecar() -> None:
+#: Every module that reads a provenance sidecar, and why it may. The one *ownership* reader is
+#: :func:`synthesized_urns`; these are the pre-existing best-effort probes with their own
+#: policies (edge backing, registration pruning, registered-artifact split, resynthesis
+#: inputs, status display). The set is shrink-only: a new sidecar read must either go through
+#: ``sidecar_artifact_urn`` or be added here with a reason (#6767 follow-up).
+_SIDECAR_READERS = frozenset(
+    {
+        "src/charter/activation/project_registration.py",  # _sidecar_recorded_urn: pruning identity probe
+        "src/charter/activation/synthesizer/manifest.py",  # the one reader and its sidecar parser
+        "src/charter/activation/synthesizer/project_drg.py",  # _registered_project_artifacts: registered split
+        "src/charter/activation/synthesizer/reconcile.py",  # _provenance_urn: edge-backing probe
+        "src/charter/activation/synthesizer/resynthesize_pipeline.py",  # resynthesis inputs
+        "src/specify_cli/cli/commands/charter/_status_collectors.py",  # charter status display
+    }
+)
+
+
+def _sidecar_loader_importers(tree: ast.Module) -> bool:
+    """True when *tree* binds the provenance model loader under any name, or calls it by attribute."""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and "provenance" in (node.module or "") and any(alias.name == "load_yaml" for alias in node.names):
+            return True
+        if isinstance(node, ast.Call):
+            func = node.func
+            if isinstance(func, ast.Attribute) and func.attr == "load_yaml" and isinstance(func.value, ast.Name):
+                return True
+    return False
+
+
+def test_every_sidecar_reader_is_the_pinned_census() -> None:
+    """The sidecar shape has one *ownership* reader; other readers are enumerated, not discovered.
+
+    Resolves the aliased-import idiom the codebase uses (``load_yaml as load_provenance``), so a
+    new reader cannot slip past the gate by renaming the parser.
+    """
+    importers = sorted(_rel(path) for path in _source_files() if _sidecar_loader_importers(parse_file(path)))
+
+    assert set(importers) == _SIDECAR_READERS, (
+        "a module reads the provenance sidecar outside the pinned census: "
+        f"new={sorted(set(importers) - _SIDECAR_READERS)}, gone={sorted(_SIDECAR_READERS - set(importers))}. "
+        "Route it through sidecar_artifact_urn, or add it here with a reason."
+    )
+
+
+def test_no_module_parses_a_sidecar_with_a_raw_yaml_loader() -> None:
+    """The one parser of the sidecar *shape* is the validated model loader; raw YAML is a second one."""
     offenders: list[str] = []
     for path in _source_files():
         if _rel(path) == _RECORD_MODULE:
             continue
         tree = parse_file(path)
+        raw_names = {"YAML", "safe_load", "load", "unsafe_load"}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] in {"ruamel", "yaml"}:
+                raw_names.update(alias.asname or alias.name for alias in node.names)
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
-            name = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
-            if name not in _YAML_LOADERS:
+            func = node.func
+            name = getattr(func, "id", None) or getattr(func, "attr", None)
+            if name not in raw_names:
                 continue
             rendered = " ".join(ast.unparse(argument) for argument in [*node.args, *node.keywords])
             if "provenance" in rendered or "artifact_urn" in rendered:
                 offenders.append(f"{_rel(path)}:{node.lineno}")
 
-    assert offenders == [], "the provenance sidecar shape has one parser (" + _SIDECAR_PARSER + f" in {_RECORD_MODULE}); second parsers at {offenders}"
+    assert offenders == [], f"the sidecar shape has one parser (the validated loader in {_RECORD_MODULE}); raw YAML parses at {offenders}"
 
 
 def test_the_unreadable_code_is_constructed_in_exactly_one_place() -> None:

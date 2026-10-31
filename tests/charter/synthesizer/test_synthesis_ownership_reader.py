@@ -29,7 +29,7 @@ from charter.activation.synthesizer.manifest import (
     manifest_slugs,
     read_created_record,
     sidecar_artifact_urn,
-    synthesized_slugs,
+    synthesized_ids,
     synthesized_urns,
 )
 from charter.activation.synthesizer.path_guard import PathGuard
@@ -140,11 +140,11 @@ def test_returns_only_the_requested_kind(tmp_path: Path, guard: PathGuard) -> No
     assert synthesized_urns(tmp_path, "styleguide") == frozenset()
 
 
-def test_synthesized_slugs_are_the_urn_id_segment(tmp_path: Path, guard: PathGuard) -> None:
+def test_synthesized_ids_are_the_urn_id_segment(tmp_path: Path, guard: PathGuard) -> None:
     _write_manifest(tmp_path, guard, [_entry("directive", "project-intent-directive")])
     _write_sidecar(tmp_path, guard, _sidecar("directive", "project-intent-directive", "directive:PROJECT_001"))
 
-    assert synthesized_slugs(tmp_path, "directive") == frozenset({"PROJECT_001"})
+    assert synthesized_ids(tmp_path, "directive") == frozenset({"PROJECT_001"})
 
 
 def test_direct_write_registration_is_not_ownership(tmp_path: Path, guard: PathGuard) -> None:
@@ -161,7 +161,11 @@ def test_direct_write_registration_is_not_ownership(tmp_path: Path, guard: PathG
 
 
 def test_reregistered_synthesized_urn_stays_owned(tmp_path: Path, guard: PathGuard) -> None:
-    """One synthesis-written record of the URN is enough; a later registration does not take it away."""
+    """One synthesis-written record of the URN is enough; a later registration does not take it away.
+
+    This is the directive shape: project registration derives a different slug for a directive
+    (``PROJECT_001`` -> ``project-001``), so the synthesized entry survives beside it.
+    """
     entries = [_entry("directive", "project-intent-directive"), _entry("directive", "project-001")]
     _write_manifest(tmp_path, guard, entries)
     _write_sidecar(tmp_path, guard, _sidecar("directive", "project-intent-directive", "directive:PROJECT_001"))
@@ -172,6 +176,52 @@ def test_reregistered_synthesized_urn_stays_owned(tmp_path: Path, guard: PathGua
     )
 
     assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
+
+
+def test_reregistered_reach_only_artifact_stays_owned_when_its_entry_was_replaced(tmp_path: Path, guard: PathGuard) -> None:
+    """The registration replaced the single entry AND its sidecar: the record still says synthesis created it.
+
+    Project registration keys the manifest by ``(kind, slug)`` and, for a slug-keyed kind, the
+    slug is the id — so a re-registered synthesized tactic loses its synthesis-written entry.
+    The created-artifacts record is the durable memory of creation, so ownership survives;
+    losing it would drop the tactic from ``reach_only_ids`` and deliver it as a root even while
+    its directive is inactive (#6767 FR-010).
+    """
+    _write_manifest(tmp_path, guard, [_entry("tactic", "review-policy-tactic")])
+    _write_sidecar(
+        tmp_path,
+        guard,
+        _sidecar("tactic", "review-policy-tactic", "tactic:review-policy-tactic", adapter_id="project-direct-write"),
+    )
+    _write_record(tmp_path, "created_tactics:\n  - review-policy-tactic\n")
+
+    assert synthesized_urns(tmp_path, "tactic") == frozenset({"tactic:review-policy-tactic"})
+
+
+def test_hand_authored_registration_stays_unowned_when_the_record_never_listed_it(tmp_path: Path, guard: PathGuard) -> None:
+    """Positive control for the row above: a hand-authored file the record never lists is not owned."""
+    _write_manifest(tmp_path, guard, [_entry("tactic", "my-hand-authored-tactic")])
+    _write_sidecar(
+        tmp_path,
+        guard,
+        _sidecar("tactic", "my-hand-authored-tactic", "tactic:my-hand-authored-tactic", adapter_id="project-direct-write"),
+    )
+    _write_record(tmp_path, "created_tactics:\n  - review-policy-tactic\n")
+
+    assert synthesized_urns(tmp_path, "tactic") == frozenset()
+
+
+def test_unreadable_record_keeps_a_registered_artifact_owned(tmp_path: Path, guard: PathGuard) -> None:
+    """With the record unreadable the registration cannot be told from synthesis output: stay owned (fail closed)."""
+    _write_manifest(tmp_path, guard, [_entry("tactic", "review-policy-tactic")])
+    _write_sidecar(
+        tmp_path,
+        guard,
+        _sidecar("tactic", "review-policy-tactic", "tactic:review-policy-tactic", adapter_id="project-direct-write"),
+    )
+    _write_record(tmp_path, "created_tactics: [\n  broken\n")
+
+    assert synthesized_urns(tmp_path, "tactic") == frozenset({"tactic:review-policy-tactic"})
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +292,7 @@ def test_unreadable_sidecar_of_a_directive_falls_back_to_the_record(tmp_path: Pa
         synthesized_urns(tmp_path, "directive")
 
     assert caught.value.offending_artifact == ".kittify/charter/provenance/directive-project-intent-directive.yaml"
-    assert "not tracked by the record" in caught.value.body
+    assert "does not track directives" in caught.value.body
 
 
 @pytest.mark.parametrize(
@@ -283,7 +333,7 @@ def test_unreadable_manifest_for_an_untracked_kind_raises_without_reading_the_re
     with pytest.raises(SynthesisMembershipUnreadableError) as caught:
         synthesized_urns(tmp_path, "directive")
 
-    assert "not tracked by the record" in caught.value.body
+    assert "does not track directives" in caught.value.body
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +462,6 @@ def test_the_error_is_the_documented_code() -> None:
 def test_the_reader_and_the_error_are_public(monkeypatch: pytest.MonkeyPatch) -> None:
     from charter.activation.synthesizer import manifest
 
-    for name in ("synthesized_urns", "synthesized_slugs", "sidecar_artifact_urn", "manifest_slugs"):
+    for name in ("synthesized_urns", "synthesized_ids", "sidecar_artifact_urn", "manifest_slugs"):
         assert name in manifest.__all__, name
     assert read_created_record is manifest.read_created_record

@@ -426,15 +426,15 @@ def created_record_key(kind: str) -> str:
     return f"created_{ArtifactKind(kind).plural}"
 
 
-def _record_kinds() -> frozenset[str]:
-    """Kinds the created-artifacts record tracks.
+def _record_kinds() -> tuple[str, ...]:
+    """Kinds the created-artifacts record tracks, in the declared order (stable file output).
 
     Deferred import: ``reconcile`` imports this module (the manifest writer), so the
     reach-only vocabulary cannot be imported at module scope here.
     """
     from .reconcile import REACH_ONLY_KINDS
 
-    return frozenset(REACH_ONLY_KINDS)
+    return tuple(REACH_ONLY_KINDS)
 
 
 def _load_record_file(path: Path) -> dict[str, Any]:
@@ -482,7 +482,11 @@ def write_created_record(repo_root: Path, recorded: Mapping[str, set[str]], fore
 def sidecar_artifact_urn(repo_root: Path, entry: ManifestArtifactEntry, *, owned_only: bool = True) -> str | None:
     """Return the ``artifact_urn`` *entry*'s provenance sidecar records, or raise.
 
-    The one parser of the sidecar shape; nothing else under ``src/`` may parse it.
+    The one parser of the sidecar shape for ownership (and for the JSON envelope): no other
+    module parses a sidecar with a raw YAML loader, and the modules that read one through the
+    validated model loader are a pinned census in
+    ``tests/architectural/test_single_synthesis_ownership_reader.py`` (the pre-existing
+    best-effort probes there are out of this convergence; see the #6767 follow-up).
 
     With ``owned_only`` (the default, the ownership contract) a
     ``project-direct-write`` sidecar yields ``None``: project registration
@@ -541,7 +545,9 @@ def _ownership_unreadable(offending: str, exc: Exception, *, kind: str | None = 
     )
 
 
-def _membership_error(kind: str, cause: Exception, record_state: str) -> SynthesisMembershipUnreadableError:
+def _membership_error(
+    kind: str, cause: Exception, record_state: str, *, record_tracked: bool = True
+) -> SynthesisMembershipUnreadableError:
     """The one coded refusal for an ownership record that cannot answer."""
     if isinstance(cause, SynthesisMembershipUnreadableError):
         lead = f"{cause.offending_artifact or MANIFEST_PATH.as_posix()} cannot be read ({cause.reason})"
@@ -550,14 +556,23 @@ def _membership_error(kind: str, cause: Exception, record_state: str) -> Synthes
         reason = f"{type(cause).__name__}: {cause}".strip()
         lead = f"{MANIFEST_PATH.as_posix()} cannot be read ({reason})"
         offending = MANIFEST_PATH.as_posix()
+    record_clause = (
+        f" and the created-artifacts record ({CREATED_ARTIFACTS_PATH.as_posix()}) is {record_state},"
+        if record_tracked
+        else f" and the created-artifacts record does not track {kind}s,"
+    )
+    consequence = (
+        f"Do not delete {CREATED_ARTIFACTS_PATH.as_posix()}: synthesis would forget which "
+        "artifacts it created and add back ones you removed."
+        if record_tracked
+        else "Restore or repair that file; no other record can say what synthesis created."
+    )
     body = (
-        f"{lead} and the created-artifacts record ({CREATED_ARTIFACTS_PATH.as_posix()}) is {record_state}, "
+        f"{lead}{record_clause} "
         f"so spec-kitty cannot tell which {kind}s synthesis created. Refusing to deliver governance: every "
         f"synthesized {kind} would otherwise reach agents even while its directive is inactive.\n"
         f"Remediation: restore {MANIFEST_PATH.as_posix()} (and its provenance sidecars) from version control "
-        f"(for example `git checkout -- {MANIFEST_PATH.as_posix()}`), or fix their YAML by hand. Do not delete "
-        f"{CREATED_ARTIFACTS_PATH.as_posix()}: synthesis would forget which artifacts it created and add back "
-        "ones you removed."
+        f"(for example `git checkout -- {MANIFEST_PATH.as_posix()}`), or fix their YAML by hand. {consequence}"
     )
     return SynthesisMembershipUnreadableError(
         body,
@@ -566,6 +581,22 @@ def _membership_error(kind: str, cause: Exception, record_state: str) -> Synthes
         reason=f"{type(cause).__name__}: {cause}".strip(),
         kind=kind,
     )
+
+
+def recorded_ids(repo_root: Path, kind: str) -> set[str] | None:
+    """The created-artifacts record's ids of *kind*; ``None`` when it cannot say.
+
+    ``None`` means the record cannot be read, or does not track *kind* at all (only the
+    reach-only kinds are tracked). An absent record, or one listing no id of the kind,
+    is an empty set: it positively says "synthesis recorded nothing here".
+    """
+    if kind not in _record_kinds():
+        return None
+    try:
+        recorded, _ = read_created_record(repo_root)
+    except UnreadableCreatedRecordError:
+        return None
+    return recorded[kind]
 
 
 def _recorded_urns(repo_root: Path, kind: str, cause: Exception) -> frozenset[str]:
@@ -577,7 +608,7 @@ def _recorded_urns(repo_root: Path, kind: str, cause: Exception) -> frozenset[st
     every synthesized artifact.
     """
     if kind not in _record_kinds():
-        raise _membership_error(kind, cause, f"not tracked by the record for {kind}s")
+        raise _membership_error(kind, cause, f"not tracked by the record for {kind}s", record_tracked=False)
     try:
         recorded, _ = read_created_record(repo_root)
     except UnreadableCreatedRecordError:
@@ -609,10 +640,13 @@ def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
     Ownership comes from the existing record only (no id-prefix heuristic): the
     manifest lists each synthesized artifact, and its provenance sidecar records
     the URN (``artifact_urn``, e.g. ``directive:PROJECT_001``). A URN is
-    synthesis-owned when at least one entry recording it has a sidecar whose
-    ``adapter_id`` is not ``project-direct-write``: a direct-write registration
-    alone (a hand-authored file ``charter activate`` registered) is not ownership,
-    and a synthesized artifact re-registered as direct-write stays owned.
+    synthesis-owned when its sidecar's ``adapter_id`` is not
+    ``project-direct-write``, or -- for a slug-keyed kind -- when the
+    created-artifacts record lists its id. A direct-write registration of a
+    hand-authored file is therefore not ownership, while a synthesized artifact
+    that ``charter activate`` re-registered stays owned even when that registration
+    replaced the manifest entry and its sidecar (which it does for a slug-keyed
+    kind: the manifest is keyed by ``(kind, slug)``).
 
     Absent manifest (not even a dangling symlink): empty set (nothing synthesized).
     An unreadable or invalid manifest falls back to the created-artifacts record
@@ -639,6 +673,8 @@ def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
     except (OSError, ValueError, YAMLError) as exc:
         return _recorded_urns(repo_root, kind, exc)
     owned: set[str] = set()
+    recorded_ids_of_kind: set[str] | None = None
+    record_read = False
     for entry in manifest.artifacts:
         if entry.kind != kind:
             continue
@@ -651,11 +687,26 @@ def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
             continue
         if urn is not None:
             owned.add(urn)
+        elif kind not in _ID_KEYED_KINDS:
+            # A registration sidecar: project registration replaces the entry AND its
+            # sidecar under the same (kind, slug) key for a slug-keyed kind, so the
+            # synthesized record can vanish from the manifest. The created-artifacts
+            # record remembers what synthesis created, so it decides (an unreadable
+            # record keeps the artifact owned: fail closed for delivery gating).
+            if recorded_ids_of_kind is None and not record_read:
+                recorded_ids_of_kind = recorded_ids(repo_root, kind)
+                record_read = True
+            if recorded_ids_of_kind is None or entry.slug in recorded_ids_of_kind:
+                owned.add(f"{kind}:{entry.slug}")
     return frozenset(owned)
 
 
-def synthesized_slugs(repo_root: Path, kind: str) -> frozenset[str]:
-    """The id segment of :func:`synthesized_urns` for *kind* (e.g. ``how-we-apply-directive-024``)."""
+def synthesized_ids(repo_root: Path, kind: str) -> frozenset[str]:
+    """The id segment of :func:`synthesized_urns` for *kind* (e.g. ``how-we-apply-directive-024``).
+
+    An id, not a slug: a directive's id (``PROJECT_001``) differs from its manifest slug
+    (the file stem), which is exactly the conflation this reader exists to remove.
+    """
     prefix = f"{kind}:"
     return frozenset(urn[len(prefix) :] for urn in synthesized_urns(repo_root, kind))
 
@@ -790,6 +841,7 @@ __all__ = [
     "UnreadableCreatedRecordError",
     "created_record_key",
     "read_created_record",
+    "recorded_ids",
     "write_created_record",
     "dump_yaml",
     "load_yaml",
@@ -801,7 +853,7 @@ __all__ = [
     "project_directive_ids",
     "sidecar_artifact_urn",
     "synthesized_urns",
-    "synthesized_slugs",
+    "synthesized_ids",
     "manifest_slugs",
     "synthesis_owned_directive_ids",
 ]
