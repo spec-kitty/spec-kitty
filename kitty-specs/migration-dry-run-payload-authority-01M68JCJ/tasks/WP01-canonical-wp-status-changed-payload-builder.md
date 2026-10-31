@@ -5,10 +5,10 @@ dependencies: []
 requirement_refs:
 - FR-001
 - FR-003
-- FR-006
 - C-001
 - C-002
 - C-003
+- NFR-002
 - SC-002
 planning_base_branch: issue-6449-migration-dry-run-payload-authority
 merge_target_branch: issue-6449-migration-dry-run-payload-authority

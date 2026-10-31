@@ -7,6 +7,7 @@ requirement_refs:
 - FR-002
 - FR-004
 - FR-005
+- FR-006
 - C-004
 - NFR-001
 - NFR-003
