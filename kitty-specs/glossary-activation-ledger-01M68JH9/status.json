@@ -1,0 +1,57 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M68MHKVW5RKYMJSX5GWHNE6Z",
+  "materialized_at": "2026-10-31T09:27:10.460596+00:00",
+  "mission_number": "",
+  "mission_slug": "glossary-activation-ledger-01M68JH9",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M68MHKVW5RKYMJSX5GWHNE6Z",
+      "last_transition_at": "2026-10-31T09:27:10.460596+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review. Pre-review gate timed out at its unreviewed 300s default (make test-fast, no matched budget rule), block_enabled=false, new_failure_count=0; targeted glossary/parity/docs gates are green.",
+        "Review passed. Anti-pattern checklist: dead code N/A (docstrings only); test reads the real seed/source files (not a synthetic fixture); no silent returns; FR-001/002/005/006 asserted, FR-003/004 by the standing seed<->pack parity gate; C-001 respected; no new raise. Round 1 added coverage for the docstring links and the guide line."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 964150,
+      "shell_pid_created_at": "1793437870.08",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}
