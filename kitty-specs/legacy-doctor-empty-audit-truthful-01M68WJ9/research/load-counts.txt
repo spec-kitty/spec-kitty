@@ -1,0 +1,10 @@
+# load_agent_config call counts per invocation on origin/main 6f73b2a98e (NFR-002 baseline)
+# method: wrap specify_cli.core.agent_config.load_agent_config with a counter, invoke the real
+# doctor app through typer.testing.CliRunner, patch locate_project_root on each command module.
+# fixture: the legacy shape (research/repro-2.txt's tree)
+
+skills: load_agent_config calls=3 exit=0
+tool-surfaces: load_agent_config calls=1 exit=0
+
+# The count is already >1 for doctor skills (command-skill state, slash-command agents, tool
+# folders); the fix must not add to it.

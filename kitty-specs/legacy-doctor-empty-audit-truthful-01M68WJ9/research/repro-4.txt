@@ -1,0 +1,13 @@
+# repro-4: positive control — a stated agent list is examined, and both healthy lines describe a real check
+# fixture: .kittify/config.yaml = 'agents: {available: [codex]}' + command_installer.install(<fixture>, 'codex')
+
+$ spec-kitty doctor skills
+Command Skills: all manifest entries healthy (14 file(s))
+exit=0
+
+$ spec-kitty doctor tool-surfaces --kind command-skill
+Tool Surfaces: all surfaces healthy (14 checked)
+exit=0
+
+# Both counts are non-zero, so both lines assert health over something they actually examined.
+# This is the state the legacy shape can never reach today: 0 examined, healthy claim.

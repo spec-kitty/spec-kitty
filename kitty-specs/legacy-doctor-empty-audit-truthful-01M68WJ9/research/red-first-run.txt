@@ -1,0 +1,31 @@
+# Red-first run — tests written before any source change (#6891)
+# head: 080ee04725be268b1a995e8559f6f234cedfca3d (Merge branch 'kitty/mission-legacy-doctor-empty-audit-truthful-01M68WJ9' into kitty/mission-legacy-doctor-empty-audit-truthful-01M68WJ9-lane-a)
+# command: uv run --frozen python -m pytest tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py -q
+# 3 failed (the legacy summaries still claim health) / 8 passed (positive controls, JSON freeze,
+# --fix, command-files ratchet, config-load baseline)
+
+FF......F..                                                              [100%]
+=================================== FAILURES ===================================
+___________ test_legacy_skills_summary_names_the_missing_agent_list ____________
+tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py:163: in test_legacy_skills_summary_names_the_missing_agent_list
+    assert "no stated agent list" in result.output
+E   AssertionError: assert 'no stated agent list' in 'Command Skills: all manifest entries healthy (0 file(s))\n'
+E    +  where 'Command Skills: all manifest entries healthy (0 file(s))\n' = <Result okay>.output
+________ test_legacy_tool_surfaces_summary_names_the_missing_agent_list ________
+tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py:177: in test_legacy_tool_surfaces_summary_names_the_missing_agent_list
+    assert "no stated agent list" in result.output
+E   AssertionError: assert 'no stated agent list' in 'Tool Surfaces: all surfaces healthy (0 checked)\n'
+E    +  where 'Tool Surfaces: all surfaces healthy (0 checked)\n' = <Result okay>.output
+______________ test_legacy_fix_repairs_nothing_and_stays_truthful ______________
+tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py:281: in test_legacy_fix_repairs_nothing_and_stays_truthful
+    assert "no stated agent list" in result.output
+E   AssertionError: assert 'no stated agent list' in 'Command Skills: all manifest entries healthy (0 file(s))\n'
+E    +  where 'Command Skills: all manifest entries healthy (0 file(s))\n' = <Result okay>.output
+============================== slowest durations ===============================
+
+(33 durations < 1s hidden.)
+=========================== short test summary info ============================
+FAILED tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py::test_legacy_skills_summary_names_the_missing_agent_list
+FAILED tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py::test_legacy_tool_surfaces_summary_names_the_missing_agent_list
+FAILED tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py::test_legacy_fix_repairs_nothing_and_stays_truthful
+3 failed, 8 passed in 1.17s

@@ -1,0 +1,21 @@
+# repro-3: the config-independent scans still find real leftovers in the legacy shape
+# fixture: legacy config + .agents/skills/spec-kitty-plan/SKILL.md (unrecorded canonical folder) + .agents/skills/spec-kitty.mine/SKILL.md (user's own)
+# proves the audit is not manifest-only: an empty manifest does not mean an empty examined set
+$ spec-kitty doctor skills
+
+Command Skills - issue(s) found
+
+  Check                    Count  
+  manifest entries             0  
+  drift                        0  
+  gaps                         0  
+  orphans                      0  
+  stale                        0  
+  unsafe                       0  
+  legacy                       0  
+  collisions                   1  
+  uninstalled agents           0  
+
+  ! Your own folder blocks command skill .agents/skills/spec-kitty-plan/SKILL.md
+— rename or remove it, then run `spec-kitty doctor skills --fix`
+exit=1

@@ -1,0 +1,12 @@
+# T009 — does any doc show the two summary strings the fix changes?
+$ git grep -n "all manifest entries healthy\|all surfaces healthy" -- docs/
+(no matches outside docs/changelog/CHANGELOG.md)
+
+$ git grep -n "all manifest entries healthy\|all surfaces healthy" -- docs/changelog/CHANGELOG.md
+docs/changelog/CHANGELOG.md: the [Unreleased] entries this mission adds (#6891) name the old
+lines in their **Before:** half, which is the changelog's job.
+
+# Conclusion: no user-facing page documents the two summary strings, so no page needed
+# updating. docs/api/cli-commands.md renders the subcommands' help bodies, and neither
+# --help body changes (no new flag, no new option) — confirmed by
+# tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py staying green.
