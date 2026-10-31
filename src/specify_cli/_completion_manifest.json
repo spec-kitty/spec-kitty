@@ -1338,6 +1338,33 @@
    "hidden": false,
    "deprecated": false
   },
+  "service": {
+   "help": "Fetch, vendor, inspect and stop the pinned service binaries",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "fetch": {
+     "help": "Fetch and verify the pinned build of a service for this host into the cache.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "status": {
+     "help": "Show the pin, the cache state and the running instance of a service (reads only: starts, writes and evicts nothing).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "stop": {
+     "help": "Stop this clone's running instance of a service.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "vendor": {
+     "help": "Bump (or --check) pins/<service>.source.yaml from a spec-kitty-events release; the only way to change a pin.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
   "session-start": {
    "help": "Emit spec-kitty orientation for the Claude Code SessionStart hook.",
    "hidden": false,

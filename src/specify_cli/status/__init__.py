@@ -435,6 +435,25 @@ from .mission_write import (
     transaction_lock_key,
 )
 
+# The write-service client shapes (ADR 2026-10-27-1), promoted onto the facade so the
+# service launcher, resolution and `spec-kitty service` CLI (#6590) reach them without a
+# direct status-submodule import (test_status_module_boundary.py).
+from .write_service_protocol import (
+    ENDPOINT_DIRECTORY,
+    SUPPORTED_PROTOCOL_VERSIONS,
+    WRITE_PROTOCOL_HEADER,
+    EndpointFileError,
+    EndpointRefusalCode,
+    Handshake,
+    Health,
+    ProtocolShapeError,
+    WriteServiceEndpoint,
+    endpoint_file_path,
+    negotiate_protocol_version,
+    read_endpoint_file,
+    repository_id,
+)
+
 
 def uninitialized_status_error(mission_slug: str, wp_id: str, feature_dir: Path) -> str:
     """Return the cycle-aware missing-status message without eager dependency-graph imports."""
@@ -458,6 +477,19 @@ __all__ = [
     "ActiveWPStatus",
     "CutOverVerdict",
     "LANE_HEAD_KEY",
+    "ENDPOINT_DIRECTORY",
+    "SUPPORTED_PROTOCOL_VERSIONS",
+    "WRITE_PROTOCOL_HEADER",
+    "EndpointFileError",
+    "EndpointRefusalCode",
+    "Handshake",
+    "Health",
+    "ProtocolShapeError",
+    "WriteServiceEndpoint",
+    "endpoint_file_path",
+    "negotiate_protocol_version",
+    "read_endpoint_file",
+    "repository_id",
     # WP05 (verdict-seam-write-unification-01KZ9Q35, out-of-map): promoted onto
     # the facade so every verdict-authority reader (tasks_verdict_persistence,
     # agent_utils.status, tasks_parsing_validation, workflow_cores/executor)

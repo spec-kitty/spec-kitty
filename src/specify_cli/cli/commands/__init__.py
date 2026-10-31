@@ -389,6 +389,12 @@ def _register_spec_commit(app: typer.Typer) -> None:
     app.command(name="spec-commit")(spec_commit_module.spec_commit_command)
 
 
+def _register_service(app: typer.Typer) -> None:
+    from . import service as service_module
+
+    app.add_typer(service_module.app, name="service", help="Fetch, vendor, inspect and stop the pinned service binaries")
+
+
 def _register_session_start(app: typer.Typer) -> None:
     from . import session_start as session_start_module
 
@@ -511,6 +517,7 @@ _ALL_COMMAND_REGISTRARS: tuple[_CommandRegistrar, ...] = (
     _register_review,
     _register_safe_commit,
     _register_spec_commit,
+    _register_service,
     _register_session_start,
     _register_session_stop,
     _register_tracker,
@@ -569,6 +576,7 @@ _COMMAND_REGISTRARS: dict[str, _CommandRegistrar] = {
     "review": _register_review,
     "safe-commit": _register_safe_commit,
     "spec-commit": _register_spec_commit,
+    "service": _register_service,
     "session-start": _register_session_start,
     "session-stop": _register_session_stop,
     "tracker": _register_tracker,

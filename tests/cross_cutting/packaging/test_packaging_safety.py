@@ -268,3 +268,134 @@ def test_sdist_member_list_has_the_source_packages_and_the_built_in_tree(build_a
         assert any(path.startswith(required) for path in rooted), f"sdist has no member under {required}"
     assert "hatch_build.py" in rooted, "the build hook must ship in the sdist or an sdist build silently skips verification"
     assert not [path for path in rooted if path.startswith("packs/internal/")]
+
+
+# --------------------------------------------------------------------------- #
+# Service pins ship; service binaries and cache content never do (#6590, FR-014, SC-005)
+# --------------------------------------------------------------------------- #
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_PINS_DIR = _REPO_ROOT / "pins"
+#: Where the wheel carries ``pins/`` (``INSTALLED_PINS_PACKAGE_DIR`` in ``specify_cli.services.resolution``).
+_INSTALLED_PINS = "specify_cli/_pins/"
+#: File-name endings of a released service build (``<prefix>-<ver>-<target>[.exe]`` or ``<prefix>-<ver>.jar``).
+_SERVICE_ASSET_SUFFIXES = ("-linux-x64", "-linux-arm64", "-macos-arm64", "-windows-x64.exe", ".jar")
+#: Path segments of the service asset cache (``<cache>/spec-kitty/services/<service>/<tag>/<name>``).
+_SERVICE_CACHE_MARKERS = ("spec-kitty/services/", ".cache/spec-kitty/")
+
+
+def _wheel_members(build_artifacts: dict[str, Path]) -> list[str]:
+    with zipfile.ZipFile(build_artifacts["wheel"]) as zf:
+        return zf.namelist()
+
+
+def _sdist_rooted_members(build_artifacts: dict[str, Path]) -> list[str]:
+    with tarfile.open(build_artifacts["sdist"], "r:gz") as tar:
+        return [name.split("/", 1)[1] for name in tar.getnames() if "/" in name]
+
+
+def service_binary_leaks(members: list[str]) -> list[str]:
+    """Members that look like a service build or service-cache content.
+
+    ``services/`` under ``src/`` (none today) or at the archive root is the frozen Mission Status
+    service tree, which the existing sdist test owns; this helper looks only at asset names and
+    cache paths so it stays meaningful after the cut-over removes that tree.
+    """
+    leaks: list[str] = []
+    for member in members:
+        name = member.rstrip("/").rsplit("/", 1)[-1]
+        if name.endswith(_SERVICE_ASSET_SUFFIXES) or any(marker in member for marker in _SERVICE_CACHE_MARKERS):
+            leaks.append(member)
+    return leaks
+
+
+def test_service_binary_helper_flags_planted_members() -> None:
+    """Self-test: the same helper the archive tests use catches every asset shape and the cache path."""
+    planted = [
+        "specify_cli/_pins/command-cli-0.1.0-linux-x64",
+        "specify_cli/_pins/command-cli-0.1.0-linux-arm64",
+        "bin/mission-status-api-0.1.0-macos-arm64",
+        "specify_cli/command-cli-0.1.0-windows-x64.exe",
+        "kernel/vendor/mission-status-api-0.1.0.jar",
+        "home/.cache/spec-kitty/services/write-service/service-v0.1.0/README.md",
+    ]
+    clean = [
+        "specify_cli/_pins/README.md",
+        "specify_cli/_pins/write-service.source.yaml",
+        "specify_cli/services/launcher.py",
+        "kernel/service_artifacts.py",
+        "charter/offering/linux-x64-notes.md",
+    ]
+    assert service_binary_leaks(planted + clean) == planted
+
+
+@pytest.mark.slow
+def test_wheel_and_sdist_ship_no_service_binary_or_cache_content(build_artifacts: dict[str, Path]) -> None:
+    wheel = _wheel_members(build_artifacts)
+    sdist = _sdist_rooted_members(build_artifacts)
+
+    assert not service_binary_leaks(wheel), f"service binary or cache content in the wheel: {service_binary_leaks(wheel)[:10]}"
+    assert not service_binary_leaks(sdist), f"service binary or cache content in the sdist: {service_binary_leaks(sdist)[:10]}"
+    # Positive control: the archives are real (the services package itself ships).
+    assert "specify_cli/services/launcher.py" in wheel
+    assert "src/specify_cli/services/launcher.py" in sdist
+
+
+@pytest.mark.slow
+def test_pins_readme_ships_in_the_sdist_and_the_wheel(build_artifacts: dict[str, Path]) -> None:
+    """``pins/`` reaches both archives even before the first pin: the wheel force-include maps it to ``specify_cli/_pins``."""
+    assert "pins/README.md" in _sdist_rooted_members(build_artifacts)
+    assert f"{_INSTALLED_PINS}README.md" in _wheel_members(build_artifacts)
+
+
+#: The only files ``pins/`` may hold, so the directory force-include ships nothing else
+#: (no renamed binary, editor backup or stray file).
+_PINS_ALLOWED = ("README.md",)
+_PIN_SUFFIX = ".source.yaml"
+
+
+def unexpected_pins_files(names: list[str]) -> list[str]:
+    """Names in ``pins/`` that are neither the README nor a ``*.source.yaml`` lockfile."""
+    return [name for name in names if name not in _PINS_ALLOWED and not name.endswith(_PIN_SUFFIX)]
+
+
+def test_pins_directory_holds_only_the_readme_and_lockfiles() -> None:
+    """``pins/`` is shipped whole, so anything else placed there would reach every install."""
+    names = sorted(path.name for path in _PINS_DIR.iterdir())
+    assert "README.md" in names, "pins/README.md is missing (positive control)"
+    assert unexpected_pins_files(names) == [], f"unexpected files in pins/: {unexpected_pins_files(names)}"
+
+
+def test_pins_allow_list_flags_planted_names() -> None:
+    planted = ["command-cli-0.1.0-linux-x64", "write-service.source.yaml~", "notes.txt", ".DS_Store"]
+    clean = ["README.md", "write-service.source.yaml", "read-service.source.yaml"]
+    assert unexpected_pins_files(planted + clean) == planted
+
+
+@pytest.mark.slow
+def test_every_service_pin_ships_in_both_archives(build_artifacts: dict[str, Path]) -> None:
+    pins = sorted(path.name for path in _PINS_DIR.glob("*.source.yaml"))
+    if not pins:
+        pytest.skip("no pins/*.source.yaml yet: spec-kitty-events has not cut its first service-v* release")
+    wheel = set(_wheel_members(build_artifacts))
+    sdist = set(_sdist_rooted_members(build_artifacts))
+    for name in pins:
+        assert f"{_INSTALLED_PINS}{name}" in wheel, f"{name} is not in the wheel at {_INSTALLED_PINS}"
+        assert f"pins/{name}" in sdist, f"{name} is not in the sdist"
+
+
+def test_packaging_config_ships_the_whole_pins_directory() -> None:
+    """Config-level half of "pins ship once they exist": the force-include maps the directory, not a file list.
+
+    The archive test above skips while no pin exists, so this keeps the "with a pin" case proven now: any
+    ``pins/*.source.yaml`` added later lands at ``specify_cli/_pins/`` in the wheel and under ``pins/`` in the sdist.
+    """
+    import tomllib
+
+    from specify_cli.services.resolution import INSTALLED_PINS_PACKAGE_DIR
+
+    hatch = tomllib.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["hatch"]["build"]["targets"]
+    assert hatch["wheel"]["force-include"]["pins"] == f"specify_cli/{INSTALLED_PINS_PACKAGE_DIR}"
+    assert "pins/**" in hatch["sdist"]["include"]
+    assert not any(pattern.startswith("pins") for pattern in hatch["sdist"].get("exclude", []))
+    assert _PINS_DIR.is_dir() and (_PINS_DIR / "README.md").is_file(), "the force-include source must always exist"

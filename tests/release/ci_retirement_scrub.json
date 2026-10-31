@@ -199,7 +199,11 @@
         "src/specify_cli/coordination/**",
         "src/specify_cli/charter_pack_synthesizer/**",
         "src/specify_cli/status/**",
-        "src/specify_cli/tool_surface/**"
+        "src/specify_cli/tool_surface/**",
+        "src/specify_cli/services/**",
+        "pins/**",
+        "scripts/sync_services.py",
+        ".github/actions/sync-services/**"
       ],
       "cov_targets": [
         "specify_cli",
@@ -245,7 +249,10 @@
       "roots": [
         "scripts/ci/**",
         ".github/workflows/**",
-        "services/mission-status-api/**"
+        "services/mission-status-api/**",
+        "pins/**",
+        "scripts/sync_services.py",
+        ".github/actions/sync-services/**"
       ],
       "cov_targets": [
         "kernel",
