@@ -105,3 +105,12 @@
 {"agent": "claude", "at": "2026-10-27T18:41:52.775250+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M5ZA9X7C300SZBK507H3N051", "phase": "started", "reason": null, "wp_id": null}
 {"agent": "claude", "at": "2026-10-27T18:42:18.053072+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M5ZA9X7C300SZBK507H3N051", "phase": "completed", "reason": null, "wp_id": null}
 {"agent": "claude", "at": "2026-10-27T18:42:22.527399+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M5ZA9X7C300SZBK507H3N051", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:28:24.737752+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:28:44.102340+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:28:47.607001+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:28:51.788071+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:29:16.827618+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:29:36.734626+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:30:03.475858+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:31:29.851507+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-10-30T23:31:46.623080+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M67J85893JJWVPCF48SVWBW8", "phase": "started", "reason": null, "wp_id": null}

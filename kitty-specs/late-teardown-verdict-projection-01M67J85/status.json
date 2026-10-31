@@ -1,0 +1,53 @@
+{
+  "event_count": 27,
+  "last_event_id": "01M67R4GYW4513RND35QJA6Q7B",
+  "materialized_at": "2026-10-31T01:10:41.372282+00:00",
+  "mission_number": "",
+  "mission_slug": "late-teardown-verdict-projection-01M67J85",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "python-pedro",
+      "force_count": 4,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67R4FGE32S7KBHEVVHPP75M",
+      "last_transition_at": "2026-10-31T01:10:39.886936+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 938827,
+      "shell_pid_created_at": "1793403128.6"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "python-pedro",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67R4GYW4513RND35QJA6Q7B",
+      "last_transition_at": "2026-10-31T01:10:41.372282+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 2118354,
+      "shell_pid_created_at": "1793407513.64"
+    }
+  }
+}
