@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#5939": {
+      "evidence_ref": "single_branch topology not touched by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6715": {
+      "evidence_ref": "#6715 is closed; this mission keeps its gate unchanged (owned-files criterion, independence check) and only stands a verified landing commit in for a pruned lane branch",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6780": {
+      "evidence_ref": "commit 55651f1 + tests/specify_cli/cli/commands/test_accept_merge_commit.py::test_accept_pr_mode_judges_evidence_against_the_landing_when_lane_branch_is_pruned",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
