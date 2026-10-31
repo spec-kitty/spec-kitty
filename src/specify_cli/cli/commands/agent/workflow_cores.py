@@ -56,6 +56,10 @@ class ImplementRequest:
     acknowledge_not_bulk_edit: bool
     force: bool = False
     note: str | None = None
+    #: #6753: the explicit lane base (``--base``), mirroring the top-level
+    #: ``spec-kitty implement --base``. Carried unresolved to the allocator,
+    #: which owns every honour/refuse decision.
+    base: str | None = None
 
 
 def validate_force_note(force: bool, note: str | None) -> str | None:

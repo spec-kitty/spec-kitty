@@ -227,6 +227,7 @@ def test_agent_action_implement_passes_acknowledge_default_false(
         recover=False,
         acknowledge_not_bulk_edit=False,
         actor="claude",
+        base=None,
     )
 
 
@@ -284,4 +285,5 @@ def test_agent_action_implement_passes_acknowledge_true_when_requested(
         recover=False,
         acknowledge_not_bulk_edit=True,
         actor="claude",
+        base=None,
     )
