@@ -1,0 +1,53 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M68M9A45XQT9EQKJ6P4VYX0M",
+  "materialized_at": "2026-10-31T09:22:38.341300+00:00",
+  "mission_number": "245",
+  "mission_slug": "decision-record-ascii-change-log-01M68J7C",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M68M9A45XQT9EQKJ6P4VYX0M",
+      "last_transition_at": "2026-10-31T09:22:38.341300+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first pin then ASCII separator; scoped suites green",
+        "Review passed: writer-side ASCII separator constant; red-first pin covers open/resolved(+/-final_answer)/deferred/canceled; authored prose pinned verbatim; validator untouched. 216 decisions + 57 encoding tests green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 948856,
+      "shell_pid_created_at": "1793437779.49",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    }
+  }
+}

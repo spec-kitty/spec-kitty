@@ -32,6 +32,7 @@ from specify_cli.decisions.store import (
     update_entry,
     write_artifact,
 )
+from specify_cli.text_sanitization import detect_problematic_characters
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -416,6 +417,53 @@ class TestWriteArtifact:
         e = _entry(decision_id=ULID_B, step_id="step2")
         path = write_artifact(tmp_path, e)
         assert path == decisions_dir(tmp_path) / f"DM-{ULID_B}.md"
+
+    @pytest.mark.parametrize(
+        ("status", "with_final_answer"),
+        [
+            (DecisionStatus.OPEN, False),
+            (DecisionStatus.RESOLVED, True),
+            (DecisionStatus.RESOLVED, False),
+            (DecisionStatus.DEFERRED, True),
+            (DecisionStatus.CANCELED, True),
+        ],
+    )
+    def test_artifact_is_ascii_for_every_status(self, tmp_path: Path, status: DecisionStatus, with_final_answer: bool) -> None:
+        """A written record is byte-safe: the tool's own scaffold is ASCII (#6579).
+
+        The artifact lands under ``kitty-specs/``, so a non-ASCII glyph in the
+        rendered scaffold makes ``spec-kitty validate-encoding`` refuse the file
+        the tool itself wrote. Every status branch must render ASCII, and the
+        gate's own detector must find nothing in the result.
+        """
+        terminal = status is not DecisionStatus.OPEN
+        e = _entry(
+            status=status,
+            resolved_at=T1 if terminal else None,
+            resolved_by="reviewer" if terminal else None,
+            final_answer="oauth2" if with_final_answer else None,
+            rationale="best fit" if terminal else None,
+        )
+        path = write_artifact(tmp_path, e)
+
+        data = path.read_bytes()
+        worst = max(data)
+        assert worst <= 0x7F, f"{path.name} renders non-ASCII byte 0x{worst:02X}; offending lines: {[line for line in data.splitlines() if not line.isascii()]}"
+        assert detect_problematic_characters(path.read_text(encoding="utf-8")) == []
+
+    def test_artifact_keeps_authored_content_verbatim(self, tmp_path: Path) -> None:
+        """The ASCII invariant covers the scaffold, never the author's words (#6579).
+
+        A blanket transliteration at the write boundary would silently rewrite a
+        maintainer's prose, so an authored non-ASCII character must survive the
+        round trip untouched.
+        """
+        authored = "Accept the offer? — signé"
+        e = _entry(question=authored, rationale=authored)
+        content = write_artifact(tmp_path, e).read_text(encoding="utf-8")
+
+        assert authored in content
+        assert detect_problematic_characters(content) != []
 
     def test_no_tmp_residue_after_write(self, tmp_path: Path) -> None:
         e = _entry()
