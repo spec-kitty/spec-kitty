@@ -3471,6 +3471,7 @@ pages:
     - {slug: "amendment-2026-10-19-the-activation-write-target-is-the-ledger-seam", text: "Amendment 2026-10-19: the activation write target is the ledger seam", level: 2}
     - {slug: "amendment-2026-10-20-accepted-language-tokens-joins-the-frozen-seam-6541", text: "Amendment 2026-10-20 (Accepted): `LANGUAGE_TOKENS` joins the frozen seam (#6541)", level: 2}
     - {slug: "amendment-2026-10-22-the-event-system-s-writer-is-no-longer-the-cli", text: "Amendment 2026-10-22: the event system's writer is no longer the CLI", level: 2}
+    - {slug: "amendment-2026-10-31-accepted-the-mission-type-capability-contract-joins-the-frozen-seam-6331", text: "Amendment 2026-10-31 (Accepted): the mission-type capability contract joins the frozen seam (#6331)", level: 2}
   - path: "docs/adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md"
     title: "ADR: a Mission waives the contracts/ deliverable with a meta.json declaration"
     divio_type: "none"
