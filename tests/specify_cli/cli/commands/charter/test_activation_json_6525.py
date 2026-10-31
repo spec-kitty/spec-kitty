@@ -94,18 +94,24 @@ def test_direct_activation_reports_what_the_no_cascade_warning_names(tmp_path: P
         "no_longer_in_force": [],
         "warnings": [],
         "notices": [_NO_COMPILE_NOTICE],
-        "referenced_not_cascaded": [_G, _S, _C],
+        # #6742: this fixture seeds only ``activated_directives``, so the procedure,
+        # styleguide and tactic it reaches are all in force (their keys are absent) and
+        # move out of ``referenced_not_cascaded`` into ``referenced_already_in_force``.
+        "referenced_not_cascaded": [],
+        "referenced_already_in_force": [_G, _S, _C],
         "referenced_kind_filtered": [_A],
         "cascade": None,
     }
 
 
-def test_direct_activation_lists_a_deactivated_reference_too(tmp_path: Path) -> None:
+def test_a_deactivated_reference_stays_in_the_not_cascaded_list(tmp_path: Path) -> None:
     root = build_activation_project(tmp_path, deactivated_tactics=["c-tac"])
 
     payload = _payload(_run(root, "activate", "directive", "p-dir"))
 
-    assert payload["referenced_not_cascaded"] == [_G, _S, _C]
+    # The deny list wins over "effective when absent": the tactic is not in force.
+    assert payload["referenced_not_cascaded"] == [_C]
+    assert payload["referenced_already_in_force"] == [_G, _S]
 
 
 def test_cascade_activation_reports_every_touched_artifact(tmp_path: Path) -> None:
@@ -116,6 +122,7 @@ def test_cascade_activation_reports_every_touched_artifact(tmp_path: Path) -> No
     assert result.exit_code == 0, result.output
     payload = _payload(result)
     assert payload["referenced_not_cascaded"] == []
+    assert payload["referenced_already_in_force"] == []
     # With --cascade the kind-filtered references are cascade.skipped_kind_filtered.
     assert payload["referenced_kind_filtered"] == []
     assert payload["cascade"] == {

@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#3705": {
+      "evidence_ref": "context-only: the kind-filtered line's non-warning styling (issue #3705 ruling) is cited in research.md as the style basis for the new note; this mission owes it no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6742": {
+      "evidence_ref": "absent activated_<kind> key reports already-in-force; warning survives only for references not in force; --json adds referenced_already_in_force; 89 tests pass",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
