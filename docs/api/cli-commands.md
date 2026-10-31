@@ -105,7 +105,7 @@ is passed.
 |---|---|
 | `0` | The Mission landed and the cleanup finished. |
 | `75` | The landing stands, but the coordination branch (or the mission branch of a Mission without a coordination topology) moved after it and was kept instead of deleted. Error code `COORD_MOVED_AFTER_LANDING`. Nothing was lost and nothing was rolled back. |
-| any other non-zero | A refusal or a failure. The message says whether anything had moved and reports, per branch, what the rollback restored. When the rollback restored every branch it moved, it also says it re-baselined the record: that attempt's target baseline, snapshot and restore targets are dropped, so the next run (plain or `--resume`) reads the target's current tip as its pre-mutation baseline instead of the failed attempt's, and `--abort` clears what is left and exits `0`. A run that leaves a branch `NOT restored` keeps its baseline, snapshot and record. |
+| any other non-zero | A refusal or a failure. The message says whether anything had moved and reports, per branch, what the rollback restored. |
 
 Stable codes that appear in the output. Match on the code, not on the surrounding prose:
 
@@ -116,7 +116,6 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
 | `APPROVED_CONTENT_MISSING` | The reconciliation gate found that an approved code lane's own net change to a path is not on the target, while the target left that path alone since the lane was cut and no later approved lane superseded it. The run FAILs and rolls back. Typical cause: the staged deletions of a lagging worktree were committed before a `--resume`. | Restore the change on the mission branch (for example revert the commit that recorded the deletions), then re-run. Not overridable. |
 | `CANCELED_REACHABLE_VIA_DEPENDENCY` | Content of a fully-canceled dependency lane reached an approved lane, is still live there and is on the target. The run FAILs and rolls back. Content that every carrying lane fully superseded is not counted. | Undo the change on the carrying lane through a surviving WP's governed work, then re-run. Not overridable: `--attest-canceled-superseded` never lifts it. |
 | `COORD_MOVED_AFTER_LANDING` | Exit code `75`, see above. The message ends with `Error code: COORD_MOVED_AFTER_LANDING.` | Coordination branch: review the late commit(s) with the `git log` command in the message, then run `spec-kitty consolidate --resume`, which lands them on the target and finishes the teardown. Mission branch without a coordination topology: land the commit(s) and delete the branch yourself. |
-| `COORD_LATE_PROJECTION_REFUSED` | A `--resume` found a coordination record changed since the merge began (a gate matrix verdict, a trace, a deletion) that it cannot prove landed on the target. Exit code `1`. The coordination branch, worktree and marker are kept and the verified landing is not rolled back. | Follow the repair the message names for the kind of refusal, then run `spec-kitty consolidate --resume` again. `spec-kitty consolidate --abort` does not clear it. |
 | `LANE_MOVED_AFTER_APPROVAL` | A code lane holds a content commit made after review approved it (or after an `--attest-approved-reviewed` attestation). Exit code `1`, before any branch moves; also checked again at the reconciliation gate. | Move the work package back for review so the new content is reviewed, approve it again, re-run. The message names the late commits and the command to move each work package of the lane back; see a commit with `git show <sha>`. No attestation lifts it: `--attest-approved-reviewed` and `--attest-canceled-superseded` never do. On a lane that mixes an approved and a canceled work package, `--attest-canceled-superseded` still exempts lane commits up to its own lane head from the closed-world refusal, but the commit still needs its work package approved again. Nothing a canceled work package does covers a commit: no commit of its own, no status move of a work package that stays canceled, no attestation. Forcing a canceled work package into `approved` is a forced approval, which stamps the lane at its current tip; the bound is as strong as the review model (issue #5721). If a canceled work package committed on the lane after the approval, also when that work was reverted, the approved work package needs a new approval. When both refusals apply, the first message names both under `This Mission also has:`. |
 | `RELEASE_BRANCH_INVALID` | `--release-branch` without `--abort` or without `--release-reason`, naming a branch that is not the record's target, mission or coordination branch (a lane branch or an unknown name), or naming a branch that does not resolve to a commit. Exit code `2`; nothing changed. | Correct the flags and re-run `spec-kitty consolidate --abort`. |
 | `UNEXPLAINED_BRANCH_MOVE` | A re-run or `--resume` found a target, mission or coordination branch of an unfinished record at a commit the record cannot explain: neither its restore target nor a commit this run recorded or saved as its next move (for example a run killed right after it moved the branch). Refused before anything moves; the record is kept. Exit code `1`. Not raised while the target still sits at a verified landing. | Inspect `git log <restore-target>..<live>`. If the commits should not stay, move the branch yourself. To keep them, `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`; a release keeps every listed commit. See [troubleshooting](../guides/how-to/recovery/troubleshoot-merge.md#a-branch-moved-without-a-record). |
@@ -3548,10 +3547,14 @@ _Report the migration ledger: which setup steps have run, and their state._
  reported as an error and skipped; it never routes into an archive
  operation.
 
+ ``--mission`` (#6347) narrows the walk to that one Mission's acceptance
+ matrix; omitting it keeps the whole-corpus walk exactly as before.
+
  Exit codes:
 
  - ``0`` — every matrix migrated cleanly (or needed no change)
- - ``1`` — one or more matrices could not be parsed (see the reported errors)
+ - ``1`` — one or more matrices could not be parsed (see the reported errors),
+   or the ``--mission`` handle does not resolve
 
  Examples:
 
@@ -3559,17 +3562,21 @@ _Report the migration ledger: which setup steps have run, and their state._
 
      spec-kitty migrate backfill-provenance --json
 
+     spec-kitty migrate backfill-provenance --mission 042-my-mission --dry-run
+
      spec-kitty migrate backfill-provenance
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --dry-run                    Report what would be stamped without writing    │
-│                              any files. The JSON shape is identical to a     │
-│                              live run.                                       │
-│ --json                       Emit a JSON-stable summary report on stdout.    │
-│ --project-root          DIR  Root of the Spec Kitty project (default:        │
-│                              current working directory).                     │
-│                              [default: .]                                    │
-│ --help          -h           Show this message and exit.                     │
+│ --dry-run                       Report what would be stamped without writing │
+│                                 any files. The JSON shape is identical to a  │
+│                                 live run.                                    │
+│ --json                          Emit a JSON-stable summary report on stdout. │
+│ --mission               HANDLE  Scope to a single mission (mission_id / mid8 │
+│                                 / slug). Omit to process the whole corpus.   │
+│ --project-root          DIR     Root of the Spec Kitty project (default:     │
+│                                 current working directory).                  │
+│                                 [default: .]                                 │
+│ --help          -h              Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3769,11 +3776,19 @@ _Report the migration ledger: which setup steps have run, and their state._
 
  Implements FR-026, FR-027, NFR-006.
 
+ ``--mission`` (#6347) narrows the walk to one Mission's charter content and
+ **excludes the global charter store**, which is reported in both the human
+ summary and the ``--json`` payload (``global_store_excluded``) and left
+ byte-for-byte untouched. Omitting ``--mission`` keeps the corpus-wide walk,
+ global store included, exactly as before.
+
  Exit codes:
 
- - ``0`` — corpus is fully UTF-8 compliant (all files already-UTF-8 or
-   successfully normalized)
- - ``1`` — one or more files are ambiguous (manual repair required)
+ - ``0`` — the walked corpus (the scoped Mission, or the whole corpus when
+   ``--mission`` is omitted) is fully UTF-8 compliant (all files
+   already-UTF-8 or successfully normalized)
+ - ``1`` — one or more walked files are ambiguous (manual repair required),
+   or the ``--mission`` handle does not resolve
 
  Examples:
 
@@ -3781,21 +3796,26 @@ _Report the migration ledger: which setup steps have run, and their state._
 
      spec-kitty migrate charter-encoding --yes --json
 
+     spec-kitty migrate charter-encoding --mission 042-my-mission --yes
+
      spec-kitty migrate charter-encoding
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --dry-run                    Show what would change without writing any      │
-│                              files.  Returns exit 0 unless ambiguous files   │
-│                              are found.                                      │
-│ --yes           -y           Apply normalizations without prompting.  Exits  │
-│                              non-zero if any file is ambiguous (CI-safe).    │
-│                              Do NOT pass --yes to silently bypass ambiguous  │
-│                              files — manual repair is required for those.    │
-│ --json                       Emit a JSON-stable summary report on stdout.    │
-│ --project-root          DIR  Root of the Spec Kitty project (default:        │
-│                              current working directory).                     │
-│                              [default: .]                                    │
-│ --help          -h           Show this message and exit.                     │
+│ --dry-run                       Show what would change without writing any   │
+│                                 files.  Returns exit 0 unless ambiguous      │
+│                                 files are found.                             │
+│ --yes           -y              Apply normalizations without prompting.      │
+│                                 Exits non-zero if any file is ambiguous      │
+│                                 (CI-safe).  Do NOT pass --yes to silently    │
+│                                 bypass ambiguous files — manual repair is    │
+│                                 required for those.                          │
+│ --json                          Emit a JSON-stable summary report on stdout. │
+│ --mission               HANDLE  Scope to a single mission (mission_id / mid8 │
+│                                 / slug). Omit to process the whole corpus.   │
+│ --project-root          DIR     Root of the Spec Kitty project (default:     │
+│                                 current working directory).                  │
+│                                 [default: .]                                 │
+│ --help          -h              Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3839,16 +3859,28 @@ _Report the migration ledger: which setup steps have run, and their state._
  already in canonical ``sha256:`` form are skipped) and read-only over source
  artifacts — only the recorded snapshot cache files are written (#2263).
 
+ ``--mission`` (#6347) narrows the sweep to that one Mission's recorded
+ snapshot(s); omitting it keeps the whole-backlog sweep exactly as before.
+
  Exit codes:
 
  - ``0`` — completed (some snapshots may be reported as errors and skipped)
- - ``1`` — project root could not be located
+ - ``1`` — project root could not be located, or the ``--mission`` handle
+   does not resolve
+
+ Examples:
+
+     spec-kitty migrate rebaseline-dossier-hashes --dry-run
+
+     spec-kitty migrate rebaseline-dossier-hashes --mission 042-my-mission
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json               Emit a structured per-mission re-baseline report        │
-│ --dry-run            Preview which recorded snapshot hashes would be         │
-│                      re-baselined, without writing                           │
-│ --help     -h        Show this message and exit.                             │
+│ --json                     Emit a structured per-mission re-baseline report  │
+│ --dry-run                  Preview which recorded snapshot hashes would be   │
+│                            re-baselined, without writing                     │
+│ --mission          HANDLE  Scope to a single mission (mission_id / mid8 /    │
+│                            slug). Omit to process the whole corpus.          │
+│ --help     -h              Show this message and exit.                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
