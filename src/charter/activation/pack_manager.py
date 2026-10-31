@@ -490,8 +490,9 @@ def _preservation_set(
 
     This is only what the key *would* materialise. Since #6685 an absent key of
     an "all" kind is not written at all when the artifact is already in that
-    set (:func:`charter.activation.activation_engine._stays_implicit`), so the
-    unrestricted state survives instead of being frozen into today's catalogue. When the seam cannot
+    set (:func:`charter.activation.activation_engine.absent_key_stays_implicit`
+    is the shared rule), so the unrestricted state survives instead of being
+    frozen into today's catalogue. When the seam cannot
     resolve it, activation stays tolerant but never narrower than the whole
     readable chain: it seeds from the seam's ``fallback_ids`` (built-in, every
     readable declared org root, project). ``mission-type`` is an activation

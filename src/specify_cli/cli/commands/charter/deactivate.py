@@ -204,7 +204,10 @@ def _render_cascade_entry(entry: CascadeEntry, source_id: str) -> None:
     """Print one cascade-deactivation line (plus a cascaded profile's mission-step warning)."""
     label = entry.ref.label
     if entry.outcome is CascadeOutcome.STILL_ACTIVE_UNRESTRICTED:
-        console.print(f"[cyan]Cascade[/cyan]: {label}: still active (no allow-list; only {source_id} excluded)")
+        console.print(
+            f"[cyan]Cascade[/cyan]: {label}: still active (no allow-list; only {source_id} excluded). "
+            f"To turn it off: `spec-kitty charter deactivate {entry.ref.kind} {entry.ref.id}`"
+        )
     elif entry.outcome is CascadeOutcome.SKIPPED_REQUIRED:
         console.print(f"[yellow]Cascade[/yellow]: {label}: skipped (required by {', '.join(entry.packs)})")
     elif entry.outcome is CascadeOutcome.FAILED:
