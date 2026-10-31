@@ -10,6 +10,7 @@ import typer
 
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.api import CharterScope
+from charter.activation.scope import CharterScopeConflict, CharterScopeNotFound
 from charter.packs import RetiredPackFieldError
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 from kernel.errors import KittyInternalConsistencyError
@@ -35,6 +36,26 @@ class _ScopeArguments(TypedDict, total=False):
 
 class _MissionArguments(TypedDict, total=False):
     feature_dir: Path
+
+
+_OPERATOR_ACTIONABLE_SCOPE_FAILURES = (CharterScopeConflict, CharterScopeNotFound)
+
+
+def _context_failure_exit(exc: Exception, *, console, json_output: bool) -> typer.Exit:
+    """Report a context failure once, and keep operator-actionable scope refusals out of "Unexpected".
+
+    A scope an owned checkout cannot satisfy (a ``charter_scopes:`` list that
+    does not cover the Mission, a Mission directory that no longer matches the
+    handle) is the operator's to fix, so it prints its own message rather than
+    the generic unexpected-error line.
+    """
+    _emit_error(
+        console,
+        json_output=json_output,
+        message=str(exc),
+        unexpected=not isinstance(exc, _OPERATOR_ACTIONABLE_SCOPE_FAILURES),
+    )
+    return typer.Exit(code=1)
 
 
 def _resolve_context_scope(repo_root: Path, owned_checkout: OwnedCheckoutOption, mission: str | None) -> tuple[Path, CharterScope | None, Path | None]:
@@ -296,5 +317,4 @@ def context(
         _emit_error(console, json_output=json_output, message=e.body, code=e.code)
         raise typer.Exit(code=1) from e
     except Exception as e:
-        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
-        raise typer.Exit(code=1) from e
+        raise _context_failure_exit(e, console=console, json_output=json_output) from e
