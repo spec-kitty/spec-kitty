@@ -1,0 +1,59 @@
+{
+  "mission_slug": "effective-set-one-spelling-01M68ZYF",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_activate_required_key_stems_6435.py::test_activating_on_an_absent_required_key_writes_the_required_stem_not_its_declared_id (red on main: activated_skills=[acme-skill-id, other-skill-file]; green after: [acme-skill-file, other-skill-file])",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:13:18.024291+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/charter/activation/effective_set.py::_union_ids used by _resolve_one and _fallback_ids; tests/charter/activation/test_effective_set.py::test_reverting_the_one_mapping_leaves_no_declared_id_in_either_half",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:13:22.451426+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/activation/test_effective_set.py::test_the_mixed_two_pack_union_lists_every_idne_stem_artifact_once_by_its_stem (6 gated kinds, both pack orders, service-key positive control)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:13:27.431724+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_activate_required_key_stems_6435.py::test_activating_the_required_artifact_by_its_declared_id_stores_its_stem + test_activate_stem_writes_stem.py + test_activate_only_6408.py (50 passed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:13:33.470174+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_activate_required_key_stems_6435.py::test_a_colliding_required_id_is_still_refused_and_nothing_is_written (same fixture family, no-shadow positive control)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:13:37.566896+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
