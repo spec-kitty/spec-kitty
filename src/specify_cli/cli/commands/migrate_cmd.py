@@ -1598,7 +1598,7 @@ def rebaseline_dossier_hashes(
 
     try:
         repo_root = admit_migration_project_root(repo_root)
-    except RuntimeError as exc:
+    except (RuntimeError, OSError) as exc:
         _error(str(exc))
         raise typer.Exit(1) from exc
     outcomes = rebaseline_recorded_snapshots(repo_root, dry_run=dry_run)
@@ -1676,7 +1676,7 @@ def repin_hooks(
 
     try:
         result = run_repin_hooks_migration(repo_root)
-    except RuntimeError as exc:
+    except (RuntimeError, OSError) as exc:
         _error(str(exc))
         raise typer.Exit(1) from exc
 
