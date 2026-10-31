@@ -154,6 +154,7 @@ from .actor import (
     ActorRole,
     actor_from_option,
     build_status_actor,
+    build_system_actor,
     compose_status_actor,
     role_for_hop,
     role_for_wp,
@@ -713,6 +714,8 @@ __all__ = [
     "ActorRole",
     "build_status_actor",
     "compose_status_actor",
+    # #6722: the system writers' actor (same four keys, role ``system``).
+    "build_system_actor",
     "role_for_wp",
     "role_for_hop",
     "emit_status_transition",
