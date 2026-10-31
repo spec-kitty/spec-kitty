@@ -16,8 +16,16 @@ agent profiles directly inside Claude Code.
 
 - Claude Code CLI v2.0.12 or later (`claude --version` to check).
 - One of the following for runtime execution:
-  - `spec-kitty` on PATH (fastest), or
-  - `uv` installed (the wrapper falls back to `uvx spec-kitty-cli==<version>`).
+  - a `spec-kitty` on PATH from the same release series as the bundle (fastest), or
+  - `uv` installed, so the wrapper can run the pinned version with `uvx --from`.
+
+If you have neither, install the CLI:
+
+```bash
+uv tool install spec-kitty-cli
+# or
+pipx install spec-kitty-cli
+```
 
 ---
 
@@ -64,20 +72,30 @@ For build system details, see [CONTRIBUTING.md](../../../development/contributin
    claude plugin install dist/spec-kitty-plugins/claude-code
    ```
 
-**"wrapper: uvx not found" error**
+**"No usable spec-kitty found" error**
 
-The runtime wrapper falls back to `uvx` when `spec-kitty` is not on PATH.
-Install `uv` to enable the fallback:
+The runtime wrapper could not find a CLI it may run. The message names the
+release series the bundle was built for. Either install that series:
+
+```bash
+uv tool install spec-kitty-cli
+# or
+pipx install spec-kitty-cli
+```
+
+or install `uv` so the wrapper can run the pinned version on demand:
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Or install `spec-kitty` directly to skip the fallback altogether:
+**A `spec-kitty` from another series is ignored**
 
-```bash
-pip install spec-kitty-cli
-```
+Delegation to a PATH CLI is gated on `spec-kitty --version` naming the bundle's
+release series. A shim, wrapper or alias that installs a `spec-kitty` but prints
+no version on `--version` is treated as unusable and the pinned version runs
+instead, so a broken shim never silently becomes the plugin's runtime. Run
+`spec-kitty --version` yourself if the plugin seems to ignore your install.
 
 **Windows: argument forwarding with quoted strings**
 
@@ -92,11 +110,24 @@ the wrapper.
 
 When Claude Code executes a Spec Kitty skill, it calls
 `bin/spec-kitty-wrapper` (bash) or `bin/spec-kitty-wrapper.cmd` (Windows).
-The wrapper:
+The wrapper resolves a runtime in this order:
 
-1. Checks if `spec-kitty` is on PATH and `spec-kitty --version` succeeds →
-   delegates directly.
-2. Falls back to `uvx spec-kitty-cli==<version>` if `uvx` is available.
-3. Exits with an error message if neither is found.
+1. **A `spec-kitty` on PATH inside the bundle's release series.** The wrapper
+   reads `spec-kitty --version` and delegates only when its `<major>.<minor>`
+   matches the version the bundle was built from. A CLI from another series is
+   ignored rather than run against commands and skills it does not match; an
+   unreachable or unreadable one falls through the same way.
+2. **The pinned version through `uvx`.**
+   `uvx --from "spec-kitty-cli==<version>" spec-kitty …` names both the
+   distribution and the executable it ships. (The plain form
+   `uvx spec-kitty-cli==<version>` cannot work: `uvx` runs an executable named
+   after the distribution, and this distribution ships `spec-kitty`.)
+3. **The bundle's series through `uvx`.** If the exact version is not published
+   (a bundle built from a pre-release or a local build), the wrapper retries with
+   `spec-kitty-cli>=<version>,<<next minor>`, so the newest published release of
+   the same series runs.
+4. **Exit 1** with a remedy naming `uv tool install` / `pipx install`.
 
 The version string is substituted at build time by `spec-kitty plugin build`.
+`uvx` resolves and caches the package on first use, so the fallback needs network
+access once per version.

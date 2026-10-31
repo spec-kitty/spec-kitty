@@ -24,6 +24,8 @@ from pathlib import Path
 import pytest
 
 from specify_cli.tool_surface.bundles.claude_wrapper import (
+    supported_series,
+    uvx_requirements,
     write_wrappers,
     wrapper_bash_content,
     wrapper_cmd_content,
@@ -80,6 +82,7 @@ class TestWriteWrappers:
 
         def forbidden(*args: object, **kwargs: object) -> str:
             raise AssertionError("Retained wrapper rendered again")
+
         monkeypatch.setattr(claude_wrapper, "wrapper_bash_content", forbidden)
         monkeypatch.setattr(claude_wrapper, "wrapper_cmd_content", forbidden)
         (tmp_path / "bin").mkdir()
@@ -124,26 +127,48 @@ class TestWrapperBashContent:
         content = wrapper_bash_content("2.5.3")
         assert "2.5.3" in content
 
+    def test_series_present_next_to_the_version(self) -> None:
+        """The rendered script carries the series its PATH gate compares to."""
+        content = wrapper_bash_content("2.5.3")
+        assert 'SERIES="2.5"' in content
+
     def test_path_check_present(self) -> None:
         content = wrapper_bash_content("1.0.0")
         assert "command -v spec-kitty" in content
 
-    def test_path_match_must_be_reachable(self) -> None:
+    def test_path_probe_reads_the_installed_version(self) -> None:
+        """A PATH hit is only usable when its version can be read (#497)."""
         content = wrapper_bash_content("1.0.0")
-        assert (
-            "command -v spec-kitty >/dev/null 2>&1 "
-            "&& spec-kitty --version >/dev/null 2>&1"
-        ) in content
+        assert 'installed="$(spec-kitty --version 2>/dev/null || true)"' in content
 
-    def test_uvx_fallback_present(self) -> None:
+    def test_path_cli_must_match_the_bundle_series(self) -> None:
+        content = wrapper_bash_content("1.0.0")
+        assert 'SERIES="1.0"' in content
+        assert '[ "$installed_series" = "$SERIES" ]' in content
+
+    def test_uvx_fallback_uses_from(self) -> None:
+        """The fallback must name the executable, not just the distribution.
+
+        ``uvx spec-kitty-cli==<version>`` runs an executable named after the
+        distribution; the distribution ships only ``spec-kitty``, so uvx exits
+        1 without running anything (#6476).
+        """
         content = wrapper_bash_content("1.0.0")
         assert "command -v uvx" in content
-        assert "uvx" in content
-        assert "spec-kitty-cli" in content
+        assert 'uvx --from "$from_spec" spec-kitty "$@"' in content
+        assert 'uvx "spec-kitty-cli' not in content
+        assert "uvx spec-kitty-cli" not in content
+
+    def test_uvx_requirements_carry_pin_and_series_range(self) -> None:
+        content = wrapper_bash_content("1.0.0")
+        assert 'PINNED_SPEC="spec-kitty-cli==1.0.0"' in content
+        assert 'SERIES_SPEC="spec-kitty-cli>=1.0.0,<1.1"' in content
 
     def test_error_message_present(self) -> None:
         content = wrapper_bash_content("1.0.0")
-        assert "pip install spec-kitty-cli" in content
+        assert "uv tool install spec-kitty-cli" in content
+        assert "pipx install spec-kitty-cli" in content
+        assert "pip install spec-kitty-cli" not in content
 
     def test_exec_delegates_to_spec_kitty(self) -> None:
         content = wrapper_bash_content("1.0.0")
@@ -167,18 +192,32 @@ class TestWrapperCmdContent:
         content = wrapper_cmd_content("1.0.0")
         assert "where spec-kitty" in content
 
-    def test_where_match_must_be_reachable(self) -> None:
+    def test_path_probe_reads_the_installed_version(self) -> None:
         content = wrapper_cmd_content("1.0.0")
-        assert "CALL spec-kitty --version >nul 2>&1" in content
+        assert "spec-kitty --version" in content
+        assert 'findstr /C:" %SERIES%."' in content
 
-    def test_uvx_fallback_present(self) -> None:
+    def test_path_cli_must_match_the_bundle_series(self) -> None:
+        content = wrapper_cmd_content("1.0.0")
+        assert 'SET "SERIES=1.0"' in content
+
+    def test_uvx_fallback_uses_from(self) -> None:
+        """Both wrappers must name the executable the distribution ships."""
         content = wrapper_cmd_content("1.0.0")
         assert "where uvx" in content
-        assert "uvx" in content
+        assert 'uvx --from "%PINNED_SPEC%" spec-kitty %*' in content
+        assert "uvx spec-kitty-cli" not in content
+
+    def test_series_range_requirement_is_quoted(self) -> None:
+        """`>` and `<` are cmd.exe redirection operators, so quote the range."""
+        content = wrapper_cmd_content("1.0.0")
+        assert 'SET "SERIES_SPEC=spec-kitty-cli>=1.0.0,<1.1"' in content
+        assert 'uvx --from "%SERIES_SPEC%" spec-kitty %*' in content
 
     def test_error_message_present(self) -> None:
         content = wrapper_cmd_content("1.0.0")
-        assert "pip install spec-kitty-cli" in content
+        assert "uv tool install spec-kitty-cli" in content
+        assert "pip install spec-kitty-cli" not in content
 
     def test_percent_star_argument_forwarding(self) -> None:
         """Windows CMD uses %* to forward arguments."""
@@ -199,10 +238,7 @@ class TestWrapperCmdContent:
         for line in lines:
             stripped = line.strip()
             if "EXIT /B %ERRORLEVEL%" in stripped:
-                assert depth == 0, (
-                    f"EXIT /B %ERRORLEVEL% is nested inside a parenthesized "
-                    f"block (depth={depth}): {stripped!r}"
-                )
+                assert depth == 0, f"EXIT /B %ERRORLEVEL% is nested inside a parenthesized block (depth={depth}): {stripped!r}"
             depth += stripped.count("(") - stripped.count(")")
 
     def test_no_parenthesized_if_blocks(self) -> None:
@@ -219,41 +255,195 @@ class TestWrapperCmdContent:
 
     def test_goto_labels_defined_and_referenced(self) -> None:
         content = wrapper_cmd_content("1.0.0")
-        assert "GOTO try_uvx" in content
-        assert ":try_uvx" in content
+        assert "GOTO try_pinned" in content
+        assert ":try_pinned" in content
+        assert "GOTO try_series" in content
+        assert ":try_series" in content
         assert "GOTO no_runtime" in content
         assert ":no_runtime" in content
 
 
-class TestWrapperRuntimeFallback:
-    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
-    def test_bash_falls_back_to_uvx_when_path_shim_is_unreachable(
-        self, tmp_path: Path
-    ) -> None:
-        write_wrappers(tmp_path, "9.9.9")
-        fake_bin = tmp_path / "fake-bin"
-        fake_bin.mkdir()
+class TestVersionSeries:
+    """One authority derives the supported series and the uvx requirements."""
 
-        stale_spec_kitty = fake_bin / "spec-kitty"
-        stale_spec_kitty.write_text("#!/bin/sh\nexit 127\n")
-        stale_spec_kitty.chmod(stale_spec_kitty.stat().st_mode | stat.S_IEXEC)
+    @pytest.mark.parametrize(
+        ("version", "expected"),
+        [
+            ("4.0.0rc8", "4.0"),
+            ("4.0.0", "4.0"),
+            ("3.2.7", "3.2"),
+            ("10.11.0.dev1", "10.11"),
+        ],
+    )
+    def test_supported_series(self, version: str, expected: str) -> None:
+        assert supported_series(version) == expected
 
-        fake_uvx = fake_bin / "uvx"
-        fake_uvx.write_text("#!/bin/sh\nprintf 'uvx %s\\n' \"$*\"\n")
-        fake_uvx.chmod(fake_uvx.stat().st_mode | stat.S_IEXEC)
+    @pytest.mark.parametrize("version", ["", "unknown", "v4", "4"])
+    def test_supported_series_is_none_when_unparseable(self, version: str) -> None:
+        assert supported_series(version) is None
 
-        wrapper = tmp_path / "bin" / "spec-kitty-wrapper"
-        bash_path = shutil.which("bash")
-        assert bash_path is not None
-        result = subprocess.run(
-            [bash_path, str(wrapper), "mission", "list"],
-            capture_output=True,
-            text=True,
-            env={"PATH": str(fake_bin)},
+    def test_uvx_requirements_pin_then_series(self) -> None:
+        assert uvx_requirements("4.0.0rc8") == (
+            "spec-kitty-cli==4.0.0rc8",
+            "spec-kitty-cli>=4.0.0rc8,<4.1",
         )
 
+    def test_uvx_requirements_roll_the_minor_over(self) -> None:
+        assert uvx_requirements("3.9.4")[1] == "spec-kitty-cli>=3.9.4,<3.10"
+
+    def test_uvx_requirements_without_a_range_when_unparseable(self) -> None:
+        assert uvx_requirements("unknown") == ("spec-kitty-cli==unknown", "")
+
+
+def _stub(bin_dir: Path, name: str, body: str) -> Path:
+    """Write an executable stub script into *bin_dir*."""
+    path = bin_dir / name
+    path.write_text(body, encoding="utf-8")
+    path.chmod(path.stat().st_mode | stat.S_IEXEC)
+    return path
+
+
+def _uvx_stub(bin_dir: Path, *, fail_exact_pin: bool = False) -> Path:
+    """A `uvx` double that prints the argv it was handed.
+
+    With *fail_exact_pin*, an exact `==` requirement exits 1 (the shape uv uses
+    for an unpublished pin) while a range requirement resolves, so the test can
+    observe the series-range retry.
+    """
+    guard = '\ncase "$2" in\n  *==*) exit 1 ;;\nesac' if fail_exact_pin else ""
+    return _stub(bin_dir, "uvx", f"#!/bin/sh\nprintf 'uvx %s\\n' \"$*\"{guard}\n")
+
+
+def _spec_kitty_stub(bin_dir: Path, version: str) -> Path:
+    """A `spec-kitty` double that reports *version* and marks delegation."""
+    return _stub(
+        bin_dir,
+        "spec-kitty",
+        f'#!/bin/sh\nif [ "$1" = "--version" ]; then\n  printf \'spec-kitty-cli version {version}\\n\'\n  exit 0\nfi\nprintf \'PATH-CLI %s\\n\' "$*"\n',
+    )
+
+
+def _system_tools_dir(tmp_path: Path) -> Path:
+    """A PATH entry holding only the POSIX tools the wrapper needs (`awk`).
+
+    Building it here keeps the runtime tests hermetic: no directory that could
+    hold a real `spec-kitty` or `uvx` is ever on the wrapper's PATH, so a test
+    cannot pass (or fail) because of what the developer machine has installed.
+    """
+    tools = tmp_path / "system-tools"
+    tools.mkdir()
+    awk = shutil.which("awk")
+    assert awk is not None, "the wrapper's version probe needs awk"
+    (tools / "awk").symlink_to(awk)
+    return tools
+
+
+def _run_bash_wrapper(tmp_path: Path, fake_bin: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    bash_path = shutil.which("bash")
+    assert bash_path is not None
+    path_dirs = [str(fake_bin), str(_system_tools_dir(tmp_path))]
+    return subprocess.run(
+        [bash_path, str(tmp_path / "bin" / "spec-kitty-wrapper"), *args],
+        capture_output=True,
+        text=True,
+        env={"PATH": ":".join(path_dirs)},
+    )
+
+
+class TestWrapperRuntimeFallback:
+    """Run the generated script, not only the helper that renders it."""
+
+    def _bundle(self, tmp_path: Path, version: str = "9.9.9") -> Path:
+        fake_bin = tmp_path / "fake-bin"
+        fake_bin.mkdir()
+        write_wrappers(tmp_path, version)
+        return fake_bin
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
+    def test_bash_falls_back_to_pinned_uvx_when_no_cli_on_path(self, tmp_path: Path) -> None:
+        fake_bin = self._bundle(tmp_path)
+        _uvx_stub(fake_bin)
+
+        result = _run_bash_wrapper(tmp_path, fake_bin, "mission", "list")
+
         assert result.returncode == 0
-        assert result.stdout == "uvx spec-kitty-cli==9.9.9 mission list\n"
+        assert result.stdout == ("uvx --from spec-kitty-cli==9.9.9 spec-kitty mission list\n")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
+    def test_bash_falls_back_to_uvx_when_path_shim_is_unreachable(self, tmp_path: Path) -> None:
+        fake_bin = self._bundle(tmp_path)
+        _stub(fake_bin, "spec-kitty", "#!/bin/sh\nexit 127\n")
+        _uvx_stub(fake_bin)
+
+        result = _run_bash_wrapper(tmp_path, fake_bin, "mission", "list")
+
+        assert result.returncode == 0
+        assert result.stdout == ("uvx --from spec-kitty-cli==9.9.9 spec-kitty mission list\n")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
+    def test_bash_retries_within_the_series_when_the_pin_is_unpublished(self, tmp_path: Path) -> None:
+        fake_bin = self._bundle(tmp_path)
+        _uvx_stub(fake_bin, fail_exact_pin=True)
+
+        result = _run_bash_wrapper(tmp_path, fake_bin, "mission", "list")
+
+        assert result.returncode == 0
+        assert result.stdout == ("uvx --from spec-kitty-cli>=9.9.9,<9.10 spec-kitty mission list\n")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
+    def test_bash_prefers_path_cli_inside_the_supported_series(self, tmp_path: Path) -> None:
+        fake_bin = self._bundle(tmp_path)
+        _spec_kitty_stub(fake_bin, "9.9.3")
+        _uvx_stub(fake_bin)
+
+        result = _run_bash_wrapper(tmp_path, fake_bin, "mission", "list")
+
+        assert result.returncode == 0
+        assert result.stdout == "PATH-CLI mission list\n"
+        assert "uvx" not in result.stdout
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
+    def test_bash_uses_a_path_cli_that_prints_a_bare_version(self, tmp_path: Path) -> None:
+        """A version line with no program-name prefix still matches the series.
+
+        The Windows wrapper accepts both shapes, so the POSIX probe must too;
+        `spec-kitty --version` prints a prefixed line today, but a wrapper or
+        alias that prints a bare version must not silently fall back to uvx.
+        """
+        fake_bin = self._bundle(tmp_path)
+        _stub(
+            fake_bin,
+            "spec-kitty",
+            '#!/bin/sh\nif [ "$1" = "--version" ]; then\n  printf \'9.9.3\\n\'\n  exit 0\nfi\nprintf \'PATH-CLI %s\\n\' "$*"\n',
+        )
+        _uvx_stub(fake_bin)
+
+        result = _run_bash_wrapper(tmp_path, fake_bin, "mission", "list")
+
+        assert result.returncode == 0
+        assert result.stdout == "PATH-CLI mission list\n"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
+    def test_bash_ignores_path_cli_from_another_series(self, tmp_path: Path) -> None:
+        fake_bin = self._bundle(tmp_path)
+        _spec_kitty_stub(fake_bin, "3.2.0")
+        _uvx_stub(fake_bin)
+
+        result = _run_bash_wrapper(tmp_path, fake_bin, "mission", "list")
+
+        assert result.returncode == 0
+        assert "PATH-CLI" not in result.stdout
+        assert result.stdout == ("uvx --from spec-kitty-cli==9.9.9 spec-kitty mission list\n")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX shell wrapper")
+    def test_bash_reports_the_uv_remedy_when_no_runtime_is_available(self, tmp_path: Path) -> None:
+        fake_bin = self._bundle(tmp_path)
+
+        result = _run_bash_wrapper(tmp_path, fake_bin, "mission", "list")
+
+        assert result.returncode != 0
+        assert "uv tool install spec-kitty-cli" in result.stderr
+        assert "pip install spec-kitty-cli" not in result.stderr
 
 
 # ---------------------------------------------------------------------------
@@ -265,9 +455,7 @@ class TestMarketplaceJson:
     def _run_build(self, tmp_path: Path) -> Path:
         from specify_cli.tool_surface.bundles.claude import ClaudeBundleProjector
 
-        bundle_dir: Path = ClaudeBundleProjector(tmp_path / "dist").build(
-            skip_validate=True
-        )
+        bundle_dir: Path = ClaudeBundleProjector(tmp_path / "dist").build(skip_validate=True)
         return bundle_dir
 
     def test_marketplace_json_exists(self, tmp_path: Path) -> None:
@@ -276,9 +464,7 @@ class TestMarketplaceJson:
 
     def test_marketplace_json_schema(self, tmp_path: Path) -> None:
         self._run_build(tmp_path)
-        payload = json.loads(
-            (tmp_path / "dist" / "marketplace.json").read_text(encoding="utf-8")
-        )
+        payload = json.loads((tmp_path / "dist" / "marketplace.json").read_text(encoding="utf-8"))
         assert payload["name"] == "spec-kitty-plugins"
         assert payload.get("owner") == {"name": "Spec Kitty"}
         assert payload.get("description") == "Spec Kitty skills, agent profiles, and runtime wrappers for Claude Code."
@@ -309,9 +495,7 @@ class TestBuildIncludesWrappers:
     def _run_build(self, tmp_path: Path) -> Path:
         from specify_cli.tool_surface.bundles.claude import ClaudeBundleProjector
 
-        bundle_dir: Path = ClaudeBundleProjector(tmp_path / "dist").build(
-            skip_validate=True
-        )
+        bundle_dir: Path = ClaudeBundleProjector(tmp_path / "dist").build(skip_validate=True)
         return bundle_dir
 
     def test_bash_wrapper_in_bundle(self, tmp_path: Path) -> None:
@@ -324,9 +508,7 @@ class TestBuildIncludesWrappers:
 
     def test_wrapper_version_matches_plugin_json(self, tmp_path: Path) -> None:
         bundle_dir = self._run_build(tmp_path)
-        plugin_json = json.loads(
-            (bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
-        )
+        plugin_json = json.loads((bundle_dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
         assert plugin_json["author"] == {
             "name": "Spec Kitty",
             "url": "https://github.com/spec-kitty/spec-kitty",
