@@ -1,0 +1,131 @@
+{
+  "event_count": 27,
+  "last_event_id": "01M695N2NQ0B62A59VG5PE40AX",
+  "materialized_at": "2026-10-31T14:26:09.719258+00:00",
+  "mission_number": "245",
+  "mission_slug": "repair-historical-sweep-mission-overrides-01M68ZHQ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "s7",
+      "lane": "done",
+      "last_event_id": "01M695N20RHF7VHYCMJ4XF7NM2",
+      "last_transition_at": "2026-10-31T14:26:09.048154+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementing T001-T003",
+        "T001-T003 done: shipped_mission_counterpart extracted and pinned (5 new tests); 78 passed in tests/upgrade/test_migrate_integration.py, 8 in test_m_2_0_6_consistency_sweep.py; ruff/format/mypy clean",
+        "Review passed (reviewer-renata): extraction is behaviour-preserving; the missions/<type>/<rest> join is written once and both call sites resolve through it; 5 new helper tests cover nested/flat/absent/directory/two-segment; ruff, format and mypy clean.",
+        "Re-claim for attribution; the approved diff is unchanged this cycle",
+        "Review passed (reviewer-renata), second cycle: the diff is unchanged from cycle 1 and the earlier verification still holds — removal only through guard_destructive_removal with a canonical-bytes prover, no raw destructive literal, 5 new helper tests, #6548 classifier regression green, ruff/format/mypy clean. This cycle only fixes the missing implementer attribution."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      },
+      "tracker_refs": [
+        "#6548",
+        "#5280"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "s7",
+      "lane": "done",
+      "last_event_id": "01M695N2AZAJKS8F1MJZ9HZFSQ",
+      "last_transition_at": "2026-10-31T14:26:09.376019+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Repair migration + manifest + routed-module pin + 15 tests; red-first CLI test failed on baseline and passes now",
+        "Review passed (reviewer-renata). Checked: removal only via guard_destructive_removal with CanonicalContentProver(canonical=..., check_marker=False), so marker text alone can never authorize a delete and a differing file is preserved; no raw unlink/rmtree/rmdir literal in the module (routed-module pin updated); exact-byte comparison matches classify_asset, CRLF pinned as differs; symlinked tree/file refused and named; unreadable counterpart is an error with no removal; detect() true for a differing candidate so the operator is actually told; no directory created or removed; manifest entry is version-monotonic with a tie annotation and orders after the #5280 step; no shipped migration body touched. Red-first CLI test failed on the baseline (AssertionError: a proven byte-identical override must be removed) and passes now; 15 tests in the module, architectural membership/order gates 58 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 285493,
+      "shell_pid_created_at": "1793451323.62",
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "#6548",
+        "#4961",
+        "#5280",
+        "#5450"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "s7",
+      "lane": "done",
+      "last_event_id": "01M695N2NQ0B62A59VG5PE40AX",
+      "last_transition_at": "2026-10-31T14:26:09.719258+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Changelog entry under [Unreleased] Upgrade Notes; docs freshness errors=0; terminology test 98 passed",
+        "Review passed (reviewer-renata): entry sits under [Unreleased] -> Upgrade Notes beside its #5280 sibling, impact-first bold lead with (#6548), before/after, 1,062 characters, and it names the two frozen/shipped steps that could not repair this rather than claiming a new-sweep fix; docs freshness errors=0 (11 pre-existing link-health warnings), terminology 98 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1296858,
+      "shell_pid_created_at": "1793456174.44",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "#6548",
+        "#5280"
+      ]
+    }
+  }
+}

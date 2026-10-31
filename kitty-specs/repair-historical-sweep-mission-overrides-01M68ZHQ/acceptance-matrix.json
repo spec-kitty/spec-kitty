@@ -1,0 +1,89 @@
+{
+  "mission_slug": "repair-historical-sweep-mission-overrides-01M68ZHQ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "pytest tests/upgrade/migrations/test_m_4_0_0rc8_repair_historical_sweep_overrides.py::test_identical_override_is_removed_and_the_pack_copy_resolves + the CLI-level reproduction test",
+      "evidence": "red on baseline, green now: byte-identical override removed, resolve_template no longer OVERRIDE",
+      "pass_fail": "pass",
+      "verified_by": "s7-agent",
+      "verified_at": "2026-10-31T14:24:24.593402+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "test_differing_override_is_kept_verbatim_and_named + real upgrade output names the kept file",
+      "evidence": "bytes unchanged, warning names .kittify/overrides/missions/software-dev/templates/plan-template.md",
+      "pass_fail": "pass",
+      "verified_by": "s7-agent",
+      "verified_at": "2026-10-31T14:24:27.859443+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "TestShippedMissionCounterpart (5 tests) + #6548 classifier regression",
+      "evidence": "src/specify_cli/runtime/migrate.py shipped_mission_counterpart; both call sites resolve through it",
+      "pass_fail": "pass",
+      "verified_by": "s7-agent",
+      "verified_at": "2026-10-31T14:24:31.010792+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "code review + tests/architectural/test_mutation_ownership_routing.py (routed-module pin, no raw literal)",
+      "evidence": "guard_destructive_removal + CanonicalContentProver(canonical=..., check_marker=False)",
+      "pass_fail": "pass",
+      "verified_by": "s7-agent",
+      "verified_at": "2026-10-31T14:24:34.604941+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "test_override_without_a_shipped_counterpart_is_untouched",
+      "evidence": "custom mission erp and an extra file: unchanged, unnamed",
+      "pass_fail": "pass",
+      "verified_by": "s7-agent",
+      "verified_at": "2026-10-31T14:24:37.639467+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "test_second_apply_changes_nothing + real second upgrade + migrate ledger",
+      "evidence": "ledger record success; 'migrate ledger' reads 'already in place'; second run changes nothing",
+      "pass_fail": "pass",
+      "verified_by": "s7-agent",
+      "verified_at": "2026-10-31T14:24:40.625949+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "test_symlinked_override_tree_is_refused_and_left_untouched + test_symlinked_override_file_is_skipped_and_named",
+      "evidence": "refused with a warning; nothing outside the project read or removed",
+      "pass_fail": "pass",
+      "verified_by": "s7-agent",
+      "verified_at": "2026-10-31T14:24:43.623643+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "git diff origin/main...HEAD --stat over the shipped migration modules is empty",
+      "evidence": "no shipped migration body edited; new id in order_manifest.txt",
+      "pass_fail": "pass",
+      "verified_by": "s7-agent",
+      "verified_at": "2026-10-31T14:24:46.754647+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

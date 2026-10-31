@@ -1,0 +1,33 @@
+{
+  "accept_commit": "0089306053220688252e6a1c2cb18ba900d5969c",
+  "acceptance_history": [
+    {
+      "accept_commit": "0089306053220688252e6a1c2cb18ba900d5969c",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-10-31T14:25:22.944873+00:00",
+      "accepted_by": "s7-agent",
+      "accepted_from_commit": "d29b8b31941f71cf635d4b7dc5b78b8255e77b63"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-10-31T14:25:22.944873+00:00",
+  "accepted_by": "s7-agent",
+  "accepted_from_commit": "d29b8b31941f71cf635d4b7dc5b78b8255e77b63",
+  "baseline_merge_commit": "dfe9efb0e802f66f6011be3f3dd1cea1e258c7f6",
+  "created_at": "2026-10-31T12:39:29.318333+00:00",
+  "flattened": false,
+  "friendly_name": "repair historical sweep mission overrides",
+  "merged_at": "2026-10-31T14:26:20.785281+00:00",
+  "merged_commit": "ca8bedc6c59f5bc7ebe4bc70226ea9df5576ae83",
+  "mid8": "01M68ZHQ",
+  "mission_id": "01M68ZHQWFNGBN9E3XANVXBHC4",
+  "mission_number": 245,
+  "mission_slug": "repair-historical-sweep-mission-overrides-01M68ZHQ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances repair historical sweep mission overrides on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "repair historical sweep mission overrides",
+  "slug": "repair-historical-sweep-mission-overrides-01M68ZHQ",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
