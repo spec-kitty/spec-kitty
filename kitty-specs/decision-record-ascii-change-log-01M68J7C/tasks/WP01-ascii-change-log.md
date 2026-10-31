@@ -18,9 +18,9 @@ requirement_refs:
 - SC-002
 - SC-003
 - SC-004
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: Planning artifacts for this mission were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+planning_base_branch: issue-6579-decision-record-ascii
+merge_target_branch: issue-6579-decision-record-ascii
+branch_strategy: Planning artifacts for this mission were generated on issue-6579-decision-record-ascii. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6579-decision-record-ascii unless the human explicitly redirects the landing branch.
 base_branch: kitty/mission-decision-record-ascii-change-log-01M68J7C
 created_at: '2026-10-31T08:50:00.000000+00:00'
 subtasks:
@@ -33,14 +33,13 @@ history:
   at: '2026-10-31T08:50:00Z'
   note: Initial generation from /spec-kitty.tasks
 agent_profile: python-pedro
-role: implementer
-agent: pi
 authoritative_surface: src/specify_cli/decisions/
+create_intent: []
 execution_mode: code_change
 owned_files:
 - src/specify_cli/decisions/store.py
 - tests/specify_cli/decisions/test_store.py
-create_intent: []
+role: implementer
 tags: []
 tracker_refs: []
 ---

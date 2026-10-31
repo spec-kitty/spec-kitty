@@ -11,6 +11,6 @@
   "purpose_context": "This mission advances decision record ascii change log on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "decision record ascii change log",
   "slug": "decision-record-ascii-change-log-01M68J7C",
-  "target_branch": "main",
+  "target_branch": "issue-6579-decision-record-ascii",
   "topology": "coord"
 }
