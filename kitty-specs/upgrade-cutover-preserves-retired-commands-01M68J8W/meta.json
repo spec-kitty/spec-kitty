@@ -1,0 +1,42 @@
+{
+  "accept_commit": "a97876e3346277bf083f6eeb186395e16f3f8790",
+  "acceptance_history": [
+    {
+      "accept_commit": "13d04f3573b50a8387ee5f12952d5598ce1fc6ae",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:04:26.592328+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "a69272c9614f6e8dcffc3271c490bc32adb21c2b"
+    },
+    {
+      "accept_commit": "a97876e3346277bf083f6eeb186395e16f3f8790",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:04:33.910338+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "d49f7539d80d690e3467a16d62d50a20e1d07bfc"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T10:04:33.910338+00:00",
+  "accepted_by": "python-pedro",
+  "accepted_from_commit": "d49f7539d80d690e3467a16d62d50a20e1d07bfc",
+  "baseline_merge_commit": "b3edc99199ab5d3d949bad999301cec6df9f9a3d",
+  "created_at": "2026-10-31T08:47:27.402015+00:00",
+  "flattened": false,
+  "friendly_name": "upgrade cutover preserves retired commands",
+  "merged_at": "2026-10-31T10:13:28.922991+00:00",
+  "merged_commit": "45892a1d9bcad966e4bfebf8d7b17ee231fdaeb5",
+  "mid8": "01M68J8W",
+  "mission_id": "01M68J8WHBY94ENVF16HMPTSQK",
+  "mission_number": 245,
+  "mission_slug": "upgrade-cutover-preserves-retired-commands-01M68J8W",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances upgrade cutover preserves retired commands on issue-6547-upgrade-cutover-preserves-retired-commands so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "upgrade cutover preserves retired commands",
+  "slug": "upgrade-cutover-preserves-retired-commands-01M68J8W",
+  "status_phase": "1",
+  "target_branch": "issue-6547-upgrade-cutover-preserves-retired-commands",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T08:50:49.336597+00:00"
+}

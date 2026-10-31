@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-cutover-preserves-retired-commands-01M68J8W",
+  "mission_id": "01M68J8WHBY94ENVF16HMPTSQK",
+  "mission_branch": "kitty/mission-upgrade-cutover-preserves-retired-commands-01M68J8W",
+  "target_branch": "issue-6547-upgrade-cutover-preserves-retired-commands",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/specify_cli/upgrade/test_retired_command_writers_6547.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/supersession.py",
+        "tests/specify_cli/upgrade/test_gitignore_backfills_superseded_6589.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/upgrade-lifecycle.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-31T08:49:32.568105+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7789b3d041da242e6ce2cbc16c16440fe749b99b"
+}
