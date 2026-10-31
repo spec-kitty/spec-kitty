@@ -455,13 +455,14 @@ def _assert_failed_run_restored_the_snapshot(repo: Path, feature_dir: Path, pre_
 
     from specify_cli.consolidation.state import load_state
 
-    state = load_state(repo, MISSION_ID)
-    assert state is not None, "a rolled-back run keeps its record for the resume"
-    assert state.completed_wps == [], "the kept record claims no completed WP"
+    # #6770: a record survives only while some of its attempt is on the target. This run
+    # restored every branch, so it clears the record; a kept record would hand the next run
+    # attempt 1's target tip as its reconciliation window base.
+    assert load_state(repo, MISSION_ID) is None, "a fully rolled-back run leaves no record behind"
 
 
 def _assert_rerun_reaches_done(repo: Path) -> None:
-    """After removing the cause, the kept record resumes from the snapshot and reaches ``done``."""
+    """After removing the cause, the fresh re-run (no record) re-does the work and reaches ``done``."""
     with _merge_external_mocks():
         _run_merge(repo)
     for relpath in _LANE_FILES.values():
