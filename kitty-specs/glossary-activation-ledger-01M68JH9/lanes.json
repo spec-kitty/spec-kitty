@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "glossary-activation-ledger-01M68JH9",
+  "mission_id": "01M68JH95NJ6R0EGVWY2MC4FMC",
+  "mission_branch": "kitty/mission-glossary-activation-ledger-01M68JH9",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".kittify/glossaries/spec_kitty_core.yaml",
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/governance/troubleshoot-charter.md",
+        "packs/built-in.source.yaml",
+        "src/charter/activation/activation_ledger.py",
+        "src/charter/activation/resolver.py",
+        "tests/glossary/test_activation_ledger_terms.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:55:09.541950+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "35318ef51cc68a7fd526bb0e7cae2fc402baeaed"
+}
