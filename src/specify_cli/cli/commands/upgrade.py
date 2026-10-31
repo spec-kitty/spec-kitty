@@ -89,7 +89,7 @@ from specify_cli.upgrade.outcome import (
     UpgradeOutcome,
     UpgradeOutcomeKind,
 )
-from specify_cli.upgrade.runner import RepositoryProbe, UpgradeResult, migration_skipped_outside_repository
+from specify_cli.upgrade.runner import RepositoryProbe, UpgradeResult, migration_skipped_outside_repository, sequenced_predecessors
 from specify_cli.upgrade.version_stamp_boundary import version_stamp_boundary
 
 
@@ -732,6 +732,13 @@ def _show_migration_plan_and_confirm(
             # Show detection results
             console.print("[dim]Detection results:[/dim]")
             repository_probe = RepositoryProbe(project_path)
+            # Migrations this PREVIEW reports ready. The preview runs before any migration,
+            # so it is a forecast in both modes: a migration whose declared detect-input
+            # predecessors are already ready here is ready too, through the same one
+            # sequencing decision the runner uses (#6552). Without it this preview says
+            # `skipped` for a migration the run -- or the dry-run summary below -- reports
+            # applied.
+            preview_ready: set[str] = set()
             for migration in migrations_needed:
                 try:
                     outside_repository = migration_skipped_outside_repository(migration, repository_probe)
@@ -758,8 +765,15 @@ def _show_migration_plan_and_confirm(
                     detected = False
                     detect_error = str(exc)
                 can_apply, reason = migration.can_apply(project_path)
-                status = "[green]ready[/green]" if detected and can_apply else "[yellow]skipped[/yellow]"
-                console.print(f"  {migration.migration_id}: {status}")
+                predicted = sequenced_predecessors(migration, preview_ready)
+                ready = can_apply and (detected or bool(predicted))
+                if ready:
+                    preview_ready.add(migration.migration_id)
+                status = "[green]ready[/green]" if ready else "[yellow]skipped[/yellow]"
+                if predicted and not detected:
+                    console.print(f"  {migration.migration_id}: {status} [dim](would apply after {escape(', '.join(predicted))})[/dim]")
+                else:
+                    console.print(f"  {migration.migration_id}: {status}")
                 if detect_error:
                     console.print(f"    [dim]{detect_error}[/dim]")
                 elif not can_apply and reason:
@@ -2331,6 +2345,29 @@ def _display_upgrade_results(result: UpgradeResult) -> None:
         result.migrations_skipped,
         "  [dim]○[/dim] ",
     )
+    _print_predicted_verdicts(result)
+
+
+def _print_predicted_verdicts(result: UpgradeResult) -> None:
+    """Name the dry-run verdicts this run PREDICTED and the migration each one follows (#6552).
+
+    A dry run applies nothing, so a migration whose ``detect()`` reads an earlier
+    migration's write is reported applied on the strength of its declared
+    ``sequenced_after`` predecessors rather than a direct detection. Without this line the
+    operator cannot tell the two apart in ``Migrations applied:``; a real run never
+    predicts, so this section is empty there.
+    """
+    predicted = {
+        migration_id: migration_result.predicted_after for migration_id, migration_result in result.migration_results.items() if migration_result.predicted_after
+    }
+    if not result.dry_run or not predicted:
+        return
+    console.print("[dim]Predicted by an earlier migration in this run (dry run):[/dim]")
+    for migration_id, predecessors in predicted.items():
+        console.print(
+            f"  [dim]•[/dim] {escape(migration_id)} [dim]would apply after {escape(', '.join(predecessors))}[/dim]",
+            soft_wrap=True,
+        )
 
 
 # ---------------------------------------------------------------------------
