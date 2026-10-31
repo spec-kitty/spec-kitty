@@ -64,10 +64,7 @@ def _checked_nodes(nodes: Iterable[DRGNode]) -> list[DRGNode]:
 
 def _step_contract_urns() -> frozenset[str]:
     """The node URNs the shipped contracts declare, through the one step-contract rule."""
-    return frozenset(
-        step_contract_urn(contract.mission, contract.action)
-        for contract in MissionStepContractRepository().list_all()
-    )
+    return frozenset(step_contract_urn(contract.mission, contract.action) for contract in MissionStepContractRepository().list_all())
 
 
 def _drifted_urns(
@@ -115,9 +112,7 @@ def built_in_identity() -> IdentityIndex:
     return IdentityIndex(org_roots=[], project_root=None, offering_root=built_in_root())
 
 
-def test_no_built_in_node_urn_drifts_from_the_identity_authority(
-    built_in_graph, built_in_identity: IdentityIndex
-) -> None:
+def test_no_built_in_node_urn_drifts_from_the_identity_authority(built_in_graph, built_in_identity: IdentityIndex) -> None:
     """The corpus arm: before #6741 all 21 step-contract nodes were reported here.
 
     On the pre-fix tree this module cannot even import (``step_contract_urn`` did not exist), so the
@@ -136,14 +131,10 @@ def test_the_gate_actually_checked_every_kind_it_claims_to_guard(built_in_graph)
     assert seen >= _KINDS_EXPECTED_IN_THE_GRAPH
 
 
-def test_the_shipped_step_contract_nodes_are_exactly_the_shipped_contracts(
-    built_in_graph, built_in_identity: IdentityIndex
-) -> None:
+def test_the_shipped_step_contract_nodes_are_exactly_the_shipped_contracts(built_in_graph, built_in_identity: IdentityIndex) -> None:
     """Both directions for step contracts: no extra node, no contract without a node."""
     from_contracts = _step_contract_urns()
-    from_graph = {
-        node.urn for node in built_in_graph.nodes if node.kind is NodeKind.MISSION_STEP_CONTRACT
-    }
+    from_graph = {node.urn for node in built_in_graph.nodes if node.kind is NodeKind.MISSION_STEP_CONTRACT}
 
     assert from_graph == from_contracts
     assert len(from_contracts) == 21
@@ -158,9 +149,7 @@ def test_the_gate_bites_on_a_planted_divergence(built_in_identity: IdentityIndex
 
     expected = frozenset({"mission_step_contract:documentation/accept"})
 
-    assert _drifted_urns(planted, built_in_identity, expected_step_contract_urns=expected) == [
-        "mission_step_contract:documentation-accept"
-    ]
+    assert _drifted_urns(planted, built_in_identity, expected_step_contract_urns=expected) == ["mission_step_contract:documentation-accept"]
 
 
 def test_the_gate_bites_on_a_planted_divergence_for_an_ordinary_kind(built_in_identity: IdentityIndex) -> None:
