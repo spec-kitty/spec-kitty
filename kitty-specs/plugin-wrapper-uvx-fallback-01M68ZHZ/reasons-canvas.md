@@ -46,3 +46,5 @@
 - No full heavy suite in-mission.
 
 ## Deviations (append-only)
+
+- 2026-10-31 — WP02 (post-acceptance) — Approved deviation: the aggregate review's discovery grep found `docs/guides/how-to/installation/install-spec-kitty.md:121` telling readers to run `uvx spec-kitty-cli init <PROJECT_NAME>` — the same broken invocation this Mission fixes, on a page outside WP02's declared `owned_files`. Fixed in this PR as its own commit and verified against real `uvx`/`pipx`; recorded here because the canvas requires a deviation record rather than a silent out-of-map edit.
