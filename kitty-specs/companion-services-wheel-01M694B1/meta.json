@@ -1,0 +1,34 @@
+{
+  "accept_commit": "17f006ec60ce224e92f353466b27609796af03d3",
+  "acceptance_history": [
+    {
+      "accept_commit": "17f006ec60ce224e92f353466b27609796af03d3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T15:48:33.155096+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "729d2277cd71abe1850511fc35564a29a496d48e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T15:48:33.155096+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "729d2277cd71abe1850511fc35564a29a496d48e",
+  "baseline_merge_commit": "9848c19b498dc2e1b170f9466ff4e4e3eaae5339",
+  "created_at": "2026-10-31T14:03:14.780570+00:00",
+  "flattened": false,
+  "friendly_name": "Optional companion services wheel",
+  "merged_at": "2026-10-31T15:49:11.778321+00:00",
+  "merged_commit": "9848c19b498dc2e1b170f9466ff4e4e3eaae5339",
+  "mid8": "01M694B1",
+  "mission_id": "01M694B16SZNKYDDB6WFSFBJSX",
+  "mission_number": 245,
+  "mission_slug": "companion-services-wheel-01M694B1",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Operator ruling 2 of 2026-10-31 (#6117) asks for an optional spec-kitty-services platform wheel that carries the pinned, digest-verified write and charter service binaries and fills the reserved spec_kitty.service_binaries slot, so teams can install the full stack offline in one command. The main spec-kitty-cli wheel keeps shipping pins only and fetching on first use. Tracked by #6904.",
+  "purpose_tldr": "Offer a one-command offline install of the service binaries through an optional companion wheel, while the main CLI wheel stays pure.",
+  "slug": "companion-services-wheel-01M694B1",
+  "status_phase": "1",
+  "target_branch": "companion-services-wheel",
+  "topology": "single_branch"
+}

@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-31T14:03:25.151107Z",
+      "decision_id": "01M694BE2Z24AWM044Y2EQT83S",
+      "final_answer": "All 12 as recommended (operator ruling 2026-10-31, relayed by the orchestrator session)",
+      "input_key": "companion_wheel_rulings",
+      "mission_id": "01M694B16SZNKYDDB6WFSFBJSX",
+      "mission_slug": "companion-services-wheel-01M694B1",
+      "opened_by": "cli",
+      "options": [
+        "All as recommended",
+        "Change some",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Accept the 12 recommendations in docs/plans/events-domain-move/companion-wheel-research.md section 3 (name, extra, version lock, contents, fallback wheel, manylinux_2_39 tag, 95/60 MB size gate, stdlib build in packages/spec-kitty-services/, own pypi-services publish before the CLI, fallback-only while pins are empty, sync_services in release.yml + checklist, one PR with the ADR amendment first)?",
+      "rationale": null,
+      "resolved_at": "2026-10-31T14:03:28.153333Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.companion-wheel-rulings",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-31T14:06:17.854920Z",
+      "decision_id": "01M694GPQYVGRKCF3B582FWQ1Y",
+      "final_answer": "A: uv workspace member with a stdlib in-tree PEP 517 backend; clarify the CLAUDE.md bullet and the ADR amendment; guard the version lock (companion == CLI == extra pin) in a test, RELEASE_CHECKLIST.md and validate_release.py (operator ruling 2026-10-31, relayed)",
+      "input_key": "extra_lock_resolution",
+      "mission_id": "01M694B16SZNKYDDB6WFSFBJSX",
+      "mission_slug": "companion-services-wheel-01M694B1",
+      "opened_by": "cli",
+      "options": [
+        "Workspace member (keep the extra)",
+        "Drop the extra (separate install only)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "The exact services extra (spec-kitty-services==<cli version>) makes uv lock unsatisfiable because the companion of that version is never on PyPI at release-commit time. Keep the extra via a uv workspace member (packages/spec-kitty-services, [tool.uv.workspace] + [tool.uv.sources] workspace=true), or drop the extra and document a separate pip install?",
+      "rationale": null,
+      "resolved_at": "2026-10-31T14:08:10.406185Z",
+      "resolved_by": null,
+      "slot_key": "plan.packaging.extra-lock-resolution",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M694B16SZNKYDDB6WFSFBJSX",
+  "version": 1
+}

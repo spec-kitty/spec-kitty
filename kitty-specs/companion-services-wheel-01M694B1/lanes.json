@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "mission_slug": "companion-services-wheel-01M694B1",
+  "mission_id": "01M694B16SZNKYDDB6WFSFBJSX",
+  "mission_branch": "companion-services-wheel",
+  "target_branch": "companion-services-wheel",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        ".github/workflows/release.yml",
+        "CLAUDE.md",
+        "RELEASE_CHECKLIST.md",
+        "docs/adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md",
+        "docs/plans/events-domain-move/plan.md",
+        "packages/spec-kitty-services/**",
+        "pyproject.toml",
+        "scripts/build_services_wheel.py",
+        "scripts/release/validate_release.py",
+        "tests/cross_cutting/packaging/test_companion_package.py",
+        "tests/cross_cutting/packaging/test_companion_services_wheel.py",
+        "tests/cross_cutting/packaging/test_companion_version_lock.py",
+        "tests/cross_cutting/packaging/test_packaging_safety.py",
+        "tests/release/test_release_companion_wheels.py",
+        "tests/release/test_validate_release_companion.py",
+        "tests/specify_cli/services/test_resolution.py",
+        "uv.lock"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T14:11:56.257892+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4a2274f59ce0ffd9416b80bcd3d0a992545d6739"
+}
