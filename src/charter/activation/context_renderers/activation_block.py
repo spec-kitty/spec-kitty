@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from charter.activation.schemas import GovernanceCharterConfig
+    from charter.activation.scope import CharterScope
 
 __all__ = [
     "_render_activation_block",
@@ -42,7 +43,7 @@ __all__ = [
 _LOGGER = logging.getLogger(__name__)
 
 
-def _load_governance_activations(repo_root: Path) -> list[ActivationEntry]:
+def _load_governance_activations(repo_root: Path, *, scope: CharterScope | None = None) -> list[ActivationEntry]:
     """Best-effort load of ``GovernanceConfig.activations`` for *repo_root*.
 
     The activation registry is a top-level governance field (per
@@ -59,7 +60,7 @@ def _load_governance_activations(repo_root: Path) -> list[ActivationEntry]:
     from charter.offering.packs.retired_fields import RetiredPackFieldError
 
     try:
-        governance = load_governance_config(repo_root)
+        governance = load_governance_config(repo_root) if scope is None else load_governance_config(repo_root, scope=scope)
     except (RetiredPackFieldError, ActiveCharterConfigError):
         raise
     except Exception:  # noqa: BLE001 — best-effort governance load
@@ -99,10 +100,7 @@ def _read_org_activations(repo_root: Path) -> list[ActivationEntry]:
             try:
                 entries.append(ActivationEntry.model_validate(item))
             except ValidationError as exc:
-                raise ValueError(
-                    f"org pack `{name}` declares a malformed activations entry "
-                    f"{item!r}: {exc}"
-                ) from exc
+                raise ValueError(f"org pack `{name}` declares a malformed activations entry {item!r}: {exc}") from exc
     return entries
 
 
@@ -138,6 +136,7 @@ def _render_activation_block(
     *,
     mission_type: str,
     action: str,
+    scope: CharterScope | None = None,
 ) -> str:
     """Call the WP05 activation-stanza renderer with the runtime context.
 
@@ -169,7 +168,7 @@ def _render_activation_block(
     """
     if repo_root is None:
         return ""
-    project_activations = _load_governance_activations(repo_root)
+    project_activations = _load_governance_activations(repo_root, scope=scope)
     org_activations = _read_org_activations(repo_root)
     activations = _union_activations(project_activations, org_activations)
     if not activations:
@@ -178,12 +177,15 @@ def _render_activation_block(
     from charter.activation._activation_render import render_activation_stanza
 
     try:
-        return str(render_activation_stanza(
-            activations,
-            service,
-            mission_type=mission_type,
-            action=action,
-        ))
+        return str(
+            render_activation_stanza(
+                activations,
+                service,
+                mission_type=mission_type,
+                action=action,
+                scope=scope,
+            )
+        )
     except Exception:  # noqa: BLE001 — defensive: never crash the prompt build
         _LOGGER.warning(
             "Activation stanza renderer raised; surface omitted for action %s.",

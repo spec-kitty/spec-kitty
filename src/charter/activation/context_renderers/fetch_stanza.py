@@ -26,12 +26,16 @@ The shared formatter is used by:
 
 from __future__ import annotations
 
+from charter.activation.scope import CharterScope
+
 import re
+import shlex
 
 from charter.offering.artifact_kinds import ArtifactKind
 
 __all__ = [
     "DEFAULT_WHEN_CLAUSE",
+    "fetch_command",
     "fetch_stanza",
     "fetch_stanza_lines",
     "format_selector",
@@ -130,12 +134,15 @@ def format_selector(kind: str, identifier: str) -> str:
     return f"{cleaned_kind}:{cleaned_id}"
 
 
-def fetch_stanza(
-    selector: str,
-    when_doing_clause: str,
-    *,
-    indent: str = "",
-) -> str:
+def fetch_command(selector: str, *, scope: CharterScope | None = None) -> str:
+    """Build executable argv, quoting every authored value as one shell word."""
+    argv = ["spec-kitty", "charter", "context", "--include", selector]
+    if scope is not None and scope.invocation is not None:
+        argv.extend(["--owned-checkout", str(scope.invocation.owned_root), "--mission", scope.invocation.mission_handle])
+    return shlex.join(argv)
+
+
+def fetch_stanza(selector: str, when_doing_clause: str, *, indent: str = "", scope: CharterScope | None = None) -> str:
     """Return the two-line fetch + when-doing stanza for *selector*.
 
     Parameters
@@ -161,15 +168,10 @@ def fetch_stanza(
     """
 
     clause = (when_doing_clause or "").strip() or DEFAULT_WHEN_CLAUSE
-    return "\n".join(fetch_stanza_lines(selector, clause, indent=indent))
+    return "\n".join(fetch_stanza_lines(selector, clause, indent=indent, scope=scope))
 
 
-def fetch_stanza_lines(
-    selector: str,
-    when_doing_clause: str,
-    *,
-    indent: str = "",
-) -> list[str]:
+def fetch_stanza_lines(selector: str, when_doing_clause: str, *, indent: str = "", scope: CharterScope | None = None) -> list[str]:
     """List-form variant of :func:`fetch_stanza` for line-oriented callers.
 
     The list is always exactly two strings; callers that build the
@@ -181,16 +183,12 @@ def fetch_stanza_lines(
     clause = (when_doing_clause or "").strip() or DEFAULT_WHEN_CLAUSE
     clause = _normalize_when_clause(clause)
     return [
-        f"{indent}Run: spec-kitty charter context --include {selector}",
+        f"{indent}Run: {fetch_command(selector, scope=scope)}",
         f"{indent}When you {clause}, run this command and apply the returned rule.",
     ]
 
 
-def render_fetch_stanza(
-    *,
-    selector: str,
-    when_clause: str,
-) -> list[str]:
+def render_fetch_stanza(*, selector: str, when_clause: str, scope: CharterScope | None = None) -> list[str]:
     """Render the canonical fetch + when-doing stanza for a single entry.
 
     Public renderer form folded from ``charter.activation.context._render_fetch_stanza``
@@ -199,4 +197,4 @@ def render_fetch_stanza(
     WP04 section bodies, WP05 budget substitution) already expects, so every
     caller emits identical bytes.
     """
-    return list(fetch_stanza_lines(selector, when_clause, indent="    "))
+    return list(fetch_stanza_lines(selector, when_clause, indent="    ", scope=scope))

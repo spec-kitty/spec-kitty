@@ -100,6 +100,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
     RefuseExit1,
     TransitionPlan,
     _effective_note_text,
+    _is_approved_reopen,
     arbiter_persist_signal,
     is_review_rejection_edge,
 )
@@ -675,7 +676,9 @@ def _mt_resolve_feedback(st: _MoveTaskState) -> tuple[str | None, bool, bool, st
     content: str | None = None
     if exists and is_file:
         st.resolved_feedback_source = candidate
-        if is_review_rejection_edge(str(st.old_lane), str(st.target_lane)):
+        # The approved-implementation reopen is force-free only on usable
+        # evidence, so the edge that reads the pointer must read the body too.
+        if is_review_rejection_edge(str(st.old_lane), str(st.target_lane)) or _is_approved_reopen(str(st.old_lane), str(st.target_lane)):
             try:
                 content = candidate.read_text(encoding="utf-8").strip()
             except UnicodeDecodeError as exc:

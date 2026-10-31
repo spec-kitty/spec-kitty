@@ -81,6 +81,10 @@ def _add_mission(
     if friendly_name is not None:
         meta["friendly_name"] = friendly_name
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    if mission_id is None:
+        # Canonical #5875 selection counts identity-less legacy markers only
+        # when tracked; untracked id-less files intentionally remain residue.
+        subprocess.run(["git", "add", "--", str(feature_dir / "meta.json")], cwd=repo_root, check=True, capture_output=True)
 
 
 def _track_missions(repo_root: Path) -> None:

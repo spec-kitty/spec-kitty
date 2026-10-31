@@ -121,6 +121,11 @@ def is_review_rejection_edge(old_lane: str, target_lane: str) -> bool:
     return bool(target == Lane.PLANNED or (old == Lane.IN_REVIEW and target == Lane.IN_PROGRESS))
 
 
+def _is_approved_reopen(old_lane: str, target_lane: str) -> bool:
+    """Select the existing evidence-gated implementation reopen."""
+    return bool(resolve_lane_alias(old_lane) == Lane.APPROVED and resolve_lane_alias(target_lane) == Lane.IN_PROGRESS)
+
+
 # ---------------------------------------------------------------------------
 # Request (pre-read facts) + outcome value objects
 # ---------------------------------------------------------------------------
@@ -325,7 +330,7 @@ def build_transition_plan(
     canonical_lane = resolve_lane_alias(target_lane)
 
     emit_review_ref: str | None = None
-    if is_review_rejection_edge(old_lane, target_lane) and review_feedback_pointer:
+    if (is_review_rejection_edge(old_lane, target_lane) or _is_approved_reopen(old_lane, target_lane)) and review_feedback_pointer:
         emit_review_ref = review_feedback_pointer
     elif old_lane == Lane.FOR_REVIEW and resolve_lane_alias(target_lane) in (Lane.IN_PROGRESS, Lane.PLANNED) and force:
         emit_review_ref = "force-override"
@@ -640,6 +645,10 @@ def _guard_feedback_file(req: MoveTaskRequest) -> RefuseExit1 | None:
         return RefuseExit1(f"Review feedback file not found: {req.feedback_source}")
     if not req.feedback_is_file:
         return RefuseExit1(f"Review feedback path is not a file: {req.feedback_source}")
+    # The approved-implementation reopen earns its force-free transition from
+    # the feedback body; an empty file would fabricate that evidence.
+    if _is_approved_reopen(req.old_lane, req.target_lane) and not (req.feedback_content or "").strip():
+        return RefuseExit1(f"Review feedback file is empty: {req.feedback_source}")
     return None
 
 
@@ -977,7 +986,10 @@ def decide_transition(req: MoveTaskRequest) -> TransitionOutcome:
         old_lane=req.old_lane,
         target_lane=req.target_lane,
         force=req.force,
-        review_feedback_pointer=None,
+        # The feedback file has passed the ordinary file guard. Reopening an
+        # approved implementation carries that supplied reference directly;
+        # it is not a rejected verdict and mints no rejection review cycle.
+        review_feedback_pointer=req.feedback_source if req.feedback_provided and _is_approved_reopen(req.old_lane, req.target_lane) else None,
         arb_review_ref=None,
         note_text=note_text,
     )

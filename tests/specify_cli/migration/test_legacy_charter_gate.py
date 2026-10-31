@@ -14,7 +14,7 @@ import os
 import statistics
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import click
@@ -453,6 +453,218 @@ def test_cli_refuses_migrate_too(tmp_path: Path) -> None:
 
     assert result.exit_code == 1, result.output
     assert _refused(result)
+
+
+@pytest.mark.parametrize("invoking_checkout", ["primary", "owned"])
+def test_cli_creates_in_migrated_owned_checkout_when_primary_is_legacy(tmp_path: Path, invoking_checkout: str) -> None:
+    root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    owned = tmp_path / "owned"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
+    _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+
+    result = _run(
+        [
+            "agent",
+            "mission",
+            "create",
+            "owned-startup-proof",
+            "--owned-checkout",
+            str(owned),
+            "--mission-type",
+            "software-dev",
+            "--friendly-name",
+            "Owned startup proof",
+            "--purpose-tldr",
+            "Preserve owned admission",
+            "--purpose-context",
+            "An upgraded linked checkout owns its project safety gates.",
+            "--branch-strategy",
+            "already-confirmed",
+            "--json",
+        ],
+        root if invoking_checkout == "primary" else owned,
+    )
+
+    assert not _refused(result), result.output
+    assert result.exit_code == 0, result.output
+    assert list((owned / "kitty-specs").glob("owned-startup-proof-*/meta.json"))
+    assert not (root / "kitty-specs").exists()
+    assert _refused(_run(["charter", "list", "--json"], root))
+
+
+@pytest.mark.parametrize("claim_kind", ["primary", "foreign", "missing", "legacy"])
+def test_cli_owned_flag_never_bypasses_invalid_or_legacy_claim(tmp_path: Path, claim_kind: str) -> None:
+    root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    claimed = root
+    if claim_kind == "foreign":
+        claimed = _project(tmp_path / "foreign")
+        subprocess.run(["git", "init", "-q"], cwd=claimed, check=True)
+    elif claim_kind == "missing":
+        claimed = tmp_path / "missing"
+    elif claim_kind == "legacy":
+        claimed = tmp_path / "owned"
+        subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(claimed)], cwd=root, check=True)
+        _write(claimed / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+    _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+    result = _run(
+        [
+            "agent",
+            "mission",
+            "create",
+            "must-not-create",
+            "--owned-checkout",
+            str(claimed),
+            "--mission-type",
+            "software-dev",
+            "--friendly-name",
+            "Refusal control",
+            "--purpose-tldr",
+            "Must refuse",
+            "--purpose-context",
+            "Invalid claims confer no startup authority.",
+            "--branch-strategy",
+            "already-confirmed",
+            "--json",
+        ],
+        root,
+    )
+
+    assert result.exit_code != 0, result.output
+    assert _refused(result), result.output
+    assert not (root / "kitty-specs").exists()
+    assert not (claimed / "kitty-specs").exists()
+
+
+@pytest.mark.parametrize("metadata_kind, expected_exit", [("too-new", 5), ("out-of-range", 6), ("malformed", 4)])
+def test_cli_owned_checkout_keeps_its_schema_gate(tmp_path: Path, metadata_kind: str, expected_exit: int) -> None:
+    from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA
+    from specify_cli.upgrade.runner import MigrationRunner
+
+    root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    owned = tmp_path / "owned"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
+    _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+    if metadata_kind == "too-new":
+        MigrationRunner._stamp_schema_version(owned / ".kittify", MAX_SUPPORTED_SCHEMA + 1)
+    elif metadata_kind == "out-of-range":
+        MigrationRunner._stamp_schema_version(owned / ".kittify", 1001)
+    else:
+        _write(owned / ".kittify/metadata.yaml", "[malformed yaml\n")
+
+    result = _run(
+        [
+            "agent",
+            "mission",
+            "create",
+            "must-not-create",
+            "--owned-checkout",
+            str(owned),
+            "--mission-type",
+            "software-dev",
+            "--friendly-name",
+            "Schema refusal",
+            "--purpose-tldr",
+            "Keep the schema gate",
+            "--purpose-context",
+            "Selected metadata is still validated.",
+            "--branch-strategy",
+            "already-confirmed",
+            "--json",
+        ],
+        root,
+    )
+
+    assert result.exit_code == expected_exit, result.output
+    assert not _refused(result), "The selected schema refusal must precede the unrelated primary legacy finding."
+    assert not (owned / "kitty-specs").exists()
+    assert not (root / "kitty-specs").exists()
+
+
+@pytest.mark.parametrize("command_kind", ["positional", "unsupported"])
+def test_cli_raw_owned_text_grants_no_startup_authority(tmp_path: Path, command_kind: str) -> None:
+    root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    owned = tmp_path / "owned"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
+    _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+    args = ["dispatch", "--", f"--owned-checkout={owned}"] if command_kind == "positional" else ["charter", "list", "--owned-checkout", str(owned)]
+
+    result = _run(args, root)
+
+    assert result.exit_code == (1 if command_kind == "positional" else 2), result.output
+    assert _refused(result) == (command_kind == "positional"), result.output
+    assert not (owned / "kitty-ops").exists()
+    assert not (root / "kitty-ops").exists()
+
+
+@pytest.fixture
+def fresh_owned_startup_topology() -> Iterator[None]:
+    from kernel.git_topology import clear_caches
+
+    clear_caches()
+    try:
+        yield
+    finally:
+        clear_caches()
+
+
+@pytest.mark.parametrize("first_fails", [False, True])
+def test_cli_startup_claim_is_not_reused_by_later_commands(tmp_path: Path, first_fails: bool, fresh_owned_startup_topology: None) -> None:
+    from kernel.git_topology import clear_caches
+    from mission_runtime import ActionContextError
+    from specify_cli.core.owned_mission import resolve_owned_create_root
+
+    root = _project(tmp_path / "primary", config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    for args in (["init", "-q", "-b", "main"], ["add", "-A"], ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "init"]):
+        subprocess.run(["git", *args], cwd=root, check=True)
+    owned = tmp_path / "owned"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "owned", str(owned)], cwd=root, check=True)
+    _write(root / ".kittify/doctrine/directive/legacy.directive.yaml", "id: legacy\n")
+    if first_fails:
+        from specify_cli.upgrade.runner import MigrationRunner
+
+        MigrationRunner._stamp_schema_version(owned / ".kittify", 1001)
+    args = [
+        "agent",
+        "mission",
+        "create",
+        "scoped-claim",
+        "--owned-checkout",
+        str(owned),
+        "--mission-type",
+        "software-dev",
+        "--friendly-name",
+        "Scoped claim",
+        "--purpose-tldr",
+        "Bound ownership to a command",
+        "--purpose-context",
+        "Later commands must freshly validate the selected checkout.",
+        "--branch-strategy",
+        "already-confirmed",
+        "--json",
+    ]
+    first = _run(args, root)
+    assert not _refused(first), first.output
+    assert (first.exit_code != 0) == first_fails, first.output
+
+    subprocess.run(["git", "worktree", "remove", "--force", str(owned)], cwd=root, check=True)
+    _project(owned, config="vcs:\n  type: git\nmission_type_activations: [software-dev]\n")
+    subprocess.run(["git", "init", "-q"], cwd=owned, check=True)
+    # A new CLI process has fresh topology caches; keep this in-process runner
+    # faithful to that boundary while checking the command-scoped claim expires.
+    clear_caches()
+    with pytest.raises(ActionContextError):
+        resolve_owned_create_root(root, owned)
+    second = _run(args, root)
+    assert _refused(second), second.output
+    assert not (owned / "kitty-specs").exists()
 
 
 # --------------------------------------------------------------------------- #

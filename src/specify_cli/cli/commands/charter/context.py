@@ -3,16 +3,22 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import TypedDict
 
 import typer
 
 from charter.activation.pack_context import ActiveCharterConfigError
+from charter.activation.api import CharterScope, CharterScopeConflict, CharterScopeNotFound
 from charter.packs import RetiredPackFieldError
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 from kernel.errors import KittyInternalConsistencyError
 
 from specify_cli.cli.helpers import git_resolution_failure_message
 from specify_cli.task_utils import TaskCliError
+from mission_runtime import ActionContextError
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_adopt
+from specify_cli.core.owned_charter import charter_scope_for_owned
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._common import _emit_error
@@ -23,8 +29,58 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["context"]
 
 
+class _ScopeArguments(TypedDict, total=False):
+    scope: CharterScope
+
+
+class _MissionArguments(TypedDict, total=False):
+    feature_dir: Path
+
+
+_OPERATOR_ACTIONABLE_SCOPE_FAILURES = (CharterScopeConflict, CharterScopeNotFound)
+
+
+def _context_failure_exit(exc: Exception, *, console, json_output: bool) -> typer.Exit:
+    """Report a context failure once, and keep operator-actionable scope refusals out of "Unexpected".
+
+    A scope an owned checkout cannot satisfy (a ``charter_scopes:`` list that
+    does not cover the Mission, a Mission directory that no longer matches the
+    handle) is the operator's to fix, so it prints its own message rather than
+    the generic unexpected-error line.
+    """
+    _emit_error(
+        console,
+        json_output=json_output,
+        message=str(exc),
+        unexpected=not isinstance(exc, _OPERATOR_ACTIONABLE_SCOPE_FAILURES),
+    )
+    return typer.Exit(code=1)
+
+
+def _resolve_context_scope(repo_root: Path, owned_checkout: OwnedCheckoutOption, mission: str | None) -> tuple[Path, CharterScope | None, Path | None]:
+    """Resolve explicit ownership before reading packs or writing context state."""
+    scope = None
+    feature_dir = None
+    if owned_checkout is not None:
+        if not mission:
+            raise TaskCliError("--mission is required with --owned-checkout.")
+        from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES
+
+        owned = resolve_owned_or_adopt(repo_root, owned_checkout, mission, cwd=Path.cwd(), allowed_topologies=NEXT_OWNED_TOPOLOGIES)
+        if owned is None:
+            raise TaskCliError("The explicit owned checkout did not resolve a Mission.")
+        scope = charter_scope_for_owned(owned)
+        repo_root = scope.root
+        feature_dir = owned.mission_dir
+    elif mission is not None:
+        raise TaskCliError("--mission requires --owned-checkout.")
+    return repo_root, scope, feature_dir
+
+
 @charter_app.command()
 def context(
+    owned_checkout: OwnedCheckoutOption = None,
+    mission: str | None = typer.Option(None, "--mission", help="Mission handle bound to the explicitly selected owned checkout."),
     action: str | None = typer.Option(
         None,
         "--action",
@@ -81,6 +137,13 @@ def context(
 
     try:
         repo_root = _charter_pkg.find_repo_root()
+        repo_root, scope, feature_dir = _resolve_context_scope(repo_root, owned_checkout, mission)
+        scope_arguments: _ScopeArguments = {}
+        mission_arguments: _MissionArguments = {}
+        if scope is not None:
+            scope_arguments["scope"] = scope
+            assert feature_dir is not None
+            mission_arguments["feature_dir"] = feature_dir
         # WP07 T034: resolve the configured org doctrine snapshot in the
         # specify_cli layer and pass it as data into the charter layer.
         # ``charter`` must not import ``specify_cli`` (ADR 2026-03-27-1).
@@ -99,6 +162,7 @@ def context(
                 include,
                 action=action,
                 org_roots=org_roots or None,
+                **scope_arguments,
             )
             if json_output:
                 print(
@@ -136,6 +200,8 @@ def context(
             # comment above where ``org_roots`` is computed.
             org_root=None,
             mission_type=mission_type,
+            **mission_arguments,
+            **scope_arguments,
         )
 
         if json_output:
@@ -155,6 +221,8 @@ def context(
                 org_charter_block=org_charter_block,
                 mission_type=mission_type,
                 include_all=include_all,
+                **mission_arguments,
+                **scope_arguments,
             )
             print(
                 json.dumps(
@@ -212,6 +280,9 @@ def context(
         # text, so it must not be parsed as Rich markup either.
         console.print(result.text, markup=False)
 
+    except ActionContextError as e:
+        _emit_error(console, json_output=json_output, message=str(e), code=e.code)
+        raise typer.Exit(code=1) from e
     except TaskCliError as e:
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
@@ -245,5 +316,4 @@ def context(
         _emit_error(console, json_output=json_output, message=e.body, code=e.code)
         raise typer.Exit(code=1) from e
     except Exception as e:
-        _emit_error(console, json_output=json_output, message=str(e), unexpected=True)
-        raise typer.Exit(code=1) from e
+        raise _context_failure_exit(e, console=console, json_output=json_output) from e

@@ -25,7 +25,11 @@ if TYPE_CHECKING:
 from pydantic import ValidationError
 from charter.activation.context import build_charter_context
 from charter.activation.pack_context import ActiveCharterConfigError
-from charter.activation.scope import CharterScopeConflict, CharterScopeNotFound
+from charter.activation.scope import (
+    CharterScope,
+    CharterScopeConflict,
+    CharterScopeNotFound,
+)
 from charter.activation.scope_router import build_with_scope
 from charter.activation.mission_type_profiles import (
     UnknownMissionTypeError,
@@ -90,11 +94,35 @@ def build_prompt(
     """
     governance_root = owned.owned_root if owned is not None else repo_root
     if action in ("implement", "review") and wp_id:
-        prompt_text = _build_wp_prompt(action, feature_dir, mission_slug, wp_id, agent, repo_root, mission_type, owned=owned)
+        prompt_text = _build_wp_prompt(
+            action,
+            feature_dir,
+            mission_slug,
+            wp_id,
+            agent,
+            repo_root,
+            mission_type,
+            owned=owned,
+        )
     else:
-        prompt_text = _build_template_prompt(action, feature_dir, mission_slug, agent, governance_root, mission_type)
+        prompt_text = _build_template_prompt(
+            action,
+            feature_dir,
+            mission_slug,
+            agent,
+            governance_root,
+            mission_type,
+            owned=owned,
+        )
 
-    prompt_file = _write_to_temp(action, wp_id, prompt_text, agent=agent, mission_slug=mission_slug, repo_root=governance_root)
+    prompt_file = _write_to_temp(
+        action,
+        wp_id,
+        prompt_text,
+        agent=agent,
+        mission_slug=mission_slug,
+        repo_root=governance_root,
+    )
     return prompt_text, prompt_file
 
 
@@ -151,13 +179,15 @@ def _build_template_prompt(
     agent: str,
     repo_root: Path,
     mission_type: str,
+    *,
+    owned: OwnedCheckout | None = None,
 ) -> str:
     """Build prompt from a command template file."""
     result = resolve_command(f"{action}.md", repo_root, mission=mission_type)
     template_content = result.path.read_text(encoding="utf-8")
 
     header = _mission_context_header(mission_slug, feature_dir, agent)
-    governance = _governance_context(repo_root, action=action, feature_dir=feature_dir)
+    governance = _governance_context(repo_root, action=action, feature_dir=feature_dir, owned=owned)
     return f"{header}\n\n{governance}\n\n{template_content}"
 
 
@@ -187,7 +217,15 @@ def _build_wp_prompt(
     lines: list[str] = []
     lines.extend(_workspace_header_lines(action, wp_id, agent, mission_slug, mission_type, workspace, owned))
     lines.extend(_mission_type_governance_lines(governance_root, feature_dir))
-    lines.append(_governance_context(governance_root, action=action, feature_dir=feature_dir, profile=agent_profile_id))
+    lines.append(
+        _governance_context(
+            governance_root,
+            action=action,
+            feature_dir=feature_dir,
+            profile=agent_profile_id,
+            owned=owned,
+        )
+    )
     lines.append("Authority references: project glossary `docs/context/`; architecture ADRs `docs/adr/`.")
     lines.append("")
     lines.extend(_isolation_rule_lines(wp_id, action))
@@ -459,6 +497,7 @@ def _governance_context(
     *,
     feature_dir: Path | None = None,
     profile: str | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> str:
     """Render governance context for prompt preamble.
 
@@ -486,6 +525,15 @@ def _governance_context(
     provided so monorepo operators get the nearest-enclosing charter, not
     always the root-project charter.
     """
+    # OwnedCheckout was validated at command admission; project it into the
+    # existing typed charter scope without changing any Git-root authority.
+    scope = None
+    if owned is not None:
+        from specify_cli.core.owned_charter import charter_scope_for_owned
+
+        # One owner for the mission/checkout invariant: the projector refuses a
+        # feature_dir that is not this owned Mission's directory.
+        scope = charter_scope_for_owned(owned, feature_dir)
     if action:
         try:
             if feature_dir is not None:
@@ -497,6 +545,7 @@ def _governance_context(
                     action=action,
                     mark_loaded=True,
                     profile=profile,
+                    scope=scope,
                 )
             else:
                 # Single-project / legacy path: call build_charter_context
@@ -507,9 +556,10 @@ def _governance_context(
                     action=action,
                     mark_loaded=True,
                     profile=profile,
+                    scope=scope,
                 )
             if context.mode != "missing":
-                return context.text
+                return str(context.text)
         except (CharterScopeConflict, CharterScopeNotFound):
             # Scope routing failures mean the operator-authored monorepo
             # governance config does not cover this feature path. Falling back
@@ -526,13 +576,13 @@ def _governance_context(
             # Non-fatal: fall back to compact governance rendering.
             pass
 
-    return _legacy_governance_context(repo_root)
+    return _legacy_governance_context(repo_root, scope=scope)
 
 
-def _legacy_governance_context(repo_root: Path) -> str:
+def _legacy_governance_context(repo_root: Path, *, scope: CharterScope | None = None) -> str:
     """Render compact governance context via resolver."""
     try:
-        resolution = resolve_project_governance(repo_root)
+        resolution = resolve_project_governance(repo_root, scope=scope)
     except GovernanceResolutionError as exc:
         return f"Governance: unresolved ({exc})"
     except Exception as exc:

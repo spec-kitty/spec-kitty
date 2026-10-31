@@ -186,3 +186,16 @@ def test_clear_caches_forces_reinvocation(tmp_path: Path) -> None:
 def test_typed_errors_share_base_class() -> None:
     assert issubclass(NotAGitRepositoryError, GitTopologyError)
     assert issubclass(GitTopologyUnavailableError, GitTopologyError)
+
+
+def test_uncached_toplevel_observation_does_not_reuse_or_clear_cached_authority(tmp_path: Path) -> None:
+    from kernel.git_topology import git_toplevel_uncached
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    with patch(_RUN, side_effect=[_fake(stdout=str(repo) + "\n"), _fake(returncode=128, stderr="not a git repository")]) as probe:
+        assert git_toplevel(repo) == repo.resolve()
+        with pytest.raises(NotAGitRepositoryError):
+            git_toplevel_uncached(repo)
+        assert git_toplevel(repo) == repo.resolve()
+        assert probe.call_count == 2

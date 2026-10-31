@@ -276,20 +276,33 @@ def _charter_path(repo_root: Path) -> tuple[Path | None, Path]:
         canonical_root = resolve_canonical_repo_root(repo_root)
     except NotInsideRepositoryError:
         canonical_root = repo_root
-    charter_yaml: Path = canonical_root / CHARTER_YAML
-    if charter_yaml.exists():
-        return charter_yaml, canonical_root
-    charter_md: Path = canonical_root / CHARTER_MD
-    if charter_md.exists():
-        return charter_md, canonical_root
-    return None, canonical_root
+    return _charter_candidate(canonical_root), canonical_root
 
 
-def collect_input_artifact_hashes(feature_dir: Path, repo_root: Path) -> dict[str, dict[str, str | None]]:
+def _charter_candidate(root: Path) -> Path | None:
+    """The charter file that keys staleness under *root*: ``charter.yaml``, else ``charter.md``, else ``None``.
+
+    One owner for the candidate order, so the canonical and the explicitly
+    owned charter root can never disagree about which file is the input.
+    """
+    for name in (CHARTER_YAML, CHARTER_MD):
+        candidate = root / name
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def collect_input_artifact_hashes(feature_dir: Path, repo_root: Path, *, charter_root: Path | None = None) -> dict[str, dict[str, str | None]]:
     """Return current hashes for analyzer source artifacts."""
 
     inputs = {name: _artifact_hash_entry(feature_dir / name, repo_root) for name in _hash_inputs()}
-    charter_path, canonical_root = _charter_path(repo_root)
+    # Explicit root is supplied only after the command validates OwnedCheckout.
+    # Ordinary lane callers retain the canonical-primary default.
+    if charter_root is None:
+        charter_path, canonical_root = _charter_path(repo_root)
+    else:
+        canonical_root = charter_root
+        charter_path = _charter_candidate(charter_root)
     if charter_path is None:
         inputs["charter"] = {"path": None, "sha256": None}
     else:
@@ -465,6 +478,7 @@ def render_analysis_report(
     analyzer_agent: str | None = None,
     material_inputs: dict[str, dict[str, str | None]] | None = None,
     transaction_id: str | None = None,
+    charter_root: Path | None = None,
 ) -> tuple[AnalysisReportResult, str]:
     """Render a report and its result without writing its destination."""
 
@@ -474,7 +488,7 @@ def render_analysis_report(
             raise AnalysisReportError(f"Required artifact missing: {required_path}")
 
     identity = resolve_mission_identity(feature_dir)
-    input_artifacts = collect_input_artifact_hashes(feature_dir, repo_root)
+    input_artifacts = collect_input_artifact_hashes(feature_dir, repo_root, charter_root=charter_root)
     if material_inputs is not None:
         input_artifacts.update(material_inputs)
 
@@ -534,6 +548,7 @@ def write_analysis_report(
     analyzer_agent: str | None = None,
     material_inputs: dict[str, dict[str, str | None]] | None = None,
     transaction_id: str | None = None,
+    charter_root: Path | None = None,
 ) -> AnalysisReportResult:
     """Persist `analysis-report.md` using the canonical report renderer."""
     result, content = render_analysis_report(
@@ -543,6 +558,7 @@ def write_analysis_report(
         analyzer_agent=analyzer_agent,
         material_inputs=material_inputs,
         transaction_id=transaction_id,
+        charter_root=charter_root,
     )
     atomic_write(result.path, content)
     return result
@@ -556,7 +572,7 @@ def report_semantics(content: str) -> tuple[dict[str, Any], str] | None:
     return ({key: value for key, value in metadata.items() if key not in {"generated_at", "report_transaction"}}, body)
 
 
-def check_analysis_report_current(feature_dir: Path, repo_root: Path) -> AnalysisFreshness:
+def check_analysis_report_current(feature_dir: Path, repo_root: Path, *, charter_root: Path | None = None) -> AnalysisFreshness:
     """Return whether `analysis-report.md` exists and matches current inputs."""
 
     path = feature_dir / ANALYSIS_REPORT_FILENAME
@@ -627,7 +643,7 @@ def check_analysis_report_current(feature_dir: Path, repo_root: Path) -> Analysi
     # map to a typed ok=False result instead of letting it propagate into this
     # function's caller, _require_current_analysis_report.
     try:
-        current = collect_input_artifact_hashes(feature_dir, repo_root)
+        current = collect_input_artifact_hashes(feature_dir, repo_root, charter_root=charter_root)
     except PathRelativizationError as exc:
         return AnalysisFreshness(
             ok=False,

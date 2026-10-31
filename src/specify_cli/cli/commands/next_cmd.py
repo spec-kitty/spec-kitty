@@ -113,7 +113,8 @@ def analysis_currency_for(
         from specify_cli.analysis_report import check_analysis_report_current
 
         feature_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.ANALYSIS_REPORT)
-        return _analysis_verdict(check_analysis_report_current(feature_dir, repo_root))
+        freshness_root = owned.owned_root if owned is not None else repo_root
+        return _analysis_verdict(check_analysis_report_current(feature_dir, freshness_root, charter_root=owned.owned_root if owned is not None else None))
 
     return _check
 

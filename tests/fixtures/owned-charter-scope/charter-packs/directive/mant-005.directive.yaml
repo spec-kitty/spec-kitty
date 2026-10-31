@@ -1,0 +1,13 @@
+id: MANT_005
+schema_version: '1.0'
+title: Focused validated delivery
+intent: Changes remain local and use targeted staging. A coherent branch-local slice must pass the
+  strongest relevant local validation before review; no CI or direct-main change is introduced
+  without explicit approval.
+enforcement: required
+scope: Applies to implement and review.
+procedures: []
+integrity_rules: []
+validation_criteria: []
+explicit_allowances: []
+references: []
