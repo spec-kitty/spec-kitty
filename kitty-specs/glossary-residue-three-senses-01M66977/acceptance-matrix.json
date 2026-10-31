@@ -1,0 +1,49 @@
+{
+  "mission_slug": "glossary-residue-three-senses-01M66977",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_glossary_residue_entry.py::test_residue_entry_present_in_orchestration_glossary (green at HEAD e0fbf8b7ae)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T12:03:39.609602+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_write_seam_docstring_links_entry + test_read_side_docstring_links_entry + test_audit_engine_docstring_links_entry; identity_audit.py module docstring link is the approved C1 extension",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T12:03:47.382325+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_terminology_canon_links_entry (AGENTS.md Terminology Canon bullet links docs/context/orchestration.md#residue)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T12:03:50.292980+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "python scripts/generate_contextive_glossaries.py check -> All 13 generated file(s) are up-to-date (exit 0); orchestration.yml carries the Residue term",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T12:03:53.268221+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
