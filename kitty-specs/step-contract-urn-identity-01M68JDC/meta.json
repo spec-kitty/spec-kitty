@@ -18,7 +18,7 @@
   "friendly_name": "Step-contract URN identity",
   "mid8": "01M68JDC",
   "mission_id": "01M68JDC2W9RGKEHN7M3VBQ0CK",
-  "mission_number": null,
+  "mission_number": 245,
   "mission_slug": "step-contract-urn-identity-01M68JDC",
   "mission_type": "software-dev",
   "purpose_context": "Activation tokens for built-in mission step contracts resolve to a DRG URN that is not a node, so the activation filter and the config<->graph parity check disagree with the shipped graph. Align the identity and add a drift gate.",
