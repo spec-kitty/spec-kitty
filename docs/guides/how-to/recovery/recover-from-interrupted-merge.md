@@ -2,7 +2,7 @@
 title: Recover from an Interrupted Consolidation
 description: 'How to recover from an interrupted consolidation with Spec Kitty 3.2: Learn how to resume or abort a spec-kitty consolidate run that was interrupted before it completed.'
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-10-31'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
@@ -80,13 +80,15 @@ the late commit is intact and the target is not rolled back.
 
 ### What a resume lands from the coordination branch
 
-A `--resume` that finishes the teardown projects every coordination record that
-landed on the coordination branch after the consolidation verified the landing —
-review-cycle files, tracer files, the decision log and the status pair, and a
-gate-matrix commit such as `spec-kitty agent issue-verdict`. That is why the
-remedy for a `COORD_TEARDOWN_KEPT_ONLY_COPY` (exit 76) refusal is to commit the
-files it names on the coordination branch and resume: the resume carries them
-across instead of deleting them with the branch.
+A `--resume` that finishes the teardown projects every coordination record the
+coordination branch changed **since the merge began** — review-cycle files,
+tracer files, the decision log and the status pair, and a gate-matrix commit
+such as `spec-kitty agent issue-verdict`. The window starts at the snapshot the
+consolidation persisted before it touched anything, so it reaches back to the
+START of the merge; it is not limited to what landed after the landing was
+verified. That is why the remedy for a `COORD_TEARDOWN_KEPT_ONLY_COPY` (exit
+76) refusal is to commit the files it names on the coordination branch and
+resume: the resume carries them across instead of deleting them with the branch.
 
 The resume proves that before it deletes anything, and refuses when it cannot:
 
@@ -96,10 +98,15 @@ The resume proves that before it deletes anything, and refuses when it cannot:
   into a non-established one.
 - It will not express a deletion: a coordination record removed on the
   coordination branch stays on the target.
-- It refuses if any coordination record committed after the teardown gate is not
-  on the target.
+- It refuses if any coordination record changed in that window is not on the
+  target.
 
-A refusal there names the file, exits non-zero and keeps the coordination
+**This is stricter than earlier releases.** On an ordinary resume — not only one
+that follows a refusal — a window that deletes a coordination record the target
+holds now makes `spec-kitty consolidate` exit 1, where it used to exit 0 and let
+the deletion vanish with the coordination branch.
+
+A refusal there names the file, exits 1 and keeps the coordination
 branch, its worktree and the Mission's coordination marker together, so nothing
 is lost and nothing is rolled back. Land that file on the target yourself (or
 move it out of the Mission and commit it there), then run

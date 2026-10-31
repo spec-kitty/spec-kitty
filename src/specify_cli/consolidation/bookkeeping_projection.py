@@ -722,12 +722,16 @@ def _post_checkpoint_mission_paths(
     #
     # #6791 -- the gate-matrix exclusion is WINDOW-SCOPED, not a property of the kind:
     # in the MID-MERGE window above the coord ref can only hold the stale placeholder,
-    # but in the POST-TEARDOWN window (``pre_mutation_coord_sha..coord-tip`` on a
-    # ``--resume`` after a refused teardown) every commit landed AFTER the landing was
-    # verified, so a matrix commit there is newer than anything the target holds. That
-    # window passes ``include_gate_matrices=True`` and lands it through
-    # :func:`project_late_gate_matrix_commits`; the default keeps this selector's path
-    # set byte-identical because its output feeds the reconciliation squash proof.
+    # but the resumed teardown's late window (``pre_mutation_coord_sha..coord-tip``)
+    # starts at the PRE-mutation snapshot the merge persisted before it touched anything,
+    # so it reaches back to the start of the merge -- it also holds every coordination
+    # commit made while the merge ran, not only those made after the landing was
+    # verified. A gate matrix in it is therefore newer than the checkpoint but NOT
+    # necessarily newer than the target's accept-time fill, so this window lands one
+    # only through the evidence guard (:func:`_assert_projection_preserves_evidence`),
+    # never blindly. That window passes ``include_gate_matrices=True`` and lands it
+    # through :func:`project_late_gate_matrix_commits`; the default keeps this selector's
+    # path set byte-identical because its output feeds the reconciliation squash proof.
     excluded_kinds = {MissionArtifactKind.ISSUE_MATRIX, MissionArtifactKind.ACCEPTANCE_MATRIX}
     if include_gate_matrices:
         excluded_kinds = set()
@@ -846,7 +850,7 @@ class LateProjectionRefused(Exception):
     """A late coordination commit cannot be landed without losing evidence (#6791).
 
     Raised by :func:`project_late_gate_matrix_commits` and
-    :func:`assert_late_window_landed` when the post-teardown window cannot be projected
+    :func:`assert_late_window_landed` when the late window cannot be projected
     faithfully. The teardown phase turns it into a ``CoordinationTeardownError`` so the
     coordination branch, worktree and marker are kept for the operator, and picks the
     operator-facing remedy from :attr:`kind`.
@@ -1006,13 +1010,18 @@ def project_late_gate_matrix_commits(
     coord_ref: str,
     checkpoint_sha: str,
 ) -> tuple[Path, ...]:
-    """Project the gate-matrix commits that landed after the coordination checkpoint (#6791).
+    """Project the gate-matrix commits that landed in the late window (#6791).
 
-    The post-teardown window ``checkpoint_sha..coord_ref`` only holds commits made AFTER the
-    merge verified the landing, so a gate matrix there is newer than anything the target
-    holds -- unlike the mid-merge window the general selector excludes them for. Content is
-    brought FORWARD only: a path deleted on the coordination branch cannot be expressed by a
-    projection and REFUSES rather than resurrecting or silently dropping it.
+    The late window ``checkpoint_sha..coord_ref`` starts at the merge's PRE-mutation
+    coordination snapshot, so it reaches back to the START of the merge: it holds every
+    coordination commit made since then, including the ones the merge itself carried to
+    the target. A gate matrix there is newer than the checkpoint but not necessarily newer
+    than the target's accept-time fill -- unlike the mid-merge window the general selector
+    excludes them for, where the coord ref can only hold a stale placeholder. That is why
+    every matrix in it is proved evidence-preserving here (:func:`_assert_projection_preserves_evidence`)
+    rather than trusted by window. Content is brought FORWARD only: a path deleted on the
+    coordination branch cannot be expressed by a projection and REFUSES rather than
+    resurrecting or silently dropping it.
 
     Returns the target-checkout paths whose content was brought forward. Raises
     :class:`LateProjectionRefused` when the projection cannot be proven evidence-preserving.
@@ -1074,6 +1083,12 @@ def assert_late_window_landed(
     stage owns them and runs after this projection. ``meta.json`` and every other
     PRIMARY-partition artifact are not coordination records and are the target's own.
 
+    The window starts at the merge's PRE-mutation coordination snapshot, so "the late
+    window" is everything the coordination branch changed SINCE THE MERGE BEGAN -- not
+    only what landed after the landing was verified. A record the window deletes therefore
+    counts here too, and an ordinary resume that contains such a deletion refuses where it
+    used to exit 0 and drop the deletion with the branch.
+
     Raises:
         LateProjectionRefused: at least one coordination record in the window is not landed.
     """
@@ -1100,7 +1115,7 @@ def assert_late_window_landed(
         return
     shown = ", ".join(unlanded[:20]) + (f" (and {len(unlanded) - 20} more)" if len(unlanded) > 20 else "")
     raise LateProjectionRefused(
-        f"{len(unlanded)} coordination record(s) that landed on the coordination branch after the teardown gate are not landed on the target: {shown}",
+        f"{len(unlanded)} coordination record(s) the coordination branch changed since the merge began are not landed on the target: {shown}",
         kind=LateProjectionRefusalKind.RECORD_NOT_LANDED,
     )
 

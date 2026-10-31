@@ -364,7 +364,7 @@ def _unlanded_paths_outside_mission_dir(run: _MergeRunState, base: str, coord_re
 
 
 def _land_late_coordination_commits(run: _MergeRunState) -> None:
-    """Project coordination commits that landed after the teardown gate onto the target (#5570).
+    """Project the coordination commits the target never received, before teardown deletes them (#5570).
 
     The recovery half of the tip-moved refusal (:func:`_tip_moved_teardown_error`): a
     ``--resume`` finishing teardown must not delete a coordination branch carrying a commit
@@ -387,6 +387,13 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     -- and after the projection commit every coordination record changed in the window must be
     byte-identical on the target, or the teardown REFUSES (branch, worktree and marker kept)
     instead of deleting a commit it did not land.
+
+    The window starts at the PRE-mutation coordination snapshot (``state.pre_mutation_coord_sha``),
+    so it spans everything the coordination branch changed SINCE THE MERGE BEGAN, not only what
+    landed after the landing was verified: it also carries commits made while the merge ran. The
+    refusal is therefore reachable on an ordinary resume, not just one that follows a refused
+    teardown -- a window that deletes a record the target holds REFUSES (exit 1) where this path
+    used to exit 0 and drop the deletion with the branch (see :func:`assert_late_window_landed`).
     """
     checkpoint = run.coord_checkpoint
     base = run.state.pre_mutation_coord_sha
@@ -419,10 +426,11 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             coord_ref=checkpoint.ref,
         )
         late_paths = [run.main_repo / rel for rel in _post_checkpoint_mission_paths(run.main_repo, run.mission_slug, base, checkpoint.ref)]
-        # #6791: a gate matrix committed in this window is newer than anything the target
-        # holds (every commit here landed after the landing was verified), so it is
-        # projected too -- with a guard that never loses or overturns a judgement the
-        # target already holds.
+        # #6791: a gate matrix changed in this window is projected too. The window starts at
+        # the PRE-mutation snapshot, so it reaches back to the start of the merge; a matrix in
+        # it is newer than the checkpoint but not necessarily newer than the target's
+        # accept-time fill, so the projection is guarded -- it never loses or overturns a
+        # judgement the target already holds.
         gate_matrix_paths = list(
             project_late_gate_matrix_commits(
                 main_repo=run.main_repo,
