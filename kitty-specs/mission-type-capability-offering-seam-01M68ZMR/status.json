@@ -1,0 +1,122 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M694NV877VAQT7AFBJ0HVZ0V",
+  "materialized_at": "2026-10-31T14:09:06.311501+00:00",
+  "mission_number": "245",
+  "mission_slug": "mission-type-capability-offering-seam-01M68ZMR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M694NTGZ3C4HK2SCEAYJ4KEQ",
+      "last_transition_at": "2026-10-31T14:09:05.567907+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T12:50:21Z – unknown – Red-first seam test authored; collection fails with ImportError: cannot import name 'MissionTypeCapabilities' from charter.offering.api (the pre-change tree).",
+        "Review passed: seam-only imports verified; protocol negative control fails on a partial source; fail-loud read asserted; typeless and authored-custom reads pinned; subprocess layering probe carries a positive control; FR-001..004,007,008 covered. Red at this WP by design (implementation lands in WP02). One review fix applied: removed a coverage pragma defeated by the live read, hoisted the stub pack above its test."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 242865,
+      "shell_pid_created_at": "1793451063.34",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      },
+      "tracker_refs": [
+        "#6331"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M694NTWQ1BJ5WZ4N15939NJM",
+      "last_transition_at": "2026-10-31T14:09:05.943673+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Contract module + seam manifest + charter.missions facade + DTO property landed. Seam test 14 passed; facade identity gate 197 passed; charter suite 53 passed/1 skipped; mypy on the new module clean. Public-surface disposition gate fails only on the missing census row, which WP03 adds by design. Out-of-map edit: tests/architectural/test_charter_facades_reexport_offering.py identity table (no WP owns that file).",
+        "Review passed: (1) dead code — a real consumer exists for every new symbol; the offering public-surface, facade-identity, dead-symbol and runtime/charter boundary gates were run and pass (dead-symbol + boundary gates green; the disposition gate still fails on the WP03-owned census row, by design). (2) The new module imports dataclasses+typing only; no activation reach. (3) capabilities_of fails loud, no silent defaults. (4) Facade re-exports from charter.offering.api by identity; DTO nominally conforms to the protocol. (5) No semantics changed: capability defaults, thunks and consumers untouched. Review change applied: the DTO now reaches the contract through the charter.missions facade and declares the protocol as a base class, so all three seam symbols have a live in-repo consumer; ruff-format churn accidentally introduced in mission_type_profiles.py was reverted to keep the diff to two hunks."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 483447,
+      "shell_pid_created_at": "1793452009.18",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "#6331"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M694NV877VAQT7AFBJ0HVZ0V",
+      "last_transition_at": "2026-10-31T14:09:06.311501+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "PUBLIC census row for the new offering module; ADR 2026-10-03-1 amendment recording the additive seam symbols; [Unreleased] changelog entry (981 chars). Gates: doctrine census 39 passed, offering public-surface + facade identity 203 passed, no-legacy-terminology 98 passed, docs freshness errors=0 (docs-retrieval-index regenerated for the amended ADR only, one line).",
+        "Review passed: census row is an additive PUBLIC disposition (no gate loosened); the ADR amendment states what crosses the seam and what deliberately does not, with the boundary ADR cited; the changelog entry is impact-first, under 1,200 characters and names #6331; the docs index was regenerated for the amended ADR only (one line) and freshness is at errors=0. Gate files were run, not skipped."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 941675,
+      "shell_pid_created_at": "1793454675.25",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      },
+      "tracker_refs": [
+        "#6331"
+      ]
+    }
+  }
+}

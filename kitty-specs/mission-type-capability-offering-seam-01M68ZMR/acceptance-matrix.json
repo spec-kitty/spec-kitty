@@ -1,0 +1,89 @@
+{
+  "mission_slug": "mission-type-capability-offering-seam-01M68ZMR",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_mission_type_capabilities_seam.py::test_capability_symbols_are_on_the_seam_manifest,test_value_object_is_frozen_and_compares_by_value",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:08:18.949977+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_mission_type_capabilities_seam.py::test_resolved_bundle_satisfies_the_protocol,test_protocol_rejects_a_source_missing_a_capability",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:08:22.018122+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_mission_type_capabilities_seam.py::test_capabilities_of_fails_loud_on_a_non_conforming_source",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:08:24.301951+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_mission_type_capabilities_seam.py::test_builtin_capabilities_read_through_the_seam (4 built-in families)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:08:27.048097+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_charter_facades_reexport_offering.py::test_every_public_symbol_is_routed_through_a_facade + test_facade_reexports_offering_symbol_by_identity[charter.missions.*]",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:08:30.065074+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_charter_offering_public_surface.py::test_every_public_symbol_originates_from_a_public_disposition",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:08:33.135939+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_mission_type_capabilities_seam.py::test_importing_the_contract_pulls_in_no_activation_module,test_the_activation_probe_sees_activation_when_it_is_there,test_the_contract_module_imports_nothing_from_activation",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:08:37.204844+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/test_mission_type_capabilities_seam.py::test_typeless_mission_reads_both_capabilities_false,test_custom_type_declaring_substantive_spec_reads_true",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:08:40.295818+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
