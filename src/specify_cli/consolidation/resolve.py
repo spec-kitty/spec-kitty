@@ -18,7 +18,9 @@ from pathlib import Path
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import get_main_repo_root
-from specify_cli.consolidation._constants import logger
+import typer
+
+from specify_cli.consolidation._constants import DEPENDENCY_REF_SET_CHANGED, error_code_suffix, logger
 from specify_cli.consolidation.state import (
     ConsolidationState,
     ConsolidationStateReadError,
@@ -221,6 +223,23 @@ def _load_merge_state_entry_for_mission(
     return None
 
 
+def _check_declared_set(state: ConsolidationState, declared: tuple[str, ...]) -> None:
+    """Refuse (exit 1) a ``--dependency-ref`` set that differs from the one the loaded record holds (#6771)."""
+    if not declared or not state.dependency_refs or set(state.dependency_refs) == set(declared):
+        return
+    from specify_cli.cli.console import console
+
+    console.print(
+        f"This consolidation already recorded dependency ref(s) {', '.join(state.dependency_refs)}; "
+        f"--dependency-ref {', '.join(declared)} is a different set, and the record is the audit trail of what the "
+        "interrupted run exempted. Re-run with the recorded set (or none), or run `spec-kitty consolidate --abort` "
+        f"and start again.{error_code_suffix(DEPENDENCY_REF_SET_CHANGED)}",
+        markup=False,
+        soft_wrap=True,
+    )
+    raise typer.Exit(1)
+
+
 def _load_or_create_merge_state(
     *,
     main_repo: Path,
@@ -252,14 +271,17 @@ def _load_or_create_merge_state(
     ``dependency_refs`` (#6771) are the operator's ``--dependency-ref`` declarations. A
     fresh record is born with them; a LOADED record keeps its own unless this run
     restates a declaration (``--dependency-ref`` on the resuming command), which replaces
-    them — the operator is the only authority for the declaration, and a resume that
-    inherited nothing must not silently lose the attribution the interrupted run used.
-    Only the LIST is recorded here; each ref is verified when the claim is built.
+    them only when this run restates the SAME set. A DIFFERENT set over an existing record
+    is refused (``DEPENDENCY_REF_SET_CHANGED``, exit 1): the record is the audit trail of
+    what the interrupted run exempted, so it is never silently replaced; the remedy is
+    ``consolidate --abort`` and a fresh run. Only the LIST is recorded here; each ref is
+    verified (and pinned) when the claim is built.
     """
     declared = tuple(dict.fromkeys(ref.strip() for ref in dependency_refs if ref.strip()))
     canonical_state = load_state(main_repo, canonical_id)
     if canonical_state is not None:
-        if declared and tuple(canonical_state.dependency_refs) != declared:
+        _check_declared_set(canonical_state, declared)
+        if declared and not canonical_state.dependency_refs:
             canonical_state.dependency_refs = list(declared)
             save_state(canonical_state, main_repo)
         return canonical_state, True
@@ -282,7 +304,8 @@ def _load_or_create_merge_state(
             save_state(state, main_repo)
             if source_key is not None and source_key != canonical_id:
                 clear_state(main_repo, source_key)
-        if declared and tuple(state.dependency_refs) != declared:
+        _check_declared_set(state, declared)
+        if declared and not state.dependency_refs:
             state.dependency_refs = list(declared)
             save_state(state, main_repo)
         return state, True

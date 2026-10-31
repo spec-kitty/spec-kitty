@@ -259,6 +259,9 @@ class _MergeRunState:
     #: durable authority is :attr:`ConsolidationState.dependency_refs` (so a ``--resume``
     #: keeps the declaration); this is the per-run view the claim build reads.
     dependency_refs: tuple[str, ...] = ()
+    #: #6771: ``ref -> SHA`` the declared refs are pinned to (durable authority:
+    #: :attr:`ConsolidationState.dependency_ref_pins`). Empty until the first claim build pins them.
+    dependency_ref_pins: dict[str, str] = field(default_factory=dict)
 
     # #2786 / #2367-B FR-005: the WPs THIS merge newly bakes ``done`` for during
     # its pre-target bake — every lane WP MINUS those already durably ``done`` on

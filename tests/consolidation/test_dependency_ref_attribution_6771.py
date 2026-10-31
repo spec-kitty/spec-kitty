@@ -36,7 +36,7 @@ def _git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
 
 
-def _restack_lane_b_onto_a_dependency(mission: object, tmp_path: Path) -> str:
+def _restack_lane_b_onto_a_dependency(mission: object, tmp_path: Path, *, reapprove: bool = True) -> str:
     """Cut an external branch from the repo root, merge it --no-ff into WP02's lane, re-approve.
 
     ``src/dep/*`` is content no work package owns, and the branch is not an ancestor of the
@@ -59,7 +59,8 @@ def _restack_lane_b_onto_a_dependency(mission: object, tmp_path: Path) -> str:
     _git(repo, "worktree", "add", lane_wt.as_posix(), mission.lane_branch("WP02"))  # type: ignore[attr-defined]
     _git(lane_wt, "merge", "-q", "--no-ff", "--no-edit", DEP_BRANCH)
     _git(repo, "worktree", "remove", lane_wt.as_posix())
-    restamp_approvals_at_lane_tips(mission)  # type: ignore[arg-type]
+    if reapprove:
+        restamp_approvals_at_lane_tips(mission)  # type: ignore[arg-type]
     return _git(repo, "rev-parse", DEP_BRANCH)
 
 
@@ -123,14 +124,14 @@ def test_declared_dependency_merge_lands_under_squash_strategy(tmp_path: Path) -
     assert _blob_present(mission.repo, mission.target_branch, "src/pkg/wp02.py")
 
 
-def test_a_declaration_that_covers_mission_work_is_refused_end_to_end(tmp_path: Path) -> None:
-    """No bypass: declaring a lane branch (mission-authored work) refuses before any ref moves."""
-    mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M6771P")
-    _restack_lane_b_onto_a_dependency(mission, tmp_path)
+def test_declared_dependency_merge_after_approval_is_still_refused_by_the_approved_bound(tmp_path: Path) -> None:
+    """The declaration exempts closed-world authorship only: a merge made AFTER review approved the lane stays refused."""
+    mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M6771Q")
+    _restack_lane_b_onto_a_dependency(mission, tmp_path, reapprove=False)
     pre_target = mission.rev(mission.target_branch)
 
-    real = _consolidate(mission, "--strategy", "merge", "--dependency-ref", mission.lane_branch("WP02"))
+    real = _consolidate(mission, "--strategy", "merge", "--dependency-ref", DEP_BRANCH)
 
-    assert real.returncode != 0
-    assert "first-parent spine" in real.stdout
+    assert real.returncode != 0, real.stdout[-2000:]
+    assert "LANE_MOVED_AFTER_APPROVAL" in real.stdout
     assert mission.rev(mission.target_branch) == pre_target

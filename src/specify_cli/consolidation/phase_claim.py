@@ -529,10 +529,12 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
             # #6771: the declared external dependency refs (verified fail-closed inside the
             # claim builder, so a bad declaration refuses HERE, before the first mutation).
             external_dependency_refs=run.dependency_refs,
+            external_dependency_pins=run.dependency_ref_pins,
         )
     except GitProbeError as exc:
         _exit_on_claim_probe_error(exc)
 
+    _pin_dependency_refs(run)
     _print_dependency_refs(run)
     _print_no_implementation_lifts(run.feature_dir, run.approved_wp_set.no_implementation_attested_wp_ids)
     run.validated_lane_tips = dict(run.approved_wp_set.bound_lane_tips)
@@ -549,6 +551,24 @@ def _capture_reconciliation_claim(run: _MergeRunState) -> None:
     # #5318 / #5332: snapshot every branch this attempt may move, strictly before
     # the first mutating phase, and fix this attempt's restore targets.
     _capture_snapshot_and_begin_attempt(run)
+
+
+def _pin_dependency_refs(run: _MergeRunState) -> None:
+    """Persist the SHAs the declared refs were verified against, once (#6771).
+
+    Pins are written the first time a claim build verifies a ref and never rewritten: a later
+    claim build (``--resume``) or the gate verifies the PINNED commit and refuses a name that
+    now resolves elsewhere. A record that predates pins is pinned here, on first use.
+    """
+    claim = run.approved_wp_set
+    if claim is None or not claim.external_dependency_pins:
+        return
+    fresh = {ref: sha for ref, sha in claim.external_dependency_pins.items() if ref not in run.dependency_ref_pins}
+    if not fresh:
+        return
+    run.dependency_ref_pins.update(fresh)
+    run.state.dependency_ref_pins.update(fresh)
+    save_state(run.state, run.main_repo)
 
 
 def _print_dependency_refs(run: _MergeRunState) -> None:

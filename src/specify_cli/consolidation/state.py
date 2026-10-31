@@ -88,7 +88,7 @@ class MergeLockError(Exception):
         )
 
 
-_REF_MAP_FIELDS = ("pre_mutation_refs", "post_mutation_refs", "restore_targets", "released_refs", "release_reasons")
+_REF_MAP_FIELDS = ("pre_mutation_refs", "post_mutation_refs", "restore_targets", "released_refs", "release_reasons", "dependency_ref_pins")
 
 
 def _str_map_or_empty(value: object) -> dict[str, str]:
@@ -211,6 +211,13 @@ class ConsolidationState:
     # mission-spine commit in it) when the claim is built, and the sets it exempts are
     # emptied the moment a guard fails. Empty for every run that declared none.
     dependency_refs: list[str] = field(default_factory=list)
+    # #6771: ``ref -> SHA`` each declared ref was verified against, written ONCE when the claim
+    # is first built and never rewritten. The gate and a ``--resume`` verify THESE commits; a
+    # name that now resolves elsewhere refuses (``DEPENDENCY_REF_MOVED``). Back-compat: a
+    # record written before this field holds names only, so its refs are UNPINNED -- the next
+    # claim build resolves and pins them (first use), exactly the pre-pin behaviour for that
+    # one record. A malformed value loads as ``{}`` (unpinned), never as a pin.
+    dependency_ref_pins: dict[str, str] = field(default_factory=dict)
     # terminus-merge-integrity-01M380R6 #5001 pre-merge FOLD-4: the target ref's
     # tip at TRANSACTION START (before any lane/mission->target advance) -- the
     # excluded/closed-world reconciliation window base AND the rollback CAS anchor.

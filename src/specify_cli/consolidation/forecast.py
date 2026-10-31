@@ -53,7 +53,7 @@ from specify_cli.consolidation._constants import (
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
 from specify_cli.consolidation.preflight import refuse_protected_status_target
-from specify_cli.consolidation.state import needs_number_assignment
+from specify_cli.consolidation.state import ConsolidationStateReadError, load_state, needs_number_assignment
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_artifact_surface
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
@@ -273,6 +273,27 @@ UNATTRIBUTABLE_CONTENT_FORECAST = "UNATTRIBUTABLE_CONTENT_FORECAST"
 CLAIM_REFUSED_FORECAST = "CLAIM_REFUSED_FORECAST"
 
 
+def _declared_with_recorded(
+    main_repo: Path,
+    lanes_manifest: LanesManifest,
+    resolved_feature: str,
+    cli_refs: tuple[str, ...],
+) -> tuple[tuple[str, ...], dict[str, str]]:
+    """The refs the real run would verify: the recorded ones (an interrupted run's record) united with the CLI's, plus their pins (#6771).
+
+    ``--dry-run`` previews what a plain re-run or ``--resume`` would do, and that run reads the
+    persisted declaration; reading only the CLI would preview a verdict the run does not reach.
+    """
+    try:
+        recorded = load_state(main_repo, lanes_manifest.mission_id or resolved_feature)
+    except ConsolidationStateReadError:
+        logger.debug("an unreadable consolidation record contributes no recorded dependency refs to the forecast", exc_info=True)
+        recorded = None
+    if recorded is None:
+        return cli_refs, {}
+    return tuple(dict.fromkeys([*recorded.dependency_refs, *cli_refs])), dict(recorded.dependency_ref_pins)
+
+
 def _refuse_unattributable_in_forecast(
     *,
     repo_root: Path,
@@ -295,6 +316,7 @@ def _refuse_unattributable_in_forecast(
     Nothing is mutated: the claim build and the scan are read-only.
     """
     main_repo = get_main_repo_root(repo_root)
+    dependency_refs, dependency_pins = _declared_with_recorded(main_repo, lanes_manifest, resolved_feature, dependency_refs)
     try:
         window_base = resolve_commit(main_repo, resolved_target_branch)
     except GitProbeError:
@@ -315,6 +337,7 @@ def _refuse_unattributable_in_forecast(
             coord_base_ref=lanes_manifest.mission_branch,
             excluded_window_base=window_base,
             external_dependency_refs=dependency_refs,
+            external_dependency_pins=dependency_pins,
         )
         refusal = claim_integrity_refusal(claim)
         if refusal is not None:

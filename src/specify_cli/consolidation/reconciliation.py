@@ -62,8 +62,17 @@ from typing import Any, Literal, NamedTuple
 
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
 from specify_cli.lanes._git import branch_exists
+from specify_cli.lanes.lane_tip import LaneTipListingError, read_tip, recorded_tip_branches
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.consolidation._constants import (
+    DEPENDENCY_REF_COVERS_MISSION_WORK,
+    DEPENDENCY_REF_MOVED,
+    DEPENDENCY_REF_UNREACHABLE,
+    DEPENDENCY_REF_UNRESOLVED,
+    DEPENDENCY_REF_UNVERIFIABLE,
+    error_code_suffix,
+)
 from specify_cli.consolidation.approved_bound import (
     BoundRefusal,
     BoundRefusalCode,
@@ -109,6 +118,7 @@ from specify_cli.consolidation.wp_attribution import (
     lane_never_started,
     lane_own_commits,
     resolve_canceled_wp,
+    stamp_of,
 )
 
 logger = logging.getLogger(__name__)
@@ -165,19 +175,36 @@ _GAP_UNCHANGED: PresenceGap = "unchanged"
 # the declaration, because the operator has to fix the command, not the repository.
 _REFUSE_DEPENDENCY_UNRESOLVED = (
     "external dependency ref '{ref}' does not resolve to a commit; declare a ref that resolves (a branch, tag or SHA), "
-    "or drop --dependency-ref. Nothing was exempted"
+    "or drop --dependency-ref. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNRESOLVED)
 )
 _REFUSE_DEPENDENCY_NOT_MERGED = (
     "external dependency ref '{ref}' is not reachable from the mission branch {mission_branch} or from any lane branch, so the "
-    "mission never merged it in and it cannot explain any content in the landing window. Nothing was exempted"
+    "mission never merged it in and it cannot explain any content in the landing window. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNREACHABLE)
 )
 _REFUSE_DEPENDENCY_COVERS_MISSION_WORK = (
     "external dependency ref '{ref}' would exempt commit {sha} which sits on {spine} — an external dependency may never cover "
     "mission-authored work (that is exactly how a removed work package's commit rides a carrier lane). Nothing was exempted"
+    + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
+)
+_REFUSE_DEPENDENCY_MISSION_NAMESPACE = (
+    "external dependency ref '{ref}' is named inside this Mission's own branch namespace ({namespace}); a Mission's branches hold "
+    "mission-authored work, also after the branch is deleted or its work package is removed. Nothing was exempted"
+    + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
+)
+_REFUSE_DEPENDENCY_RECORDED_TIP = (
+    "external dependency ref '{ref}' would exempt commit {sha}, which {recorded} — a Mission's recorded work tip is "
+    "mission-authored work, whether or not its work package or lane branch still exists. Nothing was exempted"
+    + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
 )
 _REFUSE_DEPENDENCY_NO_WINDOW_BASE = (
     "dependency ref(s) {refs} are declared but the target's pre-run commit could not be resolved, so the window a "
-    "declaration would exempt cannot be bounded (fail-closed). Nothing was exempted"
+    "declaration would exempt cannot be bounded (fail-closed). Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNVERIFIABLE)
+)
+_REFUSE_DEPENDENCY_PROBE = "a git probe failed while {doing}: {exc}. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNVERIFIABLE)
+_REFUSE_DEPENDENCY_MOVED = (
+    "external dependency ref '{ref}' was pinned to {pinned} when this consolidation claimed it, but now resolves to {now}. "
+    "A declaration is verified once, against the commit it named; a moved ref would exempt different history than the one "
+    "that was verified. Restore the ref to {pinned}, or run `spec-kitty consolidate --abort` and re-run with the new ref" + error_code_suffix(DEPENDENCY_REF_MOVED)
 )
 
 #: Error code of the #5571 verdict: an approved lane's final authored content is
@@ -713,6 +740,9 @@ class ApprovedWpCommitSet:
     # no declaration, so the pre-#6771 behavior holds byte-for-byte (NFR-003). A declaration
     # never widens what is attributed to a WORK PACKAGE; it narrows what is flagged.
     external_dependency_refs: tuple[str, ...] = ()
+    #: ``ref -> SHA`` each declared ref was verified against (:attr:`ExternalDependencyAttribution.pins`);
+    #: the gate re-checks them so a ref moved after the claim refuses (``DEPENDENCY_REF_MOVED``).
+    external_dependency_pins: Mapping[str, str] = field(default_factory=dict)
     external_dependency_shas: frozenset[str] = frozenset()
     external_dependency_blobs: frozenset[tuple[str, str]] = frozenset()
     external_dependency_deletions: frozenset[str] = frozenset()
@@ -1570,6 +1600,7 @@ def build_approved_wp_set(
     excluded_canceled_wp_ids: Iterable[str] = (),
     excluded_window_base: str | None = None,
     external_dependency_refs: Sequence[str] = (),
+    external_dependency_pins: Mapping[str, str] | None = None,
 ) -> ApprovedWpCommitSet:
     """Derive the fail-closed, reduced-snapshot claim once per transaction (T027).
 
@@ -1602,17 +1633,23 @@ def build_approved_wp_set(
     # direct ``spec_kitty_events`` import).
     from specify_cli.status import materialize_snapshot
 
+    lane_heads = _recorded_lane_heads(feature_dir) if external_dependency_refs else frozenset()
     external_dependency = resolve_external_dependency_refs(
         repo_root,
-        refs=external_dependency_refs,
+        refs=external_dependency_refs if lane_heads is not None else (),
         window_base=excluded_window_base,
         mission_branch=lanes_manifest.mission_branch,
         lanes_manifest=lanes_manifest,
         coord_base_ref=coord_base_ref,
+        recorded_lane_heads=lane_heads or frozenset(),
+        pins=external_dependency_pins,
     )
 
     manifest_wp_ids = frozenset(wp for lane in lanes_manifest.lanes for wp in lane.wp_ids)
     planning_prefix = _planning_prefix(repo_root, feature_dir)
+    if lane_heads is None:
+        unreadable = _REFUSE_DEPENDENCY_PROBE.format(doing="reading the status log for the Mission's recorded lane heads", exc="status log unreadable")
+        return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, unreadable)
     if external_dependency.refusal is not None:
         return _refusal_claim(lanes_manifest, manifest_wp_ids, planning_prefix, excluded_window_base, external_dependency.refusal)
     try:
@@ -1766,6 +1803,7 @@ def build_approved_wp_set(
         bound_lane_tips=bound.lane_tips,
         no_implementation_attested_wp_ids=evidence.lifted_wp_ids,
         external_dependency_refs=external_dependency.refs,
+        external_dependency_pins=dict(external_dependency.pins),
         external_dependency_shas=external_dependency.shas,
         external_dependency_blobs=external_dependency.blobs,
         external_dependency_deletions=external_dependency.deletions,
@@ -3142,6 +3180,10 @@ class ExternalDependencyAttribution:
     blobs: frozenset[tuple[str, str]] = frozenset()
     deletions: frozenset[str] = frozenset()
     refusal: str | None = None
+    #: ``ref -> commit SHA`` each declared ref was verified against. The caller persists it
+    #: (``ConsolidationState.dependency_ref_pins``) so the gate and a ``--resume`` verify
+    #: the SAME commit, never whatever the name resolves to later.
+    pins: Mapping[str, str] = field(default_factory=dict)
 
 
 def _mission_spines(
@@ -3165,13 +3207,18 @@ def _mission_spines(
     spines: dict[str, str] = {}
     for lane in lanes_manifest.lanes:
         label = f"lane {lane.lane_id}'s first-parent spine"
-        for sha in _lane_first_parent_spine(repo_root, coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id)):
+        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        # An ABSENT branch (deleted, or never cut) guards nothing here; the namespace and
+        # recorded-tip guards cover what it held. A branch that EXISTS but whose spine cannot
+        # be read is a probe failure: it raises, and the caller REFUSEs (it must never shrink
+        # the spine set the guard defends).
+        if not branch_exists(repo_root, branch):
+            continue
+        for sha in first_parent_commits_in_range(repo_root, coord_base_ref, branch):
             spines.setdefault(sha, label)
     mission_label = f"the mission branch {lanes_manifest.mission_branch}'s first-parent spine"
     # The mission branch is READ, not tolerated: a spine this guard cannot read is a spine it
-    # cannot defend, and the caller turns the resulting GitProbeError into a REFUSE. Lane
-    # branches stay tolerant (a fully-canceled lane has no branch; a missing one guards
-    # nothing, exactly as :func:`_lane_first_parent_spine` documents for authorship).
+    # cannot defend, and the caller turns the resulting GitProbeError into a REFUSE.
     for sha in first_parent_commits_in_range(repo_root, window_base, lanes_manifest.mission_branch):
         spines.setdefault(sha, mission_label)
     return spines
@@ -3201,6 +3248,64 @@ def _mission_work_reaches(
     return False
 
 
+def _recorded_lane_heads(feature_dir: Path) -> frozenset[str] | None:
+    """Every ``lane_head`` stamp ANY work package of the Mission recorded (canceled and removed ones included), or ``None`` when the log is unreadable."""
+    from specify_cli.status import StoreError, read_events
+
+    try:
+        events = read_events(feature_dir)
+    except StoreError:
+        return None
+    return frozenset(stamp for event in events if (stamp := stamp_of(event)))
+
+
+def _mission_namespaces(lanes_manifest: LanesManifest) -> tuple[str, ...]:
+    """Branch-name stems that mark a branch as this Mission's own (the mission branch and every lane branch it names)."""
+    stems: dict[str, None] = {lanes_manifest.mission_branch: None}
+    for lane in lanes_manifest.lanes:
+        branch = _lane_branch_for(lanes_manifest, lane.lane_id)
+        stems[branch] = None
+        stems[branch.rsplit("-lane-", 1)[0]] = None
+    return tuple(stems)
+
+
+def _mission_tip_shas(repo_root: Path, namespaces: Sequence[str]) -> dict[str, str]:
+    """``sha -> branch`` for every recorded lane work tip (``refs/spec-kitty/lane-tip/*``) in this Mission's namespace.
+
+    Raises :class:`GitProbeError` when the listing cannot be read: unknown is never "none".
+    """
+    try:
+        branches = recorded_tip_branches(repo_root)
+    except LaneTipListingError as exc:
+        raise GitProbeError(str(exc)) from exc
+    tips: dict[str, str] = {}
+    for branch in sorted(branches):
+        if any(branch.startswith(stem) for stem in namespaces):
+            tip = read_tip(repo_root, branch)
+            if tip:
+                tips.setdefault(tip, branch)
+    return tips
+
+
+def _namespace_hit(ref: str, namespaces: Sequence[str]) -> str | None:
+    """The Mission branch stem *ref* is named inside, or ``None`` (also catches ``refs/heads/`` and remote-qualified spellings)."""
+    return next((stem for stem in namespaces if stem in ref), None)
+
+
+def _recorded_work_hit(window: Sequence[str], lane_heads: frozenset[str], tip_shas: Mapping[str, str]) -> tuple[str, str] | None:
+    """The first window commit that is a recorded Mission work tip, with how it was recorded, or ``None``."""
+    for sha in window:
+        if sha in lane_heads:
+            return sha, "a work package of this Mission recorded as its lane head in the status log"
+        if sha in tip_shas:
+            return sha, f"is the recorded work tip of the Mission lane branch '{tip_shas[sha]}'"
+    return None
+
+
+def _refused(refs: tuple[str, ...], message: str) -> ExternalDependencyAttribution:
+    return ExternalDependencyAttribution(refs=refs, refusal=message)
+
+
 def resolve_external_dependency_refs(
     repo_root: Path,
     *,
@@ -3209,56 +3314,135 @@ def resolve_external_dependency_refs(
     mission_branch: str,
     lanes_manifest: LanesManifest,
     coord_base_ref: str,
+    recorded_lane_heads: frozenset[str] = frozenset(),
+    pins: Mapping[str, str] | None = None,
 ) -> ExternalDependencyAttribution:
     """Verify the declared dependency refs and return the sets that are outside the closed world.
 
     A declared ref is honoured only when it is an external branch the mission really merged
-    in: it resolves, the mission branch reaches it, and NONE of its window commits sits on a
-    mission spine (:func:`_mission_spines`). Those commits then join the content that predates
-    the window — the standing commits already on the target have. Nothing else changes: an
-    undeclared commit stays un-attributable. Attribution is never widened toward merge
-    simulation (C-001: #4945 and #6771 are structurally identical, so only an explicit
-    declaration separates them).
+    in: it resolves, the mission branch reaches it, it is not Mission-authored (below), and
+    NONE of its window commits sits on a mission spine (:func:`_mission_spines`). Those commits
+    then join the content that predates the window — the standing commits already on the
+    target have. Nothing else changes: an undeclared commit stays un-attributable.
+    Attribution is never widened toward merge simulation (C-001: #4945 and #6771 are
+    structurally identical, so only an explicit declaration separates them).
+
+    The guard fails closed against ANY Mission authorship, not just the CURRENT manifest's
+    live spines (a removed or canceled work package's lane branch is gone and absent from
+    ``lanes.json``, which is the #4945 shape): a ref NAMED inside the Mission's branch
+    namespace is refused, and so is a window commit that is a ``lane_head`` stamp any work
+    package recorded (*recorded_lane_heads*, canceled and removed ones included) or the
+    recorded work tip of a Mission lane branch (``refs/spec-kitty/lane-tip/*``).
+
+    *pins* (``ref -> SHA``) are the commits an earlier step of this consolidation verified.
+    A pinned ref is verified against its PIN; if the name now resolves elsewhere the
+    declaration REFUSEs naming both SHAs (``DEPENDENCY_REF_MOVED``). The SHAs verified now are
+    returned in :attr:`ExternalDependencyAttribution.pins`.
 
     No declaration short-circuits before any git probe, so an undeclared run costs exactly
-    what it costs today (NFR-001). Every failure is a REFUSE with the sets left EMPTY: an
-    unresolvable ref, a ref the mission never merged, a ref that would cover mission work, an
-    unbounded window, or any :class:`GitProbeError` (NFR-002).
+    what it costs today (NFR-001). Every failure is a REFUSE with the sets left EMPTY, and
+    each carries a stable ``Error code:`` suffix: an unresolvable ref, a ref the mission never
+    merged, a ref that would cover mission work, a moved ref, an unbounded window, or any
+    :class:`GitProbeError` (NFR-002).
     """
     declared = tuple(dict.fromkeys(ref for ref in refs if ref.strip()))
     if not declared:
         return ExternalDependencyAttribution()
     if window_base is None:
-        return ExternalDependencyAttribution(refs=declared, refusal=_REFUSE_DEPENDENCY_NO_WINDOW_BASE.format(refs=", ".join(declared)))
+        return _refused(declared, _REFUSE_DEPENDENCY_NO_WINDOW_BASE.format(refs=", ".join(declared)))
+    namespaces = _mission_namespaces(lanes_manifest)
     try:
         spines = _mission_spines(repo_root, lanes_manifest, coord_base_ref=coord_base_ref, window_base=window_base)
+        tip_shas = _mission_tip_shas(repo_root, namespaces)
     except GitProbeError as exc:
-        return ExternalDependencyAttribution(refs=declared, refusal=f"a git probe failed while reading the mission spines: {exc}")
+        return _refused(declared, _REFUSE_DEPENDENCY_PROBE.format(doing="reading the mission spines", exc=exc))
+    known_pins = pins or {}
+    verified_pins: dict[str, str] = {}
     shas: set[str] = set()
     blobs: set[tuple[str, str]] = set()
     deletions: set[str] = set()
     for ref in declared:
-        try:
-            tip = resolve_commit(repo_root, ref)
-        except GitProbeError:
-            return ExternalDependencyAttribution(refs=declared, refusal=_REFUSE_DEPENDENCY_UNRESOLVED.format(ref=ref))
-        try:
-            if not _mission_work_reaches(repo_root, tip, mission_branch, lanes_manifest):
-                return ExternalDependencyAttribution(refs=declared, refusal=_REFUSE_DEPENDENCY_NOT_MERGED.format(ref=ref, mission_branch=mission_branch))
-            window = commits_in_range(repo_root, window_base, tip)
-            covered = [sha for sha in window if sha in spines]
-            if covered:
-                return ExternalDependencyAttribution(
-                    refs=declared,
-                    refusal=_REFUSE_DEPENDENCY_COVERS_MISSION_WORK.format(ref=ref, sha=covered[0][:10], spine=spines[covered[0]]),
-                )
-            ref_blobs, ref_deletions = _final_authored_walk(repo_root, window)
-        except GitProbeError as exc:
-            return ExternalDependencyAttribution(refs=declared, refusal=f"a git probe failed while verifying external dependency ref '{ref}': {exc}")
+        outcome = _verify_declared_ref(
+            repo_root,
+            ref,
+            pinned=known_pins.get(ref),
+            window_base=window_base,
+            mission_branch=mission_branch,
+            lanes_manifest=lanes_manifest,
+            namespaces=namespaces,
+            spines=spines,
+            guards=(recorded_lane_heads, tip_shas),
+        )
+        if isinstance(outcome, str):
+            return _refused(declared, outcome)
+        tip, window, ref_blobs, ref_deletions = outcome
+        verified_pins[ref] = tip
         shas.update(window)
         blobs |= ref_blobs
         deletions |= ref_deletions
-    return ExternalDependencyAttribution(refs=declared, shas=frozenset(shas), blobs=frozenset(blobs), deletions=frozenset(deletions))
+    return ExternalDependencyAttribution(refs=declared, shas=frozenset(shas), blobs=frozenset(blobs), deletions=frozenset(deletions), pins=verified_pins)
+
+
+def _verify_declared_ref(
+    repo_root: Path,
+    ref: str,
+    *,
+    pinned: str | None,
+    window_base: str,
+    mission_branch: str,
+    lanes_manifest: LanesManifest,
+    namespaces: Sequence[str],
+    spines: Mapping[str, str],
+    guards: tuple[frozenset[str], Mapping[str, str]],
+) -> str | tuple[str, list[str], set[tuple[str, str]], set[str]]:
+    """Verify ONE declared ref: the refusal text, or ``(tip, window, blobs, deletions)``."""
+    lane_heads, tip_shas = guards
+    namespace = _namespace_hit(ref, namespaces)
+    if namespace is not None:
+        return _REFUSE_DEPENDENCY_MISSION_NAMESPACE.format(ref=ref, namespace=namespace)
+    try:
+        tip = resolve_commit(repo_root, ref)
+    except GitProbeError:
+        tip = ""
+    if pinned is not None:
+        if tip and tip != pinned:
+            return _REFUSE_DEPENDENCY_MOVED.format(ref=ref, pinned=pinned, now=tip)
+        tip = pinned  # SHA authority: a deleted name does not unpin a commit that still exists
+    if not tip:
+        return _REFUSE_DEPENDENCY_UNRESOLVED.format(ref=ref)
+    try:
+        if pinned is not None:
+            tip = resolve_commit(repo_root, pinned)
+        if not _mission_work_reaches(repo_root, tip, mission_branch, lanes_manifest):
+            return _REFUSE_DEPENDENCY_NOT_MERGED.format(ref=ref, mission_branch=mission_branch)
+        window = commits_in_range(repo_root, window_base, tip)
+        covered = [sha for sha in window if sha in spines]
+        if covered:
+            return _REFUSE_DEPENDENCY_COVERS_MISSION_WORK.format(ref=ref, sha=covered[0][:10], spine=spines[covered[0]])
+        recorded = _recorded_work_hit(window, lane_heads, tip_shas)
+        if recorded is not None:
+            return _REFUSE_DEPENDENCY_RECORDED_TIP.format(ref=ref, sha=recorded[0][:10], recorded=recorded[1])
+        ref_blobs, ref_deletions = _final_authored_walk(repo_root, window)
+    except GitProbeError as exc:
+        return _REFUSE_DEPENDENCY_PROBE.format(doing=f"verifying external dependency ref '{ref}'", exc=exc)
+    return tip, window, ref_blobs, ref_deletions
+
+
+def dependency_refs_moved_refusal(repo_root: Path, pins: Mapping[str, str]) -> str | None:
+    """Refusal text when a pinned declared ref now resolves to a different commit (``DEPENDENCY_REF_MOVED``), else ``None``.
+
+    The reconciliation gate runs this against the pins the claim recorded, so a ref moved
+    between claim and gate (or between an interrupted run and its ``--resume``) cannot widen
+    the exemption. A ref that no longer resolves is not "moved": the pinned commit still stands.
+    """
+    for ref, pinned in pins.items():
+        try:
+            now = resolve_commit(repo_root, ref)
+        except GitProbeError:
+            continue
+        if now != pinned:
+            return _REFUSE_DEPENDENCY_MOVED.format(ref=ref, pinned=pinned, now=now)
+    return None
 
 
 def _final_authored_walk(repo_root: Path, first_parent_shas: list[str]) -> tuple[set[tuple[str, str]], set[str]]:

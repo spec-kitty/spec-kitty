@@ -31,6 +31,7 @@ from specify_cli.consolidation.reconciliation import (
     MergeOutcomeVerifier,
     VerifyResult,
     build_approved_wp_set,
+    dependency_refs_moved_refusal,
     lane_tips_moved_refusal,
     route_terminus,
 )
@@ -76,7 +77,13 @@ def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
             excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
             excluded_window_base=run.target_expected_old_sha,
             external_dependency_refs=run.dependency_refs,
+            external_dependency_pins=run.dependency_ref_pins,
         )
+    # #6771: a declared ref that moved since the claim pinned it would exempt different history
+    # than the one that was verified -- the gate refuses (and the door rolls the run back).
+    moved = dependency_refs_moved_refusal(run.main_repo, run.dependency_ref_pins)
+    if moved is not None and captured.refusal is None:
+        captured = replace(captured, refusal=moved)
     if run.strategy is MergeStrategy.SQUASH:
         return replace(captured, verify_reachability=False)
     return captured

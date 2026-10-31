@@ -16,14 +16,19 @@ from __future__ import annotations
 import subprocess
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.git_probes import blob_id_at
+from specify_cli.consolidation.phase_claim import _pin_dependency_refs
+from specify_cli.consolidation.phase_gate import _reconciliation_claim_for_gate
 from specify_cli.consolidation.reconciliation import (
     ApprovedWpCommitSet,
     MergeOutcomeVerifier,
     VerifyStatus,
+    dependency_refs_moved_refusal,
     resolve_external_dependency_refs,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -125,14 +130,15 @@ def _dependency_commits(repo: Path, base: str, ref: str) -> list[str]:
     return [line for line in out.splitlines() if line]
 
 
-def _resolver(repo: Path, base: str, manifest: LanesManifest, refs: tuple[str, ...]):
+def _resolver(repo: Path, base: str, manifest: LanesManifest, refs: tuple[str, ...], **extra: object):
     return resolve_external_dependency_refs(
         repo,
         refs=refs,
         window_base=base,
         mission_branch=manifest.mission_branch,
         lanes_manifest=manifest,
-        coord_base_ref=base,
+        coord_base_ref=extra.pop("coord_base_ref", base),  # type: ignore[arg-type]
+        **extra,  # type: ignore[arg-type]
     )
 
 
@@ -297,3 +303,163 @@ def test_squash_axis_honours_the_declaration(merged_dependency_repo: dict[str, o
     flagged = MergeOutcomeVerifier(repo).verify(squashed, without)
     assert flagged.status is VerifyStatus.FAIL
     assert ("src/dep/mod0.py", dep_blob) in flagged.divergence.unattributable_blobs  # type: ignore[union-attr]
+
+
+def _merge_removed_lane_into_carrier(repo: Path, base: str, branch: str) -> str:
+    """The #4945 shape: a removed work package's lane commit rides the carrier lane, then its branch is deleted.
+
+    The carrier (``lane-a``) merges ``branch`` --no-ff, the mission branch follows the carrier,
+    and ``branch`` is deleted, so no live ref (and no entry of ``lanes.json``) names the work
+    any more. Returns the removed lane's tip SHA, the only handle left to declare.
+    """
+    _git(repo, "checkout", "-q", "-b", branch, base)
+    _write(repo, "src/removed.py", "REMOVED = 1\n")
+    tip = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", LANE_BRANCH)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", branch)
+    _git(repo, "branch", "-f", MISSION_BRANCH, LANE_BRANCH)
+    _git(repo, "branch", "-q", "-D", branch)
+    return tip
+
+
+def test_removed_lane_whose_branch_was_deleted_cannot_be_declared_by_its_recorded_tip(merged_dependency_repo: dict[str, object]) -> None:
+    """Red-first (#4945 via #6771): the recorded work tip of a removed lane is Mission work, not a dependency.
+
+    The guard used to know only the CURRENT manifest's live spines, so the deleted lane's
+    SHA exempted its content and it landed at exit 0.
+    """
+    repo, base, manifest = merged_dependency_repo["repo"], merged_dependency_repo["base"], merged_dependency_repo["manifest"]
+    assert isinstance(repo, Path) and isinstance(base, str) and isinstance(manifest, LanesManifest)
+    removed_tip = _merge_removed_lane_into_carrier(repo, base, f"{MISSION_BRANCH}-lane-removed")
+    _git(repo, "update-ref", f"refs/spec-kitty/lane-tip/{MISSION_BRANCH}-lane-removed", removed_tip)
+
+    attribution = _resolver(repo, base, manifest, (removed_tip,))
+
+    assert attribution.refusal is not None, "a removed lane's recorded tip was exempted as an external dependency"
+    assert "Error code: DEPENDENCY_REF_COVERS_MISSION_WORK." in attribution.refusal
+    assert "recorded work tip" in attribution.refusal
+    assert attribution.shas == frozenset()
+
+
+def test_removed_work_package_whose_lane_head_was_stamped_cannot_be_declared(merged_dependency_repo: dict[str, object]) -> None:
+    """A ``lane_head`` stamp ANY work package recorded (a canceled or removed one included) marks Mission work."""
+    repo, base, manifest = merged_dependency_repo["repo"], merged_dependency_repo["base"], merged_dependency_repo["manifest"]
+    assert isinstance(repo, Path) and isinstance(base, str) and isinstance(manifest, LanesManifest)
+    removed_tip = _merge_removed_lane_into_carrier(repo, base, "removed-wp")
+
+    attribution = _resolver(repo, base, manifest, (removed_tip,), recorded_lane_heads=frozenset({removed_tip}))
+
+    assert attribution.refusal is not None
+    assert "Error code: DEPENDENCY_REF_COVERS_MISSION_WORK." in attribution.refusal
+    assert "lane head" in attribution.refusal
+    # The control: without the stamp (and with no recorded tip ref) nothing marks the commit.
+    assert _resolver(repo, base, manifest, (removed_tip,)).refusal is None
+
+
+def test_ref_named_in_the_mission_branch_namespace_is_refused(merged_dependency_repo: dict[str, object]) -> None:
+    """Red-first: a branch of the Mission's own namespace that ``lanes.json`` no longer lists is still Mission work."""
+    repo, base, manifest = merged_dependency_repo["repo"], merged_dependency_repo["base"], merged_dependency_repo["manifest"]
+    assert isinstance(repo, Path) and isinstance(base, str) and isinstance(manifest, LanesManifest)
+    stray = f"{MISSION_BRANCH}-lane-removed"
+    _git(repo, "checkout", "-q", "-b", stray, base)
+    _write(repo, "src/removed.py", "REMOVED = 1\n")
+    _git(repo, "checkout", "-q", LANE_BRANCH)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", stray)
+    _git(repo, "branch", "-f", MISSION_BRANCH, LANE_BRANCH)
+
+    attribution = _resolver(repo, base, manifest, (stray,))
+
+    assert attribution.refusal is not None
+    assert "Error code: DEPENDENCY_REF_COVERS_MISSION_WORK." in attribution.refusal
+    assert "branch namespace" in attribution.refusal
+
+
+def test_unreadable_lane_spine_refuses_instead_of_shrinking_the_guard(merged_dependency_repo: dict[str, object]) -> None:
+    """Red-first: a lane branch that EXISTS but whose spine cannot be read is a probe failure, not an empty spine."""
+    repo, base, manifest = merged_dependency_repo["repo"], merged_dependency_repo["base"], merged_dependency_repo["manifest"]
+    assert isinstance(repo, Path) and isinstance(base, str) and isinstance(manifest, LanesManifest)
+    from specify_cli.consolidation.reconciliation import _lane_branch_for
+
+    _git(repo, "branch", _lane_branch_for(manifest, "lane-a"), "lane-a")
+
+    attribution = _resolver(repo, base, manifest, (DEP_BRANCH,), coord_base_ref="no-such-coord-base")
+
+    assert attribution.refusal is not None
+    assert "Error code: DEPENDENCY_REF_UNVERIFIABLE." in attribution.refusal
+    assert attribution.shas == frozenset()
+
+
+@pytest.mark.parametrize(
+    ("refs", "code"),
+    [
+        (("no-such-ref",), "DEPENDENCY_REF_UNRESOLVED"),
+        (("unrelated",), "DEPENDENCY_REF_UNREACHABLE"),
+        ((LANE_BRANCH,), "DEPENDENCY_REF_COVERS_MISSION_WORK"),
+    ],
+)
+def test_each_refusal_carries_its_stable_code(merged_dependency_repo: dict[str, object], refs: tuple[str, ...], code: str) -> None:
+    repo, base, manifest = merged_dependency_repo["repo"], merged_dependency_repo["base"], merged_dependency_repo["manifest"]
+    assert isinstance(repo, Path) and isinstance(base, str) and isinstance(manifest, LanesManifest)
+    _git(repo, "branch", "unrelated", base)
+    _git(repo, "checkout", "-q", "unrelated")
+    _write(repo, "src/unrelated.py", "OTHER = 1\n")
+    _git(repo, "checkout", "-q", LANE_BRANCH)
+
+    attribution = _resolver(repo, base, manifest, refs)
+
+    assert attribution.refusal is not None
+    assert attribution.refusal.endswith(f"Error code: {code}.")
+
+
+def test_ref_moved_after_the_claim_is_refused_by_the_resolver_and_the_gate(merged_dependency_repo: dict[str, object]) -> None:
+    """TOCTOU: the claim pins the SHA it verified; a name that moved afterwards refuses, naming both SHAs."""
+    repo, base, manifest = merged_dependency_repo["repo"], merged_dependency_repo["base"], merged_dependency_repo["manifest"]
+    dep_tip, lane_commit = merged_dependency_repo["dep_tip"], merged_dependency_repo["lane_commit"]
+    assert isinstance(repo, Path) and isinstance(base, str) and isinstance(manifest, LanesManifest)
+    assert isinstance(dep_tip, str) and isinstance(lane_commit, str)
+
+    verified = _resolver(repo, base, manifest, (DEP_BRANCH,))
+    assert verified.refusal is None and dict(verified.pins) == {DEP_BRANCH: dep_tip}
+    # Pinned and unmoved: the pin is what is verified, and nothing changes.
+    assert _resolver(repo, base, manifest, (DEP_BRANCH,), pins=verified.pins).shas == verified.shas
+
+    _git(repo, "branch", "-f", DEP_BRANCH, lane_commit)  # the name now points at the lane's own commit
+
+    moved = _resolver(repo, base, manifest, (DEP_BRANCH,), pins=verified.pins)
+    assert moved.refusal is not None and moved.shas == frozenset()
+    assert dep_tip in moved.refusal and lane_commit in moved.refusal
+    assert moved.refusal.endswith("Error code: DEPENDENCY_REF_MOVED.")
+    assert dependency_refs_moved_refusal(repo, verified.pins) == moved.refusal
+
+    # The gate takes the same refusal: the captured claim is replaced by a refusing one.
+    claim = _claim(external_dependency_refs=verified.refs, external_dependency_shas=verified.shas)
+    run = SimpleNamespace(main_repo=repo, approved_wp_set=claim, strategy=MergeStrategy.MERGE, dependency_ref_pins=dict(verified.pins))
+    assert _reconciliation_claim_for_gate(run).refusal == moved.refusal  # type: ignore[arg-type]
+    # A name that no longer resolves is not "moved": the pinned commit still stands.
+    _git(repo, "branch", "-D", DEP_BRANCH)
+    assert dependency_refs_moved_refusal(repo, verified.pins) is None
+    assert _resolver(repo, base, manifest, (DEP_BRANCH,), pins=verified.pins).refusal is None
+
+
+def test_first_claim_pins_an_unpinned_record_once(merged_dependency_repo: dict[str, object]) -> None:
+    """Back-compat: a record holding names only is pinned on first use, and a pin is never rewritten."""
+    from specify_cli.consolidation.state import ConsolidationState, load_state
+
+    repo, dep_tip = merged_dependency_repo["repo"], merged_dependency_repo["dep_tip"]
+    assert isinstance(repo, Path) and isinstance(dep_tip, str)
+    state = ConsolidationState(mission_id="m", mission_slug="s", target_branch="main", wp_order=["WP01"], dependency_refs=[DEP_BRANCH])
+    run = SimpleNamespace(
+        main_repo=repo,
+        state=state,
+        dependency_ref_pins={},
+        approved_wp_set=_claim(external_dependency_pins={DEP_BRANCH: dep_tip}),
+    )
+
+    _pin_dependency_refs(run)  # type: ignore[arg-type]
+    persisted = load_state(repo, "m")
+    assert persisted is not None and persisted.dependency_ref_pins == {DEP_BRANCH: dep_tip}
+    assert run.dependency_ref_pins == {DEP_BRANCH: dep_tip}
+
+    run.approved_wp_set = _claim(external_dependency_pins={DEP_BRANCH: "f" * 40})
+    _pin_dependency_refs(run)  # type: ignore[arg-type]
+    assert run.dependency_ref_pins == {DEP_BRANCH: dep_tip}, "a pin is written once"

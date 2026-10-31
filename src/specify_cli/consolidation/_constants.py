@@ -104,6 +104,23 @@ ALIAS_FILE_NOT_PRESERVED_SUFFIX = f" Error code: {ALIAS_FILE_NOT_PRESERVED}."
 COORDINATION_WORKTREE_BRANCH_MISMATCH = "COORDINATION_WORKTREE_BRANCH_MISMATCH"
 COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX = f" Error code: {COORDINATION_WORKTREE_BRANCH_MISMATCH}."
 
+# Stable codes of the #6771 ``--dependency-ref`` refusals (exit 1, before any branch moves,
+# or at the reconciliation gate for the moved-ref case). A declaration is the operator's
+# claim that a ref is inherited history, so each failure names the declaration. Rendered as a
+# SUFFIX, like the codes above.
+DEPENDENCY_REF_UNRESOLVED = "DEPENDENCY_REF_UNRESOLVED"
+DEPENDENCY_REF_UNREACHABLE = "DEPENDENCY_REF_UNREACHABLE"
+DEPENDENCY_REF_COVERS_MISSION_WORK = "DEPENDENCY_REF_COVERS_MISSION_WORK"
+DEPENDENCY_REF_MOVED = "DEPENDENCY_REF_MOVED"
+DEPENDENCY_REF_SET_CHANGED = "DEPENDENCY_REF_SET_CHANGED"
+DEPENDENCY_REF_UNVERIFIABLE = "DEPENDENCY_REF_UNVERIFIABLE"
+
+
+def error_code_suffix(code: str) -> str:
+    """The `` Error code: X.`` suffix every stable refusal code is rendered with."""
+    return f" Error code: {code}."
+
+
 # Canonical status-surface filenames.
 _STATUS_EVENTS_FILENAME = "status.events.jsonl"
 _STATUS_FILENAME = "status.json"
