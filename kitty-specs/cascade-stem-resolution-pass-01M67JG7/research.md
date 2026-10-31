@@ -52,7 +52,7 @@ CALL COUNTS: activate=114, list_available_detailed=126, IdentityIndex.build=6
 213.9 s  ActiveCharterManager.activate            (114 calls)
 165.1 s  list_available_detailed                  (126 calls)
 164.5 s  _declared_id                             (9735 calls, one ruamel load per file)
- 87.0 s  _CascadeIds.config_id -> resolve_config_id -> _read_id  (121 calls, 5309 file parses)
+ 87.0 s  _CascadeIds.config_id -> resolve_config_id -> _read_id  (121 calls, 5309 id reads, 5028 of them artifact-file parses)
 ```
 
 Two independent redundancies, both of them *repeated reads of the same immutable files*:
