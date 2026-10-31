@@ -1,33 +1,33 @@
 {
-  "event_count": 13,
-  "last_event_id": "01M68N4G0E8MVV6TFPR2EJ9XSQ",
-  "materialized_at": "2026-10-31T09:37:29.099718+00:00",
-  "mission_number": "",
+  "event_count": 18,
+  "last_event_id": "01M68NY62ZTM4BXQ3ER8F1R29P",
+  "materialized_at": "2026-10-31T09:51:30.911230+00:00",
+  "mission_number": "245",
   "mission_slug": "upgrade-dry-run-sequenced-verdict-01M68J9V",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 2,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "reviewer-renata",
+      "actor": "merge",
       "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "python-pedro",
-      "lane": "approved",
-      "last_event_id": "01M68N3S75APF27M0JKKQHSJGC",
-      "last_transition_at": "2026-10-31T09:37:05.765148+00:00",
+      "lane": "done",
+      "last_event_id": "01M68NY5R29V0M321K38J6WW0B",
+      "last_transition_at": "2026-10-31T09:51:30.562175+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Runner decides the dry-run verdict on the run's sequenced view; repoint declares its detect-input predecessor.",
@@ -54,20 +54,35 @@
       }
     },
     "WP02": {
-      "actor": "python-pedro",
-      "agent": "python-pedro",
+      "actor": "merge",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
-      "lane": "in_progress",
-      "last_event_id": "01M68N4G0E8MVV6TFPR2EJ9XSQ",
-      "last_transition_at": "2026-10-31T09:37:29.099718+00:00",
+      "lane": "done",
+      "last_event_id": "01M68NY62ZTM4BXQ3ER8F1R29P",
+      "last_transition_at": "2026-10-31T09:51:30.911230+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "CLI witness (rendered prediction line + verbose preview), migrations README section, changelog entry; both new assertions verified red when their half is reverted.",
+        "Review PASS (reviewer-renata). Non-vacuity: the rendered-prediction assertion fails when _print_predicted_verdicts is reverted, and the verbose-preview assertion fails when the preview's sequencing is reverted (both checked this round). The CLI test drives the production command on the shared fixture, with a real-run positive control; docs README states the declaration's boundaries (not ordering, write-lands assumption, empty is safe); changelog entry is impact-first, 1075 chars, (#6552). C-004 respected: no worktree/plan-json/frozen-contract change. Ownership: imports WP01's fixture helpers read-only, no owned-file overlap."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
       "shell_pid": 1307663,
-      "shell_pid_created_at": "1793439441.53"
+      "shell_pid_created_at": "1793439441.53",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     }
   }
 }
