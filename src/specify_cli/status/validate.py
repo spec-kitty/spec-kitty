@@ -21,7 +21,7 @@ from spec_kitty_events import normalize_event_id
 
 from .models import Lane, is_migration_actor
 from .transitions import CANONICAL_LANES, resolve_lane_alias
-from .wp_state import wp_state_for
+from .wp_state import has_review_ref, requires_review_ref, wp_state_for
 
 
 class StatusValidationReadError(GuardedReadError, RuntimeError):
@@ -85,7 +85,10 @@ def validate_event_schema(event: dict) -> list[str]:
     - force is boolean
     - execution_mode is "worktree" or "direct_repo"
     - If force=True, reason must be non-empty string
-    - If from_lane=for_review and to_lane=in_progress, review_ref must be present
+    - If the edge is in ``wp_state.REVIEW_REF_REQUIRED_EDGES`` (today:
+      from_lane=for_review and to_lane=in_progress), review_ref must be present
+      and non-blank. That edge set is the single owning definition; the write path
+      enforces the same requirement before it appends (#6514).
 
     Extra unknown fields are NOT flagged (forward-compatible).
     """
@@ -144,9 +147,12 @@ def validate_event_schema(event: dict) -> list[str]:
     if event.get("force") is True and not event.get("reason"):
         findings.append(f"Event {event_id}: force=true without reason")
 
-    # Review ref check: for_review -> in_progress requires review_ref
-    if event.get("from_lane") == Lane.FOR_REVIEW and event.get("to_lane") == Lane.IN_PROGRESS and not event.get("review_ref"):
-        findings.append(f"Event {event_id}: for_review->in_progress without review_ref")
+    # Review ref check: for_review -> in_progress requires review_ref. Which edges
+    # carry this requirement is owned by ``wp_state.REVIEW_REF_REQUIRED_EDGES`` -- the
+    # SAME definition the write path enforces before an append (#6514), so the auditor
+    # and the writer cannot drift back apart.
+    if requires_review_ref(event.get("from_lane"), event.get("to_lane")) and not has_review_ref(event.get("review_ref")):
+        findings.append(f"Event {event_id}: {event.get('from_lane')}->{event.get('to_lane')} without review_ref")
 
     return findings
 

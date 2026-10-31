@@ -546,6 +546,14 @@ class TestUnknownLanes:
 
 
 _PARITY_BASELINE_PATH = Path(__file__).with_name("fsm_parity_baseline.jsonl")
+# Deliberate amendments to the golden truth table (each one is a shipped behaviour
+# change, never a regeneration to silence a red):
+#   2026-10-31 (#6514): for_review->in_progress[force_full] and its alias
+#   for_review->doing[force_full] flipped True -> False. ``for_review -> in_progress``
+#   is force-only, and the schema validator refuses any such event without a
+#   ``review_ref``; the writer now refuses it at admission (force-insurmountable)
+#   instead of appending a row the auditor rejects. A pointer-carrying force is still
+#   admitted -- pinned in tests/status/test_forced_rewind_requires_review_ref.py.
 
 
 def _parity_context_library() -> dict[str, GuardContext]:
