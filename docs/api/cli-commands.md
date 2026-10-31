@@ -301,6 +301,34 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
 │                                                          pr_merge_evidence,  │
 │                                                          never presented as  │
 │                                                          a git proof.        │
+│ --attest-no-imple…                           <str>       Operator            │
+│                                                          attestation         │
+│                                                          (repeatable, one WP │
+│                                                          id each): the named │
+│                                                          approved work       │
+│                                                          package owes no     │
+│                                                          implementation (for │
+│                                                          example its         │
+│                                                          deliverable already │
+│                                                          exists). Lifts      │
+│                                                          IMPLEMENTATION_MIS… │
+│                                                          for that work       │
+│                                                          package only; never │
+│                                                          lifts               │
+│                                                          REVIEW_NOT_INDEPEN… │
+│                                                          and is never read   │
+│                                                          as a review.        │
+│                                                          Requires            │
+│                                                          --attest-reason;    │
+│                                                          recorded durably in │
+│                                                          the status event    │
+│                                                          log before the      │
+│                                                          readiness checks.   │
+│ --attest-reason                              <str>       Why no              │
+│                                                          implementation is   │
+│                                                          owed, recorded with │
+│                                                          --attest-no-implem… │
+│                                                          (required with it). │
 │ --help              -h                                   Show this message   │
 │                                                          and exit.           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -415,7 +443,7 @@ _Charter management commands_
  Two forms:
 
    spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE
- [--include-deactivated]]
+ [--include-deactivated]] [--only] [--json]
 
    spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
 
@@ -488,8 +516,9 @@ _Charter management commands_
 │                                                 the exclusion of every       │
 │                                                 deactivated id the preset    │
 │                                                 lists. Only with --preset.   │
-│ --json                                          Output the applied preset as │
-│                                                 JSON. Only with --preset.    │
+│ --json                                          Output JSON (positional      │
+│                                                 form: change report;         │
+│                                                 --preset: applied preset).   │
 │ --only                                          Replace this kind's          │
 │                                                 activation list with this id │
 │                                                 plus org-required ids        │
@@ -654,6 +683,8 @@ _Charter bundle validation commands._
 │                                                 or `charter activate         │
 │                                                 --resynthesize`.             │
 │                                                 [default: compile]           │
+│ --json                                          Output the change report as  │
+│                                                 JSON.                        │
 │ --help          -h                              Show this message and exit.  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1610,16 +1641,40 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                                                            commits made      │
 │                                                            after a recorded  │
 │                                                            approval.         │
+│ --attest-no-impl…                         <str>            Operator          │
+│                                                            attestation       │
+│                                                            (repeatable, one  │
+│                                                            WP id each): the  │
+│                                                            named approved    │
+│                                                            work package owes │
+│                                                            no implementation │
+│                                                            (for example its  │
+│                                                            deliverable       │
+│                                                            already exists).  │
+│                                                            Lifts             │
+│                                                            IMPLEMENTATION_M… │
+│                                                            for that work     │
+│                                                            package only;     │
+│                                                            never lifts       │
+│                                                            REVIEW_NOT_INDEP… │
+│                                                            and is never read │
+│                                                            as a review.      │
+│                                                            Requires          │
+│                                                            --attest-reason;  │
+│                                                            recorded durably  │
+│                                                            in the status     │
+│                                                            event log.        │
 │ --attest-reason                           <str>            What you checked, │
 │                                                            recorded with     │
 │                                                            --attest-cancele… │
-│                                                            or                │
 │                                                            --attest-approve… │
+│                                                            or                │
+│                                                            --attest-no-impl… │
 │                                                            (required with    │
-│                                                            either); one      │
-│                                                            reason serves     │
-│                                                            every attestation │
-│                                                            of the run.       │
+│                                                            each); one reason │
+│                                                            serves every      │
+│                                                            attestation of    │
+│                                                            the run.          │
 │ --release-branch                          <str>            With --abort      │
 │                                                            (repeatable):     │
 │                                                            keep this branch  │
@@ -2566,7 +2621,8 @@ _Project health diagnostics_
 ```
  Usage: spec-kitty doctor skills [OPTIONS]
 
- Check command-skill manifest drift for Codex, Vibe, Pi, Letta, and Antigravity.
+ Check command-skill manifest drift for Codex, Vibe, Pi, Letta, and
+ Antigravity.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --fix             Repair missing command-skill files                         │
@@ -2705,8 +2761,7 @@ _Event log tailing commands_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ tail  Tail a mission's event log (``status.events.jsonl``) as JSON lines on  │
-│       stdout.                                                                │
+│ tail  Tail one of the mission's canonical event logs as lines on stdout.     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2715,41 +2770,67 @@ _Event log tailing commands_
 ```
  Usage: spec-kitty events tail [OPTIONS]
 
- Tail a mission's event log (``status.events.jsonl``) as JSON lines on stdout.
+ Tail one of the mission's canonical event logs as lines on stdout.
+
+ Default output is one human-readable line per event; ``--json`` opts into
+ the machine envelope (``docs query --json`` precedent, #6611).
 
  Ordered dispatch (plan.md's CLI Surface section -- "exactly four things, none
  of
  them novel domain logic"):
 
  1. FR-004 usage check: ``--from-invariant`` without ``--from-offset``.
- 2. FR-009 mission resolve.
- 3. FR-013 resume validation (only when ``--from-offset`` is given).
+ 2. FR-009 mission resolve, then ``--log`` kind dispatch (Typer already
+    rejected unknown kinds with a usage error before any file access).
+ 3. FR-013 resume validation against the SELECTED log (only when
+    ``--from-offset`` is given).
  4. Drive the core.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission                 <str>  Mission slug/handle whose                │
-│                                     status.events.jsonl to tail (no legacy   │
-│                                     feature-alias flag, C-003).              │
-│                                     [required]                               │
-│    --json                           JSON output. Currently the only          │
-│                                     supported mode (accepted for parity with │
-│                                     the issue's invocation and with `docs    │
-│                                     query --json`; no human-readable mode    │
-│                                     exists, so this flag has no observable   │
-│                                     effect either way).                      │
-│                                     [default: True]                          │
-│    --once                           Poll exactly once and exit -- no         │
-│                                     generator, no sleep, ever.               │
-│    --max-events              <int>  Stop the stream after emitting this many │
-│                                     events/signals.                          │
-│    --from-offset             <int>  Resume from this byte offset in          │
-│                                     status.events.jsonl (FR-004/FR-013).     │
-│    --from-invariant          <str>  Content invariant (SHA-256 hex digest)   │
-│                                     paired with --from-offset for            │
-│                                     cross-restart content verification       │
-│                                     (FR-004/FR-013). Requires --from-offset; │
-│                                     supplying this alone is a usage error.   │
-│    --help            -h             Show this message and exit.              │
+│ *  --mission                 <str>                   Mission slug/handle     │
+│                                                      whose event log to tail │
+│                                                      (no legacy              │
+│                                                      feature-alias flag,     │
+│                                                      C-003).                 │
+│                                                      [required]              │
+│    --log                     <status|decisions|miss  Which canonical ledger  │
+│                              ion|run|glossary|ops|c  to tail: status         │
+│                              anonical>               (default,               │
+│                                                      status.events.jsonl),   │
+│                                                      decisions, mission, run │
+│                                                      (the mission's latest   │
+│                                                      run journal), glossary, │
+│                                                      ops, or canonical.      │
+│                                                      [default: status]       │
+│    --json                                            Emit one JSON line per  │
+│                                                      event (byte-identical   │
+│                                                      to the pre-#6611        │
+│                                                      output, cursor keys     │
+│                                                      included). Default: one │
+│                                                      human-readable          │
+│                                                      plain-text line per     │
+│                                                      event.                  │
+│    --once                                            Poll exactly once and   │
+│                                                      exit -- no generator,   │
+│                                                      no sleep, ever.         │
+│    --max-events              <int>                   Stop the stream after   │
+│                                                      emitting this many      │
+│                                                      events/signals.         │
+│    --from-offset             <int>                   Resume from this byte   │
+│                                                      offset in the selected  │
+│                                                      log (FR-004/FR-013).    │
+│    --from-invariant          <str>                   Content invariant       │
+│                                                      (SHA-256 hex digest)    │
+│                                                      paired with             │
+│                                                      --from-offset for       │
+│                                                      cross-restart content   │
+│                                                      verification            │
+│                                                      (FR-004/FR-013).        │
+│                                                      Requires --from-offset; │
+│                                                      supplying this alone is │
+│                                                      a usage error.          │
+│    --help            -h                              Show this message and   │
+│                                                      exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3216,37 +3297,6 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty migrate ledger
-
-_Report the migration ledger: which setup steps have run, and their state._
-
-```
- Usage: spec-kitty migrate ledger [OPTIONS]
-
- Report the migration ledger: which setup steps have run, and their state.
-
- A read-only view of the two-partition migration ledger. It lists every
- declared setup step in declared (manifest) order and, for each, shows whether
- it is already in place (recorded, effect present here), recorded elsewhere but
- not here (a per-clone step the ledger records but whose effect is absent on
- this checkout — e.g. a freshly pulled clone), not yet applied, and whether its
- source content changed since it ran (drift). Drift is audit-only: reported,
- never re-applied. This command never commits and never writes a file.
- ``--json`` emits the one structured shape the human summary renders from.
-
- Examples:
-
-     spec-kitty migrate ledger
-
-     spec-kitty migrate ledger --json
-
-╭─ Options ──────────────────────────────────────────────────────────────────╮
-│ --json            Emit the recorded setup steps and summary as structured    │
-│                   JSON (the same shape the human summary renders).           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty migrate activation-ledger
 
 ```
@@ -3288,12 +3338,6 @@ _Report the migration ledger: which setup steps have run, and their state._
 │ --help     -h        Show this message and exit.                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
-
-> **`--json` shape.** `{"result", "moves", "refusal", "ledger_record"}`: `result` is `noop`,
-> `dry_run`, `moved` or `refused`; each move is `{key, from, to}`; a refusal is
-> `{key, files, reason}` with `reason` `divergent` or `legacy_deny_key` (exit 1, nothing
-> written); `ledger_record` is `written` or `not_recorded`. Field table and examples:
-> [Charter CLI Reference](charter-commands.md#spec-kitty-migrate-activation-ledger).
 
 ## spec-kitty migrate backfill-identity
 
@@ -3795,6 +3839,41 @@ _Report the migration ledger: which setup steps have run, and their state._
 │                              current working directory).                     │
 │                              [default: .]                                    │
 │ --help          -h           Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate ledger
+
+```
+ Usage: spec-kitty migrate ledger [OPTIONS]
+
+ Report the migration ledger: which setup steps have run, and their state.
+
+ A **read-only** view of the two-partition migration ledger. It lists every
+ declared setup step in declared (manifest) order and, for each, shows:
+
+ \b
+ * whether it is **already in place** (recorded, effect present here),
+ * **recorded elsewhere but not here** (a per-clone step the ledger records
+   but whose effect is absent on this checkout — e.g. a freshly pulled clone),
+ * **not yet applied**, and
+ * whether its source **content changed since it ran** (drift).
+
+ Drift is **audit-only**: it is reported, never re-applied. This command never
+ commits and never writes a file.
+
+ ``--json`` emits the one structured shape the human summary renders from.
+
+ Examples:
+
+     spec-kitty migrate ledger
+
+     spec-kitty migrate ledger --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit the recorded setup steps and summary as structured    │
+│                   JSON (the same shape the human summary renders).           │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
