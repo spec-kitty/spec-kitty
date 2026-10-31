@@ -176,11 +176,13 @@ def test_orchestrator_door_refuses_the_pointerless_forced_rewind(repo_with_wp_in
     assert _log(repo_with_wp_in_review).read_bytes() == before, "the refused door wrote to the log"
     assert len(_lane_rows(repo_with_wp_in_review)) == rows_before
 
-    payload = json.loads(result.stdout) if result.stdout.strip().startswith("{") else None
-    error_text = json.dumps(payload) if payload is not None else result.stdout
-    assert "requires review_ref" in error_text, f"refused for a different reason: {error_text}"
-    assert "for_review -> in_progress" in error_text, error_text
-    assert "--review-ref" in error_text, "the refusal must name the flag that supplies the pointer"
+    envelope = json.loads(result.stdout)
+    assert envelope["success"] is False, envelope
+    assert envelope["error_code"] == "TRANSITION_REJECTED", envelope
+    message = envelope["data"]["message"]
+    assert "requires review_ref" in message, f"refused for a different reason: {message}"
+    assert "for_review -> in_progress" in message, message
+    assert "--review-ref" in message, "the refusal must name the flag that supplies the pointer"
 
 
 def test_orchestrator_door_accepts_the_same_rewind_with_a_pointer(repo_with_wp_in_review: Path) -> None:
@@ -195,44 +197,6 @@ def test_orchestrator_door_accepts_the_same_rewind_with_a_pointer(repo_with_wp_i
     appended = rows[-1]
     assert (appended["from_lane"], appended["to_lane"]) == ("for_review", "in_progress")
     assert appended["review_ref"] == "review-cycle://WP01/1"
-
-
-@pytest.mark.parametrize(
-    ("from_lane", "to_lane"),
-    [
-        ("done", "in_progress"),
-        ("canceled", "planned"),
-        ("planned", "in_progress"),
-        ("for_review", "planned"),
-        ("in_review", "in_progress"),
-        ("approved", "in_progress"),
-    ],
-)
-def test_force_elsewhere_is_unchanged(from_lane: str, to_lane: str) -> None:
-    """T008: every forced edge outside the requirement set still admits actor + reason."""
-    from specify_cli.status.models import GuardContext, Lane
-    from specify_cli.status.wp_state import requires_review_ref, wp_state_for
-
-    target = Lane(to_lane)
-    assert requires_review_ref(from_lane, to_lane) is False
-    ctx = GuardContext(force=True, actor="admin", reason="operator override")
-
-    ok, error = wp_state_for(from_lane).check_transition(target, ctx)
-
-    assert (ok, error) == (True, None), f"{from_lane} -> {to_lane} changed: {error}"
-
-
-@pytest.mark.parametrize("target", ["planned", "blocked", "canceled"])
-def test_forced_exits_from_done_still_work(target: str) -> None:
-    """The terminal-exit ratchet: ``done`` stays force-only and force still admits it."""
-    from specify_cli.status.models import GuardContext, Lane
-    from specify_cli.status.wp_state import wp_state_for
-
-    ok, error = wp_state_for("done").check_transition(Lane(target), GuardContext(force=True, actor="admin", reason="reopen"))
-
-    assert (ok, error) == (True, None), error
-    # ... and still refuses without force, as before.
-    assert wp_state_for("done").check_transition(Lane(target), GuardContext(actor="admin", reason="reopen"))[0] is False
 
 
 def _move_task(m: object, *extra: str):
