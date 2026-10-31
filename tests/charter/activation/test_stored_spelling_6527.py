@@ -143,12 +143,15 @@ def _manager(root: Path) -> tuple[ActiveCharterManager, ProjectContext]:
 
 
 def _activate_declared_id(root: Path) -> None:
-    _cli(root, "activate", "toolguide", "gherkin")  # materialise first, then name declared ids
+    # #6685: an absent key is no longer materialised, so the writer needs a present list to append to.
+    seed_activation_ledger(root, activated_toolguides=["gherkin"], activated_directives=[DIR_STEM])
     _cli(root, "activate", "toolguide", ORG_GUIDE_ID)
     _cli(root, "activate", "directive", DIR_ID)
 
 
 def _activate_urn(root: Path) -> None:
+    # #6685: a present list, so the write (and therefore the stored spelling) has somewhere to go.
+    seed_activation_ledger(root, activated_toolguides=["gherkin"], activated_tactics=[BUILT_IN_TACTIC], activated_directives=[DIR_STEM])
     _cli(root, "activate", "toolguide", f"toolguide:{ORG_GUIDE_ID}")
     _cli(root, "activate", "tactic", f"tactic:{PROJ_TAC_ID}")
     _cli(root, "activate", "directive", f"directive:{DIR_ID}")
@@ -204,6 +207,10 @@ WRITERS: dict[str, Callable[[Path], None]] = {
 }
 
 
+#: Writers whose every named artifact the absent key already puts in force, so they store nothing (#6685).
+NON_WRITING_WRITERS = frozenset({"activate-absent-key", "cascade", "interview"})
+
+
 # The cascade writer walks a full built-in cascade: ~96 s locally, 134.5 s on a
 # per-PR CI runner (run 40834277976), and over the 240 s pytest.ini default on a
 # ~2.2x slower runner (#6777). Headroom: 600 s, about 2x that slow-runner estimate
@@ -213,7 +220,7 @@ _CASCADE_TIMEOUT_S = 600
 
 @pytest.mark.parametrize(
     "writer",
-    [pytest.param(name, marks=pytest.mark.timeout(_CASCADE_TIMEOUT_S)) if name == "cascade" else name for name in WRITERS],
+    [pytest.param(name, marks=pytest.mark.timeout(_CASCADE_TIMEOUT_S)) if name == "cascade" else name for name in WRITERS if name not in NON_WRITING_WRITERS],
 )
 def test_writer_stores_stems_only(tmp_path: Path, writer: str) -> None:
     root = _project(tmp_path)
@@ -230,14 +237,11 @@ def test_writer_stores_stems_only(tmp_path: Path, writer: str) -> None:
     [
         ("activate-declared-id", "activated_toolguides", {ORG_GUIDE_STEM}),
         ("activate-urn", "activated_tactics", {PROJ_TAC_STEM}),
-        ("activate-absent-key", "activated_toolguides", {ORG_TOOL_STEM, ORG_GUIDE_STEM, "gherkin"}),
-        ("activate-absent-key", "activated_tactics", {ORG_TAC_STEM, PROJ_TAC_STEM, BUILT_IN_TACTIC}),
         ("activate-only", "activated_toolguides", {ORG_TOOL_STEM, "gherkin"}),
         ("deactivate", "deactivated_tactics", {PROJ_TAC_STEM}),
         ("preset", "activated_toolguides", {ORG_TOOL_STEM, ORG_GUIDE_STEM, "gherkin"}),
         ("preset", "activated_directives", {DIR_STEM}),
         ("preset", "activated_tactics", {PROJ_TAC_STEM, BUILT_IN_TACTIC}),
-        ("interview", "activated_tactics", {ORG_TAC_STEM, PROJ_TAC_STEM}),
         ("interview-narrow", "activated_tactics", {ORG_TAC_STEM, PROJ_TAC_STEM}),
         ("org-required-union", "activated_toolguides", {ORG_TOOL_STEM}),
     ],
@@ -260,23 +264,32 @@ def _served(root: Path) -> dict[str, set[str]]:
     }
 
 
-def test_the_in_force_set_is_unchanged_by_the_spelling(tmp_path: Path) -> None:
-    """An absent-key materialisation stores one entry per artifact, and every artifact once in force stays in force."""
+def test_the_in_force_set_is_unchanged_and_nothing_is_stored(tmp_path: Path) -> None:
+    """#6685: naming an artifact the absent key already puts in force stores nothing and moves nothing."""
     root = _project(tmp_path)
-    index = IdentityIndex.build(root)
     served_before = _served(root)
 
     _activate_absent_key(root)
 
+    assert _stored(root) == {}, "an in-force artifact must not materialise the absent key (#6685)"
     served_after = _served(root)
-    # The one artifact the writer names is in force either way (absent key = all in force), so nothing else moves.
     assert served_after == served_before
     assert {ORG_TOOL_ID, ORG_GUIDE_ID} <= served_after["toolguides"], served_after
     assert {ORG_TAC_ID, PROJ_TAC_ID} <= served_after["tactics"], served_after
 
-    for key in ("activated_toolguides", "activated_tactics"):
-        entries = _stored(root)[key]
-        assert len(entries) == len({index.declared_id(_kind_of(key), item) or item for item in entries}), entries
+
+@pytest.mark.parametrize("writer", sorted(NON_WRITING_WRITERS))
+def test_a_writer_that_names_only_in_force_artifacts_stores_nothing(tmp_path: Path, writer: str) -> None:
+    """#6685: the interview, the first activation and a cascade write no list into an absent key.
+
+    Every artifact they name is already in force while the key is absent, so a list would
+    only turn "nothing chosen yet" into an operator's activation (#2577, #4785, #6629).
+    """
+    root = _project(tmp_path)
+
+    WRITERS[writer](root)
+
+    assert _stored(root) == {}, f"{writer} wrote an activation list into the absent-key state"
 
 
 def test_a_preset_re_applied_over_its_old_declared_id_spelling_is_not_a_customisation(tmp_path: Path) -> None:

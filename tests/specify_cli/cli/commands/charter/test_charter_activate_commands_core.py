@@ -71,25 +71,28 @@ def _invoke_activate(project_root: Path, *args: str) -> object:
 
 class TestActivateCommand:
     def test_activate_directive_happy_path(self, project_root: Path) -> None:
-        """Activating a directive kind writes to config.yaml."""
+        """Activating a directive kind succeeds and reports the artifact (#6685: no list into an absent key)."""
         result = _invoke_activate(
             project_root,
             "directive",
             "001-architectural-integrity-standard",
         )
         assert result.exit_code == 0, result.output
+        assert "001-architectural-integrity-standard" in " ".join(result.output.split())
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
-        assert "001-architectural-integrity-standard" in data["activated_directives"]
+        # The absent key already puts every directive in force, so the activation writes no list.
+        assert "activated_directives" not in data
 
     def test_activate_config_yaml_updated(self, project_root: Path) -> None:
-        """config.yaml is updated, not an override file."""
+        """A present list is appended in place (not in an override file); #6685 keeps absent keys absent."""
+        config = project_root / ".kittify" / "config.yaml"
+        config.write_text("activated_directives: []\n", encoding="utf-8")
         _invoke_activate(
             project_root,
             "directive",
             "003-decision-documentation-requirement",
         )
-        config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
         assert "activated_directives" in data
         assert "003-decision-documentation-requirement" in data["activated_directives"]

@@ -1,0 +1,114 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M684BJ1XKF8V5V1NWDC5AS23",
+  "materialized_at": "2026-10-31T04:44:14.781162+00:00",
+  "mission_number": "244",
+  "mission_slug": "interview-and-first-activate-keep-absent-key-absent-01M67HSF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi-flash",
+      "lane": "done",
+      "last_event_id": "01M684BFG7CG1GGWK4GM6QFJTD",
+      "last_transition_at": "2026-10-31T04:44:12.167635+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Interview leaves an absent key absent; end-to-end red-first test, focused tests and the FR-015 row updated. Pre-review gate skipped because its own 300s budget cannot finish 'make test-fast' on this shared 20-agent host (timed out twice); the same scope is run to completion by the mission and recorded in the PR.",
+        "Review round 1 passed: the writer filters to present keys before the promotion; the narrow path keeps its effective-set seeding; zero drop re-measured through resolve_effective_sets; FR-015 interview row moved to KEY_STAYS_ABSENT; one finding fixed (Mapping[str, Any] instead of a noqa'd Any)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 881852,
+      "shell_pid_created_at": "1793402841.06",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi-flash",
+      "lane": "done",
+      "last_event_id": "01M684BGTZ8RXSQP3TJSRP4W0F",
+      "last_transition_at": "2026-10-31T04:44:13.535124+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Activate keeps an in-force artifact implicit; 30 dependent pins updated across tests/charter, tests/specify_cli/cli/commands/charter and the FR-015 acceptance matrix. Pre-review gate skipped for the same 300s-budget reason as WP01; 'make test-fast' is run to completion at wrap-up and recorded in the PR.",
+        "Review round 2 passed: the guard needs both effective_ids_in_force and the artifact in the in-force set, so mission-type and required-when-absent kinds keep materialising; deny and --only branches untouched. 30 dependent pins moved to the new contract without losing a zero-drop assertion; cascade-deactivation's documented 'still active (no allow-list)' outcome pinned where a list no longer exists (follow-up filed)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1499998,
+      "shell_pid_created_at": "1793406005.07",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "pi-flash",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi-flash",
+      "lane": "done",
+      "last_event_id": "01M684BJ1XKF8V5V1NWDC5AS23",
+      "last_transition_at": "2026-10-31T04:44:14.781162+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs, changelog and docstrings; gates green (terminology 98, seam 1, kind vocabulary 18, docs freshness errors=0 warnings=4 pre-existing help-drift/link-health)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 587303,
+      "shell_pid_created_at": "1793421627.04",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}

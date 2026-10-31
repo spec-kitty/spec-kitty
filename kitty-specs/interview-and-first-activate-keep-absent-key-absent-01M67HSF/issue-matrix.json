@@ -1,0 +1,161 @@
+{
+  "rows": {
+    "#2577": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4253": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4400": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4785": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6408": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6457": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6458": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6499": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6629": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6678": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6683": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6684": {
+      "evidence_ref": "Context citation only: the ruling and behaviour this mission preserves; no work owed (see spec.md Intent Summary and Constraints)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6685": {
+      "evidence_ref": "WP01 removes the interview seeding; WP02 removes the first-activate materialisation. Final verdict recorded at wrap-up.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

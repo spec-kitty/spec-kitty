@@ -40,21 +40,32 @@ def tactic_pack_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path
     return tmp_path
 
 
+def _seed_present_tactic_list(root: Path) -> None:
+    """A present ``activated_tactics`` list in config.yaml, so an activation has somewhere to write (#6685)."""
+    config_path = root / ".kittify" / "config.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["activated_tactics"] = ["acceptance-test-first"]
+    config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
+
+
 def _activated(root: Path) -> list[str]:
     config = yaml.safe_load((root / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
     return list(config["activated_tactics"])
 
 
 def test_activate_tactic_by_stem_writes_stem(tactic_pack_project: Path) -> None:
+    # #6685: an in-force artifact is not written into an absent key, so a present list is seeded first.
+    _seed_present_tactic_list(tactic_pack_project)
     result = runner.invoke(charter_app, ["activate", "--repo-root", str(tactic_pack_project), "--no-compile", "tactic", "qa-tactic-seven"])
     assert result.exit_code == 0, result.output
     activated = _activated(tactic_pack_project)
     assert "qa-tactic-seven" in activated
-    # Re-pin (#6435): the materialised effective set lists the org tactic once, by its stem.
+    # Re-pin (#6435): the written list holds the org tactic once, by its stem.
     assert "qa-seven" not in activated
 
 
 def test_activate_tactic_by_declared_id_writes_stem(tactic_pack_project: Path) -> None:
+    _seed_present_tactic_list(tactic_pack_project)
     result = runner.invoke(charter_app, ["activate", "--repo-root", str(tactic_pack_project), "--no-compile", "tactic", "qa-seven"])
     assert result.exit_code == 0, result.output
     assert "qa-tactic-seven" in _activated(tactic_pack_project)

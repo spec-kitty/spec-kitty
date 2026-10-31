@@ -321,7 +321,8 @@ def test_positional_activate_resolves_the_default_repo_root_per_invocation(tmp_p
     roots = []
     for name in ("one", "two"):
         root = tmp_path / name
-        _dump(root / ".kittify" / "config.yaml", {"mission_type_activations": ["software-dev"]})
+        # A present list, so the activation has a surface to write to (#6685).
+        _dump(root / ".kittify" / "config.yaml", {"mission_type_activations": ["software-dev"], "activated_directives": []})
         subprocess.run(["git", "init", "-q", str(root)], check=True)
         roots.append(root)
 
