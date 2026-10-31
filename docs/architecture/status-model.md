@@ -263,8 +263,9 @@ sources, and only two:
 1. the authored `subtasks:` list in the work package's `tasks/<WP>.md` frontmatter
    (static design intent), and
 2. a **structured** `tasks.md` row that names the id — a `- [ ]`/`- [x]` checkbox row,
-   a pipe-table row, or an inline `Subtasks: T001, T002` list under a work-package
-   heading. A prose mention never claims an id.
+   a pipe-table row (owner from its WP column, else the enclosing heading), or an
+   inline `Subtasks: T001, T002` list under a work-package heading. A prose mention
+   never claims an id. Ids compare case-insensitively in both sources.
 
 The owners of an id are the union of those two sources. An id more than one work
 package claims is *shared*, and `mark-status` refuses it rather than picking one:
