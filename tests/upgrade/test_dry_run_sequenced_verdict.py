@@ -42,6 +42,8 @@ from specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers import (
 from specify_cli.upgrade.migrations.m_3_2_6_issue_matrix_driver_repoint import (
     IssueMatrixDriverRepointMigration,
 )
+from specify_cli.upgrade.manifest import load_order_manifest
+from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner, UpgradeResult
 
@@ -228,6 +230,9 @@ def test_the_predicted_verdict_names_the_predecessor(tmp_path: Path) -> None:
     predicted = result.migration_results[_REPOINT]
     assert predicted.success is True
     assert predicted.changes_made == [f"dry-run: would apply after {_GATE}"]
+    # The provenance is data, not prose: the surfaces that render a verdict read this.
+    assert predicted.predicted_after == (_GATE,)
+    assert result.migration_results[_GATE].predicted_after == (), "a directly detected verdict is never marked predicted"
 
 
 def test_a_dry_run_writes_nothing(tmp_path: Path) -> None:
@@ -338,3 +343,39 @@ def test_a_real_run_keeps_its_target_state_wording(tmp_path: Path) -> None:
     assert result.migrations_skipped == [_ReadsMarker.migration_id]
     assert any("not needed (project already in target state)" in warning for warning in result.warnings), result.warnings
     assert not any("not needed on the current tree" in warning for warning in result.warnings), result.warnings
+
+
+# --------------------------------------------------------------------------- #
+# Declaration audit — a declaration that can never fire is a silent no-op
+# --------------------------------------------------------------------------- #
+
+
+def _declarations() -> list[tuple[str, tuple[str, ...]]]:
+    """Every declared ``sequenced_after`` in the discovered registry, in manifest order."""
+    auto_discover_migrations()
+    return [(migration.migration_id, tuple(migration.sequenced_after)) for migration in MigrationRegistry.get_all() if migration.sequenced_after]
+
+
+def test_every_declared_predecessor_is_a_registered_earlier_migration() -> None:
+    """A typo, a rename, or a later-ordered predecessor would silently disable the prediction.
+
+    The declaration asserts "this predecessor's write happens before my ``detect()`` reads
+    it", so the id must exist in the registry (or the dry run can never match it) and be
+    ordered BEFORE its declarer by ``order_manifest.txt`` (or the dry run matches it only
+    after the dependent has already been decided).
+    """
+    order = {migration_id: position for position, migration_id in enumerate(load_order_manifest())}
+    registered = {migration.migration_id for migration in MigrationRegistry.get_all()}
+    declarations = _declarations()
+    assert declarations, "the reported pair must keep its declaration, or the audit is vacuous"
+
+    for declarer, predecessors in declarations:
+        for predecessor in predecessors:
+            assert predecessor in registered, f"{declarer} declares unknown predecessor {predecessor}"
+            assert predecessor in order, f"{declarer} declares {predecessor}, which order_manifest.txt does not order"
+            assert order[predecessor] < order[declarer], f"{declarer} declares {predecessor}, which the manifest orders after it"
+
+
+def test_the_reported_pair_declares_its_detect_input() -> None:
+    """The measured case stays declared: without it the preview under-reports #6552 again."""
+    assert (_REPOINT, (_GATE,)) in _declarations()
