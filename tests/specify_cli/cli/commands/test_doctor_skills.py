@@ -630,6 +630,9 @@ def test_tool_surface_human_output_names_a_shared_finding_once(monkeypatch: pyte
     buffer = io.StringIO()
     monkeypatch.setattr(doctor_surface, "console", Console(file=buffer, width=400))
 
-    doctor_surface._print_tool_surface_human(ToolSurfaceOutcome(report=SimpleNamespace(ok=False, findings=findings)))  # type: ignore[arg-type]  # a report stand-in: only ok/findings are read
+    doctor_surface._print_tool_surface_human(  # type: ignore[arg-type]  # a report stand-in: only ok/findings are read
+        ToolSurfaceOutcome(report=SimpleNamespace(ok=False, findings=findings)),
+        stated_agent_list=True,
+    )
 
     assert buffer.getvalue().count("has your edits") == 1
