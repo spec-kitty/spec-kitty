@@ -28,6 +28,7 @@ import ulid as _ulid_mod
 
 from kernel.clock import datetime, now_utc
 from kernel.errors import GuardedReadError
+from kernel.event_log_append import event_log_lock_path
 from kernel.guarded_read import read_guarded
 from kernel.locks import LockAcquireTimeout, machine_file_lock
 from specify_cli.decisions import emit as _emit
@@ -143,6 +144,79 @@ def _decisions_lock_path(ledger_dir: Path) -> Path:
     SAME dir so both lock paths agree.
     """
     return Path(_store.decisions_dir(ledger_dir) / _LOCK_FILENAME)
+
+
+def _decisions_anchor_lock_path(events_path: Path) -> Path:
+    """Return the log-anchor lock path that every writer of *events_path* takes.
+
+    The sidecar lock above is keyed on the per-checkout LEDGER directory, but
+    the row the critical section protects is appended to the Mission EVENT LOG
+    (:func:`_write_events_path`), which resolves independently and, on a
+    coordination topology, on a different partition. The identity every writer
+    of that row shares is therefore the log, not the ledger directory (#6765).
+
+    Delegated verbatim to :func:`kernel.event_log_append.event_log_lock_path`,
+    the ONE existing anchor to lock-path contract (#6606 rule 1): the digest of
+    the resolved anchor under ``<git-common-dir>/spec-kitty-locks/event-logs/``,
+    which every worktree of a repository shares (so the lock file never lands
+    in a working tree). Outside a git repository it falls back to a sibling
+    ``<log>.event-log.lock``; when git cannot be invoked it raises
+    ``EventLogLockUnavailableError`` rather than locking where no other writer
+    locks. No second digest or placement scheme lives here (C-003).
+    """
+    return event_log_lock_path(events_path)
+
+
+@contextmanager
+def _decisions_write_locks(
+    *,
+    events_path: Path,
+    ledger_dir: Path,
+    timeout_s: float | None,
+    mission_slug: str,
+    decision_id: str | None,
+) -> Iterator[None]:
+    """Hold both decision-write locks: the log anchor, then the ledger sidecar.
+
+    ONE global order (C-004), and no path inverts it::
+
+        anchor lock (event log)     <- cross-checkout serialization (#6765)
+          ledger-dir sidecar lock   <- in-ledger repair exclusion (#4848, #5925, #6628)
+            Mission status lock     <- taken by ``emit`` inside the critical section
+
+    The anchor is taken first because it is the new half: every existing
+    holder of the sidecar (the reconciler, ``repair-runtime-lock``, ``next``'s
+    owned-commit guard) takes only that lock, so nothing can already hold the
+    sidecar and then wait for the anchor.
+
+    Both takes go through :func:`_decisions_lock`, so a timed-out wait keeps
+    its existing single refusal shape (``DecisionError`` with
+    ``LOCK_TIMEOUT``, owned by #6841) and this change adds no error surface
+    (NFR-003). ``timeout_s=None`` waits without a bound on both takes, which
+    is what ``open_decision`` needs (NFR-001).
+
+    The caller passes paths it has ALREADY resolved: resolving the log may
+    materialize the coordination surface, and a placement refusal must fail
+    before any lock is taken and before any write (#5113).
+    """
+    with ExitStack() as stack:
+        stack.enter_context(
+            _decisions_lock(
+                _decisions_anchor_lock_path(events_path),
+                timeout_s=timeout_s,
+                mission_slug=mission_slug,
+                decision_id=decision_id,
+            )
+        )
+        stack.enter_context(
+            _decisions_lock(
+                _decisions_lock_path(ledger_dir),
+                timeout_s=timeout_s,
+                mission_slug=mission_slug,
+                decision_id=decision_id,
+            )
+        )
+        yield
 
 
 @contextmanager
@@ -888,19 +962,26 @@ def open_decision(
     # NFR-002).
     events_path = _write_events_path(repo_root, mission_slug, owned=owned)  # pre-resolve: any placement failure fails before write
 
-    # T010 (D4/FR-004) and #4848 (open half, FR-001/FR-002): ONE hold of
-    # the decisions lock covers the dedup lookup, the index append, the
-    # artifact write and the opening event -- or, for an identical open, the
-    # "is the opening in the log?" check and its repair. A concurrent
-    # identical open waits here and then finds the row, so a decision gets
-    # exactly one ``DecisionPointOpened``. Lock order: decisions lock first,
-    # then the mission status lock the emit takes inside it (as in
-    # ``_terminal_command``). The wait is unbounded (``_OPEN_LOCK_WAIT_S``):
-    # the holder may be waiting, unbounded, on the status lock, and a second
-    # open of a different decision must queue behind it, not fail.
-    # ``on_minted`` runs after the lock is released.
-    lock_path = _decisions_lock_path(mission_dir)
-    with _decisions_lock(lock_path, timeout_s=_OPEN_LOCK_WAIT_S, mission_slug=mission_slug, decision_id=decision_id):
+    # T010 (D4/FR-004), #4848 (open half, FR-001/FR-002) and #6765: ONE hold
+    # of the lock PAIR covers the dedup lookup, the index append, the artifact
+    # write and the opening event -- or, for an identical open, the "is the
+    # opening in the log?" check and its repair. The pair is the log anchor
+    # (shared by every writer of this log, so two checkouts serialize) and the
+    # ledger-dir sidecar (which excludes an in-ledger repair), in that order.
+    # A concurrent identical open waits here and then finds the row, so a
+    # decision gets exactly one ``DecisionPointOpened``. Lock order: anchor,
+    # then sidecar, then the mission status lock the emit takes inside them
+    # (as in ``_terminal_command``). The wait is unbounded
+    # (``_OPEN_LOCK_WAIT_S``) on both: the holder may be waiting, unbounded, on
+    # the status lock, and a second open of a different decision must queue
+    # behind it, not fail. ``on_minted`` runs after the locks are released.
+    with _decisions_write_locks(
+        events_path=events_path,
+        ledger_dir=mission_dir,
+        timeout_s=_OPEN_LOCK_WAIT_S,
+        mission_slug=mission_slug,
+        decision_id=decision_id,
+    ):
         entry, idempotent, lamport, artifact = _record_open_locked(
             repo_root,
             mission_slug,
@@ -1030,15 +1111,17 @@ def _terminal_command(
 ) -> DecisionTerminalResponse:
     """Shared implementation for resolve, defer, and cancel.
 
-    One hold of the decisions lock (``decisions/index.json.lock``) covers the
-    index save, the artifact write and the terminal event (FR-007, #5681 and
-    the terminal half of #4848; ``open_decision`` holds the same lock the
-    same way for the open half). Lock order: decisions lock first, then the
-    mission status lock the emit takes inside it; no code path takes them in
-    the reverse order. The write-side pre-resolve below runs BEFORE the lock
-    (it may materialize the coordination surface). A waiter that cannot get
-    the lock within ``_LOCK_ACQUIRE_TIMEOUT_S`` fails closed with
-    ``DecisionError(LOCK_TIMEOUT)`` and writes nothing.
+    One hold of the decisions lock PAIR -- the event-log anchor lock and the
+    ledger-dir sidecar (``decisions/index.json.lock``), in that order -- covers
+    the index save, the artifact write and the terminal event (FR-007, #5681,
+    the terminal half of #4848 and the terminal half of #6765;
+    ``open_decision`` holds the same pair the same way for the open half).
+    Lock order: anchor, then sidecar, then the mission status lock the emit
+    takes inside them; no code path takes them in the reverse order. The
+    write-side pre-resolve below runs BEFORE the locks (it may materialize the
+    coordination surface). A waiter that cannot get either lock within
+    ``_LOCK_ACQUIRE_TIMEOUT_S`` fails closed with ``DecisionError(LOCK_TIMEOUT)``
+    and writes nothing.
 
     Before the index save, a decision whose opening is missing from the log
     (an interrupted open) gets its ``DecisionPointOpened`` row, under the
@@ -1075,8 +1158,13 @@ def _terminal_command(
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
     # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir``.
     mission_dir = _ledger_dir(repo_root, mission_slug, owned=owned)
-    lock_path = _decisions_lock_path(mission_dir)
-    with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=decision_id):
+    with _decisions_write_locks(
+        events_path=events_path,
+        ledger_dir=mission_dir,
+        timeout_s=_LOCK_ACQUIRE_TIMEOUT_S,
+        mission_slug=mission_slug,
+        decision_id=decision_id,
+    ):
         _repair_opening_before_terminal(repo_root, mission_slug, mission_dir, decision_id, events_path=events_path, owned=owned)
         updated_entry, idempotent = _apply_terminal_locked(
             mission_dir,

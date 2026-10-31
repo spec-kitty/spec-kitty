@@ -242,7 +242,13 @@ def test_decisions_lock_waiter_times_out_and_writes_nothing(tmp_path: Path, monk
     S1 (operator ruling): the timeout surfaces as a structured
     ``DecisionError(LOCK_TIMEOUT)`` naming the lock and telling the caller to
     retry -- never a bare ``LockAcquireTimeout`` traceback. Red on 581b5c46.
+
+    #6765: a decision write now holds the event-log anchor lock ahead of this
+    sidecar, so the lock a waiter contends for FIRST is the anchor. The
+    assertion below names that anchor deliberately: it pins both the failure
+    shape (unchanged) and the acquisition order (anchor before sidecar).
     """
+    from kernel.event_log_append import event_log_lock_path
     from specify_cli.decisions import service
 
     d1 = _open(tmp_path, "k1")
@@ -260,7 +266,7 @@ def test_decisions_lock_waiter_times_out_and_writes_nothing(tmp_path: Path, monk
     assert not b.thread.is_alive()
     assert isinstance(b.error, DecisionError), repr(b.error)
     assert b.error.code is DecisionErrorCode.LOCK_TIMEOUT
-    lock_path = _mission_dir(tmp_path) / "decisions" / "index.json.lock"
+    lock_path = event_log_lock_path(_mission_dir(tmp_path) / "status.events.jsonl")
     assert b.error.details["lock_path"] == str(lock_path)
     assert b.error.details["decision_id"] == d2
     assert str(lock_path) in str(b.error)
