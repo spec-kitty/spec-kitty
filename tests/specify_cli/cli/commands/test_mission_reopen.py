@@ -350,6 +350,28 @@ def test_reopen_rejected_when_mission_not_completed(tmp_path: Path, monkeypatch)
     assert before_meta == after_meta, "meta.json must be untouched on rejection"
 
 
+def test_reopen_rejected_when_reason_is_empty(tmp_path: Path, monkeypatch) -> None:
+    # #6438: `MissionReopenedPayload.reason` is non-empty, so the command refuses
+    # an empty --reason itself with a structured, retryable error instead of
+    # letting the model's ValidationError escape as a traceback. Nothing is
+    # written and meta.json is untouched, so the operator can simply retry.
+    repo = _init_repo(tmp_path)
+    feature_dir = _make_merged_mission(repo)
+    before_meta = (feature_dir / "meta.json").read_text(encoding="utf-8")
+    monkeypatch.chdir(repo)
+
+    result = _invoke(repo, "reopen", _MID8, "--reason", "")
+
+    assert result.exit_code != 0, result.output
+    assert "reason_required" in result.output or "--reason must not be empty" in result.output
+    assert "Traceback" not in result.output
+
+    events = read_lifecycle_events(mission_event_log_path(feature_dir))
+    assert not [e for e in events if e.get("event_type") == MISSION_REOPENED]
+    after_meta = (feature_dir / "meta.json").read_text(encoding="utf-8")
+    assert before_meta == after_meta, "meta.json must be untouched on rejection"
+
+
 def test_second_reopen_blocked_until_recompletion(tmp_path: Path, monkeypatch) -> None:
     # #1926 self-correcting invariant: after a re-open clears merged_* and flips
     # the state to reopened/active, the mission is NOT completed again — so a
