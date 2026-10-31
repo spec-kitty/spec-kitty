@@ -2,7 +2,7 @@
 title: 'Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over'
 description: What `spec-kitty cutover-guard` checks, how it is wired into CI so it cannot be silently skipped, and how to register it as a required status check.
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-30'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 ---
@@ -99,6 +99,7 @@ The exemption fails closed. Each of these makes the Mission fail, never pass:
 | Reason | Remedy |
 |---|---|
 | Accepted or merged, but no stamp; or legacy WP frontmatter | `spec-kitty migrate backfill-runtime-state --mission <slug>` |
+| Legacy Mission whose `meta.json` `mission_id` is its own slug (a ULID was never minted), and the cutover refuses with `claim mismatch (deterministic seed payload diverged)` | `spec-kitty migrate backfill-runtime-state --mission <slug>` ([#6689](https://github.com/spec-kitty/spec-kitty/issues/6689)). The seed row now carries the `mission_id` `meta.json` declares, which is what the reader re-derives, so verify agrees. Re-run the same command to confirm it is a no-op: the repair converges and needs no hand-editing of `status.events.jsonl` or the WP frontmatter. |
 | `status_phase` malformed | remove the malformed `status_phase` from `kitty-specs/<slug>/meta.json` (accept and consolidate stamp it), or, for an accepted Mission, run `spec-kitty migrate backfill-runtime-state --mission <slug>` |
 | `accepted_at` or `merged_at` is not a non-empty string | set it to an ISO-8601 string (or remove the key) in `kitty-specs/<slug>/meta.json`, then rerun |
 | A top-level key repeats in `meta.json` | remove the repeated key from `kitty-specs/<slug>/meta.json`, then rerun |
