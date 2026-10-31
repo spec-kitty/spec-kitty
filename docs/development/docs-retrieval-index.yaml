@@ -3157,6 +3157,7 @@ pages:
     - {slug: "follow-up-2026-09-30-every-post-mutation-exit-goes-through-a3-5385", text: "Follow-up 2026-09-30 — every post-mutation exit goes through A3 (#5385)", level: 3}
     - {slug: "follow-up-2026-10-04-presence-axis-status-write-guard-wider-lag-recovery-5613", text: "Follow-up 2026-10-04 — presence axis, status-write guard, wider lag recovery (#5613)", level: 3}
     - {slug: "follow-up-2026-10-05-the-record-is-the-only-rollback-anchor-5686-5666", text: "Follow-up 2026-10-05 — the record is the only rollback anchor (#5686 / #5666)", level: 3}
+    - {slug: "follow-up-2026-10-31-a-rollback-that-restored-everything-re-baselines-the-record-6770", text: "Follow-up 2026-10-31 — a rollback that restored everything re-baselines the record (#6770)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives Considered", level: 2}
     - {slug: "references", text: "References", level: 2}
@@ -13172,7 +13173,7 @@ pages:
   - path: "docs/guides/how-to/recovery/recover-from-interrupted-merge.md"
     title: "Recover from an Interrupted Consolidation"
     divio_type: "how-to"
-    abstract: "How to recover from an interrupted consolidation with Spec Kitty 3.2: Learn how to resume or abort a spec-kitty consolidate run that was interrupted before it completed."
+    abstract: "How to recover from an interrupted consolidation: Learn how to resume or abort a spec-kitty consolidate run that was interrupted before it completed."
     anchors:
     - {slug: "why-consolidation-runs-can-be-interrupted", text: "Why Consolidation Runs Can Be Interrupted", level: 2}
     - {slug: "resuming-with-resume", text: "Resuming with `--resume`", level: 2}

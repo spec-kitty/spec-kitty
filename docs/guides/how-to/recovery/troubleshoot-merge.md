@@ -2,7 +2,7 @@
 title: How to Troubleshoot Merge Issues
 description: 'How to troubleshoot spec-kitty consolidate: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-10-31'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -211,8 +211,8 @@ Rebaselined the consolidation record: nothing of this attempt remains, so the ne
 Every branch the run moved is back at its pre-run commit, so nothing of that attempt is on the target. The run then drops the transaction geometry that attempt anchored — its target baseline, its pre-mutation snapshot, its restore targets and its per-attempt progress — and says so.
 
 - **What it means.** The next run re-derives its reconciliation baseline from the target's **current** tip. Anything committed on the target since the failed attempt — your own fix for the cause, a teammate's commit, another Mission's status commit — is already landed content, not Mission content, so it is neither reported un-attributable nor rolled back over.
-- **What to run.** Fix the cause, then `spec-kitty consolidate --mission <slug>`. `--resume` also works; it re-captures the anchors from the live tips.
-- **`--abort`.** With nothing left to restore, `--abort` prints `Aborted ... state and workspace cleaned up`, clears what remains of the record and exits 0. It does not refuse; a coordination Mission may still clean orphaned merge scratch on the way.
+- **What to run.** Fix the cause, then `spec-kitty consolidate --mission <slug>`. `--resume` also works; it re-derives the target baseline from the live tip (a coordination Mission keeps its coordination anchor).
+- **`--abort`.** With nothing left to restore, `--abort` prints `Aborted ... state and workspace cleaned up`, clears what remains of the record and exits 0. It does not refuse; on a coordination Mission it can also tear down the coordination worktree and marker (the coordination branch is kept), and it holds the consolidation lock for that.
 - **The boundary.** A rollback that leaves a branch `NOT restored` keeps the attempt's baseline and snapshot untouched, because that content is still on the target: resolve the branch, then `--abort` — or `--resume` once the branch is back at a tip the record can explain. When the kept content is yours to keep, release it as described in [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored).
 
 ### A lane changed after its work package was approved

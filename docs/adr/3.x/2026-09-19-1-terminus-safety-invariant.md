@@ -3,7 +3,7 @@ title: 'ADR: Terminus-Safety Invariant — gate-then-mutate-with-rollback across
 description: 'Terminus-safety invariant: completion commands gate-then-mutate with rollback on failure, enforced by one shared terminal-readiness authority.'
 status: Accepted
 date: '2026-09-19'
-updated: '2026-10-06'
+updated: '2026-10-31'
 ---
 
 ## Context and Problem Statement
@@ -525,6 +525,41 @@ live tip the record cannot explain.
     #5048(a) (PASS-anchor re-arm), and the #5687 resume that re-bases its window after
     `git pull` and then pushes.
 
+### Follow-up 2026-10-31 — a rollback that restored everything re-baselines the record (#6770)
+
+Issue #6770, PR #6867, a recurrence of #5667 on 4.0.0rc8. A reconciliation FAIL whose door restored
+every branch left the record on disk. The next plain `consolidate` auto-resumed it and reused
+attempt 1's `pre_mutation_target_sha` as the window base, so commits landed on the target between
+the attempts were offered as un-attributable and rolled back over, and a plain `--abort` refused
+with "no post-mutation tip was recorded".
+
+- **Rule.** When `RollbackReport.rebaselineable` holds, the door calls
+  `rollback.rebaseline_after_full_restore`. **Dropped:** `pre_mutation_target_sha`,
+  `pre_mutation_refs` (the snapshot), `restore_targets`, `post_mutation_refs`, `advance_intents`,
+  the releases, `snapshot_lane_branches`, `resume_seeded_refs`, `unsettled_refs`, the PASS anchor
+  and the per-attempt progress. The next run or `--resume` recaptures from live tips. **Kept:**
+  the record and its marker, `wp_order`, the strategy and cleanup flags.
+- **Coordination anchor rule.** `pre_mutation_coord_sha`, `pre_mutation_coord_ref` and
+  `pre_interrupt_lane_tips` stay only on a coordination topology, where they are the
+  reconciliation claim's authorship base (#5001, #4982, #5051) and the H5 resume guard needs a tip
+  for every lane. When `pre_mutation_coord_ref` is unset or equals the target (LANES,
+  SINGLE_BRANCH), the "anchor" is a second copy of the dead attempt's target tip and is dropped.
+  Lanes are report-only: one that moved during the failed attempt is accepted by the per-lane CAS
+  unless it diverged, which refuses closed.
+- **`rebaselineable` is stricter than `fully_restored`.** It also refuses `KEPT_BY_OPERATOR` (the
+  record is the only place that holds the release and its reason) and `LANE_MISSING` (the record
+  holds the last copy of the deleted lane's snapshot SHA). An unsettled run-movable branch with
+  no recorded post tip that moved is `NOT_RESTORED`, so it never re-baselines.
+- **Lock widening.** `--abort` took the global merge lock only for a record with a snapshot. A
+  snapshot-less record is now the normal post-failure shape, and one that still names
+  coordination state (anchor or `pending_coord_reconcile`) can tear the coordination worktree
+  and marker down, so that shape takes the lock too. A bare legacy record still does not.
+- **Residuals (named, not closed).** `LANE_MISSING` (a lane branch deleted mid-run) reaches the
+  door and blocks the re-baseline, so the #5667 shape persists for that Mission until `--abort`.
+  `orchestrator-api consolidate-mission` has no rollback door and never re-baselines. `--abort`
+  tears down the coordination worktree only (never the branch) and takes no tip compare-and-swap,
+  so a coordination commit made after the rollback survives it.
+
 ## Consequences
 
 - **Positive.** A default-config command can no longer wedge an in-flight mission or push
@@ -557,6 +592,7 @@ live tip the record cannot explain.
 - Amendment 2026-09-29: #5338, #5318, #5332, #5296 (epic #5001); mission `kitty-specs/consolidation-claim-rollback-integrity-01M3PD1T/`; residuals #5385, #5371, #5372.
 - Follow-up 2026-09-30: #5385; mission `kitty-specs/single-rollback-authority-01M3RCP4/`; out-of-scope follow-ups #3536, #5371, #5372.
 - Follow-up 2026-10-04: #5613 (hardening of #5569, #5570, #5571, #5572).
+- Follow-up 2026-10-31: #6770 (PR #6867), a recurrence of #5667.
 - Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
