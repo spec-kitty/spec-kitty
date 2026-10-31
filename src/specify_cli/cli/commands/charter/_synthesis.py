@@ -72,6 +72,29 @@ def _directive_synthesis_inputs(
     return selected, nodes
 
 
+def _built_in_layer_snapshot() -> dict[str, Any] | None:
+    """Return the shipped built-in DRG as a request snapshot, or ``None``.
+
+    The additive-only layer is a property of the installed CLI, not of the
+    project: it must not be derived from the config-activated directive list
+    that also holds org and project nodes (#6768).
+
+    A missing built-in pack (``DRGLoadError`` -- for example a source checkout
+    that has not fetched the pinned tree) leaves the field ``None``, which every
+    consumer reads as "use the reference snapshot": the pre-#6768 behaviour. The
+    charter preflight refuses such a checkout earlier and with a better message,
+    so this builder does not invent a second, narrower failure mode.
+    """
+    from charter.offering.drg.loader import DRGLoadError, load_built_in_graph
+
+    try:
+        graph = load_built_in_graph()
+    except DRGLoadError:
+        return None
+    dumped: dict[str, Any] = graph.model_dump(mode="json")
+    return dumped
+
+
 def _build_synthesis_request(
     repo_root: Path,
     adapter_name: str,
@@ -160,11 +183,28 @@ def _build_synthesis_request(
         "styleguides": {},
     }
 
+    # #6768: TWO layers, authored here once, because one cannot serve both jobs.
+    #
+    # * ``drg_snapshot`` is the REFERENCE UNIVERSE: the config-activated
+    #   directives (built-in, org and project). EC-2 validates a target's
+    #   ``source_urns`` against it, and the pre-write validation gate resolves
+    #   the overlay's references against it -- a project tactic naming a project
+    #   directive must keep resolving, so the project's own nodes belong here.
+    # * ``built_in_drg_snapshot`` is the BUILT-IN LAYER ONLY, read from the
+    #   shipped DRG. The FR-020 / EC-6 additive-only check refuses a target that
+    #   shadows a node of *this* layer. Reading the reference universe there
+    #   classified every activated project directive as built-in, so a project
+    #   could not resynthesize its own directive (#6768).
+    #
+    # Both roles used to be the one snapshot above; that conflation was the
+    # defect, and neither dropping the project nodes (project references break)
+    # nor keying on a ``PROJECT_`` id prefix (the issue's workaround) is a fix.
     drg_snapshot: dict[str, Any] = {
         "nodes": drg_nodes,
         "edges": [],
         "schema_version": "1",
     }
+    built_in_drg_snapshot = _built_in_layer_snapshot()
 
     # Internal placeholder target. ``synthesize()`` derives the actual
     # target list from the interview, so this token is never the artifact
@@ -198,6 +238,7 @@ def _build_synthesis_request(
         drg_snapshot=drg_snapshot,
         run_id=run_id,
         evidence=evidence,
+        built_in_drg_snapshot=built_in_drg_snapshot,
     )
 
     adapter_obj: Any
@@ -241,6 +282,7 @@ def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None
     from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
     from charter.activation.synthesizer.orchestrator import _built_in_drg_from_snapshot
     from charter.activation.synthesizer.project_drg import emit_project_layer, persist as persist_project_graph
+    from charter.activation.synthesizer.request import built_in_snapshot
     from charter.activation.synthesizer.synthesize_pipeline import _get_synthesizer_version
     from charter.activation.synthesizer.targets import build_targets, detect_duplicates, order_targets
     from charter.activation.synthesizer.validation_gate import validate as validate_project_graph
@@ -256,7 +298,10 @@ def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None
     # it away. ``_get_synthesizer_version()`` (already used by
     # ``orchestrator.synthesize()`` for the exact same purpose) never raises.
     spec_kitty_version = _get_synthesizer_version()
-    built_in_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
+    # #6768: the emitter's additive-only check reads the BUILT-IN layer; the
+    # validation gate below resolves references against the REFERENCE universe.
+    additive_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(built_in_snapshot(request)))
+    reference_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
     interview_snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
     sections = resolve_sections(interview_snapshot)
     targets = build_targets(
@@ -277,7 +322,7 @@ def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None
         project_graph = emit_project_layer(
             targets=targets,
             spec_kitty_version=spec_kitty_version,
-            built_in_drg=built_in_drg,
+            built_in_drg=additive_drg,
             # M6 (#3038): thread the project root so hand-authored project
             # agent_profile nodes are emitted here too, keeping this preview/
             # dry-run emit consistent with the real write path.
@@ -285,7 +330,7 @@ def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None
             org_drg=org_drg,
         )
         persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-        validate_project_graph(staged_dir.root, built_in_drg, org_drg=org_drg)
+        validate_project_graph(staged_dir.root, reference_drg, org_drg=org_drg)
 
     return _validation_callback
 
@@ -820,11 +865,16 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
     from charter.activation.synthesizer.orchestrator import _built_in_drg_from_snapshot  # noqa: PLC0415
     from charter.activation.synthesizer.project_drg import emit_project_layer  # noqa: PLC0415
     from charter.activation.synthesizer.reconcile import reconcile_synthesis  # noqa: PLC0415
+    from charter.activation.synthesizer.request import built_in_snapshot  # noqa: PLC0415
     from charter.activation.synthesizer.synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
     from charter.activation.synthesizer.targets import build_targets, detect_duplicates, order_targets  # noqa: PLC0415
 
     spec_kitty_version = _get_synthesizer_version()
-    built_in_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
+    # #6768: same two layers as the real write path -- the emit's additive-only
+    # check reads the built-in layer, the reconciliation base below keeps the
+    # reference universe, so preview and run classify a node identically.
+    additive_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(built_in_snapshot(request)))
+    reference_drg = DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
     interview_snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
     sections = resolve_sections(interview_snapshot)
     targets = build_targets(
@@ -845,7 +895,7 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
     fresh_overlay = emit_project_layer(
         targets=targets,
         spec_kitty_version=spec_kitty_version,
-        built_in_drg=built_in_drg,
+        built_in_drg=additive_drg,
         # M6 (#3038): include hand-authored project agent_profile nodes so the
         # reconciliation preview (orphan-refusal + --dry-run report) matches the
         # real write path and never mis-classifies a persisted profile node as
@@ -858,7 +908,7 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
         fresh_overlay=fresh_overlay,
         new_results=[],
         run_id=request.run_id,
-        built_in_drg=built_in_drg,
+        built_in_drg=reference_drg,
         org_drg=org_drg,
     )
     return outcome.delta

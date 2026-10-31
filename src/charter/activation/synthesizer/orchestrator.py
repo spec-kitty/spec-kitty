@@ -225,6 +225,7 @@ def synthesize(
         from .project_drg import persist as _persist_project_graph  # noqa: PLC0415
         from .reconcile import apply_prune as _apply_prune  # noqa: PLC0415
         from .reconcile import reconcile_synthesis as _reconcile_synthesis  # noqa: PLC0415
+        from .request import built_in_snapshot as _built_in_snapshot  # noqa: PLC0415
         from .synthesize_pipeline import _get_synthesizer_version  # noqa: PLC0415
         from .synthesize_pipeline import run_all as _run_all  # noqa: PLC0415
         from .staging import StagingDir as _StagingDir  # noqa: PLC0415
@@ -250,7 +251,12 @@ def synthesize(
     # --- In-memory pipeline (WP02) ---
     results = _run_all(request, adapter=adapter)
 
-    built_in_drg = _DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
+    # #6768: two layers, two roles. ``reference_drg`` is the universe targets and
+    # the validation gate resolve against (it holds the project's own nodes);
+    # ``built_in_drg`` is the shipped built-in layer only, the one the FR-020 /
+    # EC-6 additive-only check may refuse a target against.
+    reference_drg = _DRGGraph.model_validate(_built_in_drg_from_snapshot(request.drg_snapshot))
+    built_in_drg = _DRGGraph.model_validate(_built_in_drg_from_snapshot(_built_in_snapshot(request)))
     interview_snapshot = _normalize_interview_snapshot(dict(request.interview_snapshot))
     sections = _resolve_sections(interview_snapshot)
     targets = _build_targets(
@@ -293,7 +299,9 @@ def synthesize(
         fresh_overlay=fresh_overlay,
         new_results=results,
         run_id=request.run_id,
-        built_in_drg=built_in_drg,
+        # Conflict classification resolves against the same universe as the
+        # validation gate below, so the two never disagree about a project node.
+        built_in_drg=reference_drg,
         org_drg=_org_drg,
     )
     if mode is SynthesizeMode.prune:
@@ -318,7 +326,7 @@ def synthesize(
         # preserved-content conflict is suppressed end-to-end instead of
         # still hard-failing here. lane-b is where both halves land, so WP02
         # wires this one line rather than leaving NFR-003 unmet in practice.
-        _validate_project_graph(staged_dir.root, built_in_drg, conflicts=outcome.delta.conflicts, org_drg=_org_drg)
+        _validate_project_graph(staged_dir.root, reference_drg, conflicts=outcome.delta.conflicts, org_drg=_org_drg)
 
     # --- Stage and promote to disk (WP03, T018) ---
     with _StagingDir.create(_repo_root, request.run_id) as staging_dir:

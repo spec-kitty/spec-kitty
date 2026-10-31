@@ -374,6 +374,8 @@ def run_all(
             run_id=request.run_id,
             adapter_hints=request.adapter_hints,
             evidence=request.evidence,
+            # #6768: a derived request keeps the layer split it was given.
+            built_in_drg_snapshot=request.built_in_drg_snapshot,
         )
         for t in all_targets
     ]
