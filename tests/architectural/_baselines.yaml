@@ -336,7 +336,10 @@ test_egress_consent_boundary:
   # the pinned write service, is LOOPBACK_CONTROL. Its endpoint is read only
   # through read_endpoint_file, which refuses any host but 127.0.0.1; the
   # handshake/health/shutdown requests carry no body and no project data.
-  egress_allowlist_files: 4
+  # 4 -> 5 (#6790): kernel/release_assets.py downloads a pinned service release
+  # asset through build_opener(...).open, a urlopen by another name the detector
+  # now matches. Inbound GET, User-Agent only, no project data (NOT_PROJECT_DATA).
+  egress_allowlist_files: 5
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

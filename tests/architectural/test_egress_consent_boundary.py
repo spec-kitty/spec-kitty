@@ -357,6 +357,19 @@ def _transmits_a_body(node: ast.Call) -> bool:
     return "headers" in kwargs and bool(kwargs & _REQUEST_BODY_KWARGS)
 
 
+def _is_opener_open(func: ast.Attribute) -> bool:
+    """True for ``<opener>.open(...)``: ``build_opener(...).open``, ``_opener().open``, ``opener.open``.
+
+    ``OpenerDirector.open`` is ``urlopen`` by another name. Matched by the receiver's
+    name containing ``opener`` (a call or a plain name); a file ``open`` never does.
+    """
+    if func.attr != "open":
+        return False
+    receiver = func.value.func if isinstance(func.value, ast.Call) else func.value
+    tail = _attr_tail(receiver)
+    return tail is not None and "opener" in tail.lower()
+
+
 def _classify(node: ast.Call) -> SinkKind | None:
     """Return the :class:`SinkKind` of *node*, or ``None`` when it is not a sink."""
     func = node.func
@@ -371,7 +384,7 @@ def _classify(node: ast.Call) -> SinkKind | None:
         return SinkKind.HTTP_VERB
     if func.attr in _AMBIGUOUS_HTTP_VERBS and _looks_like_http_call(node):
         return SinkKind.HTTP_VERB
-    if func.attr == "urlopen":
+    if func.attr == "urlopen" or _is_opener_open(func):
         return SinkKind.URLOPEN
     if func.attr == "send_event":
         return SinkKind.SEND_EVENT
@@ -501,6 +514,15 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E18",
         note="Fetches charter pack content inbound; the request carries no project data.",
+    ),
+    "kernel/release_assets.py": Allowance(
+        kind=AllowanceKind.NOT_PROJECT_DATA,
+        inventory_id="E18-#6790",
+        note=(
+            "Inbound download of a pinned service release asset through a guarded "
+            "https-only opener (a GET with only a User-Agent header); the request "
+            "carries no project data and the bytes are digest-verified before use."
+        ),
     ),
     "specify_cli/charter_packs/sources/https_source.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
@@ -827,6 +849,11 @@ class TestGuardBites:
                 "import urllib.request\ndef go(r):\n    urllib.request.urlopen(r)\n",
                 SinkKind.URLOPEN,
                 id="urllib-urlopen",
+            ),
+            pytest.param(
+                "import urllib.request\ndef go(r):\n    urllib.request.build_opener().open(r)\n",
+                SinkKind.URLOPEN,
+                id="build-opener-open",
             ),
             pytest.param(
                 "from urllib.request import urlopen\ndef go(r):\n    urlopen(r)\n",
