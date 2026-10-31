@@ -22,7 +22,8 @@ planning_base_branch: issue-6579-decision-record-ascii
 merge_target_branch: issue-6579-decision-record-ascii
 branch_strategy: Planning artifacts for this mission were generated on issue-6579-decision-record-ascii. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6579-decision-record-ascii unless the human explicitly redirects the landing branch.
 base_branch: kitty/mission-decision-record-ascii-change-log-01M68J7C
-created_at: '2026-10-31T08:50:00.000000+00:00'
+base_commit: 8e20f7fddc394ea175cb63b27ad5e320d928129f
+created_at: '2026-10-31T08:50:39.471664+00:00'
 subtasks:
 - T001
 - T002
