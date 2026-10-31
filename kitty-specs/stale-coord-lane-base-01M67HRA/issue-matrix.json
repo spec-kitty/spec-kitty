@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#4969": {
+      "evidence_ref": "Cited for context only: the origin-preference in _fresh_lane_parent_ref that makes decision.parent_ref possibly an origin/<branch> ref. This mission's probe reads whatever ref that seam returns and changes nothing about it; no #4969 work is owed or claimed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6753": {
+      "evidence_ref": "WP01 reports a fresh coord-topology lane cut whose base does not contain the target tip (base ref, target branch, missing tip, --base remedy) on stderr, silent when current/unknown; WP02 accepts --base on the agent action path so the remedy is runnable and refuses an already-materialized lane instead of dropping it. Tests: tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py (6), tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py (5), wrapper-delegation contract updated (5).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
