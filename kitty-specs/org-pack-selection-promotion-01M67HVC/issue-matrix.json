@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#6406": {
+      "evidence_ref": "context citation only: the mission builds on this work and owes it no change",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6407": {
+      "evidence_ref": "context citation only: the mission builds on this work and owes it no change",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6423": {
+      "evidence_ref": "context citation only: stem-dedupe precedent this mission reuses",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6629": {
+      "evidence_ref": "context citation only: the mission builds on this work and owes it no change",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6678": {
+      "evidence_ref": "context citation only: the mission builds on this work and owes it no change",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6686": {
+      "evidence_ref": "commits 45f24b81f4 (upgrade promotion) + 1495084b58 (interview parity); tests: migration module 36 passed, test_selection_resolver.py 15 passed, test_charter_interview_promotion.py 22 passed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
