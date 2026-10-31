@@ -11500,6 +11500,16 @@ pages:
     - {slug: "declaring-a-new-category", text: "Declaring a new category", level: 3}
     - {slug: "3-verify", text: "3. Verify", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/auditing-special-case-workarounds.md"
+    title: "Auditing special-case workarounds"
+    divio_type: "how-to"
+    abstract: "How to find, classify and remove the branches that tolerate a wrong input, a private seam or a test double instead of fixing the cause, with the dispositions from issue #6745."
+    anchors:
+    - {slug: "is-it-a-workaround-ask-the-input-question-first", text: "Is it a workaround? Ask the input question first", level: 2}
+    - {slug: "the-method", text: "The method", level: 2}
+    - {slug: "the-ledger-from-6745-2026-10-31", text: "The ledger from #6745 (2026-10-31)", level: 2}
+    - {slug: "what-this-audit-did-not-cover", text: "What this audit did not cover", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/development/how-to/cloud-session-setup.md"
     title: "Set Up a Claude Code Cloud Session"
     divio_type: "how-to"
