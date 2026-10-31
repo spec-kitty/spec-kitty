@@ -1,0 +1,13 @@
+id: MANT_003
+schema_version: '1.0'
+title: Manual-memory safety proof
+intent: Manual-memory surfaces must preserve memory safety and prevention of use-after-free,
+  double-free, dangling pointers, and data races. Proof builds keep runtime safety checks enabled;
+  performance claims cannot weaken this boundary.
+enforcement: required
+scope: Applies to implement and review.
+procedures: []
+integrity_rules: []
+validation_criteria: []
+explicit_allowances: []
+references: []

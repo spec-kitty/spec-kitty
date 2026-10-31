@@ -1,0 +1,12 @@
+id: MANT_004
+schema_version: '1.0'
+title: Truth-surface synchronization
+intent: Behavior changes update README.md, docs/RUNTIME_CONTRACT.md, docs/PROOF_MATRIX.md, and
+  directly affected contracts in the same reviewable slice.
+enforcement: required
+scope: Applies to implement and review.
+procedures: []
+integrity_rules: []
+validation_criteria: []
+explicit_allowances: []
+references: []

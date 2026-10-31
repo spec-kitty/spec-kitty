@@ -20,6 +20,11 @@ it under the existing FR-009 preserved-surface convention.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
+
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,6 +74,7 @@ def build_non_bootstrap_context_result(
     *,
     suppress_project_resolver: bool,
     augment: Callable[[str], str],
+    scope: CharterScope | None = None,
 ) -> CharterContextResult:
     """Build the "compact" result for a non-bootstrap action (no action grain)."""
     effective_depth = depth if depth is not None else 1
@@ -82,6 +88,7 @@ def build_non_bootstrap_context_result(
                 profile=profile_record,
                 action=normalized,
                 suppress_project_resolver=suppress_project_resolver,
+                scope=scope,
             )
         ),
         references_count=0,
@@ -121,6 +128,7 @@ def build_compact_bundle_context_result(
     suppress_project_resolver: bool,
     mark_loaded: bool,
     augment: Callable[[str], str],
+    scope: CharterScope | None = None,
 ) -> CharterContextResult:
     """Build the widened-compact-rail result for a below-minimum effective depth."""
     if mark_loaded and state_bundle.first_load:
@@ -136,6 +144,7 @@ def build_compact_bundle_context_result(
                 profile=profile_record,
                 bundle=governance_bundle,
                 suppress_project_resolver=suppress_project_resolver,
+                scope=scope,
             )
         ),
         references_count=0,
@@ -154,6 +163,7 @@ def build_bootstrap_context_result(
     *,
     mark_loaded: bool,
     augment: Callable[[str], str],
+    scope: CharterScope | None = None,
 ) -> CharterContextResult:
     """Build the full bootstrap-mode result (prose + references + governance bundle)."""
     # FR-005 graceful-degrade: charter.md prose is optional now that presence
@@ -167,7 +177,7 @@ def build_bootstrap_context_result(
         charter_content = ""
         summary = []
     references = _load_references(canonical_root)
-    charter_config = _load_governance_charter_config(repo_root)
+    charter_config = _load_governance_charter_config(repo_root, scope=scope)
     text = _render_bootstrap_text(
         charter_path=charter_path,
         action=normalized,
@@ -178,6 +188,7 @@ def build_bootstrap_context_result(
         repo_root=repo_root,
         charter_config=charter_config,
         charter_content=charter_content,
+        scope=scope,
     )
 
     if mark_loaded and state_bundle.first_load:

@@ -1,0 +1,1492 @@
+schema_version: 2.0.0
+governance:
+  testing:
+    min_coverage: 0
+    tdd_required: true
+    framework: focused local proof commands for each touched runtime surface
+    type_checking: Zig safety-on builds and compiler checks where applicable
+  quality:
+    linting: zig fmt --check for Zig; cargo fmt for retained Rust when touched
+    pr_approvals: 1
+    pre_commit_hooks: false
+  commits:
+    convention: conventional
+  performance:
+    cli_timeout_seconds: 0.0
+    dashboard_max_wps: 100
+  branch_strategy:
+    main_branch: main
+    rules:
+    - Branch-only delivery; never push directly to main.
+    - Open only full, validated, non-draft pull requests for coherent slices.
+  charter:
+    selected_paradigms:
+    - execution-lanes
+    - deep-module-design
+    - specification-by-example
+    selected_directives:
+    - DIRECTIVE_010
+    - DIRECTIVE_030
+    - DIRECTIVE_033
+    - DIRECTIVE_034
+    - DIRECTIVE_037
+    - DIRECTIVE_045
+    selected_tactics: []
+    selected_styleguides: []
+    selected_toolguides: []
+    selected_procedures: []
+    selected_agent_profiles: []
+    selected_mission_step_contracts: []
+    selected_glossary_packs: []
+    available_tools:
+    - git
+    - spec-kitty
+    authority_paths:
+    - AGENTS.md
+    - README.md
+    - docs/RUNTIME_CONTRACT.md
+    - docs/PROOF_MATRIX.md
+    - docs/IMPLEMENTATION_PROGRAM.md
+    governance_references:
+    - AGENTS.md
+  activations: []
+  enforcement: {}
+directives:
+  directives:
+  - id: MANT-001
+    title: Proof-first runtime change boundary
+    description: >-
+      Observable behavior may be claimed only when direct code and focused
+      proof evidence exist. Documentation must distinguish implemented
+      behavior from design targets.
+    severity: error
+    applies_to: [implement, review]
+  - id: MANT-002
+    title: Zig-first replacement path
+    description: >-
+      New replacement-path product behavior belongs in Zig. Retained Rust is
+      limited to the smallest supported maintenance or proof-bearing extension
+      required while migration remains incomplete.
+    severity: error
+    applies_to: [implement, review]
+  - id: MANT-003
+    title: Manual-memory safety proof
+    description: >-
+      Manual-memory surfaces must preserve memory safety and prevention of
+      use-after-free, double-free, dangling pointers, and data races. Proof
+      builds keep runtime safety checks enabled; performance claims cannot
+      weaken this boundary.
+    severity: error
+    applies_to: [implement, review]
+  - id: MANT-004
+    title: Truth-surface synchronization
+    description: >-
+      Behavior changes update README.md, docs/RUNTIME_CONTRACT.md,
+      docs/PROOF_MATRIX.md, and directly affected contracts in the same
+      reviewable slice.
+    severity: error
+    applies_to: [implement, review]
+  - id: MANT-005
+    title: Focused validated delivery
+    description: >-
+      Changes remain local and use targeted staging. A coherent branch-local
+      slice must pass the strongest relevant local validation before review;
+      no CI or direct-main change is introduced without explicit approval.
+    severity: error
+    applies_to: [implement, review]
+catalog:
+  mission: software-dev
+  template_set: software-dev-default
+  languages:
+  - python
+  - rust
+  references:
+  - id: USER:PROJECT_PROFILE
+    kind: user_profile
+    title: User Project Profile
+    summary: Project-specific interview answers captured for charter compilation.
+    source_path: .kittify/charter/interview/answers.yaml
+    local_path: _LIBRARY/user-project-profile.md
+  - id: PARADIGM:atomic-design
+    kind: paradigm
+    title: Atomic Design
+    summary: "Compose interfaces from a five-level hierarchy (atoms, molecules, organisms, templates, pages) where each level owns its appropriate concern. State ownership, reactive stream scope, and centralized store usage are bounded by the same compositional levels that govern visual structure.\n"
+    source_path: src/doctrine/paradigms/built-in/atomic-design.paradigm.yaml
+    local_path: _LIBRARY/paradigm-atomic-design.md
+  - id: PARADIGM:behaviour-driven-development
+    kind: paradigm
+    title: Behaviour-Driven Development
+    summary: "BDD is a collaboration practice, not a testing methodology. It operates through three cyclical phases: Discovery (structured Three Amigos conversations — product owner, developer, tester — produce concrete, validated behavioral examples before any code is written), Formulation (validated examples are expressed in plain-language Given/When/Then specifications that serve as the canonical behavioral contract), and Automation (formulated specifications are connected to executable tests that fail when the system diverges from the spec, producing living documentation that cannot become stale). BDD does not replace unit testing — it sits above the test pyramid and is reserved for behaviors with genuine cross-functional business value. The Three Amigos is the minimum collaboration unit: one person representing the business need, one who will build it, one who will verify it. Distinct from Specification by Example (the broader technique); BDD mandates the collaboration process and executable automation as the canonical specification form.\n"
+    source_path: src/doctrine/paradigms/built-in/behaviour-driven-development.paradigm.yaml
+    local_path: _LIBRARY/paradigm-behaviour-driven-development.md
+  - id: PARADIGM:brownfield-onboarding
+    kind: paradigm
+    title: Brownfield Onboarding
+    summary: "DRAFT / PROVISIONAL (2026-05-08). Approach a mature, in-use codebase as a teacher rather than a problem. Legacy code is the durable record of constraints, edge cases, and prior decisions the team has already paid for; it deserves epistemic humility before it deserves restructuring. Brownfield onboarding treats investigation as a precondition to non-trivial change: forensic methods (git-history mining, hotspot and change-coupling analysis via tactic:forensic-repository-audit) surface \"what\" and \"where\"; qualitative methods (SME interviews, decision archaeology) answer \"why\"; structural overlays (DDD strategic classification, deep-module analysis) give the findings a vocabulary the team can act on. None of these methods alone is sufficient. The durable artifact of the engagement is not a refactor plan but a hierarchical reference bundle -- system overview, subsystem maps, click paths, terminology aliases, design paradigms inferred from the code -- that lowers bus-factor risk before code shape is touched. Knowledge transfer is load-bearing: the DM-D principle (\"document and transfer first, then refactor\") protects the implicit invariants that restructure would otherwise erase. Respect for prior decisions and willingness to change are held in tension on purpose: refusing to remove what you do not yet understand is Chesterton's-fence discipline; refusing to change because change is hard is preservation by inertia. The paradigm walks the line between them by gating structural moves on captured understanding, not on courage or on caution alone.\n"
+    source_path: src/doctrine/paradigms/built-in/brownfield-onboarding.paradigm.yaml
+    local_path: _LIBRARY/paradigm-brownfield-onboarding.md
+  - id: PARADIGM:c4-incremental-detail-modeling
+    kind: paradigm
+    title: C4 Incremental Detail Modeling
+    summary: "Architecture communication through progressive zoom -- from the broadest system landscape down to individual components -- so that each audience sees the right level of detail without drowning in irrelevance. Inspired by Simon Brown's C4 model, the approach defines four hierarchical abstraction levels (Software System, Container, Component, Code) and a small set of supporting diagram types (System Landscape, Dynamic, Deployment). Each level answers a different question for a different stakeholder: Level 1 (Context) shows actors and boundaries for business sponsors; Level 2 (Containers) shows deployable units and technology choices for architects and DevOps; Level 3 (Components) shows logical structure for developers; Level 4 (Code) shows implementation detail only when automated generation makes it cheap. The paradigm is notation- independent and tooling-independent -- Mermaid, PlantUML, Structurizr, or whiteboard sketches all qualify, provided every diagram carries a title, a legend, labelled elements with descriptions, and labelled unidirectional relationships. The guiding heuristic: produce only the levels that add value and keep each diagram reviewable in under five minutes.\n"
+    source_path: src/doctrine/paradigms/built-in/c4-incremental-detail-modeling.paradigm.yaml
+    local_path: _LIBRARY/paradigm-c4-incremental-detail-modeling.md
+  - id: PARADIGM:deep-module-design
+    kind: paradigm
+    title: Deep Module Design
+    summary: "Shape modules so a small, stable interface gives callers high leverage over a substantial implementation. The interface includes every fact a caller must know to use the module correctly: names, types, invariants, ordering, error modes, configuration, and performance expectations. Deep modules improve locality because changes, bugs, and knowledge concentrate behind the interface instead of spreading across callers and tests.\n"
+    source_path: src/doctrine/paradigms/built-in/deep-module-design.paradigm.yaml
+    local_path: _LIBRARY/paradigm-deep-module-design.md
+  - id: PARADIGM:domain-driven-design
+    kind: paradigm
+    title: Domain-Driven Design
+    summary: "Software design guided by a deep model of the business domain. Strategic design decomposes a system into Bounded Contexts connected through explicit Context Mapping patterns (ACL, OHS, Shared Kernel, Published Language, etc.). Within each context a Ubiquitous Language keeps code, model, and domain expert communication aligned. Tactical patterns (Aggregates, Entities, Value Objects, Domain Events, Repositories, Domain Services) enforce invariants at the model boundary. DDD treats the domain model as the primary artifact — code is a direct expression of that model, not a translation layer above a database schema or UI framework.\n"
+    source_path: src/doctrine/paradigms/built-in/domain-driven-design.paradigm.yaml
+    local_path: _LIBRARY/paradigm-domain-driven-design.md
+  - id: PARADIGM:execution-lanes
+    kind: paradigm
+    title: Execution Lanes
+    summary: "The default Spec Kitty implementation workspace paradigm. Each work package runs in an isolated execution-lane worktree so agents can implement, test, review, and hand off changes without mutating another lane's checkout. Execution lanes keep task status, branch state, prompt files, and verification evidence aligned around one work package at a time. Shared mainline state is reached only through explicit review, merge, and quality gates.\n"
+    source_path: src/doctrine/paradigms/built-in/execution-lanes.paradigm.yaml
+    local_path: _LIBRARY/paradigm-execution-lanes.md
+  - id: PARADIGM:git-flow
+    kind: paradigm
+    title: Git Flow
+    summary: "A branch-management paradigm built around long-lived integration and release branches, with feature and hotfix branches feeding controlled release points. In Spec Kitty this exists as a resolvable compatibility paradigm for projects whose charter already requires Git Flow. It is not the default implementation workspace model; execution-lane worktrees remain the supported default when no project-specific branching paradigm is selected.\n"
+    source_path: src/doctrine/paradigms/built-in/git-flow.paradigm.yaml
+    local_path: _LIBRARY/paradigm-git-flow.md
+  - id: PARADIGM:semantic-compression
+    kind: paradigm
+    title: Semantic Compression
+    summary: "Treat a software system as an over-expanded expression of observable behavior. The work is to remove accidental implementation complexity while preserving semantics: first map the behavior that must not change, then find duplicated or dead expressions of that behavior, extract one concept per responsibility, collapse parallel behavioral paths, and verify equivalence. The goal is not prettier code or architectural purity. The goal is a smaller implementation that still produces the same externally observable behavior, with evidence strong enough for the risk of the reduction.\n"
+    source_path: src/doctrine/paradigms/built-in/semantic-compression.paradigm.yaml
+    local_path: _LIBRARY/paradigm-semantic-compression.md
+  - id: PARADIGM:shared-branch-ci
+    kind: paradigm
+    title: Shared-Branch CI
+    summary: "A collaborative workspace paradigm where multiple contributors integrate through a shared branch protected by continuous integration, staging hygiene, and explicit commit attribution. In Spec Kitty this is a resolvable compatibility paradigm for teams whose charter selects a shared branch model. It must still preserve isolated verification evidence and quality gates before shared state is promoted.\n"
+    source_path: src/doctrine/paradigms/built-in/shared-branch-ci.paradigm.yaml
+    local_path: _LIBRARY/paradigm-shared-branch-ci.md
+  - id: PARADIGM:specification-by-example
+    kind: paradigm
+    title: Specification by Example
+    summary: "Shared understanding of behavior is built from concrete, business-readable examples that become the canonical source of truth for requirements, acceptance checks, and living documentation. Teams refine examples collaboratively, turn stable examples into executable acceptance tests, and keep narrative specs in sync whenever behavior changes.\n"
+    source_path: src/doctrine/paradigms/built-in/specification-by-example.paradigm.yaml
+    local_path: _LIBRARY/paradigm-specification-by-example.md
+  - id: PARADIGM:structured-prompt-driven-development
+    kind: paradigm
+    title: Structured-Prompt-Driven Development
+    summary: "Treat structured prompts and REASONS canvases as governed change-intent and decision-boundary artifacts. Code remains the source of truth for current behavior; canvases record approved intent, boundaries, and safeguards for a mission or work package. Applies to high-risk and multi-WP missions where change-boundary clarity reduces drift; not appropriate for tiny fixes, throwaway spikes, or purely visual exploration where canvas authoring is overhead.\n"
+    source_path: src/doctrine/paradigms/built-in/structured-prompt-driven-development.paradigm.yaml
+    local_path: _LIBRARY/paradigm-structured-prompt-driven-development.md
+  - id: PARADIGM:trunk-based
+    kind: paradigm
+    title: Trunk-Based Development
+    summary: "A branch-management paradigm where contributors integrate small, verified changes into the mainline frequently, avoiding long-lived divergence. In Spec Kitty this exists as a resolvable compatibility paradigm for projects whose charter selects trunk-based development. Work remains gated by targeted staging, commit attribution, and test/typecheck verification before mainline integration.\n"
+    source_path: src/doctrine/paradigms/built-in/trunk-based.paradigm.yaml
+    local_path: _LIBRARY/paradigm-trunk-based.md
+  - id: DIRECTIVE:DIRECTIVE_001
+    kind: directive
+    title: Architectural Integrity Standard
+    summary: "System designs must maintain clear separation of concerns and well-defined component boundaries so that each part of the system is independently understandable, testable, and replaceable without cascading changes.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-001.md
+  - id: DIRECTIVE:DIRECTIVE_003
+    kind: directive
+    title: Decision Documentation Requirement
+    summary: "Material technical and governance decisions must be captured with enough context that future contributors can understand why a path was chosen and what constraints must remain true.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-003.md
+  - id: DIRECTIVE:DIRECTIVE_010
+    kind: directive
+    title: Specification Fidelity Requirement
+    summary: "Implemented behavior and produced artifacts must remain faithful to approved specifications, with any necessary deviations explicitly documented and reviewed before acceptance.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-010.md
+  - id: DIRECTIVE:DIRECTIVE_018
+    kind: directive
+    title: Doctrine Versioning Requirement
+    summary: "Doctrine artifacts must be versioned with traceable change rationale so downstream consumers can understand compatibility and migration impact.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-018.md
+  - id: DIRECTIVE:DIRECTIVE_024
+    kind: directive
+    title: Locality of Change
+    summary: "Changes should stay close to the problem being solved to reduce blast radius, simplify review, and lower regression risk.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-024.md
+  - id: DIRECTIVE:DIRECTIVE_025
+    kind: directive
+    title: Boy Scout Rule
+    summary: "Leave touched areas in a better state by default. When an area already modified for the current task carries a failing test, lint, or type issue, fixing it is the default stance — not an optional nicety. Establishing whether a failure is pre-existing routinely costs more effort than simply fixing it, and litigating blame leaves the campground dirtier; so the default is to fix, and to defer only with an explicit rationale. At planning point-cuts (post-spec, post-plan, post-tasks), this rule extends to proactive domain-matched debt folding: if a foldable tech-debt item belongs to the current mission's primary domain, it may be incorporated into the current scope; items outside the domain boundary are filed as issues and deferred, never silently absorbed. See also DIRECTIVE_024 for locality-of-change discipline; DIRECTIVE_040 for structural intervention on recurring bugs.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-025.md
+  - id: DIRECTIVE:DIRECTIVE_028
+    kind: directive
+    title: Efficient Local Tooling
+    summary: "Local work should prefer efficient, low-noise tooling so investigation, editing, validation, and repository operations stay fast and reproducible across development environments.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-028.md
+  - id: DIRECTIVE:DIRECTIVE_029
+    kind: directive
+    title: Agent Commit Signing Policy
+    summary: "Agent-authored commits must avoid GPG or SSH signing in unattended workflows so automation does not fail on missing key material or unverifiable signatures.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-029.md
+  - id: DIRECTIVE:DIRECTIVE_030
+    kind: directive
+    title: Test and Typecheck Quality Gate
+    summary: "Code changes must pass the relevant automated tests and static validation gates before handoff so regressions and interface drift are caught early.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-030.md
+  - id: DIRECTIVE:DIRECTIVE_031
+    kind: directive
+    title: Context-Aware Design
+    summary: "Every design decision must be made with explicit awareness of the bounded context it belongs to. Code, terminology, and abstractions must align with the context's ubiquitous language. Crossing a context boundary requires an explicit translation layer; implicit coupling across boundaries is prohibited.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-031.md
+  - id: DIRECTIVE:DIRECTIVE_032
+    kind: directive
+    title: Conceptual Alignment
+    summary: "Agents must never assume that shared vocabulary implies shared meaning. Before acting on any task that contains domain-specific, ambiguous, or overloaded terminology, the agent must explicitly state its interpretation of each key term and confirm that interpretation with the requester. Misaligned understanding discovered after implementation is far more costly than a brief clarification exchange before it begins.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-032.md
+  - id: DIRECTIVE:DIRECTIVE_033
+    kind: directive
+    title: Targeted Staging Policy
+    summary: "Agent-authored commits must stage only the expected deliverables for the current work package. Blanket staging commands that could inadvertently include unrelated changes, secrets, or build artefacts are prohibited.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-033.md
+  - id: DIRECTIVE:DIRECTIVE_034
+    kind: directive
+    title: Test-First Development
+    summary: "Require test-first behavior across acceptance and implementation layers, selecting tactics based on scope and risk. Tests define the contract before production code is written.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-034.md
+  - id: DIRECTIVE:DIRECTIVE_035
+    kind: directive
+    title: Bulk Edit Occurrence Classification
+    summary: "Codebase-wide renames, terminology migrations, and bulk string changes must classify string occurrences by semantic context before edits begin. Different contexts (code symbols, imports, filesystem paths, serialized keys, CLI commands, docs, tests, logs) may have different change rules.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-035.md
+  - id: DIRECTIVE:DIRECTIVE_036
+    kind: directive
+    title: Black-Box Integration Testing
+    summary: "Exercise the system under test through its external interfaces only, without reference to its internal code structure, implementation details, or internal paths. Test cases derive from specifications, requirements, and design parameters, and assertions are made on observable outputs returned through those external interfaces. \"Black-box\" refers to the technique (absence of structural knowledge) and is independent of test scope — the scope is selected separately by responsibility, not by default to end-to-end.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-036.md
+  - id: DIRECTIVE:DIRECTIVE_037
+    kind: directive
+    title: Living Documentation Sync
+    summary: "Behavior-describing artifacts must evolve together. When observable behavior changes, the canonical examples, acceptance checks, narrative specifications, user documentation, glossary terms, code-level documentation, and architecture records must be updated in the same change so no reader is left with a stale picture of the system.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-037.md
+  - id: DIRECTIVE:DIRECTIVE_038
+    kind: directive
+    title: Structured Prompt Change-Boundary
+    summary: "When the SPDD/REASONS doctrine pack is active, an implementation must remain inside the approved canvas's Requirements, Operations, Norms, and Safeguards unless a deviation is explicitly recorded. Applies to implement and review actions on projects whose charter selection includes the SPDD paradigm, either REASONS canvas tactic, or this directive.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-038.md
+  - id: DIRECTIVE:DIRECTIVE_039
+    kind: directive
+    title: Lynn Cole Engineering Culture
+    summary: "Constrain agentic implementation work toward test-first, strongly typed, modular, boring, reviewable code. Select this directive when the user names Lynn Cole's rules or expresses concern that coding agents produce excessive, bloated, clever, over-abstracted, or hard-to-review code.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-039.md
+  - id: DIRECTIVE:DIRECTIVE_040
+    kind: directive
+    title: Recurring-Bug Structural-Intervention Discipline
+    summary: "When a bug class has recurred and prior reactive point-fixes have not stopped the chain, the next response must be a structural intervention that closes the class — not another point fix. Use the five-paradigm parallel-debugging tactic to identify the structural root cause, enumerate dormant masks, and author one fix plan that closes the whole class.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-040.md
+  - id: DIRECTIVE:DIRECTIVE_041
+    kind: directive
+    title: Tests as Scaffold, Not Friction
+    summary: "Tests must protect change, not obstruct it. A test earns its place by failing exactly when the contract is violated and passing otherwise. Tests that pass for the wrong reason (mocked-out behavior, tautological or wiring-only assertions) or fail on correct, behavior-neutral changes (implementation-coupled assertions, line-pinned ratchets) are friction: they hide regressions and pressure engineers to revert good changes.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-041.md
+  - id: DIRECTIVE:DIRECTIVE_042
+    kind: directive
+    title: Common Docs Documentation Standard
+    summary: "Documentation is governed, single-source-of-truth content, not a wiki. Every documentation file lives under the single Common Docs root, declares its own lifecycle metadata in in-file frontmatter, and is curated under a delete-stale policy. This directive binds the conventions decided in the Common Docs reconciliation ADR (2026-06-27) so they are enforced by live checks rather than remembered by authors.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-042.md
+  - id: DIRECTIVE:DIRECTIVE_043
+    kind: directive
+    title: Close Defect Classes by Construction
+    summary: "A repeating defect class signals a missing structural constraint. The correct response is to eliminate the recurrence path with a structural mechanism — an AST call-site gate, a type invariant, or a shrink-only ratchet — rather than adding another process rule or discipline reminder. Structural enforcement closes the class permanently; process rules merely defer the next occurrence.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-043.md
+  - id: DIRECTIVE:DIRECTIVE_044
+    kind: directive
+    title: Canonical Sources and Unification
+    summary: "Agents and operators must use the canonical doctrine template, skill, or CLI command rather than improvising a substitute or copying from a prior mission artifact, because older artifacts drift from the canonical surface and copying them propagates the drift. When a concept is found to live in more than one location (a split-brain surface), the correct response is to consolidate to a single canonical authority — not to add the same behavior to every copy. A documented CLI command that is absent from the running tool is a gap to file upstream, not an invitation to hand-roll a workaround.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-044.md
+  - id: DIRECTIVE:DIRECTIVE_045
+    kind: directive
+    title: PRs-Only and Read-Intent Before High-Risk Operations
+    summary: "All changes to the remote main branch go through pull requests — agents never push directly or merge without explicit operator instruction. Before executing any high-risk git operation (merge, rebase, deletion, force operations), agents must read the mission spec and current context first. Neither rule may be bypassed under time pressure or assumed from a task title alone.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-045.md
+  - id: DIRECTIVE:DIRECTIVE_046
+    kind: directive
+    title: Readable and Consistent Pull Requests
+    summary: "Every mission branch and pull request an agent prepares must be readable, consistent, and independently reviewed before it is handed to the operator. Concretely, three properties are required and must not be traded away for speed: (1) LINEAR history — the branch is rebased onto the current upstream base and carries a small set of logically-sliced commits, never a tangle of merge and status commits (rebase over merge); (2) CONSISTENT and COMPLETE scope — the branch finishes the work it set out to do and does not defer genuinely small remaining items to a follow-up, deferring only work that is genuinely high-effort or mission-sized; (3) INDEPENDENTLY REVIEWED — the aggregate diff has had an independent review before, or in parallel to, opening the draft PR, with real findings folded in while the PR is still a draft. The adversarial review squad (adversarial-squad-deployment) is the RECOMMENDED review mechanism — not a mandated gate; it stays optional per its own doctrine.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-directive-046.md
+  - id: DIRECTIVE:RECONCILE_CHANGE_SCOPE_TENSIONS
+    kind: directive
+    title: Reconciling Change-Scope Tensions
+    summary: "Locality of Change (DIRECTIVE_024), the Boy Scout Rule (DIRECTIVE_025), and the Change Apply Smallest Viable Diff tactic each bound the size of a change from a different angle, and by design they are not fully compatible: Locality of Change minimizes blast radius, Boy Scout Rule licenses opportunistic in-place improvement of touched areas, and smallest-viable-diff minimizes the diff itself. This directive gives an operator or agent a single place to weigh the three together on a given change, instead of applying each in isolation, so the default doctrine pack stays coherent even though the underlying tension between the three rules is real and intentionally left unresolved at the rule level.\n"
+    source_path: ''
+    local_path: _LIBRARY/directive-reconcile-change-scope-tensions.md
+  - id: TACTIC:acceptance-test-first
+    kind: tactic
+    title: Acceptance Test Driven Development (ATDD)
+    summary: Anchor implementation work in externally observable behavior before internal coding begins.
+    source_path: ''
+    local_path: _LIBRARY/tactic-acceptance-test-first.md
+  - id: TACTIC:adr-drafting-workflow
+    kind: tactic
+    title: ADR Drafting Workflow
+    summary: Systematically draft Architectural Decision Records with trade-off analysis and risk assessment.
+    source_path: ''
+    local_path: _LIBRARY/tactic-adr-drafting-workflow.md
+  - id: TACTIC:adversarial-qa-handoff
+    kind: tactic
+    title: Adversarial QA Handoff
+    summary: "Prepare code as if review and QA will probe every weak assumption. The agent should identify likely failure modes before handoff and leave clear evidence that behavior, typing, and edge cases were verified.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-adversarial-qa-handoff.md
+  - id: TACTIC:aggregate-boundary-design
+    kind: tactic
+    title: Aggregate Boundary Design
+    summary: "Define transactional consistency boundaries within a bounded context by identifying aggregates and their roots. An aggregate is a cluster of domain objects that are treated as a single unit for data changes; the aggregate root is the sole entry point for all modifications. Correct aggregate boundaries enforce invariants without creating unnecessary coupling or oversized transaction scopes. Based on Eric Evans's tactical DDD patterns and Vaughn Vernon's aggregate design rules.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-aggregate-boundary-design.md
+  - id: TACTIC:ammerse-impact-analysis
+    kind: tactic
+    title: AMMERSE Impact Analysis
+    summary: "Evaluate the first- and second-order impact of a decision, practice, or architectural choice against the seven AMMERSE values (Agile, Minimal, Maintainable, Environmental, Reachable, Solvable, Extensible) to surface hidden trade-offs and align choices with strategic goals. Reserve the full numeric interaction-matrix analysis for high-stakes decisions; first-order reasoning alone is sufficient for routine choices.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-ammerse-impact-analysis.md
+  - id: TACTIC:analysis-extract-before-interpret
+    kind: tactic
+    title: Extract Before Interpret
+    summary: "Prevent premature interpretation by first extracting observable facts and patterns before assigning meaning or drawing conclusions. Separating extraction from interpretation creates a shared factual foundation that reduces bias and allows independent review of raw evidence before reasoning begins. Apply when: analysis or synthesis is required and the risk of premature judgment exists, reviewing code or logs where familiarity might cause assumptions, or any multi-step reasoning task where source material is ambiguous. Not applicable: time-critical decisions requiring immediate interpretation, or source material that is already fully structured and unambiguous.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-analysis-extract-before-interpret.md
+  - id: TACTIC:anti-corruption-layer
+    kind: tactic
+    title: Anti-Corruption Layer
+    summary: "Isolate your domain model from external or legacy systems by placing a translation layer at the boundary. The ACL translates between the foreign system's semantics and your own ubiquitous language, preventing external models from leaking into and corrupting your domain design. Originally described by Eric Evans in Domain-Driven Design; also known as Gateway when the emphasis is on translation rather than defense.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-anti-corruption-layer.md
+  - id: TACTIC:architectural-gate-non-vacuity
+    kind: tactic
+    title: Architectural Gate Non-Vacuity
+    summary: "Concrete recipe for building an AST call-site gate that cannot silently pass because the codebase happens to have zero relevant calls, and cannot be defeated by allowlisting every violation. The four elements — concrete floor, self-mutation test, shrink-only allowlist, and routed-count floor — together ensure the gate remains meaningful as the codebase evolves.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-architectural-gate-non-vacuity.md
+  - id: TACTIC:architecture-diagram-review-checklist
+    kind: tactic
+    title: Architecture Diagram Review Checklist
+    summary: "Provide a structured quality gate for architecture diagrams before they are shared, committed, or included in documentation. Based on the C4 model notation guidelines and diagram review checklist (c4model.com), this tactic ensures every diagram communicates clearly to its intended audience without requiring verbal explanation.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-architecture-diagram-review-checklist.md
+  - id: TACTIC:atdd-adversarial-acceptance
+    kind: tactic
+    title: Adversarial Acceptance Test Definition
+    summary: Strengthen acceptance criteria by deliberately exploring how a feature could fail in real usage, then converting selected failure scenarios into adversarial acceptance tests that define reject, constrain, or degrade boundaries.
+    source_path: ''
+    local_path: _LIBRARY/tactic-atdd-adversarial-acceptance.md
+  - id: TACTIC:atomic-design-review-checklist
+    kind: tactic
+    title: Atomic Design Review Checklist
+    summary: "Code review verification tactic for validating that state architecture respects atomic design level boundaries. Each step checks one atomic level against its state ownership contract.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-atomic-design-review-checklist.md
+  - id: TACTIC:atomic-state-ownership
+    kind: tactic
+    title: Atomic State Ownership
+    summary: "Assign state ownership to the lowest atomic level that needs it, preventing premature lifting to global stores. Local state stays local; only state consumed by multiple organisms or pages qualifies for centralization.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-atomic-state-ownership.md
+  - id: TACTIC:autonomous-operation-protocol
+    kind: tactic
+    title: Autonomous Operation Protocol
+    summary: Enable agents to operate autonomously with clear decision boundaries, commit frequency expectations, and escalation protocols for critical choices.
+    source_path: ''
+    local_path: _LIBRARY/tactic-autonomous-operation-protocol.md
+  - id: TACTIC:avoid-gold-plating
+    kind: tactic
+    title: Avoid Gold Plating
+    summary: "Challenge a proposed implementation or design for unnecessary complexity by asking whether each abstraction or feature addresses a current, observed need. Keeps implementation effort proportional to scope, reduces cyclic complexity, and guards against speculative over-engineering that wastes time and calcifies into technical debt.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-avoid-gold-plating.md
+  - id: TACTIC:behavior-driven-development
+    kind: tactic
+    title: Behavior-Driven Development
+    summary: "Define system behavior through concrete examples before implementation, ensuring shared understanding between stakeholders and implementers. BDD scenarios serve as behavioral contracts, acceptance criteria, and executable test definitions simultaneously. Apply when: a feature or business rule is being defined and stakeholders are available, the behavior can be expressed in observable outcomes, or behavioral ambiguity must be resolved before implementation begins. Not applicable: implementation-only tasks with no behavioral ambiguity, purely technical refactoring, or when behavior is already unambiguously specified.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-behavior-driven-development.md
+  - id: TACTIC:black-box-integration-testing
+    kind: tactic
+    title: Black-Box Integration Testing
+    summary: "Validate the functionality of an application under test without peering into its internal structures or workings, by driving it through an external interface and asserting on observable outputs. Tests are derived from external descriptions of the software — specifications, requirements, and design parameters — rather than from its code. \"Black-box\" describes the testing technique (no structural knowledge of the system under test), not the size of the slice under test. Applied here at the integration boundary — exercising more than one collaborator together through a single external interface — but the same discipline also applies at the module, acceptance, and system levels.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-black-box-integration-testing.md
+  - id: TACTIC:boring-code-review
+    kind: tactic
+    title: Boring Code Review
+    summary: "Keep implementation choices predictable, idiomatic, and easy to inspect. Challenge clever control flow, needless abstraction, and DRY violations that duplicate business meaning rather than harmless syntax.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-boring-code-review.md
+  - id: TACTIC:bounded-context-canvas-fill
+    kind: tactic
+    title: Bounded Context Canvas Fill
+    summary: "Guide the reasoning process for completing a Bounded Context Canvas -- a structured one-page summary that captures a context's name, purpose, strategic classification, domain roles, communication patterns, ubiquitous language, business decisions, assumptions, verification metrics, and open questions. This tactic focuses on the analytical thinking required to fill each section well; the fillable canvas itself is a separate template. Based on the DDD Crew Bounded Context Canvas v5.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-bounded-context-canvas-fill.md
+  - id: TACTIC:bounded-context-identification
+    kind: tactic
+    title: Bounded Context Identification
+    summary: "Identify and draw boundaries around regions of a system where a single consistent domain model and ubiquitous language apply. Instead of forcing one unified model across an entire organization, accept that different contexts need different models and define explicit integration points between them. Based on Eric Evans's DDD strategic design and Martin Fowler's Bounded Context pattern.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-bounded-context-identification.md
+  - id: TACTIC:bug-fixing-checklist
+    kind: tactic
+    title: Test-First Bug Fixing Checklist
+    summary: "Resolve defects through a disciplined sequence that prevents speculative fixes, ensures the defect is reproducible as a test, and verifies no regressions are introduced. Applicable to any language or framework. Do not skip steps under time pressure — shortcuts in bug fixing cause regressions.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-bug-fixing-checklist.md
+  - id: TACTIC:c4-zoom-in-architecture-documentation
+    kind: tactic
+    title: C4 Zoom-In Architecture Documentation
+    summary: "Progressively document a system's architecture by starting at the broadest abstraction (system context) and zooming in only where additional detail adds value. Each level targets a specific audience and answers a specific question, preventing the common failure of a single monolithic diagram that serves nobody well. Based on Simon Brown's C4 model (c4model.com).\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-c4-zoom-in-architecture-documentation.md
+  - id: TACTIC:canonical-source-unification
+    kind: tactic
+    title: Canonical Source Unification
+    summary: "How to resolve a split-brain surface — when the same concept is implemented or stored in more than one location — by consolidating to a single canonical authority. The key distinction: consolidation routes all traffic through one surface (unification); adding the same behavior to every copy (parity) preserves the split-brain and must be refused.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-canonical-source-unification.md
+  - id: TACTIC:chain-of-responsibility-rule-pipeline
+    kind: tactic
+    title: Chain of Responsibility — Rule-Based Pipeline
+    summary: "Express a complex multi-step rule application as a pipeline of small, pure, independently-testable functions instead of as one large branching function. Each rule decides on its own applicability, executes its narrow piece of work, and returns a result object that the runner threads to the next rule. The pattern keeps cognitive complexity per function low, makes the rule set readable as a sequence, and lets new rules slot in without re-reading the whole pipeline.\nThis is the codebase's accepted way of dealing with stacks of related but independent rules — validators, classifiers, canonicalizers, scorers, audit detectors. The shape recurs in `src/specify_cli/audit/`, `src/specify_cli/charter_runtime/lint/checks/`, `src/specify_cli/migration/`, and `src/doctrine/agent_profiles/repository.py` (DDR-011 scoring). New code that composes 4+ independent decisions over the same input should reach for this pattern by default.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-chain-of-responsibility-rule-pipeline.md
+  - id: TACTIC:change-apply-smallest-viable-diff
+    kind: tactic
+    title: Change Apply Smallest Viable Diff
+    summary: Introduce changes using the smallest possible modification that achieves the stated goal, minimising unintended side effects.
+    source_path: ''
+    local_path: _LIBRARY/tactic-change-apply-smallest-viable-diff.md
+  - id: TACTIC:clean-linear-commit-history
+    kind: tactic
+    title: Clean Linear Commit History via Snapshot Chain
+    summary: "Compress a long-running integration branch that has accumulated many small administrative or bookkeeping commits into a short, clean, linear chain before it is shared in a pull request or rebased onto a moving base. The compression rebuilds history from existing tree states with git plumbing — never by replaying or reordering individual commits — so every snapshot is a real, once-tested tree and the result is byte-identical to the original branch tip. This yields a reviewable pull-request-sized history, conflict-once rebases, and slice-granular bisection without risking silently dropped intent.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-clean-linear-commit-history.md
+  - id: TACTIC:code-documentation-analysis
+    kind: tactic
+    title: Code and Documentation Analysis for Boundary Discovery
+    summary: "Extract terminology from a codebase and its documentation to identify semantic clusters that reveal implicit context boundaries. Used during domain modelling and architectural review to surface unacknowledged bounded contexts before they calcify into accidental coupling. Success criteria: 100-500 terms extracted, clustered by semantic similarity, clusters mapped to team/directory ownership, proposed boundaries validated with domain experts, and cross-boundary risks identified and documented.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-code-documentation-analysis.md
+  - id: TACTIC:code-review-incremental
+    kind: tactic
+    title: Incremental Code Review
+    summary: Review a change set to identify correctness, structural, and architectural risks without rewriting or expanding scope. Formulate feedback as observations and questions, not instructions.
+    source_path: ''
+    local_path: _LIBRARY/tactic-code-review-incremental.md
+  - id: TACTIC:common-docs-curation
+    kind: tactic
+    title: Common Docs Curation
+    summary: "How to place, author, and curate documentation under the Common Docs standard so the conventions are applied at point-of-edit and verified by live gates rather than remembered. Covers placing a page, authoring an ADR with era and frontmatter, and running the rulers before handoff.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-common-docs-curation.md
+  - id: TACTIC:common-docs-find
+    kind: tactic
+    title: Common Docs Find
+    summary: "How to locate the doc that owns a topic without a hand-maintained lookup table: resolve the topic through the doctrine relation graph and the page-inventory lockfile, which are both regenerated from source, so the answer tracks the real documentation rather than a static index that rots. Use this before writing a new page (to avoid duplicating an existing one) and when navigating the corpus.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-common-docs-find.md
+  - id: TACTIC:common-docs-scaffold
+    kind: tactic
+    title: Common Docs Scaffold
+    summary: "How to scaffold a new Common Doc from nothing: pick the one owning section of the 13-section structure, create the file at the section-aware path, seed the in-file frontmatter schema (including the namespaced doc_status), and add the section index.md when the section is new. Use this when a concern has no home yet under the single Common Docs root.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-common-docs-scaffold.md
+  - id: TACTIC:common-docs-write
+    kind: tactic
+    title: Common Docs Write
+    summary: "How to author the body and frontmatter of a Common Doc to the styleguide so the page passes its live gates: write the SEO description inside the 50-180 character band, express cross-references as the related: resolvable-path form, match the Divio type to the owning section, and follow the kebab-case naming convention. Use this once the page exists (scaffolded) and you are writing its content.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-common-docs-write.md
+  - id: TACTIC:compositional-stream-boundaries
+    kind: tactic
+    title: Compositional Stream Boundaries
+    summary: "Define where reactive streams (RxJS, observables, signals) begin and end within the atomic hierarchy. Prevents stream leak across component boundaries and ensures subscription ownership is explicit.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-compositional-stream-boundaries.md
+  - id: TACTIC:connascence-analysis
+    kind: tactic
+    title: Connascence Analysis
+    summary: "Diagnose coupling between software components by classifying it using the connascence taxonomy — examining strength, degree, and locality — and recommend targeted reductions that improve maintainability without unnecessary abstraction.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-connascence-analysis.md
+  - id: TACTIC:context-boundary-inference
+    kind: tactic
+    title: Context Boundary Inference
+    summary: "Detect bounded context boundaries from team ownership patterns and terminology conflicts. Use systematic organizational and linguistic analysis to surface implicit domain boundaries before they calcify into accidental coupling. Apply when: a monolith is growing beyond a single team's cognitive bandwidth, teams disagree on what a shared term means, cross-team coupling makes deployment or testing painful, or a strategic design effort is beginning. Success criteria: each proposed context has explicit ownership, ubiquitous language documented per context, translation rules defined at each boundary, no shared mutable state across context boundaries, proposed boundaries validated with domain experts.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-context-boundary-inference.md
+  - id: TACTIC:context-mapping-classification
+    kind: tactic
+    title: Context Mapping Classification
+    summary: "Systematically classify every relationship between bounded contexts using the nine canonical DDD context mapping patterns and three relationship types. Produces an explicit map that reveals coupling, power asymmetries, and integration risk across the system. Based on Eric Evans's strategic design patterns and the DDD Crew context-mapping notation.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-context-mapping-classification.md
+  - id: TACTIC:cross-cutting-state-via-store
+    kind: tactic
+    title: Cross-Cutting State via Store
+    summary: "Use a centralized store (Redux, NgRx, Zustand, Pinia) exclusively for state that crosses atomic boundaries: auth, theme, locale, feature flags, and domain entities consumed by multiple organisms on different pages. Keeps the store lean and purposeful.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-cross-cutting-state-via-store.md
+  - id: TACTIC:decision-marker-capture
+    kind: tactic
+    title: Decision Marker Capture
+    summary: Ensure architectural decisions made during implementation are captured as traceable records with rationale, alternatives, and consequences, so future maintainers can understand why a choice was made.
+    source_path: ''
+    local_path: _LIBRARY/tactic-decision-marker-capture.md
+  - id: TACTIC:deepening-opportunity-assessment
+    kind: tactic
+    title: Deepening Opportunity Assessment
+    summary: "Identify whether a shallow cluster of modules should be deepened into a higher-leverage module with a smaller, more stable interface. The assessment focuses on real caller friction, test seam quality, dependency shape, and locality of future changes rather than on abstract cleanliness.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-deepening-opportunity-assessment.md
+  - id: TACTIC:delete-the-assertion-not-the-test
+    kind: tactic
+    title: Delete the Assertion, Not the Test
+    summary: "Remediate a friction test (one that passes for the wrong reason, false-reds a correct change, or asserts an implementation detail) by replacing its wrong assertion with a contract-pinned, red-first one while PRESERVING the test's setup and excavated edge-cases. Reserve outright deletion for tests that provably carry no unique coverage. This discharges \"never delete a test to fix it\" rigorously: never delete COVERAGE to dodge a failure."
+    source_path: ''
+    local_path: _LIBRARY/tactic-delete-the-assertion-not-the-test.md
+  - id: TACTIC:dependency-hygiene
+    kind: tactic
+    title: Dependency Hygiene
+    summary: "Keep a project's dependency tree free of known vulnerabilities and non-compliant licenses. Apply at project creation, when adding any dependency, and as part of regular pre-release maintenance. Apply when: starting a new project, adding or upgrading any dependency, a vulnerability scanner reports new CVEs, or preparing a release.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-dependency-hygiene.md
+  - id: TACTIC:development-bdd
+    kind: tactic
+    title: BDD as Behavioral Contract Design
+    summary: "Use Behaviour-Driven Development principles to define observable behavioral contracts before implementation begins, ensuring system boundaries are expressed in terms stakeholders can validate. Apply during design to establish what the system must do at its public interfaces — not how to write test scenarios (see the behavior-driven-development tactic for that). Outputs of this tactic serve as the behavioral contract that step definitions later implement.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-development-bdd.md
+  - id: TACTIC:dialectic-research
+    kind: tactic
+    title: Dialectical Research
+    summary: "Test a claim, theory, or design hypothesis by running two independent investigations in parallel — one that argues FOR it (corroboration) and one that argues AGAINST it (refutation) — then reconcile them honestly into a revised position. Pairing a confirmation pass with an adversarial pass stress-tests a hypothesis before it becomes a decision, guarding against confirmation bias and plausible-but-wrong conclusions. Based on Hegelian thesis–antithesis–synthesis and red-team/blue-team review.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-dialectic-research.md
+  - id: TACTIC:documentation-curation-audit
+    kind: tactic
+    title: Documentation Curation Audit
+    summary: Systematically audit a documentation directory for structural consistency, naming conventions, cross-reference integrity, and metadata completeness.
+    source_path: ''
+    local_path: _LIBRARY/tactic-documentation-curation-audit.md
+  - id: TACTIC:domain-event-capture
+    kind: tactic
+    title: Domain Event Capture
+    summary: "Funnel significant state changes through immutable Domain Event objects that are persisted before processing. Separates input recording from business reaction, enabling auditability, replay, and decoupled system evolution. Based on Martin Fowler's Domain Event pattern and Eric Evans's DDD events.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-domain-event-capture.md
+  - id: TACTIC:easy-to-change
+    kind: tactic
+    title: Easy-to-Change Design Review
+    summary: "Assess whether a proposed or existing design keeps the cost of future change proportional to the value gained. Identifies where assumptions are embedded in the wrong places, flags premature abstraction, and recommends minimal structural investments that preserve adaptability without over-engineering.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-easy-to-change.md
+  - id: TACTIC:eisenhower-prioritisation
+    kind: tactic
+    title: Eisenhower Prioritisation
+    summary: "Assign each pending task an importance and urgency rating so that the most valuable work is tackled first and low-value work is explicitly eliminated or delegated. Prevents constant busyness from masking a lack of meaningful progress.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-eisenhower-prioritisation.md
+  - id: TACTIC:entity-value-object-classification
+    kind: tactic
+    title: Entity vs Value Object Classification
+    summary: "Classify every domain object as either an Entity (has identity, mutable lifecycle) or a Value Object (defined solely by its attributes, immutable, no identity). The default heuristic is to prefer Value Objects; promote to Entity only when the domain requires tracking identity across state changes. Correct classification reduces complexity, improves testability, and makes the domain model more expressive. Based on Eric Evans's DDD tactical patterns.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-entity-value-object-classification.md
+  - id: TACTIC:five-paradigm-parallel-debugging
+    kind: tactic
+    title: Five-Paradigm Parallel Debugging
+    summary: "Investigate stubborn, recurring, or shape-shifting bugs by dispatching five sub-agents in parallel, each constrained to a different debugging epistemology. Independent investigations converge on a single structural fix while each surfaces findings the others structurally cannot. Produces one structural intervention, not five point-fixes.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-five-paradigm-parallel-debugging.md
+  - id: TACTIC:focused-function-complexity-check
+    kind: tactic
+    title: Focused Function Complexity Check
+    summary: "Keep functions focused, readable, and bounded in complexity without splitting behavior into needless fragments. The goal is clear units of behavior whose control flow can be inspected quickly.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-focused-function-complexity-check.md
+  - id: TACTIC:forensic-repository-audit
+    kind: tactic
+    title: Forensic Repository Audit
+    summary: "Extract durable, evidence-backed signals about the health of an unfamiliar codebase from version control history and surface them as concrete questions a maintainer must answer: where is risk concentrated, who knows this code, is the project alive, does the team trust the pipeline, is anything abandoned, and is complexity load-bearing? The output is not a verdict but a structured inventory of hotspots, ownership, velocity, and firefighting frequency that other doctrine artifacts (triage, prioritisation, premortem, connascence analysis) can act on.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-forensic-repository-audit.md
+  - id: TACTIC:formalized-constraint-testing
+    kind: tactic
+    title: Formalized Constraint Testing
+    summary: "Verify mathematical invariants and structural contracts of components using property-based patterns rather than example-based spot-checks. Covers four pattern families: round-trip symmetry, equality contracts, hash-code alignment, and sparse serialization.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-formalized-constraint-testing.md
+  - id: TACTIC:frozen-baseline-shrink-only-ratchet
+    kind: tactic
+    title: Frozen-Baseline Shrink-Only Ratchet
+    summary: "Track the current count of a gated allowlist (call sites, dead symbols, legacy entries, or any other countable technical-debt category) in a committed baseline file. CI fails if the live count grows beyond the committed baseline, and warns (but does not fail) if it shrinks. The baseline is updated only by deliberate human action with a recorded rationale. The allowed direction is shrink-or-stay; growth is a gate failure.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-frozen-baseline-shrink-only-ratchet.md
+  - id: TACTIC:function-over-form-testing
+    kind: tactic
+    title: Function Over Form Testing
+    summary: "Prioritize behavioral validation over structural verification in test suites. Tests should prove that the system does what it is supposed to do, not that it was assembled from the right parts. Construction details (constructors, builders, accessors) get tested indirectly through functional tests that exercise the objects they create. Core principle: when behavior is tested thoroughly, construction coverage follows naturally.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-function-over-form-testing.md
+  - id: TACTIC:generated-code-stewardship
+    kind: tactic
+    title: Generated Code Stewardship
+    summary: "Treat generated code as maintainable project code. Agents may improve it, but they must not leave behind bloated, unexplained, untyped, or hard-to-review output simply because it was generated.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-generated-code-stewardship.md
+  - id: TACTIC:glossary-curation-interview
+    kind: tactic
+    title: Glossary Curation Interview
+    summary: Systematically expand a living glossary through structured HiC-led curation rounds, ensuring all new terms are clear, well-grouped, and approved before inclusion.
+    source_path: ''
+    local_path: _LIBRARY/tactic-glossary-curation-interview.md
+  - id: TACTIC:input-validation-fail-fast
+    kind: tactic
+    title: Input Validation with Fail-Fast Feedback
+    summary: Validate input data comprehensively before processing to avoid wasting resources on invalid data. Provide clear, actionable feedback on errors while protecting system internals from exposure.
+    source_path: ''
+    local_path: _LIBRARY/tactic-input-validation-fail-fast.md
+  - id: TACTIC:interface-variation-design
+    kind: tactic
+    title: Interface Variation Design
+    summary: "Explore materially different interface shapes before committing to a deepened module design. The tactic reduces first-idea bias by comparing interfaces on leverage, locality, misuse resistance, dependency strategy, and how naturally behavior can be tested through the same surface callers use.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-interface-variation-design.md
+  - id: TACTIC:iterative-deepening-review
+    kind: tactic
+    title: Iterative-Deepening Review
+    summary: "Review a large backlog for linkage and grouping in widening time windows rather than one flat pass, so recent drift and emergent groupings are caught first while context is fresh and effort drops sharply per ring as later rings slot into structure that already exists.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-iterative-deepening-review.md
+  - id: TACTIC:language-driven-design
+    kind: tactic
+    title: Language-Driven Design
+    summary: "Treat language drift as an architectural signal. When terminology becomes inconsistent or ambiguous across code, docs, and conversation, it predicts deeper structural problems. Reviewers use linguistic checks to catch architectural issues before they manifest as bugs or coupling.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-language-driven-design.md
+  - id: TACTIC:locality-of-change
+    kind: tactic
+    title: Locality of Change Assessment
+    summary: "Systematic decision protocol for evaluating whether a proposed change adds necessary complexity or introduces premature abstraction. Implements Directive 024 by giving implementers and reviewers a structured method for assessing scope before committing to a solution. Core principle: do not add complexity to solve problems that do not demonstrably exist. Decision checklist — proceed only if 5+ of 7 apply: (1) Can I point to 3+ real instances where the current approach failed? (2) Have I quantified the impact? (3) Have I evaluated \"do nothing\" as an option? (4) Have I explored simpler alternatives first? (5) Does the change preserve or enhance core architectural values? (6) Am I not prescribing too early? (7) Does the change achieve significant value at proportional cost?\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-locality-of-change.md
+  - id: TACTIC:model-task-routing
+    kind: tactic
+    title: Model Task Routing
+    summary: "Match model strength to task difficulty: route hard-judgment work (sizing, fakeability, code-truth, review, architecture) to the strongest available model, and grounded or mechanical passes to a cheaper model. Advisory — the recommendation surfaces alongside the task, it never substitutes for the operator's or orchestrator's own judgment about who should run a step.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-model-task-routing.md
+  - id: TACTIC:moscow-scoping-lens
+    kind: tactic
+    title: MoSCoW Scoping Lens
+    summary: "Apply MoSCoW — Must, Should, Could, Won't — as a scoping discipline when negotiating the boundary of a mission or a backlog slice, so the smallest viable Must set is committed and everything else is explicitly deferred or declined. MoSCoW is a planning lens applied at scoping and negotiation time; it is deliberately distinct from the `priority:Px` label taxonomy, which is a per-ticket backlog-state attribute.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-moscow-scoping-lens.md
+  - id: TACTIC:mutation-testing-workflow
+    kind: tactic
+    title: Mutation Testing Workflow
+    summary: "Verify that tests detect real bugs — not merely execute code. Mutation testing answers \"if I introduced a bug here, would my tests fail?\" where coverage only answers \"did my tests run this line?\".\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-mutation-testing-workflow.md
+  - id: TACTIC:no-parallel-duplicate-test-runs
+    kind: tactic
+    title: No Parallel Duplicate Test Runs
+    summary: "Prevent agents from launching multiple concurrent runs of the same test suite. Doing so wastes resources, makes output ambiguous, and degrades the developer experience. A single authoritative run must be started, and the agent must wait for its result before deciding on next steps.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-no-parallel-duplicate-test-runs.md
+  - id: TACTIC:occurrence-classification-workflow
+    kind: tactic
+    title: Occurrence Classification Workflow
+    summary: "Guide mission authors through classifying string occurrences by semantic context before performing bulk edits.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-occurrence-classification-workflow.md
+  - id: TACTIC:ownership-map-leeway
+    kind: tactic
+    title: Ownership Map Leeway
+    summary: "Give implementers rationale-backed leeway to edit files adjacent to their declared owned_files surface. The hard constraint is no-overlap between work packages — not a strict prohibition on any cross-boundary edit. Strict prohibition causes workarounds (such as TODOs, deferred fixes, or duplicated logic) that are worse than the bounded out-of-map edit they prevent.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-ownership-map-leeway.md
+  - id: TACTIC:paula-patterns-architecture-scout-review
+    kind: tactic
+    title: Paula Patterns Architecture Scout Review
+    summary: "Review recurring boundary leaks, whack-a-field fixes, ownership confusion, and compatibility regressions by dispatching five architecture scouts with different lenses, then synthesizing one pragmatic matrix that separates the smallest release-safe fix from deferred architecture repair.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-paula-patterns-architecture-scout-review.md
+  - id: TACTIC:pr-agent-worktree-isolation
+    kind: tactic
+    title: PR Agent Worktree Isolation and No-Version Prescription
+    summary: "Govern two complementary constraints on how agents interact with PR branches: (1) agents that review or rebase a PR must execute in an isolated worktree, not in an active mission checkout; (2) scope documents must not assign patch or version numbers, because version decisions belong to the product owner at release time. Together these prevent cross-contamination of mission state and preserve the product owner's authority over the release boundary.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-pr-agent-worktree-isolation.md
+  - id: TACTIC:premortem-risk-identification
+    kind: tactic
+    title: Premortem Risk Identification
+    summary: Proactively surface failure modes for a plan or decision by deliberately attempting to sabotage it before execution.
+    source_path: ''
+    local_path: _LIBRARY/tactic-premortem-risk-identification.md
+  - id: TACTIC:problem-decomposition
+    kind: tactic
+    title: Problem Decomposition
+    summary: "Break a complex, ambiguous problem into a set of smaller, independently tractable sub-problems before selecting a solution approach. Decomposition prevents premature convergence on a solution that addresses only part of the problem, exposes hidden scope, and creates a structured basis for work-package planning and parallel progress.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-problem-decomposition.md
+  - id: TACTIC:quality-gate-verification
+    kind: tactic
+    title: Quality Gate Verification
+    summary: Verify the relevant test and static validation gates for a change before review handoff and distinguish introduced failures from pre-existing debt.
+    source_path: ''
+    local_path: _LIBRARY/tactic-quality-gate-verification.md
+  - id: TACTIC:reasons-canvas-fill
+    kind: tactic
+    title: REASONS Canvas Fill
+    summary: "Generate or update a mission-level REASONS canvas (Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards) by reading mission artifacts and producing concise, traceable content.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-reasons-canvas-fill.md
+  - id: TACTIC:reasons-canvas-review
+    kind: tactic
+    title: REASONS Canvas Review
+    summary: "Use the canvas as a comparison surface during work-package review and classify any divergence as approved deviation, scope drift, or safeguard violation.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-reasons-canvas-review.md
+  - id: TACTIC:refactoring-change-function-declaration
+    kind: tactic
+    title: 'Refactoring: Change Function Declaration'
+    summary: "Rename a function, adjust its parameters, or change its signature to better reflect its current responsibility. Good names reduce cognitive load; good parameter lists reduce coupling. Also known as Rename Function, Add Parameter, Remove Parameter, Change Signature.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-change-function-declaration.md
+  - id: TACTIC:refactoring-combine-functions-into-transform
+    kind: tactic
+    title: 'Refactoring: Combine Functions into Transform'
+    summary: "Consolidate multiple functions that independently calculate derived values from the same input record into a single transform function that returns an enriched copy. Eliminates scattered derivation logic and makes the full set of computed properties discoverable in one place.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-combine-functions-into-transform.md
+  - id: TACTIC:refactoring-conditional-to-strategy
+    kind: tactic
+    title: Refactoring Conditional to Strategy
+    summary: Replace algorithm-selection conditionals with strategy implementations behind a stable interface.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-conditional-to-strategy.md
+  - id: TACTIC:refactoring-consolidate-conditional-expression
+    kind: tactic
+    title: 'Refactoring: Consolidate Conditional Expression'
+    summary: "Merge multiple sequential conditional checks that produce the same result into a single combined condition, then extract it into a named predicate function. Replaces mechanical guard sequences with a self-documenting intent declaration.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-consolidate-conditional-expression.md
+  - id: TACTIC:refactoring-encapsulate-record
+    kind: tactic
+    title: 'Refactoring: Encapsulate Record'
+    summary: "Replace a raw data record (dict, plain object, named tuple used mutably) with a class that controls access through getters and setters. Encapsulation lets you add validation, rename fields, and change internal representation without rippling through every consumer. Also known as Replace Record with Data Class.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-encapsulate-record.md
+  - id: TACTIC:refactoring-encapsulate-variable
+    kind: tactic
+    title: 'Refactoring: Encapsulate Variable'
+    summary: "Wrap a widely-accessed module-level or global variable behind getter and setter functions. This creates a single chokepoint for monitoring access, adding validation, and later changing the variable's type or structure without updating every consumer. Also known as Encapsulate Field, Self-Encapsulate Field.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-encapsulate-variable.md
+  - id: TACTIC:refactoring-extract-class-by-responsibility-split
+    kind: tactic
+    title: Refactoring Extract Class by Responsibility Split
+    summary: Split a class with mixed concerns into focused classes aligned to cohesive responsibilities.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-extract-class-by-responsibility-split.md
+  - id: TACTIC:refactoring-extract-first-order-concept
+    kind: tactic
+    title: Refactoring Extract First-Order Concept
+    summary: Turn implicit or duplicated logic into an explicit concept with a clear responsibility and name.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-extract-first-order-concept.md
+  - id: TACTIC:refactoring-guard-clauses-before-polymorphism
+    kind: tactic
+    title: Refactoring Guard Clauses Before Polymorphism
+    summary: Flatten nested branch pyramids into ordered guard clauses before extracting polymorphic behavior.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-guard-clauses-before-polymorphism.md
+  - id: TACTIC:refactoring-inline-temp
+    kind: tactic
+    title: Refactoring Inline Temp
+    summary: Remove temporary variables that only alias simple expressions and do not add domain meaning.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-inline-temp.md
+  - id: TACTIC:refactoring-introduce-null-object
+    kind: tactic
+    title: Refactoring Introduce Null Object
+    summary: Replace repetitive null-check branches with a null-object implementation that preserves the same interface.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-introduce-null-object.md
+  - id: TACTIC:refactoring-move-field
+    kind: tactic
+    title: Refactoring Move Field
+    summary: Move a field to the class that actually owns and uses it most, reducing ownership drift and coupling.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-move-field.md
+  - id: TACTIC:refactoring-move-method
+    kind: tactic
+    title: Refactoring Move Method
+    summary: Relocate a method to the class that owns the data and behavior it primarily uses.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-move-method.md
+  - id: TACTIC:refactoring-replace-magic-number-with-symbolic-constant
+    kind: tactic
+    title: Refactoring Replace Magic Number With Symbolic Constant
+    summary: Replace unexplained numeric literals with named constants that communicate domain intent.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-replace-magic-number-with-symbolic-constant.md
+  - id: TACTIC:refactoring-replace-temp-with-query
+    kind: tactic
+    title: Refactoring Replace Temp With Query
+    summary: Replace derived temporary variables with query methods so derivation logic becomes explicit and reusable.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-replace-temp-with-query.md
+  - id: TACTIC:refactoring-retry-pattern
+    kind: tactic
+    title: Refactoring Retry Pattern
+    summary: Centralize retry behavior for transient failures without hiding persistent faults or non-retry-safe operations.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-retry-pattern.md
+  - id: TACTIC:refactoring-state-pattern-for-behavior
+    kind: tactic
+    title: 'Refactoring: State Pattern for Behavior'
+    summary: "Replace sprawling conditional logic that switches on an object's state with dedicated state classes behind a common interface. The context object delegates behavior to the current state object, and state transitions swap that object rather than flipping flags or enum values.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-state-pattern-for-behavior.md
+  - id: TACTIC:refactoring-strangler-fig
+    kind: tactic
+    title: Refactoring Strangler Fig
+    summary: Replace existing functionality incrementally by running a new implementation alongside the old and rerouting behavior step by step.
+    source_path: ''
+    local_path: _LIBRARY/tactic-refactoring-strangler-fig.md
+  - id: TACTIC:reference-architectural-patterns
+    kind: tactic
+    title: Reference Architectural Patterns Selection
+    summary: "Identify and apply established reference architecture patterns to a given problem context. Use when designing a new system or major subsystem, when an existing architecture is struggling with scaling, coupling, or maintainability, or when evaluating strategic options before committing to an implementation approach.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-reference-architectural-patterns.md
+  - id: TACTIC:requirements-validation-workflow
+    kind: tactic
+    title: Requirements Validation Workflow
+    summary: Validate requirements through evidence-based claim analysis, ensuring they are grounded in testable hypotheses rather than assumptions.
+    source_path: ''
+    local_path: _LIBRARY/tactic-requirements-validation-workflow.md
+  - id: TACTIC:reverse-speccing
+    kind: tactic
+    title: Reverse Specification from Tests
+    summary: "Reconstruct system understanding purely from test code, then compare against actual implementation and design docs. Measures how effectively tests serve as executable specifications. Gaps between reconstruction and reality reveal under-documented behavior, missing architectural rationale, or invisible operational context.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-reverse-speccing.md
+  - id: TACTIC:review-intent-and-risk-first
+    kind: tactic
+    title: Review Intent and Risk First
+    summary: Review work by first understanding intent and surfacing risks before suggesting changes or solutions.
+    source_path: ''
+    local_path: _LIBRARY/tactic-review-intent-and-risk-first.md
+  - id: TACTIC:reviewer-implementer-role-separation
+    kind: tactic
+    title: Reviewer/Implementer Role Separation
+    summary: "Ensure that the agent or session that implements a work package is never the same agent or session that reviews it. Role separation prevents review bias, preserves the independence of the review gate, and ensures that the governing doctrine profile switches correctly between the implement and review phases.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-reviewer-implementer-role-separation.md
+  - id: TACTIC:safe-to-fail-experiment
+    kind: tactic
+    title: Safe-to-Fail Experiment
+    summary: "Reframe a learning or exploration goal as a deliberately low-stakes experiment so that failure produces signal rather than shame. Running time-boxed, isolated experiments with pre-defined hypotheses accelerates skill development, surfaces assumptions early, and normalises sharing what was learned — including negative results.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-safe-to-fail-experiment.md
+  - id: TACTIC:secure-design-checklist
+    kind: tactic
+    title: Secure Design Checklist
+    summary: "Apply the nine foundational secure design principles (Saltzer & Schroeder) at the design phase of a new feature or component so that security properties are built in rather than retrofitted. Apply before implementation begins, not after. Principles: (1) Least Privilege — minimum access for minimum time. (2) Fail-Safe Defaults — deny by default, permit explicitly. (3) Economy of Mechanism — keep security paths simple and centralized. (4) Complete Mediation — check every access every time, no indefinite caching. (5) Open Design — security must hold even if the attacker knows the source code. (6) Separation of Privilege — no single condition sufficient to grant access. (7) Least Common Mechanism — do not share access mechanisms unnecessarily. (8) Psychological Acceptability — security must not significantly impede usability. (9) Defense in Depth — layer independent barriers; assume each layer can fail.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-secure-design-checklist.md
+  - id: TACTIC:secure-regex-catastrophic-backtracking
+    kind: tactic
+    title: Secure Regex — Avoid Catastrophic Backtracking
+    summary: "Secure coding practice for designing and reviewing regular expressions so they cannot be driven into pathological matching times by adversarial input (Regular-expression Denial of Service / ReDoS). Backtracking engines may run in exponential or polynomial time when a vulnerable pattern is paired with an input that forces repeated re-matching. This tactic codifies the patterns to avoid, the rewrites that make them linear, and the escape hatches when a linear rewrite is not possible.\nPattern is vulnerable only when the problematic sub-pattern is followed by something that can fail. End-of-input counts as \"something that can fail\" for any full-match (e.g. ``re.fullmatch``). Partial-match APIs (``re.search``, ``re.split``, ``re.findall``) widen the attack surface because the engine retries from the next index on every failure.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-secure-regex-catastrophic-backtracking.md
+  - id: TACTIC:semantic-compression-abstraction-extraction
+    kind: tactic
+    title: Semantic Compression Abstraction Extraction
+    summary: Replace multiple implementations of one concept with one named abstraction.
+    source_path: ''
+    local_path: _LIBRARY/tactic-semantic-compression-abstraction-extraction.md
+  - id: TACTIC:semantic-compression-behavioral-boundary-mapping
+    kind: tactic
+    title: Semantic Compression Behavioral Boundary Mapping
+    summary: Define the behavior that must survive a reduction before simplifying code.
+    source_path: ''
+    local_path: _LIBRARY/tactic-semantic-compression-behavioral-boundary-mapping.md
+  - id: TACTIC:semantic-compression-dead-weight-elimination
+    kind: tactic
+    title: Semantic Compression Dead Weight Elimination
+    summary: Remove code that contributes nothing to protected observable behavior.
+    source_path: ''
+    local_path: _LIBRARY/tactic-semantic-compression-dead-weight-elimination.md
+  - id: TACTIC:semantic-compression-equivalence-verification
+    kind: tactic
+    title: Semantic Compression Equivalence Verification
+    summary: Prove that the reduced implementation preserves the behavioral envelope.
+    source_path: ''
+    local_path: _LIBRARY/tactic-semantic-compression-equivalence-verification.md
+  - id: TACTIC:semantic-compression-redundancy-discovery
+    kind: tactic
+    title: Semantic Compression Redundancy Discovery
+    summary: Find repeated behavior, not just repeated text, before choosing what to remove.
+    source_path: ''
+    local_path: _LIBRARY/tactic-semantic-compression-redundancy-discovery.md
+  - id: TACTIC:semantic-compression-semantic-consolidation
+    kind: tactic
+    title: Semantic Compression Semantic Consolidation
+    summary: Collapse multiple active behavioral paths into one canonical path.
+    source_path: ''
+    local_path: _LIBRARY/tactic-semantic-compression-semantic-consolidation.md
+  - id: TACTIC:split-brain-authority-detection
+    kind: tactic
+    title: Split Brain Authority Detection
+    summary: "Detect split brain failures by proving which actor is allowed to decide, write, route, or reconcile each scoped fact at each moment. Use this tactic whenever two nodes, services, stores, regions, clients, config planes, or business domains can each believe they are authoritative. The core move is always the same: make authority explicit, attach a monotonic epoch or version to every decision, and probe from outside the system for impossible concurrent authorities.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-split-brain-authority-detection.md
+  - id: TACTIC:stakeholder-alignment
+    kind: tactic
+    title: Stakeholder Alignment
+    summary: "Identify everyone with a meaningful stake in a decision or initiative, surface their primary concerns and success criteria, and expose tensions between groups early — before design choices embed assumptions that conflict with stakeholder reality. Unaddressed stakeholder conflict is the most common source of technically correct but organisationally rejected solutions.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-stakeholder-alignment.md
+  - id: TACTIC:stopping-conditions
+    kind: tactic
+    title: Define Stopping Conditions
+    summary: Establish clear, measurable thresholds that define when to stop pursuing a goal, protecting against over-investment and sunk-cost fallacy.
+    source_path: ''
+    local_path: _LIBRARY/tactic-stopping-conditions.md
+  - id: TACTIC:strategic-domain-classification
+    kind: tactic
+    title: Strategic Domain Classification
+    summary: "Classify each bounded context as Core Domain, Supporting Subdomain, or Generic Subdomain to guide investment, staffing, and build-vs-buy decisions. Core domains receive the deepest modelling effort because they are the source of competitive advantage. Supporting subdomains are necessary but not differentiating. Generic subdomains are commodity concerns best served by off-the-shelf solutions. Based on Eric Evans's strategic classification and the Bounded Context Canvas (section 3).\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-strategic-domain-classification.md
+  - id: TACTIC:tdd-red-green-refactor
+    kind: tactic
+    title: Test Driven Development (TDD)
+    summary: Enforce short, verifiable coding loops that improve design while keeping behavior safe.
+    source_path: ''
+    local_path: _LIBRARY/tactic-tdd-red-green-refactor.md
+  - id: TACTIC:terminology-extraction-mapping
+    kind: tactic
+    title: Terminology Extraction and Mapping
+    summary: "Systematically extract domain terms from multiple sources (code, docs, transcripts, specs) and map their relationships to build a comprehensive, maintainable glossary. Use when a project lacks a shared vocabulary, when terminology drift is causing communication failures, or as a follow-up to code-documentation-analysis.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-terminology-extraction-mapping.md
+  - id: TACTIC:test-boundaries-by-responsibility
+    kind: tactic
+    title: Test Boundaries by Functional Responsibility
+    summary: Determine test scope by identifying which components are directly responsible for the behavior under test, rather than following structural layer boundaries. Reduces brittle tests while ensuring meaningful validation.
+    source_path: ''
+    local_path: _LIBRARY/tactic-test-boundaries-by-responsibility.md
+  - id: TACTIC:test-minimisation
+    kind: tactic
+    title: Test Minimisation
+    summary: Remove redundant tests while preserving full behavioral coverage, keeping the suite fast and easy to maintain.
+    source_path: ''
+    local_path: _LIBRARY/tactic-test-minimisation.md
+  - id: TACTIC:test-pyramid-progression
+    kind: tactic
+    title: Test Pyramid Progression
+    summary: "Run tests bottom-up through pyramid layers to get fast feedback and avoid wasting time on slow tests when fast tests fail. The execution order mirrors the ROI order: the cheapest, fastest tests run first because they catch the most bugs per second of CI time.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-test-pyramid-progression.md
+  - id: TACTIC:test-readability-clarity-check
+    kind: tactic
+    title: Test Readability and Clarity Check
+    summary: "Validate whether a test suite effectively documents system behavior by attempting to reconstruct system understanding purely from test code. Tests that allow accurate reconstruction without external documentation serve as executable specifications. Use during code review, documentation audits, or when a new team member needs to understand a system. Not applicable to pure unit tests for trivial pure functions.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-test-readability-clarity-check.md
+  - id: TACTIC:test-scaffolding-as-design-smell
+    kind: tactic
+    title: Test Setup Scaffolding as a Design Smell
+    summary: "Read the cost and shape of test setup as a signal about production design. When a unit test needs real infrastructure (files, git, database, network, clock) or many mocks/patches to run, that scaffolding is evidence of a missing boundary in the code under test — the unit reaches infrastructure directly instead of depending on a pure seam. The remedy is to extract the behavior under test as a function of domain inputs, then test it directly. The mock scaffolding is the symptom; the missing boundary is the disease.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-test-scaffolding-as-design-smell.md
+  - id: TACTIC:test-to-system-reconstruction
+    kind: tactic
+    title: Test-to-System Reconstruction
+    summary: "Dual-agent validation that reconstructs system understanding purely from test code, measuring how effectively tests serve as executable specifications. Produces a scored gap analysis identifying where tests fail to communicate behavioral, architectural, or operational intent. Target overall accuracy: >=85% (behavioral 50% weight >=90%, architectural 30% weight >=80%, operational 20% weight >=75%). Score formula: (behavioral * 0.5) + (architectural * 0.3) + (operational * 0.2). Apply when: after major test suite refactoring, before significant releases, quarterly quality audits, or onboarding validation. Minimum scope: 20 tests. Recommended scope: 50-100 tests. Estimated time: 60-90 minutes.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-test-to-system-reconstruction.md
+  - id: TACTIC:testing-select-appropriate-level
+    kind: tactic
+    title: Select Appropriate Test Level
+    summary: "Choose the right test level (unit, integration, system) for a change based on scope of impact, risk of failure, and feedback cost. Avoids both over-testing low-risk changes and under-testing high-risk ones. Grounded in the test pyramid model where ROI decreases as test scope widens.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-testing-select-appropriate-level.md
+  - id: TACTIC:traceable-decisions
+    kind: tactic
+    title: Traceable Decisions
+    summary: "Ensure that material architectural and governance decisions are captured with enough context that future contributors can understand why a path was chosen and what constraints must remain true. Apply when: establishing a new pattern, choosing between alternative implementations with meaningful trade-offs, making a trade-off that accepts known costs or risks, or beginning any task with architectural implications.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-traceable-decisions.md
+  - id: TACTIC:usage-examples-sync
+    kind: tactic
+    title: Usage Examples Sync
+    summary: "Keep canonical usage examples, acceptance checks, and the narrative artifacts that quote or reference them in step with behavior changes so no downstream reader is left with stale examples.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-usage-examples-sync.md
+  - id: TACTIC:work-package-completion-validation
+    kind: tactic
+    title: Work Package Completion Validation
+    summary: "Validate that a work package meets all required quality gates before its status is advanced to for_review or done. Prevents premature transitions that accumulate technical debt in the review queue.\n"
+    source_path: ''
+    local_path: _LIBRARY/tactic-work-package-completion-validation.md
+  - id: TACTIC:zombies-tdd
+    kind: tactic
+    title: ZOMBIES TDD
+    summary: Drive implementation through tiny behavior increments using failing tests to control complexity.
+    source_path: ''
+    local_path: _LIBRARY/tactic-zombies-tdd.md
+  - id: STYLEGUIDE:adversarial-squad-cadence
+    kind: styleguide
+    title: Adversarial Squad Cadence
+    summary: "Run a bounded multi-profile adversarial squad at each planning point-cut as strong guidance, not a gate. A mission is not blocked for skipping the squad.\n"
+    source_path: ''
+    local_path: _LIBRARY/styleguide-adversarial-squad-cadence.md
+  - id: STYLEGUIDE:aggregate-design-rules
+    kind: styleguide
+    title: Aggregate Design Rules
+    summary: "Reference other aggregates by identity only: an aggregate must not hold a direct object reference to another aggregate. Use the other aggregate's ID instead to prevent transaction scope from spanning multiple aggregates."
+    source_path: ''
+    local_path: _LIBRARY/styleguide-aggregate-design-rules.md
+  - id: STYLEGUIDE:common-docs
+    kind: styleguide
+    title: Common Docs Styleguide
+    summary: 'Single root, 13 sections. All documentation lives under one Common Docs root with the 13-section structure: index, context, architecture, adr, plans, api, configuration, integrations, security, guides, operations, migrations, changelog. Each directory carries its own index.md. No second documentation root and no per-version shadow tree.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-common-docs.md
+  - id: STYLEGUIDE:deployable-skill-authoring
+    kind: styleguide
+    title: Deployable Skill Authoring Styleguide
+    summary: 'A skill description is a routing contract: it must name what the skill does and the concrete triggers that should cause an agent to load it.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-deployable-skill-authoring.md
+  - id: STYLEGUIDE:divio-type-discipline
+    kind: styleguide
+    title: Divio Type Discipline Styleguide
+    summary: 'One document, one Divio type. Every documentation page is exactly one of the four Divio quadrants — Tutorial, How-To, Reference, or Explanation — and declares that type in its frontmatter. A page that tries to be two types at once serves neither audience: a tutorial that pauses to explain architecture loses the beginner; a reference that narrates rationale loses the working developer scanning for a signature.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-divio-type-discipline.md
+  - id: STYLEGUIDE:docs-accessibility
+    kind: styleguide
+    title: Documentation Accessibility Styleguide
+    summary: Every non-decorative image carries descriptive alt text. Screenshots, diagrams, and figures that convey information must have alt text that communicates the same information to a reader using a screen reader. The alt text describes what the image says, not that it is an image — 'Kanban board with WP01 in review and WP02 approved', not 'screenshot'. Purely decorative images carry empty alt (`alt=""`) so assistive tech skips them.
+    source_path: ''
+    local_path: _LIBRARY/styleguide-docs-accessibility.md
+  - id: STYLEGUIDE:docs-freshness-sla
+    kind: styleguide
+    title: Documentation Freshness SLA Styleguide
+    summary: "Every page carries a freshness date. Frontmatter carries `updated: YYYY-MM-DD`, set to the date the page's content was last verified against reality — not the date of an incidental typo fix. The freshness date is the input to every staleness check; a page without one cannot be triaged and is treated as stale by default."
+    source_path: ''
+    local_path: _LIBRARY/styleguide-docs-freshness-sla.md
+  - id: STYLEGUIDE:kitty-glossary-writing
+    kind: styleguide
+    title: Kitty Glossary Writing Styleguide
+    summary: 'Clear, not clever: definitions exist to help the reader understand, not to demonstrate expertise.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-kitty-glossary-writing.md
+  - id: STYLEGUIDE:mutation-aware-test-design
+    kind: styleguide
+    title: Mutation-Aware Test Design
+    summary: 'Test boundary values: provide a test at the exact equality point for every >= or <= comparison, plus one step either side.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-mutation-aware-test-design.md
+  - id: STYLEGUIDE:plain-language
+    kind: styleguide
+    title: Plain Language Styleguide
+    summary: Write for the named audience, at their level. Plain language is not a fixed reading grade — it is calibrated to the reader the page is for. A tutorial for first-time users assumes no jargon; a reference for working developers may use precise domain terms without re-defining them. The audience is named at discover time (see the discover action's target-audience governance); every page then writes to that named reader, never to the author.
+    source_path: ''
+    local_path: _LIBRARY/styleguide-plain-language.md
+  - id: STYLEGUIDE:planning-and-tracking
+    kind: styleguide
+    title: Planning & Tracking Styleguide
+    summary: 'Functional epics own work; meta-trackers only reference it. An epic must represent a real domain of work — a subsystem, a capability, or a bug-class — and own its tickets as native sub-issues. A release/stabilization/go-no-go rollup is not a domain of work: it gates via milestones or labels and references work by checklist, never as the canonical parent. Prefix such issues `META-TRACKER:` so their role is unmistakable.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-planning-and-tracking.md
+  - id: STYLEGUIDE:publication-authority
+    kind: styleguide
+    title: Publication Authority Styleguide
+    summary: 'Code is the source of truth; documentation mirrors shipped behaviour. Documentation describes what the system actually does, never what it was hoped to do or what an old design intended. When code and docs disagree, the code is right and the docs are the defect. A page that documents behaviour the code does not implement is worse than no page — it manufactures false confidence. This is the source-of-truth half of publication authority (FR-005: source-of-truth).'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-publication-authority.md
+  - id: STYLEGUIDE:python-conventions
+    kind: styleguide
+    title: Python Conventions Styleguide
+    summary: 'Guard clauses over nesting: validate inputs early and fail fast rather than wrapping logic in conditional branches.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-python-conventions.md
+  - id: STYLEGUIDE:reasons-canvas-writing
+    kind: styleguide
+    title: REASONS Canvas Writing Styleguide
+    summary: Lead each section with a one-sentence summary, then bullet specifics.
+    source_path: ''
+    local_path: _LIBRARY/styleguide-reasons-canvas-writing.md
+  - id: STYLEGUIDE:research-citation-discipline
+    kind: styleguide
+    title: Research Citation Discipline Styleguide
+    summary: 'Every claim carries a source: any assertion of fact in a research output must be traceable to a named source (a document, a data run, an interview, or a reproducible observation). An unsourced factual claim is a hypothesis, and must be labelled as one.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-research-citation-discipline.md
+  - id: STYLEGUIDE:test-desiderata-and-boundaries
+    kind: styleguide
+    title: Test Desiderata and Clear Test Boundaries
+    summary: 'Desiderata are trade-offs: choose which properties a given test optimizes; do not pretend one test maximizes all twelve at once.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-test-desiderata-and-boundaries.md
+  - id: STYLEGUIDE:testing-principles
+    kind: styleguide
+    title: Testing Principles Styleguide
+    summary: 'Fast: tests execute quickly enough that running them after every small change is not a burden.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-testing-principles.md
+  - id: STYLEGUIDE:tiered-standards
+    kind: styleguide
+    title: Tiered Coding Standards
+    summary: 'Rigour must match risk: the closer a package is to mission-critical state management or runtime execution, the higher the quality bar it must meet.'
+    source_path: ''
+    local_path: _LIBRARY/styleguide-tiered-standards.md
+  - id: TOOLGUIDE:contextive
+    kind: toolguide
+    title: Contextive
+    summary: "Reference guide for using Contextive to manage ubiquitous language in software projects. Covers glossary file setup, term definition syntax, multi-context repository layouts, IDE integration, and alignment with Spec Kitty glossary curation workflows.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-contextive.md
+  - id: TOOLGUIDE:efficient-local-tooling
+    kind: toolguide
+    title: Efficient Local Tooling
+    summary: Operation-oriented guidance for using efficient local tools during repository work.
+    source_path: ''
+    local_path: _LIBRARY/toolguide-efficient-local-tooling.md
+  - id: TOOLGUIDE:git-agent-commit-signing
+    kind: toolguide
+    title: Git Agent Commit Signing
+    summary: Unsigned commit guidance for agent-authored git commits.
+    source_path: ''
+    local_path: _LIBRARY/toolguide-git-agent-commit-signing.md
+  - id: TOOLGUIDE:git-worktree-pr-workflow
+    kind: toolguide
+    title: Git Worktree and PR-Landing Workflow
+    summary: "Operational gotchas for multi-worktree git repositories and PR-landing pushes: the shared stash stack across worktrees, moving HEAD under a running background job, recovering from a --force-with-lease (stale info) rejection, and fork PR pushes over SSH.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-git-worktree-pr-workflow.md
+  - id: TOOLGUIDE:github-tracker
+    kind: toolguide
+    title: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
+    summary: "Driving the GitHub issue tracker from the CLI — native sub-issues (parent/child), issue types, parent-chain walks, auth, and the rate-limit and node-id-vs-db-id gotchas that bite bulk tracker work.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-github-tracker.md
+  - id: TOOLGUIDE:mermaid-diagramming
+    kind: toolguide
+    title: Mermaid Diagramming
+    summary: "Reference guide for using Mermaid as a diagram-as-code tool in Spec Kitty projects. Covers diagram types, syntax patterns, theming via init directives, rendering in Markdown contexts, and project conventions.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-mermaid-diagramming.md
+  - id: TOOLGUIDE:plantuml-diagramming
+    kind: toolguide
+    title: PlantUML Diagramming
+    summary: "Reference guide for using PlantUML as a diagram-as-code tool in Spec Kitty projects. Covers diagram types, syntax patterns, theming, CI integration, and project conventions.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-plantuml-diagramming.md
+  - id: TOOLGUIDE:python-mutation-tools
+    kind: toolguide
+    title: Python Mutation Testing with mutmut
+    summary: "Operator reference and mutmut workflow for Python mutation testing. Covers Python-specific mutation families (identity operators, membership, floor division, any/all, break/continue) and the mutmut run/browse/apply cycle.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-python-mutation-tools.md
+  - id: TOOLGUIDE:python-review-checks
+    kind: toolguide
+    title: Python Review Checks
+    summary: "Catalog of automated checks a reviewer should run or verify have been run before approving Python code. Organized by category: formatting, linting, type safety, architecture, security, and test quality.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-python-review-checks.md
+  - id: TOOLGUIDE:rtk-search-tooling
+    kind: toolguide
+    title: RTK Interception and Search Tooling
+    summary: "Explains RTK's hook-based command interception, which commands it wraps, which advanced invocations break silently, and the correct search tooling patterns (rg, fd, shell globs) to use in worktree sessions.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-rtk-search-tooling.md
+  - id: TOOLGUIDE:terminology-guard
+    kind: toolguide
+    title: Terminology Guard
+    summary: "Describes when and how to invoke the legacy-terminology guard before pushing changes to src/doctrine/ or user-facing prose. The guard catches superseded terms that have reappeared in active source and fails CI if any are found.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-terminology-guard.md
+  - id: TOOLGUIDE:typescript-mutation-tools
+    kind: toolguide
+    title: TypeScript Mutation Testing with Stryker
+    summary: "Operator reference and Stryker workflow for TypeScript/JavaScript mutation testing. Covers JS/TS-specific mutation families (optional chaining ?., nullish coalescing ??, some/every, array literals) and the Stryker run/incremental/HTML-report cycle.\n"
+    source_path: ''
+    local_path: _LIBRARY/toolguide-typescript-mutation-tools.md
+  - id: PROCEDURE:adversarial-squad-deployment
+    kind: procedure
+    title: Adversarial Squad Deployment
+    summary: "Deploy a small, bounded set of profile-loaded subagents in parallel at high-leverage review point-cuts so independent doctrine lenses converge on findings no single reviewer would catch. Turns review from one perspective into a cheap adversarial panel that resists laziness, accidental-pass, and single-lens blind spots. Optional and charter- or memory-activated — it enriches the flow, it does not gate it.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-adversarial-squad-deployment.md
+  - id: PROCEDURE:bdd-scenario-lifecycle
+    kind: procedure
+    title: BDD Scenario Lifecycle
+    summary: "Guide the Formulation, Automation, and Maintenance phases of the BDD cycle, picking up where the Example Mapping Workshop (Discovery phase) leaves off. Covers translating validated examples into Gherkin specifications, wiring them to executable step definitions, and maintaining them as living documentation as the system evolves. Toolchain-agnostic — applicable with Cucumber-JVM, Cucumber-JS, Behave, SpecFlow, or any Given/When/Then runner.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-bdd-scenario-lifecycle.md
+  - id: PROCEDURE:development-assist-test-cleanup
+    kind: procedure
+    title: Development-Assist Test Cleanup
+    summary: "Retire or re-home the development-assist tests a mission wrote to facilitate its own slices, once those slices have landed. It is common and legitimate to write targeted, narrowly-scoped tests to drive a development slice — characterization and parity oracles, before/after timing gates, per-work-package shape / delegate / __module__ assertions. Once the slice lands, those tests frequently become friction: inert (a self-compare against what is now the merged state), duplicative of a broader standing guard, or pinning transient code-shape that fights the next refactor. This procedure runs a judge-the-test pass at mission close so scaffolding is not carried forward as permanent suite bloat. It is the proactive, wrap-up-point-cut companion to DIRECTIVE_041's reactive judge-a-failing-test rubric.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-development-assist-test-cleanup.md
+  - id: PROCEDURE:disciplined-defect-diagnosis
+    kind: procedure
+    title: Disciplined Defect Diagnosis
+    summary: "Diagnose hard bugs and performance regressions by first constructing a fast, trustworthy feedback loop, then testing ranked hypotheses with targeted instrumentation before applying a regression-tested fix. This procedure fills the gap before test-first bug fixing: it is for turning an unclear report into a reproducible, falsifiable, and cleanly verified defect.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-disciplined-defect-diagnosis.md
+  - id: PROCEDURE:documentation-gap-prioritization
+    kind: procedure
+    title: Documentation Gap Prioritization
+    summary: "Triage identified documentation gaps by user impact and fill them in priority order. Not all gaps are equal — a missing tutorial for a core workflow blocks more users than a missing explanation for an edge-case design decision. Prioritisation ensures that limited capacity is directed toward the gaps that most impede the target audience.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-documentation-gap-prioritization.md
+  - id: PROCEDURE:domain-aware-decision-interview
+    kind: procedure
+    title: Domain-Aware Decision Interview
+    summary: "Stress-test a plan or design through a one-question-at-a-time interview that uses project glossary, charter, doctrine, ADRs, and code evidence as the shared source of truth. The procedure resolves the decision tree without over-interviewing and records durable terminology or decision updates only when they have long-term value.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-domain-aware-decision-interview.md
+  - id: PROCEDURE:drill-down-documentation
+    kind: procedure
+    title: Drill-Down Documentation
+    summary: "Ensure that decisions, documentation, and architecture descriptions are captured at a consistent level of abstraction and scope. Each layer of the documentation hierarchy addresses a distinct audience and concern set — from organisational impact through architecture and design to code-level detail. The drill-down approach prevents reasoning from hopscotching between levels, avoids convoluting strategic rationale with implementation minutiae, and makes it easy to locate the right level of detail for any question.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-drill-down-documentation.md
+  - id: PROCEDURE:event-storming-discovery
+    kind: procedure
+    title: Event Storming Discovery
+    summary: "Discover domain events, commands, aggregates, policies, read models, and bounded context boundaries through a structured analysis of business flows. The procedure produces a shared domain model grounded in real business behaviour rather than technical assumptions. Based on Alberto Brandolini's Event Storming technique, adapted for agent-assisted discovery with human-in-charge validation at key decision points.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-event-storming-discovery.md
+  - id: PROCEDURE:example-mapping-workshop
+    kind: procedure
+    title: Example Mapping Workshop
+    summary: "Turn a behavior request into concrete rules, examples, and open questions that stakeholders and implementers can share as a canonical specification set.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-example-mapping-workshop.md
+  - id: PROCEDURE:issue-triage-state-machine
+    kind: procedure
+    title: Issue Triage State Machine
+    summary: "Triage incoming bugs and enhancements into a single current state, preserving durable handoff context for agents and durable rejection context for future maintainers. The procedure is tracker-neutral: GitHub labels are one possible carrier, but the invariant is a category plus exactly one workflow state.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-issue-triage-state-machine.md
+  - id: PROCEDURE:legacy-codebase-triage
+    kind: procedure
+    title: Legacy Codebase Triage
+    summary: "Convert an unfamiliar brownfield codebase into a defensible action plan by gathering version-control evidence, overlaying structural and complexity signals, optionally classifying domains, and bucketing the resulting findings into fix-this-week, fix-this-quarter, do-not-worry, and parallelisable work. The output is a triage document that anchors subsequent planning conversations and ADRs; it is not a replacement for deeper investigation, only a fast, evidence-backed first pass.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-legacy-codebase-triage.md
+  - id: PROCEDURE:migrate-project-guidance-to-spec-kitty-charter
+    kind: procedure
+    title: Migrate Project Guidance to Spec Kitty Charter
+    summary: "Convert an existing project guidance or charter document into doctrine-backed governance artifacts that can be compiled into a Spec Kitty charter bundle with functional parity.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-migrate-project-guidance-to-spec-kitty-charter.md
+  - id: PROCEDURE:mission-tracer-files
+    kind: procedure
+    title: Mission Tracer Files
+    summary: "Give every mission a lightweight running log of tooling friction, approach evolution, and design rationale through three sparse tracer files. The files are seeded at mission start, appended to during implementation, and assessed at mission close. Captured friction and rationale feed the next mission's planning and make recurring tool and process gaps visible instead of repeatedly re-discovered.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-mission-tracer-files.md
+  - id: PROCEDURE:mission-wrap-up-sequence
+    kind: procedure
+    title: Mission Wrap-Up Sequence
+    summary: "Drive a mission from \"all work packages approved\" to \"a clean, reviewable draft pull request handed to the operator\" through one standing, repeatable close-out sequence. The sequence makes the last mile deterministic: it verifies readiness, resolves every tracked-issue verdict, subjects the aggregate diff to an independent review, lands locally, compacts the branch into readable history, and opens a draft PR — so no mission ends in an ad-hoc, unreviewed, or messy state. It complements (does not replace) the per-work-package implement/review loop.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-mission-wrap-up-sequence.md
+  - id: PROCEDURE:onboard-external-agent-to-pack
+    kind: procedure
+    title: Onboard an External Agent into the Pack
+    summary: "Guide a team member through bringing an agent that was built outside the framework — in any tool or format — into the doctrine pack as typed YAML artifacts. The source agent might be a set of Cursor rules, a system prompt, a no-code bot, a framework script (LangChain, CrewAI, AutoGen), a custom GPT, or an assistant described only in a wiki page or Markdown document; the procedure treats them all the same way. It first ensures the agent is fully understood — interviewing the owner (who may not be technical) and gathering all supporting documentation — then decomposes the agent's embedded knowledge into the correct artifact kinds (directive, tactic, procedure, paradigm, styleguide, toolguide, template, and optionally an agent profile), registers them in the DRG, and validates the result. Intended audience: anyone who has a working agent built outside the pack and wants it governed and shareable. This is distinct from the procedure that migrates an existing project-guidance or charter document into a Spec Kitty charter; that path starts from a body of legacy doctrine, whereas this one starts from an agent that was authored from scratch.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-onboard-external-agent-to-pack.md
+  - id: PROCEDURE:post-merge-arch-gate-adjudication
+    kind: procedure
+    title: Post-Merge Arch-Gate Adjudication
+    summary: "After merging one or more lane branches, architectural gate failures may appear that were not visible during per-lane review. This procedure distinguishes pre-existing failures (present on the mission base branch before any lane work) from regressions introduced by the merge. Correct adjudication prevents teams from either ignoring real regressions or blocking on failures they did not cause.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-post-merge-arch-gate-adjudication.md
+  - id: PROCEDURE:red-main-release-discipline
+    kind: procedure
+    title: Red Main & Release Discipline
+    summary: "Keep the mainline CI signal honest and authoritative for release. A red main is a true signal of known release-blocking (P0) defects, never something to hide by reverting an honest failure or declining a bug's reproduction test. Mainline CI status is the single authoritative release gate; expensive QA and manual testing are not spent on a known-broken base; and red main is worked down as top priority. Consensus policy (CEO/product owner, QA lead, maintainers); governing decision ADR 2026-07-17-1, operational guide docs/development/red-main-and-release-readiness.md.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-red-main-release-discipline.md
+  - id: PROCEDURE:refactoring
+    kind: procedure
+    title: Refactoring
+    summary: "Improve internal code structure without changing external behavior. This procedure provides a disciplined workflow for identifying improvement opportunities, selecting the right refactoring tactic, applying changes in safe increments, and verifying behavior preservation throughout.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-refactoring.md
+  - id: PROCEDURE:situational-assessment
+    kind: procedure
+    title: Situational Assessment
+    summary: "Establish a shared, documented understanding of the context, stakeholders, constraints, and problem structure before any solution is designed or selected. A situational assessment ensures that architectural decisions are grounded in operational reality rather than technology preference, and that the trade-off assessments that follow address the right problem.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-situational-assessment.md
+  - id: PROCEDURE:spike-timebox-policy
+    kind: procedure
+    title: Spike Timebox Policy
+    summary: "Keep an investigative spike bounded and decision-driven. A spike exists to buy down a specific uncertainty, not to build production code or drift into open-ended exploration. This policy frames every spike around a written hypothesis, a fixed time budget, explicit exit criteria, and a decision-or-abandon outcome so that the investment is proportionate to the risk it retires and the finding is captured whether the spike succeeds or fails.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-spike-timebox-policy.md
+  - id: PROCEDURE:test-first-bug-fixing
+    kind: procedure
+    title: Test-First Bug Fixing
+    summary: "Resolve software defects by writing a failing test that reproduces the issue before modifying any production code. Transforms bug fixing from trial-and-error into a systematic, verifiable procedure with built-in regression prevention.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-test-first-bug-fixing.md
+  - id: PROCEDURE:tracker-organisation-workflow
+    kind: procedure
+    title: Tracker Organisation Workflow
+    summary: "Restore traceability to an issue tracker that has drifted after a high-velocity development phase. Every open ticket ends up under a coherent functional epic with an issue type and a single priority, meta-trackers are isolated as reference-only, closed epics strand no work, and duplicates are resolved with community-precedence. The workflow is tracker-neutral: GitHub native sub-issues are one carrier, but the invariant is a tiered functional ownership graph (root to coherent buckets to leaves) with auditable changes.\n"
+    source_path: ''
+    local_path: _LIBRARY/procedure-tracker-organisation-workflow.md
+  - id: AGENT_PROFILE:architect-alphonso
+    kind: agent_profile
+    title: Architect Alphonso
+    summary: System architecture and technical design specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-architect-alphonso.md
+  - id: AGENT_PROFILE:curator-carla
+    kind: agent_profile
+    title: Curator Carla
+    summary: Knowledge base and doctrine maintenance specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-curator-carla.md
+  - id: AGENT_PROFILE:debugger-debbie
+    kind: agent_profile
+    title: Debugger Debbie
+    summary: Recurring-bug structural-root-cause investigator using five-paradigm parallel debugging
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-debugger-debbie.md
+  - id: AGENT_PROFILE:designer-dagmar
+    kind: agent_profile
+    title: Designer Dagmar
+    summary: UX/UI and interaction design specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-designer-dagmar.md
+  - id: AGENT_PROFILE:doctrine-daphne
+    kind: agent_profile
+    title: Doctrine Daphne
+    summary: External-agent onboarding and doctrine artifact curation specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-doctrine-daphne.md
+  - id: AGENT_PROFILE:generic-agent
+    kind: agent_profile
+    title: Generic Agent
+    summary: General-purpose task execution profile. Used as the default when no specialist profile is assigned to a work package.
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-generic-agent.md
+  - id: AGENT_PROFILE:human-in-charge
+    kind: agent_profile
+    title: Human in Charge
+    summary: Workflow sentinel indicating this work package requires direct human execution. No agent identity is injected. The HIC remains accountable for the deliverable.
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-human-in-charge.md
+  - id: AGENT_PROFILE:implementer-ivan
+    kind: agent_profile
+    title: Implementer Ivan
+    summary: General-purpose software implementation specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-implementer-ivan.md
+  - id: AGENT_PROFILE:paula-patterns
+    kind: agent_profile
+    title: Paula Patterns
+    summary: Architecture-scout reviewer for recurring boundary leaks, ownership confusion, and whack-a-field fixes
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-paula-patterns.md
+  - id: AGENT_PROFILE:planner-priti
+    kind: agent_profile
+    title: Planner Priti
+    summary: Work decomposition and delivery sequencing specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-planner-priti.md
+  - id: AGENT_PROFILE:python-pedro
+    kind: agent_profile
+    title: Python Pedro
+    summary: Python-specialist implementer applying TDD, type safety, and idiomatic Python 3.12+ practices
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-python-pedro.md
+  - id: AGENT_PROFILE:randy-reducer
+    kind: agent_profile
+    title: Randy Reducer
+    summary: Semantic compression specialist for behavior-preserving code reduction
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-randy-reducer.md
+  - id: AGENT_PROFILE:researcher-robbie
+    kind: agent_profile
+    title: Researcher Robbie
+    summary: Domain knowledge acquisition and synthesis specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-researcher-robbie.md
+  - id: AGENT_PROFILE:retrospective-facilitator
+    kind: agent_profile
+    title: Retrospective Facilitator
+    summary: Facilitates a structured mission retrospective at terminus
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-retrospective-facilitator.md
+  - id: AGENT_PROFILE:reviewer-renata
+    kind: agent_profile
+    title: Reviewer Renata
+    summary: Code and design quality assurance specialist
+    source_path: ''
+    local_path: _LIBRARY/agent_profile-reviewer-renata.md
+  - id: TEMPLATE_SET:software-dev-default
+    kind: template_set
+    title: software-dev-default
+    summary: Build high-quality software with structured workflows and test-driven development
+    source_path: src/doctrine/missions/software-dev/mission.yaml
+    local_path: _LIBRARY/template-set-software-dev-default.md
+overrides: {}
+metadata:
+  generated_at: '2026-07-26T19:04:54Z'
+  bundle_schema_version: 2
+mission_type_activations:
+- documentation
+- plan
+- research
+- software-dev

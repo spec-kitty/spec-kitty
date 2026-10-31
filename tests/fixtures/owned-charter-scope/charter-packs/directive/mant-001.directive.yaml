@@ -1,0 +1,12 @@
+id: MANT_001
+schema_version: '1.0'
+title: Proof-first runtime change boundary
+intent: Observable behavior may be claimed only when direct code and focused proof evidence exist.
+  Documentation must distinguish implemented behavior from design targets.
+enforcement: required
+scope: Applies to implement and review.
+procedures: []
+integrity_rules: []
+validation_criteria: []
+explicit_allowances: []
+references: []
