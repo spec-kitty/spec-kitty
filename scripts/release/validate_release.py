@@ -359,6 +359,63 @@ def validate_uv_lock_version_sync(
     return None
 
 
+COMPANION_DISTRIBUTION = "spec-kitty-services"
+COMPANION_PYPROJECT = Path("packages") / "spec-kitty-services" / "pyproject.toml"
+SERVICES_EXTRA = "services"
+
+
+def _load_toml(path: Path) -> dict[str, object]:
+    try:
+        with path.open("rb") as fp:
+            return tomllib.load(fp)
+    except FileNotFoundError as exc:
+        raise ReleaseValidatorError(f"{path} not found") from exc
+    except tomllib.TOMLDecodeError as exc:
+        raise ReleaseValidatorError(f"Unable to parse {path}: {exc}") from exc
+
+
+def validate_companion_version_sync(pyproject_version: str, repo_root: Path) -> ValidationIssue | None:
+    """Assert the companion's version lock (#6904; ADR 2026-10-29-1, Amendment 2026-10-31).
+
+    When the root ``pyproject.toml`` declares the ``services`` extra, it must be exactly
+    ``spec-kitty-services==<version>``, and ``packages/spec-kitty-services/pyproject.toml``
+    must declare that same version. A companion project without the extra is an issue too;
+    with neither there is nothing to lock.
+    """
+    try:
+        root = _load_toml(repo_root / "pyproject.toml")
+    except ReleaseValidatorError as exc:
+        return ValidationIssue(message=str(exc))
+    project = root.get("project")
+    extras = project.get("optional-dependencies", {}) if isinstance(project, dict) else {}
+    if not isinstance(extras, dict) or SERVICES_EXTRA not in extras:
+        if (repo_root / COMPANION_PYPROJECT).is_file():
+            return ValidationIssue(
+                message=f"pyproject.toml declares no {SERVICES_EXTRA!r} extra, but {COMPANION_PYPROJECT.as_posix()} exists",
+                hint=f'Declare `{SERVICES_EXTRA} = ["{COMPANION_DISTRIBUTION}=={pyproject_version}"]` so the companion stays locked to this release.',
+            )
+        return None
+    expected_pin = f"{COMPANION_DISTRIBUTION}=={pyproject_version}"
+    if extras[SERVICES_EXTRA] != [expected_pin]:
+        return ValidationIssue(
+            message=f"Version mismatch detected: pyproject.toml [{SERVICES_EXTRA}] extra={extras[SERVICES_EXTRA]!r}, expected [{expected_pin!r}]",
+            hint=f"Pin the {SERVICES_EXTRA!r} extra to exactly {expected_pin!r} so the companion is locked to this release.",
+        )
+    companion_path = repo_root / COMPANION_PYPROJECT
+    try:
+        companion = _load_toml(companion_path)
+    except ReleaseValidatorError as exc:
+        return ValidationIssue(message=str(exc), hint=f"The {SERVICES_EXTRA!r} extra requires {COMPANION_PYPROJECT.as_posix()}.")
+    companion_project = companion.get("project")
+    companion_version = companion_project.get("version") if isinstance(companion_project, dict) else None
+    if companion_version != pyproject_version:
+        return ValidationIssue(
+            message=f"Version mismatch detected: pyproject.toml={pyproject_version!r} vs {COMPANION_PYPROJECT.as_posix()}={companion_version!r}",
+            hint=f"Set {COMPANION_PYPROJECT.as_posix()} [project].version to {pyproject_version!r}, then run `uv lock`.",
+        )
+    return None
+
+
 def read_changelog(path: Path) -> str:
     if not path.exists():
         raise ReleaseValidatorError(f"CHANGELOG not found at {path}.")
@@ -461,6 +518,7 @@ def validate_version_source_consistency(
         validate_uv_lock_version_sync(version, lockfile_path),
         validate_release_covers_migration_targets(version, repo_root),
         validate_changelog_latest_version_sync(version, changelog_text),
+        validate_companion_version_sync(version, repo_root),
     ]
     return [issue for issue in checks if issue is not None]
 

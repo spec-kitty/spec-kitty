@@ -111,6 +111,13 @@ test = [
     "mutmut>=3.5.0",  # Mutation testing
     "pytestarch>=4.0.0",  # Architectural dependency testing (ADR 2026-03-27-1)
 ]
+# The optional companion that carries the pinned, digest-verified service binaries for one
+# platform (#6904; ADR 2026-10-29-1, Amendment 2026-10-31): `pip install "spec-kitty-cli[services]"`.
+# The pin equals this release's version exactly; packages/spec-kitty-services/pyproject.toml carries
+# the same version (guarded by tests/cross_cutting/packaging/test_companion_version_lock.py and
+# scripts/release/validate_release.py). Every host can install it: hosts without a platform wheel
+# get the binary-free fallback wheel and keep the first-run fetch.
+services = ["spec-kitty-services==4.0.0rc8"]
 lint = [
     "ruff>=0.4.0",
     "mypy>=1.10.0",
@@ -273,7 +280,22 @@ exclude = [
     # maintainer-only internal pack must never ship (C-002).
     "packs/internal/**",
     "packs/internal.source.yaml",
+    # The optional spec-kitty-services companion is its own distribution, built by
+    # scripts/build_services_wheel.py; the bare `README.md` include above would otherwise ship
+    # its README in the CLI sdist (#6904).
+    "packages/**",
 ]
+
+# The optional spec-kitty-services companion (#6904; ADR 2026-10-29-1, Amendment 2026-10-31) is a
+# first-party uv workspace member, so the exact `services` extra locks: the companion of version X
+# is never on PyPI when commit X is locked. This is not a dev override of an external package
+# (CLAUDE.md, Shared Package Boundary); it is the only member and the only source entry
+# (tests/cross_cutting/packaging/test_companion_version_lock.py).
+[tool.uv.workspace]
+members = ["packages/spec-kitty-services"]
+
+[tool.uv.sources]
+spec-kitty-services = { workspace = true }
 
 # NOTE: pytest configuration (markers, pythonpath, testpaths, addopts) lives in
 # `pytest.ini`, which is the single source of truth. pytest reads only one
