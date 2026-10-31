@@ -8,6 +8,7 @@ returns the existing ~/.spec-kitty convention unchanged.
 from __future__ import annotations
 
 from specify_cli.paths.windows_paths import (
+    RUNTIME_STATE_DIR_NAME,
     RuntimeRoot,
     ensure_runtime_root,
     get_runtime_config_toml_path,
@@ -16,6 +17,7 @@ from specify_cli.paths.windows_paths import (
 )
 
 __all__ = [
+    "RUNTIME_STATE_DIR_NAME",
     "RuntimeRoot",
     "ensure_runtime_root",
     "get_runtime_config_toml_path",

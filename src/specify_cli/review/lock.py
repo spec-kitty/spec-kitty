@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.process_liveness import is_process_alive
+from specify_cli.paths import RUNTIME_STATE_DIR_NAME
 from kernel.clock import now_utc_iso
 from kernel.errors import GuardedReadError
 from kernel.git import GitCommandError, blob_at, is_tracked, run_git
@@ -33,7 +34,11 @@ from kernel.guarded_read import read_guarded
 
 logger = logging.getLogger(__name__)
 
-LOCK_DIR = ".spec-kitty"
+#: Worktree-LOCAL runtime directory holding the review lock — a repository-side
+#: directory, never the user-global home. The name is taken from the runtime-state
+#: path authority (``specify_cli.paths``) so the one string has one owner; the same
+#: directory the status lock's bare non-git fallback uses (#6367).
+LOCK_DIR = RUNTIME_STATE_DIR_NAME
 LOCK_FILE = "review-lock.json"
 #: The lock's path relative to the worktree root, as git names it.
 LOCK_REL_PATH = f"{LOCK_DIR}/{LOCK_FILE}"
