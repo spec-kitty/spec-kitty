@@ -1,0 +1,99 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M67RSY9Y7PMC6M46B64S7BX9",
+  "materialized_at": "2026-10-31T01:22:23.166914+00:00",
+  "mission_number": "244",
+  "mission_slug": "stale-coord-lane-base-01M67HRA",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi:tokenfactory/kimi-k3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M67RSWR3H8YA5VJAHY5670DD",
+      "last_transition_at": "2026-10-31T01:22:21.571775+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Stale-base probe + warning; 6 tests green (1 red-first, 5 same-fixture controls)",
+        "Cycle-1 finding fixed: report on stderr, stdout pinned empty",
+        "Re-submitted after the cycle-1 fix; implementer identity re-recorded in full",
+        "Independent review (separate model, reviewer-renata): LAND. Non-blocking findings fixed (probe timeout, explicit-stale-base test, docstring edge case)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3058226,
+      "shell_pid_created_at": "1793409562.95",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#6753"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:tokenfactory/kimi-k3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M67RSY9Y7PMC6M46B64S7BX9",
+      "last_transition_at": "2026-10-31T01:22:23.166914+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "--base carried to the create-path dispatch; reuse route still refuses; 4 new tests + 5 wrapper-delegation tests green",
+        "Cycle-1 finding fixed: refusal scoped to real lanes; checkout-root keeps the ignored warning",
+        "Re-submitted after the cycle-1 fix; implementer identity re-recorded in full",
+        "Independent review (separate model, reviewer-renata): LAND. Non-blocking finding fixed: the reuse refusal names the discard-and-re-cut step so WP01's remedy is reachable."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3066530,
+      "shell_pid_created_at": "1793409587.28",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      },
+      "tracker_refs": [
+        "#6753"
+      ]
+    }
+  }
+}
