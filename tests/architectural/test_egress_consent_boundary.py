@@ -515,6 +515,17 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
     # #6164: specify_cli/zeitgeist_client/resolution.py removed with the frozen hosted surfaces
     # specify_cli/dashboard/{handlers/api,lifecycle,server}.py RETIRED: the
     # bundled dashboard and its loopback control plane were deleted (#5530).
+    # -- Loopback control, not project egress (#6590) -------------------------
+    "specify_cli/services/client.py": Allowance(
+        kind=AllowanceKind.LOOPBACK_CONTROL,
+        inventory_id="E18-#6590",
+        note=(
+            "Handshake, health and shutdown calls to the pinned write service this "
+            "CLI launched. The endpoint comes only from read_endpoint_file, which "
+            "refuses any host but 127.0.0.1 (WRITE_SERVICE_ENDPOINT_NOT_LOOPBACK); "
+            "requests carry no body, only the per-launch bearer token."
+        ),
+    ),
 }
 
 #: Ratcheted in ``_baselines.yaml`` as

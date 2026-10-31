@@ -160,6 +160,7 @@ jobs:
       cli_cmd_charter_pack: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_charter_pack }}
       cli_cmd_status: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_status }}
       cli_cmd_plugin: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_plugin }}
+      cli_cmd_service: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_service }}
       cli_cmd_agent_subdir: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_agent_subdir }}
       # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): non-src, like
       # mission_state above; gates no job BY DESIGN (seed CLI scenarios run in the nightly
@@ -339,6 +340,8 @@ jobs:
               - '**/specify_cli/cli/commands/_decisions_doctor.py'
             cli_cmd_plugin:
               - '**/specify_cli/cli/commands/plugin.py'
+            cli_cmd_service:
+              - '**/specify_cli/cli/commands/service.py'
             cli_cmd_agent_subdir:
               - '**/specify_cli/cli/commands/agent/**'
             agent:
@@ -362,6 +365,10 @@ jobs:
               - 'src/specify_cli/charter_pack_synthesizer/**'
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
+              - 'src/specify_cli/services/**'
+              - 'pins/**'
+              - 'scripts/sync_services.py'
+              - '.github/actions/sync-services/**'
             # Test-inventory groups: tests/unit and tests/specify_cli/runtime had
             # no declared home in the module registry. Every glob below is a
             # verbatim copy of one another group already carries (scrub groups
@@ -477,6 +484,9 @@ jobs:
               - 'scripts/ci/**'
               - '.github/workflows/**'
               - 'services/mission-status-api/**'
+              - 'pins/**'
+              - 'scripts/sync_services.py'
+              - '.github/actions/sync-services/**'
             # Architectural-gate group (spec-kitty#5168): NON-src (not in the
             # unmatched loop); gates only the heavy battery, the sole per-PR home
             # of tests/architectural (see .github/ci-module-registry.yml).

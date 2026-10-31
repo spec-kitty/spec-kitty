@@ -741,9 +741,15 @@ def test_ci_module_row_claims_the_ci_guard_suites() -> None:
     rows = [row for row in _modules(registry) if row.get("module") == "ci"]
     assert len(rows) == 1, "expected exactly one `ci` module row (spec-kitty#4386)"
     row = rows[0]
-    assert list(row["roots"]) == ["scripts/ci/**", ".github/workflows/**", "services/mission-status-api/**"], (
-        "the ci row's roots must be the CI-infrastructure paths whose regressions tests/ci guards"
-    )
+    # The last three (#6590): the service pins, the sync script and its action (tests/ci/test_service_pins_gate.py).
+    assert list(row["roots"]) == [
+        "scripts/ci/**",
+        ".github/workflows/**",
+        "services/mission-status-api/**",
+        "pins/**",
+        "scripts/sync_services.py",
+        ".github/actions/sync-services/**",
+    ], "the ci row's roots must be the CI-infrastructure paths whose regressions tests/ci guards"
     assert list(row.get("test_dirs", [])) == ["tests/ci"], "the ci row must claim tests/ci explicitly"
 
     recorded = _out_of_matrix_dirs(registry)

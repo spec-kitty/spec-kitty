@@ -365,6 +365,7 @@ _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
         "cli_cmd_charter_pack",
         "cli_cmd_status",
         "cli_cmd_plugin",
+        "cli_cmd_service",
         "cli_cmd_agent_subdir",
     }
 )

@@ -55,7 +55,16 @@ _REGISTRY_PATH = _REPO_ROOT / ".github" / "ci-module-registry.yml"
 _SCRUB_PATH = _REPO_ROOT / "tests" / "release" / "ci_retirement_scrub.json"
 
 _MODULE = "ci"
-_ROOTS = ["scripts/ci/**", ".github/workflows/**", "services/mission-status-api/**"]
+# The last three (#6590): the committed service pins, the sync script and its action, guarded by
+# tests/ci/test_service_pins_gate.py and tests/ci/test_sync_services.py.
+_ROOTS = [
+    "scripts/ci/**",
+    ".github/workflows/**",
+    "services/mission-status-api/**",
+    "pins/**",
+    "scripts/sync_services.py",
+    ".github/actions/sync-services/**",
+]
 _TEST_DIRS = ["tests/ci"]
 
 

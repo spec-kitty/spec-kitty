@@ -1001,31 +1001,11 @@ entries:
   category: category_c_write_service_client_6675
   issue: '#6195'
 - module: specify_cli.status.write_service_protocol
-  name: WRITE_PROTOCOL_HEADER
-  category: category_c_write_service_client_6675
-  issue: '#6195'
-- module: specify_cli.status.write_service_protocol
   name: AnnotationRequest
   category: category_c_write_service_client_6675
   issue: '#6195'
 - module: specify_cli.status.write_service_protocol
   name: TransitionBatch
-  category: category_c_write_service_client_6675
-  issue: '#6195'
-- module: specify_cli.status.write_service_protocol
-  name: endpoint_file_path
-  category: category_c_write_service_client_6675
-  issue: '#6195'
-- module: specify_cli.status.write_service_protocol
-  name: negotiate_protocol_version
-  category: category_c_write_service_client_6675
-  issue: '#6195'
-- module: specify_cli.status.write_service_protocol
-  name: read_endpoint_file
-  category: category_c_write_service_client_6675
-  issue: '#6195'
-- module: specify_cli.status.write_service_protocol
-  name: repository_id
   category: category_c_write_service_client_6675
   issue: '#6195'
 - module: specify_cli.status.write_service_protocol

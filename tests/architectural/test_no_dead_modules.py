@@ -537,13 +537,6 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # TODO(triage): #6195 -- specify_cli.status.write_service_protocol holds the typed
-        # client shapes of the write-service protocol (#6675, ADR 2026-10-27-1,
-        # contracts/mission-write). Its only consumer is the write-service client
-        # adapter, which binds behind the EventBridge port at the lane-transition
-        # cut-over (#6195); the module has no transport and no src/ importer until
-        # then (operator ruling dead_gate_handling, Mission write-service-protocol-01M5Z6N5).
-        "specify_cli.status.write_service_protocol",
         # - decisions.ownership: DELETED (#6164, 2026-10-14, operator ruling).
         #   Its only caller was the hosted `decision widen` command, removed
         #   with the frozen hosted surfaces; the module and its tests went with

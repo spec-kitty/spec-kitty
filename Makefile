@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help dev-setup sync-packs lint format-check format-check-files docs-lint typecheck test-fast test-full convergence-census ci-parity test-quality-scan
+.PHONY: help dev-setup sync-packs sync-services lint format-check format-check-files docs-lint typecheck test-fast test-full convergence-census ci-parity test-quality-scan
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -13,6 +13,11 @@ dev-setup: ## Sync deps and install all slash commands for configured agents
 
 sync-packs: ## Fetch and verify packs/built-in and packs/internal (test-fast does NOT sync; run once per worktree)
 	uv run --frozen python scripts/sync_packs.py --pack all
+
+# Not in dev-setup yet: no pins/*.source.yaml exists until spec-kitty-events cuts its first
+# service-v* release; the cut-over PR that adds the first pin also adds this to dev-setup.
+sync-services: ## Fetch and verify the pinned service assets for this host (ARGS=--check verifies only, ARGS=--offline uses the cache)
+	uv run --frozen python scripts/sync_services.py --service all $(ARGS)
 
 lint: ## Run ruff linter
 	uv run --frozen ruff check src/

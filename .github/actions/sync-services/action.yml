@@ -1,0 +1,53 @@
+name: "Sync services"
+description: >-
+  Fetches and verifies the pinned service assets (the host's native build, or
+  the jar, plus the contract and fixture extras) named by pins/*.source.yaml
+  into ~/.cache/spec-kitty/services (#6590). Fails closed: an invalid pin, an
+  unreachable asset or a digest mismatch exits 1 with a stable SERVICE_* code.
+  The asset cache is restored keyed on the pin files, so only a pin bump pays a
+  cold fetch. Wired into no job yet: no pin exists until spec-kitty-events cuts
+  its first service-v* release, and the cut-over PR that adds the first pin
+  wires this action into every job that runs the service conformance suites.
+  Guarded by tests/ci/test_sync_services.py.
+
+inputs:
+  python:
+    description: >-
+      Command that runs a Python interpreter with the project's dependencies
+      installed (word-split, so it may carry arguments). Defaults to the uv
+      project environment; the Windows job passes its pipx venv interpreter.
+    required: false
+    default: "uv run --frozen --no-sync python"
+  python-exe:
+    description: >-
+      Path to a single Python interpreter, used verbatim and quoted (so it may
+      contain spaces, e.g. a Windows "C:\\Program Files" venv). Takes
+      precedence over `python` when set.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Restore the service asset cache
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/spec-kitty/services
+        key: services-${{ runner.os }}-${{ hashFiles('pins/*.source.yaml') }}
+
+    - name: Fetch and verify the pinned service assets
+      shell: bash
+      env:
+        SYNC_PYTHON: ${{ inputs.python }}
+        SYNC_PYTHON_EXE: ${{ inputs.python-exe }}
+      run: |
+        set -euo pipefail
+        # PYTHONPATH lets the script import kernel before (or without) an
+        # editable project install, e.g. in a no-install-project environment.
+        if [ -n "${SYNC_PYTHON_EXE}" ]; then
+          PYTHONPATH="${GITHUB_WORKSPACE}/src" "${SYNC_PYTHON_EXE}" scripts/sync_services.py --service all
+        else
+          # $SYNC_PYTHON is deliberately unquoted: it is a command plus arguments.
+          # shellcheck disable=SC2086
+          PYTHONPATH="${GITHUB_WORKSPACE}/src" $SYNC_PYTHON scripts/sync_services.py --service all
+        fi

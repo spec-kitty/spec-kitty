@@ -62,6 +62,8 @@ _INVENTORY: tuple[tuple[str, str, frozenset[str]], ...] = (
     ("cli_cmd_charter_pack", "src/specify_cli/cli/commands/profiles_cmd.py", frozenset({"charter"})),
     ("cli_cmd_status", "src/specify_cli/cli/commands/materialize.py", frozenset({"status", "core_misc"})),
     ("cli_cmd_plugin", "src/specify_cli/cli/commands/plugin.py", frozenset({"core_misc"})),
+    # #6590: `spec-kitty service` delegates into specify_cli.services, whose tests run in core_misc.
+    ("cli_cmd_service", "src/specify_cli/cli/commands/service.py", frozenset({"core_misc"})),
     (
         "cli_cmd_agent_subdir",
         "src/specify_cli/cli/commands/agent/config.py",

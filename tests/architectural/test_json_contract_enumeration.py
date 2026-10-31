@@ -214,6 +214,8 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "plan": ((), 1, "outside"),
     "reconcile": (("--mission", "missing"), 2, "outside"),
     "safe-commit": (("missing", "--message", "missing"), 1, "outside"),
+    "service fetch": ((), 0, "total"),
+    "service status": ((), 0, "total"),
     "spec-commit": (("missing", "--message", "missing"), 1, "outside"),
     "specify": (("missing",), 1, "outside"),
     "tasks": ((), 1, "outside"),
@@ -227,6 +229,8 @@ TOTAL_RESULT_EVIDENCE: dict[str, str] = {
     "charter pack asset list": "charter/pack_asset.py:127; read-only catalog enumeration; empty catalog is a result",
     "charter pack list": "charter/pack.py:103; offering pack listing (built-in, org packs); zero org packs is a result",
     "doctor channel": "_channel_doctor.py:63; total environment-channel report; no modeled error arm",
+    "service fetch": "service.py fetch; no service is pinned in this core version yet (C-003): the no-pin report is a result, exit 0",
+    "service status": "service.py status; read-only report of pin, cache and instance; no pin is a result, exit 0",
     "tracker providers": "tracker.py:549; fixed provider roster; no modeled domain-error arm",
 }
 

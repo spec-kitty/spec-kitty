@@ -186,6 +186,8 @@ CLI_COMMAND_MODULE_FANOUT: dict[str, frozenset[str]] = {
     # (materialize picks up core_misc, a one-module over-route) keeps the diff to a single group.
     "cli_cmd_status": frozenset({"status", "core_misc"}),
     "cli_cmd_plugin": frozenset({"core_misc"}),
+    # #6590: service.py delegates into specify_cli.services, whose owner tests (tests/specify_cli/services) run in core_misc.
+    "cli_cmd_service": frozenset({"core_misc"}),
     # agent/** already selects execution_context via that module's own glob; this adds the modules whose
     # tests exercise the agent command package but that execution_context does not reach.
     "cli_cmd_agent_subdir": frozenset({"agent", "status", "review", "core_misc", "lanes", "consolidation", "release"}),
