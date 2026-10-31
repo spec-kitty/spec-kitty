@@ -85,7 +85,10 @@ def _built_in_layer_snapshot() -> dict[str, Any] | None:
     charter preflight refuses such a checkout earlier and with a better message,
     so this builder does not invent a second, narrower failure mode.
     """
-    from charter.offering.drg.loader import DRGLoadError, load_built_in_graph
+    # Through the charter proxy, not the offering layer directly: the runtime
+    # doctrine-boundary ratchet (tests/architectural/test_runtime_charter_
+    # doctrine_boundary.py) refuses a new lazy ``charter.offering.*`` import here.
+    from charter.drg import DRGLoadError, load_built_in_graph
 
     try:
         graph = load_built_in_graph()
