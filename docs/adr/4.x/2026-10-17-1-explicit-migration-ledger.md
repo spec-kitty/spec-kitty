@@ -756,7 +756,7 @@ taking them at face value would be wrong about when a migration runs again.
   or a merge can revive after the first application. `structural_detect` is therefore part of
   selection, not an optimisation, and it must stay content-driven (never version-driven).
 - **It is bounded and it does not become a second authority.** At most one registered migration may
-  set `runs_first` (`registry.py`'s `_order_runs_first` guard). `detect()` remains the pre-`apply()`
+  set `runs_first` (the `MigrationRegistry.register` guard in `registry.py`, which raises `ValueError` on a second one; the retired `_order_runs_first` helper is gone). `detect()` remains the pre-`apply()`
   idempotency guard and never the skip authority (C-003 of §3); a `runs_first` migration's `apply()`
   must be idempotent, because reselection re-applies it. `clone_local_effect` is unaffected: it is
   the ledger's routing key only, and clone-local reselection is plain ledger-diff (§3).
@@ -769,8 +769,11 @@ taking them at face value would be wrong about when a migration runs again.
   (`ledger.LEDGER_LOCK_TIMEOUT_S`, 30 s) that raises `ledger.MigrationLedgerLockTimeoutError`
   having appended nothing. The lock file is
   `<project root>/.kittify/migrations/<ledger file name>.lock`: a dedicated sidecar (never the
-  payload, which the primitive truncates on release) inside the already-IGNORED per-clone surface,
-  so a lock is never a `git status` entry and never reaches an upgrade autocommit.
+  payload, which the primitive truncates on release) inside the per-clone `.kittify/migrations/`
+  surface. That folder is git-ignored once the `3.2.4_runtime_dirs_gitignore_backfill` migration has
+  added its entry to `.gitignore`; before that (a pre-3.2.4 project, between the first locked append
+  and that migration) the lock can show as an untracked file. It never reaches an upgrade autocommit
+  either way: `autocommit.is_upgrade_commit_eligible` refuses any ledger lock sidecar.
 - **The lock is per ledger *file*, not per repository.** The file is the thing that can lose a
   record; a git-common-dir key would over-serialize unrelated checkouts and would need a git
   invocation on a path that must also run outside a repository (`init` outside git deliberately
