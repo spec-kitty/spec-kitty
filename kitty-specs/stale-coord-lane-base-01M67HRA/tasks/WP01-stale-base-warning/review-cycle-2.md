@@ -11,6 +11,6 @@ Cycle-1 finding (stdout/json-channel) is fixed and pinned:
   repaired rather than left as-is.
 
 Re-verified after the fix: 6/6 in
-`tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py`; ruff + `ruff format --check
+`tests/specify_cli/lanes/test_stale_coord_lane_base_report.py`; ruff + `ruff format --check
 --force-exclude` clean. No change to the probe, the message text, the parentage or the refusal
 routes. Approved.

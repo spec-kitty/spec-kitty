@@ -11,6 +11,6 @@ Cycle-1 finding (checkout-root parity) is fixed and pinned:
   non-vacuous. The lane-workspace test still pins the refusal.
 
 Re-verified after the fix: 5/5 in
-`tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py` and 5/5 in
+`tests/specify_cli/cli/commands/agent/test_agent_action_implement_base.py` and 5/5 in
 `tests/specify_cli/cli/commands/agent/test_wrapper_delegation.py`; ruff + `ruff format --check
 --force-exclude` clean. Approved.
