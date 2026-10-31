@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5067": {
+      "evidence_ref": "Issue #5067's fix (merged PR #5953, commit cf40a5850c) is the baseline this mission builds on; its refusal messages are kept byte-identical and re-verified in tests/specify_cli/cli/commands/agent/test_tasks_mark_status.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#5953": {
+      "evidence_ref": "Merged PR #5953 (commit cf40a5850c) already shipped the --wp scoping and the shared-id refusal this report opens with; verified on main@35318ef51c and re-pinned in tests/specify_cli/cli/commands/agent/test_tasks_mark_status.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6400": {
+      "evidence_ref": "PR/issue #6400 (structured status actor) is cited only as the changelog style reference for the WP02 entry; no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6463": {
+      "evidence_ref": "Commit 8d9b8e6632 (WP01) unions both ownership sources, scopes WP-shaped ids and rejects an unclaimed WP id before the legacy row shapes, and attributes the completion event only from the resolved owner map; pinned red-first in tests/specify_cli/cli/commands/agent/test_mark_status_owner_authority.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
