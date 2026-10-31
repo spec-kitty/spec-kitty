@@ -215,9 +215,12 @@ class RollbackReport:
         the last persisted copy of a deleted lane branch's snapshot SHA (the recreate hint is
         printed once), so re-baselining throws that away.
 
-        Neither can reach the door today (releases are recorded only by ``--abort``, which clears
-        the record itself, and ``begin_attempt`` wipes them before the mutation span), but the
-        verdict is stated here so a future call site cannot discard a recorded operator keep.
+        ``KEPT_BY_OPERATOR`` cannot reach the door today (releases are recorded only by ``--abort``,
+        which clears the record itself, and ``begin_attempt`` wipes them before the mutation span),
+        so that verdict only guards a future call site. ``LANE_MISSING`` CAN reach it: a lane branch
+        deleted mid-run is reported at the door. Then nothing is re-baselined and the record keeps
+        its snapshot and window base, so the #5667 shape (a stale base bent by commits landed
+        between attempts) persists for that Mission until an ``--abort``.
         """
         if not self.fully_restored:
             return False
@@ -860,8 +863,14 @@ def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[
     re-seed ``capture_pre_mutation_snapshot`` with the old tip over the freshly read live one,
     which is the stale-baseline hazard this function exists to remove, relocated into the coord
     field. So they are dropped whenever ``pre_mutation_coord_ref`` is unset or is the target.
-    ``pre_interrupt_lane_tips`` goes with them: the H5 resume guard only applies while a
-    coordination anchor exists, and a fresh claim re-captures the tips.
+    ``pre_interrupt_lane_tips`` go with them on those topologies: the H5 resume guard only applies
+    while a coordination anchor exists, and a fresh claim re-captures the tips. On a coordination
+    topology they are KEPT, because they are required: the H5 guard (``phase_claim.
+    _refuse_unanchored_resume``) refuses a resume whose coordination anchor has no tip for a lane,
+    and ``_resolve_pre_mutation_coord_sha`` returns the persisted anchor without re-capturing them.
+    Lanes are report-only and never restored, so one may move during the failed attempt; that is
+    safe, since the per-lane CAS (``lane_tip_cas_ok``) accepts an equal, descendant or ancestor tip
+    and refuses only true divergence (a rewritten lane), failing closed with the abort hint.
 
     The record, its marker, its strategy/cleanup flags and its ``wp_order`` also stay: after a
     full restore there is nothing to resume, but the record is the Mission's own provenance

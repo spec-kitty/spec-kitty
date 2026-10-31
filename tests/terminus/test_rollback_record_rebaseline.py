@@ -47,14 +47,17 @@ from specify_cli.consolidation.reconciliation import (
     MergeOutcomeVerifier,
     VerifyResult,
 )
+from specify_cli.consolidation.phase_claim import lane_tip_cas_ok
 from specify_cli.consolidation.state import load_state
+from specify_cli.coordination.workspace import CoordinationWorkspace
+from tests._support.git_cli import git_out
 from tests.terminus.conftest import (
     CoordMission,
     blob_present_at,
     run_terminus,
 )
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.rollback_harness import flat, ref_shas, state_path
+from tests.terminus.rollback_harness import failing_gate_run, flat, ref_shas, state_path
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -258,3 +261,43 @@ def test_a_partial_rollback_keeps_the_record_with_its_pre_mutation_base(
     assert record.pre_mutation_target_sha == before["target"], (
         "while the record survives, attempt 1's persisted base is still the honest window base (its landing is still on the target)"
     )
+
+
+def test_a_coordination_rebaseline_keeps_lane_anchors_a_moved_lane_still_satisfies_and_abort_keeps_a_later_coord_commit(tmp_path: Path) -> None:
+    """Coordination topology: the kept anchors survive a lane that moved, and ``--abort`` never loses coord work.
+
+    The rebaseline keeps ``pre_interrupt_lane_tips`` beside the coordination anchor because the H5 resume
+    guard (``phase_claim._refuse_unanchored_resume``) REFUSES a resume whose coordination anchor has no tip
+    for a lane: dropping them would break every coordination ``--resume``. Lanes are report-only, so one may
+    move during the failed attempt (auto-rebase); the guard's per-lane CAS (``lane_tip_cas_ok``) accepts a
+    descendant, so a moved lane is safe.
+
+    ``--abort`` after the re-baseline has no snapshot left to compare against and its coordination teardown
+    removes only the worktree (never the branch, and it takes no tip compare-and-swap), so a commit on the
+    coordination branch after the rollback must still be on that branch after the abort.
+    """
+    mission, _planted, _before, _reflog, _result = failing_gate_run(tmp_path, "01M6770D")
+    record = load_state(mission.repo, mission.mission_id)
+    assert record is not None and record.pre_mutation_refs == {}, "precondition: a clean rollback re-baselined the record"
+    assert record.pre_mutation_coord_ref == mission.coord_branch and record.pre_mutation_coord_sha, "the coordination anchor stays"
+    assert set(record.pre_interrupt_lane_tips) == set(mission.lane_branches.values()), "the H5 guard needs a tip for every lane"
+
+    # A lane moves after the rollback (a descendant of its recorded tip): the resume guard still accepts it.
+    lane = mission.lane_branch("WP01")
+    tree = git_out(mission.repo, "rev-parse", f"{lane}^{{tree}}")
+    moved = git_out(mission.repo, "commit-tree", tree, "-p", lane, "-m", "lane moved")
+    subprocess.run(["git", "update-ref", f"refs/heads/{lane}", moved], cwd=mission.repo, check=True)
+    assert all(lane_tip_cas_ok(mission.repo, branch, sha) for branch, sha in record.pre_interrupt_lane_tips.items())
+
+    # A commit lands on the coordination branch after the rollback, then the operator aborts.
+    worktree = CoordinationWorkspace.worktree_path(mission.repo, mission.slug, mission.mid8)
+    (worktree / "late-note.txt").write_text("landed after the rollback\n", encoding="utf-8")
+    subprocess.run(["git", "add", "late-note.txt"], cwd=worktree, check=True)
+    subprocess.run(["git", "commit", "-qm", "late coordination commit"], cwd=worktree, check=True)
+    late = mission.rev(mission.coord_branch)
+
+    result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--abort"])
+
+    assert result.returncode == 0, f"output={flat(result)}"
+    assert mission.rev(mission.coord_branch) == late, "the abort must not move or delete the coordination branch"
+    assert state_path(mission) is None, "the abort clears the record"

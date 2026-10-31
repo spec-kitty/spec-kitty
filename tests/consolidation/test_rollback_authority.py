@@ -1215,3 +1215,23 @@ def test_rebaselineable_is_stricter_than_fully_restored_for_kept_and_missing_bra
     assert report.rebaselineable is expected
     if BranchOutcomeKind.KEPT_BY_OPERATOR in kinds or BranchOutcomeKind.LANE_MISSING in kinds:
         assert report.fully_restored is True, "the two verdicts differ exactly here"
+
+
+def test_an_unsettled_branch_that_moved_with_no_recorded_post_tip_is_never_rebaselined(tmp_path: Path) -> None:
+    """An interrupted phase left no post tip: the move is unexplained, so the rollback keeps it and the record.
+
+    Only a lane (report-only, never unsettled) can be ``UNCHANGED_BY_RUN``; a run-movable branch in
+    this state is ``NOT_RESTORED``, which ``rebaselineable`` rejects, so the record that #5686 uses to refuse
+    the next run with ``UNEXPLAINED_BRANCH_MOVE`` is not re-baselined away.
+    """
+    env = make_env(tmp_path)
+    _snapshot_and_begin(env)
+    moved = _commit_on(env.repo, _TARGET, "unexplained-move")  # no ``record_post_mutation_tips``: the phase never finished
+    assert _TARGET in env.state.unsettled_refs and _TARGET not in env.state.post_mutation_refs
+
+    report = rollback_to_snapshot(env.repo, env.state, target_branch=_TARGET)
+
+    assert _kinds(report)[_TARGET] is BranchOutcomeKind.NOT_RESTORED
+    assert report.rebaselineable is False
+    assert _rev(env.repo, _TARGET) == moved
+    assert env.state.pre_mutation_refs, "the snapshot survives so the next run can refuse the unexplained move"
