@@ -167,15 +167,19 @@ Two halves, both required:
 
 - A **companion tactic** — the `tactic:how-we-apply-<directive-id>` that
   `interview_mapping` expands from the `selected_directives` interview section, one
-  per explicitly activated directive — is the project's own application note. Its
-  scope is the project's observed and declared languages, so in a project whose
-  languages are known it is language-scoped and is not linted. Its slug is derived
-  from a directive id and names no language; the old slug-component inference could
-  only answer "unknown" for it, and "unknown" was read as "generic", which is what
-  refused a companion naming the project's own test runner.
-- When **no** language is observed and none is declared, the companion stays
-  generic and is still refused. An unconfigured project still gets no Python
-  default, and `banned_terms.yaml` gains no entry.
+  per explicitly activated directive — is the project's own application note. It is
+  still linted, but it may name the banned terms of the project's **own** languages:
+  those observed in the code plus those declared in the interview snapshot
+  (`language_scope`; org packs contribute none), each expanded to its family. Terms
+  of any other language stay banned, so a Rust-only project's companion cannot name
+  `pytest`. A banned term's language is its id prefix (`PY-` is Python), owned by
+  `neutrality.lint.term_language`; a term with an unmapped prefix is never exempted.
+  Its slug is derived from a directive id and names no language, so the old
+  slug-component inference could only answer "unknown", read as "generic", which is
+  what refused a companion naming the project's own test runner.
+- When **no** language is observed and none is declared, nothing is exempted: the
+  companion is still refused for any banned term. An unconfigured project still gets
+  no Python default, and `banned_terms.yaml` gains no entry.
 
 Detection reads provenance (`source_section`), which records why the artifact
 exists, and the artifact kind — never the slug. The gate's exemption therefore

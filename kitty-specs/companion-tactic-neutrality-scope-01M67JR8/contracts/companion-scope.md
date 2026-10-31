@@ -22,7 +22,7 @@ Let `scope = observed ∪ declared`, family-expanded, where *observed* comes fro
 |candidate|condition|verdict|
 |---|---|---|
 |any artifact|`scope` is empty|**generic-scoped** — lint it|
-|companion tactic|`artifact_kind == "tactic"` and `source_section == selected_directives`|**language-scoped** — skip|
+|companion tactic|`artifact_kind == "tactic"` and `source_section == selected_directives`|**linted**, with the banned terms of the languages in `scope` exempted (`_companion_exempt_languages`); other languages' terms stay banned. A term's language is its id prefix (`neutrality.lint.term_language`); an unmapped prefix is never exempted. Declared languages come from the interview snapshot only, not org packs|
 |anything else|a hyphen-separated slug component is in `scope`|**language-scoped** — skip|
 |anything else|otherwise|**generic-scoped** — lint it|
 
@@ -52,7 +52,8 @@ provenance records why the artifact exists, and that is what the gate reads.
 
 | project scope | slug | `source_section` | verdict |
 |---|---|---|---|
-| `python` | `how-we-apply-directive-003` | `selected_directives` | language-scoped |
+| `python` | `how-we-apply-directive-003` | `selected_directives` | linted; `pytest` (Python) allowed |
+| `rust` | `how-we-apply-directive-003` | `selected_directives` | linted; `pytest` refused |
 | `python` | `testing-philosophy` | `testing_philosophy` | generic |
 | `python` | `java-style-guide` | `language_scope` | generic |
 | none | `how-we-apply-directive-003` | `selected_directives` | generic |
