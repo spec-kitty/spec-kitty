@@ -72,6 +72,8 @@ Nothing, normally: the first command that needs a service fetches, verifies and 
 - On a machine with no network, run `spec-kitty service fetch` on a connected machine and copy the
   cache, or set `SPEC_KITTY_SERVICE_ASSET_DIR` to a directory that holds the pinned asset files
   (flat, or under `<tag>/`). Its files are digest-checked and copied into the cache, never run in place.
+  The same holds for a binary named by `SPEC_KITTY_WRITE_SERVICE_BINARY` or provided by an installed
+  package: it is copied into the cache and the copy runs, so those sources also need a writable cache.
 
 ## Bump a pin
 

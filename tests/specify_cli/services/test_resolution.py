@@ -321,6 +321,16 @@ def test_explicit_tier_with_jar_digest_runs_under_java(tmp_path: Path, monkeypat
     assert resolved.argv_prefix == (str(JAVA), "-jar", str(cached))
 
 
+def test_explicit_tier_with_an_unwritable_cache_refuses_with_the_cache_remedy(tmp_path: Path) -> None:
+    release = _release(tmp_path)
+    blocker = tmp_path / "not-a-directory"
+    blocker.write_bytes(b"a file where the cache root should be")
+    refusal = _refusal(lambda: resolve_binary(SERVICE, env={EXPLICIT_ENV: str(release.native())}, cache_root=blocker / "cache"))
+    assert refusal.code is ServiceRefusalCode.BINARY_MISSING
+    assert "XDG_CACHE_HOME" in refusal.remedy
+    assert "spec-kitty service fetch" not in refusal.remedy
+
+
 def test_explicit_jar_without_java_refuses(tmp_path: Path) -> None:
     release = _release(tmp_path)
     refusal = _refusal(lambda: _resolve(release, {EXPLICIT_ENV: str(release.jar())}))
