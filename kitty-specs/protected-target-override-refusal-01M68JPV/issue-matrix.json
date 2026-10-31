@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#3080": {
+      "evidence_ref": "cited in spec.md as context only; owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3132": {
+      "evidence_ref": "cited in spec.md as context only; owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5100": {
+      "evidence_ref": "cited in spec.md as context only; owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5385": {
+      "evidence_ref": "cited as the prior recorded-target refusal this mission preserves (ADR 2026-09-19-1 follow-up 2026-09-30); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6464": {
+      "evidence_ref": "guard + three entries (d746272, f1a0583); pinned by tests/terminus/test_protected_target_preflight.py and tests/orchestrator_api/test_consolidate_mission_protected_target.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

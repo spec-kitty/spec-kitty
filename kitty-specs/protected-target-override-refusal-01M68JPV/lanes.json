@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "mission_slug": "protected-target-override-refusal-01M68JPV",
+  "mission_id": "01M68JPVFWRNMMSX8MMRNAFTZ7",
+  "mission_branch": "kitty/mission-protected-target-override-refusal-01M68JPV",
+  "target_branch": "issue-6464-protected-target-override-refusal",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/orchestrator_api/test_consolidate_mission_protected_target.py",
+        "tests/terminus/test_protected_target_preflight.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/entry_preflight.py",
+        "src/specify_cli/consolidation/forecast.py",
+        "src/specify_cli/consolidation/preflight.py",
+        "src/specify_cli/orchestrator_api/consolidation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-09-19-1-terminus-safety-invariant.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-31T08:57:59.687252+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "b1c5e9c3fa411ec9366aa16b323f1b9dedef5216"
+}
