@@ -337,16 +337,25 @@ def test_walker_leaves_custom_command_classes_alone() -> None:
     assert sub.registered_commands[1].cls is CustomCommand
 
 
-# --- #5294: non-mission-scoped ``migrate`` commands REJECT ``--mission`` -------
+# --- #5294: ``migrate`` commands without a Mission concept REJECT ``--mission`` ---
+#
+# #6347 gave the three corpus-walking commands a real ``--mission``; only the two
+# that genuinely have no Mission concept (pack-scoped ``rewrite-opposed-by`` and
+# repo-repair ``repin-hooks``) stay in the reject set.
 
 _REJECT_SET: tuple[tuple[str, ...], ...] = (
-    ("migrate", "charter-encoding"),
-    ("migrate", "backfill-provenance"),
     ("migrate", "rewrite-opposed-by"),
-    ("migrate", "rebaseline-dossier-hashes"),
     ("migrate", "repin-hooks"),
 )
 _REJECT_IDS = [" ".join(path) for path in _REJECT_SET]
+
+#: #6347: the corpus-walking commands that now declare a real ``--mission``.
+_MISSION_SCOPED_SET: tuple[tuple[str, ...], ...] = (
+    ("migrate", "backfill-provenance"),
+    ("migrate", "charter-encoding"),
+    ("migrate", "rebaseline-dossier-hashes"),
+)
+_MISSION_SCOPED_IDS = [" ".join(path) for path in _MISSION_SCOPED_SET]
 
 
 def _invoke(path: tuple[str, ...], extra: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
@@ -384,5 +393,37 @@ def test_non_mission_scoped_migrate_command_keeps_mission_hidden_in_help(path: t
 
 @pytest.mark.parametrize("path", _REJECT_SET, ids=_REJECT_IDS)
 def test_reject_set_commands_use_corpus_wide_command(path: tuple[str, ...]) -> None:
-    """The five are deliberately NOT folded into the accept-and-ignore walker."""
+    """The remaining two are deliberately NOT folded into the accept-and-ignore walker."""
     assert isinstance(_resolve(list(path)), CorpusWideCommand)
+
+
+# --- #6347: the corpus-walking commands SCOPE ``--mission`` --------------------
+
+
+@pytest.mark.parametrize("path", _MISSION_SCOPED_SET, ids=_MISSION_SCOPED_IDS)
+def test_mission_scoped_migrate_command_leaves_the_reject_class(path: tuple[str, ...]) -> None:
+    """A real ``--mission`` cannot coexist with the reject class (#6347)."""
+    leaf = _resolve(list(path))
+    assert not isinstance(leaf, CorpusWideCommand)
+    ctx = typer_click.Context(_resolve(["migrate"]))
+    assert any(param.name == "mission" for param in leaf.get_params(ctx))
+
+
+@pytest.mark.parametrize("path", _MISSION_SCOPED_SET, ids=_MISSION_SCOPED_IDS)
+def test_mission_scoped_migrate_command_advertises_mission_in_help(path: tuple[str, ...], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-003: the real option is documented, not hidden like the ignored one."""
+    result = _invoke(path, ["--help"], tmp_path, monkeypatch)
+    assert result.exit_code == 0, result.output
+    assert "--mission" in result.output
+
+
+@pytest.mark.parametrize("path", _MISSION_SCOPED_SET, ids=_MISSION_SCOPED_IDS)
+def test_mission_scoped_migrate_command_rejects_an_unknown_handle(path: tuple[str, ...], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-008: the flag now resolves; a bad handle fails closed, not as a scope refusal."""
+    # ``rebaseline-dossier-hashes`` locates the project root before the resolver,
+    # so give the tmp project a root and reach the handle-resolution path.
+    (tmp_path / ".kittify").mkdir()
+    result = _invoke(path, ["--mission", "ghost"], tmp_path, monkeypatch)
+    assert result.exit_code != 0, result.output
+    assert "not mission-scoped" not in result.output
+    assert "ghost" in result.output
