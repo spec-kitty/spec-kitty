@@ -20,7 +20,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "spec-kitty agent action review crashes: ReviewLock.__init__() missing 5 positional args",
       "verdict": "not-applicable",
       "wp": null
     },
@@ -32,7 +32,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "CLI tooling gaps seen in the 2026-10-19 mission run (items 4, 6, 7)",
       "verdict": "deferred-with-followup",
       "wp": "WP01"
     },
