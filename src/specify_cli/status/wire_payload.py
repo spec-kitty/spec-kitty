@@ -76,11 +76,10 @@ def build_wp_status_changed_payload(**fields: Any) -> dict[str, Any]:
     """Build the ``WPStatusChanged`` payload from explicit field values.
 
     Raises ``pydantic.ValidationError`` when the values cannot be represented by
-    the contract model (unknown field, ``force`` without a reason, ``approved``/
-    ``done`` without evidence, malformed evidence, ...). Callers that must keep a
-    reporting contract (the dry-run does) catch it at their boundary.
-
-    Raises ``TypeError`` when a required field is missing.
+    the contract model — an unknown or misspelled field, a missing required field,
+    ``force`` without a reason, ``approved``/``done`` without evidence, malformed
+    evidence. Callers that must keep a reporting contract (the dry-run does) catch
+    it at their boundary.
     """
     model = StatusTransitionPayload(**fields)
     payload: dict[str, Any] = apply_keep_none_fields(model, keep_none_fields=_KEEP_NONE_FIELDS)

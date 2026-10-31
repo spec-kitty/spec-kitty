@@ -65,6 +65,15 @@ rendered from that event's durable `status.events.jsonl` row. Pinned by
 This is the complete override list. Any further divergence between the dry-run
 payload and a real row is a defect, not an override.
 
+## One documented normalization
+
+`evidence` is emitted as the contract model renders it: `repos` and `review` are
+preserved, and `verification` is always materialized (an empty list when the row
+carried none, which a local `DoneEvidence.to_dict()` omits). That is the shape
+every model-built `WPStatusChanged` payload already has, so it is a
+normalization to the contract — not an override, and not a hand-shaped
+divergence. Pinned by `test_done_evidence_rides_as_the_contract_shape`.
+
 ## Drift ratchet
 
 `status.wire_payload._EVENT_FIELD_ATTRS` ∪ `_PRODUCER_SUPPLIED_FIELDS` must equal

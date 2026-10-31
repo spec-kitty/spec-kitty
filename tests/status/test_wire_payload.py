@@ -114,6 +114,17 @@ def test_done_evidence_rides_as_the_contract_shape() -> None:
     assert StatusTransitionPayload.model_validate(payload).evidence is not None
 
 
+def test_structured_resolved_binding_actor_rides_verbatim() -> None:
+    """IC-09: a resolved-binding ``{role, profile, tool, model}`` actor is not flattened."""
+    actor = {"role": "implementer", "profile": "python-pedro", "tool": "pi", "model": None}
+
+    payload = status.build_status_event_payload(_event(actor=actor))
+
+    assert payload["actor"] == actor
+    # positive control on the same fixture: a bare string actor stays a string
+    assert status.build_status_event_payload(_event(actor="claude"))["actor"] == "claude"
+
+
 # ---------------------------------------------------------------------------
 # T002 -- coverage ratchet against the contract model
 # ---------------------------------------------------------------------------
