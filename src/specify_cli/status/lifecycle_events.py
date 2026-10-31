@@ -39,7 +39,7 @@ import json
 import logging
 from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from collections.abc import Iterable, Mapping
 
 from kernel.clock import datetime, now_utc, now_utc_iso, parse_iso
@@ -879,16 +879,25 @@ def emit_reviewer_self_approval(
     project_slug: str | None = None,
     at: str | None = None,
 ) -> dict[str, Any] | None:
-    """Record that a WP was approved by its implementing actor after reviewer failure."""
-    payload = {
-        "mission_slug": mission_slug,
-        "wp_id": wp_id,
-        "implementing_actor": implementing_actor,
-        "intended_reviewer": intended_reviewer,
-        "failure_reason": failure_reason,
-        "fallback_approved": fallback_approved,
-        "timestamp": at or now_utc_iso(),
-    }
+    """Record that a WP was approved by its implementing actor after reviewer failure.
+
+    The payload is constructed via the canonical
+    :class:`spec_kitty_events.project_lifecycle.ReviewerSelfApprovalPayload`
+    (``extra="forbid"``) so a payload the published contract rejects — an empty
+    ``failure_reason``, say — raises at emit time, before anything is appended,
+    instead of being written and only detected by a later consumer (#6438).
+    """
+    from spec_kitty_events.project_lifecycle import ReviewerSelfApprovalPayload
+
+    payload: dict[str, Any] = ReviewerSelfApprovalPayload(
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        implementing_actor=implementing_actor,
+        intended_reviewer=intended_reviewer,
+        failure_reason=failure_reason,
+        fallback_approved=fallback_approved,
+        timestamp=at or now_utc_iso(),
+    ).model_dump(mode="json", exclude_none=False)
     log_path = mission_event_log_path(feature_dir)
     return append_lifecycle_event(
         log_path,
@@ -960,16 +969,24 @@ def emit_mission_reopened(
     completed is rejected with :class:`MissionNotCompletedError` before any
     metadata or event is written. The completion check happens here — the
     canonical producer — so no emit path can bypass it.
+
+    The payload is constructed via the canonical
+    :class:`spec_kitty_events.lifecycle.MissionReopenedPayload`
+    (``extra="forbid"``, ``reason`` non-empty), so a payload the published
+    contract rejects fails here, after the completion guard and before the
+    append, rather than being written and detected by a consumer (#6438).
     """
     _require_mission_completed(feature_dir, action="re-open", mission_slug=mission_slug)
-    payload: dict[str, Any] = {
-        "mission_id": mission_id,
-        "mission_slug": mission_slug,
-        "reason": reason,
-        "reopened_by": reopened_by,
-        "reopened_at": reopened_at or now_utc_iso(),
-        "cleared_merge": dict(cleared_merge) if cleared_merge is not None else None,
-    }
+    from spec_kitty_events.lifecycle import MissionReopenedPayload
+
+    payload: dict[str, Any] = MissionReopenedPayload(
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        reason=reason,
+        reopened_by=reopened_by,
+        reopened_at=reopened_at or now_utc_iso(),
+        cleared_merge=dict(cleared_merge) if cleared_merge is not None else None,
+    ).model_dump(mode="json", exclude_none=False)
     log_path = mission_event_log_path(feature_dir)
     return append_lifecycle_event(
         log_path,
@@ -1014,30 +1031,45 @@ def emit_follow_up_recorded(
     ``follow_up_type`` is ``"commit"`` (requires ``commit_sha``) or ``"pr"``
     (requires ``pr_number``). Attribution is via ``mission_id`` (NFR-004).
 
+    The payload is constructed via the canonical
+    :class:`spec_kitty_events.lifecycle.FollowUpRecordedPayload`
+    (``extra="forbid"``) after the emitter's own guards have passed, so a field
+    the published contract rejects fails before the append instead of being
+    written and detected by a consumer (#6438).
+
     This is a LOCAL-ONLY event (see ``FOLLOW_UP_RECORDED`` registration note).
     """
     if follow_up_type == "commit":
         if not commit_sha:
             raise ValueError("commit_sha is required when follow_up_type == 'commit'")
         dedup_keys: dict[str, Any] = {"mission_id": mission_id, "commit_sha": commit_sha}
+        discriminated_type: Literal["commit", "pr"] = "commit"
     elif follow_up_type == "pr":
         if pr_number is None:
             raise ValueError("pr_number is required when follow_up_type == 'pr'")
         dedup_keys = {"mission_id": mission_id, "pr_number": pr_number}
+        discriminated_type = "pr"
     else:
         raise ValueError(f"follow_up_type must be 'commit' or 'pr', got {follow_up_type!r}")
 
+    # The signature keeps ``str`` — this guard is the runtime contract and its
+    # ValueError message is behaviour callers rely on — and it has proven the
+    # narrow set by here, so ``discriminated_type`` only tells the type checker
+    # what the runtime already guarantees.
+
     _require_mission_completed(feature_dir, action="record follow-up", mission_slug=mission_slug)
 
-    payload: dict[str, Any] = {
-        "mission_id": mission_id,
-        "mission_slug": mission_slug,
-        "follow_up_type": follow_up_type,
-        "commit_sha": commit_sha,
-        "pr_number": pr_number,
-        "recorded_by": recorded_by,
-        "recorded_at": recorded_at or now_utc_iso(),
-    }
+    from spec_kitty_events.lifecycle import FollowUpRecordedPayload
+
+    payload: dict[str, Any] = FollowUpRecordedPayload(
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        follow_up_type=discriminated_type,
+        commit_sha=commit_sha,
+        pr_number=pr_number,
+        recorded_by=recorded_by,
+        recorded_at=recorded_at or now_utc_iso(),
+    ).model_dump(mode="json", exclude_none=False)
     log_path = mission_event_log_path(feature_dir)
     return append_lifecycle_event(
         log_path,

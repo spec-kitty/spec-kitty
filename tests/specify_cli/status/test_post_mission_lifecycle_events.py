@@ -511,13 +511,25 @@ def test_renderer_renders_reopen_and_follow_up_together(tmp_path: Path) -> None:
 def test_renderer_reopen_without_reason_omits_suffix(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "092-no-reason"
     _write_meta(feature_dir, merged_at="2026-04-03T10:00:00+00:00")
-    emit_mission_reopened(
-        feature_dir,
-        mission_id=MISSION_ID,
+    # A pre-#6438 ledger line. `emit_mission_reopened` now builds
+    # `MissionReopenedPayload`, whose `reason` is non-empty by contract, so the
+    # emitter can no longer produce this shape; historical rows are never
+    # rewritten and the renderer must still handle them. The row is therefore
+    # appended through the same public primitive the emitter uses.
+    le.append_lifecycle_event(
+        mission_event_log_path(feature_dir),
+        MISSION_REOPENED,
+        {
+            "mission_id": MISSION_ID,
+            "mission_slug": feature_dir.name,
+            "reason": "",
+            "reopened_by": "operator",
+            "reopened_at": "2026-05-04T10:00:00+00:00",
+            "cleared_merge": None,
+        },
+        aggregate_id=MISSION_ID,
+        aggregate_type="Mission",
         mission_slug=feature_dir.name,
-        reason="",
-        reopened_by="operator",
-        reopened_at="2026-05-04T10:00:00+00:00",
     )
     events = read_lifecycle_events(mission_event_log_path(feature_dir))
     lines = format_post_mission_events(events)
