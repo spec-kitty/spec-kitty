@@ -370,7 +370,7 @@ def test_plan_activation_narrow_base_ignores_the_absent_key_materialisation() ->
     # in force while the key is absent, so the unrestricted state is kept instead of frozen.
     wide = plan_activation("directive", "001-foo", yaml_key="activated_directives", available_ids=_AVAILABLE, config_data={}, effective_ids=_AVAILABLE)
     assert wide.new_list is None and wide.deactivated == [] and wide.activated == ["001-foo"]
-    assert "charter activate directive <id> --only" in wide.warnings[0]
+    assert "charter activate directive 001-foo --only" in wide.warnings[0]
 
 
 def test_plan_activation_narrow_base_still_validates_the_id_first(config_path: Path) -> None:
