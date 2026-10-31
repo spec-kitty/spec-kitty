@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "git grep canonical-producer-exempt src/specify_cli/migration/mission_state.py -> 0 hits; tests/migration/test_mission_state_teamspace_payload_authority.py::test_dry_run_builds_the_payload_through_the_facade_builder (spy proves the facade builder is the only construction path)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:29.229912+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
