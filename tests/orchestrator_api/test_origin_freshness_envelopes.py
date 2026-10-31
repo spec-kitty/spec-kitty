@@ -3,7 +3,12 @@
 Drives the REAL orchestrator CLI against a real bare remote and a second clone
 that pushed ahead. The refusal envelope keeps its existing codes
 (``MISSION_NOT_READY`` / ``PREFLIGHT_FAILED``) and gains additive
-``data.preflight_error_code(s)`` and ``data.origin_freshness`` (contract 1.11.0).
+``data.preflight_error_code(s)`` and ``data.origin_freshness``.
+
+The envelope's ``contract_version`` is compared against the module's exported
+``CONTRACT_VERSION`` (never a literal): the exact value is pinned in
+``tests/specify_cli/orchestrator_api/test_contract_version.py``, so a contract bump cannot leave a
+stale pin here (#6578).
 """
 
 from __future__ import annotations
