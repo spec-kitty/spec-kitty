@@ -1,0 +1,42 @@
+{
+  "accept_commit": "8a898a8050c9d692a22292f8475788032717c61b",
+  "acceptance_history": [
+    {
+      "accept_commit": "c205a478d7b6c9aadf20cac7ca7e46457d195c71",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T00:50:29.187193+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "790e333775c92a0bc58064823b68415c30426044"
+    },
+    {
+      "accept_commit": "8a898a8050c9d692a22292f8475788032717c61b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T00:50:44.659340+00:00",
+      "accepted_by": "Ivan Melck",
+      "accepted_from_commit": "3936e2aa7d9119e23a4d4131b194a97280d814f7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T00:50:44.659340+00:00",
+  "accepted_by": "Ivan Melck",
+  "accepted_from_commit": "3936e2aa7d9119e23a4d4131b194a97280d814f7",
+  "baseline_merge_commit": "8da2b8c8748689e0ad9dec5cbd160f2decc4b509",
+  "created_at": "2026-10-30T23:18:37.330824+00:00",
+  "flattened": false,
+  "friendly_name": "opaque failure identity",
+  "merged_at": "2026-10-31T00:44:12.436722+00:00",
+  "merged_commit": "dde3349ad4546289bb596f313c5e160ff6cb8ac8",
+  "mid8": "01M67HQA",
+  "mission_id": "01M67HQAD9Z47WWK9XGGZ8WMZ1",
+  "mission_number": 244,
+  "mission_slug": "opaque-failure-identity-01M67HQA",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances opaque failure identity on issue-6751-opaque-failure-identity so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "opaque failure identity",
+  "slug": "opaque-failure-identity-01M67HQA",
+  "status_phase": "1",
+  "target_branch": "issue-6751-opaque-failure-identity",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:22:24.845531+00:00"
+}
