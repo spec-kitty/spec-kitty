@@ -101,6 +101,10 @@ class MigrationRegistry:
         A ``skipped`` record (not-needed / Superseded) or a ``failed`` record
         does NOT settle a migration: a not-needed one is re-evaluated each run
         (and re-skipped idempotently), a failed one is retried.
+        A migration that declares a ``predecessor_id`` (a residue-safe successor,
+        #6688) is further settled only while that predecessor's recorded outcome
+        proves the repair ran (:func:`predecessor_outcome_settled`), because first
+        adoption settles an id from the version stamp rather than from a run.
         The version window (``from_v < target <= to_v``) is RETIRED as the
         applied authority; ``detect()``/``can_apply`` stay the runner's
         idempotency guard, not the selection authority (C-003). A drifted source
@@ -148,8 +152,12 @@ class MigrationRegistry:
         with legacy_upgrade_scope(path):
             adopting = pending_adoption_ids(ledger, all_migrations, path)
             for migration in all_migrations:
-                settled = _settled_in_view(ledger, migration, adopting)
-                if not settled or migration.reselect_when_recorded(path):
+                if not _settled_in_view(ledger, migration, adopting):
+                    selected.append(migration)
+                elif migration.reselect_when_recorded(path):
+                    # Only a settled migration needs the reselection hook, and it may need
+                    # the adoption projection `_settled_in_view` already holds; asking it
+                    # twice would read the ledger twice for the same answer (#6688).
                     selected.append(migration)
         return selected
 
@@ -182,8 +190,38 @@ def pending_adoption_ids(ledger: MigrationLedger, migrations: list[BaseMigration
 
 
 def _settled_in_view(ledger: MigrationLedger, migration: BaseMigration, adopting: frozenset[str]) -> bool:
-    """The one selection-view predicate: recorded as applied, or settled by a pending adoption (#6669)."""
-    return migration_settled(ledger, migration) or migration.migration_id in adopting
+    """The one selection-view predicate: applied, or settled by a pending adoption (#6669).
+
+    A migration's own record is not the whole answer for a *successor*: first
+    adoption settles an id from the recorded version rather than from a run, so
+    a ``success`` stamped that way must not hide an unsettled predecessor
+    (#6688). :func:`_predecessor_outcome_settled_in_view` is that second half.
+    """
+    recorded = migration_settled(ledger, migration) or migration.migration_id in adopting
+    if not recorded:
+        return False
+    return _predecessor_outcome_settled_in_view(ledger, migration, adopting)
+
+
+def _predecessor_outcome_settled_in_view(ledger: MigrationLedger, migration: BaseMigration, adopting: frozenset[str]) -> bool:
+    """True unless *migration*'s declared predecessor leaves its repair unproven (#6688).
+
+    A migration that declares no :attr:`~specify_cli.upgrade.migrations.base.BaseMigration.predecessor_id`
+    is answered True, so every ordinary migration keeps its success-only settlement.
+    A declared predecessor settles it when its own authoritative partition records
+    ``success``, or when a pending adoption will record that — exactly the evidence the
+    predecessor itself would be settled by, which is why the retry matches what the
+    predecessor did on ``main`` before #6669. A predecessor id the registry no longer
+    carries cannot be evaluated, so the migration's own record keeps its word rather
+    than replaying forever.
+    """
+    predecessor_id = migration.predecessor_id
+    if not predecessor_id:
+        return True
+    predecessor = MigrationRegistry.get_by_id(predecessor_id)
+    if predecessor is None:
+        return True
+    return migration_settled(ledger, predecessor) or predecessor_id in adopting
 
 
 def settled_in_selection_view(project_path: Path, migration_id: str) -> bool:
@@ -192,21 +230,49 @@ def settled_in_selection_view(project_path: Path, migration_id: str) -> bool:
     Uses the same predicate as :meth:`MigrationRegistry.get_applicable`
     (:func:`_settled_in_view`): the id is a ``success`` record in its
     authoritative ledger partition, or an unsettled ledger-adoption migration
-    will settle it on apply. ``ledger_adoption`` migrations are never target
-    capped, so every declared migration feeds the adoption probe. An unknown id
-    was never recorded and returns False.
+    will settle it on apply — and, for a migration that declares a
+    ``predecessor_id``, that predecessor's own outcome settles it too (#6688).
+    ``ledger_adoption`` migrations are never target capped, so every declared
+    migration feeds the adoption probe. An unknown id was never recorded and
+    returns False.
+    """
+    migration = MigrationRegistry.get_by_id(migration_id)
+    if migration is None:
+        return False
+    ledger, adopting = _selection_view(project_path)
+    return _settled_in_view(ledger, migration, adopting)
+
+
+def predecessor_outcome_settled(project_path: Path, migration: BaseMigration) -> bool:
+    """True when *migration*'s declared predecessor's recorded outcome proves its repair ran (#6688).
+
+    The same answer :func:`_settled_in_view` reaches inside selection, over the same
+    pending-adoption projection (:func:`_selection_view`), so a dry run and a live run
+    agree on a pre-ledger project. This is the seam the runner's skip gate reaches
+    through :meth:`BaseMigration.reselect_when_recorded`, which keeps selection and
+    apply-time settlement on one rule. A migration with no predecessor is always
+    settled here.
+    """
+    ledger, adopting = _selection_view(project_path)
+    return _predecessor_outcome_settled_in_view(ledger, migration, adopting)
+
+
+def _selection_view(project_path: Path | str) -> tuple[MigrationLedger, frozenset[str]]:
+    """The ledger and pending-adoption projection a selection-view answer is computed from.
+
+    One preamble for :func:`settled_in_selection_view` and
+    :func:`predecessor_outcome_settled`, so the two public projections cannot
+    drift. Runs inside the upgrade-only legacy activation scope for the same
+    reason :meth:`MigrationRegistry.get_applicable` does.
     """
     # Lazy import: ``base`` must not load at registry import.
     from .migrations.base import legacy_upgrade_scope
 
-    migration = MigrationRegistry.get_by_id(migration_id)
-    if migration is None:
-        return False
     path = Path(project_path)
     ledger = MigrationLedger(path)
     with legacy_upgrade_scope(path):
         adopting = pending_adoption_ids(ledger, MigrationRegistry.get_all(), path)
-        return _settled_in_view(ledger, migration, adopting)
+    return ledger, adopting
 
 
 def _within_target(migration: BaseMigration, to_version: str) -> bool:
@@ -224,12 +290,19 @@ def _within_target(migration: BaseMigration, to_version: str) -> bool:
 def migration_settled(ledger: MigrationLedger, migration: BaseMigration) -> bool:
     """True when *migration*'s authoritative ledger partition records it applied (``success``).
 
-    The single "already applied" predicate shared by ledger-diff selection and
-    the runner's skip gate. Success-only, matching the retired
-    ``ProjectMetadata.has_migration``: a ``skipped`` record (a not-needed or
-    Superseded migration) leaves it re-evaluable each run — idempotent, it just
-    re-skips — and a ``failed`` record leaves it retriable. ``detect()`` is never
-    consulted here; the ledger is the applied authority (C-001/C-003).
+    The success-only "recorded applied" predicate. Success-only, matching the
+    retired ``ProjectMetadata.has_migration``: a ``skipped`` record (a
+    not-needed or Superseded migration) leaves it re-evaluable each run —
+    idempotent, it just re-skips — and a ``failed`` record leaves it retriable.
+    ``detect()`` is never consulted here; the ledger is the applied authority
+    (C-001/C-003).
+
+    This is one half of settlement, not all of it. :func:`_settled_in_view` is
+    the selection authority, and for a migration that declares a
+    ``predecessor_id`` it also requires the predecessor's outcome to prove the
+    repair ran (#6688); the runner's skip gate reaches the same second half
+    through :meth:`BaseMigration.reselect_when_recorded`. Read this as "the
+    record says applied", never as "the run may skip it".
     """
     migration_id = migration.migration_id
     return any(record.id == migration_id and record.result == SETTLED_RESULT for record in ledger.applicable_records_for(migration))
