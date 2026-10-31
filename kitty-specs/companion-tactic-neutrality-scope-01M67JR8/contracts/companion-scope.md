@@ -22,7 +22,7 @@ Let `scope = observed ∪ declared`, family-expanded, where *observed* comes fro
 |candidate|condition|verdict|
 |---|---|---|
 |any artifact|`scope` is empty|**generic-scoped** — lint it|
-|companion tactic|`artifact_kind == "tactic"` and `source_section == selected_directives`|**linted**, with the banned terms of the languages in `scope` exempted (`_companion_exempt_languages`); other languages' terms stay banned. A term's language is its id prefix (`neutrality.lint.term_language`); an unmapped prefix is never exempted. Declared languages come from the interview snapshot only, not org packs|
+|companion tactic|`artifact_kind == "tactic"` and `source_section == selected_directives`|**linted**, with the banned terms of the languages in `scope` exempted (`_companion_exempt_languages`); other languages' terms stay banned. A term's language is its id prefix (`neutrality.lint._term_language`); an unmapped prefix is never exempted. Declared languages come from the interview snapshot only, not org packs|
 |anything else|a hyphen-separated slug component is in `scope`|**language-scoped** — skip|
 |anything else|otherwise|**generic-scoped** — lint it|
 

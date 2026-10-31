@@ -159,7 +159,7 @@ def test_artifact_filename_builds_directive_filename_without_regex() -> None:
 
 def test_is_generic_scoped_no_evidence() -> None:
     """Without evidence, all artifacts are generic-scoped."""
-    assert _is_generic_scoped("tactic", "testing-philosophy", None) is True
+    assert _is_generic_scoped("testing-philosophy", None) is True
 
 
 def test_is_generic_scoped_no_code_signals() -> None:
@@ -167,7 +167,7 @@ def test_is_generic_scoped_no_code_signals() -> None:
     from charter.activation.synthesizer.evidence import EvidenceBundle
 
     bundle = EvidenceBundle()
-    assert _is_generic_scoped("tactic", "testing-philosophy", bundle) is True
+    assert _is_generic_scoped("testing-philosophy", bundle) is True
 
 
 def test_is_generic_scoped_unknown_scope_tag() -> None:
@@ -184,7 +184,7 @@ def test_is_generic_scoped_unknown_scope_tag() -> None:
         detected_at="2026-01-01T00:00:00+00:00",
     )
     bundle = EvidenceBundle(code_signals=cs)
-    assert _is_generic_scoped("tactic", "unknown-style-guide", bundle) is True
+    assert _is_generic_scoped("unknown-style-guide", bundle) is True
 
 
 def test_is_generic_scoped_python_scoped_slug_is_not_generic() -> None:
@@ -201,7 +201,7 @@ def test_is_generic_scoped_python_scoped_slug_is_not_generic() -> None:
         detected_at="2026-01-01T00:00:00+00:00",
     )
     bundle = EvidenceBundle(code_signals=cs)
-    assert _is_generic_scoped("tactic", "python-style-guide", bundle) is False
+    assert _is_generic_scoped("python-style-guide", bundle) is False
 
 
 def test_is_generic_scoped_python_scope_but_generic_slug() -> None:
@@ -218,32 +218,7 @@ def test_is_generic_scoped_python_scope_but_generic_slug() -> None:
         detected_at="2026-01-01T00:00:00+00:00",
     )
     bundle = EvidenceBundle(code_signals=cs)
-    assert _is_generic_scoped("tactic", "testing-philosophy", bundle) is True
-
-
-def test_is_generic_scoped_different_kinds() -> None:
-    """_is_generic_scoped works for directives and styleguides (target_kind ignored for now)."""
-    from charter.activation.synthesizer.evidence import CodeSignals, EvidenceBundle
-
-    cs = CodeSignals(
-        stack_id="python",
-        primary_language="python",
-        frameworks=(),
-        test_frameworks=(),
-        scope_tag="python",
-        representative_files=(),
-        detected_at="2026-01-01T00:00:00+00:00",
-    )
-    bundle = EvidenceBundle(code_signals=cs)
-    # directive: slug doesn't contain scope_tag → generic
-    assert _is_generic_scoped("directive", "commit-message-format", bundle) is True
-    # styleguide: slug contains scope_tag → language-scoped
-    assert _is_generic_scoped("styleguide", "python-docstrings", bundle) is False
-
-
-# ---------------------------------------------------------------------------
-# _run_neutrality_gate via full staging setup (T039)
-# ---------------------------------------------------------------------------
+    assert _is_generic_scoped("testing-philosophy", bundle) is True
 
 
 def _make_staging_dir_with_artifact(
@@ -484,5 +459,5 @@ def _bundle_with_scope(scope_tag: str):
 def test_is_generic_scoped_matches_slug_components_not_substrings() -> None:
     """#6405: 'java' must not match inside 'javascript'."""
     bundle = _bundle_with_scope("java")
-    assert _is_generic_scoped("styleguide", "java-style-guide", bundle) is False
-    assert _is_generic_scoped("styleguide", "javascript-style-guide", bundle) is True
+    assert _is_generic_scoped("java-style-guide", bundle) is False
+    assert _is_generic_scoped("javascript-style-guide", bundle) is True

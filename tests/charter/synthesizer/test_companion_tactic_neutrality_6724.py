@@ -343,7 +343,7 @@ def test_companion_exempt_languages(
 
 
 def test_term_language_is_owned_by_the_prefix_map_and_fails_closed() -> None:
-    from charter.activation.neutrality.lint import term_language
+    from charter.activation.neutrality.lint import _term_language
 
-    assert term_language("PY-001") == "python"
-    assert term_language("ZZ-001") is None  # unmapped prefix: no scope can exempt it
+    assert _term_language("PY-001") == "python"
+    assert _term_language("ZZ-001") is None  # unmapped prefix: no scope can exempt it

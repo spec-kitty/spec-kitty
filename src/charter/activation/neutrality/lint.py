@@ -12,7 +12,7 @@ language-scoped artifacts before scanning. A synthesized companion tactic
 (``how-we-apply-<directive-id>``, whose audience is the project that ran
 synthesis) is still scanned, with the banned terms of the project's own languages
 exempted (``exempt_languages``; a term's language is its id prefix, see
-``term_language``); terms of other languages stay banned (#6724).
+``_term_language``); terms of other languages stay banned (#6724).
 
 Contracts:
   - C-3  src/charter/activation/neutrality/banned_terms.yaml (banned terms schema)
@@ -31,10 +31,8 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 __all__ = [
-    "BANNED_TERM_PREFIX_LANGUAGE",
     "BannedTermHit",
     "NeutralityLintResult",
-    "term_language",
     "run_neutrality_lint",
 ]
 
@@ -44,12 +42,12 @@ __all__ = [
 #: (``PY-001`` -> ``python``), as the schema's ``LANG-NNN`` id convention already says.
 #: A prefix missing here belongs to no known language, so no project scope exempts it
 #: (fail closed). Add the prefix here when adding the first term of a new language.
-BANNED_TERM_PREFIX_LANGUAGE: dict[str, str] = {"PY": "python"}
+_BANNED_TERM_PREFIX_LANGUAGE: dict[str, str] = {"PY": "python"}
 
 
-def term_language(term_id: str) -> str | None:
+def _term_language(term_id: str) -> str | None:
     """Return the language a banned term belongs to, or None when its prefix is unmapped."""
-    return BANNED_TERM_PREFIX_LANGUAGE.get(term_id.split("-", 1)[0])
+    return _BANNED_TERM_PREFIX_LANGUAGE.get(term_id.split("-", 1)[0])
 
 
 # ---------------------------------------------------------------------------
@@ -482,7 +480,7 @@ def run_neutrality_lint(
     terms = [
         term
         for term in _load_banned_terms(banned_terms_path)
-        if (term_language(term.term_id) or "") not in exempt_languages
+        if (_term_language(term.term_id) or "") not in exempt_languages
     ]
     allowlist_paths = _load_allowlist(allowlist_path)
 

@@ -173,7 +173,7 @@ Two halves, both required:
   (`language_scope`; org packs contribute none), each expanded to its family. Terms
   of any other language stay banned, so a Rust-only project's companion cannot name
   `pytest`. A banned term's language is its id prefix (`PY-` is Python), owned by
-  `neutrality.lint.term_language`; a term with an unmapped prefix is never exempted.
+  `neutrality.lint._term_language`; a term with an unmapped prefix is never exempted.
   Its slug is derived from a directive id and names no language, so the old
   slug-component inference could only answer "unknown", read as "generic", which is
   what refused a companion naming the project's own test runner.
