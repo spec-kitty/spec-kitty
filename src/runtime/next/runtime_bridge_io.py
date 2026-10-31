@@ -442,8 +442,15 @@ def _build_run_ref(
 # ---------------------------------------------------------------------------
 
 
-def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
+def build_discovery_context(repo_root: Path) -> DiscoveryContext:
     """Build a DiscoveryContext that finds the runtime mission template.
+
+    The ONE construction site for a repo-rooted discovery context: ``spec-kitty
+    next``, query-mode runs and ``mission run <key>`` all call it, so a field added
+    here (the org tier, for one) cannot be wired into one caller and missed in
+    another. Before #6745 the mission loader kept a byte-identical copy because this
+    helper was private, and mission ``up-org-template-fsm-01M06F9K`` had to edit both
+    copies by hand (its DEC-006).
 
     Populates ``org_roots`` (FR-008, DEC-006 site 1 -- the construction site
     that feeds Walk A for both ``spec-kitty next`` and query-mode runs) via
@@ -522,7 +529,7 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
 def _builtin_missions_root() -> Path:
     """The pack-shipped ``missions/`` directory (``packs/built-in/missions``).
 
-    Same accessor ``_build_discovery_context`` uses for ``builtin_roots``, so the
+    Same accessor ``build_discovery_context`` uses for ``builtin_roots``, so the
     two cannot disagree about where the built-in tier lives.
     """
     return resolve_builtin_missions_root()
@@ -645,13 +652,13 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     explicit, env, and project-scoped overrides remain honored.
     """
 
-    context = _build_discovery_context(repo_root)
+    context = build_discovery_context(repo_root)
     env_value = os.environ.get(context.env_var_name, "")
     # Org tier (FR-009) sits immediately after the project-legacy entry
     # (`.kittify/missions`) and before the project-config/global/builtin
     # tiers below -- the same relative position Walk A's `_build_tiers`
     # gives the org tier. Reuses `context.org_roots`, already populated by
-    # `_build_discovery_context` above, rather than calling
+    # `build_discovery_context` above, rather than calling
     # `resolve_pack_chain` a second time.
     project_tiers: list[list[Path]] = [
         list(context.explicit_paths),
@@ -702,7 +709,7 @@ def _workflow_runtime_template(
     from runtime.next._internal_runtime.planner import compose_template_with_workflow
     from runtime.next._internal_runtime.workflow_registry import get_workflow
 
-    context = _build_discovery_context(repo_root)
+    context = build_discovery_context(repo_root)
     base_template = load_mission_template(template_key, context=context)
     workflow = get_workflow(str(workflow_id), project_root=repo_root)
     template = compose_template_with_workflow(base_template, workflow)
@@ -764,7 +771,7 @@ def _start_ephemeral_query_run(
     try:
         template_key = _runtime_template_key(mission_type, repo_root)
         template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
-        context = _build_discovery_context(repo_root)
+        context = build_discovery_context(repo_root)
 
         run_ref = start_mission_run(
             template_key=template_key,
@@ -812,7 +819,7 @@ def _start_new_run(
     run_store = run_index.runs_root(repo_root)
     template_key = _runtime_template_key(mission_type, repo_root)
     template_override, template_path_override = _workflow_runtime_template(mission_slug, mission_type, repo_root, template_key)
-    context = _build_discovery_context(repo_root)
+    context = build_discovery_context(repo_root)
     return start_mission_run(
         template_key=template_key,
         inputs={"mission_slug": mission_slug},
