@@ -69,9 +69,7 @@ def _msc_urns(context: PackContext, identity: IdentityIndex) -> set[str]:
 # --------------------------------------------------------------------------- #
 
 
-def test_an_activated_step_contract_reports_no_graph_gap(
-    base_context: PackContext, identity: IdentityIndex
-) -> None:
+def test_an_activated_step_contract_reports_no_graph_gap(base_context: PackContext, identity: IdentityIndex) -> None:
     """RED before #6741: the gap ``mission-step-contract/documentation-accept`` was reported."""
     ctx = ProjectContext(
         repo_root=_REPO_ROOT,
@@ -95,9 +93,7 @@ def test_an_activated_step_contract_reports_no_graph_gap(
     assert not any("resynthesize" in entry for entry in suggestions), suggestions
 
 
-def test_a_filtered_out_step_contract_names_the_activation_keys_not_a_resynthesis(
-    base_context: PackContext, identity: IdentityIndex
-) -> None:
+def test_a_filtered_out_step_contract_names_the_activation_keys_not_a_resynthesis(base_context: PackContext, identity: IdentityIndex) -> None:
     """The node exists in the DRG but its owning mission type is inactive: say so (#6741 FR-006)."""
     ctx = ProjectContext(
         repo_root=_REPO_ROOT,
@@ -157,9 +153,7 @@ def test_an_artifact_absent_from_the_drg_keeps_the_regenerate_suggestion(
 # --------------------------------------------------------------------------- #
 
 
-def test_the_activated_step_contract_survives_the_filter(
-    base_context: PackContext, identity: IdentityIndex
-) -> None:
+def test_the_activated_step_contract_survives_the_filter(base_context: PackContext, identity: IdentityIndex) -> None:
     ctx = _context(base_context, activated_mission_step_contracts=frozenset({_STEP_TOKEN}))
 
     surviving = _msc_urns(ctx, identity)
@@ -168,9 +162,7 @@ def test_the_activated_step_contract_survives_the_filter(
     assert f"mission_step_contract:{_STEP_TOKEN}" not in surviving
 
 
-def test_the_mission_type_ownership_rule_still_precedes_the_per_id_gate(
-    base_context: PackContext, identity: IdentityIndex
-) -> None:
+def test_the_mission_type_ownership_rule_still_precedes_the_per_id_gate(base_context: PackContext, identity: IdentityIndex) -> None:
     """C-002: an explicit step-contract allow list cannot resurrect an inactive mission type's node."""
     ctx = _context(
         base_context,
@@ -184,9 +176,7 @@ def test_the_mission_type_ownership_rule_still_precedes_the_per_id_gate(
     assert "mission_step_contract:software-dev/implement" in surviving
 
 
-def test_the_default_ledger_keeps_the_whole_shipped_step_contract_set(
-    base_context: PackContext, identity: IdentityIndex
-) -> None:
+def test_the_default_ledger_keeps_the_whole_shipped_step_contract_set(base_context: PackContext, identity: IdentityIndex) -> None:
     """NFR-002: no `activated_mission_step_contracts` key -> the surviving set is unchanged (21 nodes)."""
     assert base_context.activated_mission_step_contracts is None
 
@@ -201,9 +191,7 @@ def test_the_default_ledger_keeps_the_whole_shipped_step_contract_set(
 # --------------------------------------------------------------------------- #
 
 
-def test_denying_a_step_contract_by_its_declared_id_drops_its_node(
-    base_context: PackContext, identity: IdentityIndex
-) -> None:
+def test_denying_a_step_contract_by_its_declared_id_drops_its_node(base_context: PackContext, identity: IdentityIndex) -> None:
     """RED before #6741: ``DenySet.urns`` held ``mission_step_contract:implement``, matching no node."""
     deny = resolve_deny(ArtifactKind.MISSION_STEP_CONTRACT, [_DENIED_STEP_TOKEN], identity)
     assert deny.urns == frozenset({_DENIED_STEP_URN})
@@ -212,13 +200,11 @@ def test_denying_a_step_contract_by_its_declared_id_drops_its_node(
     surviving = _msc_urns(ctx, identity)
 
     assert _DENIED_STEP_URN not in surviving
-    assert _UNTOUCHED_STEP_URN in surviving       # same mission type, not denied
-    assert _SIBLING_STEP_URN in surviving         # different mission type, not denied
+    assert _UNTOUCHED_STEP_URN in surviving  # same mission type, not denied
+    assert _SIBLING_STEP_URN in surviving  # different mission type, not denied
 
 
-def test_denying_by_the_mission_scoped_spelling_still_works(
-    base_context: PackContext, identity: IdentityIndex
-) -> None:
+def test_denying_by_the_mission_scoped_spelling_still_works(base_context: PackContext, identity: IdentityIndex) -> None:
     """The #6741-era spelling keeps working: an unknown token carries itself into the deny set."""
     deny = resolve_deny(ArtifactKind.MISSION_STEP_CONTRACT, ["software-dev/implement"], identity)
 
@@ -234,9 +220,7 @@ def test_denying_by_the_mission_scoped_spelling_still_works(
 # --------------------------------------------------------------------------- #
 
 
-def test_every_activated_directive_resolves_exactly_as_the_old_construction_did(
-    base_context: PackContext, identity: IdentityIndex
-) -> None:
+def test_every_activated_directive_resolves_exactly_as_the_old_construction_did(base_context: PackContext, identity: IdentityIndex) -> None:
     """NFR-002 for ordinary kinds: ``"<kind>:<declared id>"``, byte for byte, for every activation."""
     activated = base_context.activated_directives
     assert activated, "this repository activates directives; an empty set would make this vacuous"
