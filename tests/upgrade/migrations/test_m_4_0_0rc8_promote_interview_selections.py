@@ -16,10 +16,13 @@ from pathlib import Path
 import pytest
 
 from charter.activation.effective_set import resolve_effective_sets
+from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
+from kernel.charter_pack_paths import project_pack_root
+from tests.charter.org_pack_identity_support import write_identity_org_pack
 from specify_cli.upgrade.ledger import MigrationLedger, build_record, compute_content_hash
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations import m_4_0_0rc8_promote_interview_selections as module
-from charter.activation.api import PromotionOutcome, UnrepresentableDirectiveIdError
+from charter.activation.api import PromotionOutcome
 from specify_cli.upgrade.migrations.base import MigrationStateUnreadableError, SupersededMigration
 from specify_cli.upgrade.migrations.m_4_0_0rc8_promote_interview_selections import MIGRATION_ID, PromoteInterviewSelectionsMigration
 from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyCharterActivationMigration
@@ -54,6 +57,9 @@ def _project(tmp_path: Path, *selected: str, paradigms: tuple[str, ...] = ()) ->
         lines += ["selected_paradigms:", *(f"- {item}" for item in paradigms)]
     _write(tmp_path / ANSWERS, "\n".join(lines) + "\n")
     return tmp_path
+
+
+_TACTIC = 'schema_version: "1.0"\nid: {id}\nname: T\npurpose: T.\nsteps:\n  - title: Do\n    description: Do it.\n'
 
 
 def _bytes(root: Path) -> dict[str, bytes]:
@@ -128,6 +134,74 @@ def test_a_present_ledger_list_gains_exactly_the_missing_selection(tmp_path: Pat
     assert read_activation_ledger(project)[DIRECTIVES] == [ARCHITECTURE_STEM, FIDELITY_STEM]
     assert (project / CONFIG).read_bytes() == config_before
     assert any(FIDELITY_STEM in change for change in result.changes_made)
+
+
+# --------------------------------------------------------------------------- #
+# apply: every layer resolves the selection (#6686)
+# --------------------------------------------------------------------------- #
+
+ORG_DIRECTIVE_STEM, ORG_DIRECTIVE_ID = "qa-003-no-fake-green", "QA_003"
+PROJECT_TACTIC_STEM, PROJECT_TACTIC_ID = "proj-tac", "proj-tac-id"
+
+
+def test_an_org_pack_selection_is_promoted_not_reported_unresolved(tmp_path: Path) -> None:
+    """#6686: the upgrade resolves a selection through every layer, as `charter interview` does."""
+    project = _project(tmp_path, ORG_DIRECTIVE_ID)
+    write_identity_org_pack(project)
+    seed_activation_ledger(project, activated_directives=[ARCHITECTURE_STEM])
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    assert read_activation_ledger(project)[DIRECTIVES] == [ARCHITECTURE_STEM, ORG_DIRECTIVE_STEM]
+    assert not any("Unresolved" in warning for warning in result.warnings), result.warnings
+
+
+def test_a_project_layer_tactic_selection_is_promoted(tmp_path: Path) -> None:
+    """The project pack is one of the layers the shared authority indexes."""
+    project = _project(tmp_path, paradigms=())
+    answers = project / ANSWERS
+    answers.write_text("selected_tactics:\n- " + PROJECT_TACTIC_ID + "\n", encoding="utf-8")
+    _write(project_pack_root(project) / PROJECT_KIND_DIRS[ArtifactKind.TACTIC] / f"{PROJECT_TACTIC_STEM}.tactic.yaml", _TACTIC.format(id=PROJECT_TACTIC_ID))
+    seed_activation_ledger(project, activated_tactics=["acceptance-test-first"])
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    assert read_activation_ledger(project)["activated_tactics"] == ["acceptance-test-first", PROJECT_TACTIC_STEM]
+
+
+def test_an_org_selection_promotes_while_an_unknown_one_is_still_reported(tmp_path: Path) -> None:
+    """One fixture, both outcomes: the positive control for the unresolved report."""
+    project = _project(tmp_path, ORG_DIRECTIVE_ID, UNKNOWN_ID)
+    write_identity_org_pack(project)
+    seed_activation_ledger(project, activated_directives=[ARCHITECTURE_STEM])
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    assert read_activation_ledger(project)[DIRECTIVES] == [ARCHITECTURE_STEM, ORG_DIRECTIVE_STEM]
+    assert result.warnings == [module._unresolved_warning([f"directive:{UNKNOWN_ID}"])]
+
+
+def test_a_mission_step_contract_selection_resolves_and_promotes(tmp_path: Path) -> None:
+    """The shared resolver's free win (#6686 notes): step contracts used to resolve in neither writer.
+
+    `kind_vocabulary` could not resolve the kind, so the upgrade reported the
+    selection unresolved. Through the layer-aware index it resolves like every
+    other promoted kind, and it is promoted here; the interview does not capture
+    step contracts, so nothing changes on that side.
+    """
+    project = _project(tmp_path)
+    (project / ANSWERS).write_text("selected_mission_step_contracts:\n- qa-contract\n", encoding="utf-8")
+    write_identity_org_pack(project)
+    seed_activation_ledger(project, activated_mission_step_contracts=["existing-contract"])
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    assert read_activation_ledger(project)["activated_mission_step_contracts"] == ["existing-contract", "qa-contract-file"]
+    assert result.warnings == []
 
 
 def test_a_settled_shipped_promotion_means_nothing_is_appended(tmp_path: Path) -> None:
@@ -347,18 +421,25 @@ def test_an_unresolvable_doctrine_root_is_a_failed_result(tmp_path: Path, monkey
     assert result.errors == ["Could not resolve doctrine root: no doctrine"]
 
 
-def test_an_unrepresentable_directive_id_is_reported_as_unresolved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    def refusing(*_args: object, **_kwargs: object) -> str:
-        raise UnrepresentableDirectiveIdError("fixture")
+def test_an_unrepresentable_directive_id_is_reported_as_unresolved(tmp_path: Path) -> None:
+    """A directive identity no file stem can represent is reported, never promoted as another artifact.
 
-    monkeypatch.setattr(module, "resolve_selected_id_to_stem", refusing)
-    project = _project(tmp_path, FIDELITY_ID)
+    The fixture shadows the built-in ``024-locality-of-change`` file with an org
+    directive of another id (Decision ``file_name_collision``), so ``DIRECTIVE_024``
+    is known but has no single stem.
+    """
+    project = _project(tmp_path, "DIRECTIVE_024")
+    pack = write_identity_org_pack(project)
+    (pack / "directives" / "024-locality-of-change.directive.yaml").write_text(
+        'schema_version: "1.0"\nid: ACME_024\ntitle: t\nintent: i\nenforcement: required\n', encoding="utf-8"
+    )
     seed_activation_ledger(project, activated_directives=[ARCHITECTURE_STEM])
 
     result = PromoteInterviewSelectionsMigration().apply(project)
 
     assert result.success, result.errors
-    assert result.warnings == [module._unresolved_warning([f"directive:{FIDELITY_ID}"])]
+    assert result.warnings == [module._unresolved_warning(["directive:DIRECTIVE_024"])]
+    assert read_activation_ledger(project)[DIRECTIVES] == [ARCHITECTURE_STEM]
 
 
 def test_a_selection_named_twice_is_promoted_once(tmp_path: Path) -> None:
