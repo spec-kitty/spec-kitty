@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "grep-absence-binary-evidence-01M66F4Y",
+  "mission_id": "01M66F4YKAESXYB7A636Y2K08F",
+  "mission_branch": "kitty/mission-grep-absence-binary-evidence-01M66F4Y",
+  "target_branch": "issue-6761-grep-absence-binary-evidence",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/matrix.py",
+        "tests/specify_cli/acceptance/test_negative_invariant_authoring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T13:17:40.684969+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e9338cf3e83b3343590a9fe190a0d1dd57468d1d"
+}
