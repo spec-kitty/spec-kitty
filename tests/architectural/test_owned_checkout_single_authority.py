@@ -30,8 +30,18 @@ exemption of G4/G5: ``effective_root`` under ``src/charter/**``,
 ``analysis_inputs.py`` is ``OrgPackConfig.effective_root`` -- the org-pack
 root, a different concept from the owned checkout.  The remaining named
 scanner rules (org-pack method call, carrier fields, ``CLI_CLAIM_INPUT_RULE``,
-``MIGRATIONS_CHECKOUT_ROOT_RULE``) are each pinned by a self-mutation pair in
+``MIGRATIONS_CHECKOUT_ROOT_RULE``, ``PROJECTED_CHARTER_INVOCATION_RULE``) are
+each pinned by a self-mutation pair in
 ``test_owned_checkout_gate_selftest.py``.
+
+``PROJECTED_CHARTER_INVOCATION_RULE`` is the second written exemption. The
+charter activation seam renders a fetch stanza from one frozen
+``OwnedCharterInvocation``, so that class's ``owned_root`` field is exempt from
+G5 -- but only that field, only in that class, and every construction of the
+class in ``src/`` must go through ``specify_cli/core/owned_charter.py``, which
+projects a validated ``OwnedCheckout`` into it. Under ``src/charter/**`` the
+org-pack exemption is scoped to the ``effective_root`` *name* for G5, so the
+charter layer cannot hide an owned root from this gate.
 
 There is no ledger and no allowlist (operator decision 01M3M65D): the
 allowlist below is empty and its ratchet leaf in ``_baselines.yaml`` is 0.
@@ -49,6 +59,7 @@ import pytest
 from tests.architectural._ast_scan import parse_file, read_source
 from tests.architectural._owned_checkout_scan import (
     ORG_PACK_MODULE_PATHS,
+    PROJECTION_CONSTRUCTION_PATH,
     Offender,
     bare_owned_root_paths,
     claim_references,
@@ -56,6 +67,7 @@ from tests.architectural._owned_checkout_scan import (
     iter_python_sources,
     mint_references,
     owned_signature_pins,
+    projected_invocation_calls,
     validator_calls,
 )
 
@@ -173,6 +185,12 @@ def test_g5_no_bare_path_owned_root() -> None:
     _assert_scan_floor(scanned, minus_org_pack=True)
     remaining = _not_allowlisted(offenders)
     assert not remaining, f"G5: bare Path-typed owned root parameter/field ({len(remaining)} sites):\n{_format(remaining)}"
+
+
+def test_g5_projected_charter_invocation_has_one_construction_door() -> None:
+    offenders, scanned = _scan(projected_invocation_calls)
+    _assert_scan_floor(scanned, minus_org_pack=False)
+    assert not offenders, f"G5: OwnedCharterInvocation constructed outside {PROJECTION_CONSTRUCTION_PATH}:\n{_format(offenders)}"
 
 
 def _defined_names(tree: ast.Module) -> set[str]:

@@ -17,11 +17,14 @@ import pytest
 
 from tests.architectural._ast_scan import UnparseableSourceError, parse_source
 from tests.architectural._owned_checkout_scan import (
+    PROJECTION_CONSTRUCTION_PATH,
+    PROJECTION_MODULE_PATH,
     bare_owned_root_paths,
     claim_references,
     effective_root_identifiers,
     mint_references,
     owned_signature_pins,
+    projected_invocation_calls,
     validator_calls,
 )
 
@@ -457,3 +460,46 @@ def test_bare_path_annotation_spelling_table(src: str) -> None:
     tree = _parse(src)
     offenders = bare_owned_root_paths(tree, "src/fake.py")
     assert len(offenders) == 1, src
+
+
+# ---------------------------------------------------------------------------
+# G5 -- PROJECTED_CHARTER_INVOCATION_RULE (charter seam projection)
+# ---------------------------------------------------------------------------
+
+
+def test_g5_flags_projected_charter_invocation_built_outside_its_one_door() -> None:
+    tree = _parse('invocation = OwnedCharterInvocation(owned_root=p, mission_handle="m")\n')
+    offenders = projected_invocation_calls(tree, "src/charter/activation/context.py")
+    assert [o.rule for o in offenders] == ["G5"]
+
+
+def test_g5_flags_aliased_projected_charter_invocation() -> None:
+    tree = _parse('from charter.activation.scope import OwnedCharterInvocation as P\ninvocation = P(owned_root=p, mission_handle="m")\n')
+    offenders = projected_invocation_calls(tree, "src/runtime/next/prompt_builder.py")
+    assert [o.rule for o in offenders] == ["G5"]
+
+
+def test_g5_negative_projection_door_is_the_one_allowed_construction_site() -> None:
+    tree = _parse('invocation = OwnedCharterInvocation(owned_root=p, mission_handle="m")\n')
+    assert projected_invocation_calls(tree, PROJECTION_CONSTRUCTION_PATH) == []
+
+
+@pytest.mark.parametrize(
+    ("class_name", "rel_path", "expected"),
+    [
+        pytest.param("OwnedCharterInvocation", PROJECTION_MODULE_PATH, [], id="its-own-field"),
+        pytest.param("OwnedCharterInvocation", "src/charter/activation/context.py", ["G5"], id="wrong-module"),
+        pytest.param("OtherInvocation", PROJECTION_MODULE_PATH, ["G5"], id="wrong-class"),
+    ],
+)
+def test_g5_projection_field_exemption_is_exactly_one_field(class_name: str, rel_path: str, expected: list[str]) -> None:
+    tree = _parse(f"class {class_name}:\n    owned_root: Path\n")
+    assert [o.rule for o in bare_owned_root_paths(tree, rel_path)] == expected
+
+
+def test_g5_org_pack_exemption_does_not_hide_an_owned_root_in_the_charter_layer() -> None:
+    param = _parse("def f(owned_root: Path) -> None:\n    ...\n")
+    effective = _parse("def f(effective_root: Path) -> None:\n    ...\n")
+    rel_path = "src/charter/activation/context.py"
+    assert [o.rule for o in bare_owned_root_paths(param, rel_path)] == ["G5"]
+    assert bare_owned_root_paths(effective, rel_path) == []
