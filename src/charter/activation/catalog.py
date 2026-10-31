@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.resources
 import logging
+from collections.abc import Collection
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +25,37 @@ __all__ = [
 
 
 _log = logging.getLogger(__name__)
+
+#: Every domain :func:`load_offering_catalog` can scan. The tokens are exactly the
+#: ones ``OfferingCatalog.domains_present`` already reports, so a caller's declared
+#: scope reads in the same vocabulary the catalog speaks -- no new naming (#6462).
+CATALOG_DOMAINS: tuple[str, ...] = (
+    "paradigms",
+    "directives",
+    "template_sets",
+    "tactics",
+    "styleguides",
+    "toolguides",
+    "procedures",
+    "agent_profiles",
+)
+
+
+def _resolve_catalog_scope(domains: Collection[str] | None) -> frozenset[str]:
+    """Return the domains to scan, refusing an unknown token (#6462 contract S-3).
+
+    ``None`` means every domain -- today's behaviour, preserved for every caller
+    that does not scope its read (contract S-1). A token that names no domain
+    raises ``ValueError`` *before* any file is read: a typo must never yield an
+    empty catalog that silently disables selection validation.
+    """
+    if domains is None:
+        return frozenset(CATALOG_DOMAINS)
+    requested = frozenset(str(domain) for domain in domains)
+    unknown = requested - frozenset(CATALOG_DOMAINS)
+    if unknown:
+        raise ValueError(f"Unknown catalog domain(s): {', '.join(sorted(unknown))}. Known domains: {', '.join(CATALOG_DOMAINS)}.")
+    return requested
 
 
 @dataclass(frozen=True)
@@ -47,11 +79,16 @@ class OfferingCatalog:
     procedures: frozenset[str]
     agent_profiles: frozenset[str]
     domains_present: frozenset[str] = frozenset()
+    #: The domains this catalog was actually built for (#6462). A domain outside
+    #: this set was deliberately not read: its id set is empty and it is absent
+    #: from ``domains_present``.
+    domains_scanned: frozenset[str] = frozenset()
 
 def load_offering_catalog(
     *,
     include_proposed: bool = False,
     active_languages: list[str] | tuple[str, ...] | None = None,
+    domains: Collection[str] | None = None,
 ) -> OfferingCatalog:
     """Load the offering catalog from package assets with development fallbacks.
 
@@ -66,6 +103,14 @@ def load_offering_catalog(
     distinguish between "domain not deployed in this install" (safe to skip
     validation) and "domain present but built-in set is empty" (every
     selection is invalid).
+
+    ``domains`` names the domains to scan (#6462). A caller that reads only some
+    domains says so and pays only for those: a persona render that resolves
+    paradigms, directives and template sets reads 52 documents here instead of
+    265. ``None`` -- the default -- scans every domain, so every existing caller
+    keeps today's result exactly. A token that names no domain raises
+    ``ValueError`` before any file is read, and
+    ``OfferingCatalog.domains_scanned`` records what was actually read.
     """
     offering_root = resolve_offering_root()
     # Built-in artifact content was flattened out of ``src/charter/offering/<kind>/built-in``
@@ -76,87 +121,59 @@ def load_offering_catalog(
     # (resolved through ``MissionTemplateRepository``). Fail-closed: a missing pack root raises
     # rather than silently yielding empty catalogs (the BLOCKER guard).
     normalized_languages = None if active_languages is None else normalize_languages(active_languages)
+    scanned = _resolve_catalog_scope(domains)
 
     domains_present: set[str] = set()
 
-    paradigms, paradigms_present = _load_yaml_id_catalog_with_presence(
-        built_in_dir(ArtifactKind.PARADIGM),
-        "**/*.paradigm.yaml",
-        include_proposed=include_proposed,
-        active_languages=normalized_languages,
-    )
-    if paradigms_present:
-        domains_present.add("paradigms")
+    # Each block below is one domain. A caller that does not name a domain never
+    # pays for it: the block is skipped whole, so no file of that domain is
+    # opened (#6462). ``domains_present`` keeps its meaning -- it names only the
+    # domains that were scanned AND are deployed.
+    def _ids(
+        domain: str,
+        kind: ArtifactKind,
+        pattern: str,
+        *,
+        id_field: str = "id",
+    ) -> frozenset[str]:
+        if domain not in scanned:
+            return frozenset()
+        ids, present = _load_yaml_id_catalog_with_presence(
+            built_in_dir(kind),
+            pattern,
+            id_field=id_field,
+            include_proposed=include_proposed,
+            active_languages=normalized_languages,
+        )
+        if present:
+            domains_present.add(domain)
+        return frozenset(sorted(ids))
 
-    directives, directives_present = _load_yaml_id_catalog_with_presence(
-        built_in_dir(ArtifactKind.DIRECTIVE),
-        "**/*.directive.yaml",
-        include_proposed=include_proposed,
-        active_languages=normalized_languages,
-    )
-    if directives_present:
-        domains_present.add("directives")
+    paradigms = _ids("paradigms", ArtifactKind.PARADIGM, "**/*.paradigm.yaml")
+    directives = _ids("directives", ArtifactKind.DIRECTIVE, "**/*.directive.yaml")
+    tactics = _ids("tactics", ArtifactKind.TACTIC, "**/*.tactic.yaml")
+    styleguides = _ids("styleguides", ArtifactKind.STYLEGUIDE, "**/*.styleguide.yaml")
+    toolguides = _ids("toolguides", ArtifactKind.TOOLGUIDE, "**/*.toolguide.yaml")
+    procedures = _ids("procedures", ArtifactKind.PROCEDURE, "**/*.procedure.yaml")
+    profiles = _ids("agent_profiles", ArtifactKind.AGENT_PROFILE, "**/*.agent.yaml", id_field="profile-id")
 
-    template_sets, template_sets_present = _load_template_sets_with_presence(offering_root)
-    if template_sets_present:
-        domains_present.add("template_sets")
-
-    tactics, tactics_present = _load_yaml_id_catalog_with_presence(
-        built_in_dir(ArtifactKind.TACTIC),
-        "**/*.tactic.yaml",
-        include_proposed=include_proposed,
-        active_languages=normalized_languages,
-    )
-    if tactics_present:
-        domains_present.add("tactics")
-
-    styleguides, styleguides_present = _load_yaml_id_catalog_with_presence(
-        built_in_dir(ArtifactKind.STYLEGUIDE),
-        "**/*.styleguide.yaml",
-        include_proposed=include_proposed,
-        active_languages=normalized_languages,
-    )
-    if styleguides_present:
-        domains_present.add("styleguides")
-
-    toolguides, toolguides_present = _load_yaml_id_catalog_with_presence(
-        built_in_dir(ArtifactKind.TOOLGUIDE),
-        "**/*.toolguide.yaml",
-        include_proposed=include_proposed,
-        active_languages=normalized_languages,
-    )
-    if toolguides_present:
-        domains_present.add("toolguides")
-
-    procedures, procedures_present = _load_yaml_id_catalog_with_presence(
-        built_in_dir(ArtifactKind.PROCEDURE),
-        "**/*.procedure.yaml",
-        include_proposed=include_proposed,
-        active_languages=normalized_languages,
-    )
-    if procedures_present:
-        domains_present.add("procedures")
-
-    profiles, profiles_present = _load_yaml_id_catalog_with_presence(
-        built_in_dir(ArtifactKind.AGENT_PROFILE),
-        "**/*.agent.yaml",
-        id_field="profile-id",
-        include_proposed=include_proposed,
-        active_languages=normalized_languages,
-    )
-    if profiles_present:
-        domains_present.add("agent_profiles")
+    template_sets: set[str] = set()
+    if "template_sets" in scanned:
+        template_sets, template_sets_present = _load_template_sets_with_presence(offering_root)
+        if template_sets_present:
+            domains_present.add("template_sets")
 
     return OfferingCatalog(
-        paradigms=frozenset(sorted(paradigms)),
-        directives=frozenset(sorted(directives)),
+        paradigms=paradigms,
+        directives=directives,
         template_sets=frozenset(sorted(template_sets)),
-        tactics=frozenset(sorted(tactics)),
-        styleguides=frozenset(sorted(styleguides)),
-        toolguides=frozenset(sorted(toolguides)),
-        procedures=frozenset(sorted(procedures)),
-        agent_profiles=frozenset(sorted(profiles)),
+        tactics=tactics,
+        styleguides=styleguides,
+        toolguides=toolguides,
+        procedures=procedures,
+        agent_profiles=profiles,
         domains_present=frozenset(sorted(domains_present)),
+        domains_scanned=scanned,
     )
 
 
