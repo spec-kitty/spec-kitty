@@ -46,10 +46,13 @@ from charter.activation.mission_type_key import (
     read_mission_type as read_mission_type,
 )
 
-# Mission-type capability access — the substantive-spec requirement a consumer
-# (the resume-probe prerequisite) reads instead of reaching the activation
-# internals. Public per charter.activation.mission_type_profiles.__all__.
+# Mission-type capability access — the capabilities a consumer reads instead of
+# reaching the activation internals or testing a family name: the substantive-spec
+# requirement (the resume-probe prerequisite) and whether the type produces
+# committed code (the review-readiness implementation-commit prerequisite, #6328).
+# Public per charter.activation.mission_type_profiles.__all__.
 from charter.activation.mission_type_profiles import (
+    code_producing_for as code_producing_for,
     requires_substantive_spec_for as requires_substantive_spec_for,
 )
 
@@ -297,6 +300,7 @@ __all__ = [
     "apply_ledger_migration",
     "canonical_mission_type_key",
     "canonical_yaml",
+    "code_producing_for",
     "configured_languages",
     "created_slugs_by_kind",
     "deny_delta",

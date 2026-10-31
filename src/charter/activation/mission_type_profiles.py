@@ -69,6 +69,7 @@ from charter.bundle import CHARTER_YAML
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.activation.mission_type_key import canonical_mission_type_key, read_mission_type
 from charter.activation.sync import require_canonical_governance
+from charter.offering.missions.capabilities import BUILTIN_TYPE_CAPABILITIES
 
 if TYPE_CHECKING:
     from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
@@ -83,6 +84,7 @@ __all__ = [
     "ResolvedGovernance",
     "ResolvedMissionType",
     "UnknownMissionTypeError",
+    "code_producing_for",
     "existing_mission_types",
     "resolve_action_sequence_layer",
     "requires_substantive_spec_for",
@@ -386,14 +388,20 @@ class ResolvedGovernance:
 
 #: Built-in defaults for the authored ``requires_substantive_spec`` capability.
 #: A type's own declared value wins; a custom type that declares nothing is
-#: conservatively ``False``.
+#: conservatively ``False``. Derived from the one capability table in the
+#: offering layer (:data:`charter.offering.missions.capabilities.BUILTIN_TYPE_CAPABILITIES`),
+#: so the built-in values have a single home rather than one map per capability.
 BUILTIN_REQUIRES_SUBSTANTIVE_SPEC: Mapping[str, bool] = MappingProxyType(
-    {
-        "software-dev": True,
-        "research": True,
-        "documentation": False,
-        "plan": False,
-    }
+    {mission_type: capabilities["requires_substantive_spec"] for mission_type, capabilities in BUILTIN_TYPE_CAPABILITIES.items()}
+)
+
+#: Built-in defaults for the authored ``code_producing`` capability (#6327),
+#: derived from the same table. A type's own declared value wins; a custom type
+#: that declares nothing is conservatively ``False``, so no existing custom
+#: mission type silently gains code-rigour gates (such as the review-time
+#: implementation-commit prerequisite, #6328).
+BUILTIN_CODE_PRODUCING: Mapping[str, bool] = MappingProxyType(
+    {mission_type: capabilities["code_producing"] for mission_type, capabilities in BUILTIN_TYPE_CAPABILITIES.items()}
 )
 
 
@@ -453,6 +461,10 @@ class ResolvedMissionType:
     _requires_substantive_spec_thunk: Callable[[], bool] | None = field(
         default=None, repr=False, compare=False
     )
+    #: Deferred resolver for ``code_producing``. ``None`` yields ``False``.
+    _code_producing_thunk: Callable[[], bool] | None = field(
+        default=None, repr=False, compare=False
+    )
     #: Deferred resolver for ``step_contracts``. ``None`` yields ``[]``.
     _step_contracts_thunk: Callable[[], list[str]] | None = field(
         default=None, repr=False, compare=False
@@ -468,6 +480,19 @@ class ResolvedMissionType:
         if self._requires_substantive_spec_thunk is None:
             return False
         return self._requires_substantive_spec_thunk()
+
+    @cached_property
+    def code_producing(self) -> bool:
+        """Authored capability (lazy, memoised; see :data:`BUILTIN_CODE_PRODUCING`).
+
+        Resolved off the hot ``action_sequence`` path for the same reason
+        :attr:`requires_substantive_spec` is (FR-007 / NFR-001 of the #6315
+        mission, and NFR-002 here). ``False`` for the neutral bundle: a typeless
+        mission produces no code.
+        """
+        if self._code_producing_thunk is None:
+            return False
+        return self._code_producing_thunk()
 
     @cached_property
     def governance(self) -> ResolvedGovernance | None:
@@ -707,6 +732,9 @@ def resolve_mission_type_context(
         provenance=governance_provenance,
         wp_driven=step_ids_declare_wp_iteration(action_sequence),
         _requires_substantive_spec_thunk=lambda: _resolve_requires_substantive_spec(
+            type_key, is_registered=is_registered, pack_context=pack_context
+        ),
+        _code_producing_thunk=lambda: _resolve_code_producing(
             type_key, is_registered=is_registered, pack_context=pack_context
         ),
         # The FR-013 union (governance) + template mapping + WP11
@@ -1053,6 +1081,44 @@ def requires_substantive_spec_for(repo_root: Path, mission_type: str) -> bool:
         return bool(resolve_mission_type_context(repo_root, mission_type=mission_type).requires_substantive_spec)
     except Exception:  # noqa: BLE001 - probe must not crash; fall back to built-in default
         return bool(BUILTIN_REQUIRES_SUBSTANTIVE_SPEC.get(mission_type, False))
+
+
+def _resolve_code_producing(
+    mission_type: str,
+    *,
+    is_registered: bool,
+    pack_context: _PackContextLike,
+) -> bool:
+    """Declared ``code_producing`` -> built-in default -> ``False``."""
+    declared: bool | None = None
+    if is_registered:
+        from charter.offering.missions.mission_type_repository import (  # noqa: PLC0415
+            resolve_layered_mission_types,
+        )
+        from charter.offering.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+
+        dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
+        mission = resolve_layered_mission_types(dirs, pack_context).get(mission_type)
+        declared = mission.code_producing if mission is not None else None
+    if declared is not None:
+        return declared
+    return BUILTIN_CODE_PRODUCING.get(mission_type, False)
+
+
+def code_producing_for(repo_root: Path, mission_type: str) -> bool:
+    """Public: whether *mission_type* produces committed code (resolve + fallback).
+
+    Encapsulates the resolve-then-built-in-fallback so an external consumer (the
+    review-readiness implementation-commit prerequisite, #6328) depends on this
+    via ``charter.activation.api`` rather than reaching the activation internals
+    (the boundary gate forbids a new internal reach). A resolution error falls
+    back to the built-in default map, so the built-in types keep their effective
+    behaviour and the gate never crashes. (#6327)
+    """
+    try:
+        return bool(resolve_mission_type_context(repo_root, mission_type=mission_type).code_producing)
+    except Exception:  # noqa: BLE001 - gate must not crash; fall back to built-in default
+        return bool(BUILTIN_CODE_PRODUCING.get(mission_type, False))
 
 
 def _resolve_with_extends_fallback(
