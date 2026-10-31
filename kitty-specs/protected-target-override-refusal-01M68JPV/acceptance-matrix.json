@@ -1,0 +1,49 @@
+{
+  "mission_slug": "protected-target-override-refusal-01M68JPV",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Automated: tests/terminus/test_protected_target_preflight.py::test_target_override_onto_protected_main_is_refused_before_any_mutation passes (exit 1, PROTECTED_BRANCH_REFUSED, all refs and reflogs unchanged, no squash on main); red-proof before the fix: the same run printed '-> main  Commit: 90da2bb'.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T10:15:07.995027+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Automated: the refusal names both branches and the three routes (drop --target, correct meta.json target_branch, SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS); asserted in _assert_override_refused_before_any_mutation.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T10:15:12.178222+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Automated: --dry-run --json reports PROTECTED_BRANCH_REFUSED with the recorded target in the payload (test_dry_run_reports_the_target_override_refusal) and orchestrator-api consolidate-mission refuses with the same code in its envelope (test_protected_target_override_is_refused_before_any_branch_moves).",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T10:15:15.967896+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Automated: the full tests/terminus/test_protected_target_preflight.py module (14 cases, every #5385 control unmodified) and tests/orchestrator_api/test_consolidate_mission_protected_target.py (4 cases) pass; plus the in-bounds --target control.",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T10:15:19.460788+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
