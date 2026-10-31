@@ -2,7 +2,7 @@
   "mission_slug": "migration-dry-run-payload-authority-01M68JCJ",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/migration/...::test_historical_overrides_are_the_only_divergence_from_the_row (for_review alias + evidence synthesis)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:40.777248+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
