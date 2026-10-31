@@ -10,11 +10,9 @@ requirement_refs:
 - C-004
 - NFR-001
 - NFR-003
-tracker_refs:
-- '#6449'
 planning_base_branch: issue-6449-migration-dry-run-payload-authority
 merge_target_branch: issue-6449-migration-dry-run-payload-authority
-branch_strategy: Planning artifacts were generated on issue-6449-migration-dry-run-payload-authority; completed changes must merge back into that branch (single-branch mission).
+branch_strategy: Planning artifacts for this mission were generated on issue-6449-migration-dry-run-payload-authority. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6449-migration-dry-run-payload-authority unless the human explicitly redirects the landing branch.
 subtasks:
 - T006
 - T007
@@ -22,9 +20,6 @@ subtasks:
 - T009
 - T010
 phase: Phase 2 - Call site and parity
-assignee: ''
-agent: "pi:claude-sonnet:python-pedro:implementer"
-shell_pid: ''
 history:
 - at: '2026-10-31T09:00:00Z'
   actor: system
@@ -42,6 +37,8 @@ owned_files:
 role: implementer
 tags: []
 task_type: implement
+tracker_refs:
+- '#6449'
 ---
 
 # Work Package Prompt: WP02 – Dry-run call site and byte-parity pin
