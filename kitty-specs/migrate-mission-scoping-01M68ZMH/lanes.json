@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "migrate-mission-scoping-01M68ZMH",
+  "mission_id": "01M68ZMHC73SPMJX2WY6HRSBYE",
+  "mission_branch": "issue-6347-migrate-mission-scoping",
+  "target_branch": "issue-6347-migrate-mission-scoping",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/migrate/backfill_provenance.py",
+        "src/specify_cli/cli/commands/migrate/charter_encoding.py",
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "src/specify_cli/dossier/rebaseline.py",
+        "tests/cli/test_mission_agnostic_flag.py",
+        "tests/migration/test_migrate_mission_scoping.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:44:31.631652+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9794ab5ae5a67cffb9d03f35879e44600aeb49b7"
+}
