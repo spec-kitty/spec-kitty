@@ -292,16 +292,24 @@ class VerifyResult:
 # ---------------------------------------------------------------------------
 
 
-def _declared_mission_id(read_dir: Path) -> str | None:
-    """Return the ``mission_id`` ``meta.json`` DECLARES, or ``None`` when it declares none.
+def _mission_identity(read_dir: Path) -> tuple[str, str | None]:
+    """Return ``(seed_namespace, declared_mission_id)`` from ONE ``meta.json`` read.
 
-    This is the *envelope* value: what the seed rows this module mints put in
-    their ``mission_id`` field. It is deliberately NOT the seed-id namespace root
-    (that is :func:`_mission_id`), and it is deliberately not "absent" just
-    because a legacy Mission declares its own slug (#6689).
+    The two values are deliberately different and must never be conflated
+    (#6689):
 
-    Why the two must be distinct: ``StatusEvent.to_dict`` omits a ``None``
-    ``mission_id``, and
+    * **seed_namespace** — the deterministic seed-id namespace root
+      (:func:`_seed_id` input): the declared id, or the directory name when
+      ``meta.json`` declares none. A legacy mission without a minted
+      ``mission_id`` degrades to its directory name — still stable per corpus,
+      which is all the seed determinism requires.
+    * **declared_mission_id** — the *envelope* value: what the seed rows this
+      module mints put in their ``mission_id`` field, or ``None`` when
+      ``meta.json`` declares none. It is not "absent" just because a legacy
+      Mission declares its own slug.
+
+    Why the envelope must be the declared value: ``StatusEvent.to_dict`` omits a
+    ``None`` ``mission_id``, and
     :func:`~specify_cli.status.store.read_event_stream` re-derives one for any row
     that has none — resolving the row's ``mission_slug`` through ``meta.json``
     (``status.store._SlugResolver``). So the only round-trip-stable envelope value
@@ -311,30 +319,32 @@ def _declared_mission_id(read_dir: Path) -> str | None:
     omitting it (writing the directory-name fallback would put an identity on the
     row that no reader would ever have produced).
 
+    Why the namespace keeps its fallback: the seed id is the idempotency key. If
+    it moved for any corpus, every already-seeded Mission would mint a second,
+    differently-named row per WP — which is why this split, not a namespace
+    change, is the fix.
+
     *read_dir* is the canonical PRIMARY leg (NFR-004 / R5) — mirrors
-    :func:`_mission_id`'s pinned leg (#2966 part-1); a COORD write leg's own
-    ``meta.json`` must never be consulted here.
+    :func:`_synthesize_claim_anchor`'s pinned leg (#2966 part-1); a COORD write
+    leg's own ``meta.json`` must never be consulted here.
     """
+    declared: str | None = None
     meta = load_meta(read_dir, allow_missing=True, on_malformed="none")
     if meta is not None:
         raw = meta.get("mission_id")
         if raw:
-            return str(raw)
-    return None
+            declared = str(raw)
+    return (declared or read_dir.name, declared)
 
 
 def _mission_id(read_dir: Path) -> str:
     """Return the seed-id NAMESPACE root: the declared ``mission_id`` or the slug.
 
-    The mission_id is the deterministic-ULID namespace root. A legacy mission
-    without a minted ``mission_id`` degrades to its directory name — still stable
-    per corpus, which is all the seed determinism requires.
-
     Namespace root only: it is the ``_seed_id`` input, never the envelope value
-    (:func:`_declared_mission_id` owns that). Keeping the fallback here while the
-    envelope uses the declared value alone is what makes the #6689 fix
-    namespace-neutral — every already-seeded corpus keeps its seed ids and so
-    stays idempotent.
+    (:func:`_mission_identity` carries both and owns that distinction). Keeping
+    the fallback here while the envelope uses the declared value alone is what
+    makes the #6689 fix namespace-neutral — every already-seeded corpus keeps
+    its seed ids and so stays idempotent.
 
     *read_dir* is the canonical PRIMARY leg (NFR-004 / R5) — mirrors
     :func:`_synthesize_claim_anchor`'s pinned leg (#2966 part-1). ``meta.json``
@@ -346,7 +356,7 @@ def _mission_id(read_dir: Path) -> str:
     the mission's real ULID (and left the written event's own ``mission_id``
     field ``None``, since it then equalled the mission slug).
     """
-    return _declared_mission_id(read_dir) or read_dir.name
+    return _mission_identity(read_dir)[0]
 
 
 def _seed_id(mission_id: str, wp_id: str, field_name: str) -> str:
@@ -899,11 +909,12 @@ def _claim_carrier(
     Two identities, deliberately separate (#6689):
 
     * *seed_namespace* namespaces the deterministic ``event_id``
-      (:func:`_seed_id`) — :func:`_mission_id`'s value, unchanged for every
-      corpus so an already-seeded project keeps its ids and stays idempotent.
+      (:func:`_seed_id`) — :func:`_mission_identity`'s namespace half, unchanged
+      for every corpus so an already-seeded project keeps its ids and stays
+      idempotent.
     * *mission_id* is the envelope value written to disk —
-      :func:`_declared_mission_id`'s value, ``None`` when ``meta.json`` declares
-      none. It must be exactly what
+      :func:`_mission_identity`'s declared half, ``None`` when ``meta.json``
+      declares none. It must be exactly what
       :func:`~specify_cli.status.store.read_event_stream` re-derives for this
       row, or the seed and its own verifier disagree forever: the pre-fix code
       collapsed a slug-valued id to ``None`` here, the reader resolved the row's
@@ -984,7 +995,7 @@ def _build_seed_events(
     mission_id = _mission_id(read_dir)
     # Envelope identity for the claim carrier: exactly what meta.json declares,
     # so the written row round-trips to itself through read_event_stream (#6689).
-    declared_mission_id = _declared_mission_id(read_dir)
+    _namespace, declared_mission_id = _mission_identity(read_dir)
     # Recorded lane history the retroactive claim seed must fold BEFORE
     # (:func:`_retro_claim_at`) so it can never regress a WP's reduced lane.
     earliest_ats = _earliest_transition_ats(feature_dir)
@@ -1107,8 +1118,7 @@ def _legacy_contract_carriers(
     :func:`_verify_expected_seed_events` refuses it and stays fail-closed.
     """
     slug = feature_dir.name
-    mission_id = _mission_id(read_dir)
-    declared_mission_id = _declared_mission_id(read_dir)
+    mission_id, declared_mission_id = _mission_identity(read_dir)
     carriers: dict[str, StatusEvent] = {}
     for wp_id, runtime in legacy.items():
         claim_slots = _legacy_claim_slots(runtime)
