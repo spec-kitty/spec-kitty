@@ -1,0 +1,37 @@
+{
+  "accept_commit": "133bd47b1421acc6f7130a0c8a1d5259db7a7fc4",
+  "acceptance_history": [
+    {
+      "accept_commit": "133bd47b1421acc6f7130a0c8a1d5259db7a7fc4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T00:30:41.915961+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "52ffd69a5ca44f93379c0b8eb819a8b92906755f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T00:30:41.915961+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "52ffd69a5ca44f93379c0b8eb819a8b92906755f",
+  "baseline_merge_commit": "491e49e0f4d60b57fbb35a3972a0b38acd45b510",
+  "contracts": "none",
+  "contracts_rationale": "This Mission changes an internal migration's seed-event envelope construction; it defines no external interface, endpoint, event contract or schema that another system consumes. The event row shape itself is unchanged (the mission_id field already exists on StatusEvent and is already written by every post-WP05 emitter); only whether the migration populates it changes.",
+  "created_at": "2026-10-30T23:19:07.839784+00:00",
+  "flattened": false,
+  "friendly_name": "backfill runtime state idempotent claim slots",
+  "merged_at": "2026-10-31T00:38:05.871690+00:00",
+  "merged_commit": "6474700788c584df214fe585531e354f2ea94d04",
+  "mid8": "01M67HR8",
+  "mission_id": "01M67HR86CG32EPCV4K6S9PAMN",
+  "mission_number": 244,
+  "mission_slug": "backfill-runtime-state-idempotent-claim-slots-01M67HR8",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances backfill runtime state idempotent claim slots on issue-6689-backfill-claim-slots so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "backfill runtime state idempotent claim slots",
+  "slug": "backfill-runtime-state-idempotent-claim-slots-01M67HR8",
+  "status_phase": "1",
+  "target_branch": "issue-6689-backfill-claim-slots",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:24:34.237730+00:00"
+}

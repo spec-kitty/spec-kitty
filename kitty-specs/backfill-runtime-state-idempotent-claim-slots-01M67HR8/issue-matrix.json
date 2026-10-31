@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2966": {
+      "evidence_ref": "Context only: #2966 part-1 pinned _mission_id to the PRIMARY leg; this Mission keeps that leg and changes only the carrier envelope, so no work is owed to #2966.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3347": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: context_only>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6689": {
+      "evidence_ref": "commit bb300ee98f on issue-6689-backfill-claim-slots; 11 new rows green, 9/11 red pre-fix",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6798": {
+      "evidence_ref": "Follow-up: pre-existing red on origin/main, tracked in #6798",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Follow-up: 4 birth-cutover reds reproduce on pristine origin/main, tracked in #6801",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Follow-up: router false red tracked in #6816",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
