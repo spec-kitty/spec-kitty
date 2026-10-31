@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "mission_slug": "activation-writes-under-synthesis-lock-01M68ZS1",
+  "mission_id": "01M68ZS1EJTGNEZG3K1R35A1BE",
+  "mission_branch": "kitty/mission-activation-writes-under-synthesis-lock-01M68ZS1",
+  "target_branch": "issue-6719-activation-writes-under-synthesis-lock",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/charter/activation/test_activation_writes_under_synthesis_lock.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/ERROR_CODES.md",
+        "src/charter/activation/activation_engine.py",
+        "src/charter/activation/activation_ledger.py",
+        "src/charter/activation/pack_manager.py",
+        "src/charter/activation/preset_application.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "src/specify_cli/cli/commands/charter/deactivate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-31T12:49:11.828229+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fc8ca31f02134f3de48c43438bea30f9377bc591"
+}
