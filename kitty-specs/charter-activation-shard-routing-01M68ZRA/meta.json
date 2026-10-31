@@ -1,0 +1,42 @@
+{
+  "accept_commit": "3f982d5a0e848df1aa2759dd9711e78379298e9d",
+  "acceptance_history": [
+    {
+      "accept_commit": "1a694dcc1bc221ec629b4c9ff83d9fb1318f7b08",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:53:28.759975+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "9bf5e903b0313efcd13841a562ddb8dcde115562"
+    },
+    {
+      "accept_commit": "3f982d5a0e848df1aa2759dd9711e78379298e9d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:53:34.062318+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "e03b2daef71e50076fd102eeb157672a0bae36bc"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T13:53:34.062318+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "e03b2daef71e50076fd102eeb157672a0bae36bc",
+  "baseline_merge_commit": "d7918ef5dd0008a64e116cae80be28f09b7fba44",
+  "contracts": "none",
+  "contracts_rationale": "No external interface: the mission changes in-repo CI routing data (ci-router.yml filter groups + outputs, tests/release/ci_retirement_scrub.json roots, .github/ci-module-registry.yml roots) and its gate-selection fan-out. The data contracts are the YAML/JSON artifacts themselves, already pinned by tests/architectural/test_ci_router_transcription_guards.py and test_module_shard_registry.py; an OpenAPI/GraphQL schema would have nothing to describe.",
+  "created_at": "2026-10-31T12:43:04.889465+00:00",
+  "flattened": false,
+  "friendly_name": "charter activation shard routing",
+  "merged_at": "2026-10-31T13:54:23.418495+00:00",
+  "merged_commit": "d7918ef5dd0008a64e116cae80be28f09b7fba44",
+  "mid8": "01M68ZRA",
+  "mission_id": "01M68ZRAP3P6XS37QF3CY7X7SE",
+  "mission_number": 245,
+  "mission_slug": "charter-activation-shard-routing-01M68ZRA",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter activation shard routing on issue-6336-charter-activation-shard-routing so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter activation shard routing",
+  "slug": "charter-activation-shard-routing-01M68ZRA",
+  "status_phase": "1",
+  "target_branch": "issue-6336-charter-activation-shard-routing",
+  "topology": "single_branch"
+}

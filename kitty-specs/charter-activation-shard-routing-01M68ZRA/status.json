@@ -1,0 +1,92 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M693TYYY8JPB5WY1942S2ET2",
+  "materialized_at": "2026-10-31T13:54:25.374679+00:00",
+  "mission_number": "245",
+  "mission_slug": "charter-activation-shard-routing-01M68ZRA",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude-code",
+      "lane": "done",
+      "last_event_id": "01M693TX5DDXADM868VJTB816R",
+      "last_transition_at": "2026-10-31T13:54:23.533316+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T12:51:33Z – unknown – T001 red recorded: tests/ci/test_charter_activation_routing.py fails on pre-fix main (ImportError: ACTIVATION_STORE_MODULE_FANOUT does not exist), and the underlying routing hole was reproduced directly through scripts.ci.gate_selection.select_modules: .kittify/charter/charter.yaml, .kittify/charter/activation.yaml and packs/internal.source.yaml each selected frozenset(); src/kernel/activation_ledger_store.py selected {core_misc, kernel, unit} without charter.",
+        "- 2026-10-31T13:08:48Z – unknown – T002-T006 done: charter_activation filter group + changes.outputs row in ci-router.yml; ACTIVATION_STORE_MODULE_FANOUT in gate_selection.py (exported + consulted by select_modules); group registered in _DELIBERATELY_UNGATED_FILTER_GROUPS; fan-out wiring pin extended. Verification: 120 passed across test_ci_router_transcription_guards, test_gate_selection_authority, test_workflow_coherence, test_ci_quality_path_filters, test_ci_integrity_oracle_nonvacuous, test_consumer_census_routing, tests/ci/test_fanout_derivation, tests/ci/test_consumer_census; new routing module 20 passed / 2 WP02-scope failures; ruff check + ruff format --check clean (force-exclude for the ratchet-listed test_workflow_coherence.py); test_ruff_format_exclude_ratchet 6 passed.",
+        "WP01 implementation is commit 1e6e5e2 (charter_activation group + ACTIVATION_STORE_MODULE_FANOUT + guard registries). The claim commit c91a953 was created after the work by an ordering accident, so the since-claim check saw no commit; nothing is uncommitted.",
+        "- 2026-10-31T13:18:13Z – claude-code – shell_pid=535544 – Review round 1 finding (brittleness) addressed: the blast-radius pin now compares selection against the same router with the charter_activation group stripped instead of hardcoding other groups' fan-out module sets, so an unrelated mission adding a pack consumer cannot red this file. Re-verified: 22 passed / 2 WP02-scope failures; ruff check + format clean.",
+        "Review passed (reviewer-renata): FR-001/002/003/006/007/009 each carry a production-path assertion in tests/ci/test_charter_activation_routing.py driving select_gates/select_modules against the real router, with revert rows proving non-vacuity. No dead code (ACTIVATION_STORE_MODULE_FANOUT is consumed by the select_modules entry point), no silent returns or new raises, no frozen surface, no MUST NOT contradicted (the charter scrub group is untouched by this WP). Round 1 fixed one brittleness finding: the blast-radius pin now compares against the same router with the new group stripped instead of freezing unrelated fan-out module sets. All issue-matrix rows carry terminal verdicts."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 535544,
+      "shell_pid_created_at": "1793452153.56",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-code",
+      "lane": "done",
+      "last_event_id": "01M693TYYY8JPB5WY1942S2ET2",
+      "last_transition_at": "2026-10-31T13:54:25.374679+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T13:45:13Z – claude-code – shell_pid=666676 – T007-T012 done: ledger floor + reader pins added (red recorded before the root existed: charter absent from the floor selection and from the scrub charter row); scrub charter roots, registry charter row and router charter filter all gained src/kernel/activation_ledger_store.py in one commit (13ff55a); [Unreleased] changelog entry added (#6336, 992 chars). Verification: tests/ci/test_charter_activation_routing.py 24 passed; 158 passed across the CI-integrity set (test_ci_router_transcription_guards, test_gate_selection_authority, test_workflow_coherence, test_module_shard_registry, test_retirement_scrub, test_ci_integrity_oracle_nonvacuous, test_ci_quality_path_filters, test_consumer_census_routing, tests/ci/test_fanout_derivation, tests/ci/test_consumer_census) plus test_same_tier_uniqueness 21 passed on re-run (its first run hit the pre-existing cold collect_universe fixture timeout under host load, not the diff); test_no_legacy_terminology 98 passed.",
+        "WP02 complete: the ledger floor joins the charter group in all three transcription sites, and the changelog entry lands. 24 routing tests + 158 CI-integrity tests + 21 same-tier tests green.",
+        "Review passed (reviewer-renata). FR-004/FR-005/FR-008 each carry a production-path assertion (select_modules on src/kernel/activation_ledger_store.py and src/charter/activation/activation_ledger.py; the scrub charter root + router transcription pin). The three transcription sites moved in one commit, so test_router_src_filters_derive_from_scrub_verbatim, test_registry_consumes_scrub_verbatim_no_divergent_rescrub, test_retirement_scrub, test_module_shard_registry, test_same_tier_uniqueness and test_coverage_breadth/test_coverage_topology_ownership are green; no registry row/shard_count/test_dirs changed. Changelog entry is 992 chars with a bold impact-first lead and (#6336). No gate weakened, no frozen surface touched, no new raise."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 666676,
+      "shell_pid_created_at": "1793452787.63",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}
