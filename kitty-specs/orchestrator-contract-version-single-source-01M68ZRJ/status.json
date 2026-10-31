@@ -1,0 +1,80 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6946GYJQXAPAJG0CFBH3JBD",
+  "materialized_at": "2026-10-31T14:00:44.242497+00:00",
+  "mission_number": "245",
+  "mission_slug": "orchestrator-contract-version-single-source-01M68ZRJ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M6946GMM46PSYG767HGS1F3Q",
+      "last_transition_at": "2026-10-31T14:00:43.924697+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T13:08:55Z – unknown – T001 RED: guard test added; pytest test_contract_version.py -> 1 failed naming tests/orchestrator_api/test_origin_freshness_envelopes.py:29 (pre-fix tree). Scan cost 0.4s idle / 0.9-4.1s loaded over 4282 files; scanned-file floor MIN_SCANNED_FILES=3000 added for non-vacuity.",
+        "- 2026-10-31T13:08:59Z – unknown – T002 GREEN: origin-freshness imports envelope.CONTRACT_VERSION; _CONTRACT_VERSION literal deleted; both refusal assertions re-pointed in place (kept, per tactic delete-the-assertion-not-the-test). T003: canonical pin docstring no longer claims a current value. T004: mutation re-inserting a literal failed the guard naming line 127; reverted, tree clean.",
+        "- 2026-10-31T13:09:02Z – unknown – Suites: 31 passed (test_contract_version.py + test_envelope_unit.py + test_wp_lifecycle_structured_actor_6400.py, 106s); 13 passed (test_origin_freshness_envelopes.py, 76s). ruff check + ruff format clean on both files.",
+        "Implementation commit c9d4991aa4 (tests) and 0156635bba (docs) landed before the lane claim, so no commit is newer than the claim base; the working tree is clean and both commits are in this branch. Nothing to commit remains.",
+        "- 2026-10-31T13:44:02Z – pi:deepseek-v4.1-flash-1017:python-pedro:implementer – Review cycle 1 (independent reviewer pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer) APPROVED with six non-blocking findings; cycle 2 re-check APPROVED with N1-N4 marked FIXED and one cosmetic new finding, fixed in a051188e9c.",
+        "Approved: cycle 1 APPROVED (6 non-blocking), cycle 2 re-check APPROVED (N1-N4 FIXED, cosmetic fix in a051188e9c). Guard non-vacuity reproduced end-to-end; origin-freshness 13 passed; module 6 passed; src/ untouched."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:deepseek-v4.1-flash-1017:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M6946GYJQXAPAJG0CFBH3JBD",
+      "last_transition_at": "2026-10-31T14:00:44.242497+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T13:48:34Z – pi:deepseek-v4.1-flash-1017:scribe-sally:implementer – Added the [Unreleased] Fixed entry for #6578. Initial draft went to Internal, which the changelog style gate refuses (Internal entries are one line, no Before/After), so it moved to Fixed; 'behaviour' tripped the US-spelling gate and became 'behavior'. Gates: tests/docs/test_changelog_style.py + test_unreleased_section.py + test_check_spelling.py + test_docs_spelling_live.py -> 228 passed; check_docs_freshness --ci -> errors=0, warnings=6 pre-existing.",
+        "- 2026-10-31T13:57:53Z – pi:deepseek-v4.1-flash-1017:scribe-sally:implementer – Review cycle 1 APPROVED with F1 (accuracy): the issue records the pin one bump stale (1.14.0 vs 1.15.0), not two. Corrected in the changelog entry, spec.md, plan.md, the WP01/WP02 prompts and the guard docstring. Re-ran: docs gates 228 passed; test_contract_version.py 6 passed.",
+        "Approved: cycle 1 APPROVED; the one low accuracy finding (one bump stale, not two) is fixed in 34a6717424 across the changelog, spec, plan and prompts. Docs gates 228 passed, guard module 6 passed, check_docs_freshness errors=0."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T005": "done"
+      }
+    }
+  }
+}
