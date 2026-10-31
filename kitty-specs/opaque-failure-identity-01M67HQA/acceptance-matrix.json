@@ -1,0 +1,49 @@
+{
+  "mission_slug": "opaque-failure-identity-01M67HQA",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "An opaque declared-command failure's identity is its observed exit status plus a digest of its full output tail; two opaque failures match only when both agree.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "evidence: tests/review/test_opaque_failure_identity.py::test_opaque_failure_carries_its_exit_status_and_marker, ::test_shared_generic_last_line_is_not_an_identity"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "An opaque candidate failure identical to the baseline's (same exit status and digest) stays pre-existing.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "evidence: tests/review/test_opaque_failure_identity.py::test_identical_opaque_failure_stays_pre_existing, ::test_opaque_match_through_the_gate_stays_pre_existing_and_names_it"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Recognised named failures (FAIL <name>, JUnit test names) keep name-based matching, so a pre-existing named failure with a changed message stays pre-existing and a new name is new.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "evidence: tests/review/test_opaque_failure_identity.py::test_named_failures_keep_name_based_matching, tests/review/test_scope_source.py::test_declared_command_parse_results_parses_junit_xml"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "A verdict reached from a declared-command run carries the observed exit status, and a baseline-relative no_new_failures says so in its reason instead of reading as a clean exit.",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "evidence: tests/review/test_verdict_candidate_exit.py::test_nonzero_candidate_with_only_pre_existing_failures_records_its_exit, ::test_clean_candidate_records_exit_zero"
+    }
+  ],
+  "negative_invariants": []
+}
