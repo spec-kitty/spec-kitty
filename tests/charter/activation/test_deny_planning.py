@@ -263,6 +263,10 @@ def test_effective_deny_subtracts_the_required_floor_in_identity_space() -> None
         def stem(self, kind: ArtifactKind, token: str) -> str | None:
             return {"DIRECTIVE_D": "d", "d": "d"}.get(token)
 
+        def urn(self, kind: ArtifactKind, token: str) -> str | None:
+            declared = self.declared_id(kind, token)
+            return None if declared is None else f"{kind.value}:{declared}"
+
     stems = _effective_deny(ArtifactKind.DIRECTIVE, ["DIRECTIVE_D", "x", "y"], {"x"}, _Index()).stems
 
     assert stems == frozenset({"d", "y"})

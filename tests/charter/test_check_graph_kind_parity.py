@@ -195,7 +195,7 @@ def test_non_drift_error_propagates_not_swallowed_as_drift(
     )
     armed: list[bool] = []
     real_filter = drg_activation.filter_graph_by_activation
-    real_declared_id = IdentityIndex.declared_id
+    real_urn = IdentityIndex.urn
 
     def _filter_then_arm(*args: Any, **kwargs: Any) -> DRGGraph:
         graph = real_filter(*args, **kwargs)
@@ -206,10 +206,10 @@ def test_non_drift_error_propagates_not_swallowed_as_drift(
     def _boom(self: IdentityIndex, kind: ArtifactKind, token: str) -> str | None:
         if armed:
             raise TypeError("simulated programming bug, not a config-drift condition")
-        return real_declared_id(self, kind, token)
+        return real_urn(self, kind, token)
 
     monkeypatch.setattr(drg_activation, "filter_graph_by_activation", _filter_then_arm)
-    monkeypatch.setattr(IdentityIndex, "declared_id", _boom)
+    monkeypatch.setattr(IdentityIndex, "urn", _boom)
 
     with pytest.raises(TypeError, match="simulated programming bug"):
         run_consistency_check(ctx)
