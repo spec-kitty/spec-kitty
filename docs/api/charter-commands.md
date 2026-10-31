@@ -90,6 +90,12 @@ each key it left absent, and names any selected id you deactivated separately â€
 never clears a deny list, so that id stays out of force (`kept deactivated: directive <id>`).
 `--narrow-activation` is the way to keep activation narrow and write an explicit list.
 
+The interview decides per kind, not per id: it never checks whether the effective set could be
+resolved, because every selected id was resolved against the catalogue and a kind whose absent key
+puts everything in force already has them in force. (`charter activate` differs: when it cannot
+resolve the effective set it cannot prove the id is in force, so it writes a list.) A kind whose
+absent key puts only the org-required set in force, such as `skill`, is written.
+
 **Project languages (`languages` in `.kittify/config.yaml`)**: before the questions, the interview
 detects the repository's languages (manifests and source counts) and proposes them. You confirm or
 edit the list, primary language first, and it is stored as a top-level list of catalog tokens:

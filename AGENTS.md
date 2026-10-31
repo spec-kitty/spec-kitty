@@ -658,6 +658,7 @@ commit_plan(plan, project_root=Path("."))
 
 ADR [`2026-10-19-1`](docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md) (Amendment 2026-10-20). Activation lives in one git-tracked file, `.kittify/charter/activation.yaml`: `activated_kinds`, `mission_type_activations`, three-state `activated_<plural>` and the `deactivated_<plural>` exclusions. Read and write it only through that module (`charter.activation.api` from `specify_cli`); the kernel resolver `resolve_activation_source` picks the source.
 
+- **An absent key stays absent (#6685).** For a kind whose absent key puts everything in force (`effective_when_absent: all`), a first `charter activate` or `charter interview` writes no allow list; one predicate, `absent_key_stays_implicit` (`charter.activation.api`), serves them and the upgrade promotion. `--only` / `--narrow-activation` write one.
 - **Effective set** = allow state − (exclusions resolved by stem / declared id / URN − the org required floor). A deny never removes an org-required id.
 - **Only explicit choices change a deny list** (`deny_change=DenyListChoice.*`, else `DenyListWriteRefused`): `charter deactivate` adds; `charter activate` (incl. `--only`), `--cascade ... --include-deactivated` and `--preset X --force` remove. Presets without `--force`, the interview, promotion, synthesis and migrations never do.
 - **Required refusal:** `charter deactivate` of an org-required id exits 1 naming the pack (`RequiredArtifactDeactivationError`); nothing is recorded.
@@ -675,7 +676,7 @@ charter deactivate mission-type research --cascade all
 charter activate directive <id> --cascade all --include-deactivated
 ```
 
-A mission type is a cascade source. The walk stops at a deactivated artifact (`Skipped, deactivated` / `Unreached (behind a deactivated artifact)` lines); `--include-deactivated` walks through and clears those exclusions. Without `--cascade`: warns about every referenced artifact (long for a mission type) with a suggested recovery command. **Shared-reference safety (C-005):** cascade deactivation skips artifacts still referenced by another active artifact.
+A mission type is a cascade source. The walk stops at a deactivated artifact (`Skipped, deactivated` / `Unreached (behind a deactivated artifact)` lines); `--include-deactivated` walks through and clears those exclusions. Without `--cascade`: warns about every referenced artifact (long for a mission type) with a suggested recovery command. **Shared-reference safety (C-005):** cascade deactivation skips artifacts still referenced by another active artifact. `deactivate ... --cascade` leaves the children of a kind with no written allow list in force and reports each with its `charter deactivate` command (#6873).
 
 ### Canonical Kind Vocabulary
 
