@@ -633,7 +633,12 @@ below both the recorded version and 4.0.0rc8, so it is never settled without run
 `tests/upgrade/test_upgrade_keeps_absent_activation_6629.py` drives a project stamped
 below 3.2.6rc1 through the runner and `charter synthesize --dry-run --json`. On a project stamped
 above 3.2.6rc1, adoption settles the shipped step without running it in that upgrade, so a
-reproduction stamped there would never witness the bug.
+reproduction stamped there would never witness the bug. The post-fold re-selection of #6549 is
+pinned for both halves by `tests/upgrade/test_promote_answers_post_fold_convergence_6549.py`: it
+runs the fold over a project whose `config.yaml` already mirrors its interview selection, asserts
+the registered step is a no-op and that a second upgrade leaves the activation surfaces alone, and
+re-runs the same fixture with this table's entry removed to show the 38-directive `config.yaml`
+copy returning.
 
 **Accepted loss.** A project an earlier build already seeded keeps its list. The successor only
 warns when a present list holds every available artifact while the interview selected fewer,
