@@ -159,6 +159,7 @@ from charter.activation.synthesizer.synthesis_lock import (
 # the respective modules' ``__all__``.
 from charter.activation.activation_engine import (
     PromotionOutcome as PromotionOutcome,
+    absent_key_stays_implicit as absent_key_stays_implicit,
     promote_activations as promote_activations,
 )
 from charter.activation.catalog import resolve_offering_root as resolve_offering_root
@@ -278,6 +279,7 @@ __all__ = [
     "SynthesisLockHeldError",
     "SynthesisLockUnavailableError",
     "UnrepresentableDirectiveIdError",
+    "absent_key_stays_implicit",
     "append_synthesized_activations",
     "apply_ledger_migration",
     "canonical_mission_type_key",

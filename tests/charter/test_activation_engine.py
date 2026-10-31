@@ -23,6 +23,8 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
+from charter.offering.artifact_kinds import ArtifactKind
+
 from charter.activation.activation_engine import (
     ActivationPlan,
     UnknownActivationIdError,
@@ -391,3 +393,25 @@ def test_plan_activation_narrow_base_stays_fail_closed_on_a_non_list_value() -> 
             previous_ids=["001-foo"],
         )
     assert data == {"activated_directives": "001-foo"}
+
+
+@pytest.mark.parametrize("kind", list(ArtifactKind), ids=lambda k: k.value)
+def test_absent_key_stays_implicit_follows_effective_when_absent(kind: Any) -> None:
+    """One predicate for every writer (#6685): only an ABSENT key of an ``all`` kind stays implicit.
+
+    The interview's split (``_present_key_promotions``) uses the same rule, so a ``required``
+    kind's selection is written while an ``all`` kind's is left absent.
+    """
+    from charter.activation.activation_engine import absent_key_stays_implicit
+
+    wants_implicit = kind.effective_when_absent == "all"
+    assert absent_key_stays_implicit(kind.effective_when_absent, key_present=False) is wants_implicit
+    assert absent_key_stays_implicit(kind.effective_when_absent, key_present=True) is False
+
+    if kind.activatable:
+        from specify_cli.cli.commands.charter.interview import _present_key_promotions
+
+        key = f"activated_{kind.plural}"
+        present, left_absent = _present_key_promotions({key: ["x"]}, {})
+        assert (key in left_absent) is wants_implicit
+        assert (key in present) is (not wants_implicit)
