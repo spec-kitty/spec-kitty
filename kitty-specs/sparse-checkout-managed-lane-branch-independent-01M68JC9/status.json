@@ -1,0 +1,56 @@
+{
+  "event_count": 11,
+  "last_event_id": "01M68N80BKHA69H0XHSFEXF25Y",
+  "materialized_at": "2026-10-31T09:39:24.147221+00:00",
+  "mission_number": "245",
+  "mission_slug": "sparse-checkout-managed-lane-branch-independent-01M68JC9",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 3,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M68N80BKHA69H0XHSFEXF25Y",
+      "last_transition_at": "2026-10-31T09:39:24.147221+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: red-first tests, branch-independent policy source, doctor pinning, changelog. Targeted suites 21 passed; 2 pre-existing reds in test_merge_refresh_and_invariant.py cited as #6787.",
+        "Review passed (recorded self-review fallback): red-first order confirmed, branch-switched verdict green, fail-closed controls green, half-by-half revert proof red, refusal text and classifier untouched. Two review-round findings folded in: inert except OSError removed (load_meta absorbs) and the lane-local read gated on is_active (NFR-001).",
+        "Review round 2: identity evidence gap (implementer claim recorded no profile), rework to re-claim under the implementer profile. No code change.",
+        "Rework complete: no code change required (identity evidence only). Re-verified: 42 targeted tests green across the four sparse-checkout suites.",
+        "Review passed, round 2 (recorded self-review fallback): red-first order intact, branch-switched verdict green, fail-closed controls green, half-by-half revert proof red, refusal text and classifier untouched, review-round findings folded in."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#6844"
+      ]
+    }
+  }
+}

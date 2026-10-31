@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#1413": {
+      "evidence_ref": "Predecessor: #1413 taught the scanner to distinguish managed lanes; this mission extends its acceptance, which does not hold when the root checkout's branch lacks the other Mission's kitty-specs/. Its guards are preserved unchanged (FR-002)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5100": {
+      "evidence_ref": "Cited for the planning-lane arm of _classify_worktree_state, which this mission does not touch; its regression test stays green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5108": {
+      "evidence_ref": "Cited in research.md as the previous change to the branch-naming seam this mission's lane-name parsing relies on; no work owed (that fix is merged and untouched here)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5838": {
+      "evidence_ref": "Pre-existing red cited in plan.md: the corpus-blocking status reality fixture outran its job budget. Unrelated to this diff; not touched, not papered over",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#588": {
+      "evidence_ref": "Cited as the data-loss regression that motivated the module and its refusal text; no work owed (the refusal is preserved verbatim, C-005)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5927": {
+      "evidence_ref": "Pre-existing red cited in plan.md: tests/contract/test_mission_status_reality.py on main. Unrelated to this diff; not touched",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6798": {
+      "evidence_ref": "Pre-existing red cited in plan.md: tests/next legacy-mission discovery shards. Unrelated to this diff; not touched",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "Pre-existing red cited in plan.md: tests/migration/test_birth_cutover.py events-consumer failures. Unrelated to this diff; not touched",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "Pre-existing red cited in plan.md: router-gate false red on a duplicate-named sibling job. CI-only, not caused by this diff",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6844": {
+      "evidence_ref": "Fixed and verified: a lane worktree's managed policy is read from the lane's own kitty-specs/<slug>/meta.json when the repository-root checkout's branch knows nothing about that Mission (src/specify_cli/git/sparse_checkout.py::_policy_from_lane_worktree). Pinned by tests/integration/sparse_checkout/test_detection.py::TestManagedLaneIsBranchIndependent and test_doctor_finding.py::test_doctor_managed_lane_is_clean_on_mission_free_branch; changelog entry under [Unreleased]",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
