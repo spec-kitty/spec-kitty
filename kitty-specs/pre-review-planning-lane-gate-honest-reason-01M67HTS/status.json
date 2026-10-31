@@ -65,10 +65,18 @@
       "last_event_id": "01M67QSBMWDTW781A9W5YN4EVX",
       "last_transition_at": "2026-10-31T01:04:35.481249+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T01:09:54Z – python-pedro – shell_pid=2682197 – T007/T008 done: [Unreleased] changelog entry with before/after and the unchanged limitation, plus a review-gates.md blockquote next to the inherited-limitation note recording the planning-lane reason, the classification order (declared execution_mode, then the lanes.json kind view) and the degrade-to-incumbent rule. T009: check_docs_freshness --ci exit=0 findings=12 errors=0 warnings=12 (pre-existing link-health warnings only); test_no_legacy_terminology 98 passed. No new doc page, so no index regeneration."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 2682197,
-      "shell_pid_created_at": "1793408671.62"
+      "shell_pid_created_at": "1793408671.62",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     }
   }
 }
