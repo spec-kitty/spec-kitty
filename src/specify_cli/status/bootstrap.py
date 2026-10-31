@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.frontmatter import FrontmatterError
+from specify_cli.status.actor import build_system_actor
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import EVENTS_FILENAME
@@ -191,7 +192,7 @@ def bootstrap_canonical_state(
                 mission_slug=mission_slug,
                 wp_id=wp_id,
                 to_lane="planned",
-                actor="finalize-tasks",
+                actor=build_system_actor("finalize-tasks"),
                 reason="canonical bootstrap",
                 repo_root=repo_root,
                 # #3866 / FR-003: thread the fact so the per-WP identity

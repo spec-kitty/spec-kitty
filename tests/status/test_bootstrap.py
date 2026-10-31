@@ -163,7 +163,9 @@ class TestBootstrapSeedsUninitialized:
         # All events should target "planned"
         for event in events:
             assert str(event.to_lane) == "planned"
-            assert event.actor == "finalize-tasks"
+            # #6722: the seed carries the structured system actor; its identity is still
+            # ``finalize-tasks``.
+            assert event.actor == {"tool": "finalize-tasks", "role": "system", "profile": None, "model": None}
             # T030: genesis->planned is a real allowed edge (no force needed)
             assert event.force is False
 
