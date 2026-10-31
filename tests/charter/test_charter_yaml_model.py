@@ -10,10 +10,14 @@ activation_mapping`` is the structural regression guard for that.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from pydantic import ValidationError
 
 from charter.activation.activations import ActivationEntry
+from charter.activation.charter_yaml_io import apply_yaml_write, load_charter_yaml
+from charter.activation.pack_manager import prepare_activation_write
 from charter.activation.schemas import (
     CharterCatalog,
     CharterCatalogReference,
@@ -64,6 +68,19 @@ def _directives() -> DirectivesConfig:
     )
 
 
+def _activation_yaml_keys() -> tuple[str, ...]:
+    """The flat activation-key vocabulary, from its single authority.
+
+    Function-scoped import: ``charter.activation.pack_manager`` imports this
+    module's package on its own import path, so a module-level back-import
+    here would be circular (the same reason ``charter_yaml_io`` uses lazy
+    accessors).
+    """
+    from charter.activation.pack_manager import ACTIVATION_YAML_KEYS
+
+    return tuple(ACTIVATION_YAML_KEYS)
+
+
 class TestCharterYamlRoundTrip:
     def test_round_trips_governance_directives_catalog(self) -> None:
         governance = _governance()
@@ -111,22 +128,15 @@ class TestActivationIsFlatAtRoot:
                 activation={"activated_directives": ["001-x"]},  # type: ignore[call-arg]
             )
 
-    @pytest.mark.parametrize(
-        "field_name",
-        [
-            "activated_kinds",
-            "mission_type_activations",
-            "activated_directives",
-            "activated_tactics",
-            "activated_styleguides",
-            "activated_toolguides",
-            "activated_paradigms",
-            "activated_procedures",
-            "activated_agent_profiles",
-            "activated_mission_step_contracts",
-        ],
-    )
+    @pytest.mark.parametrize("field_name", _activation_yaml_keys())
     def test_activation_field_is_flat_root_attribute(self, field_name: str) -> None:
+        """Every key of the single vocabulary authority is a declared field.
+
+        Parametrized over ``ACTIVATION_YAML_KEYS`` rather than a hand-written
+        list (#6556): the literal this used to carry omitted three keys the
+        activation writer itself writes, which is how the model drifted from
+        the authority.
+        """
         charter = CharterYaml(
             governance=_governance(),
             directives=_directives(),
@@ -134,6 +144,29 @@ class TestActivationIsFlatAtRoot:
             **{field_name: ["some-id"]},
         )
         assert getattr(charter, field_name) == ["some-id"]
+
+    def test_document_carrying_every_authority_key_validates(self) -> None:
+        """The all-keys combination case: set-level acceptance, not just per key."""
+        document = CharterYaml(
+            governance=_governance(), directives=_directives(), catalog=_catalog()
+        ).model_dump(mode="json")
+        document.update({key: ["some-id"] for key in _activation_yaml_keys()})
+
+        charter = CharterYaml.model_validate(document)
+
+        for key in _activation_yaml_keys():
+            assert getattr(charter, key) == ["some-id"]
+
+    def test_rejects_unknown_activated_key(self) -> None:
+        """Accepting the authority must not degrade into accepting anything
+        ``activated_*``: an undeclared key is still refused."""
+        with pytest.raises(ValidationError):
+            CharterYaml(
+                governance=_governance(),
+                directives=_directives(),
+                catalog=_catalog(),
+                **{"activated_not_a_kind": ["x"]},
+            )
 
     def test_activation_field_defaults_to_none_absent_key_fallback(self) -> None:
         """G3: an absent key resolves the default-pack fallback (three-state:
@@ -201,3 +234,79 @@ class TestCharterYamlOverridesAndSchemaVersion:
         charter = CharterYaml(governance=_governance(), directives=_directives(), catalog=_catalog())
         with pytest.raises(ValidationError):
             charter.schema_version = "9.9.9"  # type: ignore[misc]
+
+
+#: A sound ``charter.yaml`` body — everything ``CharterYaml`` requires, and no
+#: activation key (the state a freshly generated charter is in).
+_SOUND_CHARTER_YAML = """\
+schema_version: '2.0.0'
+governance: {}
+directives:
+  directives: []
+catalog:
+  mission: software-dev
+  template_set: software-dev-default
+  languages: []
+  references: []
+metadata:
+  generated_at: '2026-01-01T00:00:00Z'
+  bundle_schema_version: 2
+"""
+
+#: An UNMIGRATED project's ``config.yaml``: the ``charter:`` pointer plus one
+#: legacy activation key, which is what makes the ledger resolver answer
+#: LEGACY and sends activation writes to ``charter.yaml`` itself.
+_LEGACY_CONFIG_YAML = """\
+charter: .kittify/charter/charter.yaml
+activated_directives:
+- DIRECTIVE_001
+"""
+
+
+def _legacy_project(root: Path) -> Path:
+    """Write an unmigrated (legacy-surface) project under *root*."""
+    charter_dir = root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "charter.yaml").write_text(_SOUND_CHARTER_YAML, encoding="utf-8")
+    (root / ".kittify" / "config.yaml").write_text(_LEGACY_CONFIG_YAML, encoding="utf-8")
+    return root
+
+
+class TestWriterAndModelAgreeOnActivationKeys:
+    """#6556: the model must accept what the activation writer writes.
+
+    Red on ``main``: ``prepare_activation_write`` puts ``activated_skills``
+    (and the glossary-pack / anti-pattern keys) on ``charter.yaml``, and
+    ``CharterYaml.model_validate`` then refused the document with
+    ``extra_forbidden``. These tests go through the real writer rather than a
+    hand-built dict, so the two surfaces cannot silently diverge again.
+    """
+
+    @pytest.mark.parametrize(
+        "key",
+        # The three keys the model was missing, named as literals ON PURPOSE:
+        # this pins the exact drift #6556 reported. The full-vocabulary
+        # expectation lives in the parity gate
+        # (tests/charter/test_activation_vocabulary_setequal.py), which derives
+        # it from the authority and must never restate names.
+        ["activated_skills", "activated_glossary_packs", "activated_anti_patterns"],
+    )
+    def test_written_activation_key_validates_through_the_model(
+        self, tmp_path: Path, key: str
+    ) -> None:
+        project = _legacy_project(tmp_path)
+        charter_yaml = project / ".kittify" / "charter" / "charter.yaml"
+
+        prepared = prepare_activation_write(project, {key: ["some-id"]})
+        # Self-guarding: if the resolver ever sends this write to the activation
+        # ledger instead of the legacy surface, fail here with a clear reason
+        # rather than at the on-disk assertion below.
+        assert prepared.target == charter_yaml, (
+            f"expected the legacy-surface write target {charter_yaml}, got {prepared.target}"
+        )
+        apply_yaml_write(prepared)
+
+        document = dict(load_charter_yaml(charter_yaml))
+        assert document[key] == ["some-id"], "the writer must put the key on disk"
+        charter = CharterYaml.model_validate(document)
+        assert getattr(charter, key) == ["some-id"]

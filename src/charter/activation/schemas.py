@@ -363,7 +363,7 @@ class CharterYaml(BaseModel):
     Contract: ``kitty-specs/consolidate-charter-bundle-01KXSYB9/contracts/
     charter-yaml-schema.md``.
 
-    ⚠ Activation is FLAT AT THE ROOT (paula BLOCKER-1) — the ten
+    ⚠ Activation is FLAT AT THE ROOT (paula BLOCKER-1) — the
     ``activated_*`` / ``mission_type_activations`` fields below are NOT
     nested under an ``activation:`` key, matching the activation presets
     (``packs/built-in/presets/<name>.yaml``), so
@@ -373,6 +373,20 @@ class CharterYaml(BaseModel):
     guard against a stray nested ``activation:`` mapping creeping back in
     (a nested mapping is not a declared field on this model, so
     ``extra="forbid"`` rejects it).
+
+    The field NAMES are a restatement of the single vocabulary authority,
+    :data:`charter.activation.pack_manager.ACTIVATION_YAML_KEYS` (itself
+    derived from :class:`~charter.offering.artifact_kinds.ArtifactKind`):
+    they are the flat keys the activation writer may put on a legacy-surface
+    ``charter.yaml``. Pydantic needs them at class-definition time, so they
+    stay static, and
+    ``tests/charter/test_activation_vocabulary_setequal.py`` pins set-equality
+    with the authority in both directions — a newly activatable kind fails
+    that gate until the field is declared here, and a field the writer refuses
+    (for example ``activated_assets``: the asset kind is not charter-
+    activatable) fails it too. The authority is imported lazily in that test,
+    never at module scope here: ``pack_manager`` already imports this module,
+    so a module-level back-import would be circular (#6556).
 
     Each ``activated_*`` field is three-state (charter contract G3):
     ``None`` == absent key == the kind is unrestricted (every available
@@ -397,6 +411,12 @@ class CharterYaml(BaseModel):
     activated_procedures: list[str] | None = None
     activated_agent_profiles: list[str] | None = None
     activated_mission_step_contracts: list[str] | None = None
+    # #6556: these three are written to a legacy-surface ``charter.yaml`` by
+    # ``pack_manager.prepare_activation_write``, so the model must declare them
+    # or a legitimate charter fails ``model_validate`` with ``extra_forbidden``.
+    activated_glossary_packs: list[str] | None = None
+    activated_skills: list[str] | None = None
+    activated_anti_patterns: list[str] | None = None
 
     overrides: dict[str, Any] = Field(default_factory=dict)
     metadata: CharterYamlMetadata = Field(default_factory=CharterYamlMetadata)
