@@ -76,9 +76,9 @@ __all__ = ["ServiceLauncher", "StopOutcome"]
 SERVICE_LOG = "service.log"
 START_TIMEOUT_ENV = "SPEC_KITTY_SERVICE_START_TIMEOUT"
 DEFAULT_START_TIMEOUT_S = 15.0
-#: Upper bound of the start window ``stop`` allows when proving a pid is the published instance. The
+#: Floor of the start window ``stop`` uses when proving a pid is the published instance. The
 #: budget configured at stop time may be shorter than the one the service was started with.
-MAX_PROOF_START_WINDOW_S = 300.0
+MIN_PROOF_START_WINDOW_S = 300.0
 POLL_INTERVAL_S = 0.05
 STOP_TIMEOUT_S = 10.0
 #: How long a discarded child of this launcher gets to exit after terminate, before kill.
@@ -205,8 +205,8 @@ class CreationProof(enum.Enum):
 
 
 def proof_window(configured: float) -> float:
-    """The start window used to prove an instance: the configured budget, never below :data:`MAX_PROOF_START_WINDOW_S`."""
-    return max(configured, MAX_PROOF_START_WINDOW_S)
+    """The start window used to prove an instance: the configured budget, never below :data:`MIN_PROOF_START_WINDOW_S`."""
+    return max(configured, MIN_PROOF_START_WINDOW_S)
 
 
 def creation_proof(endpoint: WriteServiceEndpoint, *, start_window: float) -> CreationProof:

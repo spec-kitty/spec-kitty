@@ -655,7 +655,7 @@ def test_the_stop_proof_window_covers_a_service_started_with_a_longer_budget(mon
     """Created 60 s before it published: provable whatever budget is configured now (the window is never below the bound)."""
     monkeypatch.setattr(launcher_module, "process_create_time", lambda pid: 1_000.0 - 60.0)
     window = launcher_module.proof_window(configured)
-    assert window >= max(configured, launcher_module.MAX_PROOF_START_WINDOW_S)
+    assert window >= max(configured, launcher_module.MIN_PROOF_START_WINDOW_S)
     assert launcher_module.creation_proof(_endpoint(4242, "1970-01-01T00:16:40Z"), start_window=window) is launcher_module.CreationProof.MATCHES
 
 
