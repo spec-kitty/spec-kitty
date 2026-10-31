@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6496": {
+      "evidence_ref": "closed 2026-10-21; the activation ledger it specifies is the authority this pin asserts, no work here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6549": {
+      "evidence_ref": "tests/upgrade/test_promote_answers_post_fold_convergence_6549.py; grounding: non-convergence fixed by #6629, pinned here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#6629": {
+      "evidence_ref": "#6629 supersedes the shipped step and adds 4.0.0rc8_promote_interview_selections; convergence pinned by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
