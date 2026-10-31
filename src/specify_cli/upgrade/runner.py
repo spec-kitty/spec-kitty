@@ -26,7 +26,7 @@ from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 from . import autocommit
 from .autocommit import capture_upgrade_baseline
 from .detector import VersionDetector
-from .ledger import MigrationLedger, build_record
+from .ledger import SETTLED_RESULT, SKIPPED_RESULT, MigrationLedger, build_record
 from .metadata import _METADATA_HEADER, ProjectMetadata, VersionStamp, canonical_schema_capabilities
 from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError, legacy_upgrade_scope
 from .registry import MigrationRegistry, migration_settled
@@ -1003,9 +1003,22 @@ class MigrationRunner:
         no-op. Returns ``True`` when a new record was appended. A superseded
         substitute's record carries its ``superseded_by`` note, so its no-op
         ``skipped`` never reads as the shipped migration's own result (#6629).
+
+        A held ``success`` is never downgraded to ``skipped``. A migration that
+        :meth:`BaseMigration.reselect_when_recorded` re-selects can find nothing
+        to do — the successor retry of #6688 does exactly that on a repaired
+        project, and so does a ``runs_first`` reselection whose structural state
+        has gone. Recording ``skipped`` there would make the read view (last
+        record per id wins) claim the migration never ran, which is the one thing
+        "never re-run something that genuinely completed" must not say.
+
+        A held ``failed`` may still become ``skipped``: a retry that finds
+        nothing to do resolves the failure, and the read view should not keep
+        reporting a failure that is no longer true.
         """
         ledger = MigrationLedger(root)
-        if any(record.id == migration.migration_id and record.result == result for record in ledger.applicable_records_for(migration)):
+        held = next((record.result for record in ledger.applicable_records_for(migration) if record.id == migration.migration_id), None)
+        if held == result or (result == SKIPPED_RESULT and held == SETTLED_RESULT):
             return False
         ledger.append(build_record(migration, result, superseded_by=getattr(migration, "superseded_by", "")))
         return True
