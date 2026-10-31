@@ -1,0 +1,29 @@
+# repro-1: legacy project with no agent list at all (no tool folder on disk)
+# fixture: .kittify/config.yaml = 'agents: {auto_commit: true}', kitty-specs/ present
+$ find . -type f
+./.kittify/config.yaml
+
+$ spec-kitty doctor skills
+
+Command Skills - issue(s) found
+
+  Check                    Count  
+  manifest entries             0  
+  drift                        0  
+  gaps                         0  
+  orphans                      0  
+  stale                        0  
+  unsafe                       0  
+  legacy                       0  
+  collisions                   0  
+  uninstalled agents           0  
+
+  ! [no_tool_folder] none of the configured tool folders exists (.amazonq, 
+.augment, .claude, .cursor, .gemini, .github, .kilocode, .kiro, .llxprt, 
+.opencode, .qwen, .windsurf) for agents ; run `spec-kitty upgrade` to recreate 
+configured folders, or `spec-kitty agent config remove <agent>` to drop a tool
+exit=1
+
+$ spec-kitty doctor tool-surfaces
+Tool Surfaces: all surfaces healthy (0 checked)
+exit=0
