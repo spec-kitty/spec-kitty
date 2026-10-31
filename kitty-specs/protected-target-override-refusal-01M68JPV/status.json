@@ -1,0 +1,126 @@
+{
+  "event_count": 27,
+  "last_event_id": "01M68QZ2HFG5J00835Q4XG8C5J",
+  "materialized_at": "2026-10-31T10:26:57.199222+00:00",
+  "mission_number": "245",
+  "mission_slug": "protected-target-override-refusal-01M68JPV",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M68QYZXAZ039ZR98ST1FB1T8",
+      "last_transition_at": "2026-10-31T10:26:54.506455+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Red-first regression and controls committed (b336b81, WC <lane>). The refusal cases fail on current main by design: '-> main  Commit: 90da2bb' printed for --target main, dry-run rc=0, orchestrator-api envelope absent. Controls green (in-bounds --target develop consolidates; hatch lets the landing proceed). Pre-review gate: timed_out at 300s under host load 145 (20 agents) - no verdict; scoped suites run by hand, see tooling-friction tracer.",
+        "Review passed: additive only; real CLI; same-fixture controls; red proof documented"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1001004,
+      "shell_pid_created_at": "1793438308.04",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "6464"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:tokenfactory/glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M68QZ197X6G4BSE5J2E6DC7V",
+      "last_transition_at": "2026-10-31T10:26:55.911782+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Guard + three entries (d746272) and the resolution-test rename (e995e92). Suites: tests/terminus/test_protected_target_preflight.py + tests/orchestrator_api/test_consolidate_mission_protected_target.py 18 passed; tests/consolidation 2534 passed, 1 skipped, 9 xfailed; tests/orchestrator_api 69 passed; tests/agent/cli/commands/test_merge_target_resolution.py + test_preflight_seam.py + lanes/test_merge_policy.py 112 passed. ruff+mypy clean. Pre-review gate: not run (host load 145/20 cores; SPEC_KITTY_SKIP_PRE_REVIEW_GATE) - scoped suites ran by hand, see tooling-friction tracer.",
+        "Review passed with two findings, both dispositioned. (1) FIXED in 4bf0385: formatting forecast.py tripped the shrink-only formatter-debt ratchet (test_every_exclude_entry_still_genuinely_reformats) and added unrelated churn; the semantic edit is re-applied without reformatting, ratchet green. (2) ACCEPTED as-is: the policy-refusal render block is near-duplicated in entry_preflight/forecast/orchestrator_api (3x4 lines) - it mirrors the existing #5385 shape; a shared renderer is a clean follow-up, not worth a P2 rebuild. Verified: guard keys on (effective != recorded) AND is_protected, sits after the #5385 probe, pre-lock; recorded target read from meta via the no-override resolver; hatch/commit_to_target honoured; 130 tests green across the two protection modules plus preflight_seam, merge_policy and merge_target_resolution.",
+        "Aggregate-review fix f1a0583: the dry-run resolves the recorded target from meta.json like the real run.",
+        "Re-stamping the aggregate-review fix under the implementer identity: commit f1a0583 (dry-run reads the recorded target from meta.json) is python-pedro's work; the earlier in_progress stamp carried reviewer-renata by mistake.",
+        "Aggregate-review fix f1a0583 ready for re-review.",
+        "Re-approved after the aggregate-review fix (f1a0583). The aggregate review of the integrated diff was run by an independent reviewer (glm-5.3, VERDICT: LAND), which raised this LOW finding; _forecast_recorded_target now resolves meta.json exactly as entry_preflight does, falling back to the manifest value only on MissionMetaReadError. 24 tests green across the protection preflight, merge-target resolution and merge policy modules."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2096056,
+      "shell_pid_created_at": "1793442319.42",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "6464"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M68QZ2HFG5J00835Q4XG8C5J",
+      "last_transition_at": "2026-10-31T10:26:57.199222+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ADR 2026-09-19-1 follow-up 2026-10-31 + [Unreleased] changelog entry (8ea0091). docs freshness errors=0 (4 pre-existing HELP-DRIFT warnings about migrate/service/charter help bodies, not this diff); tests/architectural/test_no_legacy_terminology.py + tests/docs 1903 passed, 2 skipped.",
+        "Review passed: the follow-up is additive (only a one-line cross-reference touched the 2026-09-30 text), it states the scope, the code name, the three entries, the pin and the one residual, and the changelog entry is 1138 chars, impact-first, with (#6464). The docs-retrieval-index row is the generated consequence of the new heading (docs freshness errors=0)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1970186,
+      "shell_pid_created_at": "1793441604.4",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "6464"
+      ]
+    }
+  }
+}
