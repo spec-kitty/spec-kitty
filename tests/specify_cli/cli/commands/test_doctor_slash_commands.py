@@ -402,6 +402,8 @@ class TestDoctorSkillsJson:
         # locate_project_root is resolved in the doctor command shell (the
         # patchable seam); the command-surface internals live in the sibling.
         monkeypatch.setattr(doctor, "locate_project_root", lambda: tmp_path)
+        from specify_cli.core.agent_config import AgentConfig
+
         monkeypatch.setattr(
             _command_surface_doctor,
             "_load_command_skill_state",
@@ -412,7 +414,7 @@ class TestDoctorSkillsJson:
                 [],
                 [],
                 False,
-                SimpleNamespace(explicit_agent_list=True),
+                AgentConfig(available=["claude"]),
             ),
         )
         monkeypatch.setattr(
