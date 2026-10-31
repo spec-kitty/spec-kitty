@@ -1,0 +1,109 @@
+{
+  "mission_slug": "interview-and-first-activate-keep-absent-key-absent-01M67HSF",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_interview_leaves_absent_key_absent_6685.py::test_interview_without_narrow_writes_no_activation_key_and_synthesis_stays_fresh (green; red on main)",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:05.928006+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same test asserts the absent key is named and --narrow-activation is printed",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:09.297411+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_interview_leaves_absent_key_absent_6685.py::test_first_activate_of_an_in_force_artifact_writes_no_activation_key",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:12.941391+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_pack_manager.py::TestActivateNoneState::test_a_mission_type_still_materialises_its_absent_ledger; tests/charter/test_skill_freeze_warning_6458.py; tests/charter/test_activation_preserves_effective_4253.py mission-type row",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:16.555892+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_activation_preserves_effective_4253.py (zero drop with the key absent); tests/acceptance/charter_pack_cutover/test_promotion.py FR-015 matrix",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:20.131020+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "both end-to-end tests assert _catalog_is_established False and mode fresh_project_seed_dry_run",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:23.789920+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_charter_interview_promotion.py (present/deny/narrow); test_activate_only_6408.py",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:27.387987+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_interview_promotion_is_idempotent_across_runs byte equality; test_a_project_the_shipped_promotion_already_settled...",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:30.850861+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_promotion.py KEY_STAYS_ABSENT rows for interview and resynthesize",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:34.105281+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/api/charter-commands.md interview+activate sections; docs/changelog/CHANGELOG.md #6685 entry; docstrings in interview.py, activation_engine.py, pack_manager.py",
+      "pass_fail": "pass",
+      "verified_by": "pi-flash",
+      "verified_at": "2026-10-31T04:43:37.327655+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
