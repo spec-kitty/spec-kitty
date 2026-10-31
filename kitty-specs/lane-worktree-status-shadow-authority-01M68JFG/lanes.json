@@ -20,8 +20,8 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-10-31T08:52:11.121811+00:00",
+  "computed_at": "2026-10-31T09:36:59.812332+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "f408b0104a851d4603d3354ebaca51248c1f2ba1"
+  "planning_commit_sha": "9320f1e0bb653592a052a22f02db20b4b001ceb3"
 }
