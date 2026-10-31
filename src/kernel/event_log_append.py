@@ -171,7 +171,7 @@ def event_log_lock_path(anchor: Path) -> Path:
 
 
 @contextmanager
-def event_log_lock(anchor: Path, *, timeout_s: float = EVENT_LOG_LOCK_TIMEOUT_S) -> Iterator[Path]:
+def event_log_lock(anchor: Path, *, timeout_s: float | None = EVENT_LOG_LOCK_TIMEOUT_S) -> Iterator[Path]:
     """Hold the interim event-log lock anchored on *anchor*; yield the lock file path.
 
     For a writer that appends through another sanctioned primitive (the
@@ -181,6 +181,9 @@ def event_log_lock(anchor: Path, *, timeout_s: float = EVENT_LOG_LOCK_TIMEOUT_S)
     Re-entrant within one thread, like an ``RLock``: a nested call on the same
     anchor yields the lock already held, with no second acquire and no git
     probe, so a writer can hold the lock across a loop of appends (#6706).
+
+    ``timeout_s=None`` waits without a bound, for a caller whose contract is
+    to queue behind the holder rather than refuse.
 
     Re-entrancy is per thread and per resolved anchor. Never nest this lock on
     a different anchor: two anchors have no lock order, so two threads nesting
