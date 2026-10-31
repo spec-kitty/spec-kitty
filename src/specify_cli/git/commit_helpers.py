@@ -382,6 +382,41 @@ class SafeCommitPathPolicyError(SafeCommitError):
         return payload
 
 
+class SafeCommitDirectoryArgument(SafeCommitError):
+    """A requested path is a directory, not a file (#6750).
+
+    ``safe_commit`` commits an EXACT file set: the post-landing guard compares the
+    commit's per-file ``git diff-tree`` paths against ``requested``
+    (:func:`_assert_committed_paths_requested`), so a directory pathspec can never
+    match its children. Git, however, happily expands a directory pathspec -- which
+    made the commit carry paths the caller never requested and left the guard
+    blaming a pre-commit hook for git's own expansion.
+
+    Raised from :func:`preflight_commit` BEFORE any HEAD/index mutation, so the
+    request fails whole (no partial commit) with the real cause. Callers that want
+    a directory's files must expand it first -- the public ``safe-commit`` CLI
+    already does (``safe_commit_cmd._expand_arguments``, #2739 B11), and the lane
+    auto-collector reads untracked files expanded (#6750). A symlinked directory is
+    a single ``120000`` entry and is never refused (#5671).
+    """
+
+    error_code = "SAFE_COMMIT_DIRECTORY_ARGUMENT"
+
+    def __init__(self, *, offending_path: str, worktree_root: Path) -> None:
+        super().__init__(
+            f"safe_commit: refusing directory path {offending_path!r}. safe_commit "
+            "commits exact file paths; expand the directory first (git status "
+            "--untracked-files=all) and request those files.",
+            worktree_root=worktree_root,
+        )
+        self.offending_path = offending_path
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = super().to_dict()
+        payload["offending_path"] = self.offending_path
+        return payload
+
+
 class SafeCommitPathLoopRefused(SafeCommitError):
     """A requested path is (or sits under) a symlink loop (#5671 / #5251).
 
@@ -1115,9 +1150,11 @@ def _assert_committed_paths_requested(
 
     ``requested`` must be individual file paths, not directory pathspecs: the
     comparison is against the per-file paths ``git diff-tree`` reports, so a
-    directory would not match its contained files. Every caller already expands
-    directories to files before :func:`safe_commit` (the ``safe-commit`` CLI and
-    ``upgrade`` autocommit both do). Both sides are normalized to forward-slashed
+    directory would not match its contained files. This is enforced at the seam:
+    :func:`preflight_commit` raises :class:`SafeCommitDirectoryArgument` before any
+    mutation for a directory request (#6750), the ``safe-commit`` CLI and ``upgrade``
+    autocommit expand directories to files first, and the lane auto-collector reads
+    untracked entries expanded. Both sides are normalized to forward-slashed
     POSIX via :func:`kernel.paths.to_posix` (#2836) so the comparison is correct
     on Windows, where ``str(Path)`` is backslash-separated but git's ``diff-tree``
     output is always forward-slashed.
@@ -1644,7 +1681,27 @@ def preflight_commit(
                 worktree_root=worktree_root,
             )
 
-    # 6. Protected-branch check. The protection DECISION is made SOLELY by the
+    # 6b. Requested paths are FILES, not directories (#6750). Git expands a
+    #     directory pathspec by itself, so the commit would carry paths this
+    #     operation never requested -- and the post-landing guard, which compares
+    #     the commit's per-file paths against ``requested``, would report the
+    #     children as extras and blame a pre-commit hook for git's own expansion.
+    #     Refuse whole, here, before any index mutation. Three shapes that LOOK
+    #     like a directory are legitimate targets and are not refused: a symlinked
+    #     directory (one 120000 entry, never expanded, #5671), a path that no
+    #     longer exists on disk (a deletion request), and a submodule GITLINK (one
+    #     160000 index entry whose path is the checked-out directory -- git commits
+    #     the link, not the directory's files; the index is consulted only AFTER the
+    #     stat finds a directory, so the healthy path adds no git call).
+    for _dir_candidate_path in normalized_files:
+        _dir_candidate = resolved_worktree_root / _dir_candidate_path
+        if _dir_candidate.is_symlink() or not _dir_candidate.is_dir():
+            continue
+        if _is_gitlink(worktree_root, _dir_candidate_path):
+            continue
+        raise SafeCommitDirectoryArgument(offending_path=_dir_candidate_path, worktree_root=worktree_root)
+
+    # 6c. Protected-branch check. The protection DECISION is made SOLELY by the
     #    SK policy module (``commit_guard.evaluate``) — the ONE decision
     #    (C-GUARD-1). The legacy privilege channels (the message-prefix list,
     #    the two ``allow_*`` bools, the op-record file-content exception, the
@@ -1684,6 +1741,28 @@ def preflight_commit(
         )
 
     return normalized_files
+
+
+def _is_gitlink(worktree_root: Path, rel_path: str) -> bool:
+    """Whether ``rel_path`` is a submodule entry (index mode ``160000``).
+
+    A submodule's path IS a directory in the worktree, but git commits a single
+    gitlink for it, so :func:`_assert_committed_paths_requested` sees one path that
+    matches the request. Only called for a path the filesystem stat already found to
+    be a directory, so the healthy commit path never pays for it.
+    """
+    result = subprocess.run(
+        ["git", "ls-files", "--stage", "--", rel_path],
+        cwd=worktree_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return False
+    return any(line.startswith("160000 ") for line in result.stdout.splitlines())
 
 
 def _validate_runtime_lock_removal(
@@ -1754,6 +1833,11 @@ def safe_commit(
        mismatch raises :class:`SafeCommitHeadMismatch`.
     5. ``destination_ref`` exists in the repo (``git rev-parse --verify``);
        missing raises :class:`SafeCommitDestinationNotFound`.
+    6a-6b. Path policy, then the exact-file rule: a path under ``.worktrees/``
+       raises :class:`SafeCommitPathPolicyError`, and a requested path that IS a
+       directory raises :class:`SafeCommitDirectoryArgument` (#6750) -- both
+       before any index mutation. Git would otherwise expand the directory
+       itself and the commit would carry paths this operation never requested.
     6. ``destination_ref`` is not protected unless ``capability`` authorizes a
        protected-branch flow (decided by ``commit_guard.evaluate``); an
        unauthorized protected destination raises :class:`ProtectedBranchRefused`.
@@ -1794,7 +1878,9 @@ def safe_commit(
             ``destination_ref``; its ``ref`` is the destination authority.
         message: The commit message.
         paths: Tuple of file paths to commit. Absolute paths are resolved
-            relative to ``worktree_root`` when possible.
+            relative to ``worktree_root`` when possible. A directory path is
+            refused (:class:`SafeCommitDirectoryArgument`, #6750) before any
+            mutation: expand it to its files first.
         capability: Asserted-at-the-surface authorization passed to
             ``commit_guard.evaluate``. Defaults to ``GuardCapability.STANDARD``.
         expected_parent_sha: Optional exact parent for a conditional ref update.
@@ -1832,6 +1918,8 @@ def safe_commit(
         SafeCommitNotAWorktree: ``worktree_root`` is not a git worktree of ``repo_root``.
         SafeCommitHeadMismatch: worktree HEAD does not match ``destination_ref``.
         SafeCommitDestinationNotFound: ``destination_ref`` does not exist in the repo.
+        SafeCommitDirectoryArgument: a requested path is a directory, not a file
+            (#6750). Raised before any staging, so no commit lands.
         ProtectedBranchRefused: ``destination_ref`` is protected and ``capability``
             authorizes no protected-branch flow.
         SafeCommitStagedTreeUnchanged: the staged tree (scoped to ``paths``)
