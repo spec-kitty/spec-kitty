@@ -1,0 +1,33 @@
+{
+  "accept_commit": "b6a7a55e29d4ab938e3cd3c4bd07a004bee49d31",
+  "acceptance_history": [
+    {
+      "accept_commit": "b6a7a55e29d4ab938e3cd3c4bd07a004bee49d31",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T01:05:29.199820+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "95608e1246d45bbc2cbda0e2bd68b0ec5eb5425a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T01:05:29.199820+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "95608e1246d45bbc2cbda0e2bd68b0ec5eb5425a",
+  "baseline_merge_commit": "62e74fb9c9ade39516c5e26802f47dd77afe83b5",
+  "created_at": "2026-10-30T23:20:50.493584+00:00",
+  "flattened": false,
+  "friendly_name": "Promote org-pack interview selections on upgrade",
+  "merged_at": "2026-10-31T01:25:53.502520+00:00",
+  "merged_commit": "62e74fb9c9ade39516c5e26802f47dd77afe83b5",
+  "mid8": "01M67HVC",
+  "mission_id": "01M67HVCEB3342MZJ3GRPD49GJ",
+  "mission_number": 244,
+  "mission_slug": "org-pack-selection-promotion-01M67HVC",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Promote org-pack interview selections on upgrade on issue-6686-org-pack-selection-promotion so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Promote org-pack interview selections on upgrade",
+  "slug": "org-pack-selection-promotion-01M67HVC",
+  "status_phase": "1",
+  "target_branch": "issue-6686-org-pack-selection-promotion",
+  "topology": "single_branch"
+}
