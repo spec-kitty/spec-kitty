@@ -228,6 +228,15 @@ def _commit_matrix(base: Path, mission: CoordMission, *, verdict: str, evidence_
     _git(base, "commit", "-qm", message)
 
 
+def _commit_raw(base: Path, mission: CoordMission, rel: Path, content: str, message: str) -> None:
+    """Commit arbitrary bytes at a mission-relative path -- for a document no writer would produce."""
+    path = base / rel
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+    _git(base, "add", str(rel))
+    _git(base, "commit", "-qm", message)
+
+
 def test_late_projection_never_overturns_a_terminal_verdict_the_target_holds(refused_run: _RefusedRun) -> None:
     """The projection the CLI calls refuses to overturn established evidence, and projects when it can.
 
@@ -275,3 +284,73 @@ def test_late_projection_never_overturns_a_terminal_verdict_the_target_holds(ref
 
     assert [path.name for path in written] == ["issue-matrix.json"], written
     assert json.loads((mission.repo / matrix_rel).read_text(encoding="utf-8"))["rows"][_ISSUE]["verdict"] == "fixed"
+
+
+def test_late_projection_projects_forward_onto_a_readable_target_matrix(refused_run: _RefusedRun) -> None:
+    """Readable target: the comparison sees the target's judgement and a FORWARD move is projected."""
+    from specify_cli.consolidation.bookkeeping_projection import project_late_gate_matrix_commits
+
+    run, mission = refused_run, refused_run.mission
+    checkpoint = _checkpoint_sha(mission)
+    matrix_rel = _matrix_path(mission.repo, mission).relative_to(mission.repo)
+    _commit_matrix(
+        mission.repo,
+        mission,
+        verdict="verified-already-fixed",
+        evidence_ref="verified on main",
+        message="chore: record the verified verdict on the target",
+    )
+    _commit_matrix(
+        run.worktree,
+        mission,
+        verdict="verified-already-fixed",
+        evidence_ref="re-verified after the teardown refusal",
+        message="chore: carry the target's verdict forward on the coordination branch",
+    )
+
+    written = project_late_gate_matrix_commits(main_repo=mission.repo, mission_slug=mission.slug, coord_ref=mission.coord_branch, checkpoint_sha=checkpoint)
+
+    assert [path.name for path in written] == ["issue-matrix.json"], written
+    row = json.loads((mission.repo / matrix_rel).read_text(encoding="utf-8"))["rows"][_ISSUE]
+    assert (row["verdict"], row["evidence_ref"]) == ("verified-already-fixed", "re-verified after the teardown refusal"), row
+
+
+def test_late_projection_refuses_an_unreadable_target_matrix(refused_run: _RefusedRun) -> None:
+    """Fail CLOSED: an unreadable target document refuses instead of counting as "no judgements held"."""
+    from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefused, LateProjectionRefusalKind, project_late_gate_matrix_commits
+
+    run, mission = refused_run, refused_run.mission
+    checkpoint = _checkpoint_sha(mission)
+    matrix_rel = _matrix_path(mission.repo, mission).relative_to(mission.repo)
+    _commit_matrix(run.worktree, mission, verdict="fixed", evidence_ref="verified on the coordination branch", message="chore: record a verdict on the coordination branch")
+    corrupt = "{ this is not the issue matrix the writer produces"
+    _commit_raw(mission.repo, mission, matrix_rel, corrupt, "chore: leave the target's matrix unreadable")
+
+    with pytest.raises(LateProjectionRefused) as refused:
+        project_late_gate_matrix_commits(main_repo=mission.repo, mission_slug=mission.slug, coord_ref=mission.coord_branch, checkpoint_sha=checkpoint)
+
+    message = str(refused.value)
+    assert refused.value.kind is LateProjectionRefusalKind.TARGET_GATE_DOCUMENT_UNREADABLE, message
+    assert "issue-matrix.json" in message and "the target's" in message, message
+    assert "not valid JSON" in message, message
+    assert (mission.repo / matrix_rel).read_text(encoding="utf-8") == corrupt, "a refused projection must not touch the target"
+
+
+def test_late_projection_refuses_a_target_matrix_without_the_rows_section(refused_run: _RefusedRun) -> None:
+    """A document the comparison cannot read a section out of is unreadable, not an empty matrix."""
+    from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefused, LateProjectionRefusalKind, project_late_gate_matrix_commits
+
+    run, mission = refused_run, refused_run.mission
+    checkpoint = _checkpoint_sha(mission)
+    matrix_rel = _matrix_path(mission.repo, mission).relative_to(mission.repo)
+    _commit_matrix(run.worktree, mission, verdict="fixed", evidence_ref="verified on the coordination branch", message="chore: record a verdict on the coordination branch")
+    keyless = json.dumps({"schema_version": 1}) + "\n"
+    _commit_raw(mission.repo, mission, matrix_rel, keyless, "chore: leave the target's matrix without its rows section")
+
+    with pytest.raises(LateProjectionRefused) as refused:
+        project_late_gate_matrix_commits(main_repo=mission.repo, mission_slug=mission.slug, coord_ref=mission.coord_branch, checkpoint_sha=checkpoint)
+
+    message = str(refused.value)
+    assert refused.value.kind is LateProjectionRefusalKind.TARGET_GATE_DOCUMENT_UNREADABLE, message
+    assert "no rows section" in message, message
+    assert (mission.repo / matrix_rel).read_text(encoding="utf-8") == keyless, "a refused projection must not touch the target"

@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from kernel.git import changed_paths as git_changed_paths
@@ -824,22 +825,47 @@ def project_post_checkpoint_commits_to_target(
 _GATE_MATRIX_KINDS: frozenset[MissionArtifactKind] = frozenset({MissionArtifactKind.ISSUE_MATRIX, MissionArtifactKind.ACCEPTANCE_MATRIX})
 
 
+class LateProjectionRefusalKind(StrEnum):
+    """Why a late coordination commit cannot be landed (#6791) -- one kind per REMEDY.
+
+    A refusal has to tell the operator what to DO, and the actions differ: restoring a record the
+    coordination branch deleted, correcting a coordination copy that would overturn an established
+    judgement, and landing a record the projection could not carry are three different repairs.
+    The single "land the file on the target yourself" instruction the refusal used to give cleared
+    none of them (and, for an overturn, would have written the stale copy over the verdict).
+    """
+
+    COORD_GATE_DOCUMENT_UNREADABLE = "coord-gate-document-unreadable"
+    TARGET_GATE_DOCUMENT_UNREADABLE = "target-gate-document-unreadable"
+    EVIDENCE_WOULD_BE_LOST = "evidence-would-be-lost"
+    DELETION_CANNOT_BE_EXPRESSED = "deletion-cannot-be-expressed"
+    RECORD_NOT_LANDED = "record-not-landed"
+
+
 class LateProjectionRefused(Exception):
     """A late coordination commit cannot be landed without losing evidence (#6791).
 
     Raised by :func:`project_late_gate_matrix_commits` and
     :func:`assert_late_window_landed` when the post-teardown window cannot be projected
     faithfully. The teardown phase turns it into a ``CoordinationTeardownError`` so the
-    coordination branch, worktree and marker are kept for the operator.
+    coordination branch, worktree and marker are kept for the operator, and picks the
+    operator-facing remedy from :attr:`kind`.
     """
+
+    def __init__(self, message: str, *, kind: LateProjectionRefusalKind) -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 def _terminal_issue_verdicts() -> frozenset[str]:
     """The TERMINAL ``issue-matrix.json`` verdicts, from their ONE domain home.
 
-    Read through :func:`specify_cli.tasks.issue_matrix_approval.terminal_issue_verdicts` (the same
-    module the ``issue_matrix_verdict_terminality`` gate asks) rather than importing the verdict
-    enum from the CLI command layer, which ``specify_cli/consolidation/**`` may not do.
+    Read through :func:`specify_cli.tasks.issue_matrix_approval.terminal_issue_verdicts` rather
+    than importing the verdict enum from the CLI command layer, which
+    ``specify_cli/consolidation/**`` may not do. That module is the one the
+    ``issue_matrix_verdict_terminality`` gate asks (through
+    :func:`~specify_cli.tasks.issue_matrix_approval._issue_matrix_approval_blocker`), so this is
+    the terminality rule itself, not a copy of it.
     """
     from specify_cli.tasks.issue_matrix_approval import terminal_issue_verdicts
 
@@ -856,40 +882,60 @@ def _terminal_invariant_results() -> frozenset[str]:
     return frozenset(TERMINAL_INVARIANT_RESULTS)
 
 
-def _established_judgements(kind: MissionArtifactKind, content: bytes | None) -> dict[str, bool] | None:
+#: The section each gate-matrix document keeps its judgements in (#6791).
+_JUDGEMENT_SECTIONS: dict[MissionArtifactKind, tuple[str, ...]] = {
+    MissionArtifactKind.ISSUE_MATRIX: ("rows",),
+    MissionArtifactKind.ACCEPTANCE_MATRIX: ("criteria", "negative_invariants"),
+}
+
+
+class _UnreadableGateDocument(Exception):
+    """The bytes are not a gate-matrix document whose judgements can be compared (#6791)."""
+
+
+def _established_judgements(kind: MissionArtifactKind, content: bytes) -> dict[str, bool]:
     """Map each judgement a gate matrix records to whether it is ESTABLISHED (``True``).
 
-    ``None`` means the document could not be read as one, so nothing can be proven about
-    it (the caller refuses -- fail closed, NFR-002). ``{}`` means "no judgements held".
-    Keys are prefixed with the row kind so two documents can never collide.
+    ``{}`` means a readable document that holds no judgements (an empty matrix). Every shape a
+    comparison cannot see through raises :class:`_UnreadableGateDocument` instead -- undecodable or
+    invalid JSON, a non-object document, or a document MISSING (or mistyping) the section its
+    judgements live in. The caller then REFUSES (fail closed, NFR-002) rather than reading an
+    absent section as "no judgements held" and waving the projection through. Both canonical
+    writers (``tasks.issue_matrix`` / ``acceptance.matrix``) always emit every section checked
+    here, so a document without them was not produced by one and cannot be compared.
+
+    Keys are prefixed with the judgement kind so two documents can never collide.
     """
-    if content is None:
-        return {}
     try:
         document = json.loads(content.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
-        return None
+        raise _UnreadableGateDocument("its bytes are not valid JSON") from None
     if not isinstance(document, Mapping):
-        return None
+        raise _UnreadableGateDocument("it is not a JSON object")
+    missing = [section for section in _JUDGEMENT_SECTIONS[kind] if section not in document]
+    if missing:
+        raise _UnreadableGateDocument(f"it has no {' or '.join(missing)} section")
     if kind is MissionArtifactKind.ISSUE_MATRIX:
-        rows = document.get("rows", {})
+        rows = document["rows"]
         if not isinstance(rows, Mapping):
-            return None
+            raise _UnreadableGateDocument("its rows section is not an object")
         terminal = _terminal_issue_verdicts()
         return {f"row {issue_ref}": isinstance(entry, Mapping) and entry.get("verdict") in terminal for issue_ref, entry in rows.items()}
-    criteria = document.get("criteria", [])
-    invariants = document.get("negative_invariants", [])
-    if not isinstance(criteria, list) or not isinstance(invariants, list):
-        return None
+    criteria = document["criteria"]
+    invariants = document["negative_invariants"]
+    if not isinstance(criteria, list):
+        raise _UnreadableGateDocument("its criteria section is not a list")
+    if not isinstance(invariants, list):
+        raise _UnreadableGateDocument("its negative_invariants section is not a list")
     terminal_invariants = _terminal_invariant_results()
     judgements: dict[str, bool] = {}
     for criterion in criteria:
         if not isinstance(criterion, Mapping):
-            return None
+            raise _UnreadableGateDocument("one of its criteria is not an object")
         judgements[f"criterion {criterion.get('criterion_id')}"] = criterion.get("pass_fail") == "pass"
     for invariant in invariants:
         if not isinstance(invariant, Mapping):
-            return None
+            raise _UnreadableGateDocument("one of its negative_invariants is not an object")
         judgements[f"invariant {invariant.get('invariant_id')}"] = invariant.get("result") in terminal_invariants
     return judgements
 
@@ -907,14 +953,34 @@ def _assert_projection_preserves_evidence(
     a row FORWARD (a new verdict, a newer evidence ref), never drop a row the target holds
     and never turn an established judgement (terminal issue verdict, ``pass`` criterion,
     terminal negative-invariant result) into a non-established one.
+
+    Both sides of that comparison fail CLOSED: a coordination or target document that cannot be
+    read as one (see :func:`_established_judgements`) REFUSES, naming the unreadable side, instead
+    of being read as "no judgements held" and letting the projection proceed (#6791 review: an
+    unreadable TARGET used to PROCEED while an unreadable coord copy refused). The one legitimate
+    "no judgements held" is a target that does not have the document at all -- there is nothing
+    there to lose.
     """
-    candidate = _established_judgements(kind, coord_content)
-    if candidate is None:
+    try:
+        candidate = _established_judgements(kind, coord_content)
+    except _UnreadableGateDocument as exc:
         raise LateProjectionRefused(
-            f"the coordination branch's {repo_rel} could not be read as a {kind.value} document, "
-            "so the resume cannot prove that projecting it preserves the judgements the target holds"
-        )
-    held = _established_judgements(kind, target_content) or {}
+            f"the coordination branch's {repo_rel} could not be read as a {kind.value} document ({exc}), "
+            "so the resume cannot prove that projecting it preserves the judgements the target holds",
+            kind=LateProjectionRefusalKind.COORD_GATE_DOCUMENT_UNREADABLE,
+        ) from exc
+    if target_content is None:
+        held: dict[str, bool] = {}
+    else:
+        try:
+            held = _established_judgements(kind, target_content)
+        except _UnreadableGateDocument as exc:
+            raise LateProjectionRefused(
+                f"the target's {repo_rel} could not be read as a {kind.value} document ({exc}), so the resume "
+                "cannot prove that projecting the coordination branch's copy preserves the judgements it holds; "
+                "nothing was projected",
+                kind=LateProjectionRefusalKind.TARGET_GATE_DOCUMENT_UNREADABLE,
+            ) from exc
     dropped = sorted(key for key in held if key not in candidate)
     overturned = sorted(key for key, established in held.items() if established and not candidate.get(key, False))
     if not dropped and not overturned:
@@ -927,7 +993,10 @@ def _assert_projection_preserves_evidence(
         )
         if part
     )
-    raise LateProjectionRefused(f"projecting the coordination branch's {repo_rel} would lose evidence the target already holds: it {detail}")
+    raise LateProjectionRefused(
+        f"projecting the coordination branch's {repo_rel} would lose evidence the target already holds: it {detail}",
+        kind=LateProjectionRefusalKind.EVIDENCE_WOULD_BE_LOST,
+    )
 
 
 def project_late_gate_matrix_commits(
@@ -975,7 +1044,10 @@ def project_late_gate_matrix_commits(
         if coord_content is None:
             if target_content is None:
                 continue
-            raise LateProjectionRefused(f"the coordination branch deletes {repo_rel}, and a projection can only bring content forward; the target still holds it")
+            raise LateProjectionRefused(
+                f"the coordination branch deletes {repo_rel}, and a projection can only bring content forward; the target still holds it",
+                kind=LateProjectionRefusalKind.DELETION_CANNOT_BE_EXPRESSED,
+            )
         if coord_content == target_content:
             continue
         _assert_projection_preserves_evidence(kind, repo_rel, target_content, coord_content)
@@ -1028,7 +1100,8 @@ def assert_late_window_landed(
         return
     shown = ", ".join(unlanded[:20]) + (f" (and {len(unlanded) - 20} more)" if len(unlanded) > 20 else "")
     raise LateProjectionRefused(
-        f"{len(unlanded)} coordination record(s) that landed on the coordination branch after the teardown gate are not landed on the target: {shown}"
+        f"{len(unlanded)} coordination record(s) that landed on the coordination branch after the teardown gate are not landed on the target: {shown}",
+        kind=LateProjectionRefusalKind.RECORD_NOT_LANDED,
     )
 
 
@@ -1145,6 +1218,7 @@ __all__ = [
     "_project_status_bookkeeping_to_target",
     "ProjectionResult",
     "LateProjectionRefused",
+    "LateProjectionRefusalKind",
     "assert_late_window_landed",
     "project_late_gate_matrix_commits",
     "project_post_checkpoint_commits_to_target",
