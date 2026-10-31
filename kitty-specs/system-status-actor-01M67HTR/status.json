@@ -1,0 +1,185 @@
+{
+  "event_count": 35,
+  "last_event_id": "01M67T60EKR3Q6SNYGPYFRY7ZY",
+  "materialized_at": "2026-10-31T01:46:27.155246+00:00",
+  "mission_number": "244",
+  "mission_slug": "system-status-actor-01M67HTR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67T5T5E4XS6VNCEC19JVXFE",
+      "last_transition_at": "2026-10-31T01:46:20.718049+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T23:51:09Z – unknown – ActorRole.SYSTEM + build_system_actor in status/actor.py (exported through the facade); models.py docstrings name the system shape; tests/status/test_system_actor_6722.py pins the builder, both decoders, the round-trip, the 5-key reader-only rule and the mixed-shape reduction. 25 passed; tests/status 1738 passed, 5 skipped. Out-of-map edit: tests/status/test_status_actor.py's role-vocabulary pin widened to three values (the contract this mission changes).",
+        "for_review: WP01 complete. Pre-review regression gate skipped via the documented explicit opt-out: its auto-derived scope resolves to (empty) in this repo, so it falls back to the whole 'make test-fast', which exceeds its 300s budget on this host; the documented frontmatter pre_review_test_scope recovery is rejected by WPMetadata (extra_forbidden), so it is unusable. Manual evidence instead: tests/status 1738 passed, 5 skipped; the new module 25 passed; ruff and mypy clean on both touched modules. Reported as tooling friction.",
+        "Review passed (reviewer-renata lens). Diff reviewed: c3b028df9b (5 files, +296/-8).\n\nAnti-pattern checklist:\n1. Dead code — PASS with a recorded sequencing note: build_system_actor has no live production caller *yet*; its callers are WP02 (bootstrap, recovery), WP03 (consolidation) and WP04 (migrations) of this same mission, so the consolidated diff is the review surface of record for liveness. Nothing else new is unreferenced (the role member is exported and asserted).\n2. Synthetic fixture — PASS. The builder and decoder assertions call production code; the reader-invariant tests construct events deliberately (they test the reducer's reading, not a writer) and were cross-checked against the real reducer.\n3. Silent empty return — PASS. No new except/return-None/pass path. The one new raise (blank identity) is fail-loud with its rationale in the docstring.\n4. FR coverage — PASS. FR-001/FR-008/FR-011/FR-012 each have an assertion that names the behaviour, not just a frontmatter ref.\n5. Frozen surface — PASS. services/ and contracts/ untouched; git log over both is empty.\n6. Locked decision — PASS. No writer assembles the four keys by hand; the builder takes no role/profile/model; compose_status_actor is reused, so the one assembler stays the one assembler.\n7. Shared-file ownership — PASS. Touch set is exactly lane-a's write scope.\n8. Production fragility — PASS. No unhandled failure path; ValueError only on a caller-supplied blank identity, which no planned call site can produce.\n\nOne observation for the aggregate review, not a blocker: the mission-wide subtask ids repeat across work packages (T001..T005 in five WPs), so `mark-status` needs `--wp`. Recorded as tooling friction, not a code defect."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1231967,
+      "shell_pid_created_at": "1793404289.79",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67T5VX39YCRFD4XNY5T59A1",
+      "last_transition_at": "2026-10-31T01:46:22.499747+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T00:43:08Z – claude – shell_pid=1518628 – Bootstrap seed and recovery catch-up write build_system_actor(...). Red-first: the bootstrap shape test failed on the base (string) while its payload/snapshot/legacy-row controls passed; the recovery shape test failed while the emission-count and lane assertions passed. New modules tests/status/test_system_actor_bootstrap_6722.py and tests/lanes/test_system_actor_6722.py; four existing assertions that read the stored actor updated. tests/lanes+tests/specify_cli/lanes 1225 passed/2 skipped; tests/status 1742 passed/5 skipped; ruff+mypy clean. Out-of-map edit: tests/status/test_bootstrap.py's actor assertion (the same contract change).",
+        "for_review: WP02 complete. Pre-review gate skipped via the documented explicit opt-out (same repo-wide condition as WP01): its auto-derived scope resolves to (empty), it then falls back to the whole 'make test-fast' which exceeds the 300s budget on this host, and the documented frontmatter pre_review_test_scope recovery is rejected by WPMetadata (extra_forbidden). Manual evidence: tests/lanes + tests/specify_cli/lanes 1225 passed, 2 skipped; tests/status 1742 passed, 5 skipped; the two new modules red-first on the base.",
+        "Review passed (reviewer-renata lens). WP02 diff reviewed: 8f3339e589 (src: bootstrap.py, recovery.py; tests: two new modules + four existing assertions).\n\nAnti-pattern checklist:\n1. Dead code — PASS. build_system_actor now has two live production callers (status/bootstrap.py:197, lanes/recovery.py:821).\n2. Synthetic fixture — PASS. Both writer tests drive the real entry points (bootstrap_canonical_state; reconcile_status on a real git repo with a lane branch carrying commits) and assert the stored log, not a literal. Each is red-first on the base and each has a positive control that proves the sweep ran (newly_seeded == 2; emitted == 2 / == 1).\n3. Silent empty return — PASS. No new swallow; reconcile_status's existing best-effort except is untouched and the test asserts emission so a swallowed failure cannot pass.\n4. FR coverage — PASS. FR-002 and FR-003 each have a stored-actor assertion through the production path, plus the snapshot-slot and identity assertions.\n5. Frozen surface — PASS. services/ and contracts/ untouched.\n6. Locked decision — PASS. RECOVERY_ACTOR stayed a str (asserted), the identity reaches `tool` whole, and no other field of either event changed (lane edges, force, reason asserted).\n7. Shared-file ownership — PASS with one recorded out-of-map edit: tests/status/test_bootstrap.py is not in WP02's owned_files; its single actor assertion had to follow the contract change (test-assertion only, no production file outside the lane's scope).\n8. Production fragility — PASS. No new raise; build_system_actor's blank-identity ValueError cannot fire from either call site (constants and a fixed string)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1518628,
+      "shell_pid_created_at": "1793406040.71",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67T5XEJ7T9G2H7728E85KFQ",
+      "last_transition_at": "2026-10-31T01:46:24.082437+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T01:07:42Z – claude – shell_pid=2101907 – All four consolidation modules write build_system_actor(...); one MERGE_ACTOR identity constant feeds the two emits and the preflight probe; the override keeps ReviewOverride.actor a str. Red-first: ImportError on the absent MERGE_ACTOR. New module 8 tests; tests/consolidation + tests/specify_cli/consolidation 2614 passed/1 skipped/9 xfailed; ruff+mypy clean. Out-of-map edits: two existing test assertions (test_approved_attestation, test_canceled_attestation) plus the two listed test files' actor assertions, all test-only.",
+        "for_review: WP03 complete. Pre-review gate skipped via the documented explicit opt-out (same repo-wide condition as WP01/WP02: empty auto-derived scope, then the whole make test-fast exceeds the 300s budget; the frontmatter pre_review_test_scope recovery is rejected by WPMetadata). Manual evidence: tests/consolidation + tests/specify_cli/consolidation 2614 passed, 1 skipped, 9 xfailed; the new module red-first.",
+        "Review passed (reviewer-renata lens). WP03 diff reviewed: d29b3592d4 (4 production modules, 1 new test module, 3 existing test assertions).\n\nAnti-pattern checklist:\n1. Dead code — PASS. build_system_actor now has six live production callers; MERGE_ACTOR has three (two emits + the probe).\n2. Synthetic fixture — PASS. Each test drives the production function that builds the request (`_mark_wp_merged_done`, `refuse_protected_status_target`, `_record_review_artifact_skip_evidence`, both `record_*_attestation`) with the emit seam mocked; the assertion is on the request the production code built, and red-first was the absent MERGE_ACTOR plus the string actor on the base.\n3. Silent empty return — PASS. No new swallow; the attestation and bookkeeping paths are unchanged apart from the actor value.\n4. FR coverage — PASS. FR-004 (both bookkeeping emits + the probe), FR-005 (override: structured event actor AND string slot), FR-006 (both attestations + the kind-not-role property).\n5. Frozen surface — PASS. services/ and contracts/ untouched.\n6. Locked decision — PASS. `actor=actor` in the two attestations became `build_system_actor(actor)`; the identity still travels in `tool`, `policy_metadata`/`evidence` are untouched, and `ReviewOverride.actor` is asserted to still be a str.\n7. Shared-file ownership — PASS with recorded out-of-map test edits: tests/consolidation/test_approved_attestation.py and test_canceled_attestation.py carry the two stored-actor assertions that follow this contract change (test-only).\n8. Production fragility — PASS. No new raise and no new failure path; the probe's actor now equals the write's by construction (one constant)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2101907,
+      "shell_pid_created_at": "1793407431.29",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67T5YSG9BA5ZRVMJJQRHJWZ",
+      "last_transition_at": "2026-10-31T01:46:25.456463+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T01:30:25Z – claude – shell_pid=2793824 – Three writers + two seams. Seam A: identity-projected equality (narrow, documented). Seam B: actor-shape-only tolerance in _seed_row_mismatch AND _matches_legacy_contract, with two negative arms pinned (different identity, different payload). Red-first: 7 of 12 failed on the base. tests/unit/migration+tests/migration 442 passed (4 failures are the pre-existing #6801 set, reproduced identically on a pristine origin/main worktree); tests/status 1795 passed. ruff/mypy clean.",
+        "for_review: WP04 complete. Pre-review gate skipped via the documented explicit opt-out (empty auto-derived scope -> whole make test-fast exceeds the 300s budget; the frontmatter scope override is rejected by WPMetadata). Manual evidence: tests/unit/migration+tests/migration 442 passed, 1 skipped, with the only 4 failures being the pre-existing #6801 set reproduced identically on a pristine origin/main worktree; tests/status + tests/consolidation/test_wp_attribution.py 1795 passed.",
+        "Review passed (reviewer-renata lens). WP04 diff reviewed: bc001b6357 + 0c8438a5ab (3 writers, 2 compatibility seams, 1 new test module, 4 existing test filters).\n\nAnti-pattern checklist:\n1. Dead code — PASS. build_system_actor has three live callers here; `_event_payload_actor_shape_agnostic` is called from both comparison arms it was written for.\n2. Synthetic fixture — PASS. Each writer test drives the real entry point (`plan_wp_status_backfill`, `backfill_verdict_provenance`, `backfill_runtime_state`) and asserts the stored log; the emit-count assertions are positive controls, so a no-op writer cannot pass. The tolerance test drives `_seed_row_mismatch`, the exact function the change is about, with two negative arms.\n3. Silent empty return — PASS. No new swallow. `bool(projected) and ...` is not a silent fallback: an actor that projects to nothing is not this backfill's seed, which is the correct answer.\n4. FR coverage — PASS. FR-007 (all three writers + event_id stability), FR-009 (both predicates, incl. the narrower-than-shared arm), FR-010 (pre-change corpus ok + different identity + corrupted slot), FR-012 (mixed-shape reduction and `_stream_without_migration`).\n5. Frozen surface — PASS. services/ and contracts/ untouched.\n6. Locked decision — PASS. Identity constants stayed strings (asserted for WP_STATUS_BACKFILL_ACTOR in the existing pin), the seed payload's non-actor fields are asserted unchanged, and the tolerance is bounded to the actor's shape.\n7. Shared-file ownership — PASS. Touch set is lane-d's write scope plus the four pre-existing test filters that had to follow the contract change.\n8. Production fragility — PASS. The one new branch in `_seed_row_mismatch` can only *accept* a row that differs in the actor's shape; it cannot turn a genuine mismatch into a pass, which the two negative arms pin.\n\nPre-existing reds in this suite: tests/migration/test_birth_cutover.py's four EVIDENCE_WINDOW_UNCOMPUTABLE failures are #6801 and reproduce identically on a pristine origin/main worktree; nothing here touches the gate that refuses them."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2793824,
+      "shell_pid_created_at": "1793408878.01",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67T60EKR3Q6SNYGPYFRY7ZY",
+      "last_transition_at": "2026-10-31T01:46:27.155246+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T01:35:20Z – claude – shell_pid=3316254 – status-model.md: 'Still strings' replaced by the system-write rule (four keys, three role values, writer→identity table, null-profile rationale, shape-blind seed classification, attestation-by-policy_metadata). Changelog: [Unreleased] Changed entry, 1,075 chars. check_docs_freshness --ci errors=0 (9 pre-existing warnings); test_no_legacy_terminology + test_events_import_frozen 113 passed.",
+        "for_review: WP05 complete (docs + changelog only). Pre-review gate skipped via the documented explicit opt-out (empty auto-derived scope -> make test-fast exceeds 300s; the frontmatter scope override is rejected by WPMetadata). Evidence: check_docs_freshness --ci errors=0; test_no_legacy_terminology + test_events_import_frozen 113 passed.",
+        "Review passed (reviewer-renata lens). WP05 diff reviewed: c6e544a61a (2 files: docs/architecture/status-model.md, docs/changelog/CHANGELOG.md).\n\nAnti-pattern checklist:\n1. Dead code — N/A (documentation).\n2. Synthetic fixture — N/A. The docs describe what WP01-WP04 actually ship, read from the merged call sites rather than from the spec: the writer-to-identity table matches the 13 emit sites, and the null-profile sentence matches build_system_actor's signature.\n3. Silent empty return — N/A.\n4. FR coverage — PASS. FR-013 and SC-005: the role table names all three values, the writer table names every family, the seed-classification paragraph states the shape-blind property, and the changelog entry cites (#6722) and leads with the impact.\n5. Frozen surface — PASS. `docs/architecture/event-ledger-writers-and-readers.md` (ADR 2026-10-29-1 D-9) is untouched; `test_events_import_frozen.py` passes.\n6. Locked decision — PASS. The page says profile/model are always null for a system write and that `tool` carries the identity whole — the two decisions C-001 and the JSON/tool rule depend on. No \"operator\" role is documented.\n7. Shared-file ownership — PASS. docs/ is lane-planning's scope.\n8. Production fragility — N/A.\n\nOne check for the aggregate pass: the changelog entry is 1,075 characters, inside the 1,200 limit."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3316254,
+      "shell_pid_created_at": "1793410248.03",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    }
+  }
+}

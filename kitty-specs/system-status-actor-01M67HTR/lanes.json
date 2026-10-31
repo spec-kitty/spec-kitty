@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "mission_slug": "system-status-actor-01M67HTR",
+  "mission_id": "01M67HTRX6QF65J2S1P00K2NGS",
+  "mission_branch": "kitty/mission-system-status-actor-01M67HTR",
+  "target_branch": "issue-6722-system-status-actor",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/__init__.py",
+        "src/specify_cli/status/actor.py",
+        "src/specify_cli/status/models.py",
+        "tests/status/test_system_actor_6722.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/lanes/recovery.py",
+        "src/specify_cli/status/bootstrap.py",
+        "tests/lanes/test_implementation_recovery.py",
+        "tests/lanes/test_system_actor_6722.py",
+        "tests/specify_cli/lanes/test_recovery.py",
+        "tests/status/test_system_actor_bootstrap_6722.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/approved_attestation.py",
+        "src/specify_cli/consolidation/canceled_attestation.py",
+        "src/specify_cli/consolidation/done_bookkeeping.py",
+        "src/specify_cli/consolidation/preflight.py",
+        "tests/consolidation/test_merge_done_recording.py",
+        "tests/consolidation/test_system_actor_6722.py",
+        "tests/specify_cli/consolidation/test_done_evidence_snapshot.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "src/specify_cli/migration/verdict_provenance_backfill.py",
+        "src/specify_cli/migration/wp_status_backfill.py",
+        "tests/migration/test_birth_cutover.py",
+        "tests/migration/test_verdict_provenance_backfill.py",
+        "tests/unit/migration/test_backfill_runtime_state.py",
+        "tests/unit/migration/test_system_actor_6722.py",
+        "tests/unit/migration/test_wp_status_backfill.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/architecture/status-model.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-30T23:25:52.418500+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "1770eabcd6911c44ea2916f0a364a2b4e3d3bbbf"
+}
