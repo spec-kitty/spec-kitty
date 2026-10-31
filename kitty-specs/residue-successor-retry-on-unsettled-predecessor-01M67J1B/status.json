@@ -1,0 +1,95 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M67WVB5QKAQ979659WYE12R0",
+  "materialized_at": "2026-10-31T02:33:03.415760+00:00",
+  "mission_number": "244",
+  "mission_slug": "residue-successor-retry-on-unsettled-predecessor-01M67J1B",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67WVATF9KCBMB41YV6ZQDGY",
+      "last_transition_at": "2026-10-31T02:33:03.055510+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Retry rule and red-first pins complete; scoped suites green",
+        "APPROVED. No blocking findings; the five should-fix items and applicable nits are applied in 1b18aec. Anti-patterns: 1 dead code PASS; 2 synthetic-fixture PASS (all cases drive MigrationRunner.upgrade and assert the repaired Mission); 3 silent-empty-return PASS (both True branches documented); 4 FR coverage PASS (FR-001/003 selection+settled view, FR-002 apply gate, FR-004 settled-predecessor control, FR-005 second and third run, FR-006 xfail removed, FR-001/002 worktree pass); 5 frozen surface PASS (no commit touches the four shipped predecessors, the backfill or order_manifest.txt); 6 locked decision PASS (no target_version, manifest, ceiling or schema change); 7 shared-file ownership PASS with one declared out-of-map edit (_residue_successor.py: docstring + removal of the duplicate ClassVar declaration that broke mypy; WP02 owns only docs); 8 production fragility PASS (no new raise). Issue matrix: #6688 fixed, #6680 not-applicable, #6629 not-applicable. Tests: tests/specify_cli/upgrade 1259 passed / 13 skipped plus the three migration architectural gates; ruff/mypy clean on changed files."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1105478,
+      "shell_pid_created_at": "1793403633.63",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "spec-kitty/spec-kitty#6688"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67WVB5QKAQ979659WYE12R0",
+      "last_transition_at": "2026-10-31T02:33:03.415760+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "ADR amendment + changelog entry; docs freshness errors=0, legacy-terminology gate green",
+        "Review cycle 1 fixes applied in ed35baf: no ledger write on re-evaluation (held success kept), ADR claims corrected, test pins byte-identical ledger",
+        "APPROVED (cycle 2). Cycle 1's blocking finding is fixed and pinned: a re-evaluation that finds nothing to do no longer downgrades a held success to skipped, and the repeated-upgrade test asserts the tracked ledger is byte-identical across runs (fails on revert). Cycle 2 review found nothing blocking; its three should-fix items and four nits are applied in a2b6878 (one SKIPPED_RESULT vocabulary in ledger.py, failed->skipped documented as deliberate, ADR residual wording fixed and the adoption-stamp clause added, test-helper docstring and TRACKED_LEDGER_RELPATH, comment reflow). Anti-patterns: 1 no dead code (SKIPPED_RESULT has production callers); 2 non-synthetic (the assertions drive MigrationRunner.upgrade); 3 no silent empty returns; 4 FR-007 covered by the ADR amendment + changelog entry; 5 frozen surface untouched; 6 no locked-decision contradiction; 7 declared cross-WP edits in runner.py, base.py and the WP01 test file, with rationale in ed35baf; 8 no new raise. Docs: check_docs_freshness --ci errors=0 (pre-existing HELP-DRIFT and link warnings also appear on pristine main); test_no_legacy_terminology 98 passed; tests/specify_cli/upgrade + tests/upgrade 1564 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      },
+      "tracker_refs": [
+        "spec-kitty/spec-kitty#6688"
+      ]
+    }
+  }
+}

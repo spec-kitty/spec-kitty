@@ -1,0 +1,33 @@
+{
+  "accept_commit": "b0d56f2f9ff88e4ae6bcc82a769a8e29ba594f5a",
+  "acceptance_history": [
+    {
+      "accept_commit": "b0d56f2f9ff88e4ae6bcc82a769a8e29ba594f5a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T02:29:18.048673+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "866047f0dd403749ebfb03312ec09424ea461a8d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T02:29:18.048673+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "866047f0dd403749ebfb03312ec09424ea461a8d",
+  "baseline_merge_commit": "cac4cab63dadfde4c41ea25d0e50f8c9ecfd322d",
+  "created_at": "2026-10-30T23:24:05.816125+00:00",
+  "flattened": false,
+  "friendly_name": "residue successor retry on unsettled predecessor",
+  "merged_at": "2026-10-31T02:33:02.958643+00:00",
+  "merged_commit": "cac4cab63dadfde4c41ea25d0e50f8c9ecfd322d",
+  "mid8": "01M67J1B",
+  "mission_id": "01M67J1B54KF9MM8AES59D1M3P",
+  "mission_number": 244,
+  "mission_slug": "residue-successor-retry-on-unsettled-predecessor-01M67J1B",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances residue successor retry on unsettled predecessor on issue-6688-residue-successor-retry so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "residue successor retry on unsettled predecessor",
+  "slug": "residue-successor-retry-on-unsettled-predecessor-01M67J1B",
+  "status_phase": "1",
+  "target_branch": "issue-6688-residue-successor-retry",
+  "topology": "single_branch"
+}
