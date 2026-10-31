@@ -87,6 +87,7 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("store_language_settlement", "charter.activation.language_settlement"),
     ("ActiveCharterConfigError", "charter.activation.pack_context"),
     ("load_charter_yaml_mapping", "charter.activation.pack_context"),
+    ("load_denied", "charter.activation.pack_context"),
     ("verify", "charter.activation.synthesizer.manifest"),
     ("LegacyRenameRefusedError", "charter.activation.synthesizer.legacy_rename"),
     ("RenameReport", "charter.activation.synthesizer.legacy_rename"),

@@ -132,7 +132,7 @@ def _left_absent_messages(repo_root: Path, left_absent: Mapping[str, list[str]])
     ids are reported with the same ``kept deactivated:`` wording the present-key path
     uses (:func:`_kept_deactivated_messages`).
     """
-    from charter.activation.pack_context import load_denied
+    from charter.activation.api import load_denied
     from charter.drg import ArtifactKind
 
     kinds = {ArtifactKind.from_plural(key.removeprefix("activated_")) for key in left_absent}
