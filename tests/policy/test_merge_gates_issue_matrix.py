@@ -589,6 +589,34 @@ class TestDoneJudgesEveryRow:
         assert _gate(gates, _COMPLETENESS_GATE).verdict == GateVerdict.PASS  # C-002
         assert overall_pass is False
 
+    def test_fully_verdicted_matrix_with_a_diagnostic_gets_no_verdict_remedy(self, repo: Path) -> None:
+        """#6450 (7): every row HAS a verdict, so "Fill in verdicts" is a wrong remedy.
+
+        A ``deferred-with-followup`` row whose ``evidence_ref`` carries no follow-up handle
+        fails validation while every row carries a verdict. The refusal must name that
+        diagnostic and must not send the operator back to ``issue-verdict``; the gate still
+        FAILs exactly as before (the decision is unchanged, only the cause is named).
+        """
+        mission_slug = _build_lanes_mission(repo, mid8="01KZR3A6", primary_matrix={_ISSUE_KEY: "fixed"})
+        # Verdict present on every row; the failure is the empty evidence_ref, which is a
+        # validation diagnostic, not a missing verdict.
+        (repo / "kitty-specs" / mission_slug / "issue-matrix.json").write_text(
+            json.dumps({"rows": {_ISSUE_KEY: {"verdict": "fixed", "evidence_ref": ""}}}), encoding="utf-8"
+        )
+
+        overall_pass, gates = _run_gates(repo, mission_slug, mode="block")
+        gate = _gate(gates, _TERMINALITY_GATE)
+
+        assert gate.verdict == GateVerdict.FAIL, gate.details
+        assert gate.blocking is True
+        assert overall_pass is False
+        # The real cause is named ...
+        assert "evidence_ref is empty" in gate.details
+        assert _ISSUE_KEY in gate.details
+        # ... and the verdict-recording remedy is not, because the verdict exists.
+        assert "Fill in verdicts" not in gate.details
+        assert "spec-kitty agent issue-verdict" not in gate.details
+
     def test_uncited_in_mission_row_warns_in_warn_mode(self, repo: Path) -> None:
         mission_slug = _build_lanes_mission(repo, mid8="01KZR3A1", primary_matrix={_ISSUE_KEY: "fixed", _UNCITED_KEY: "in-mission"})
 
