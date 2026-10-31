@@ -1,7 +1,7 @@
 {
-  "event_count": 7,
-  "last_event_id": "01M68MWMVGBDBK5KPF13YK6AD8",
-  "materialized_at": "2026-10-31T09:33:11.920338+00:00",
+  "event_count": 8,
+  "last_event_id": "01M68PNR2S2CWHFPK4T3XCHB2Y",
+  "materialized_at": "2026-10-31T10:04:23.001478+00:00",
   "mission_number": "",
   "mission_slug": "migration-dry-run-payload-authority-01M68JCJ",
   "mission_type": "software-dev",
@@ -10,12 +10,12 @@
     "approved": 1,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 0,
+    "claimed": 1,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -51,14 +51,19 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "user",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68JJQ75EHM5BX4Z8FQV9853",
-      "last_transition_at": "2026-10-31T08:52:49.509593+00:00",
+      "lane": "claimed",
+      "last_event_id": "01M68PNR2S2CWHFPK4T3XCHB2Y",
+      "last_transition_at": "2026-10-31T10:04:23.001478+00:00",
+      "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-31T10:04:17Z – unknown – Call site routed through the facade builder; the payload literal and canonical-producer-exempt marker are gone; a model rejection is reported as PAYLOAD_INVALID (mapped violations) instead of raising. 5 red-first parity/authority tests in tests/migration/test_mission_state_teamspace_payload_authority.py pass; tests/migration 204 passed / 4 pre-existing birth-cutover reds (#6801); doctor CLI 48 passed; integration/migration 40 passed / 1 pre-existing red (#6787); ruff+mypy clean; canonical-producer lint identical to pristine main; docs freshness errors=0."
       ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
       "subtasks": {
         "T006": "done",
         "T007": "done",
