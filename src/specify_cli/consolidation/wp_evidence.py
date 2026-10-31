@@ -31,8 +31,10 @@ normally pruned once the landing is on the target (#6780). A caller that has ver
 landing commit (``accept --mode pr --merge-commit``) passes it as *landed_commit*; a lane whose
 window tip no longer resolves is then judged on ``planning_commit..landed_commit`` — same base,
 same owned-content criterion — instead of refusing the whole lane as unreadable
-(:func:`_landed_window`). Without it the window stays fail-closed and the refusal names the
-absent ref and both remedies.
+(:func:`_landed_window`). Only the PR's own side counts (``landing^1..landing``), only a landing
+that is a true merge commit can stand in, and a work package whose ``owned_files`` overlap another
+approved work package's is refused on that path. Without a landing commit the window stays
+fail-closed and the refusal names the absent ref and both remedies.
 
 single_branch Missions keep emitting the ``SINGLE_BRANCH_*`` codes and their refusal text; every
 other topology emits the neutral codes. :data:`_SINGLE_BRANCH_ALIASES` maps one onto the other.
@@ -43,13 +45,14 @@ from __future__ import annotations
 import fnmatch
 import logging
 import re
+import subprocess
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
-from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_in_range, sha_reachable_from
+from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_in_range, commit_parents, sha_reachable_from
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -380,8 +383,8 @@ _RECOVERY: Mapping[str, str] = {
     ),
     IMPLEMENTATION_UNREADABLE: (
         f"Recovery for {IMPLEMENTATION_UNREADABLE}: restore or fetch the branch the window ends at (and the recorded planning commit) so it is readable again, "
-        "or, for a Mission that landed through a pull request, re-run `spec-kitty accept --mode pr --merge-commit <sha>` with the verified "
-        "PR landing commit so the evidence is judged against the landed tree, then re-run."
+        "or, for a Mission that landed through a pull request merge commit (not a squash), re-run `spec-kitty accept --mode pr --merge-commit <sha>` "
+        "with the verified PR landing commit so the evidence is judged against the landed tree, then re-run."
     ),
     IMPLEMENTATION_MISSING: (
         f"Recovery for {IMPLEMENTATION_MISSING}: commit the work package's change to its owned_files (on its lane branch, or on the "
@@ -421,12 +424,23 @@ def _merge_base(repo_root: Path, left: str, right: str) -> str:
     return sha
 
 
-def _tip_resolves(repo_root: Path, tip: str) -> bool:
-    """True when the window tip *tip* resolves to a commit in this repository (read-only, never raises)."""
-    from specify_cli.lanes._git import ref_exists
+def _branch_ref_absent(repo_root: Path, branch: str) -> bool:
+    """True only when the local branch *branch* is truly absent (``git show-ref --verify`` exit 1).
 
-    exists: bool = ref_exists(repo_root, tip)
-    return exists
+    A ref that exists but cannot be read (a missing object, a corrupt ref, a git error) is NOT
+    absent: ``show-ref`` exits 128 for it, and so does any other failure, so only the one exit
+    code that means "no such ref" lets the landed window stand in (#6780). Never raises.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "show-ref", "--verify", "--quiet", "--", f"refs/heads/{branch}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return False
+    return result.returncode == 1
 
 
 @dataclass(frozen=True)
@@ -453,28 +467,44 @@ def _landed_window(repo_root: Path, window: tuple[str, str], landed_commit: str 
     are normally pruned once the landing is on the target, so the branch the planning window
     ended at is gone even though every deliverable is on the target. When the caller supplies
     *landed_commit* — the commit it has already verified as this Mission's PR landing commit —
-    the window becomes ``planning_commit..landed_commit``. The base, the owned-content match,
-    the bookkeeping exclusion and the independence check are unchanged, so the same criterion
-    is asked of the landed tree; a work package with no owned change there still refuses
-    (``IMPLEMENTATION_MISSING``). The window is nonetheless WIDER than the lane's: it also
-    holds everything else that landed on the target between the planning commit and the
-    landing, so owned files that unrelated target-side work touched in that interval read as
-    evidence too. A safer stand-in than refusing the lane, not an equivalent one.
+    the window becomes ``landing^1..landing``: the net change the merge brought onto the target,
+    i.e. the pull request's own side, so unrelated work that reached the target before the merge
+    never reads as evidence. The owned-content match, the bookkeeping exclusion and the
+    independence check are unchanged. The window is still WIDER than one lane's (it holds every
+    work package of the PR), which :func:`_overlapping_owners` compensates for by refusing a work
+    package whose ownership overlaps another's.
 
-    A readable tip is always used as it is (the lane window stays the first choice). A stand-in
-    whose history does not contain the recorded planning commit is refused rather than diffed:
-    such a window would not describe this Mission's work. Raises :class:`GitProbeError` when the
-    base cannot be proven an ancestor of *landed_commit*.
+    The stand-in applies only when the branch ref is truly absent (:func:`_branch_ref_absent`),
+    the planning commit is an ancestor of the landing, the landing is a merge commit and the
+    planning commit sits on a non-first-parent side of it. Otherwise it is refused rather than
+    diffed: such a window would not describe this Mission's work. A ref that exists but cannot be
+    read is never treated as pruned. Raises :class:`GitProbeError` when any of those cannot be
+    proven.
+
+    A tip whose ref is present is always used as it is (the lane window stays the first choice).
     """
     base, tip = window
-    if landed_commit is None or _tip_resolves(repo_root, tip):
+    if landed_commit is None or not _branch_ref_absent(repo_root, tip):
         return _LandedWindow(window)
     if not sha_reachable_from(repo_root, base, landed_commit):
         raise GitProbeError(
             f"the verified landing commit {landed_commit} does not contain the recorded planning commit {base} "
             f"(the window {base}..{landed_commit} would not describe this Mission's work)"
         )
-    return _LandedWindow((base, landed_commit), absent_ref=tip, landed_commit=landed_commit)
+    parents = commit_parents(repo_root, landed_commit)
+    if len(parents) < 2:
+        raise GitProbeError(
+            f"the verified landing commit {landed_commit} is not a merge commit (a squash or fast-forward landing), so the pull request's own "
+            "change cannot be separated from unrelated work on the target; restore the lane branch from "
+            f"`refs/spec-kitty/lane-tip/{tip}` or the pull request's head, then re-run"
+        )
+    if not any(sha_reachable_from(repo_root, base, parent) for parent in parents[1:]):
+        raise GitProbeError(
+            f"the recorded planning commit {base} is not on the merged-in side of the landing commit {landed_commit}, "
+            "so that merge did not land this Mission; restore the lane branch from "
+            f"`refs/spec-kitty/lane-tip/{tip}` or the pull request's head, then re-run"
+        )
+    return _LandedWindow((parents[0], landed_commit), absent_ref=tip, landed_commit=landed_commit)
 
 
 def _naming_an_absent_tip(repo_root: Path, judged: _LandedWindow) -> _LandedWindow:
@@ -485,9 +515,40 @@ def _naming_an_absent_tip(repo_root: Path, judged: _LandedWindow) -> _LandedWind
     still reads pays no extra probe, and a refusal can name the pruned branch instead of
     quoting git's own paraphrase of the refspec.
     """
-    if judged.absent_ref is not None or _tip_resolves(repo_root, judged.window[1]):
+    if judged.absent_ref is not None or not _branch_ref_absent(repo_root, judged.window[1]):
         return judged
     return replace(judged, absent_ref=judged.window[1])
+
+
+def _patterns_overlap(left: Sequence[str], right: Sequence[str]) -> bool:
+    """True when some ownership glob of *left* can match what some glob of *right* owns (and vice versa).
+
+    A conservative, glob-aware approximation (it reuses :func:`matches_owned`, treating each glob as a
+    path of the other side): identical globs, one glob matching the other, or one being a directory
+    prefix of the other all overlap. It errs toward reporting an overlap, which only refuses.
+    """
+    return any(a == b or matches_owned(a, [b]) or matches_owned(b, [a]) for a in left for b in right)
+
+
+def _overlapping_owners(scan: _Scan, approved: Sequence[str]) -> dict[str, list[str]]:
+    """Each of *approved* whose ``owned_files`` overlap another approved work package's, with those others (#6780)."""
+    overlaps: dict[str, list[str]] = {}
+    for wp_id in approved:
+        patterns = scan.owned.get(wp_id, ())
+        others = sorted(other for other, theirs in scan.owned.items() if other != wp_id and _patterns_overlap(patterns, theirs))
+        if others:
+            overlaps[wp_id] = others
+    return overlaps
+
+
+def _overlap_line(wp_id: str, lane: ExecutionLane, judged: _LandedWindow, others: Sequence[str]) -> str:
+    base, tip = judged.window
+    branch = judged.absent_ref
+    return (
+        f"{IMPLEMENTATION_UNREADABLE}: {wp_id}'s evidence window {base}..{tip} ({lane.lane_id}) cannot be attributed: the lane branch {branch} was pruned and "
+        f"{wp_id}'s owned_files overlap {', '.join(others)}'s, so the landing merge alone cannot say which work package made a change there; restore the lane "
+        f"branch from `refs/spec-kitty/lane-tip/{branch}` or the pull request's head, then re-run, {_CANNOT_VERIFY}"
+    )
 
 
 def _unreadable_line(wp_id: str, lane: ExecutionLane, judged: _LandedWindow, exc: GitProbeError) -> str:
@@ -505,8 +566,8 @@ def _unreadable_line(wp_id: str, lane: ExecutionLane, judged: _LandedWindow, exc
     elif judged.absent_ref is not None:
         cause = (
             f"the window tip {judged.absent_ref} no longer exists (a pruned lane branch?), so the window cannot be read; "
-            "pass `--merge-commit <sha>` with the verified PR landing commit on `spec-kitty accept --mode pr` "
-            "to judge this work package against the landed tree, or restore or fetch the branch"
+            "for a Mission that landed through a pull request merge commit (not a squash), pass `--merge-commit <sha>` with the verified PR landing commit "
+            "on `spec-kitty accept --mode pr` to judge this work package against the landed tree; otherwise restore or fetch the branch"
         )
     else:
         cause = f"the window could not be diffed ({exc})"
@@ -531,7 +592,7 @@ def _dependency_evidence_windows(repo_root: Path, lanes_manifest: LanesManifest,
     # The lane's EFFECTIVE tip: the lane branch, or the verified landing commit standing in
     # for a pruned one (#6780). Probing a deleted branch here would raise and take the whole
     # lane down with it, so the caller passes the tip it actually judged.
-    effective_tip = tip or lane_created_branch(lanes_manifest, lane.lane_id)
+    effective_tip = tip if tip is not None else lane_created_branch(lanes_manifest, lane.lane_id)
     by_id = {other.lane_id: other for other in lanes_manifest.lanes}
     for dependency_id in lane.depends_on_lanes:
         dependency = by_id.get(dependency_id)
@@ -544,12 +605,8 @@ def _dependency_evidence_windows(repo_root: Path, lanes_manifest: LanesManifest,
 
 
 def _widened_paths(repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane, paths: frozenset[str], tip: str | None = None) -> frozenset[str]:
-    """*paths* plus the paths each dependency window changes (:func:`_dependency_evidence_windows`).
-
-    The default call shape (no *tip*) is preserved exactly: it is the one every existing
-    caller and test double of :func:`_dependency_evidence_windows` uses.
-    """
-    windows = _dependency_evidence_windows(repo_root, lanes_manifest, lane) if tip is None else _dependency_evidence_windows(repo_root, lanes_manifest, lane, tip)
+    """*paths* plus the paths each dependency window changes (:func:`_dependency_evidence_windows`)."""
+    windows = _dependency_evidence_windows(repo_root, lanes_manifest, lane, tip)
     widened = set(paths)
     for window in windows:
         widened |= evidence_paths(repo_root, window, lanes_manifest.mission_slug)
@@ -615,6 +672,12 @@ def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane
             line += f" The lane branch {judged.absent_ref} was pruned, so the verified landing commit stands in for it."
         return line
 
+    if judged.landed_commit is not None:
+        # The landed window holds the whole pull request, not this lane's work: an overlapping owner cannot be told apart.
+        overlaps = _overlapping_owners(scan, approved)
+        for wp_id, others in overlaps.items():
+            scan.add(wp_id, _overlap_line(wp_id, lane, judged, others))
+        approved = [wp_id for wp_id in approved if wp_id not in overlaps]
     try:
         paths = widened_lane_paths(repo_root, lanes_manifest, lane, paths, [scan.owned.get(wp_id, ()) for wp_id in approved], tip=judged.window[1])
     except GitProbeError as exc:

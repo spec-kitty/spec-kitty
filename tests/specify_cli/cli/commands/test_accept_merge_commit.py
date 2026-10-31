@@ -808,10 +808,8 @@ def test_accept_pr_mode_without_merge_commit_names_the_pruned_lane_branch(
     """Without a verified landing commit the refusal is honest about the cause (#6780).
 
     The window cannot be read because the lane branch no longer exists; the refusal names
-    that absent ref as the cause, and both remedies (restore/fetch the branch, or pass the
-    verified PR landing commit), instead of a blanket 'could not be diffed' that only
-    happened to carry the ref because git echoes its refspec. The assertions below pin the
-    shipped sentence, not the incidental words.
+    that absent ref as the cause, and both remedies, instead of a blanket 'could not be diffed'.
+    The error code is the contract; the sentence is covered by the unit arms.
     """
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
@@ -835,12 +833,38 @@ def test_accept_pr_mode_without_merge_commit_names_the_pruned_lane_branch(
     assert exit_info.value.exit_code == 1
     payload = json.loads(capsys.readouterr().out)
     assert payload["error_code"] == "IMPLEMENTATION_UNREADABLE"
-    assert f"the window tip {_lane_branch()} no longer exists" in payload["error"], (
-        "the refusal must name the absent lane branch as the cause, not leave it to git's own paraphrase of the refspec"
-    )
     assert "could not be diffed" not in payload["error"], "a pruned tip is diagnosed, not reported as an unreadable diff"
-    assert "--merge-commit" in payload["error"], "the refusal must name the landing-commit remedy"
-    assert "--mode pr" in payload["error"]
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert "baseline_merge_commit" not in meta
+
+
+def test_accept_pr_mode_refuses_a_squash_landing_for_a_pruned_lane(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """#6780: only a merge-commit landing can stand in for a pruned lane; a squash cannot separate the PR's change."""
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    feature_dir, squash_commit, _parent = _create_pr_merged_feature(repo_root, squash=True, lane_merged=True, prune_lane=True)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    with pytest.raises(typer.Exit) as exit_info:
+        accept(
+            mission=_SLUG,
+            mode="pr",
+            actor="tester",
+            test=[],
+            json_output=True,
+            lenient=False,
+            no_commit=False,
+            diagnose=False,
+            allow_fail=False,
+            merge_commit=squash_commit,
+            attest_first_landing=True,
+        )
+
+    assert exit_info.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error_code"] == "IMPLEMENTATION_UNREADABLE"
+    assert "not a merge commit" in payload["error"]
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert "baseline_merge_commit" not in meta
 
