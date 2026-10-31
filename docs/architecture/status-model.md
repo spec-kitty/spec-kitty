@@ -429,13 +429,13 @@ Keys are always sorted (`sort_keys=True`) for deterministic, merge-friendly outp
 ### The actor
 
 The `actor` field records who wrote an event. Transitions and annotations
-written by agent and operator commands store a structured actor with exactly
-four keys (#6400):
+written by agent, operator and system commands store a structured actor with
+exactly four keys (#6400, extended to the system writers by #6722):
 
 | Key | Value |
 |-----|-------|
-| `tool` | The agent handle, for example `claude` or `codex`. Only the bare tool: a compact `--agent`/`--actor` value such as `claude:opus:python-pedro` contributes `claude` here. `user` when an operator names no agent (`mark-status` without `--agent`). |
-| `role` | `implementer` or `reviewer`, set by the action (see below), never by the profile. |
+| `tool` | The agent handle, for example `claude` or `codex`. Only the bare tool: a compact `--agent`/`--actor` value such as `claude:opus:python-pedro` contributes `claude` here. `user` when an operator names no agent (`mark-status` without `--agent`); for a system write, the identity that writer records (see [System writes](#system-writes)). |
+| `role` | `implementer`, `reviewer` or `system`, set by the action (see below), never by the profile. |
 | `profile` | The agent profile, or `null`. |
 | `model` | The model, or `null`. |
 
@@ -446,6 +446,8 @@ note), `agent tasks mark-status` (which takes an optional `--agent`),
 `agent status emit` and the `orchestrator-api` lifecycle commands
 (`start-implementation`, `start-review`, `transition`, `append-history`).
 The `orchestrator-api` JSON envelopes do not change; only the stored event does.
+The system writers listed under [System writes](#system-writes) write the same
+four keys, with `role: "system"`.
 
 **Profile.** `profile` (and `model`) come from, in this order: the dispatch
 invocation (`--invocation-id`), then `--profile`, then the profile (and model)
@@ -456,19 +458,43 @@ WP frontmatter is not copied in.
 **Role.** `reviewer` for a hop into `in_review`, `approved` or `done`, for any
 hop that leaves `in_review` (a rejection, a block or a cancel during review)
 and for a review verdict note. `implementer` for every other hop, for
-implementer notes and for subtask marks.
+implementer notes and for subtask marks. `system` for a write the program makes
+itself, with no agent dispatch behind it (see [System writes](#system-writes));
+an agent role is never derived from a lane hop for a system write, and a system
+write never gains `implementer` or `reviewer`.
 
 **Display and identity.** The board, the snapshot `actor` slot and the claim
 check still use the bare tool (`actor_identity_str`), so a structured actor and
 a bare-string actor naming the same tool are the same agent.
 
-**What readers accept.** A bare string (every event written before this
-change, and the system writers below), the 4-key dict above, and a 5-key dict
-that adds `profile_source`. Any other dict is refused when the log is read.
+**What readers accept.** A bare string (every event written before #6400, and
+every system row written before #6722), the 4-key dict above, and a 5-key dict
+that adds `profile_source`. Any other dict is refused when the log is read. The
+4-key dict is what every writer emits today, agent, operator and system alike.
 
-**Still strings.** System writers keep writing a string actor: migrations
-(`migration:...`), consolidation bookkeeping, bootstrap, recovery and the
-consolidation attestations.
+**System writes.** A write the program makes on its own initiative or on the
+operator's behalf records the same four keys with `role: "system"`:
+
+| Writer | `tool` |
+|--------|--------|
+| the `finalize-tasks` bootstrap seed | `finalize-tasks` |
+| a lane recovery catch-up | `recovery` |
+| the consolidation approval replay and done mark, and the done-write refusal probe (a dry request that is never persisted) | `merge` |
+| the `--skip-review-artifact-check` override annotation | the resolved operator identity |
+| `--attest-approved-reviewed` and `--attest-canceled-superseded` | the resolved operator identity |
+| `migrate backfill-wp-status`, `backfill-runtime-state` and `verdict-provenance` seeds | `migration:<id>` |
+
+`profile` and `model` are always `null` for a system write: there is no dispatch
+binding, and nothing is filled in from a plan or a default. `tool` carries the
+identity the writer already recorded, whole — a `migration:<id>` seed identity is
+never split into a tool and a model, which is what keeps it a seed.
+
+Seed classification is unchanged and shape-blind: `is_migration_actor` (and so
+the reducer's seed arm, the timestamp-continuity exemption and the consolidation
+work-window rule) projects a structured actor to its `tool`, so the string rows
+written before this change and the structured rows written after it are the same
+seed. An attestation is still identified by `policy_metadata.attestation`, never
+by its `role`.
 
 > **Planned (follow-up #6721).** A later release adds `profile_source` (where the
 > profile came from) to the written actor and fills `profile` from the WP
