@@ -1032,7 +1032,8 @@ def teamspace_dry_run(
                 # so an unrepresentable row is rejected here rather than at the
                 # conformance pass below. One bad row must not abort the whole
                 # run: report it and move on, as the PAYLOAD_INVALID contract
-                # always promised.
+                # always promised. (In practice this is the payload model: the
+                # envelope shell is unconstrained strings and cannot reject.)
                 errors.append(
                     {
                         "mission_slug": status_event.mission_slug,
