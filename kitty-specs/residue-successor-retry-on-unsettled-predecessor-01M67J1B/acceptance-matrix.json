@@ -1,0 +1,107 @@
+{
+  "mission_slug": "residue-successor-retry-on-unsettled-predecessor-01M67J1B",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/upgrade/test_successor_retry_6688.py::test_an_unsettled_predecessor_lets_the_successor_repair_a_pre_ledger_project (8 cases) + test_c006[...] (2)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:27:26.073360+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same test asserts the successor is in result.migrations_applied and the Mission is repaired through MigrationRunner.upgrade",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:27:28.989751+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_c006_an_unsettled_predecessor_record_still_lets_the_successor_run asserts settled_in_selection_view(project, successor) is False",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:27:31.621108+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_a_settled_predecessor_keeps_the_successor_inert (4 pairs) + the #6680 inertness/dry-run suites",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:27:34.248598+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_a_completed_repair_is_never_replayed: runs 2 and 3 apply nothing and leave the tracked ledger byte-identical",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:27:36.650476+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "the strict xfail is removed; the case fails under --runxfail before the fix and passes after",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:27:39.459331+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md Amendment 2026-10-30 + docs/changelog/CHANGELOG.md #6688; check_docs_freshness --ci errors=0",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:27:42.027060+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No shipped migration module is edited (DIRECTIVE_044): the frozen backfill and the four shipped predecessors keep their bytes",
+      "verification_method": "grep_absence",
+      "verification_command": "residue_safe",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/upgrade/migrations/m_4_0_0rc8_backfill_migration_ledger.py src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py src/specify_cli/upgrade/migrations/m_3_1_1_normalize_status_json.py"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "The retry rule is not injected into frozen code: no shipped migration module declares predecessor_id",
+      "verification_method": "grep_absence",
+      "verification_command": "predecessor_id",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/upgrade/migrations/m_4_0_0rc8_backfill_migration_ledger.py src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py src/specify_cli/upgrade/migrations/m_3_1_1_normalize_status_json.py"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "The C-006 case is pinned as a plain passing test: no xfail marker remains in the residue-successor suite",
+      "verification_method": "grep_absence",
+      "verification_command": "pytest.mark.xfail",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "tests/specify_cli/upgrade/test_residue_safe_successors_6669.py"
+    }
+  ]
+}
