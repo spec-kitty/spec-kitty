@@ -16,9 +16,8 @@
   "baseline_merge_commit": "749d55dca6da020ef1f5f3f26759fa25f8c0b2aa",
   "contracts": "none",
   "contracts_rationale": "No external interface is added or changed: the mission corrects which in-process DRG layer an existing additive-only check reads, and adds one optional field to the internal SynthesisRequest envelope. The CLI's user-facing surface (charter synthesize / resynthesize behaviour) is covered by the regression tests rather than a schema.",
-  "coordination_branch": "kitty/mission-charter-resynth-project-directive-layer-split-01M690W8",
   "created_at": "2026-10-31T13:02:42.532950+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "charter resynthesize project-directive layer split",
   "merged_at": "2026-10-31T14:41:12.744478+00:00",
   "merged_commit": "9e6a3cf975f9e7d3eb622f1ffffaf15d1315d26c",
@@ -33,7 +32,6 @@
   "slug": "charter-resynth-project-directive-layer-split-01M690W8",
   "status_phase": "1",
   "target_branch": "issue-6768-charter-resynth-project-directive",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-31T13:08:21.226160+00:00"
 }
