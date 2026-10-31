@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T01:07:25.113138+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f0ecfe979d56f1208bed2a61668726025cd37cc9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T01:07:25.113138+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "f0ecfe979d56f1208bed2a61668726025cd37cc9",
   "coordination_branch": "kitty/mission-cascade-stem-resolution-pass-01M67JG7",
   "created_at": "2026-10-30T23:32:14.370850+00:00",
   "flattened": false,
