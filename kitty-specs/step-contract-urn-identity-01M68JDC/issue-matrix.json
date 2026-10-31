@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#6527": {
+      "evidence_ref": "context citation only: #6527 is the landed activate-output/identity mission that first indexed built-in step contracts; this mission changes the URN resolution it left split, and touches none of its work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6741": {
       "evidence_ref": "commit 871835f77b",
       "fr": "FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007",
