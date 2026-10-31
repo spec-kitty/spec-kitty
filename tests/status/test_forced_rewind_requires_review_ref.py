@@ -63,16 +63,18 @@ def repo_in_review(tmp_path: Path) -> Path:
     feature_dir = repo / "kitty-specs" / _MISSION_SLUG
     feature_dir.mkdir(parents=True)
     (repo / ".kittify").mkdir()
-    with patch("specify_cli.cli.commands.agent.status.locate_project_root", return_value=repo), patch(
-        "specify_cli.cli.commands.agent.status._find_mission_slug", return_value=_MISSION_SLUG
+    with (
+        patch("specify_cli.cli.commands.agent.status.locate_project_root", return_value=repo),
+        patch("specify_cli.cli.commands.agent.status._find_mission_slug", return_value=_MISSION_SLUG),
     ):
         _advance_to_for_review(feature_dir)
     return repo
 
 
 def _invoke(repo: Path, argv: list[str]):
-    with patch("specify_cli.cli.commands.agent.status.locate_project_root", return_value=repo), patch(
-        "specify_cli.cli.commands.agent.status._find_mission_slug", return_value=_MISSION_SLUG
+    with (
+        patch("specify_cli.cli.commands.agent.status.locate_project_root", return_value=repo),
+        patch("specify_cli.cli.commands.agent.status._find_mission_slug", return_value=_MISSION_SLUG),
     ):
         return runner.invoke(app, argv)
 
@@ -99,7 +101,13 @@ def _forced_rewind(repo: Path, *extra: str):
 
 
 def _digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Raw-byte digest: the whole point is that a refused command writes no bytes at all.
+
+    ``charter.hasher.hash_content`` would normalise a BOM and line endings, which is
+    exactly the difference a stray rewrite could hide, so this is a file-integrity
+    check rather than a reuse of the charter hasher (TID251's sanctioned exception).
+    """
+    return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251 -- byte identity, not charter content
 
 
 def _rows(feature_dir: Path) -> list[dict]:
