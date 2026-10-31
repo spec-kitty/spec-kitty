@@ -2,7 +2,7 @@
 title: How to Troubleshoot Merge Issues
 description: 'How to troubleshoot spec-kitty consolidate with Spec Kitty 3.2: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-30'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -187,7 +187,7 @@ Reconciliation refused (fail-closed): <reason>
 
 After landing, `consolidate` checks that the target holds exactly the approved work. When the check fails or cannot decide, the run restores the branches it moved and prints the rollback report that starts `Rollback to the pre-consolidation snapshot:`. If someone else committed on the target after the landing, that commit is kept: the target is reported `NOT restored ... moved by another actor`, and the record stays open (see [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored)).
 
-Read the divergence or reason. It names the WP, the lane and the paths. Correct the lane, then run `spec-kitty consolidate` or `--resume`.
+Read the divergence or reason. It names the WP, the lane and the paths. Correct the lane, then run `spec-kitty consolidate` again. If the rollback restored every branch, a `--resume` answers `No interrupted merge to resume.` — the run left no record, so a plain run is the right one (see [A failed run that rolled back completely leaves no record](#a-failed-run-that-rolled-back-completely-leaves-no-record)). Only a run that left a branch `NOT restored` has a record to resume.
 
 - **A FAIL cannot be overridden.** Correct the content on the lane through a surviving WP.
 - **Missing or contradictory attribution about a canceled WP** can be attested after you check by hand that the canceled content is absent or superseded:
@@ -197,6 +197,23 @@ Read the divergence or reason. It names the WP, the lane and the paths. Correct 
   ```
 
   The flag is repeatable, one WP per use, and `--attest-reason` is required. It never lifts a FAIL. A `--dry-run` does not apply it.
+
+### A failed run that rolled back completely leaves no record
+
+```text
+Rollback to the pre-consolidation snapshot:
+  restored   <target>      <post> -> <pre>
+  restored   <mission>     <post> -> <pre>
+  unchanged  <lane>        (already at <sha>)
+Cleared the consolidation record: nothing of this attempt remains, so the next `spec-kitty consolidate` starts from <target>'s current tip and a plain `spec-kitty consolidate --abort` has nothing left to undo.
+```
+
+Every branch the run moved is back at its pre-run commit, so nothing of that attempt is on the target and there is nothing to resume. The run clears its record (`.kittify/runtime/merge/<mission_id>/state.json`) and says so.
+
+- **What it means.** The next run is a fresh one. Its reconciliation compares the target's **current** tip against the approved work, so anything committed on the target since the failed attempt — your own fix for the cause, a teammate's commit, another Mission's status commit — is already landed content, not Mission content.
+- **What to run.** Fix the cause, then `spec-kitty consolidate --mission <slug>`. Do not commit your fix *and* re-run `--resume` expecting the old baseline: there is no record, and `--resume` answers `No interrupted merge to resume.`.
+- **`--abort`.** With no record, a plain `spec-kitty consolidate --abort` prints `No active merge state ...` and exits 0. It is a no-op, not a refusal.
+- **The boundary.** A rollback that leaves a branch `NOT restored` keeps the record (that branch still holds content the run cannot prove is its own). Resume or `--abort` that record; when the kept content is yours to keep, release it as described in [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored).
 
 ### A lane changed after its work package was approved
 
