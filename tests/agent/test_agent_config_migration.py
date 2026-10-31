@@ -71,22 +71,77 @@ class TestGetAgentDirsForProject:
         assert len(agent_dirs) == 1
         assert agent_dirs[0] == (".opencode", "command")
 
-    def test_fallback_to_all_agents_when_no_config(self, tmp_path):
-        """Test fallback to all agents when config.yaml missing."""
-        # Create .kittify but no config
+    def test_missing_config_returns_only_agents_present_on_disk(self, tmp_path, caplog):
+        """No config.yaml is a legacy project: only the present agents (#6501)."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
+        (tmp_path / ".claude" / "commands").mkdir(parents=True)
+
+        with caplog.at_level("WARNING"):
+            agent_dirs = get_agent_dirs_for_project(tmp_path)
+
+        assert agent_dirs == [(".claude", "commands")]
+        # And the warning names the file, the key and the remedy instead of
+        # silently reading "no list" as "every agent".
+        assert ".kittify/config.yaml" in caplog.text
+        assert "agents.available" in caplog.text
+        assert "spec-kitty agent config" in caplog.text
+
+    def test_legacy_warning_is_emitted_once_per_process_per_project(self, tmp_path, caplog, monkeypatch):
+        """The upgrade chain reads this ~27 times; one line is enough (#6501, NFR-002)."""
+        from specify_cli.agent_utils import directories
+
+        monkeypatch.setattr(directories, "_LEGACY_PROJECTS_WARNED", set())
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".claude").mkdir()
+
+        with caplog.at_level("WARNING"):
+            for _ in range(3):
+                get_agent_dirs_for_project(tmp_path)
+
+        warnings = [record for record in caplog.records if "has no agents.available list" in record.getMessage()]
+        assert len(warnings) == 1
+
+    def test_missing_config_follows_the_agents_actually_present(self, tmp_path):
+        """The observed set is read from disk, not a constant (#6501)."""
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".claude" / "commands").mkdir(parents=True)
+        (tmp_path / ".cursor" / "commands").mkdir(parents=True)
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Fallback returns the canonical registry wholesale, so pin the
-        # relation rather than a count that drifts every time an agent is
-        # added or removed from AGENT_DIRS.
-        assert agent_dirs == list(AGENT_DIRS)
         assert (".claude", "commands") in agent_dirs
-        assert (".opencode", "command") in agent_dirs
-        assert (".kiro", "prompts") in agent_dirs
-        assert (".llxprt", "commands") in agent_dirs
+        assert (".cursor", "commands") in agent_dirs
+        assert len(agent_dirs) == 2
+
+    def test_missing_config_with_no_agent_dirs_returns_nothing(self, tmp_path):
+        """A project with no agent surface gets no agents, never the registry (#6501)."""
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / "kitty-specs").mkdir()
+
+        assert get_agent_dirs_for_project(tmp_path) == []
+
+    def test_ci_github_dir_is_not_a_copilot_surface(self, tmp_path):
+        """A CI-only .github/ is not a Copilot surface; .github/prompts is (#6501)."""
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".github" / "workflows").mkdir(parents=True)
+
+        assert get_agent_dirs_for_project(tmp_path) == []
+
+        (tmp_path / ".github" / "prompts").mkdir()
+        assert get_agent_dirs_for_project(tmp_path) == [(".github", "prompts")]
+
+    def test_agent_root_without_its_managed_subdir_is_still_in_use(self, tmp_path):
+        """A pre-3.1.2 layout keeps its agent dir and no commands/ yet (#6501).
+
+        The agent-specific project dir is the evidence, so command files that
+        still need repairing are not skipped just because the managed subdir is
+        absent; only ``.github`` needs its ``prompts/`` surface (above).
+        """
+        (tmp_path / ".kittify").mkdir()
+        (tmp_path / ".gemini").mkdir()
+
+        assert get_agent_dirs_for_project(tmp_path) == [(".gemini", "commands")]
 
     def test_explicit_empty_list_means_no_agents(self, tmp_path):
         """An explicit ``available: []`` means no CLI-managed agents (#6494)."""
@@ -98,13 +153,23 @@ class TestGetAgentDirsForProject:
 
         assert get_agent_dirs_for_project(tmp_path) == []
 
-    def test_agents_section_without_available_key_keeps_legacy_fallback(self, tmp_path):
-        """No ``available`` key at all is the legacy case #6501 owns, not #6494."""
+    def test_agents_section_without_available_key_uses_present_agents(self, tmp_path):
+        """A section without ``available`` is the legacy case #6501 owns."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         (kittify / "config.yaml").write_text("agents:\n  auto_commit: true\n", encoding="utf-8")
+        (tmp_path / ".gemini" / "commands").mkdir(parents=True)
 
-        assert get_agent_dirs_for_project(tmp_path) == list(AGENT_DIRS)
+        assert get_agent_dirs_for_project(tmp_path) == [(".gemini", "commands")]
+
+    def test_config_without_agents_section_uses_present_agents(self, tmp_path):
+        """A config with no agents section is the same legacy shape (#6501)."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("vcs:\n  type: git\n", encoding="utf-8")
+        (tmp_path / ".opencode" / "command").mkdir(parents=True)
+
+        assert get_agent_dirs_for_project(tmp_path) == [(".opencode", "command")]
 
     def test_unreadable_config_fails_closed_with_remedy(self, tmp_path):
         """A corrupt config never widens to every agent (#6494)."""
@@ -251,8 +316,6 @@ class TestAgentDirMapping:
         # are the authority — command-skill agents use AGENT_SKILL_CONFIG,
         # not AGENT_DIR_TO_KEY). A legitimate new agent, added consistently to
         # both registries, needs 0 edits here (NFR-003).
-        from specify_cli.agent_utils.directories import AGENT_DIRS
-
         assert set(AGENT_DIR_TO_KEY) == {agent_dir for agent_dir, _subdir in AGENT_DIRS}
 
         # Verify special mappings
@@ -273,8 +336,8 @@ class TestAgentDirMapping:
 class TestLegacyProjectSupport:
     """Tests for legacy project support (pre-agent-config)."""
 
-    def test_legacy_project_without_config_processes_all(self, tmp_path):
-        """Legacy projects without config should process all agents."""
+    def test_legacy_project_without_config_repairs_only_the_present_agents(self, tmp_path):
+        """A legacy project gets the agents it has, and no others (#6501)."""
         # Create old-style project (no config.yaml)
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
@@ -285,8 +348,9 @@ class TestLegacyProjectSupport:
         missions.mkdir(parents=True)
         (missions / "implement.md").write_text("/spec-kitty.implement\n\n# Implement\nscroll to the BOTTOM")
 
-        # Create agent directories (all 12)
-        for agent_dir, subdir in CompleteLaneMigration.AGENT_DIRS:
+        # Two of the twelve agent directories exist; the other ten must stay absent.
+        present = [(".claude", "commands"), (".opencode", "command")]
+        for agent_dir, subdir in present:
             agent_path = tmp_path / agent_dir / subdir
             agent_path.mkdir(parents=True)
             (agent_path / "spec-kitty.implement.md").write_text("# Old")
@@ -301,12 +365,12 @@ class TestLegacyProjectSupport:
 
         assert result.success
 
-        # All agents should be updated (legacy fallback)
-        for agent_dir, subdir in CompleteLaneMigration.AGENT_DIRS:
-            agent_implement = tmp_path / agent_dir / subdir / "spec-kitty.implement.md"
-            if agent_implement.exists():
-                content = agent_implement.read_text()
-                assert "/spec-kitty.implement" in content
+        for agent_dir, subdir in present:
+            content = (tmp_path / agent_dir / subdir / "spec-kitty.implement.md").read_text()
+            assert "/spec-kitty.implement" in content
+        absent = [pair for pair in CompleteLaneMigration.AGENT_DIRS if pair not in present]
+        for agent_dir, _subdir in absent:
+            assert not (tmp_path / agent_dir).exists(), f"{agent_dir} was created for an agent the project does not have"
 
 
 class TestDryRunBehavior:
