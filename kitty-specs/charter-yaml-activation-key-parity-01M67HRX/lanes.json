@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "charter-yaml-activation-key-parity-01M67HRX",
+  "mission_id": "01M67HRXD60MBYXCJR9S0NJVVN",
+  "mission_branch": "kitty/mission-charter-yaml-activation-key-parity-01M67HRX",
+  "target_branch": "issue-6556-charter-yaml-activation-key-parity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/schemas.py",
+        "tests/charter/test_activation_vocabulary_setequal.py",
+        "tests/charter/test_charter_yaml_model.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/architecture/doctrine-kinds.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T23:25:33.587808+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "c23a76cc1875ae9a45fa520d5a0379c585091f07"
+}
