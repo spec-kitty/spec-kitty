@@ -108,9 +108,37 @@ the deletion vanish with the coordination branch.
 
 A refusal there names the file, exits 1 and keeps the coordination
 branch, its worktree and the Mission's coordination marker together, so nothing
-is lost and nothing is rolled back. Land that file on the target yourself (or
-move it out of the Mission and commit it there), then run
-`spec-kitty consolidate --resume` again.
+is lost and nothing is rolled back. `spec-kitty consolidate --abort` does not
+clear it: the landing is already verified, so an abort keeps it and refuses too.
+What to do depends on the refusal, and each one names its own repair:
+
+- **A coordination copy that would drop or overturn a judgment the target
+  holds:** fix the copy **on the coordination branch** — commit the newer
+  judgment there (`spec-kitty agent issue-verdict …`), or revert the coordination
+  commit that regressed it — then run `spec-kitty consolidate --resume` again. Do
+  **not** copy it onto the target: that writes the stale or regressing bytes over
+  the judgment the guard just protected.
+- **A coordination copy that cannot be read:** rewrite it on the coordination
+  branch as the document its own writer produces (`spec-kitty agent
+  issue-verdict` for `issue-matrix.json`, `spec-kitty accept` for
+  `acceptance-matrix.json`), or revert the commit that corrupted it.
+- **A target gate matrix that cannot be read:** repair the target's copy and
+  commit the repair **on the target** — the guard will not overwrite the target's
+  acceptance evidence until it can prove what that copy holds, so restoring it
+  from the target branch would hand back the same unreadable bytes. A repair
+  commit moves the target off the verified landing, so the next resume stops at
+  the branch-move guard, whose message prints the command that releases the move
+  and clears the record; delete the coordination branch by hand afterwards.
+- **A coordination record deleted in the window:** restore it on the coordination
+  branch — revert the commit that removed it, or `git checkout <sha-before-the-deletion>
+  -- <path>` there. A projection can only bring content forward, and the target
+  still holds the record.
+- **A coordination record that is not on the target:** land it on the target from
+  the coordination branch (`git checkout <coordination-branch> -- <path>` in the
+  target checkout, then commit it), or, if it must not exist at all, delete it on
+  both branches.
+
+Then run `spec-kitty consolidate --resume` again.
 
 The other codes `consolidate` can report are listed in the
 [CLI reference](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes).

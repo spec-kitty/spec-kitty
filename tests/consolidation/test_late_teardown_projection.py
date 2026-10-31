@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.coordination.teardown import COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE
+from specify_cli.consolidation.bookkeeping_projection import LateProjectionRefusalKind, LateProjectionRefused
 from specify_cli.tasks.issue_matrix import IssueMatrixEntry, build_issue_matrix_document
 from tests.terminus.conftest import CoordMission, blob_present_at, build_coord_mission, run_terminus
 
@@ -32,6 +33,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regress
 
 _AGENT = "claude"
 _ISSUE = "#6791"
+_BRANCH = "kitty/mission-terminus-01M6791A"
+_TARGET = "main"
 _REVIEW_FEEDBACK = "Reviewer feedback: the retry path swallows the timeout. Fix before approval.\n"
 _SUBTASKS_ANCHOR = "agent: implementer-ivan\n"
 
@@ -212,6 +215,80 @@ def test_resume_refuses_a_late_deletion_of_a_coordination_record(refused_run: _R
     assert "issue-matrix.json" in " ".join((resumed.stdout + resumed.stderr).split()), output
     assert run.branch_exists() and run.worktree.is_dir(), f"the coordination branch and worktree must survive\n{output}"
     assert _git(mission.repo, "show", f"{mission.target_branch}:{matrix_rel}") == before, output
+    # #6791 review: the remedy must be the one that clears THIS refusal. The target already holds
+    # the record (the projection simply cannot express the deletion), so "land the file on the
+    # target yourself" would clear nothing -- the record has to be restored on the branch instead.
+    flat = " ".join((resumed.stdout + resumed.stderr).split())
+    assert "restore the deleted file on" in flat, output
+    assert "Land the file on" not in flat, output
+
+
+@pytest.mark.parametrize("kind", tuple(LateProjectionRefusalKind))
+def test_each_late_projection_refusal_names_the_remedy_that_clears_it(kind: LateProjectionRefusalKind) -> None:
+    """Every kind keeps the triple, names its exit code, and rules out `--abort` by name."""
+    from specify_cli.consolidation.phase_teardown import _late_projection_refusal
+
+    message = _late_projection_refusal(_BRANCH, _TARGET, LateProjectionRefused("the detail of this refusal", kind=kind))
+
+    assert "the detail of this refusal" in message, message
+    assert "exits 1" in message and "--abort` does not clear it" in message, message
+    assert f"Branch {_BRANCH!r} was NOT deleted" in message, message
+    assert "`spec-kitty consolidate --resume` again" in message, message
+    assert f"Land the file on {_TARGET!r} yourself" not in message, f"the generic remedy cleared none of these: {message}"
+
+
+def test_the_overturn_refusal_forbids_writing_the_coordination_copy_onto_the_target() -> None:
+    """The old remedy wrote the STALE bytes over the verdict the guard just protected."""
+    from specify_cli.consolidation.phase_teardown import _late_projection_refusal
+
+    message = _late_projection_refusal(_BRANCH, _TARGET, LateProjectionRefused("it overturns row #6791", kind=LateProjectionRefusalKind.EVIDENCE_WOULD_BE_LOST))
+
+    assert f"Do NOT copy it onto {_TARGET!r}" in message, message
+    assert "spec-kitty agent issue-verdict" in message, message
+    assert f"commit the newer judgement on {_BRANCH!r}" in message, message
+
+
+def test_the_deletion_refusal_asks_for_the_record_back_on_the_coordination_branch() -> None:
+    from specify_cli.consolidation.phase_teardown import _late_projection_refusal
+
+    refused = LateProjectionRefused("the coordination branch deletes it", kind=LateProjectionRefusalKind.DELETION_CANNOT_BE_EXPRESSED)
+    message = _late_projection_refusal(_BRANCH, _TARGET, refused)
+
+    assert f"restore the deleted file on {_BRANCH!r}" in message, message
+    assert "a projection can only bring content forward" in message, message
+
+
+def test_the_unreadable_target_refusal_does_not_send_the_operator_to_restore_the_same_bytes() -> None:
+    """Probed: the reachable shape is a target document already unreadable at the verified landing.
+
+    Restoring it from the target branch hands back the same bytes and repeats the refusal, so the
+    remedy must ask for a repair COMMIT on the target and say what that does to the landing.
+    """
+    from specify_cli.consolidation.phase_teardown import _late_projection_refusal
+
+    refused = LateProjectionRefused("the target's matrix could not be read", kind=LateProjectionRefusalKind.TARGET_GATE_DOCUMENT_UNREADABLE)
+    message = _late_projection_refusal(_BRANCH, _TARGET, refused)
+
+    assert f"repair the target's copy and commit it on {_TARGET!r}" in message, message
+    assert f"`git checkout {_TARGET} -- <path>`" not in message, message
+    assert "branch-move guard" in message, message
+
+
+def test_the_unlanded_record_refusal_asks_for_the_record_to_be_landed() -> None:
+    """The one kind the old instruction was written for still gets it, spelled with the refs."""
+    from specify_cli.consolidation.phase_teardown import _late_projection_refusal
+
+    message = _late_projection_refusal(_BRANCH, _TARGET, LateProjectionRefused("a record is not landed", kind=LateProjectionRefusalKind.RECORD_NOT_LANDED))
+
+    assert f"land the named record on {_TARGET!r} from {_BRANCH!r}" in message, message
+
+
+def test_each_late_projection_refusal_kind_has_its_own_remedy() -> None:
+    from specify_cli.consolidation.phase_teardown import _late_projection_remedy
+
+    remedies = {kind: _late_projection_remedy(LateProjectionRefused("detail", kind=kind), _BRANCH, _TARGET) for kind in LateProjectionRefusalKind}
+
+    assert len(set(remedies.values())) == len(remedies), f"two kinds share a remedy: {remedies}"
 
 
 def _checkpoint_sha(mission: CoordMission) -> str:
@@ -322,7 +399,13 @@ def test_late_projection_refuses_an_unreadable_target_matrix(refused_run: _Refus
     run, mission = refused_run, refused_run.mission
     checkpoint = _checkpoint_sha(mission)
     matrix_rel = _matrix_path(mission.repo, mission).relative_to(mission.repo)
-    _commit_matrix(run.worktree, mission, verdict="fixed", evidence_ref="verified on the coordination branch", message="chore: record a verdict on the coordination branch")
+    _commit_matrix(
+        run.worktree,
+        mission,
+        verdict="fixed",
+        evidence_ref="verified on the coordination branch",
+        message="chore: record a verdict on the coordination branch",
+    )
     corrupt = "{ this is not the issue matrix the writer produces"
     _commit_raw(mission.repo, mission, matrix_rel, corrupt, "chore: leave the target's matrix unreadable")
 
@@ -343,7 +426,13 @@ def test_late_projection_refuses_a_target_matrix_without_the_rows_section(refuse
     run, mission = refused_run, refused_run.mission
     checkpoint = _checkpoint_sha(mission)
     matrix_rel = _matrix_path(mission.repo, mission).relative_to(mission.repo)
-    _commit_matrix(run.worktree, mission, verdict="fixed", evidence_ref="verified on the coordination branch", message="chore: record a verdict on the coordination branch")
+    _commit_matrix(
+        run.worktree,
+        mission,
+        verdict="fixed",
+        evidence_ref="verified on the coordination branch",
+        message="chore: record a verdict on the coordination branch",
+    )
     keyless = json.dumps({"schema_version": 1}) + "\n"
     _commit_raw(mission.repo, mission, matrix_rel, keyless, "chore: leave the target's matrix without its rows section")
 

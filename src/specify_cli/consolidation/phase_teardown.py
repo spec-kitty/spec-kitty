@@ -57,6 +57,7 @@ from specify_cli.consolidation.bookkeeping_projection import (
     _project_status_bookkeeping_to_target,
     _resolve_ref_sha,
     AliasStatusEventsNotPreserved,
+    LateProjectionRefusalKind,
     LateProjectionRefused,
     assert_alias_events_preserved,
     assert_late_window_landed,
@@ -445,7 +446,7 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             f"branch {branch!r} was NOT deleted. Re-run `spec-kitty consolidate --resume` once the git error is fixed."
         ) from exc
     except LateProjectionRefused as exc:
-        raise CoordinationTeardownError(_late_projection_refusal(branch, target, str(exc))) from exc
+        raise CoordinationTeardownError(_late_projection_refusal(branch, target, exc)) from exc
     paths = [path for path in dict.fromkeys([events_path, status_path, *late_paths, *gate_matrix_paths]) if path.exists()]
     if paths and _paths_have_status_changes(run.main_repo, paths):
         _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)")
@@ -461,22 +462,76 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             target_feature_dir=run.target_feature_dir,
         )
     except LateProjectionRefused as exc:
-        raise CoordinationTeardownError(_late_projection_refusal(branch, target, str(exc))) from exc
+        raise CoordinationTeardownError(_late_projection_refusal(branch, target, exc)) from exc
 
 
-def _late_projection_refusal(branch: str, target: str, detail: str) -> str:
+def _late_projection_remedy(refused: LateProjectionRefused, branch: str, target: str) -> str:
+    """The action that actually CLEARS one late-projection refusal (#6791), per encoded kind.
+
+    The single instruction this refusal used to give -- "land the file on the target yourself,
+    then resume" -- is wrong for every case it can fire in: a coord-side deletion already HAS its
+    content on the target (the projection cannot express the deletion, and the same refusal just
+    repeats), and for an overturn that instruction writes the STALE coordination bytes over the
+    established verdict the guard just protected. So each kind names its own repair, and the one
+    that would overwrite evidence says explicitly not to do it.
+    """
+    if refused.kind is LateProjectionRefusalKind.EVIDENCE_WOULD_BE_LOST:
+        return (
+            f"change the coordination copy, not {target!r}: commit the newer judgement on {branch!r} "
+            "(for an issue-matrix row, `spec-kitty agent issue-verdict --mission <handle> --issue <#NNN> "
+            "--verdict <verdict> --actor <actor>`), or revert the coordination commit that regressed it. "
+            f"Do NOT copy it onto {target!r}: that would write the stale bytes over the judgement this "
+            "refusal just protected."
+        )
+    if refused.kind is LateProjectionRefusalKind.DELETION_CANNOT_BE_EXPRESSED:
+        return (
+            f"restore the deleted file on {branch!r} -- revert the commit that removed it, or "
+            f"`git checkout <sha-before-the-deletion> -- <path>` there -- because a projection can only bring "
+            f"content forward and {target!r} still holds the record."
+        )
+    if refused.kind is LateProjectionRefusalKind.COORD_GATE_DOCUMENT_UNREADABLE:
+        return (
+            f"rewrite the file on {branch!r} as the document its own writer produces (`spec-kitty agent "
+            "issue-verdict` for issue-matrix.json, `spec-kitty accept` for acceptance-matrix.json), or revert the "
+            "coordination commit that corrupted it."
+        )
+    if refused.kind is LateProjectionRefusalKind.TARGET_GATE_DOCUMENT_UNREADABLE:
+        # Probed end to end: the reachable shape is a target document that is already unreadable when the
+        # landing is verified, and repairing it is necessarily a commit ON the target -- which moves the
+        # target off the verified landing, so the resume's branch-move guard is the next stop. Saying
+        # "restore it from the target branch" would hand back the same unreadable bytes and repeat this
+        # refusal, which is the broken remedy this branch exists to avoid.
+        return (
+            f"repair the target's copy and commit it on {target!r}: the guard will not overwrite the target's "
+            "acceptance evidence until it can prove what that copy holds. That commit moves "
+            f"{target!r} off the verified landing, so the next resume stops at the branch-move guard, whose "
+            "message prints the command that releases the move and clears the record; delete the coordination "
+            "branch by hand afterwards."
+        )
+    # LateProjectionRefusalKind.RECORD_NOT_LANDED -- the one case the old instruction was written for:
+    # the record exists on the coordination branch and the target does not have it.
+    return (
+        f"land the named record on {target!r} from {branch!r} (`git checkout {branch} -- <path>` in the {target!r} "
+        "checkout, then commit it), or, if it must not exist at all, delete it on both branches."
+    )
+
+
+def _late_projection_refusal(branch: str, target: str, refused: LateProjectionRefused) -> str:
     """Operator-facing refusal for a late coordination commit that cannot be landed (#6791).
 
     The coordination triple stays together -- branch, worktree and marker -- and the landing
     is NOT rolled back (teardown runs after the rollback door), so the operator's work is
-    still there to land by hand.
+    still there to repair. The repair is spelled out per KIND (:func:`_late_projection_remedy`),
+    and ``spec-kitty consolidate --abort`` is ruled out by name: the landing is already verified,
+    so an abort keeps it and refuses too. Exit code is 1.
     """
     return (
-        f"a coordination commit that landed after teardown began cannot be landed on {target!r} from "
-        f"branch {branch!r}: {detail}. Branch {branch!r} was NOT deleted, its worktree and the mission's "
-        "coordination marker were left intact, and the verified landing was not rolled back. "
-        f"Land the file on {target!r} yourself (or move it out of the Mission and commit it there), "
-        "then run `spec-kitty consolidate --resume` again."
+        f"a coordination commit on {branch!r} cannot be landed on {target!r}: {refused}. "
+        f"Branch {branch!r} was NOT deleted, its worktree and the mission's coordination marker were left intact, "
+        "and the verified landing was not rolled back. `spec-kitty consolidate` exits 1 for this refusal, and "
+        "`spec-kitty consolidate --abort` does not clear it (the landing is already verified, so an abort keeps it "
+        f"and refuses). To clear it: {_late_projection_remedy(refused, branch, target)} "
+        "Then run `spec-kitty consolidate --resume` again."
     )
 
 
