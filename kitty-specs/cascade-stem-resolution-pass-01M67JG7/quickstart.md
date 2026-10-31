@@ -32,8 +32,10 @@ from tests.charter.activation.test_stored_spelling_6527 import _project, _cascad
 ```
 
 Expected for a full `--cascade all` walk: **240** `_parse_id` calls after the fix, **5028**
-before it (and 122 → 10 `ResolutionPass` instances). Reverting `_cascade_target_refs` to
-the per-target lookup restores the old numbers.
+before it. `ResolutionPass` instances for the whole process fall 122 → 10 (the other nine
+are the render pass and the call-local passes other charter helpers create; the guard pins
+*the batch's own lookups* to exactly one). Reverting `_cascade_target_refs` to the
+per-target lookup restores the old numbers.
 
 ## 4. The interleaved A/B (the only honest wall-clock form here)
 
