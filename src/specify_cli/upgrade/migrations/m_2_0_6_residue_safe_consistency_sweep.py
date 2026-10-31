@@ -41,6 +41,9 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
     migration_id = "2.0.6_residue_safe_consistency_sweep"
     description = "Residue-safe 2.0.6 consistency sweep: repair Mission metadata/state drift, never a kitty-specs/ residue folder"
     target_version = "2.0.6"
+    #: This successor replaces the shipped sweep: its own record settles it only once that
+    #: predecessor's outcome proves the repair ran (#6688).
+    predecessor_id = PREDECESSOR_ID
 
     def detect(self, project_path: Path) -> bool:
         """Return True when a non-residue folder, or a legacy asset, still needs 2.0.6 repair."""

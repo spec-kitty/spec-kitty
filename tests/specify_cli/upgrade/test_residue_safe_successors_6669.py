@@ -887,17 +887,14 @@ def test_when_the_successor_applies_the_runner_records_the_predecessor_as_skippe
     assert {record.id: record.result for record in MigrationLedger(project).applicable_records_for(_get(NEW_090))}[NEW_090] == "success"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "C-006 (#6669 landing): the frozen adoption backfill stamps the successor `success` (its target_version "
-        "is below the recorded version) while the superseded predecessor is a no-op, so a repair the predecessor "
-        "never finished is not retried; no seam short of frozen code or a manifest-semantics change reopens it"
-    ),
-)
 @pytest.mark.parametrize("recorded", ["failed", "skipped"])
 def test_c006_an_unsettled_predecessor_record_still_lets_the_successor_run(tmp_path: Path, recorded: str) -> None:
-    """A pre-ledger project at 3.2.0 whose metadata records the predecessor unsettled still gets the repair."""
+    """A pre-ledger project at 3.2.0 whose metadata records the predecessor unsettled still gets the repair.
+
+    The first-adoption backfill stamps the successor `success` from the recorded version, so the
+    successor's own record cannot settle it: the retry follows the predecessor's outcome (#6688,
+    the residual this case was pinned as a strict xfail for).
+    """
     project = _plain_project(tmp_path)
     _dirty_mission(project)
     _pre_ledger(project, "3.2.0", {PRED_311: recorded})
