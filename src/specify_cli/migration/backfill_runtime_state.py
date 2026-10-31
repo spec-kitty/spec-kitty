@@ -81,7 +81,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from kernel.clock import UTC, datetime, timedelta, parse_iso, from_epoch
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -109,15 +109,15 @@ from specify_cli.status import (
     StatusEvent,
     StoreError,
     WPInnerStateDelta,
+    actor_identity_str,
     annotate,
+    build_system_actor,
     feature_status_lock,
     materialize_snapshot,
     mission_lock_key,
     read_event_stream,
     reduce,
 )
-from specify_cli.status.actor import build_system_actor
-from specify_cli.status.models import ActorField, actor_identity_str
 from specify_cli.status._unsafe import append_event_stream_atomic_verified
 from specify_cli.workspace import canonicalize_feature_dir
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
@@ -344,7 +344,7 @@ def _is_migration_actor(actor: object) -> bool:
     every row already in a log the moment the written shape changed, and
     :func:`_stream_without_migration` would then have read those seeds as history.
     """
-    projected = actor_identity_str(cast("ActorField", actor))
+    projected = actor_identity_str(actor) if isinstance(actor, (str, dict)) else None
     return bool(projected) and projected == BACKFILL_ACTOR
 
 

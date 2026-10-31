@@ -28,8 +28,7 @@ from specify_cli.lanes.branch_naming import (
     parse_lane_id_from_branch,
 )
 from specify_cli.lanes.worktree_allocator import persist_lane_context, predict_lane_worktree
-from specify_cli.status import Lane
-from specify_cli.status.actor import build_system_actor
+from specify_cli.status import Lane, build_system_actor
 from specify_cli.workspace.context import (
     WorkspaceContext,
     list_contexts,
