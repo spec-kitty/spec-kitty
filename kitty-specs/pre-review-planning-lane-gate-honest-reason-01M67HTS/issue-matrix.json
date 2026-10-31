@@ -25,7 +25,7 @@
       "wp": null
     },
     "#6792": {
-      "evidence_ref": "",
+      "evidence_ref": "WP01 commits 5adbfa87 + e00c31b6 (red-first repro + fix); branch issue-6792-planning-lane-gate-honest-reason",
       "fr": null,
       "nfr": null,
       "repo": null,
