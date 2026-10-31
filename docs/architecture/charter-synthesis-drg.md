@@ -1,8 +1,8 @@
 ---
 title: 'Understanding Charter: Synthesis, DRG, and Governed Context'
-description: How charter synthesize works, what the DRG is, how governed context flows to agents, and known limitations.
+description: How charter synthesize works, what the DRG is, how governed context flows to agents, the shipped-graph orphan residual, and known limitations.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-31'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/mission-type-resolution.md
@@ -161,6 +161,107 @@ after charter edits.
 
 3. **Synthesis requires `charter.md`**: `charter synthesize` will exit non-zero if `charter.md`
    does not exist. Run `charter interview` and `charter generate` first.
+
+---
+
+## The shipped-graph orphan residual (current state)
+
+An **orphan** is a DRG node with no inbound and no outbound edge. Some orphans are intentional —
+a deliberately authored artifact with no single natural referent, or a structural node that is
+resolved by lookup rather than by traversal. Doctrine forbids deleting such an artifact or
+manufacturing an edge to zero the metric (D-C2 / C-003): every orphan is either **wired** to a real
+referent or **recorded here**.
+
+This section is the live, current-state record. It is bound to the measurement by
+`test_documented_residual_matches_measured_shipped_orphans` in
+`tests/specify_cli/cli/commands/test_doctrine_regenerate_graph.py`: the URNs in the block below must
+equal the shipped graph's orphans exactly, so an unrecorded new orphan, or a recorded one that has
+since been wired, fails a test rather than passing as prose drift.
+
+**How to recompute it** — never copy the list from prose:
+
+```python
+from charter.offering.drg.loader import load_built_in_graph
+
+g = load_built_in_graph()
+incident = {u for e in g.edges for u in (e.source, e.target)}
+orphans = sorted({n.urn for n in g.nodes} - incident)
+print(len(orphans))  # 25
+print(*orphans, sep="\n")  # the membership the block below must equal
+```
+
+**Current state (25 orphans, 358 nodes, 1,069 edges):**
+
+<!-- drg-orphan-residual:begin -->
+
+- `mission_step_contract:documentation/accept`
+- `mission_step_contract:documentation/audit`
+- `mission_step_contract:documentation/design`
+- `mission_step_contract:documentation/discover`
+- `mission_step_contract:documentation/generate`
+- `mission_step_contract:documentation/publish`
+- `mission_step_contract:documentation/validate`
+- `mission_step_contract:plan/plan`
+- `mission_step_contract:plan/research`
+- `mission_step_contract:plan/review`
+- `mission_step_contract:plan/specify`
+- `mission_step_contract:research/gathering`
+- `mission_step_contract:research/methodology`
+- `mission_step_contract:research/output`
+- `mission_step_contract:research/scoping`
+- `mission_step_contract:research/synthesis`
+- `mission_step_contract:software-dev/implement`
+- `mission_step_contract:software-dev/plan`
+- `mission_step_contract:software-dev/review`
+- `mission_step_contract:software-dev/specify`
+- `mission_step_contract:software-dev/tasks`
+- `glossary_pack:spec-kitty-core`
+- `agent_profile:human-in-charge`
+- `styleguide:deployable-skill-authoring`
+- `toolguide:powershell-syntax`
+
+<!-- drg-orphan-residual:end -->
+
+### Why each group is residual
+
+| Group | Count | Disposition |
+|---|---|---|
+| `mission_step_contract:<mission>/<action>` | 21 | **Edge-less by construction.** The step-contract fragment ships `edges: []`; the activation engine resolves a contract by URN lookup on the `(mission_type, action)` join, never by traversal. Deleting or edging them to shrink the metric is what D-C2 / C-003 forbid. The 21 are the 17 shipped by `doctrine-controlled-transition-gates` (7 documentation + 5 research + 5 software-dev) plus the 4 `plan/*` contracts vendored by #6379. Membership is pinned as `_EDGELESS_BY_CONSTRUCTION`. |
+| `glossary_pack:spec-kitty-core` | 1 | **Awaiting references.** The pack node ships with zero outbound references; its enforcement fields stay inert until a follow-up mission gives it a real referent. Inventing one now would be a guessed edge. Pinned in `_AWAITING_REFERENCES`. |
+| `agent_profile:human-in-charge` | 1 | **Runtime-assignment sentinel.** Signalled by assigning a work package to a human at runtime, never by a static doctrine edge. |
+| `styleguide:deployable-skill-authoring` | 1 | **Direct-activation-only.** Reached by `charter activate styleguide deployable-skill-authoring`; no defensible source artifact exists to carry an inbound edge (a guessed one is refused, C-003). Pinned in `_DIRECT_ACTIVATION_ONLY`. |
+| `toolguide:powershell-syntax` | 1 | **Runtime tooling.** Real PowerShell-authoring content consumed by agents at runtime; no built-in artifact cites it. Admitted by PR #2936. |
+
+### Ceiling ledger
+
+`DOCUMENTED_ORPHAN_RESIDUAL` in the test module above is the numeric regression guard. It may move
+only together with this record. The history, so the number is never bare:
+
+| Ceiling | Cause |
+|---|---|
+| 14 | Post-WP05 curated baseline (9 Fowler tactics wired, 12 orphans wired). |
+| 18 -> 14 | A stopgap raise for 8 structural mission-type nodes, reverted once `mission-type-drg-edges` (#2677) emitted the `mission_type -> action` edges. |
+| 29 | `doctrine-controlled-transition-gates` (epic #2535 half A) shipped 17 edge-less step contracts. |
+| 30 | PR #2936 promoted `toolguide:powershell-syntax` from a dead file to a live, edge-less node. |
+| 30 -> 21 | Ratcheted after both #3007 residuals were retired/wired and six other artifacts were wired; a ceiling cannot see a shrink, so it was ratcheted rather than left with nine points of silent slack. |
+| 22 -> 21 | `charter-delivery-finish-context-degod` (#3064) relocated `asset:common-charter-scaffold-minimal` to charter-pack status, removing the node. |
+| **21 -> 25** | The built-in pin bump of PR #6379 vendored the plan mission's four step contracts (#6432), which are edge-less by construction like the other 17. No edge was wired; `packs/built-in/` was untouched. Recorded by mission `charter-synthesis-graph-and-languages-01M59RZ5`, and the live record above was added under #6513 so the raise has a writable home. |
+
+### Where the older records live
+
+- `kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md` is the
+  canonical **historical** record (WP05, #1923). It sits under `kitty-specs/`, an immutable archive
+  root (`tests/architectural/test_archive_root_byte_identical.py`), so it is **frozen**: cite it for
+  the curation narrative of its date, never edit it, and do not read its last ceiling (29 -> 30 over
+  17 step contracts) as current state.
+- `_INTENTIONAL_ORPHANS` / `_SHIPPED_ORPHANS` in
+  `tests/charter_offering/drg/migration/test_extractor_projection.py` are the **pure-extractor frame**
+  membership pins. This page records the **shipped** frame (`load_built_in_graph()`), which is the
+  frame the ceiling measures; the two differ only by `_ORPHANS_RESOLVED_BY_OVERLAY`, so neither may
+  be "corrected" against the other.
+- `tests/charter_offering/drg/test_reachability.py` pins the companion **reachability** measure
+  (action-unreachable vs profile-delivered), which is a different question from incidence: a node
+  can be edge-incident and still unreachable from any action.
 
 ---
 
