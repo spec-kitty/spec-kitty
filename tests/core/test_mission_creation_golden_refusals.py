@@ -186,21 +186,21 @@ def test_owned_root_mismatch(tmp_path: Path) -> None:
 
 
 def test_protected_recreate(tmp_path: Path) -> None:
+    # This historical cell refuses the live prior BEFORE minting a second
+    # identity (#4033). It therefore needs no predicted mid8 or clock window.
+    # The separate fixed-identity control exercises the later protected guard.
     slug = "ref-protected-recreate"
     kwargs: dict[str, Any] = {"target_branch": PRIMARY_BRANCH}
-
-    def plant(repo: Path, _mid8: str) -> Callable[[], MissionCreationResult]:
-        create_mission_core(
-            repo,
-            slug,
-            topology=MissionTopology.SINGLE_BRANCH,
-            allow_worktree_context=True,
-            allow_duplicate=True,
-            **kwargs,
-        )
-        return _create(repo, slug, MissionTopology.SINGLE_BRANCH, **kwargs)
-
-    observed = run_cell_in_one_mid8_bucket(tmp_path, _protected_main, plant, slugs=[slug])
+    repo = _protected_main(tmp_path)
+    create_mission_core(
+        repo,
+        slug,
+        topology=MissionTopology.SINGLE_BRANCH,
+        allow_worktree_context=True,
+        allow_duplicate=True,
+        **kwargs,
+    )
+    observed = run_cell(repo, tmp_path, _create(repo, slug, MissionTopology.SINGLE_BRANCH, **kwargs), slugs=[slug])
     assert_golden(_FAMILY, "protected_recreate", observed)
 
 

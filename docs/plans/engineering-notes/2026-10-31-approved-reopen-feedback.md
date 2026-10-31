@@ -80,6 +80,41 @@ qualification uses an explicit outer temporary-directory argument, no inherited
 pytest options and the pinned runtime's bin directory first on `PATH`; no
 product guards, test assertions or timeouts were changed for these failures.
 
+## Golden refusal fixture and guard coverage
+
+The historical protected-recreate golden row exercises the live-prior refusal
+before a second identity is minted. Its former check that creation and the
+subsequent repository snapshots all fit inside a 1,024 ms identifier bucket was
+unrelated to that refusal. Native observation matched the unchanged golden
+pre-state, outcome and post-state exactly. The row keeps its real public calls,
+refusal and snapshots, with the irrelevant prediction setup removed. The
+branch-collision row retains its original clock proof, attempts and bounds.
+
+A separate public-path fault detector fails if the live-prior refusal requests
+another identity. A distinct protected-recreation control explicitly admits the
+duplicate with documented `allow_duplicate=True` and uses the existing private
+`_mission_id` test seam to reach the later scaffold guard. It checks the protected overwrite refusal and
+the full repository state. Compiling a mutation that removes that actual guard
+makes the control fail with `MISSION_BRANCH_EXISTS` instead of
+`MISSION_ALREADY_EXISTS`; the earlier duplicate guard cannot mask it. Production
+guards, golden JSON, normalization and timing budgets remain unchanged.
+
+## Timing diagnosis and limits
+
+An earlier native hook sample added 109.9 ms at p95 against its existing 50 ms
+budget. The unchanged canonical test subsequently passed on both the untouched
+predecessor and this production source, with actual installed hook bodies,
+Git binary hashes and recorded lane-tip effects verified after the measured
+calls. The hook runs shell and native Git commands. Passing numeric p95 values
+are unknown because the canonical test does not expose them. The earlier
+failure remains an observed sample without a demonstrated cause; no performance
+fix or host-wide quiescence is claimed. Final receipts retain the actual sample
+contexts separately.
+
+Paired import graphs also showed the public activation API already loaded on the
+predecessor. They did not support an added eager graph from this repair, so the
+reviewed production import boundary stays unchanged.
+
 ## Owner and next event
 
 The runtime context delivery lane owns source delivery, private test resources
