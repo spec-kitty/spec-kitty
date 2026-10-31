@@ -52,6 +52,7 @@ from kernel.service_artifacts import (
     ASSET_DIR_ENV,
     SERVICE_BINARY_MISSING,
     ServiceArtifactError,
+    adopt_asset,
     cached_path,
     default_cache_root,
     fetch_asset,
@@ -237,14 +238,24 @@ def _jar_argv(ctx: _Context, jar: Path) -> tuple[str, ...]:
     return (str(java), _JAR_FLAG, str(jar))
 
 
-def _match_supplied(ctx: _Context, path: Path) -> tuple[tuple[str, ...], ServiceAsset] | None:
-    """``(argv_prefix, asset)`` when *path* holds the pinned host build or the pinned jar, else ``None``."""
+def _adopt(ctx: _Context, asset: ServiceAsset, path: Path) -> Path:
+    """The cached, verified copy of the supplied *path*: it, not *path*, is what runs (no swap window after verify)."""
+    try:
+        return adopt_asset(ctx.pin, asset, path, cache_root=ctx.cache_root)
+    except ServiceArtifactError as exc:
+        raise artifact_refusal(ctx.pin, asset, exc, cache_root=ctx.cache_root, asset_dir=None) from exc
+
+
+def _match_supplied(ctx: _Context, path: Path) -> tuple[tuple[str, ...], ServiceAsset, Path] | None:
+    """``(argv_prefix, asset, cached_path)`` when *path* holds the pinned host build or jar (run from the cache), else ``None``."""
     native = ctx.pin.asset_for(ctx.host) if ctx.host is not None else None
     if native is not None and verify_asset(path, native):
-        return (str(path),), native
+        cached = _adopt(ctx, native, path)
+        return (str(cached),), native, cached
     jar = ctx.pin.asset_for(ServiceTarget.JVM)
     if jar is not None and verify_asset(path, jar):
-        return _jar_argv(ctx, path), jar
+        java_argv = _jar_argv(ctx, _adopt(ctx, jar, path))
+        return java_argv, jar, Path(java_argv[-1])
     return None
 
 
@@ -268,8 +279,8 @@ def _explicit(ctx: _Context) -> ResolvedBinary | None:
         )
     matched = _match_supplied(ctx, path)
     if matched is not None:
-        argv, asset = matched
-        return ResolvedBinary(argv_prefix=argv, path=path, source="explicit", sha256=asset.sha256, pinned=True)
+        argv, asset, cached = matched
+        return ResolvedBinary(argv_prefix=argv, path=cached, source="explicit", sha256=asset.sha256, pinned=True)
     if ctx.env.get(UNPINNED_ENV) == "1":
         return _unpinned(ctx.pin.service, path)
     raise ServiceRefusal(
@@ -314,8 +325,8 @@ def _install(ctx: _Context) -> ResolvedBinary | None:
                 f"the installed {ctx.pin.service} binary {path} is not the pinned {ctx.pin.tag} build for this host",
                 remedy_for(ServiceRefusalCode.DIGEST_MISMATCH, variant="install", service=ctx.pin.service),
             )
-        argv, asset = matched
-        return ResolvedBinary(argv_prefix=argv, path=path, source="install", sha256=asset.sha256, pinned=True)
+        argv, asset, cached = matched
+        return ResolvedBinary(argv_prefix=argv, path=cached, source="install", sha256=asset.sha256, pinned=True)
     return None
 
 

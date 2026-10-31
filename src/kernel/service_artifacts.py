@@ -44,6 +44,7 @@ __all__ = [
     "SERVICE_BINARY_DIGEST_MISMATCH",
     "SERVICE_BINARY_MISSING",
     "ServiceArtifactError",
+    "adopt_asset",
     "cached_path",
     "default_cache_root",
     "fetch_asset",
@@ -285,6 +286,26 @@ def _download_and_install(pin: ServicePin, asset: ServiceAsset, scratch: Path, t
     if not verify_asset(scratch, asset):
         raise ServiceArtifactError(SERVICE_BINARY_DIGEST_MISMATCH, f"downloaded {asset.name} of {pin.service} {pin.tag} {_MISMATCH_TAIL}")
     return _install(pin, asset, scratch, target)
+
+
+def adopt_asset(pin: ServicePin, asset: ServiceAsset, source: Path, *, cache_root: Path | None = None) -> Path:
+    """The verified cache path of *asset* after copying the caller-supplied file *source* into the cache.
+
+    For a binary the caller located itself (an explicit path, the install slot): it is copied,
+    re-verified and renamed into the cache like an asset-directory file, so what runs is the
+    private cached copy and *source* may change afterwards without effect. A cache entry that
+    already verifies is reused. Raises :class:`ServiceArtifactError`.
+    """
+    root = _root(cache_root)
+    cached = resolve_cached(pin, asset, cache_root=root)
+    if cached is not None:
+        return cached
+    target = cached_path(pin, asset, root)
+    scratch = _scratch(target)
+    try:
+        return _copy_and_install(pin, asset, source, scratch, target)
+    finally:
+        _cleanup(scratch)
 
 
 def fetch_asset(

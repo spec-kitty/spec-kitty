@@ -296,9 +296,14 @@ def test_explicit_tier_with_native_digest(tmp_path: Path) -> None:
     assert resolved.source == "explicit"
     assert resolved.pinned is True
     assert resolved.warning is None
-    assert resolved.argv_prefix == (str(release.native().resolve()),)
+    # Runs the verified cache copy, never the supplied path (no swap window after verify).
+    cached = cached_path(release.pin, release.pin.assets[ServiceTarget.LINUX_X64], release.cache_root)
+    assert resolved.path == cached
+    assert resolved.path.is_relative_to(release.cache_root)
+    assert resolved.argv_prefix == (str(cached),)
     assert resolved.sha256 == release.pin.assets[ServiceTarget.LINUX_X64].sha256
-    assert not release.cache_root.exists()
+    release.native().write_bytes(b"swapped after verify")
+    verify_before_exec(resolved)  # the cached copy is untouched
 
 
 def test_explicit_tier_follows_a_symlink_to_the_real_file(tmp_path: Path) -> None:
@@ -306,7 +311,8 @@ def test_explicit_tier_follows_a_symlink_to_the_real_file(tmp_path: Path) -> Non
     link = tmp_path / "link"
     link.symlink_to(release.native())
     resolved = _resolve(release, {EXPLICIT_ENV: str(link)})
-    assert resolved.path == release.native().resolve()
+    assert resolved.source == "explicit"
+    assert resolved.path.read_bytes() == release.native().read_bytes()
 
 
 def test_explicit_tier_with_jar_digest_runs_under_java(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -314,7 +320,8 @@ def test_explicit_tier_with_jar_digest_runs_under_java(tmp_path: Path, monkeypat
     monkeypatch.setattr(resolution, "find_java", lambda **_: JAVA)
     resolved = _resolve(release, {EXPLICIT_ENV: str(release.jar())})
     assert resolved.source == "explicit"
-    assert resolved.argv_prefix == (str(JAVA), "-jar", str(release.jar().resolve()))
+    cached = cached_path(release.pin, release.pin.assets[ServiceTarget.JVM], release.cache_root)
+    assert resolved.argv_prefix == (str(JAVA), "-jar", str(cached))
 
 
 def test_explicit_jar_without_java_refuses(tmp_path: Path) -> None:
@@ -337,7 +344,7 @@ def test_install_tier(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     resolved = _resolve(release)
     assert resolved.source == "install"
     assert resolved.pinned is True
-    assert not release.cache_root.exists()
+    assert resolved.path.is_relative_to(release.cache_root)
 
 
 def test_install_tier_reads_entry_points(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
