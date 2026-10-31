@@ -186,6 +186,16 @@ jobs:
       - name: Verify the fetched packs equal their pins (fail-closed on drift)
         run: uv run --frozen --no-sync python scripts/sync_packs.py --pack all --check
 
+      # The pinned services (#6590, #6904): fetch and sha256-verify this host's pinned assets,
+      # then prove the cache equals the pins. With no pin both print `no service pinned` and pass.
+      # Direct script calls, not the sync-services composite action: the "wire it now" ratchet in
+      # tests/ci/test_sync_services.py is about the jobs that run the service conformance suites.
+      - name: Fetch and verify the pinned services (fail-closed on drift)
+        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_services.py --service all
+
+      - name: Verify the cached services equal their pins
+        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_services.py --service all --check
+
       - name: Build distributions
         run: python -m build
 
@@ -313,16 +323,103 @@ jobs:
             sbom.cdx.json
           retention-days: 30
 
+  # The optional spec-kitty-services companion (#6904; ADR 2026-10-29-1, Amendment 2026-10-31):
+  # one platform wheel per pinned target plus the binary-free fallback, built from the release
+  # commit's pins and digest-verified assets, never rebuilt. Written to dist-services/, never dist/
+  # (build-release's wheel checks expect exactly one wheel there).
+  build-companion-wheels:
+    name: Build companion wheels
+    needs: build-release
+    if: ${{ !cancelled() && needs.build-release.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_REF }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Install tooling
+        run: |
+          uv sync --frozen --python "$(which python)"
+          uv pip install --python .venv/bin/python twine==6.2.0
+
+      # The manylinux floor is the glibc of the spec-kitty-events native builders (ubuntu-24.04 =
+      # glibc 2.39), passed explicitly; change it only together with the events build hosts.
+      - name: Build the companion wheels from the pins
+        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/build_services_wheel.py --out dist-services --glibc-floor 2_39
+
+      - name: Verify the companion wheels hold exactly the pinned digests
+        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/build_services_wheel.py --verify dist-services --glibc-floor 2_39
+
+      - name: Check the companion distributions
+        run: .venv/bin/twine check dist-services/*
+
+      - name: Record companion checksums
+        run: |
+          sha256sum dist-services/* > SHA256SUMS-services.txt
+          cat SHA256SUMS-services.txt
+
+      - name: Upload companion artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: companion-distributions
+          path: |
+            dist-services/
+            SHA256SUMS-services.txt
+          retention-days: 30
+
+  # Published before the CLI so `spec-kitty-cli[services]==X` (an exact pin) always resolves.
+  # Operator prerequisites: a PyPI Trusted Publisher for spec-kitty-services bound to this
+  # workflow and the `pypi-services` environment.
+  publish-companion-pypi:
+    name: Publish companion to PyPI
+    needs: build-companion-wheels
+    if: ${{ !cancelled() && needs.build-companion-wheels.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: pypi-services
+      url: https://pypi.org/project/spec-kitty-services/
+    steps:
+      - name: Download companion artifacts
+        uses: actions/download-artifact@v8
+        with:
+          name: companion-distributions
+          path: .
+
+      - name: Verify the downloaded companion wheels equal the built ones
+        run: sha256sum -c SHA256SUMS-services.txt
+
+      # skip-existing: the wheels are byte-deterministic, so a re-run after a partial upload
+      # skips the files already on PyPI instead of blocking the CLI release.
+      - name: Publish the companion to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2 (release/v1 branch tip; OIDC trusted publishing)
+        with:
+          packages-dir: dist-services/
+          skip-existing: true
+
   publish-pypi:
     name: Publish to PyPI
-    needs: build-release
+    needs: [build-release, publish-companion-pypi]
     # A waiver-skipped nightly-gate (workflow_dispatch skip_nightly=true) propagates
     # its "skipped" state through the default success() condition, which would skip
     # this job -- and with it BOTH the GitHub release and the PyPI upload it owns --
     # even though build-release succeeded. Override explicitly: publish whenever
     # build-release succeeded and nothing was cancelled. On a normal tag-push the
     # gate runs and succeeds, so this is equivalent to the former implicit success().
-    if: ${{ !cancelled() && needs.build-release.result == 'success' }}
+    if: ${{ !cancelled() && needs.build-release.result == 'success' && needs.publish-companion-pypi.result == 'success' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -412,3 +509,10 @@ jobs:
             --from-index \
             --console-script spec-kitty \
             --console-arg=--version
+
+      - name: Verify the services extra resolves the companion of this version
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          python -m pip install --dry-run --pre --no-cache-dir "spec-kitty-cli[services]==${VERSION}" > extra-resolution.txt
+          cat extra-resolution.txt
+          grep -q "spec-kitty-services-${VERSION}" extra-resolution.txt

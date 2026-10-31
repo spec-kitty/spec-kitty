@@ -36,6 +36,12 @@ Use this checklist for releases from `main`.
   - New product work should target `main`.
   - Maintenance-only fixes should target `1.x-maintenance`.
 - [ ] Confirm PyPI Trusted Publishing is configured for `spec-kitty-cli` against `.github/workflows/release.yml`.
+- [ ] Confirm the PyPI project `spec-kitty-services` exists and is owned by the Spec Kitty maintainers (a pending
+  Trusted Publisher does not reserve the name), that its Trusted Publisher is bound to
+  `.github/workflows/release.yml` and the GitHub environment `pypi-services`, and that the environment exists
+  (ADR 2026-10-29-1, Amendment 2026-10-31). The companion publishes before the CLI.
+- [ ] Watch the companion project's storage: about four 60–85 MB wheels per release against PyPI's 10 GB default
+  project quota. Prune old release-candidate files or request a larger quota before it runs out.
 
 ### Code Quality
 
@@ -60,10 +66,23 @@ Use this checklist for releases from `main`.
   ```bash
   spec-kitty charter pack vendor --check
   ```
+- [ ] Verify the pinned services (run BEFORE building; fetches and digest-verifies this host's pinned
+  assets, then checks the cache; with no pin it prints `no service pinned`):
+  ```bash
+  make sync-services
+  PYTHONPATH=src python scripts/sync_services.py --service all --check
+  ```
 - [ ] Build the package and verify metadata:
   ```bash
   python -m build
   twine check dist/*
+  ```
+- [ ] Build and verify the companion wheels from the pins (one platform wheel per pinned target plus the
+  binary-free fallback; fails above 95 MB per wheel, warns above 60 MB):
+  ```bash
+  PYTHONPATH=src python scripts/build_services_wheel.py --out dist-services
+  PYTHONPATH=src python scripts/build_services_wheel.py --verify dist-services
+  twine check dist-services/*
   ```
 - [ ] Verify shared package drift against the release manifest:
   ```bash
@@ -106,7 +125,9 @@ canary or cross-repo end-to-end suites.
 
 ### Documentation and Metadata
 
-- [ ] Bump `version` in `pyproject.toml`.
+- [ ] Bump `version` in `pyproject.toml`, and bump the same version in the two companion places: the `services`
+  extra pin (`spec-kitty-services==X.Y.Z`) and `packages/spec-kitty-services/pyproject.toml`. Then run `uv lock`.
+  `validate_release.py` refuses a release where the three differ.
 - [ ] Assemble the per-PR changelog fragments: `python -m scripts.release.changelog_fragments assemble --write`
   folds every `docs/changelog/unreleased/<id>.<section>.md` into `## [Unreleased]` and deletes it (run it without
   `--write` first to preview). `validate_release.py --mode tag` refuses while any fragment remains.
@@ -221,7 +242,10 @@ package first, verify it is installable from PyPI, and only then tag the CLI.
   - validates release metadata
   - checks shared-package drift
   - proves exact wheel installability with plain `pip`
+  - fetches and digest-verifies the pinned services (`sync_services.py --service all`, then `--check`)
   - builds distributions
+  - builds and verifies the companion wheels (`build-companion-wheels`)
+  - publishes the companion `spec-kitty-services` to PyPI first (`publish-companion-pypi`, environment `pypi-services`)
   - publishes after tag-time release checks pass
   - creates the GitHub release
   - publishes to PyPI
@@ -276,6 +300,11 @@ does not advance beyond latest tag" until this step lands (#4290).
   python -m pip index versions spec-kitty-cli
   ```
 - [ ] Verify the GitHub release is public and includes the wheel, sdist, and checksums.
+- [ ] Verify the companion shows the same version and the extra resolves it:
+  ```bash
+  python -m pip index versions spec-kitty-services
+  python -m pip install --dry-run --pre "spec-kitty-cli[services]==X.Y.Z"
+  ```
 - [ ] If this is a prerelease, verify installation with:
   ```bash
   python -m pip install --upgrade --pre "spec-kitty-cli==X.Y.ZaN"
