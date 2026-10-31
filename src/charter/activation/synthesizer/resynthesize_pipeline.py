@@ -51,7 +51,7 @@ from .reconcile import legacy_applies_edges as _legacy_applies_edges
 from .reconcile import legacy_strip_notice as _legacy_strip_notice
 from .reconcile import synthesized_node_urns as _synthesized_node_urns
 from .reconcile import rewrite_manifest as _rewrite_manifest
-from .request import SynthesisRequest, SynthesisTarget
+from .request import SynthesisRequest, SynthesisTarget, built_in_snapshot as _built_in_snapshot
 from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version
 from .topic_resolver import ResolvedTopic, resolve as resolve_topic
 
@@ -340,6 +340,10 @@ def run(
         run_id=run_id,
         adapter_hints=request.adapter_hints,
         evidence=request.evidence,
+        # #6768: a bounded run is still a synthesis run; it must keep the layer
+        # split the caller authored, or it silently regresses to reading the
+        # reference universe as the built-in layer.
+        built_in_drg_snapshot=request.built_in_drg_snapshot,
     )
 
     # ------------------------------------------------------------------
@@ -359,6 +363,8 @@ def run(
     # ------------------------------------------------------------------
     # Step 7: Stage + promote bounded artifacts
     # ------------------------------------------------------------------
+    # #6768: the additive-only check reads the built-in layer only; the
+    # validation gate below keeps the reference universe (project nodes included).
     built_in_drg = _built_in_drg_from_request(request)
 
     # Org-aware re-emission base (#4121, MAJOR 2), shared by the emit and the
@@ -395,7 +401,11 @@ def run(
                 topic_scoped=True,
             )
         _persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
-        _validate_project_graph(staged_dir.root, built_in_drg, org_drg=org_drg)
+        _validate_project_graph(
+            staged_dir.root,
+            _built_in_drg_from_request_snapshot(request.drg_snapshot),
+            org_drg=org_drg,
+        )
 
     with _StagingDir.create(_repo_root, run_id) as staging_dir:
         written_manifest = _write_pipeline.promote(
@@ -531,8 +541,18 @@ def _load_merged_drg(
 
 
 def _built_in_drg_from_request(request: SynthesisRequest) -> DRGGraph:
-    """Build the built-in-layer DRGGraph from the request snapshot."""
-    snapshot = dict(request.drg_snapshot)
+    """Build the built-in-layer DRGGraph the FR-020 / EC-6 check runs against.
+
+    Reads ``request.built_in_drg_snapshot`` when the request carries one and
+    falls back to ``request.drg_snapshot`` otherwise (#6768): the fallback is
+    what every pre-#6768 caller and test relies on.
+    """
+    return _built_in_drg_from_request_snapshot(_built_in_snapshot(request))
+
+
+def _built_in_drg_from_request_snapshot(snapshot_input: Mapping[str, Any]) -> DRGGraph:
+    """Normalize one request snapshot mapping into a validate-able ``DRGGraph``."""
+    snapshot = dict(snapshot_input)
     snapshot.setdefault("nodes", [])
     snapshot.setdefault("edges", [])
     snapshot["schema_version"] = "1.0"
