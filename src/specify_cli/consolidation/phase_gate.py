@@ -75,6 +75,7 @@ def _reconciliation_claim_for_gate(run: _MergeRunState) -> ApprovedWpCommitSet:
             coord_base_ref=run.lanes_manifest.mission_branch,
             excluded_canceled_wp_ids=run.excluded_canceled_wp_ids,
             excluded_window_base=run.target_expected_old_sha,
+            external_dependency_refs=run.dependency_refs,
         )
     if run.strategy is MergeStrategy.SQUASH:
         return replace(captured, verify_reachability=False)

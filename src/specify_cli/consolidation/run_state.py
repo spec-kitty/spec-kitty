@@ -255,6 +255,10 @@ class _MergeRunState:
     # merge-ready no-lane direct-on-target mission. Never a bypass of the
     # merge-ready precondition (T007 still runs unconditionally).
     skip_lanes: bool = False
+    #: #6771: the external dependency refs this run declared (``--dependency-ref``). The
+    #: durable authority is :attr:`ConsolidationState.dependency_refs` (so a ``--resume``
+    #: keeps the declaration); this is the per-run view the claim build reads.
+    dependency_refs: tuple[str, ...] = ()
 
     # #2786 / #2367-B FR-005: the WPs THIS merge newly bakes ``done`` for during
     # its pre-target bake — every lane WP MINUS those already durably ``done`` on
