@@ -112,12 +112,16 @@ from charter.offering.drg.org_pack_config import (
     resolve_relative_path_within_root,
 )
 from charter.offering.drg.org_pack_loader import (
+    BodyPathEscape,
     OrgDRGFragment,
     OrgPackMissingError,
     OrgPackParseError,
+    OrgPackRootUnavailableError,
     OrgPackSchemaError,
+    find_body_path_escapes,
     load_org_pack,
 )
+from charter.offering.assets import find_asset_path_escapes
 from charter.offering.drg.query import ResolvedContext, resolve_context
 from charter.offering.drg.project_scan import scan_project_artifacts
 
@@ -139,12 +143,14 @@ __all__ = [
     "ArtifactLayerCollisionWarning",
     "FIELDS_WITHHELD_FROM_GRAPH_OUTPUT",
     "NodeKind",
+    "BodyPathEscape",
     "OrgDRGConflict",
     "OrgDRGConflictError",
     "OrgDRGFragment",
     "OrgPackEnvVarUnsetError",
     "OrgPackMissingError",
     "OrgPackParseError",
+    "OrgPackRootUnavailableError",
     "OrgPackSchemaError",
     "OrgPackSubdirEscapeError",
     "Relation",
@@ -152,6 +158,8 @@ __all__ = [
     "UnknownRelationError",
     "bridge_org_edge_to_drg_edge",
     "graph_document_to_dict",
+    "find_asset_path_escapes",
+    "find_body_path_escapes",
     "load_built_in_graph",
     "load_graph",
     "load_graph_or_dir",

@@ -1,0 +1,89 @@
+{
+  "mission_slug": "org-drg-fragment-pack-root-01M66YJG",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/drg/test_org_body_path_escapes.py::test_loaded_fragment_carries_its_effective_root",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-30T19:42:04.332638+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/drg/test_org_body_path_escapes.py::test_carried_root_is_not_part_of_the_serialized_or_schema_surface",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-30T19:41:40.113904+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/drg/test_org_body_path_escapes.py + tests/charter_offering/assets/test_org_asset_path_escapes.py (one-argument predicates throughout)",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-30T19:41:43.783251+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_charter_packs_org_layer.py::test_the_activation_layer_no_longer_owns_the_containment_wrappers",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-30T19:41:47.241044+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_charter_packs_org_layer.py (collect + render halves, incl. the re-pointed crashed-check tests)",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-30T19:41:50.696843+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_charter_packs_org_layer.py::test_collect_org_layer_data_reads_the_pack_registry_once (+ render and escaping-pack variants)",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-30T19:41:54.007494+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/drg/test_org_body_path_escapes.py::test_a_fragment_rebuilt_from_a_dump_cannot_supply_its_root + tests/charter_offering/assets/test_org_asset_path_escapes.py::test_a_fragment_rebuilt_from_a_dump_cannot_supply_its_root",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-30T19:41:57.352188+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_doctor_charter_packs_org_layer.py::test_doctor_charter_packs_exit_code_reflects_body_path_containment + ::test_doctor_charter_packs_exit_code_reflects_asset_path_containment (+ human-output tests)",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-10-30T19:42:00.311026+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

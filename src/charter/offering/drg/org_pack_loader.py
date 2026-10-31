@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, ValidationError, field_validator
 from ruamel.yaml.error import YAMLError
 
 from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
@@ -57,6 +57,7 @@ __all__ = [
     "BodyPathEscape",
     "OrgDRGFragment",
     "OrgPackMissingError",
+    "OrgPackRootUnavailableError",
     "augmentation_plural_kinds",
     "find_body_path_escapes",
     "load_org_pack",
@@ -320,6 +321,23 @@ class OrgPackMissingError(Exception):
         super().__init__(f"Org pack {pack_name!r} configured at {self.configured_path!r} not found. {self.REMEDIATION}")
 
 
+class OrgPackRootUnavailableError(Exception):
+    """Raised when a fragment cannot supply the effective pack root it was loaded from (#6731).
+
+    The root rides on the fragment as runtime metadata (:attr:`OrgDRGFragment.pack_root`)
+    and is deliberately not serialized, so a fragment rebuilt from ``model_dump()`` or
+    constructed by hand has none. A containment check must then report "the check could
+    not run" rather than judge the pack against a default or a re-read of the registry —
+    the second authority this mission removes.
+    """
+
+    def __init__(self, pack_name: str):
+        self.pack_name = pack_name
+        super().__init__(
+            f"Org pack {pack_name!r}: the fragment carries no effective pack root; use the instance load_org_pack returned (the root is not serialized)"
+        )
+
+
 class _OrgPackSourcedError(Exception):
     """Shared ``source_file`` attribution for the two org-pack fault types.
 
@@ -459,6 +477,12 @@ class OrgDRGFragment(BaseModel):
     ``provenance_marker`` is the fixed string ``"org"`` — every node and
     edge from this fragment is tagged ``source: org:<pack_name>`` in the
     resolved DRG (see ``charter.drg.merge_three_layers``).
+
+    The fragment also carries its **effective pack root** (:attr:`pack_root`), the
+    root (``subdir`` applied) the loader actually read the pack from (#6731). It is
+    runtime metadata, not part of the fragment's serialized or schema surface: the
+    containment predicates judge a pack against the root it was loaded from instead
+    of re-reading the pack registry to rediscover it.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -470,6 +494,27 @@ class OrgDRGFragment(BaseModel):
     provenance_marker: Literal["org"] = "org"
     nodes: list[_OrgDRGNode] = Field(default_factory=list)
     edges: list[_OrgDRGEdge] = Field(default_factory=list)
+
+    #: The effective pack root, stamped by :func:`load_org_pack` and deliberately
+    #: excluded from ``model_dump`` / the JSON schema (``source_ref`` already carries
+    #: a display copy of it). ``None`` means "not produced by the loader".
+    _pack_root: Path | None = PrivateAttr(default=None)
+
+    @property
+    def pack_root(self) -> Path:
+        """The effective pack root this fragment was loaded from (``subdir`` applied).
+
+        Raises
+        ------
+        OrgPackRootUnavailableError:
+            When the fragment was not produced by :func:`load_org_pack` — a
+            ``model_validate(model_dump())`` round-trip or a hand-built instance. The
+            root is not serialized, so there is nothing to recover; a caller must
+            report "the check could not run", never judge containment against a guess.
+        """
+        if self._pack_root is None:
+            raise OrgPackRootUnavailableError(self.pack_name)
+        return self._pack_root
 
     @property
     def authored_nodes(self) -> list[_OrgDRGNode]:
@@ -538,8 +583,8 @@ def _body_path_containment_fault(pack_root: Path, body_path: str) -> str | None:
     return None
 
 
-def find_body_path_escapes(fragment: OrgDRGFragment, pack_root: Path) -> list[BodyPathEscape]:
-    """Return the authored nodes of *fragment* whose ``body_path`` is not contained in *pack_root*.
+def find_body_path_escapes(fragment: OrgDRGFragment) -> list[BodyPathEscape]:
+    """Return the authored nodes of *fragment* whose ``body_path`` is not contained in its pack root.
 
     Containment is judged by :func:`resolve_relative_path_within_root`, the
     shared containment primitive (C-001): an absolute path (POSIX, Windows or
@@ -552,10 +597,14 @@ def find_body_path_escapes(fragment: OrgDRGFragment, pack_root: Path) -> list[Bo
     Only :attr:`OrgDRGFragment.authored_nodes` are judged: an authored
     ``body_path`` is pack-root-relative per the org-DRG contract, while a
     discovered node's ``body_path`` is relative to its own artifact file and is
-    owned by that kind's validator. *pack_root* must be the pack's effective
-    root (``subdir`` applied), and *fragment* the instance :func:`load_org_pack`
-    returned (see the copy caveat on ``authored_nodes``).
+    owned by that kind's validator. The root is the one *fragment* carries
+    (:attr:`OrgDRGFragment.pack_root`, stamped by :func:`load_org_pack`), so there is
+    a single pack→root authority and no registry re-read (#6731); *fragment* must be
+    the instance :func:`load_org_pack` returned (see the copy caveat on
+    ``authored_nodes``). A fragment that cannot supply its root raises
+    :class:`OrgPackRootUnavailableError`.
     """
+    pack_root = fragment.pack_root
     escapes: list[BodyPathEscape] = []
     for node in fragment.authored_nodes:
         if not node.body_path:
@@ -788,6 +837,9 @@ def load_org_pack(
         if key not in seen:
             fragment.nodes.append(node)
             seen.add(key)
+    # Single stamp point: the effective root rides on the fragment so containment
+    # checks judge the pack against the root it was actually loaded from (#6731).
+    fragment._pack_root = pack_root  # noqa: SLF001 -- the loader that owns the class is the one sanctioned writer
     return fragment
 
 

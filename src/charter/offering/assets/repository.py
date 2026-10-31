@@ -27,7 +27,7 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from kernel.pack_tiers import BUILT_IN
 
@@ -39,6 +39,9 @@ from charter.offering.drg.org_pack_config import (
     OrgPackSubdirEscapeError,
     resolve_relative_path_within_root,
 )
+
+if TYPE_CHECKING:  # type-only: this module is on the build hook's import path and must stay light
+    from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 __all__ = [
     "AssetNotFoundError",
@@ -222,11 +225,15 @@ class AssetPathEscape:
         return {"code": self.code, "pack": self.pack, "asset": self.asset, "path": self.path, "reason": self.reason}
 
 
-def find_asset_path_escapes(pack: str, pack_root: Path) -> list[AssetPathEscape]:
+def find_asset_path_escapes(fragment: OrgDRGFragment) -> list[AssetPathEscape]:
     """Return the org asset sidecars of ONE pack whose ``path`` escapes its ``assets/`` root.
 
+    The pack is named and rooted by *fragment* — an instance :func:`load_org_pack`
+    returned, carrying its **effective** pack root (`subdir` applied) — so a caller cannot
+    pair a pack with a root from a second source (#6731).
+
     Builds the repository the way :class:`~charter.offering.service.CharterOfferingService`
-    does for an org root (``org_dirs=[pack_root / "assets"]``) and asks
+    does for an org root (``org_dirs=[<pack_root>/assets]``) and asks
     :meth:`AssetRepository.resolve_path` for every org-provenance id, so the
     anchor and the containment rule are the repository's own (the shared
     containment primitive :func:`resolve_relative_path_within_root`). Built-in
@@ -244,8 +251,11 @@ def find_asset_path_escapes(pack: str, pack_root: Path) -> list[AssetPathEscape]
     validator's to report; its load warnings, like layer-collision warnings,
     are owned by other checks and are silenced here.
 
-    *pack_root* must be the pack's effective root (``subdir`` applied).
+    A fragment that cannot supply its root raises
+    :class:`~charter.offering.drg.org_pack_loader.OrgPackRootUnavailableError`.
     """
+    pack = fragment.pack_name
+    pack_root = fragment.pack_root
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         repository = AssetRepository(org_dirs=[pack_root / "assets"])
