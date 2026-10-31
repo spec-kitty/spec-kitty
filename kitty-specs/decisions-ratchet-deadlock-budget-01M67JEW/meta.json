@@ -1,0 +1,33 @@
+{
+  "accept_commit": "7d97276e4add22d0bd13852d90b02de0c730263f",
+  "acceptance_history": [
+    {
+      "accept_commit": "7d97276e4add22d0bd13852d90b02de0c730263f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T00:50:41.634539+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "28ba7607107034e346496c37e04d5d54821e3ae1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T00:50:41.634539+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "28ba7607107034e346496c37e04d5d54821e3ae1",
+  "baseline_merge_commit": "909ac5f4f74de7d0496a86b4512bd3fc78696787",
+  "created_at": "2026-10-30T23:31:29.817630+00:00",
+  "flattened": false,
+  "friendly_name": "Decisions ratchet deadlock budget",
+  "merged_at": "2026-10-31T00:50:55.833830+00:00",
+  "merged_commit": "909ac5f4f74de7d0496a86b4512bd3fc78696787",
+  "mid8": "01M67JEW",
+  "mission_id": "01M67JEWSJ2GH6JWBJJZ0G6MCM",
+  "mission_number": 244,
+  "mission_slug": "decisions-ratchet-deadlock-budget-01M67JEW",
+  "mission_type": "software-dev",
+  "purpose_context": "Fixes the xdist flake in the decisions terminal-concurrency ratchet (#6773) by making its deadlock verdict deterministic instead of inheriting the product's fixed lock-acquire bound.",
+  "purpose_tldr": "One wall clock, owned by the harness: the decisions coexistence ratchet reds on a deadlock, not on a slow machine.",
+  "slug": "decisions-ratchet-deadlock-budget-01M67JEW",
+  "status_phase": "1",
+  "target_branch": "issue-6773-decisions-ratchet-deadlock-budget",
+  "topology": "single_branch"
+}
