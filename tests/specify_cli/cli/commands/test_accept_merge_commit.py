@@ -38,7 +38,7 @@ from specify_cli.acceptance.matrix import (
 )
 from specify_cli.cli.commands.accept import accept
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
 from specify_cli.status.emit import build_claim_policy_metadata
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.lanes.branch_naming import lane_branch_name
@@ -711,14 +711,77 @@ def test_accept_pr_mode_still_refuses_a_hollow_wp_after_pruning(tmp_path: Path, 
     assert "baseline_merge_commit" not in meta
 
 
+def test_accept_pr_mode_refuses_a_landing_commit_that_does_not_contain_the_planning_commit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """#6780 ancestor guard: a landing commit that is not descended from ``planning_commit_sha`` refuses.
+
+    The lane branch is gone, so the supplied verified commit would stand in for it — but its
+    history does not contain the recorded planning commit, so the window ``planning..landing``
+    would not describe this Mission's work. The accept must report ``IMPLEMENTATION_UNREADABLE``
+    with nothing diffed and no crash. Non-vacuity: disabling
+    ``sha_reachable_from`` in ``_landed_window`` turns this into a diff over unrelated history,
+    which flips both the code and the recorded diff calls.
+    """
+    repo_root = (tmp_path / "repo").resolve()
+    repo_root.mkdir()
+    feature_dir, merge_commit, _parent = _create_pr_merged_feature(repo_root, lane_merged=True, prune_lane=True)
+    assert not _branch_resolves(repo_root, _lane_branch()), "the stand-in only applies to a pruned tip"
+
+    # A "verified-looking" landing commit whose history does not carry the planning commit: a
+    # descendant of the landing is enough (the real landing cannot contain it either way).
+    _git(repo_root, "commit", "--allow-empty", "-m", "a planning commit the landing does not contain")
+    stray_planning = _git(repo_root, "rev-parse", "HEAD").stdout.strip()
+    manifest = read_lanes_json(feature_dir)
+    assert manifest is not None
+    manifest.planning_commit_sha = stray_planning
+    write_lanes_json(feature_dir, manifest)
+
+    diffs: list[tuple[str, str]] = []
+
+    def _record(_repo: Path, base: str, tip: str) -> list[tuple[str, str]]:
+        diffs.append((base, tip))
+        return []
+
+    monkeypatch.setattr("specify_cli.consolidation.wp_evidence.changed_paths_in_range", _record)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    with pytest.raises(typer.Exit) as exit_info:
+        accept(
+            mission=_SLUG,
+            mode="pr",
+            actor="tester",
+            test=[],
+            json_output=True,
+            lenient=False,
+            no_commit=False,
+            diagnose=False,
+            allow_fail=False,
+            merge_commit=merge_commit,
+            attest_first_landing=True,
+        )
+
+    assert exit_info.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error_code"] == "IMPLEMENTATION_UNREADABLE"
+    assert "does not contain the recorded planning commit" in payload["error"], payload["error"]
+    assert "IMPLEMENTATION_MISSING" not in payload["error"], "an unproven stand-in must be refused, never judged"
+    assert diffs == [], f"no window may be diffed against an unproven stand-in, got {diffs}"
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert "baseline_merge_commit" not in meta
+
+
 def test_accept_pr_mode_without_merge_commit_names_the_pruned_lane_branch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Without a verified landing commit the refusal is honest about the cause (#6780).
 
-    The window cannot be read because the lane branch no longer exists; the refusal says
-    so and names both remedies (restore/fetch the branch, or pass the verified PR landing
-    commit) instead of a blanket 'could not be diffed'.
+    The window cannot be read because the lane branch no longer exists; the refusal names
+    that absent ref as the cause, and both remedies (restore/fetch the branch, or pass the
+    verified PR landing commit), instead of a blanket 'could not be diffed' that only
+    happened to carry the ref because git echoes its refspec. The assertions below pin the
+    shipped sentence, not the incidental words.
     """
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
