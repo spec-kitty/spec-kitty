@@ -86,7 +86,7 @@
     },
     "WP03": {
       "actor": "reviewer-renata",
-      "agent": "reviewer-renata",
+      "agent": "reviewer-renata::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -97,7 +97,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-31T14:52:52Z – python-pedro – shell_pid=1457199 – T014's catch in _collision_remedy.py was already added in lane-b and survives this rebase; verified here. Envelope decision recorded: sidecar_artifact_urn(owned_only=False) for display (registration keeps its artifact_id) rather than a second read, per the analysis finding C1.",
-        "Envelope wraps the one strict sidecar reader; 525 targeted tests pass."
+        "Envelope wraps the one strict sidecar reader; 525 targeted tests pass.",
+        "Review passed. The display path no longer parses the sidecar: _artifact_id_from_sidecar wraps sidecar_artifact_urn and catches the coded error, so the envelope keeps its four-field shape on healthy, missing, corrupt and wrong-kind fixtures (9 cases). owned_only=False is the right seam for the display contract (a registration keeps its artifact_id, so #6510's envelope behaviour is unchanged), and the ownership default stays strict. The collision remedy catch classifies the coded error and keeps naming the file. Verified: 525 passed / 2 skipped across the charter CLI, coded-error and collision-refusal suites; ruff clean; no stale reference to _extract_artifact_id_from_provenance."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
