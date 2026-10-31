@@ -59,6 +59,27 @@ External receipts preserve the unchanged-source CLI failure, existing-profile
 positive controls and final frozen-source results. Final checks and publication
 are separate events; recording them does not edit a validated source log.
 
+## Development version and validation configuration
+
+This change stays in the already-open, unreleased `4.0.0rc8` cycle. The
+[release checklist](../../../RELEASE_CHECKLIST.md#8-open-the-next-development-cycle) opens the next
+version once after a release tag. Maintainer commit
+[`3a1380697f`](https://github.com/spec-kitty/spec-kitty/commit/3a1380697f584aac52db9cc73590ca7b16ea50e9)
+explicitly reverted a second premature development bump while retaining its
+consumer changelog entry. This repair adds consumer entries without skipping
+the current candidate cycle; it does not authorize a release or tag.
+
+The external validation controller initially inherited an outer pytest
+`--basetemp` through `PYTEST_ADDOPTS` and lacked the selected interpreter's bin
+directory on `PATH`. Two unmodified agent tests failed on both the frozen
+candidate and its untouched predecessor: a real nested pytest rejected its
+ancestor temporary directory, and a Git hook could not find `python`.
+Correcting only the controller environment makes both controls pass on both
+sources. The original failed receipts remain historical evidence. Final
+qualification uses an explicit outer temporary-directory argument, no inherited
+pytest options and the pinned runtime's bin directory first on `PATH`; no
+product guards, test assertions or timeouts were changed for these failures.
+
 ## Owner and next event
 
 The runtime context delivery lane owns source delivery, private test resources

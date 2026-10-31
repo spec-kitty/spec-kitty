@@ -14721,6 +14721,7 @@ pages:
     - {slug: "observed-behavior-and-contract", text: "Observed behavior and contract", level: 2}
     - {slug: "actor-identity-and-proof-boundary", text: "Actor identity and proof boundary", level: 2}
     - {slug: "implementation-and-qualification", text: "Implementation and qualification", level: 2}
+    - {slug: "development-version-and-validation-configuration", text: "Development version and validation configuration", level: 2}
     - {slug: "owner-and-next-event", text: "Owner and next event", level: 2}
   - path: "docs/plans/engineering-notes/2026-10-31-migration-project-admission.md"
     title: "Migration project write admission"
