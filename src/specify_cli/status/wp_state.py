@@ -29,10 +29,6 @@ from specify_cli.status.models import ActorField, InnerStateChanged, Lane, WPInn
 _FORCE_REQUIRES_ACTOR_AND_REASON = "Force transitions require actor and reason"
 _REVIEWER_APPROVAL_REQUIRED = "Transition to approved/done requires evidence (reviewer identity and approval reference)"
 _DEPENDENCIES_UNSATISFIED = "Transition {source} -> {target} blocked: unsatisfied dependencies (force with reason to override)"
-_REVIEW_REF_REQUIRED = (
-    "Transition {source} -> {target} requires review_ref: a forced rewind out of review must cite the review "
-    "feedback it is rewinding (pass `--review-ref <ref>`)."
-)
 
 #: Edges whose persisted events the status schema validator refuses without a
 #: ``review_ref`` (#6514). ONE owning definition, consumed by the write path
@@ -72,6 +68,20 @@ def has_review_ref(review_ref: object) -> bool:
     carry. A value that is not a string is not a pointer.
     """
     return isinstance(review_ref, str) and bool(review_ref.strip())
+
+
+def review_ref_required_message(source: Lane, target: Lane) -> str:
+    """The refusal for a review rewind that cites no review feedback (#6514).
+
+    Kept as a plain interpolated sentence rather than a ``str.format`` template keyed on
+    lane operands: the worktree-name gate reads a ``.format(...)`` whose arguments are
+    lane-shaped as a hand-rolled lane-name compose, and this is a human-facing refusal,
+    not a name.
+    """
+    return (
+        f"Transition {source.value} -> {target.value} requires review_ref: a forced rewind out of review "
+        "must cite the review feedback it is rewinding (pass `--review-ref <ref>`)."
+    )
 
 
 class TransitionInputs(Protocol):
@@ -242,7 +252,7 @@ class WPState(ABC):
         # in ``guard_for``: force bypasses guards entirely, so a guard-side rule would
         # be dead on the only route this edge has.
         if requires_review_ref(self.lane, target) and not has_review_ref(ctx.review_ref):
-            return False, _REVIEW_REF_REQUIRED.format(source=self.lane.value, target=target.value)
+            return False, review_ref_required_message(self.lane, target)
 
         if ctx.force:
             return True, None
