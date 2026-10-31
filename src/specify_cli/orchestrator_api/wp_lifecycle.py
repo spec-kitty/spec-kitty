@@ -28,6 +28,7 @@ from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
 from specify_cli.status import ActorRole, actor_from_option, role_for_wp
 from specify_cli.status import parse_review_result_json
+from specify_cli.status import refuse_seed_shaped_identity
 
 from .envelope import (
     make_envelope,
@@ -52,6 +53,26 @@ _HELP_WP_ID = "Work package ID"
 
 
 logger = logging.getLogger(__name__)
+
+
+def _refuse_seed_actor_or_fail(cmd: str, actor: str) -> None:
+    """Refuse a caller-supplied reconstruction-seed identity before any work (#6754).
+
+    The four lifecycle verbs below record ``--actor`` verbatim through
+    :func:`~specify_cli.status.actor_from_option`, so a ``migration:``-shaped value
+    would be stored as a reconstruction seed and make a live transition look like
+    reconstruction. Each verb calls this as its FIRST statement, before the mission is
+    resolved, the policy parsed, the write lock taken, a lane allocated or a status
+    event emitted; ``_fail`` is ``NoReturn``, so no caller needs a sentinel.
+
+    ``USAGE_ERROR`` is the code this surface already uses for an unacceptable option
+    value (the invalid ``--evidence-json`` refusal), so the outbound contract's
+    ``allowed_error_codes`` needs no new entry.
+    """
+    try:
+        refuse_seed_shaped_identity(actor, option="--actor")
+    except ValueError as exc:
+        _fail(cmd, "USAGE_ERROR", str(exc))
 
 
 def _transition_requires_policy(lane: str) -> bool:
@@ -491,6 +512,9 @@ def _start_implementation(mission: str, wp: str, actor: str, policy: str | None,
     """Body of :func:`start_implementation`; *claim_stack* carries the checkout claim lock to the claim emit."""
     cmd = "start-implementation"
 
+    # #6754: before the policy, the mission, the lock and the lane allocation.
+    _refuse_seed_actor_or_fail(cmd, actor)
+
     # Policy required
     if not policy:
         _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for start-implementation")
@@ -649,6 +673,9 @@ def start_review(
     """Transition a WP from for_review to in_review (reviewer claims review)."""
     cmd = "start-review"
 
+    # #6754: before the policy, the mission, the lock and the emit.
+    _refuse_seed_actor_or_fail(cmd, actor)
+
     if not policy:
         _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for start-review")
         return
@@ -779,6 +806,9 @@ def transition(
 ) -> None:
     """Emit a single lane transition for a WP."""
     cmd = "transition"
+
+    # #6754: before the lane alias, the policy, the mission and the emit.
+    _refuse_seed_actor_or_fail(cmd, actor)
 
     from specify_cli.status import resolve_lane_alias
 
@@ -919,6 +949,9 @@ def append_history(
     (C-003 / #2647 -- see the SC-008 test).
     """
     cmd = "append-history"
+
+    # #6754: before the mission, the WP read and the annotation emit.
+    _refuse_seed_actor_or_fail(cmd, actor)
 
     main_repo_root = _common._get_main_repo_root()
     # Existence/identity gate via the coord-aware read seam (typed miss

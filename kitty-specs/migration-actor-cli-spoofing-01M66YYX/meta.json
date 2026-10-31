@@ -1,0 +1,44 @@
+{
+  "accept_commit": "d8b85f90311745f46de0b40c3140d4e725a05092",
+  "acceptance_history": [
+    {
+      "accept_commit": "dc02fd4b23a42518bb481f46c8fdc55623170ac3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:38:36.303334+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f821f8a92f47b11acef1e4e124ed2be52b14050a"
+    },
+    {
+      "accept_commit": "d8b85f90311745f46de0b40c3140d4e725a05092",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:38:46.004282+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "ac8117819f5d777c4f6c96667942b117f5c0b766"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:38:46.004282+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "ac8117819f5d777c4f6c96667942b117f5c0b766",
+  "baseline_merge_commit": "5dff8ef2740399cb16b57ca593d6dd0bc907b9d4",
+  "contracts": "none",
+  "contracts_rationale": "No data shape, endpoint or event field is added. The one externally visible surface is the orchestrator-api failure envelope, and it reuses the already-contracted, already-allowlisted error_code USAGE_ERROR (src/specify_cli/core/upstream_contract.json), so there is no contract artifact to write and no allowlist to extend.",
+  "created_at": "2026-10-30T17:50:42.949678+00:00",
+  "flattened": true,
+  "friendly_name": "Caller-supplied migration actors are not reconstruction seeds",
+  "merged_at": "2026-10-30T19:42:27.041360+00:00",
+  "merged_commit": "2a5acb1384da8f61df46f4d70592e87169758e84",
+  "mid8": "01M66YYX",
+  "mission_id": "01M66YYX43K243WESFE0QRZ1MJ",
+  "mission_number": 244,
+  "mission_slug": "migration-actor-cli-spoofing-01M66YYX",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A reconstruction seed is a best-effort restatement of history, exempt from consolidation work windows, timestamp continuity and the review-exit note rule. Today any caller can pass --actor migration:anything to a status writer and produce one, so a live transition can be made to look like reconstruction. This Mission makes the capability belong to in-process migration writers alone: a caller-supplied seed-shaped identity is refused before any write, while recorded seeds and the in-process backfills keep working unchanged.",
+  "purpose_tldr": "Refuse a caller-supplied 'migration:' identity at every status boundary that records it verbatim, so only in-process migrations can write reconstruction seeds (#6754).",
+  "slug": "migration-actor-cli-spoofing-01M66YYX",
+  "status_phase": "1",
+  "target_branch": "issue-6754-migration-actor-cli-spoofing",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T18:59:52.928824+00:00"
+}

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -22,7 +21,6 @@ from specify_cli.cli.commands.agent.status import app
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.store import read_events
-from tests._support.reconstruction_seed import reduces_as_reconstruction_seed
 from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = pytest.mark.fast
@@ -139,24 +137,25 @@ def test_status_facade_exports_each_name_once() -> None:
     assert "actor_from_option" in status_facade.__all__
 
 
-def _assert_reconstruction_seed(actor: object, raw_event: dict[str, object]) -> None:
-    """The stored actor is a migration seed for the CLI and for the package reducer alike."""
-    from spec_kitty_events import diary
+def test_migration_actor_is_refused_and_nothing_is_written(mission_repo: Path) -> None:
+    """A ``migration:`` ``--actor`` is refused: only an in-process migration writes a seed (#6754).
 
-    from specify_cli.status import is_migration_actor
-    from specify_cli.status.models import ActorField
-
-    assert is_migration_actor(cast("ActorField", actor))
-    assert diary._is_reconstruction_seed(diary.StatusEvent.from_dict(dict(raw_event)))
-    assert reduces_as_reconstruction_seed(raw_event["actor"])
-
-
-def test_migration_actor_is_stored_whole_and_stays_a_reconstruction_seed(mission_repo: Path) -> None:
-    """A ``migration:`` ``--actor`` is stored whole as ``tool`` so it keeps its seed status (#6400 review F3)."""
+    Before #6754 this command stored the value whole as ``tool`` so it kept its seed
+    status, which let any caller make a live transition look like reconstruction
+    (``#6400`` review F3). The refusal replaces that behaviour rather than narrowing it
+    silently, and it writes nothing.
+    """
+    from specify_cli.status.models import SEED_SHAPED_IDENTITY_REFUSAL, MIGRATION_ACTOR_PREFIX
     from specify_cli.status.store import read_events_raw
 
-    _emit(mission_repo, "--to", "claimed", "--actor", "migration:backfill")
+    before = read_events_raw(_feature_dir(mission_repo))
+    with (
+        patch("specify_cli.cli.commands.agent.status.locate_project_root", return_value=mission_repo),
+        patch("specify_cli.cli.commands.agent.status._find_mission_slug", return_value=_SLUG),
+    ):
+        result = runner.invoke(app, ["emit", "WP01", "--mission", _SLUG, "--to", "claimed", "--actor", "migration:backfill"])
 
-    raw = [e for e in read_events_raw(_feature_dir(mission_repo)) if e.get("to_lane") == "claimed"][-1]
-    assert raw["actor"] == {"tool": "migration:backfill", "role": "implementer", "profile": None, "model": None}
-    _assert_reconstruction_seed(_last_actor(mission_repo), raw)
+    refusal = SEED_SHAPED_IDENTITY_REFUSAL.format(option="--actor", prefix=MIGRATION_ACTOR_PREFIX)
+    assert result.exit_code == 1, result.stdout
+    assert refusal in result.stdout
+    assert read_events_raw(_feature_dir(mission_repo)) == before

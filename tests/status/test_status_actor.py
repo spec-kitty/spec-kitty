@@ -23,7 +23,7 @@ from spec_kitty_events.diary import decode_actor as diary_decode_actor
 
 from specify_cli.status.actor import ActorRole, actor_from_option, build_status_actor, role_for_hop, role_for_wp
 from specify_cli.status.emit import build_resolved_actor, build_self_asserting_actor
-from specify_cli.status.models import Lane, ProfileSource, StatusEvent, actor_full_identity, decode_actor
+from specify_cli.status.models import Lane, ProfileSource, StatusEvent, actor_full_identity, decode_actor, is_migration_actor
 from specify_cli.status.resolved_binding import ResolvedBinding
 from tests._support.status_seed import seed_status_event
 
@@ -190,7 +190,6 @@ def test_role_for_wp_reads_the_current_lane(tmp_path: Path, lane: Lane | None, t
     [
         pytest.param("claude", ("claude", None, None), id="bare-tool"),
         pytest.param("claude:opus:python-pedro:reviewer", ("claude", "opus", "python-pedro"), id="compact-role-segment-ignored"),
-        pytest.param("migration:backfill", ("migration:backfill", None, None), id="migration-seed-kept-whole"),
         pytest.param("a:b:c:d:e", ("a:b:c:d:e", None, None), id="more-than-four-segments-kept-whole"),
         pytest.param(":x", (":x", None, None), id="unparseable-kept-whole"),
     ],
@@ -200,7 +199,21 @@ def test_actor_from_option_parses_or_keeps_the_value_whole(value: str, expected:
     assert actor_from_option(value, ActorRole.IMPLEMENTER) == {"role": "implementer", "profile": profile, "tool": tool, "model": model}
 
 
-@pytest.mark.parametrize("value", ["claude:opus:ivan", ":x", "migration:backfill"])
+def test_actor_from_option_refuses_a_caller_supplied_seed() -> None:
+    """#6754: a ``migration:`` value is no longer kept whole for a caller; it is refused."""
+    with pytest.raises(ValueError, match="must not start with"):
+        actor_from_option("migration:backfill", ActorRole.IMPLEMENTER)
+
+
+def test_actor_from_option_replays_a_recorded_seed_whole() -> None:
+    """A value read back out of the log (``recorded=True``) keeps its seed status."""
+    actor = actor_from_option("migration:backfill", ActorRole.IMPLEMENTER, recorded=True)
+
+    assert actor == {"role": "implementer", "profile": None, "tool": "migration:backfill", "model": None}
+    assert is_migration_actor(actor) is True
+
+
+@pytest.mark.parametrize("value", ["claude:opus:ivan", ":x"])
 def test_actor_from_option_binding_wins_for_profile_and_model(value: str) -> None:
     actor = actor_from_option(value, ActorRole.REVIEWER, binding=_BINDING)
     assert (actor["profile"], actor["model"], actor["role"]) == ("op-profile", "op-model", "reviewer")

@@ -27,7 +27,7 @@ from enum import StrEnum
 from pathlib import Path
 
 from .lane_reader import CanonicalStatusNotFoundError, get_wp_lane
-from .models import MIGRATION_ACTOR_PREFIX, Lane, parse_agent_boundary_string
+from .models import MIGRATION_ACTOR_PREFIX, Lane, parse_agent_boundary_string, refuse_seed_shaped_identity
 from .resolved_binding import ResolvedBinding
 from .transitions import resolve_lane_alias
 
@@ -139,23 +139,34 @@ def build_status_actor(
 _COMPACT_AGENT_SEGMENTS = 4
 
 
-def actor_from_option(actor: str, role: str, *, binding: ResolvedBinding | None = None) -> dict[str, str | None]:
+def actor_from_option(actor: str, role: str, *, binding: ResolvedBinding | None = None, recorded: bool = False) -> dict[str, str | None]:
     """The lenient builder: the structured actor of a free-text or recorded identity (#6400, FR-011).
 
     Used for ``agent status emit --actor``, the ``orchestrator-api`` ``--actor`` and an
-    identity read back from the record (a recorded reviewer or agent). Those values
-    were always stored verbatim, so this never refuses. The value is kept whole as
-    ``tool`` (``profile`` and ``model`` from ``binding`` only) when it:
+    identity read back from the record (a recorded reviewer or agent).
 
-    * starts with :data:`~specify_cli.status.models.MIGRATION_ACTOR_PREFIX`, so a
-      reconstruction seed stays one (``is_migration_actor`` and the package reducer);
+    Caller-supplied values FAIL CLOSED (#6754): a value shaped like a reconstruction
+    seed is refused, because only an in-process migration may write one. A caller that
+    is replaying an identity it read *out of the log* passes ``recorded=True`` and the
+    value is kept whole, so a recorded seed stays a seed. Every other caller refuses.
+
+    The value is kept whole as ``tool`` (``profile`` and ``model`` from ``binding`` only) when it:
+
+    * starts with :data:`~specify_cli.status.models.MIGRATION_ACTOR_PREFIX` — reachable
+      only with ``recorded=True``, which is how a recorded seed keeps its status;
     * has more than four ``:`` segments, so it is not a compact agent string;
     * fails :func:`~specify_cli.status.models.parse_agent_boundary_string` (an empty
       tool segment, e.g. ``":x"``).
 
     Otherwise it is parsed like a compact ``--agent``: the bare tool, the model and the
     profile segment; the role segment is ignored (``role`` comes from the action).
+
+    Raises:
+        ValueError: When ``recorded`` is false and *actor* is seed-shaped
+            (:func:`~specify_cli.status.models.refuse_seed_shaped_identity`).
     """
+    if not recorded:
+        refuse_seed_shaped_identity(actor, option="--actor")
     if actor.startswith(MIGRATION_ACTOR_PREFIX) or len(actor.split(":")) > _COMPACT_AGENT_SEGMENTS:
         return compose_status_actor(role=role, tool=actor, binding=binding)
     try:
