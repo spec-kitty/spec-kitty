@@ -77,9 +77,11 @@ from charter.activation.synthesizer.errors import (
     ProjectDRGValidationError as ProjectDRGValidationError,
     ProjectDirectiveScanError as ProjectDirectiveScanError,
     SynthesisError as SynthesisError,
+    SynthesisMembershipUnreadableError as SynthesisMembershipUnreadableError,
 )
 from charter.activation.synthesizer.manifest import (
     project_directive_ids as project_directive_ids,
+    sidecar_artifact_urn as sidecar_artifact_urn,
     synthesis_owned_directive_ids as synthesis_owned_directive_ids,
 )
 
@@ -311,8 +313,10 @@ __all__ = [
     "restamp_bundle_hash",
     "settle_project_languages",
     "store_language_settlement",
+    "sidecar_artifact_urn",
     "synthesis_lock",
     "synthesis_lock_unless",
     "synthesis_owned_directive_ids",
+    "SynthesisMembershipUnreadableError",
     "verify",
 ]

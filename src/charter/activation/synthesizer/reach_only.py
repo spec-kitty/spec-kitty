@@ -10,9 +10,15 @@ of its own. :func:`reach_only_ids` names those artifacts for one kind;
 created for the first time to an explicit ``activated_<kind>s`` list (an absent key
 stays absent, and synthesis never creates one).
 
+This module owns delivery and activation *policy* only: which synthesized artifacts are
+reach-only is answered by the one ownership reader
+(:func:`charter.activation.synthesizer.manifest.synthesized_urns`), never here (#6767).
+
 An operator's removal sticks (operator ruling, 2026-10-19): every artifact id
-synthesis has ever created is recorded per kind in :data:`CREATED_ARTIFACTS_PATH`
-(the unreleased tactic-only record :data:`_LEGACY_CREATED_TACTICS_PATH` is still
+synthesis has ever created is recorded per kind in
+:data:`charter.activation.synthesizer.manifest.CREATED_ARTIFACTS_PATH`
+(the unreleased tactic-only record
+:data:`charter.activation.synthesizer.manifest.LEGACY_CREATED_ARTIFACTS_PATH` is still
 read, never written), and a recorded id is never appended again, even when a later
 run regenerates it after a ``--prune`` or a deleted manifest. Only the operator
 brings it back (``spec-kitty charter activate <kind> <id>``). A deactivated artifact
@@ -24,36 +30,29 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Iterable, Mapping
-from io import StringIO
 from pathlib import Path
 from typing import Any
 
-from ruamel.yaml import YAML
-from ruamel.yaml.error import YAMLError
 
 from charter.activation.org_pack_discovery import read_org_required_ids
-from charter.activation.synthesizer.manifest import MANIFEST_PATH, SynthesisManifest, load_yaml
-from charter.activation.synthesizer.reconcile import REACH_ONLY_KINDS, ReconciliationDelta, is_synthesized_source_edge, synthesized_node_urns
+from charter.activation.synthesizer.manifest import (
+    UnreadableCreatedRecordError,
+    manifest_slugs,
+    read_created_record,
+    synthesized_slugs,
+    write_created_record,
+)
+from charter.activation.synthesizer.reconcile import REACH_ONLY_KINDS, ReconciliationDelta, is_synthesized_source_edge
 from charter.activation.synthesizer.synthesis_lock import synthesis_lock
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.loader import DRGLoadError, has_graph_files, load_graph_or_dir
 from charter.offering.drg.models import NodeKind
-from kernel.atomic import atomic_write
 from kernel.charter_pack_paths import project_pack_root
-from kernel.errors import KittyInternalConsistencyError
 
 __all__ = ["append_synthesized_activations", "created_slugs_by_kind", "reach_only_ids"]
 
 _LOGGER = logging.getLogger(__name__)
 
-#: Every reach-only artifact id synthesis has created, per kind; a listed id is never re-appended.
-CREATED_ARTIFACTS_PATH = Path(".kittify/charter/synthesized-artifacts.yaml")
-_LEGACY_CREATED_TACTICS_PATH = Path(".kittify/charter/synthesized-tactics.yaml")
-_CREATED_ARTIFACTS_HEADER = (
-    "# Artifact ids spec-kitty synthesis has created, per kind. Synthesis adds an\n"
-    "# artifact to an explicit activated_<kind>s list only the first time it creates\n"
-    "# it, so an artifact you remove stays removed. Written by spec-kitty; do not edit.\n"
-)
 _UNREADABLE_RECORD_WARNING = (
     "{path} is unreadable; no synthesized artifact was added to an activation list. "
     "Restore it from version control (`git checkout -- {path}`, or from an earlier commit) "
@@ -63,126 +62,8 @@ _UNREADABLE_RECORD_WARNING = (
 )
 
 
-class _UnreadableRecordError(ValueError):
-    """A created-artifact record exists but cannot be read as per-kind lists of ids."""
-
-
-class SynthesisMembershipUnreadableError(KittyInternalConsistencyError):
-    """Neither the synthesis manifest nor a created-artifact record says which artifacts synthesis created (#6454).
-
-    Raised instead of an empty set, which would re-root every synthesized artifact
-    and deliver it even while its directive is inactive (fail-open).
-    """
-
-    def __init__(self, body: str) -> None:
-        super().__init__("SYNTHESIS_MEMBERSHIP_UNREADABLE", body)
-
-
-def _record_key(kind: str) -> str:
-    return f"created_{ArtifactKind(kind).plural}"
-
-
 def _activation_key(kind: str) -> str:
     return f"activated_{ArtifactKind(kind).plural}"
-
-
-def _load_record_file(path: Path) -> dict[str, Any]:
-    """The mapping in one record file; empty when absent, raises when malformed."""
-    if not path.exists():
-        return {}
-    try:
-        data = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
-    except (OSError, YAMLError) as exc:
-        raise _UnreadableRecordError(path.as_posix()) from exc
-    if not isinstance(data, dict):
-        raise _UnreadableRecordError(path.as_posix())
-    return dict(data)
-
-
-def _ids_under(data: Mapping[str, Any], key: str, path: Path) -> set[str]:
-    ids = data.get(key, [])
-    if not isinstance(ids, list) or not all(isinstance(item, str) for item in ids):
-        raise _UnreadableRecordError(path.as_posix())
-    return set(ids)
-
-
-def _read_record(repo_root: Path) -> tuple[dict[str, set[str]], dict[str, Any]]:
-    """Per-kind recorded ids (the legacy tactic record unioned in) and the keys this module does not own."""
-    path = repo_root / CREATED_ARTIFACTS_PATH
-    data = _load_record_file(path)
-    legacy_path = repo_root / _LEGACY_CREATED_TACTICS_PATH
-    legacy = _load_record_file(legacy_path)
-    recorded = {kind: _ids_under(data, _record_key(kind), path) for kind in REACH_ONLY_KINDS}
-    recorded["tactic"] |= _ids_under(legacy, _record_key("tactic"), legacy_path)
-    foreign = {key: value for key, value in data.items() if key not in {_record_key(kind) for kind in REACH_ONLY_KINDS}}
-    return recorded, foreign
-
-
-def _write_record(repo_root: Path, recorded: Mapping[str, set[str]], foreign: Mapping[str, Any]) -> None:
-    body = {**{_record_key(kind): sorted(recorded[kind]) for kind in REACH_ONLY_KINDS}, **foreign}
-    stream = StringIO()
-    YAML().dump(body, stream)
-    atomic_write(repo_root / CREATED_ARTIFACTS_PATH, f"{_CREATED_ARTIFACTS_HEADER}{stream.getvalue()}", mkdir=True)
-
-
-def _registered_slugs(manifest: SynthesisManifest, kind: str) -> frozenset[str]:
-    prefix = f"{kind}:"
-    return frozenset(urn[len(prefix) :] for urn in synthesized_node_urns(manifest) if urn.startswith(prefix))
-
-
-def _manifest_slugs(repo_root: Path, kind: str) -> frozenset[str]:
-    """Bare slugs of *kind* the synthesis manifest registers; empty when absent or unreadable."""
-    try:
-        manifest = load_yaml(repo_root / MANIFEST_PATH)
-    except (OSError, ValueError, YAMLError):
-        return frozenset()
-    return _registered_slugs(manifest, kind)
-
-
-_UNREADABLE_MEMBERSHIP = (
-    "{manifest} cannot be read and {record} is {record_state}, so spec-kitty cannot tell which {kind}s synthesis "
-    "created. Refusing to deliver governance: every synthesized {kind} would otherwise reach agents even while its "
-    "directive is inactive.\nRemediation: restore {manifest} from version control (for example "
-    "`git checkout -- {manifest}`)."
-)
-
-
-def _synthesized_slugs(repo_root: Path, kind: str) -> frozenset[str]:
-    """Bare slugs of *kind* synthesis created, for :func:`reach_only_ids` (fails closed, #6454).
-
-    The manifest is the authority; an absent manifest means nothing was synthesized.
-    A manifest that cannot be read (including a dangling symlink or a failing stat) falls back to :func:`_recorded_slugs`.
-    """
-    manifest_path = repo_root / MANIFEST_PATH
-    try:
-        # A dangling symlink is unreadable, not absent; exists() itself can raise (EACCES).
-        if not (manifest_path.exists() or manifest_path.is_symlink()):
-            return frozenset()
-        return _registered_slugs(load_yaml(manifest_path), kind)
-    except (OSError, ValueError, YAMLError) as exc:
-        return _recorded_slugs(repo_root, kind, exc)
-
-
-def _recorded_slugs(repo_root: Path, kind: str, manifest_error: Exception) -> frozenset[str]:
-    """The created-artifact record's ids of *kind*, standing in for an unreadable manifest.
-
-    The record lists every id synthesis has ever created, so it never under-counts.
-    When it is absent, unreadable or lists no id of *kind*, :class:`SynthesisMembershipUnreadableError`
-    is raised: an empty set would re-root every synthesized artifact.
-    """
-    try:
-        recorded, _ = _read_record(repo_root)
-    except _UnreadableRecordError:
-        record_state = "unreadable"
-    else:
-        if recorded[kind]:
-            _LOGGER.warning("%s is unreadable (%s); using %s for the synthesized %ss.", MANIFEST_PATH, manifest_error, CREATED_ARTIFACTS_PATH, kind)
-            return frozenset(recorded[kind])
-        # An absent record, or one listing no id of this kind, says nothing about what was synthesized.
-        record_state = "absent or lists no " + kind
-    raise SynthesisMembershipUnreadableError(
-        _UNREADABLE_MEMBERSHIP.format(manifest=MANIFEST_PATH.as_posix(), record=CREATED_ARTIFACTS_PATH.as_posix(), record_state=record_state, kind=kind)
-    ) from manifest_error
 
 
 def reach_only_ids(repo_root: Path, kind: str) -> frozenset[str]:
@@ -196,9 +77,10 @@ def reach_only_ids(repo_root: Path, kind: str) -> frozenset[str]:
     Reads the project overlay only (not the activation-filtered graph), so the set
     does not change when the owning directive is deactivated. An absent or
     unloadable overlay or an absent manifest yields the empty set (matches
-    ``project_degrade``). An unreadable manifest falls back to the created-artifact
-    record, and raises :class:`SynthesisMembershipUnreadableError` when that record
-    is absent or unreadable too (#6454).
+    ``project_degrade``). Ownership comes from the one reader
+    (:func:`charter.activation.synthesizer.manifest.synthesized_slugs`), so its
+    fallback and its single coded "unreadable record" refusal apply here unchanged
+    (#6454, #6767).
     """
     pack_dir = project_pack_root(repo_root)
     try:
@@ -212,7 +94,7 @@ def reach_only_ids(repo_root: Path, kind: str) -> frozenset[str]:
     candidates = {edge.target for edge in graph.edges if is_synthesized_source_edge(edge) and edge.target in node_urns}
     if not candidates:
         return frozenset()  # the manifest is read only when an edge could make something reach-only
-    registered = {f"{prefix}{slug}" for slug in _synthesized_slugs(repo_root, kind)}
+    registered = {f"{prefix}{slug}" for slug in synthesized_slugs(repo_root, kind)}
     reached = candidates & registered
     if not reached:
         return frozenset()
@@ -228,7 +110,7 @@ def _first_time_slugs(
     """Slugs synthesis creates now for the first time: neither recorded nor in the manifest from before this run."""
     first_time: dict[str, list[str]] = {}
     for kind, slugs in slugs_by_kind.items():
-        earlier = _manifest_slugs(repo_root, kind) - set(slugs)
+        earlier = manifest_slugs(repo_root, kind) - set(slugs)
         first_time[kind] = [slug for slug in slugs if slug not in recorded[kind] | earlier]
     return first_time
 
@@ -278,13 +160,13 @@ def _append_synthesized_activations_locked(repo_root: Path, created_by_kind: Map
     if not slugs_by_kind:
         return []
     try:
-        recorded, foreign = _read_record(repo_root)
-    except _UnreadableRecordError as exc:
+        recorded, foreign = read_created_record(repo_root)
+    except UnreadableCreatedRecordError as exc:
         return [_UNREADABLE_RECORD_WARNING.format(path=exc)]
     first_time = _first_time_slugs(repo_root, slugs_by_kind, recorded)
     # Every slug of a participating kind is recorded, including those already in the manifest.
     updated = {
-        kind: recorded[kind] | set(slugs_by_kind[kind]) | set(_eligible(repo_root, kind, sorted(_manifest_slugs(repo_root, kind))))
+        kind: recorded[kind] | set(slugs_by_kind[kind]) | set(_eligible(repo_root, kind, sorted(manifest_slugs(repo_root, kind))))
         if kind in slugs_by_kind
         else recorded[kind]
         for kind in REACH_ONLY_KINDS
@@ -292,7 +174,7 @@ def _append_synthesized_activations_locked(repo_root: Path, created_by_kind: Map
 
     def _record() -> None:
         if updated != recorded:
-            _write_record(repo_root, updated, foreign)
+            write_created_record(repo_root, updated, foreign)
 
     write_target = _activation_write_target(repo_root) if any(first_time.values()) else None
     additions = _config_additions(write_target[1], first_time) if write_target is not None else {}

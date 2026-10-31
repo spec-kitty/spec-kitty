@@ -20,6 +20,7 @@ from specify_cli.task_utils import TaskCliError
 
 if TYPE_CHECKING:
     from charter.activation.api import ActivationLedger
+    from charter.activation.synthesizer.manifest import ManifestArtifactEntry
     from charter.activation.synthesizer.reconcile import (
         NodeOrEdgeRef,
         ReconciliationConflict,
@@ -486,9 +487,9 @@ def _load_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, Any
         if entry.kind == "directive":
             # Provenance sidecar at .kittify/charter/provenance/<kind>-<slug>.yaml
             # carries the URN; that is the only on-disk surface that records
-            # the symbolic artifact_id without lossy reconstruction.
-            prov_path = repo_root / entry.provenance_path
-            artifact_id = _extract_artifact_id_from_provenance(prov_path)
+            # the symbolic artifact_id without lossy reconstruction, and the one
+            # strict sidecar reader is the only thing that parses it (#6767).
+            artifact_id = _artifact_id_from_sidecar(repo_root, entry)
 
         entries.append(
             {
@@ -501,32 +502,23 @@ def _load_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, Any
     return entries
 
 
-def _extract_artifact_id_from_provenance(prov_path: Path) -> str | None:
-    """Read ``artifact_urn`` from a provenance sidecar; return the id segment.
+def _artifact_id_from_sidecar(repo_root: Path, entry: ManifestArtifactEntry) -> str | None:
+    """The ``artifact_id`` an entry's provenance sidecar records, or ``None`` when it cannot be read.
 
-    The sidecar is YAML with a top-level ``artifact_urn`` key shaped like
-    ``directive:PROJECT_001``. Return ``None`` on any parse failure or if
-    the URN does not carry a non-empty id segment.
+    Wraps the one strict sidecar reader (``sidecar_artifact_urn``) and catches its coded
+    error: this is the display path, so a damaged ownership record costs the envelope an id,
+    never its shape (#6767). No YAML is parsed here — the sidecar shape has one parser.
+
+    ``owned_only=False`` keeps the recorded URN for a ``project-direct-write``
+    registration: the envelope reports what the manifest committed, not ownership.
     """
-    if not prov_path.is_file():
-        return None
-    try:
-        from ruamel.yaml import YAML
+    from charter.activation.api import SynthesisMembershipUnreadableError, sidecar_artifact_urn
 
-        y = YAML(typ="safe")
-        with prov_path.open("r", encoding="utf-8") as f:
-            data = y.load(f)
-    except Exception:
+    try:
+        urn = sidecar_artifact_urn(repo_root, entry, owned_only=False)
+    except SynthesisMembershipUnreadableError:
         return None
-    if not isinstance(data, dict):
-        return None
-    urn = data.get("artifact_urn")
-    if not isinstance(urn, str):
-        return None
-    parts = urn.split(":", 1)
-    if len(parts) != 2 or not parts[1]:
-        return None
-    return parts[1]
+    return urn.partition(":")[2] or None
 
 
 def _list_resynthesis_topics(
@@ -1195,7 +1187,7 @@ __all__ = [
     "_emit_dry_run_report",
     "_emit_orphan_refusal",
     "_emit_real_run_report",
-    "_extract_artifact_id_from_provenance",
+    "_artifact_id_from_sidecar",
     "_has_generated_artifacts",
     "_list_resynthesis_topics",
     "_load_written_artifacts_from_manifest",

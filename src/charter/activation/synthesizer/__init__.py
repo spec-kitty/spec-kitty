@@ -33,6 +33,7 @@ Error taxonomy (WP01, frozen):
     FixtureAdapterMissingError      — fixture adapter missing fixture
     StagingPromoteError             — staging promote failed
     ManifestIntegrityError          — manifest content_hash mismatch
+    SynthesisMembershipUnreadableError — the synthesis ownership record cannot be read
 
 Test adapter (WP01):
     FixtureAdapter  — fixture-backed test adapter
@@ -47,6 +48,7 @@ from .errors import (
     ProjectDRGValidationError,
     StagingPromoteError,
     SynthesisError,
+    SynthesisMembershipUnreadableError,
     SynthesisSchemaError,
     TopicSelectorAmbiguousError,
     TopicSelectorUnresolvedError,
@@ -80,6 +82,7 @@ __all__ = [
     "FixtureAdapterMissingError",
     "StagingPromoteError",
     "ManifestIntegrityError",
+    "SynthesisMembershipUnreadableError",
     # Test adapter
     "FixtureAdapter",
 ]

@@ -23,7 +23,7 @@ from typer.testing import CliRunner
 
 from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify_manifest_hash
-from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
+from charter.activation.synthesizer.manifest import CREATED_ARTIFACTS_PATH
 from charter.bundle import compute_bundle_content_hash
 from specify_cli.cli.commands.charter import charter_app
 
@@ -361,19 +361,19 @@ def _run_concurrently(first: Callable[[], Any], second: Callable[[], Any]) -> li
 class _Handshake:
     """Deterministic two-writer interleaving for the record's read-merge-write (#6453).
 
-    Writer A (whichever first reaches ``_write_record``) pauses there until writer B has been
+    Writer A (whichever first reaches ``manifest.write_created_record``) pauses there until writer B has been
     seen failing a non-blocking lock attempt, i.e. B is provably waiting on the synthesis lock.
     Without the lock B never blocks, so A times out and the race shows as a lost id.
     """
 
     def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from charter.activation.synthesizer import reach_only
+        from charter.activation.synthesizer import manifest
         from kernel.locks import _LockCore
 
         self.b_blocked = threading.Event()
         self.a_timed_out = False
         self._first = threading.Lock()
-        real_write = reach_only._write_record
+        real_write = manifest.write_created_record
         real_try = _LockCore.try_lock_once
 
         def _write(*args: Any, **kwargs: Any) -> None:
@@ -387,7 +387,7 @@ class _Handshake:
                 self.b_blocked.set()
             return acquired
 
-        monkeypatch.setattr(reach_only, "_write_record", _write)
+        monkeypatch.setattr(manifest, "write_created_record", _write)
         monkeypatch.setattr(_LockCore, "try_lock_once", _try)
 
     def assert_lock_was_contended(self) -> None:
@@ -409,7 +409,7 @@ def test_concurrent_appends_lose_no_recorded_id(tmp_path: Path, monkeypatch: pyt
     (tmp_path / CREATED_ARTIFACTS_PATH).write_text("created_tactics:\n- t1\n", encoding="utf-8")
     # Only the record is under test: neutralize the config write and the manifest read.
     monkeypatch.setattr(reach_only, "_activation_write_target", lambda _root: None)
-    monkeypatch.setattr(reach_only, "_manifest_slugs", lambda _root, _kind: frozenset())
+    monkeypatch.setattr("charter.activation.synthesizer.reach_only.manifest_slugs", lambda _root, _kind: frozenset())
     handshake = _Handshake(monkeypatch)
 
     errors = _run_concurrently(lambda: _append(tmp_path, ["t2"]), lambda: _append(tmp_path, ["t3"]))

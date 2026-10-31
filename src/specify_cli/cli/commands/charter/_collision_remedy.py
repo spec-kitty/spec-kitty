@@ -30,6 +30,7 @@ from charter.activation.api import (
     ProjectDirectiveScanError,
     ProjectDRGValidationError,
     SynthesisError,
+    SynthesisMembershipUnreadableError,
     project_directive_ids,
     synthesis_owned_directive_ids,
 )
@@ -77,7 +78,7 @@ def _project_directive_remedy(repo_root: Path, urn: str, directive_id: str, proj
     manifest = MANIFEST_PATH.as_posix()
     try:
         owned = bool(synthesis_owned_directive_ids(repo_root, [directive_id], project_ids=project_ids))
-    except ManifestIntegrityError as exc:
+    except (SynthesisMembershipUnreadableError, ManifestIntegrityError) as exc:
         return (
             f"'{urn}' is an activated project directive, and the synthesis ownership record is unreadable "
             f"({exc.offending_artifact}, listed by {manifest}), so its origin cannot be told. "

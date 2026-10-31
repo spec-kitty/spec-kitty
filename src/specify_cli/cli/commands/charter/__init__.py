@@ -74,10 +74,10 @@ from specify_cli.cli.commands.charter._status_collectors import (  # noqa: F401
 # Synthesis helpers (used by the legacy public synthesis tests).
 from specify_cli.cli.commands.charter._synthesis import (  # noqa: F401
     _MINIMAL_FRESH_PROJECT_LAYER_PROVENANCE_TEMPLATE,
+    _artifact_id_from_sidecar,
     _build_synthesis_request,
     _build_synthesis_validation_callback,
     _collect_evidence_result,
-    _extract_artifact_id_from_provenance,
     _has_generated_artifacts,
     _list_resynthesis_topics,
     _load_written_artifacts_from_manifest,
@@ -187,7 +187,7 @@ __all__ = [
     "_run_synthesis_dry_run",
     "_run_synthesis_dry_run_with_artifacts",
     "_load_written_artifacts_from_manifest",
-    "_extract_artifact_id_from_provenance",
+    "_artifact_id_from_sidecar",
     "_list_resynthesis_topics",
     "_has_generated_artifacts",
     "_materialize_fresh_project_layer",

@@ -102,6 +102,8 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("SynthesisError", "charter.activation.synthesizer.errors"),
     ("project_directive_ids", "charter.activation.synthesizer.manifest"),
     ("synthesis_owned_directive_ids", "charter.activation.synthesizer.manifest"),
+    ("SynthesisMembershipUnreadableError", "charter.activation.synthesizer.errors"),
+    ("sidecar_artifact_urn", "charter.activation.synthesizer.manifest"),
 ]
 
 

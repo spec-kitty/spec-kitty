@@ -337,7 +337,7 @@ def _list(charter_yaml: Path, key: str) -> object:
 
 
 def _record(repo: Path) -> dict[str, list[str]]:
-    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
+    from charter.activation.synthesizer.manifest import CREATED_ARTIFACTS_PATH
 
     return yaml.safe_load((repo / CREATED_ARTIFACTS_PATH).read_text(encoding="utf-8"))
 
@@ -407,7 +407,7 @@ def test_styleguides_already_in_the_manifest_are_recorded_not_appended(tmp_path:
 
 
 def test_unreadable_record_appends_nothing_for_any_kind_and_warns(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
+    from charter.activation.synthesizer.manifest import CREATED_ARTIFACTS_PATH
 
     charter_yaml = _seed_project(tmp_path, activated_styleguides=[_CONTROL], activated_tactics=[_CONTROL])
     (tmp_path / CREATED_ARTIFACTS_PATH).write_text("created_styleguides: [unterminated\n", encoding="utf-8")
@@ -421,7 +421,7 @@ def test_unreadable_record_appends_nothing_for_any_kind_and_warns(tmp_path: Path
 
 
 def test_legacy_tactic_record_is_read_never_written_and_other_keys_are_preserved(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
+    from charter.activation.synthesizer.manifest import CREATED_ARTIFACTS_PATH
 
     charter_yaml = _seed_project(tmp_path, activated_tactics=[_CONTROL])
     _install_with_sourced(tmp_path, _NEW_STYLEGUIDE)

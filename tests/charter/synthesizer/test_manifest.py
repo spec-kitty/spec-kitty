@@ -22,7 +22,11 @@ import pytest
 from pydantic import ValidationError
 from ruamel.yaml import YAML
 
-from charter.activation.synthesizer.errors import ManifestIntegrityError, ProjectDirectiveScanError
+from charter.activation.synthesizer.errors import (
+    ManifestIntegrityError,
+    ProjectDirectiveScanError,
+    SynthesisMembershipUnreadableError,
+)
 from charter.activation.synthesizer.manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
@@ -36,7 +40,7 @@ from charter.activation.synthesizer.manifest import (
     verify,
     verify_manifest_hash,
 )
-from charter.activation.synthesizer.manifest import _SynthesisOwnershipUnreadableError, _synthesized_urns
+from charter.activation.synthesizer.manifest import synthesized_urns as _synthesized_urns
 from charter.activation.synthesizer.path_guard import PathGuard
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 
@@ -812,8 +816,11 @@ def test_synthesized_urns_corrupt_manifest_raises(tmp_path: Path) -> None:
     manifest_path.parent.mkdir(parents=True)
     manifest_path.write_text("artifacts: [this is: not a manifest\n", encoding="utf-8")
 
-    with pytest.raises(ManifestIntegrityError, match="synthesis-manifest.yaml"):
+    with pytest.raises(SynthesisMembershipUnreadableError) as caught:
         _synthesized_urns(tmp_path, "directive")
+
+    assert caught.value.code == "SYNTHESIS_MEMBERSHIP_UNREADABLE"
+    assert MANIFEST_PATH.as_posix() in caught.value.body
 
 
 def test_synthesized_urns_schema_invalid_manifest_raises(tmp_path: Path) -> None:
@@ -821,14 +828,16 @@ def test_synthesized_urns_schema_invalid_manifest_raises(tmp_path: Path) -> None
     manifest_path.parent.mkdir(parents=True)
     manifest_path.write_text("artifacts: []\n", encoding="utf-8")
 
-    with pytest.raises(_SynthesisOwnershipUnreadableError, match="ValidationError"):
+    with pytest.raises(SynthesisMembershipUnreadableError) as caught:
         _synthesized_urns(tmp_path, "directive")
+
+    assert "ValidationError" in caught.value.body
 
 
 def test_synthesized_urns_missing_sidecar_raises(tmp_path: Path, guard: PathGuard) -> None:
     _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", None)])
 
-    with pytest.raises(_SynthesisOwnershipUnreadableError, match="directive-project-intent-directive.yaml") as raised:
+    with pytest.raises(SynthesisMembershipUnreadableError) as raised:
         _synthesized_urns(tmp_path, "directive")
     assert raised.value.offending_artifact == ".kittify/charter/provenance/directive-project-intent-directive.yaml"
 
@@ -851,16 +860,20 @@ def test_synthesized_urns_sidecar_without_artifact_urn_raises(tmp_path: Path, gu
         encoding="utf-8",
     )
 
-    with pytest.raises(_SynthesisOwnershipUnreadableError, match="artifact_urn"):
+    with pytest.raises(SynthesisMembershipUnreadableError) as urnless:
         _synthesized_urns(tmp_path, "directive")
+
+    assert "artifact_urn" in urnless.value.body
 
 
 @pytest.mark.parametrize("urn", ["tactic:PROJECT_001", "directive:", "PROJECT_001"])
 def test_synthesized_urns_sidecar_urn_of_wrong_shape_raises(tmp_path: Path, guard: PathGuard, urn: str) -> None:
     _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", urn)])
 
-    with pytest.raises(_SynthesisOwnershipUnreadableError, match="is not a directive URN"):
+    with pytest.raises(SynthesisMembershipUnreadableError) as wrong_shape:
         _synthesized_urns(tmp_path, "directive")
+
+    assert "is not a directive URN" in wrong_shape.value.body
 
 
 def test_synthesized_urns_sidecar_path_outside_provenance_root_raises(tmp_path: Path, guard: PathGuard) -> None:
@@ -869,15 +882,24 @@ def test_synthesized_urns_sidecar_path_outside_provenance_root_raises(tmp_path: 
     manifest_path.parent.mkdir(parents=True)
     dump_yaml(_make_manifest_for_artifacts([entry]), manifest_path, guard)
 
-    with pytest.raises(_SynthesisOwnershipUnreadableError, match="escape.yaml"):
+    with pytest.raises(SynthesisMembershipUnreadableError) as escaped:
         _synthesized_urns(tmp_path, "directive")
 
+    assert "escape.yaml" in escaped.value.body
 
-def test_ownership_unreadable_is_a_manifest_integrity_error() -> None:
-    error = _SynthesisOwnershipUnreadableError(manifest_path="m.yaml", offending_artifact="p.yaml", reason="gone")
 
-    assert isinstance(error, ManifestIntegrityError)
-    assert str(error).startswith("Synthesis ownership record unreadable: 'p.yaml' (listed by m.yaml): gone.")
+def test_ownership_unreadable_is_the_one_coded_error(tmp_path: Path, guard: PathGuard) -> None:
+    """#6767: the sidecar refusal is the one coded error, not a ManifestIntegrityError subclass."""
+    _write_ownership_record(tmp_path, guard, [("directive", "project-intent-directive", None)])
+
+    with pytest.raises(SynthesisMembershipUnreadableError) as caught:
+        _synthesized_urns(tmp_path, "directive")
+
+    error = caught.value
+    assert error.code == "SYNTHESIS_MEMBERSHIP_UNREADABLE"
+    assert not isinstance(error, ManifestIntegrityError)
+    assert error.offending_artifact == ".kittify/charter/provenance/directive-project-intent-directive.yaml"
+    assert error.record_path == MANIFEST_PATH.as_posix()
 
 
 # ---------------------------------------------------------------------------
@@ -986,8 +1008,10 @@ def test_owned_ids_project_id_with_unreadable_record_fails_closed(tmp_path: Path
     _write_project_directive(tmp_path, "001-project-intent-directive", "PROJECT_001")
     _corrupt_manifest(tmp_path)
 
-    with pytest.raises(ManifestIntegrityError, match="synthesis-manifest.yaml"):
+    with pytest.raises(SynthesisMembershipUnreadableError) as caught:
         synthesis_owned_directive_ids(tmp_path, ["DIRECTIVE_003", "PROJECT_001"])
+
+    assert MANIFEST_PATH.as_posix() in caught.value.body
 
 
 def test_owned_ids_unreadable_project_directive_reads_the_record(tmp_path: Path) -> None:
@@ -997,8 +1021,10 @@ def test_owned_ids_unreadable_project_directive_reads_the_record(tmp_path: Path)
     (folder / "broken.directive.yaml").write_text("id: [unclosed\n", encoding="utf-8")
     _corrupt_manifest(tmp_path)
 
-    with pytest.raises(ManifestIntegrityError, match="synthesis-manifest.yaml"):
+    with pytest.raises(SynthesisMembershipUnreadableError) as caught:
         synthesis_owned_directive_ids(tmp_path, ["DIRECTIVE_003"])
+
+    assert MANIFEST_PATH.as_posix() in caught.value.body
 
 
 def test_owned_ids_unlistable_project_directory_reads_the_record(
