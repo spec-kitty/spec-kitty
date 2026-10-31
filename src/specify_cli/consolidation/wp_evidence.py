@@ -26,6 +26,14 @@ so a change committed and then reverted counts as nothing. At most one diff is t
 (NFR-001). Matching every changed path of the window against a work package's ``owned_files``
 rests on the disjoint-owner model, as the #5939 axis did.
 
+A Mission landed through a pull request never runs ``consolidate``, and its lane branches are
+normally pruned once the landing is on the target (#6780). A caller that has verified the PR
+landing commit (``accept --mode pr --merge-commit``) passes it as *landed_commit*; a lane whose
+window tip no longer resolves is then judged on ``planning_commit..landed_commit`` — same base,
+same owned-content criterion — instead of refusing the whole lane as unreadable
+(:func:`_landed_window`). Without it the window stays fail-closed and the refusal names the
+absent ref and both remedies.
+
 single_branch Missions keep emitting the ``SINGLE_BRANCH_*`` codes and their refusal text; every
 other topology emits the neutral codes. :data:`_SINGLE_BRANCH_ALIASES` maps one onto the other.
 """
@@ -41,7 +49,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.consolidation.canceled_attestation import ATTESTATION_KEY
-from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_in_range
+from specify_cli.consolidation.git_probes import GitProbeError, changed_paths_in_range, sha_reachable_from
 from specify_cli.lanes.compute import is_planning_lane, lane_created_branch, lane_fully_canceled
 from specify_cli.lanes.for_review_gate import status_only_excluded_prefixes
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
@@ -371,7 +379,9 @@ _RECOVERY: Mapping[str, str] = {
         f"Recovery for {EVIDENCE_WINDOW_UNCOMPUTABLE}: run `spec-kitty agent mission finalize-tasks` to record the planning commit, then re-run."
     ),
     IMPLEMENTATION_UNREADABLE: (
-        f"Recovery for {IMPLEMENTATION_UNREADABLE}: make the lane branch and the recorded planning commit readable (restore or fetch them), then re-run."
+        f"Recovery for {IMPLEMENTATION_UNREADABLE}: restore or fetch the branch the window ends at (and the recorded planning commit) so it is readable again, "
+        "or, for a Mission that landed through a pull request, re-run `spec-kitty accept --mode pr --merge-commit <sha>` with the verified "
+        "PR landing commit so the evidence is judged against the landed tree, then re-run."
     ),
     IMPLEMENTATION_MISSING: (
         f"Recovery for {IMPLEMENTATION_MISSING}: commit the work package's change to its owned_files (on its lane branch, or on the "
@@ -411,7 +421,80 @@ def _merge_base(repo_root: Path, left: str, right: str) -> str:
     return sha
 
 
-def _dependency_evidence_windows(repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane) -> list[tuple[str, str]]:
+def _tip_resolves(repo_root: Path, tip: str) -> bool:
+    """True when the window tip *tip* resolves to a commit in this repository (read-only, never raises)."""
+    from specify_cli.lanes._git import ref_exists
+
+    exists: bool = ref_exists(repo_root, tip)
+    return exists
+
+
+@dataclass(frozen=True)
+class _LandedWindow:
+    """The window actually judged for a lane, plus what it stands in for (#6780).
+
+    ``absent_ref`` names the window tip that no longer resolves; ``landed_commit`` is the
+    caller-verified PR landing commit that stands in for it, or ``None`` when none was
+    supplied (the window is then the absent one, and its diff fails closed as before).
+    """
+
+    window: tuple[str, str]
+    absent_ref: str | None = None
+    landed_commit: str | None = None
+
+
+def _landed_window(repo_root: Path, window: tuple[str, str], landed_commit: str | None) -> _LandedWindow:
+    """Resolve the window to judge, standing a verified landing commit in for a pruned tip (#6780).
+
+    A Mission landed through a pull request never runs ``consolidate``, and its lane branches
+    are normally pruned once the landing is on the target, so the branch the planning window
+    ended at is gone even though every deliverable is on the target. When the caller supplies
+    *landed_commit* — the commit it has already verified as this Mission's PR landing commit —
+    the window becomes ``planning_commit..landed_commit``. The base, the owned-content match,
+    the bookkeeping exclusion and the independence check are unchanged, so the same criterion
+    is asked of the landed tree; a work package with no owned change there still refuses
+    (``IMPLEMENTATION_MISSING``).
+
+    A readable tip is always used as it is (the lane window stays the first choice). A stand-in
+    whose history does not contain the recorded planning commit is refused rather than diffed:
+    such a window would not describe this Mission's work. Raises :class:`GitProbeError` when the
+    base cannot be proven an ancestor of *landed_commit*.
+    """
+    base, tip = window
+    if landed_commit is None or _tip_resolves(repo_root, tip):
+        return _LandedWindow(window)
+    if not sha_reachable_from(repo_root, base, landed_commit):
+        raise GitProbeError(
+            f"the verified landing commit {landed_commit} does not contain the recorded planning commit {base} "
+            f"(the window {base}..{landed_commit} would not describe this Mission's work)"
+        )
+    return _LandedWindow((base, landed_commit), absent_ref=tip, landed_commit=landed_commit)
+
+
+def _unreadable_line(wp_id: str, lane: ExecutionLane, judged: _LandedWindow, exc: GitProbeError) -> str:
+    """The per-work-package ``IMPLEMENTATION_UNREADABLE`` line, naming the cause (#6780).
+
+    A window whose tip no longer resolves is reported as such — with the stand-in it fell back
+    to, or with the two remedies when the caller supplied no verified landing commit — instead
+    of a blanket "could not be diffed".
+    """
+    base, tip = judged.window
+    if judged.absent_ref is not None and judged.landed_commit is not None:
+        cause = (
+            f"the lane branch {judged.absent_ref} no longer exists, so the verified landing commit {tip} stands in for it; the window could not be diffed ({exc})"
+        )
+    elif judged.absent_ref is not None:
+        cause = (
+            f"the window tip {judged.absent_ref} no longer exists (a pruned lane branch?), so the window cannot be read; "
+            "pass `--merge-commit <sha>` with the verified PR landing commit on `spec-kitty accept --mode pr` "
+            "to judge this work package against the landed tree, or restore or fetch the branch"
+        )
+    else:
+        cause = f"the window could not be diffed ({exc})"
+    return f"{IMPLEMENTATION_UNREADABLE}: {wp_id}'s evidence window {base}..{tip} ({lane.lane_id}) cannot be read: {cause}, {_CANNOT_VERIFY}"
+
+
+def _dependency_evidence_windows(repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane, tip: str | None = None) -> list[tuple[str, str]]:
     """``(merge-base(dependency tip, lane tip), lane tip)`` for each dependency lane whose branch exists.
 
     A lane takes its dependencies' content in by merge, so a work package whose reviewed
@@ -426,7 +509,10 @@ def _dependency_evidence_windows(repo_root: Path, lanes_manifest: LanesManifest,
     from specify_cli.lanes._git import branch_exists
 
     windows: list[tuple[str, str]] = []
-    tip = lane_created_branch(lanes_manifest, lane.lane_id)
+    # The lane's EFFECTIVE tip: the lane branch, or the verified landing commit standing in
+    # for a pruned one (#6780). Probing a deleted branch here would raise and take the whole
+    # lane down with it, so the caller passes the tip it actually judged.
+    effective_tip = tip or lane_created_branch(lanes_manifest, lane.lane_id)
     by_id = {other.lane_id: other for other in lanes_manifest.lanes}
     for dependency_id in lane.depends_on_lanes:
         dependency = by_id.get(dependency_id)
@@ -434,20 +520,31 @@ def _dependency_evidence_windows(repo_root: Path, lanes_manifest: LanesManifest,
             continue
         branch = lane_created_branch(lanes_manifest, dependency_id)
         if branch_exists(repo_root, branch):
-            windows.append((_merge_base(repo_root, branch, tip), tip))
+            windows.append((_merge_base(repo_root, branch, effective_tip), effective_tip))
     return windows
 
 
-def _widened_paths(repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane, paths: frozenset[str]) -> frozenset[str]:
-    """*paths* plus the paths each dependency window changes (:func:`_dependency_evidence_windows`)."""
+def _widened_paths(repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane, paths: frozenset[str], tip: str | None = None) -> frozenset[str]:
+    """*paths* plus the paths each dependency window changes (:func:`_dependency_evidence_windows`).
+
+    The default call shape (no *tip*) is preserved exactly: it is the one every existing
+    caller and test double of :func:`_dependency_evidence_windows` uses.
+    """
+    windows = _dependency_evidence_windows(repo_root, lanes_manifest, lane) if tip is None else _dependency_evidence_windows(repo_root, lanes_manifest, lane, tip)
     widened = set(paths)
-    for window in _dependency_evidence_windows(repo_root, lanes_manifest, lane):
+    for window in windows:
         widened |= evidence_paths(repo_root, window, lanes_manifest.mission_slug)
     return frozenset(widened)
 
 
 def widened_lane_paths(
-    repo_root: Path, lanes_manifest: LanesManifest, lane: ExecutionLane, paths: frozenset[str], pattern_sets: Iterable[Sequence[str]]
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    lane: ExecutionLane,
+    paths: frozenset[str],
+    pattern_sets: Iterable[Sequence[str]],
+    *,
+    tip: str | None = None,
 ) -> frozenset[str]:
     """*paths* of *lane*'s planning window, widened by its dependency windows when some work package shows no owned change.
 
@@ -455,13 +552,17 @@ def widened_lane_paths(
     dependency lanes whose planning window lacks an owned change for any of *pattern_sets*
     (one ownership pattern set per judged work package) adds the paths of
     :func:`_dependency_evidence_windows`. Raises :class:`GitProbeError` when a window cannot be read.
+
+    *tip* is the effective tip of the lane's own window when a caller judged a window other
+    than ``planning_commit..<lane branch>`` (the verified landing commit standing in for a
+    pruned lane branch, #6780); ``None`` reads the lane branch, as every other caller does.
     """
     if lane.depends_on_lanes and not all(has_owned_change(paths, patterns) for patterns in pattern_sets):
-        return _widened_paths(repo_root, lanes_manifest, lane, paths)
+        return _widened_paths(repo_root, lanes_manifest, lane, paths, tip)
     return paths
 
 
-def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane: ExecutionLane, approved: Sequence[str]) -> None:
+def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane: ExecutionLane, approved: Sequence[str], landed_commit: str | None = None) -> None:
     window = lane_evidence_window(lanes_manifest, lane)
     if window is None:
         for wp_id in approved:
@@ -470,22 +571,32 @@ def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane
                 f"{EVIDENCE_WINDOW_UNCOMPUTABLE}: {wp_id} has no evidence window ({lane.lane_id}: lanes.json records no planning commit), {_CANNOT_VERIFY}",
             )
         return
-    base, tip = window
     try:
-        paths = evidence_paths(repo_root, window, lanes_manifest.mission_slug)
+        judged = _landed_window(repo_root, window, landed_commit)
     except GitProbeError as exc:
+        base, tip = window
         for wp_id in approved:
             scan.add(
                 wp_id,
-                f"{IMPLEMENTATION_UNREADABLE}: {wp_id}'s evidence window {base}..{tip} ({lane.lane_id}) could not be diffed ({exc}), {_CANNOT_VERIFY}",
+                f"{IMPLEMENTATION_UNREADABLE}: {wp_id}'s evidence window {base}..{tip} ({lane.lane_id}) cannot be read: {exc}, {_CANNOT_VERIFY}",
             )
+        return
+    base, tip = judged.window
+    try:
+        paths = evidence_paths(repo_root, judged.window, lanes_manifest.mission_slug)
+    except GitProbeError as exc:
+        for wp_id in approved:
+            scan.add(wp_id, _unreadable_line(wp_id, lane, judged, exc))
         return
 
     def missing(wp_id: str) -> str:
-        return f"{IMPLEMENTATION_MISSING}: {wp_id} was approved with no change to its owned_files in its evidence window {base}..{tip} ({lane.lane_id})."
+        line = f"{IMPLEMENTATION_MISSING}: {wp_id} was approved with no change to its owned_files in its evidence window {base}..{tip} ({lane.lane_id})."
+        if judged.landed_commit is not None:
+            line += f" The lane branch {judged.absent_ref} was pruned, so the verified landing commit stands in for it."
+        return line
 
     try:
-        paths = widened_lane_paths(repo_root, lanes_manifest, lane, paths, [scan.owned.get(wp_id, ()) for wp_id in approved])
+        paths = widened_lane_paths(repo_root, lanes_manifest, lane, paths, [scan.owned.get(wp_id, ()) for wp_id in approved], tip=judged.window[1])
     except GitProbeError as exc:
         for wp_id in approved:
             scan.add(
@@ -497,11 +608,18 @@ def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane
         _judge(scan, wp_id, paths, missing, REVIEW_NOT_INDEPENDENT)
 
 
-def _lanes_scan(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, work_packages: Mapping[str, Any], excluded: frozenset[str]) -> str | None:
+def _lanes_scan(
+    repo_root: Path,
+    lanes_manifest: LanesManifest,
+    scan: _Scan,
+    work_packages: Mapping[str, Any],
+    excluded: frozenset[str],
+    landed_commit: str | None = None,
+) -> str | None:
     for lane in lanes_manifest.lanes:
         approved = _lane_approved(lane, work_packages, excluded)
         if approved:
-            _scan_lane(repo_root, lanes_manifest, scan, lane, approved)
+            _scan_lane(repo_root, lanes_manifest, scan, lane, approved, landed_commit)
     laned = {wp for lane in lanes_manifest.lanes for wp in lane.wp_ids}
     for wp_id in _approved_wp_ids(work_packages, excluded):
         if wp_id not in laned:
@@ -523,12 +641,17 @@ def evaluate_evidence(
     *,
     events: Callable[[], Sequence[Any] | None],
     is_single_branch: bool | None = None,
+    landed_commit: str | None = None,
 ) -> EvidenceReport:
     """The evidence + independence verdict for every approved work package of a Mission.
 
     *work_packages* is the reduced snapshot's map; *events* returns the status events in append
     order (or ``None`` when the log cannot be read) and is called at most once, only when an
     attestation could matter. *is_single_branch* is the STORED topology; ``None`` reads it.
+    *landed_commit* is a commit the CALLER has already verified as this Mission's PR landing
+    commit; a lanes/coord lane whose window tip no longer resolves is then judged on
+    ``planning_commit..landed_commit`` instead (:func:`_landed_window`, #6780). ``None`` keeps
+    every other caller on the lane window, unchanged.
     """
     from specify_cli.lanes.single_branch_landing import is_single_branch_mission, single_branch_evidence_window
 
@@ -542,7 +665,7 @@ def evaluate_evidence(
         window = single_branch_evidence_window(repo_root, lanes_manifest, assume_single_branch=True)
         refusal = _single_branch_scan(repo_root, lanes_manifest, scan, approved, window)
     else:
-        refusal = _lanes_scan(repo_root, lanes_manifest, scan, work_packages, excluded)
+        refusal = _lanes_scan(repo_root, lanes_manifest, scan, work_packages, excluded, landed_commit)
     return EvidenceReport(refusal=refusal, lifted_wp_ids=frozenset(scan.lifted), verdicts=dict(scan.verdicts))
 
 
@@ -552,12 +675,14 @@ def mission_evidence_report(
     lanes_manifest: LanesManifest,
     *,
     excluded_canceled_wp_ids: Iterable[str] = (),
+    landed_commit: str | None = None,
 ) -> EvidenceReport:
     """Public entry for callers outside the claim builder (``accept``, ``orchestrator-api``).
 
     Reads WP membership through :func:`specify_cli.status.materialize_snapshot` exactly as the
     claim builder does. A snapshot or status log that cannot be read raises (``StoreError``) so
-    the caller refuses; nothing here passes on an unreadable input.
+    the caller refuses; nothing here passes on an unreadable input. *landed_commit* is passed
+    straight to :func:`evaluate_evidence` (a caller-verified PR landing commit, #6780).
     """
     from specify_cli.status import materialize_snapshot, read_events
 
@@ -569,6 +694,7 @@ def mission_evidence_report(
         snapshot.work_packages or {},
         excluded_canceled_wp_ids,
         events=lambda: read_events(feature_dir),
+        landed_commit=landed_commit,
     )
 
 
