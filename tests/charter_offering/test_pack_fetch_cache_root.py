@@ -1,4 +1,4 @@
-"""``pack_fetch.default_cache_root`` location pin (#6481): no git, unlike ``test_pack_fetch``."""
+"""``pack_fetch.default_cache_root`` location pin (#6488): no git, unlike ``test_pack_fetch``."""
 
 from __future__ import annotations
 
@@ -12,15 +12,27 @@ from tests.kernel._user_dirs_pins import fake_platform
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-@pytest.mark.parametrize("platform", ["linux", "darwin", "windows"])
 @pytest.mark.parametrize(
-    ("env", "expected"),
+    ("platform", "env", "expected"),
     [
-        ({"XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, "xdg"),
-        ({"LOCALAPPDATA": "lad", "XDG_STATE_HOME": "state"}, "home/.cache"),
+        # The pre-#6488 helper applied the XDG rule on every platform, Windows included.
+        ("linux", {"XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, ("xdg", "spec-kitty")),
+        ("linux", {}, ("home", ".cache", "spec-kitty")),
+        ("darwin", {"XDG_CACHE_HOME": "xdg"}, ("xdg", "spec-kitty")),
+        ("darwin", {}, ("home", "Library", "Caches", "spec-kitty")),
+        # platformdirs gives Windows no XDG branch: %LOCALAPPDATA% wins and the cache
+        # directory carries the opinionated ``Cache`` level.
+        ("windows", {"LOCALAPPDATA": "lad", "XDG_CACHE_HOME": "ignored"}, ("lad", "spec-kitty", "Cache")),
+        ("windows", {"LOCALAPPDATA": "lad"}, ("lad", "spec-kitty", "Cache")),
     ],
 )
-def test_default_cache_root_pinned_per_platform(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: str) -> None:
-    """#6481: the XDG rule on every platform, Windows included; ``LOCALAPPDATA`` is never read."""
+def test_default_cache_root_pinned_per_platform(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    platform: str,
+    env: dict[str, str],
+    expected: tuple[str, ...],
+) -> None:
+    """#6488: one authority, so ``open-packs`` sits under the platform's cache directory."""
     fake_platform(monkeypatch, tmp_path, platform, env)
-    assert default_cache_root() == tmp_path / expected / "spec-kitty" / "open-packs"
+    assert default_cache_root() == tmp_path.joinpath(*expected, "open-packs")

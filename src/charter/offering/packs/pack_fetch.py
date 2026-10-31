@@ -69,8 +69,8 @@ class PackTreeStatus(Enum):
 
 
 def default_cache_root() -> Path:
-    """``${XDG_CACHE_HOME:-~/.cache}/spec-kitty/open-packs``, on Windows too (no ``LOCALAPPDATA`` branch)."""
-    return user_cache_dir(windows_local_appdata=False) / "spec-kitty" / "open-packs"
+    """``<user_cache_dir>/open-packs`` -- the one per-user cache authority (#6488)."""
+    return user_cache_dir() / "open-packs"
 
 
 def _require_subtree(pin: PackPin) -> str:
