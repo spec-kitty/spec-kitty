@@ -1,0 +1,79 @@
+{
+  "mission_slug": "consolidate-dependency-ref-attribution-01M67J2A",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_dependency_ref_attribution_6771.py + test_dependency_ref_claim.py + test_dependency_ref_forecast.py (all green in this mission's run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:45:15.600658+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_dependency_ref_attribution_6771.py + test_dependency_ref_claim.py + test_dependency_ref_forecast.py (all green in this mission's run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:45:20.005205+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_dependency_ref_attribution_6771.py + test_dependency_ref_claim.py + test_dependency_ref_forecast.py (all green in this mission's run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:45:24.437440+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_dependency_ref_attribution_6771.py + test_dependency_ref_claim.py + test_dependency_ref_forecast.py (all green in this mission's run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:45:29.445885+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_dependency_ref_attribution_6771.py + test_dependency_ref_claim.py + test_dependency_ref_forecast.py (all green in this mission's run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:45:41.868384+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_dependency_ref_attribution_6771.py + test_dependency_ref_claim.py + test_dependency_ref_forecast.py (all green in this mission's run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:45:46.683069+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_dependency_ref_attribution_6771.py + test_dependency_ref_claim.py + test_dependency_ref_forecast.py (all green in this mission's run)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T00:45:52.059739+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
