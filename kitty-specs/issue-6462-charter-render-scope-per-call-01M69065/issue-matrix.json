@@ -73,7 +73,7 @@
       "wp": null
     },
     "#6462": {
-      "evidence_ref": "spec FR-001..FR-007, NFR-001..NFR-004; baseline 265->60 and 107->70 parse census in research.md",
+      "evidence_ref": "PR #6918: persona render 52 docs / 0 unused-domain docs (red 265/213), board 0 graph parses (red 14); changelog (#6462)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,8 +81,8 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
-      "wp": "WP01"
+      "verdict": "fixed",
+      "wp": "WP02"
     },
     "#6473": {
       "evidence_ref": "context: unwritable-home warning path; out of scope",
