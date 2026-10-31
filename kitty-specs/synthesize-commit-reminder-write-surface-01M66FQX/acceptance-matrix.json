@@ -1,0 +1,59 @@
+{
+  "mission_slug": "synthesize-commit-reminder-write-surface-01M66FQX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a commit 9c69b0195d: seam tests in tests/charter/synthesizer/test_synthesize_activation_append.py (test_append_reports_the_paths_it_wrote_on_a_promote, _on_a_record_only_run, _when_nothing_changed, _on_an_unreadable_record) and CLI threading/derivation tests in tests/agent/cli/commands/test_charter_synthesize_cli.py; e2e regression test_printed_commit_command_leaves_kittify_clean green (red-first evidence recorded pre-fix)",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-j",
+      "verified_at": "2026-10-30T14:39:53.132474+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a commit 9c69b0195d: seam tests in tests/charter/synthesizer/test_synthesize_activation_append.py (test_append_reports_the_paths_it_wrote_on_a_promote, _on_a_record_only_run, _when_nothing_changed, _on_an_unreadable_record) and CLI threading/derivation tests in tests/agent/cli/commands/test_charter_synthesize_cli.py; e2e regression test_printed_commit_command_leaves_kittify_clean green (red-first evidence recorded pre-fix)",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-j",
+      "verified_at": "2026-10-30T14:39:56.966223+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a commit 9c69b0195d: seam tests in tests/charter/synthesizer/test_synthesize_activation_append.py (test_append_reports_the_paths_it_wrote_on_a_promote, _on_a_record_only_run, _when_nothing_changed, _on_an_unreadable_record) and CLI threading/derivation tests in tests/agent/cli/commands/test_charter_synthesize_cli.py; e2e regression test_printed_commit_command_leaves_kittify_clean green (red-first evidence recorded pre-fix)",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-j",
+      "verified_at": "2026-10-30T14:40:02.110406+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "manual_inspection",
+      "evidence": "WP02 lane-b commit be8b7aabcd: spk-charter-governance skill step 7 names .kittify/charter/synthesized-artifacts.yaml and defers to the printed command; charter-artifact-structure.md gains Derived authority row + Tracked git row",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-j",
+      "verified_at": "2026-10-30T14:40:24.525911+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 lane-b commit be8b7aabcd: docs/changelog/CHANGELOG.md Fixed section entry (#6631), 1196 chars; tests/docs/test_changelog_style.py + test_check_spelling.py 202 passed",
+      "pass_fail": "pass",
+      "verified_by": "maintainer-j",
+      "verified_at": "2026-10-30T14:40:28.594460+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

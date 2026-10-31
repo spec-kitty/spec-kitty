@@ -1,0 +1,84 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M66M4NAW6GGT9KVSJPXN7J1D",
+  "materialized_at": "2026-10-30T14:41:37.116754+00:00",
+  "mission_number": "244",
+  "mission_slug": "synthesize-commit-reminder-write-surface-01M66FQX",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "maintainer-j",
+      "lane": "done",
+      "last_event_id": "01M66M4M3Q9NJRZBM0NRZ80TS9",
+      "last_transition_at": "2026-10-30T14:41:35.863680+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: e2e regression red->green, seam tests, reminder derivation, all targeted suites + ruff + mypy --strict green",
+        "Review passed (reviewer-renata, independent of implementer maintainer-j). Anti-pattern checklist 8/8: dead code PASS; synthetic-fixture PASS (FR tests drive real seams; delete-the-implementation would go red); silent returns PASS (only _repo_relative's documented ValueError fallback); FR-001/002/003 coverage PASS with recorded red-first evidence (recipe omitted the record + promoted charter.yaml on unfixed code); frozen surface PASS; locked decisions PASS (C-001, C-003 JSON unchanged, NFR-003 zero literal activation paths in _synthesis.py); shared-file NOTE pyproject.toml ratchet companion (required by shrink-only ratchet once the owned test file was formatted; ratchet test green); production fragility PASS (no new raise). Warnings byte-identical; fresh-seed reminder unchanged; e2e asserts over the whole .kittify/ tree and commits seeded state first per planning review."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 402660,
+      "shell_pid_created_at": "1793367124.37",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "maintainer-j",
+      "lane": "done",
+      "last_event_id": "01M66M4NAW6GGT9KVSJPXN7J1D",
+      "last_transition_at": "2026-10-30T14:41:37.116754+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: skill step 7 + artifact-structure rows + changelog entry; changelog style and spelling gates green; docs structural-lint failures pre-exist on the lane base (verified by stash)",
+        "Review passed (reviewer-renata, independent of implementer maintainer-j). Docs-only WP: skill step 7 now names .kittify/charter/synthesized-artifacts.yaml and defers to the command synthesize prints (single authority, matches FR-004 and the drift-proof design); artifact-structure tables gain the Derived authority row and the Tracked git row with column shapes identical to neighbors; changelog entry (FR-005) impact-first bold lead with (#6631), Before/After, 1196 chars (<1200), placed beside the related #6453/#6455 entries under Fixed. Anti-pattern checklist: dead code N/A, synthetic fixture N/A, silent returns N/A, FR coverage PASS, frozen surface PASS (owned files only), locked decisions PASS (C-004 docs tied to shipped behavior), shared-file ownership PASS (CHANGELOG.md owned solely by WP02 in lanes.json), fragility N/A. Gates: changelog style + spelling 202 passed; docs structural-lint failures pre-exist on the lane base (verified by stashing the diff)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 698322,
+      "shell_pid_created_at": "1793370317.37",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}
