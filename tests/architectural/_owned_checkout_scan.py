@@ -44,6 +44,9 @@ so the self-tests can exercise them without any path context.
   ``src/specify_cli/cli/commands/_charter_pack_collect.py`` and
   ``src/specify_cli/analysis_inputs.py`` is the unrelated
   ``OrgPackConfig.effective_root`` root concept, not the owned-checkout one.
+  For **G5** the rule is scoped to that one *name*: the rest of the banned
+  owned-root vocabulary stays scanned under those paths, so the charter layer
+  cannot hide a real owned root from the gate.
 - ``ORG_PACK_METHOD_RULE``: a *called* ``Attribute(attr="effective_root")`` is
   exempt from G4 anywhere (an uncalled attribute read is still flagged).
 - ``CARRIER_FIELD_RULE``: the fields of
@@ -59,6 +62,11 @@ so the self-tests can exercise them without any path context.
 - ``MIGRATIONS_CHECKOUT_ROOT_RULE``: the ``checkout_root`` name under
   ``src/specify_cli/upgrade/migrations/**`` is exempt from G5 (historical
   migrations, an unrelated sense); the other G5 names and G4 still apply.
+- ``PROJECTED_CHARTER_INVOCATION_RULE``: ``OwnedCharterInvocation.owned_root``
+  (the one frozen projection the activation seam renders a fetch stanza from)
+  is exempt from G5, and every ``OwnedCharterInvocation(`` construction in
+  ``src/`` must sit in ``src/specify_cli/core/owned_charter.py``, the sole
+  door that projects a validated ``OwnedCheckout`` into it.
 """
 
 from __future__ import annotations
@@ -114,6 +122,18 @@ CLI_CLAIM_INPUT_HELPER_CALL_NAME = "owned_checkout_option"
 
 #: MIGRATIONS_CHECKOUT_ROOT_RULE: checkout_root is exempt from G5 here only.
 MIGRATIONS_MODULE_PREFIX = "src/specify_cli/upgrade/migrations/"
+
+#: PROJECTED_CHARTER_INVOCATION_RULE: the charter activation seam carries the
+#: owned root to render a fetch stanza, but only through one frozen projection
+#: class and one construction door. ``OwnedCharterInvocation.owned_root`` is
+#: exempt from G5 in that class alone, and every ``OwnedCharterInvocation(``
+#: construction in ``src/`` must sit in the module that projects a validated
+#: ``OwnedCheckout`` into it. Rendering data grants no authority: the CLI
+#: revalidates the rendered arguments through the canonical minter.
+PROJECTION_MODULE_PATH = "src/charter/activation/scope.py"
+PROJECTION_CLASS_NAME = "OwnedCharterInvocation"
+PROJECTION_FIELD_NAME = "owned_root"
+PROJECTION_CONSTRUCTION_PATH = "src/specify_cli/core/owned_charter.py"
 
 
 @dataclass(frozen=True)
@@ -365,13 +385,10 @@ def _effective_root_hits(
 def bare_owned_root_paths(tree: ast.Module, rel_path: str) -> list[Offender]:
     """G5: a parameter or class-body field named a banned owned-root alias, annotated bare ``Path``.
 
-    ``ORG_PACK_MODULE_RULE`` is applied here too (the contract: the rule
-    "takes them out of G4/G5 scope") -- a module under its scope returns no
-    offenders, so ``OrgPackConfig.effective_root``'s own parameter never
-    trips this rule either.
+    ``ORG_PACK_MODULE_RULE`` is applied here *by name*: under its scope only
+    ``effective_root`` (``OrgPackConfig.effective_root``) is exempt, so an
+    owned root can never hide behind the org-pack exemption.
     """
-    if _is_org_pack_module(rel_path):
-        return []
     offenders: list[Offender] = []
     for classdef in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
         offenders.extend(_scan_class_fields(classdef, rel_path))
@@ -403,6 +420,11 @@ def _carrier_mint_method_ids(tree: ast.Module, rel_path: str) -> set[int]:
     }
 
 
+def _is_projection_field(rel_path: str, classdef: ast.ClassDef, field_name: str) -> bool:
+    """PROJECTED_CHARTER_INVOCATION_RULE: exactly one field of exactly one class."""
+    return rel_path == PROJECTION_MODULE_PATH and classdef.name == PROJECTION_CLASS_NAME and field_name == PROJECTION_FIELD_NAME
+
+
 def _scan_class_fields(classdef: ast.ClassDef, rel_path: str) -> list[Offender]:
     is_carrier = _is_carrier_module(rel_path) and classdef.name == CARRIER_CLASS_NAME
     if is_carrier:
@@ -412,6 +434,8 @@ def _scan_class_fields(classdef: ast.ClassDef, rel_path: str) -> list[Offender]:
         if not isinstance(stmt, ast.AnnAssign) or not isinstance(stmt.target, ast.Name):
             continue
         name = stmt.target.id
+        if _is_projection_field(rel_path, classdef, name):
+            continue
         if name in _BARE_OWNED_ROOT_NAMES and _applies_g5_name(name, rel_path) and _is_bare_path_annotation(stmt.annotation):
             offenders.append(Offender("G5", rel_path, stmt.lineno, f"field {name}: {ast.dump(stmt.annotation)[:40]}"))
     return offenders
@@ -437,8 +461,35 @@ def _scan_function_params(funcdef: ast.FunctionDef | ast.AsyncFunctionDef, rel_p
     return offenders
 
 
+def projected_invocation_calls(tree: ast.Module, rel_path: str) -> list[Offender]:
+    """PROJECTED_CHARTER_INVOCATION_RULE: ``OwnedCharterInvocation(`` may be built in one module only.
+
+    The projection class carries an owned root into the charter layer to render
+    a fetch stanza. One construction door keeps that carrier a projection of a
+    validated ``OwnedCheckout`` rather than a second way to name a checkout.
+    Flags the bare and import-aliased call, the attribute form, and a dynamic
+    ``getattr(module, "OwnedCharterInvocation")(...)`` lookup.
+    """
+    if rel_path == PROJECTION_CONSTRUCTION_PATH:
+        return []
+    offenders: list[Offender] = []
+    names = {PROJECTION_CLASS_NAME} | _import_aliases_for(tree, frozenset({PROJECTION_CLASS_NAME}))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else None
+        if name in names:
+            offenders.append(Offender("G5", rel_path, node.lineno, f"call {name}("))
+        elif _is_dynamic_lookup_of(node, PROJECTION_CLASS_NAME):
+            offenders.append(Offender("G5", rel_path, node.lineno, f"dynamic lookup of {PROJECTION_CLASS_NAME!r}"))
+    return offenders
+
+
 def _applies_g5_name(name: str, rel_path: str) -> bool:
-    return not (name == "checkout_root" and _is_migrations_module(rel_path))
+    if name == "checkout_root" and _is_migrations_module(rel_path):
+        return False
+    return not (name == "effective_root" and _is_org_pack_module(rel_path))
 
 
 def _is_cli_claim_input_exempt(annotation: ast.expr | None) -> bool:
