@@ -25,7 +25,7 @@
 - Existing authorities: `specify_cli.lanes.compute.is_planning_lane`, `specify_cli.ownership.models.WorkProductKind`, `specify_cli.lanes.persistence.read_lanes_json` via `placement_seam(...).read_dir(MissionArtifactKind.LANE_STATE)`.
 - Tests: a new focused module under `tests/specify_cli/cli/commands/agent/` driving the real `move-task` entry point on a real git fixture; existing pre-review gate modules must stay green unmodified.
 - Docs: `docs/development/how-to/review-gates.md` (the inherited-limitation note) and `docs/changelog/CHANGELOG.md` under [Unreleased].
-- One WP01; implementer owns product/tests/docs, reviewer is independent, planner owns this reasoning and sequencing only.
+- Two work packages: WP01 owns product/tests, WP02 owns docs; reviewers are independent, the planner owns this reasoning and sequencing only.
 
 ## Operations
 1. Opening campsite check of the touched surface; record a no-enabler conclusion or a distinct behaviour-preserving tidy step, never broaden scope.
