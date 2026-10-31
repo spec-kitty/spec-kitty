@@ -261,3 +261,21 @@ def test_a_lagging_stamp_is_nothing_to_do_and_never_prints_moved(tmp_path: Path,
     assert "Moved" not in human.output
     assert "Nothing to do" in human.output
     assert _files(root) == before
+
+
+def test_held_ledger_lock_exits_1_with_the_message(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The record append waits on the ledger lock; a lock that never frees is a refusal (#6613)."""
+    import specify_cli.upgrade.ledger as ledger_module
+    from kernel.locks import machine_file_lock
+    from specify_cli.upgrade.ledger import ledger_lock_path
+
+    root = _project(tmp_path, migration_ledger=True)
+    monkeypatch.setattr(ledger_module, "LEDGER_LOCK_TIMEOUT_S", 0.2)
+
+    with machine_file_lock(ledger_lock_path(root, MigrationLedger(root).tracked_path), blocking=True, timeout_s=20.0):
+        result = _run(root, monkeypatch)
+
+    assert result.exit_code == 1, result.output
+    assert "ledger lock was not acquired" in result.output
+    assert "Traceback" not in result.output
+    assert _rc8_records(root) == []

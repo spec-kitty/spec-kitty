@@ -98,3 +98,24 @@ def test_legacy_keyed_project_gets_its_keys_moved_then_provisioned(tmp_path: Pat
     assert not set(_yaml(root / ".kittify" / "config.yaml")) & set(LEDGER_KEYS)
     records = [record.result for record in MigrationLedger(root).read_all() if record.id == _MIGRATION_ID]
     assert records == ["success"]
+
+
+def test_held_ledger_lock_refuses_the_upgrade_without_a_traceback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A ledger lock that never frees is a refusal (exit 1, message), not a crash (#6613)."""
+    import specify_cli.upgrade.ledger as ledger_module
+    from kernel.locks import machine_file_lock
+    from specify_cli.upgrade.ledger import ledger_lock_path
+
+    root = _project(tmp_path, config="vcs:\n  type: git\n")
+    monkeypatch.setattr(ledger_module, "LEDGER_LOCK_TIMEOUT_S", 0.2)
+
+    with machine_file_lock(ledger_lock_path(root, MigrationLedger(root).tracked_path), blocking=True, timeout_s=20.0):
+        app = typer.Typer(add_completion=False)
+        app.command()(upgrade)
+        with contextlib.chdir(root):
+            result = CliRunner().invoke(app, ["--yes", "--no-worktrees"])
+
+    assert result.exit_code == 1, result.output
+    assert "ledger lock was not acquired" in result.output
+    assert "Traceback" not in result.output
+    assert not [r for r in MigrationLedger(root).read_all() if r.id == _MIGRATION_ID]
