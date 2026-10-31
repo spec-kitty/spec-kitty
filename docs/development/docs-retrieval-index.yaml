@@ -11851,6 +11851,16 @@ pages:
     - {slug: "what-was-tested", text: "What was tested", level: 2}
     - {slug: "evidence", text: "Evidence", level: 2}
     - {slug: "what-the-write-service-needs-follow-ups-not-done-here", text: "What the write service needs (follow-ups, not done here)", level: 2}
+  - path: "docs/development/reference/optional-lamport-clock-consumers.md"
+    title: "Consumers of the optional Lamport clock"
+    divio_type: "reference"
+    abstract: "Every core site that reads or writes Event.lamport_clock or the spec-kitty-events ordering keys, with a verdict and the test that pins it, following spec-kitty-events 11.0."
+    anchors:
+    - {slug: "the-contract-this-page-is-written-against", text: "The contract this page is written against", level: 2}
+    - {slug: "what-core-does-not-do", text: "What core does not do", level: 2}
+    - {slug: "consumers-and-why-each-one-is-safe", text: "Consumers, and why each one is safe", level: 2}
+    - {slug: "residual", text: "Residual", level: 2}
+    - {slug: "keeping-this-page-honest", text: "Keeping this page honest", level: 2}
   - path: "docs/development/reference/quality-and-tech-debt-standing-orders.md"
     title: "Quality & Tech-Debt Standing Orders"
     divio_type: "explanation"

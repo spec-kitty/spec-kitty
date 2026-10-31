@@ -3986,6 +3986,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/reference/optional-lamport-clock-consumers.md
+  tag: current
+  divio_type: reference
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/reference/quality-and-tech-debt-standing-orders.md
   tag: current
   divio_type: explanation
