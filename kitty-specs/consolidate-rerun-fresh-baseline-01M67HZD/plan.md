@@ -14,14 +14,17 @@ and offers every commit landed on the target since as mission content
 ("un-attributable"), then rolls the target back over them; and a plain `--abort`
 afterwards refuses because the clean rollback already dropped the recorded post tips.
 
-The fix is one invariant, delivered at one site: **the record survives only while
-some of its attempt is still on the target.** When the door's report says the attempt
-was undone (`RollbackReport.fully_restored`), the door clears the record through
-`state.clear_state` (the single owner of clearing `state.json` plus its post-fix
-marker) and says so in one operator line. A partial rollback keeps the record exactly
-as today. No new state field, no migration, no change to the rollback authority's
-per-branch decisions, and `--abort` is untouched: with no record it takes its existing
-"No active merge state" path (exit 0).
+The fix is one invariant, delivered at one site: **an attempt's transaction geometry
+survives only while some of its attempt is still on the target.** When the door's
+report says the attempt was undone (`RollbackReport.fully_restored`),
+`rollback.rebaseline_after_full_restore` drops the attempt's target baseline,
+snapshot, restore targets and per-attempt progress (the fields the next attempt must
+re-derive from the live tips) and the door says so in one operator line. A partial
+rollback keeps all of it. The reconciliation claim's coordination/lane authorship
+anchors always stay: after a full restore they are still accurate and a resume needs
+them (#5001, #5051). No new state field, no migration, no change to the rollback
+authority's per-branch decisions, and `--abort` is untouched: with no snapshot it
+takes its existing no-snapshot path (clean finish, exit 0).
 
 ## Technical Context
 
@@ -116,9 +119,10 @@ No charter violations. No new module, no new persisted field, no new CLI flag.
 ### IC-01 — The door clears a record it has fully undone
 
 - **Purpose**: make "nothing of the attempt is left, so nothing changes how the next
-  run behaves" true on disk, not only in the report.
+  attempt derives its baseline" true on disk, not only in the report.
 - **Relevant requirements**: FR-001, FR-002, FR-005, NFR-001, C-001, C-002
-- **Affected surfaces**: `consolidation/rollback.py` (`RollbackReport` verdict),
+- **Affected surfaces**: `consolidation/rollback.py`
+  (`RollbackReport.fully_restored` verdict, `rebaseline_after_full_restore`),
   `consolidation/executor.py::_report_rollback`
 - **Sequencing/depends-on**: none
 - **Risks**: the clear must be attempted only after the report is computed and printed

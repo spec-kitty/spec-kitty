@@ -1,6 +1,6 @@
 ---
 title: How to Troubleshoot Merge Issues
-description: 'How to troubleshoot spec-kitty consolidate with Spec Kitty 3.2: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
+description: 'How to troubleshoot spec-kitty consolidate: resume or abort a stopped run and fix the refusals operators meet most, each with its command.'
 doc_status: active
 updated: '2026-10-30'
 audience: docs/context/audience/external/project-owner.md
@@ -22,7 +22,7 @@ Each section gives what you see, what it means, and the command to run. The full
 
 | What happened | Run |
 | --- | --- |
-| The run was interrupted (terminal closed, process killed, a lane failed to merge) | `spec-kitty consolidate --resume` |
+| The run was interrupted (terminal closed, process killed, a lane failed to merge) | `spec-kitty consolidate --resume` (a run that failed and rolled back completely: `spec-kitty consolidate --mission <slug>`, see [below](#a-failed-run-that-rolled-back-completely-drops-its-baseline)) |
 | You want to undo what the run moved and start over | `spec-kitty consolidate --abort` |
 | You want to check readiness without changing anything | `spec-kitty consolidate --dry-run` |
 | `UNEXPLAINED_BRANCH_MOVE` on a re-run or `--resume` | Inspect the branch, see [A branch moved without a record](#a-branch-moved-without-a-record) |
@@ -187,7 +187,7 @@ Reconciliation refused (fail-closed): <reason>
 
 After landing, `consolidate` checks that the target holds exactly the approved work. When the check fails or cannot decide, the run restores the branches it moved and prints the rollback report that starts `Rollback to the pre-consolidation snapshot:`. If someone else committed on the target after the landing, that commit is kept: the target is reported `NOT restored ... moved by another actor`, and the record stays open (see [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored)).
 
-Read the divergence or reason. It names the WP, the lane and the paths. Correct the lane, then run `spec-kitty consolidate` again. If the rollback restored every branch, a `--resume` answers `No interrupted merge to resume.` — the run left no record, so a plain run is the right one (see [A failed run that rolled back completely leaves no record](#a-failed-run-that-rolled-back-completely-leaves-no-record)). Only a run that left a branch `NOT restored` has a record to resume.
+Read the divergence or reason. It names the WP, the lane and the paths. Correct the lane, then run `spec-kitty consolidate` again. If the rollback restored every branch, the run re-baselined its record, so the re-run starts from the target's current tip (see [A failed run that rolled back completely drops its baseline](#a-failed-run-that-rolled-back-completely-drops-its-baseline)). A run that left a branch `NOT restored` keeps its record: resolve the branch, then `--abort` or `--resume`.
 
 - **A FAIL cannot be overridden.** Correct the content on the lane through a surviving WP.
 - **Missing or contradictory attribution about a canceled WP** can be attested after you check by hand that the canceled content is absent or superseded:
@@ -198,22 +198,22 @@ Read the divergence or reason. It names the WP, the lane and the paths. Correct 
 
   The flag is repeatable, one WP per use, and `--attest-reason` is required. It never lifts a FAIL. A `--dry-run` does not apply it.
 
-### A failed run that rolled back completely leaves no record
+### A failed run that rolled back completely drops its baseline
 
 ```text
 Rollback to the pre-consolidation snapshot:
   restored   <target>      <post> -> <pre>
   restored   <mission>     <post> -> <pre>
   unchanged  <lane>        (already at <sha>)
-Cleared the consolidation record: nothing of this attempt remains, so the next `spec-kitty consolidate` starts from <target>'s current tip and a plain `spec-kitty consolidate --abort` has nothing left to undo.
+Rebaselined the consolidation record: nothing of this attempt remains, so the next run reads <target>'s current tip as its pre-mutation baseline instead of this attempt's. `spec-kitty consolidate --abort` clears the record.
 ```
 
-Every branch the run moved is back at its pre-run commit, so nothing of that attempt is on the target and there is nothing to resume. The run clears its record (`.kittify/runtime/merge/<mission_id>/state.json`) and says so.
+Every branch the run moved is back at its pre-run commit, so nothing of that attempt is on the target. The run then drops the transaction geometry that attempt anchored — its target baseline, its pre-mutation snapshot, its restore targets and its per-attempt progress — and says so.
 
-- **What it means.** The next run is a fresh one. Its reconciliation compares the target's **current** tip against the approved work, so anything committed on the target since the failed attempt — your own fix for the cause, a teammate's commit, another Mission's status commit — is already landed content, not Mission content.
-- **What to run.** Fix the cause, then `spec-kitty consolidate --mission <slug>`. Do not commit your fix *and* re-run `--resume` expecting the old baseline: there is no record, and `--resume` answers `No interrupted merge to resume.`.
-- **`--abort`.** With no record, a plain `spec-kitty consolidate --abort` prints `No active merge state ...` and exits 0. It is a no-op, not a refusal.
-- **The boundary.** A rollback that leaves a branch `NOT restored` keeps the record (that branch still holds content the run cannot prove is its own). Resume or `--abort` that record; when the kept content is yours to keep, release it as described in [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored).
+- **What it means.** The next run re-derives its reconciliation baseline from the target's **current** tip. Anything committed on the target since the failed attempt — your own fix for the cause, a teammate's commit, another Mission's status commit — is already landed content, not Mission content, so it is neither reported un-attributable nor rolled back over.
+- **What to run.** Fix the cause, then `spec-kitty consolidate --mission <slug>`. `--resume` also works; it re-captures the anchors from the live tips.
+- **`--abort`.** With nothing left to restore, `--abort` prints `Aborted ... state and workspace cleaned up`, clears what remains of the record and exits 0. It does not refuse; a coordination Mission may still clean orphaned merge scratch on the way.
+- **The boundary.** A rollback that leaves a branch `NOT restored` keeps the attempt's baseline and snapshot untouched, because that content is still on the target: resolve the branch, then `--abort` — or `--resume` once the branch is back at a tip the record can explain. When the kept content is yours to keep, release it as described in [Keep a branch that cannot be restored](#keep-a-branch-that-cannot-be-restored).
 
 ### A lane changed after its work package was approved
 

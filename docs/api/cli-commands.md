@@ -105,7 +105,7 @@ is passed.
 |---|---|
 | `0` | The Mission landed and the cleanup finished. |
 | `75` | The landing stands, but the coordination branch (or the mission branch of a Mission without a coordination topology) moved after it and was kept instead of deleted. Error code `COORD_MOVED_AFTER_LANDING`. Nothing was lost and nothing was rolled back. |
-| any other non-zero | A refusal or a failure. The message says whether anything had moved and reports, per branch, what the rollback restored. |
+| any other non-zero | A refusal or a failure. The message says whether anything had moved and reports, per branch, what the rollback restored. When the rollback restored every branch it moved, it also says it re-baselined the record: that attempt's target baseline, snapshot and restore targets are dropped, so the next run (plain or `--resume`) reads the target's current tip as its pre-mutation baseline instead of the failed attempt's, and `--abort` clears what is left and exits `0`. A run that leaves a branch `NOT restored` keeps its baseline, snapshot and record. |
 
 Stable codes that appear in the output. Match on the code, not on the surrounding prose:
 

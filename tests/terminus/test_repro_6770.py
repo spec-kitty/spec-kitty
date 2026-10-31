@@ -139,8 +139,13 @@ def test_a_clean_fail_rollback_leaves_no_record_and_the_rerun_uses_the_current_t
     assert "NOT restored" not in report, f"precondition: this FAIL has no foreign commit, so the restore is total. report={report}"
     assert ref_shas(mission) == before, "precondition: every branch is back at its pre-run tip"
 
-    # FR-001: nothing of attempt 1 remains to change how the next run behaves.
-    assert state_path(mission) is None, "a fully rolled back attempt must clear its transaction record"
+    # FR-001: nothing of attempt 1 remains to change how the next run behaves — the record
+    # keeps the Mission's provenance but loses the transaction it was anchored to.
+    record = load_state(mission.repo, mission.mission_id)
+    assert record is not None, "the Mission's record survives a clean rollback (a resume still re-derives from it)"
+    assert record.pre_mutation_target_sha is None, "the failed attempt's window base must not survive it"
+    assert record.pre_mutation_refs == {}, "the failed attempt's snapshot must not survive it"
+    assert record.completed_wps == [], "the failed attempt's progress must not survive it"
 
     # An operator commit lands on the target between the attempts (T0 -> T1).
     t1 = _commit_on_target(mission, "TEAM.md")
@@ -188,8 +193,9 @@ def test_a_plain_abort_after_a_clean_fail_rollback_is_a_no_op_not_a_refusal(
 
     output = flat(result)
     assert result.returncode == 0, f"a plain --abort must not refuse once the rollback left nothing behind. output={output}"
-    assert "No active merge state" in output, f"the abort must say there is nothing active. output={output}"
     assert "Kept the consolidation record" not in output, f"no record may be kept after a total restore. output={output}"
+    assert "Aborted" in output and "cleaned up" in output, f"the abort must report a clean finish. output={output}"
+    assert state_path(mission) is None, "the abort must have cleared what was left of the record"
 
 
 def test_a_partial_rollback_keeps_the_record_with_its_pre_mutation_base(

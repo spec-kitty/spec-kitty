@@ -455,14 +455,18 @@ def _assert_failed_run_restored_the_snapshot(repo: Path, feature_dir: Path, pre_
 
     from specify_cli.consolidation.state import load_state
 
-    # #6770: a record survives only while some of its attempt is on the target. This run
-    # restored every branch, so it clears the record; a kept record would hand the next run
-    # attempt 1's target tip as its reconciliation window base.
-    assert load_state(repo, MISSION_ID) is None, "a fully rolled-back run leaves no record behind"
+    # #6770: an attempt's window base survives only while some of its attempt is on the target.
+    # This run restored every branch, so the door re-baselines the record: the next run must
+    # re-derive its baseline from the live target tip rather than inherit attempt 1's.
+    rebaselined = load_state(repo, MISSION_ID)
+    assert rebaselined is not None, "the Mission's record survives a full restore"
+    assert rebaselined.pre_mutation_target_sha is None, "the failed attempt's window base must not survive it"
+    assert rebaselined.pre_mutation_refs == {}, "the failed attempt's snapshot must not survive it"
+    assert rebaselined.completed_wps == [], "the kept record claims no completed WP"
 
 
 def _assert_rerun_reaches_done(repo: Path) -> None:
-    """After removing the cause, the fresh re-run (no record) re-does the work and reaches ``done``."""
+    """After removing the cause, the re-run (whose record was re-baselined) re-does the work and reaches ``done``."""
     with _merge_external_mocks():
         _run_merge(repo)
     for relpath in _LANE_FILES.values():

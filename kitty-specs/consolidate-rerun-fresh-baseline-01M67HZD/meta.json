@@ -1,4 +1,18 @@
 {
+  "accept_commit": "490f1231cf99c9e36fc65b7eaeac74199a3afc92",
+  "acceptance_history": [
+    {
+      "accept_commit": "490f1231cf99c9e36fc65b7eaeac74199a3afc92",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T00:53:41.868053+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "084a3d98319d890bad95d6917582885bedeb3a6a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T00:53:41.868053+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "084a3d98319d890bad95d6917582885bedeb3a6a",
   "created_at": "2026-10-30T23:23:02.604261+00:00",
   "flattened": false,
   "friendly_name": "consolidate rerun fresh baseline",
@@ -10,6 +24,7 @@
   "purpose_context": "This mission advances consolidate rerun fresh baseline on issue-6770-consolidate-rerun-fresh-baseline so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "consolidate rerun fresh baseline",
   "slug": "consolidate-rerun-fresh-baseline-01M67HZD",
+  "status_phase": "1",
   "target_branch": "issue-6770-consolidate-rerun-fresh-baseline",
   "topology": "single_branch"
 }

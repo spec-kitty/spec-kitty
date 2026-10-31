@@ -385,10 +385,13 @@ def test_report_rollback_resets_this_runs_own_pass_anchor_then_restores(tmp_path
 
     assert _rev(env.repo, _TARGET) == snap_target, "this run's own anchor must not shield its advance"
     assert run.state.reconciliation_passed_target_sha is None
-    # The report line, not the door's LAST line: since #6770 a full restore also prints the
-    # record-clear line after the report.
-    report_line = next(str(call.args[0]) for call in console.print.call_args_list if "restored" in str(call.args[0]))
+    # The report line, then the door's own re-baseline line LAST: since #6770 a full restore
+    # also settles the record, and the report must still come first.
+    printed_lines = [str(call.args[0]) for call in console.print.call_args_list]
+    report_line = next(line for line in printed_lines if "restored" in line)
     assert _TARGET in report_line, report_line
+    assert printed_lines[-1].startswith("Rebaselined the consolidation record:"), printed_lines[-1]
+    assert run.state.pre_mutation_refs == {} and run.state.pre_mutation_target_sha is None
 
 
 def test_report_rollback_keeps_a_landing_verified_by_an_earlier_attempt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1175,12 +1178,12 @@ def test_claim_refuses_the_same_move_once_the_target_left_the_pass_anchor(tmp_pa
     assert _state_bytes(env) == before
 
 
-def test_the_door_warns_and_keeps_the_original_error_when_the_record_cannot_be_cleared(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#6770: a failed record clear is a warning, never a second failure.
+def test_the_door_warns_and_keeps_the_original_error_when_the_record_cannot_be_rebaselined(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6770: a failed record re-baseline is a warning, never a second failure.
 
     The door's contract is that the caller re-raises the ORIGINAL failure, so the settle step
-    must swallow a clear error (an unwritable runtime dir, a locked file) and say so instead of
-    replacing that error with an ``OSError``.
+    must swallow a save error (an unwritable runtime dir, a locked file) and say so instead of
+    replacing that error with an ``OSError`` — and must not pretend the stale base is gone.
     """
     env = make_env(tmp_path)
     run = _report_run(env)
@@ -1189,14 +1192,17 @@ def test_the_door_warns_and_keeps_the_original_error_when_the_record_cannot_be_c
     console = MagicMock()
     setattr_executor_family(monkeypatch, "console", console)
 
-    def _unwritable(*_a: Any, **_k: Any) -> bool:
+    def _unwritable(*_a: Any, **_k: Any) -> None:
         raise OSError("read-only state dir")
 
-    monkeypatch.setattr(executor, "clear_state", _unwritable)
+    monkeypatch.setattr(executor, "save_state", _unwritable)
 
     executor._report_rollback(run, anchor_before=None)  # must not raise
 
     assert _rev(env.repo, _TARGET) == snap_target, "precondition: the attempt was still fully restored"
     printed = " ".join(str(call.args[0]) for call in console.print.call_args_list)
-    assert "could not clear this run's consolidation record" in printed and "read-only state dir" in printed, printed
-    assert "Cleared the consolidation record" not in printed, "a failed clear must never claim the record is gone"
+    assert "could not re-baseline this run's consolidation record" in printed and "read-only state dir" in printed, printed
+    assert "--abort" in printed, "the warning must name the way out of a record it could not settle"
+    assert "Rebaselined the consolidation record" not in printed, "a failed re-baseline must never claim the record was settled"
+    persisted = load_state(env.repo, "M1")
+    assert persisted is not None and persisted.pre_mutation_refs, "a failed save leaves the attempt's stale geometry on disk; the warning is the only signal"

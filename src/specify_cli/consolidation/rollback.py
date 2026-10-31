@@ -54,6 +54,10 @@ Guarantees (``contracts/rollback-authority.md``; record-anchored since #5686):
    anchor whenever the target was RESTORED (even when another branch was not);
    per-attempt progress (and the intents, the unsettled set and the releases) is
    cleared only after a full restore; a second call is idempotent (``ALREADY_AT_SNAPSHOT`` everywhere).
+   The record itself outlives the attempt: the CALLER re-baselines it after a full
+   restore (:func:`rebaseline_after_full_restore`, from the single rollback door), so
+   the next attempt re-derives its window base and snapshot from the live tips instead
+   of inheriting this attempt's (#6770).
 
 Residuals (documented, not closed): a foreign commit that lands on a run-movable
 branch INSIDE the same phase, after this run's own advance of that branch, is
@@ -103,6 +107,7 @@ __all__ = [
     "movable_branch_tips",
     "note_advance_intent",
     "own_moves_across",
+    "rebaseline_after_full_restore",
     "record_post_mutation_tips",
     "record_restore_target",
     "release_branch",
@@ -805,6 +810,56 @@ def _clear_bookkeeping(state: ConsolidationState, outcomes: Iterable[BranchOutco
     state.unsettled_refs = []
     state.released_refs = {}
     state.release_reasons = {}
+
+
+def rebaseline_after_full_restore(state: ConsolidationState) -> bool:
+    """Drop the TRANSACTION geometry a FULL restore invalidated; keep the Mission's provenance anchors (#6770).
+
+    Called by the rollback door once ``RollbackReport.fully_restored`` — every branch it moved
+    is back at its restore target, so nothing of the attempt is on the target any more.
+
+    What must go, and why. ``pre_mutation_target_sha`` is the reconciliation window base and the
+    rollback CAS anchor; it describes the transaction that just ended, so a later attempt must
+    re-derive it from the live target tip rather than inherit a tip that predates whatever lands
+    on the target between attempts (the #5667 recurrence: those commits were re-flagged
+    "un-attributable" and then restored over). The snapshot, the per-attempt restore targets, the
+    recorded post tips and the settle/unsettle state all describe branches that are already back
+    where they started; carrying them into the next attempt would let a later rollback restore to
+    a tip two attempts old, and would wedge ``--abort`` (it can restore a branch only while it
+    still holds a tip this record recorded). ``resume_seeded_refs`` goes with the snapshot it
+    annotated, and the releases are spent with the attempt that recorded them.
+
+    What stays, and why. ``pre_mutation_coord_sha`` / ``pre_mutation_coord_ref`` /
+    ``pre_interrupt_lane_tips`` are the reconciliation CLAIM's authorship base (#5001 FOLD-4,
+    #4982, #5051). They are still accurate after a full restore — the coordination branch is back
+    at exactly the captured tip — and a resume that lost them would rebuild the claim from the
+    live (possibly folded) tree and refuse a legitimate merge with an empty authorship set. The
+    record itself, its marker, its strategy/cleanup flags and its ``wp_order`` also stay: after a
+    full restore there is nothing to resume, but the record is the Mission's own provenance trail,
+    and this repository's contract is that ``--resume`` re-derives its anchors rather than refusing
+    to exist.
+
+    Idempotent, no I/O: returns ``True`` when something actually changed, so the caller decides
+    whether a save (and an operator line) is needed.
+    """
+    changed = False
+    if state.pre_mutation_target_sha is not None:
+        state.pre_mutation_target_sha = None
+        changed = True
+    for field_name in ("pre_mutation_refs", "restore_targets", "post_mutation_refs", "advance_intents", "released_refs", "release_reasons"):
+        value = getattr(state, field_name)
+        if value:
+            setattr(state, field_name, {})
+            changed = True
+    for field_name in ("snapshot_lane_branches", "resume_seeded_refs", "unsettled_refs"):
+        value = getattr(state, field_name)
+        if value:
+            setattr(state, field_name, [])
+            changed = True
+    if state.reconciliation_passed_target_sha is not None:
+        state.reconciliation_passed_target_sha = None
+        changed = True
+    return changed
 
 
 def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outcomes: Iterable[BranchOutcome], context: _RunResidue | None) -> str | None:

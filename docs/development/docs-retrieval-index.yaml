@@ -13187,7 +13187,7 @@ pages:
   - path: "docs/guides/how-to/recovery/troubleshoot-merge.md"
     title: "How to Troubleshoot Merge Issues"
     divio_type: "how-to"
-    abstract: "How to troubleshoot spec-kitty consolidate with Spec Kitty 3.2: resume or abort a stopped run and fix the refusals operators meet most, each with its command."
+    abstract: "How to troubleshoot spec-kitty consolidate: resume or abort a stopped run and fix the refusals operators meet most, each with its command."
     anchors:
     - {slug: "quick-reference", text: "Quick Reference", level: 2}
     - {slug: "resume-an-interrupted-consolidation", text: "Resume an Interrupted Consolidation", level: 2}
@@ -13201,7 +13201,7 @@ pages:
     - {slug: "the-run-stopped-after-moving-branches", text: "The Run Stopped After Moving Branches", level: 2}
     - {slug: "a-lane-failed-to-merge", text: "A lane failed to merge", level: 3}
     - {slug: "reconciliation-failed-or-refused", text: "Reconciliation FAILED or refused", level: 3}
-    - {slug: "a-failed-run-that-rolled-back-completely-leaves-no-record", text: "A failed run that rolled back completely leaves no record", level: 3}
+    - {slug: "a-failed-run-that-rolled-back-completely-drops-its-baseline", text: "A failed run that rolled back completely drops its baseline", level: 3}
     - {slug: "a-lane-changed-after-its-work-package-was-approved", text: "A lane changed after its work package was approved", level: 3}
     - {slug: "a-branch-moved-without-a-record", text: "A branch moved without a record", level: 3}
     - {slug: "exit-code-75-the-landing-stands", text: "Exit code 75: the landing stands", level: 3}

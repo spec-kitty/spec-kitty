@@ -174,13 +174,16 @@ def test_dirty_target_checkout_is_reported_not_restored_and_the_record_is_kept(
     assert _record(mission) is not None, "a partial rollback keeps the record for --abort"
 
 
-def test_record_is_cleared_after_a_full_rollback_and_a_rerun_succeeds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    """A full restore clears the record, and a re-run after removing the cause lands both lanes.
+def test_record_is_rebaselined_after_a_full_rollback_and_a_rerun_succeeds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A full restore drops the attempt's transaction geometry, and a re-run lands both lanes.
 
-    #6770: a record survives only while some of its attempt is on the target. This run
-    restored everything, so it leaves nothing behind — otherwise the next run inherits
-    attempt 1's ``pre_mutation_target_sha`` as its reconciliation window base and re-flags
-    every commit made on the target in between (the #5667 shape).
+    #6770: an attempt's window base survives only while some of its attempt is on the target.
+    This run restored everything, so the door re-baselines the record — otherwise the next run
+    would inherit attempt 1's ``pre_mutation_target_sha`` as its reconciliation window base and
+    re-flag every commit made on the target in between (the #5667 shape). The record itself
+    stays: after a full restore a resume re-derives its anchors from the live tips.
     """
     mission = build_lanes_mission(tmp_path, wps=("WP01", "WP02"), target_branch="develop", mid8="01M5385S")
     before = ref_shas(mission)
@@ -190,7 +193,12 @@ def test_record_is_cleared_after_a_full_rollback_and_a_rerun_succeeds(tmp_path: 
             _consolidate(mission, patch)
     capsys.readouterr()
     assert ref_shas(mission) == before, "precondition: the failed run was fully rolled back"
-    assert _record(mission) is None, "a fully rolled-back run leaves no record to resume"
+    record = _record(mission)
+    assert record is not None, "the Mission's record survives a full restore"
+    assert record["pre_mutation_target_sha"] is None, "the failed attempt's window base must not survive it"
+    assert record["pre_mutation_refs"] == {}, "the failed attempt's snapshot must not survive it"
+    assert record["completed_wps"] == [], record
+    assert record["mission_number_baked"] is False, record
 
     _consolidate(mission, monkeypatch)
 

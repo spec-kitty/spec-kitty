@@ -31,13 +31,16 @@ the *only* reconciliation window base it will use:
    refuses with "moved since the snapshot but no post-mutation tip was recorded".
    The only way out is `--abort --release-branch <target> --release-reason ...`.
 
-The invariant this Mission delivers: **a transaction record survives only while
-some of its attempt is still on the target.** A rollback door that fully undoes
-its attempt leaves nothing to resume or to abort, so it clears the record; the
-next run is then genuinely fresh, and a fresh run's window base is the target's
-current tip. A partial rollback keeps the record (nothing is lost), and while the
-record survives, attempt 1's persisted base is still the honest one because
-attempt 1's landing is still on the target.
+The invariant this Mission delivers: **an attempt's transaction geometry — its target
+baseline, snapshot, restore targets and per-attempt progress — survives only while
+some of its attempt is still on the target.** A rollback door that fully undoes its
+attempt drops that geometry, so the next attempt re-derives its window base from the
+target's current tip. A partial rollback keeps it (nothing is lost), and while it
+survives, attempt 1's persisted base is still the honest one because attempt 1's
+landing is still on the target. What always stays is the reconciliation claim's
+coordination/lane authorship anchors: after a full restore they are still accurate,
+and a resume needs them (#5001, #5051) — dropping them would rebuild the claim from a
+live tree and refuse a legitimate merge.
 
 - **Primary actor**: the operator recovering a Mission whose consolidation failed.
 - **Trigger**: a post-mutation failure (a reconciliation FAIL/REFUSE, a bookkeeping
@@ -68,16 +71,16 @@ the target's pre-run tip as its reconciliation window base.
 **Acceptance Scenarios**:
 
 1. **Given** a fully restored rollback of a reconciliation FAIL, **When** the door
-   finishes, **Then** the Mission's transaction record no longer exists (neither
-   `state.json` nor its reconciliation marker).
-2. **Given** that restored state and a new commit `T1` on the target, **When** the
-   operator re-runs `consolidate`, **Then** the run is fresh (not a resume), its
-   reconciliation window base is `T1`, and the run succeeds with `T1` still an
-   ancestor of the target.
-3. **Given** the same failure, **When** the operator runs a plain
-   `spec-kitty consolidate --abort` instead of a re-run, **Then** it exits 0 and
-   reports that no active merge state exists, instead of refusing and keeping the
-   record.
+   finishes, **Then** the record no longer carries that attempt's geometry (no
+   `pre_mutation_target_sha`, no snapshot, no restore targets, no completed WPs) and
+   the claim's coordination/lane anchors are untouched.
+2. **Given** that re-baselined record and a new commit `T1` on the target, **When**
+   the operator re-runs `consolidate`, **Then** the run's reconciliation window base
+   is `T1`, and the run succeeds with `T1` still an ancestor of the target.
+3. **Given** the same failure and a target commit made after it, **When** the
+   operator runs a plain `spec-kitty consolidate --abort` instead of a re-run,
+   **Then** it exits 0, reports a clean finish and clears the record, instead of
+   refusing and keeping it.
 
 ### User Story 2 - A partial rollback keeps the record and its honest baseline (Priority: P1)
 
@@ -98,8 +101,8 @@ unexplained move.
 **Acceptance Scenarios**:
 
 1. **Given** a rollback that leaves a branch NOT restored, **When** the door
-   finishes, **Then** the record is kept and still carries attempt 1's
-   `pre_mutation_target_sha`.
+   finishes, **Then** the attempt's geometry is kept and still carries attempt 1's
+   `pre_mutation_target_sha` and snapshot.
 2. **Given** that kept record, **When** the operator re-runs, **Then** the run
    still refuses an unexplained move (`UNEXPLAINED_BRANCH_MOVE`) rather than
    re-baselining over it.
@@ -114,10 +117,9 @@ unexplained move.
   the record clear. The record that remains claims no per-attempt progress, which is
   the pre-fix zero-progress residue #5372 owns; the clear must never make that
   residue *worse* (no new state shape, no marker-less state).
-- The record clear itself fails (permissions, a held file). The original failure
-  must still be the operator's headline; a half-cleared record is at worst an
-  orphan marker the next fresh run re-stamps (the same rule
-  `_clear_fresh_record_on_pre_mutation_exit` already follows).
+- The re-baseline save itself fails (permissions, a held file). The original failure
+  must still be the operator's headline, and the warning must say the stale geometry
+  is still on disk and name `--abort` — never claim the record was settled.
 - A coordination mission: the coordination branch is restored in the same door, so
   its `pending_coord_reconcile` marker and the record go together.
 - A `--resume` whose attempt rolls back fully: it is treated exactly like a fresh
@@ -129,11 +131,11 @@ unexplained move.
 
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
-| FR-001 | A fully restored rollback clears the transaction record | As an operator recovering a failed consolidation, I want a rollback that undid everything to leave nothing behind so that the next run cannot inherit attempt 1's baseline. | High | Open | [build] | no — the pre-fix door leaves `state.json` in place, which the regression test observes directly |
+| FR-001 | A fully restored rollback drops the attempt's transaction geometry | As an operator recovering a failed consolidation, I want a rollback that undid everything to leave nothing behind so that the next run cannot inherit attempt 1's baseline. | High | Open | [build] | no — the pre-fix door leaves `state.json` in place, which the regression test observes directly |
 | FR-002 | The next run is fresh and re-baselines on the live target tip | As an operator, I want the re-run's reconciliation window base to be the target's current tip so that commits made between attempts are not judged as mission content. | High | Open | [build] | no — the pre-fix run resolves `T0` from the record; the test pins `T1` |
 | FR-003 | A plain `--abort` after a clean rollback does not refuse | As an operator, I want `spec-kitty consolidate --abort` to be usable after a clean failure so that I am not forced into `--release-branch`. | High | Open | [build] | no — pre-fix abort exits 1 and keeps the record |
-| FR-004 | A partial rollback keeps the record and its pre-mutation base | As an operator, I want a record that still carries un-restored content to survive, with attempt 1's window base intact, so nothing is lost and no foreign move is adopted. | High | Open | [ratchet] | no — paired on the same fixture with FR-001: one fully restored case, one partial case |
-| FR-005 | A failed clear never replaces the original error | As an operator, I want the failure I hit to stay the headline so that cleanup trouble does not hide the real cause. | Medium | Open | [build] | no — the door re-raises the original `typer.Exit`/exception; the clear is attempted in a guarded step |
+| FR-004 | A partial rollback keeps the attempt's geometry and its pre-mutation base | As an operator, I want a record that still carries un-restored content to survive, with attempt 1's window base intact, so nothing is lost and no foreign move is adopted. | High | Open | [ratchet] | no — paired on the same fixture with FR-001: one fully restored case, one partial case |
+| FR-005 | A failed re-baseline never replaces the original error | As an operator, I want the failure I hit to stay the headline so that cleanup trouble does not hide the real cause. | Medium | Open | [build] | no — the door re-raises the original `typer.Exit`/exception; the clear is attempted in a guarded step |
 
 ### Non-Functional Requirements
 
@@ -167,7 +169,7 @@ unexplained move.
 
 ### Measurable Outcomes
 
-- **SC-001**: On the regression fixture, a reconciliation FAIL whose rollback restores every branch leaves no transaction record, and a re-run after one target commit succeeds with that commit as its window base — [build] · no-op passable: no
-- **SC-002**: On the same fixture, a plain `consolidate --abort` after the clean failure exits 0 with "no active merge state" — [build] · no-op passable: no
+- **SC-001**: On the regression fixture, a reconciliation FAIL whose rollback restores every branch drops the attempt's target baseline and snapshot, and a re-run after one target commit succeeds with that commit as its window base — [build] · no-op passable: no
+- **SC-002**: On the same fixture, a plain `consolidate --abort` after the clean failure exits 0, finishes cleanly and clears the record — [build] · no-op passable: no
 - **SC-003**: On the dirty-checkout fixture, the record survives a partial rollback with attempt 1's `pre_mutation_target_sha` and empty per-attempt bookkeeping — [ratchet] · no-op passable: no
 - **SC-004**: The named targeted suites pass and the changed lines are covered — [build] · no-op passable: no

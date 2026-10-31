@@ -3,6 +3,7 @@ title: Recover from an Interrupted Consolidation
 description: 'How to recover from an interrupted consolidation with Spec Kitty 3.2: Learn how to resume or abort a spec-kitty consolidate run that was interrupted before it completed.'
 doc_status: active
 updated: '2026-10-31'
+updated: '2026-10-30'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
@@ -23,6 +24,8 @@ A `spec-kitty consolidate` operation touches multiple git refs in sequence (lane
 - **Merge conflict** that requires manual resolution
 
 When an interruption occurs, spec-kitty saves progress to `.kittify/runtime/merge/<mission_id>/state.json` before exiting. This file records which WPs have already been consolidated and which remain, so the operation can be resumed without re-doing completed work.
+
+One exception decides whether there is anything to resume. A run that fails **after** it started moving branches rolls back: if the rollback restored every branch it moved, the run also drops that attempt's recorded baseline and snapshot, so its record no longer describes a half-finished landing — a later run re-derives the target's *current* tip as its pre-mutation baseline instead of attempt 1's. Resume still works (it re-captures the anchors), and `--abort` still works (it clears what is left), but a re-run is the straightforward next step: `spec-kitty consolidate --mission <slug>`. See [A failed run that rolled back completely drops its baseline](troubleshoot-merge.md#a-failed-run-that-rolled-back-completely-drops-its-baseline).
 
 ## Resuming with `--resume`
 
@@ -226,7 +229,11 @@ cat .kittify/runtime/merge/<mission_id>/state.json
 spec-kitty consolidate --abort
 ```
 
-Fix the cause the refusal named, then run `spec-kitty consolidate` again. If `--abort` reports `NOT restored` for a branch, that branch holds a commit the run did not record. Inspect it, resolve it, and run `--abort` again.
+Fix the cause the refusal named, then run `spec-kitty consolidate` again.
+
+If the rollback restored every branch, the record was re-baselined and there is nothing for `--abort` to restore: it prints `Aborted`, clears the record and exits 0, and `--resume` answers with a fresh baseline rather than the failed attempt's. Read the state file only when the run left a branch `NOT restored`.
+
+If `--abort` reports `NOT restored` for a branch, that branch holds a commit the run did not record. Inspect it, resolve it, and run `--abort` again.
 
 ## See Also
 

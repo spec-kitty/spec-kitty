@@ -67,9 +67,23 @@ resume value (its progress bookkeeping is already empty).
   auto-resume of an interrupted record and #5372's direction ("treat a provably
   zero-progress record as fresh, or refuse"), and it makes every clean failure a
   two-command recovery.
-  *Rejected alternative*: re-anchor (`pre_mutation_target_sha` = live tip) instead of
-  clearing. It leaves a record that still refuses a plain `--abort` after the next
-  target commit, because the rollback needs a recorded post tip it does not have.
+  *Rejected alternative*: re-anchor only `pre_mutation_target_sha` and keep the
+  snapshot. The snapshot would still make a later rollback restore to a tip two
+  attempts old, and `--abort` would still find recorded geometry for branches that are
+  already back where they started.
+- **D1b — refined after the aggregate review: drop the geometry, keep the record.**
+  Deleting the whole record after a full restore broke three things the first cut did
+  not see: (i) 11 existing tests assert a rolled-back run keeps a resumable record and
+  drive the follow-up through `--resume`; (ii) `recover-from-interrupted-merge.md`
+  promises that an interruption leaves a record to resume; and (iii) — decisive —
+  `test_repro_5051_clean_3way` proves the #5051 recovery depends on the persisted
+  coordination anchor: with the record gone, a re-run rebuilt the claim from the folded
+  live tree and refused with "no approved lane resolved any commits and the authored-blob
+  set is empty". The shipped rule is therefore field-scoped: the attempt's transaction
+  geometry (target baseline, snapshot, restore targets, post tips, progress) is dropped
+  on a full restore, while the record, the marker and the claim's coordination/lane
+  authorship anchors stay. Verified: the 11 tests pass untouched, #5051 still passes,
+  and the stale-baseline hazard is closed for plain and `--resume` runs alike.
 - **D2 — the "fresh baseline" comes from `_load_or_create_merge_state`, not from a
   new resume flag.** With no record, attempt 2 is a genuinely fresh run: it
   snapshots live tips, writes a new marker+state, and `_resolve_pre_mutation_target_sha`
