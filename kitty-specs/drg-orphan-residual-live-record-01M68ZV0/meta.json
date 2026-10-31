@@ -1,0 +1,41 @@
+{
+  "accept_commit": "2fb7cc4054ae219ac35143386dc09f35548885ed",
+  "acceptance_history": [
+    {
+      "accept_commit": "42ad27957b82e799b483595cb05a2086317cdee8",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:51:07.331057+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "7333f8a39fc6907768d5981dab4cee8228a4b7c4"
+    },
+    {
+      "accept_commit": "2fb7cc4054ae219ac35143386dc09f35548885ed",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:51:16.988456+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "9cb0d62c78c72b53356dcc0d4a97ca792d85c5a5"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T13:51:16.988456+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "9cb0d62c78c72b53356dcc0d4a97ca792d85c5a5",
+  "baseline_merge_commit": "74a3be652e4b09bad41ab187a4ac7d6b060be979",
+  "created_at": "2026-10-31T12:44:33.262778+00:00",
+  "flattened": true,
+  "friendly_name": "drg orphan residual live record",
+  "merged_at": "2026-10-31T13:52:41.150211+00:00",
+  "merged_commit": "8d7cc076911976199760d91e4c697cec0f26bc51",
+  "mid8": "01M68ZV0",
+  "mission_id": "01M68ZV0YVQ02CMX6QYD38QKGE",
+  "mission_number": 245,
+  "mission_slug": "drg-orphan-residual-live-record-01M68ZV0",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances drg orphan residual live record on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "drg orphan residual live record",
+  "slug": "drg-orphan-residual-live-record-01M68ZV0",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T12:47:00.473524+00:00"
+}
