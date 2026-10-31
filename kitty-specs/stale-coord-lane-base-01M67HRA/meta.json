@@ -1,0 +1,34 @@
+{
+  "accept_commit": "ceed2c1a181d6804e3c4da12dea335e7c2abfad4",
+  "acceptance_history": [
+    {
+      "accept_commit": "ceed2c1a181d6804e3c4da12dea335e7c2abfad4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T01:21:25.853795+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "0d6617cbf2940fa9a0aff06f0ce9e0cadbcbcbec"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T01:21:25.853795+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "0d6617cbf2940fa9a0aff06f0ce9e0cadbcbcbec",
+  "baseline_merge_commit": "a23f63744a02b56d9b4f1154eac1f0b7dfa1d233",
+  "created_at": "2026-10-30T23:19:10.403322+00:00",
+  "flattened": true,
+  "friendly_name": "stale coord lane base",
+  "merged_at": "2026-10-31T01:22:43.271640+00:00",
+  "merged_commit": "6a3f404d9920443f2587a047a89dda2c7b83509a",
+  "mid8": "01M67HRA",
+  "mission_id": "01M67HRADVAWNS6H7F10JPKKPS",
+  "mission_number": 244,
+  "mission_slug": "stale-coord-lane-base-01M67HRA",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances stale coord lane base on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "stale coord lane base",
+  "slug": "stale-coord-lane-base-01M67HRA",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:22:46.951722+00:00"
+}

@@ -1,0 +1,69 @@
+{
+  "mission_slug": "stale-coord-lane-base-01M67HRA",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py + tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py (independent-review.md records the mutation proof)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:20:53.329992+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py + tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py (independent-review.md records the mutation proof)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:20:57.327263+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py + tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py (independent-review.md records the mutation proof)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:21:01.424414+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py + tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py (independent-review.md records the mutation proof)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:21:05.620657+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py + tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py (independent-review.md records the mutation proof)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:21:09.899610+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py + tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py (independent-review.md records the mutation proof)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T01:21:14.477697+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

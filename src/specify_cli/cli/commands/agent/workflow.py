@@ -1600,6 +1600,17 @@ def implement(
             )
         ),
     ] = None,
+    base: Annotated[
+        str | None,
+        typer.Option(
+            "--base",
+            help=(
+                "Explicit base ref for the lane workspace (default: auto-detect). "
+                "Use this when upstream dependency branches have been merged-and-deleted "
+                "and you want to start from the current target branch tip, e.g. --base main."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -1639,6 +1650,7 @@ def implement(
         acknowledge_not_bulk_edit=acknowledge_not_bulk_edit,
         force=force,
         note=operator_force_note,
+        base=base,
     )
 
     # WP06 T029: reset the commit-receipt accumulator for this invocation.
@@ -1718,6 +1730,7 @@ def implement(
                 recover=False,
                 acknowledge_not_bulk_edit=request.acknowledge_not_bulk_edit,
                 actor=agent,
+                base=request.base,
             )
 
         # FR-005/#3281 (C-006): a retry over an already-materialized lane
@@ -1726,6 +1739,30 @@ def implement(
         from specify_cli.lanes.implement_support import reenter_lane_self_heal
 
         def _reenter_self_heal() -> None:
+            # #6753 / FL1 (D3) on the DISPATCHED path: an already-materialized
+            # LANE cannot be re-parented, and the allocator's own reuse-route
+            # refusal is never reached from here because #3281 replaces the
+            # create call with this self-heal. Without this guard the operator's
+            # explicit --base would be accepted and silently dropped -- the
+            # exact no-op the allocator's reuse route exists to prevent.
+            #
+            # A checkout-root resolution (repo_root / owned_checkout) has no
+            # parent to choose, so it must keep the top-level command's FR-007
+            # behaviour: say the flag was ignored and proceed, never refuse
+            # (blocking a legitimate action there is the #2017 failure mode).
+            if request.base is not None:
+                if not workspace.runs_in_checkout_root:
+                    from specify_cli.lanes.worktree_allocator import UnhonorableBaseError
+
+                    print(f"Error: {UnhonorableBaseError(route='reuse', wp_id=normalized_wp_id, base=request.base)}")
+                    print(
+                        f"Lane {normalized_wp_id} already has a workspace, so it cannot be re-parented onto {request.base!r}. "
+                        "Drop --base to resume it as it is, or discard the lane and re-cut it from the base: "
+                        f"git worktree remove {workspace.worktree_path} && git branch -D {workspace.branch_name}, "
+                        f"then re-run with --base {request.base!r}."
+                    )
+                    raise typer.Exit(1)
+                print("Warning: --base is ignored for repository-root planning work")
             reenter_lane_self_heal(main_repo_root, mission_slug, normalized_wp_id)
 
         # #5459: a repo-root lane (every single_branch WP) executes in the
