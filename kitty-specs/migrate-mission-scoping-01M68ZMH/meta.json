@@ -1,0 +1,33 @@
+{
+  "accept_commit": "03c2712f80144728373d03a09d141db67ebbee01",
+  "acceptance_history": [
+    {
+      "accept_commit": "03c2712f80144728373d03a09d141db67ebbee01",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:51:37.863299+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f889c43c3d49e63fd0bba7f07a1a1692ca69e67c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T13:51:37.863299+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "f889c43c3d49e63fd0bba7f07a1a1692ca69e67c",
+  "baseline_merge_commit": "c4ef2ad0b79f441c7e89d977374a9d1019747021",
+  "created_at": "2026-10-31T12:41:00.779230+00:00",
+  "flattened": false,
+  "friendly_name": "migrate mission scoping",
+  "merged_at": "2026-10-31T13:52:14.047705+00:00",
+  "merged_commit": "c4ef2ad0b79f441c7e89d977374a9d1019747021",
+  "mid8": "01M68ZMH",
+  "mission_id": "01M68ZMHC73SPMJX2WY6HRSBYE",
+  "mission_number": 245,
+  "mission_slug": "migrate-mission-scoping-01M68ZMH",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances migrate mission scoping on issue-6347-migrate-mission-scoping so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "migrate mission scoping",
+  "slug": "migrate-mission-scoping-01M68ZMH",
+  "status_phase": "1",
+  "target_branch": "issue-6347-migrate-mission-scoping",
+  "topology": "single_branch"
+}
