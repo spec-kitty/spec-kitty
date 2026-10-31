@@ -5664,6 +5664,118 @@ _Cross-mission retrospective summary._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty service
+
+_Fetch, vendor, inspect and stop the pinned service binaries_
+
+```
+ Usage: spec-kitty service [OPTIONS] COMMAND [ARGS]...
+
+ Fetch, vendor, inspect and stop the pinned service binaries
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ fetch   Fetch and verify the pinned build of a service for this host into    │
+│         the cache.                                                           │
+│ status  Show the pin, the cache state and the running instance of a service  │
+│         (starts nothing; evicts a corrupt cached copy).                      │
+│ stop    Stop this clone's running instance of a service.                     │
+│ vendor  Bump (or --check) pins/<service>.source.yaml from a                  │
+│         spec-kitty-events release; the only way to change a pin.             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty service fetch
+
+```
+ Usage: spec-kitty service fetch [OPTIONS]
+
+ Fetch and verify the pinned build of a service for this host into the cache.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --service          <str>  The service: one of charter-service, read-service, │
+│                           write-service.                                     │
+│                           [default: write-service]                           │
+│ --all                     Every service this spec-kitty version pins.        │
+│ --offline                 Never download: use the cache or                   │
+│                           SPEC_KITTY_SERVICE_ASSET_DIR only.                 │
+│ --json                    Print JSON.                                        │
+│ --help     -h             Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty service status
+
+```
+ Usage: spec-kitty service status [OPTIONS]
+
+ Show the pin, the cache state and the running instance of a service (starts
+ nothing; evicts a corrupt cached copy).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --service          <str>  The service: one of charter-service, read-service, │
+│                           write-service.                                     │
+│                           [default: write-service]                           │
+│ --json                    Print JSON.                                        │
+│ --help     -h             Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty service stop
+
+```
+ Usage: spec-kitty service stop [OPTIONS]
+
+ Stop this clone's running instance of a service.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --service          <str>  The service: one of charter-service, read-service, │
+│                           write-service.                                     │
+│                           [default: write-service]                           │
+│ --help     -h             Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty service vendor
+
+```
+ Usage: spec-kitty service vendor [OPTIONS]
+
+ Bump (or --check) pins/<service>.source.yaml from a spec-kitty-events release;
+ the only way to change a pin.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --service                    <str>  The service: one of charter-service,     │
+│                                     read-service, write-service.             │
+│                                     [default: write-service]                 │
+│ --tag                        <str>  The spec-kitty-events release tag to pin │
+│                                     (service-vX.Y.Z).                        │
+│ --repository                 <str>  The release repository (https:// or      │
+│                                     file://); default: the current pin's,    │
+│                                     else spec-kitty-events.                  │
+│ --commit                     <str>  The commit the tag names. Required for a │
+│                                     file:// repository (no git remote to     │
+│                                     ask); for https:// it must match the     │
+│                                     tag.                                     │
+│ --protocol-versions          <str>  Comma-separated protocol majors the      │
+│                                     build speaks (default 1); must match the │
+│                                     release notes.                           │
+│ --check                             Verify the lockfile instead of bumping   │
+│                                     it: shape rules, and online the          │
+│                                     release's SHA256SUMS. Writes nothing.    │
+│ --offline                           With --check: the shape rules only, no   │
+│                                     network.                                 │
+│ --asset-prefix               <str>  The release name prefix of this          │
+│                                     service's builds                         │
+│                                     (<prefix>-<ver>-<target>,                │
+│                                     <prefix>-<ver>.jar); default: the        │
+│                                     service's known prefix.                  │
+│ --help               -h             Show this message and exit.              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty session-start
 
 _Emit spec-kitty orientation for the Claude Code SessionStart hook._

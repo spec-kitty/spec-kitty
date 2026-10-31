@@ -201,3 +201,14 @@ spec-kitty-events CI checks out core at a pinned SHA to run them.
 
 - Core-side plan, inventory and cut-over runbook: [`docs/plans/events-domain-move/plan.md`](../../plans/events-domain-move/plan.md).
 - Precedent for the pin and fetch: [`docs/development/how-to/sync-packs.md`](../../development/how-to/sync-packs.md).
+
+## Amendment 2026-10-30 (Accepted): refusal codes and pin location
+
+The pre-PR review of the implementation (#6590) settled four points this record left implicit. The body above is unchanged.
+
+- **Refusal codes.** Besides the D-5 codes, the launcher and the operator commands use:
+  - `SERVICE_PIN_INVALID`: no pin for the service in this core version, or a malformed or placeholder lockfile;
+  - `SERVICE_VENDOR_*` (`USAGE`, `COMMIT_REQUIRED`, `TAG_UNRESOLVED`, `RELEASE_UNAVAILABLE`, `RELEASE_INVALID`, `DIGEST_MISMATCH`, `REQUIRES_CORE`): `spec-kitty service vendor` refused a bump or a check.
+- **Pin location.** The CLI reads its own pin: the `pins/` directory of the spec-kitty source checkout the running package belongs to, or the `specify_cli/_pins/` resource of the installed wheel. It never reads a pin from the user's project. `spec-kitty service vendor` writes only that source checkout's `pins/`, and only when run inside it.
+- **The read service stays off user machines (D-6).** `spec-kitty service fetch --all` covers only the services the CLI launches, and `spec-kitty service status` reports the write service unless another is named. The read service is fetched only when it is named explicitly (`--service read-service`), as CI does.
+- **Stop outcomes.** `spec-kitty service stop` has four outcomes: stopped, not running, forced, and unconfirmed. Unconfirmed means the published process is alive but could not be proven to be the instance, so it was not signalled. It exits 1 and names the pid and the log.

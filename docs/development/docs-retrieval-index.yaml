@@ -4035,6 +4035,7 @@ pages:
     - {slug: "move-them-to-spec-kitty-events-chosen", text: "Move them to spec-kitty-events (chosen)", level: 3}
     - {slug: "move-them-to-a-new-service-repository", text: "Move them to a new service repository", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-30-accepted-refusal-codes-and-pin-location", text: "Amendment 2026-10-30 (Accepted): refusal codes and pin location", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4608,6 +4609,11 @@ pages:
     - {slug: "spec-kitty-retrospect-summary", text: "spec-kitty retrospect summary", level: 2}
     - {slug: "spec-kitty-review", text: "spec-kitty review", level: 2}
     - {slug: "spec-kitty-safe-commit", text: "spec-kitty safe-commit", level: 2}
+    - {slug: "spec-kitty-service", text: "spec-kitty service", level: 2}
+    - {slug: "spec-kitty-service-fetch", text: "spec-kitty service fetch", level: 2}
+    - {slug: "spec-kitty-service-status", text: "spec-kitty service status", level: 2}
+    - {slug: "spec-kitty-service-stop", text: "spec-kitty service stop", level: 2}
+    - {slug: "spec-kitty-service-vendor", text: "spec-kitty service vendor", level: 2}
     - {slug: "spec-kitty-session-start", text: "spec-kitty session-start", level: 2}
     - {slug: "spec-kitty-session-stop", text: "spec-kitty session-stop", level: 2}
     - {slug: "spec-kitty-spec-commit", text: "spec-kitty spec-commit", level: 2}
@@ -11695,6 +11701,17 @@ pages:
     - {slug: "known-blind-spots", text: "Known blind spots", level: 3}
     - {slug: "shippable-doctrine-the-built-in-charter-pack-must-work-in-a-consumer-repo", text: "Shippable doctrine: the built-in Charter Pack must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/development/how-to/service-pins.md"
+    title: "How to fetch, verify and bump the pinned service binaries"
+    divio_type: "how-to"
+    abstract: "Fetch and verify the pinned spec-kitty-events service builds in a checkout or in CI, work offline, run an unpinned local build, and bump a pin with spec-kitty service vendor."
+    anchors:
+    - {slug: "fetch-and-verify-in-a-checkout", text: "Fetch and verify in a checkout", level: 2}
+    - {slug: "fetch-and-verify-in-ci", text: "Fetch and verify in CI", level: 2}
+    - {slug: "what-a-user-does", text: "What a user does", level: 2}
+    - {slug: "bump-a-pin", text: "Bump a pin", level: 2}
+    - {slug: "run-a-local-build-of-a-service", text: "Run a local build of a service", level: 2}
+    - {slug: "refusal-codes", text: "Refusal codes", level: 2}
   - path: "docs/development/how-to/sync-packs.md"
     title: "How to sync and bump the built-in and internal packs"
     divio_type: "how-to"
