@@ -1,0 +1,69 @@
+{
+  "mission_slug": "audit-collision-selectable-missions-only-01M66YHT",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/audit/test_engine_keeps_its_mission_rule.py::test_committed_spec_only_folder_cannot_fake_a_collision + ::test_residue_folder_in_a_real_collision_group_does_not_silence_it (red before cefc20c, green after)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:45:11.284659+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same test file: 001-tracked-spec-only keeps IDENTITY_MISSING; test_audit_cli.py::test_cli_fail_on_error_ignores_the_fake_collision_but_keeps_the_identity_error",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:45:15.563164+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same test file: ::test_two_real_missions_sharing_the_prefix_still_collide, ::test_pre_identity_mission_still_collides, ::test_duplicate_mission_id_still_reported_through_the_engine",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:45:19.548817+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "two-direction pins + half-by-half revert evidence recorded in WP01 history; both halves independently turn the suite red",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:45:26.382226+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/doctor/test_identity_audit.py 87 passed with the context/integration siblings; code path untouched (docstrings only)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:45:32.054007+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/audit/engine.py reuses residue_aware=True; no new predicate, no new public signature",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-30T18:45:37.792978+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
