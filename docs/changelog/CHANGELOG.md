@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-29'
+updated: '2026-10-30'
 ---
 # Changelog
 
@@ -211,6 +211,7 @@ this section at publish._
 
 ### Internal
 
+- **The read-side `decisions/service.py::_mission_dir` is deleted; the decisions service resolves `status.events.jsonl` write-side only** (#6766; refs #6762, #4848). The helper had no production caller since #6762 moved the opened-row existence check onto the pre-resolved write-side events path, leaving a second, divergent read path for the decision log. No user-visible behavior changes: the deleted-coord-branch fail-loud contract still holds via the write-side seam (`_write_events_path`), covered by `tests/specify_cli/decisions/test_service_coord_single_home.py`. `tests/specify_cli/decisions/test_service_status_state_access.py` now pins the invariant: the module holds no `placement_seam(...).read_dir(STATUS_STATE)` call, with a `write_dir` positive control. The two orphaned pins in `tests/specify_cli/test_read_seam_leniency.py` leave with it, and the read-side-seam reference ledger records the site's removal.
 - **Event logs other than `status.events.jsonl` now have a writes gate, and work package transitions go through the EventBridge port** (#6603). `tests/architectural/test_event_log_writes_gate.py` ledgers every caller of the interim locked append and of the `spec-kitty-events` contract writer, fails a raw write to a named event log or any other `.jsonl`, and pins raw writes whose path reads like a log; it drains as each log moves to the Java write service (#6193). The three transition entry points call `record_work_package_transition`, whose open-core adapter writes the same bytes as before; the port has no transport (#6675).
 - **The Mission Status Read API's domain types and event-log reader are now two Gradle libraries with no framework, `domain-model` and `event-log`** (#6192, step 1 of #6117). No route, response body or SSE frame changes. The service in `services/mission-status-api/` stays the root project (the `query-service` deployable) and depends on both, so the future write service can reuse them instead of copying them. `DomainModelBoundaryTest` and `EventLogBoundaryTest` hold each library to its dependencies (JDK only; JDK, `domain-model` and, in the decoder only, the Jackson streaming parser), `tests/ci/test_mission_status_api_build.py` pins the declared ones, and the root coverage gate covers the moved domain classes exactly as before.
 - **A pack-skill test that seeds activation through the old config surface now fails on its pull request, not only in the nightly** (#6563, #6621). The new gate `tests/architectural/test_pack_skill_fixtures_seed_the_ledger.py` reads every `skill_pack_support.write_config` call and fails when its `extra=` text carries an activation key. Most callers sit in nightly-only test directories, so the helper's runtime check never ran on their pull requests. Three tests that #6474 left stale now assert its narrow agent gitignore rows: Spec Kitty's own folders under `.agents/skills/`, and `.llxprt/commands/spec-kitty.*` with `.llxprt/.env`, never the whole folder.

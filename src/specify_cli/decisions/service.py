@@ -287,16 +287,16 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str, *, owned: OwnedCheck
     # MATERIALIZED coord worktree does NOT carry a ``meta.json`` copy: it is a
     # STATUS-ONLY husk holding ``status.events.jsonl`` / ``status.json`` "and
     # nothing else" (``coordination/coherence.py:168``). Resolving this read
-    # through ``_mission_dir`` (routed to the COORD-partition ``STATUS_STATE``
-    # kind) locates that husk instead and permanently misses ``meta.json`` —
-    # the split-brain that blocked THIS mission's own ``decision open``
-    # (tracer-tooling-friction.md). Route through the dedicated
-    # ``PRIMARY_METADATA`` resolution instead, so this read agrees with the
-    # SAME PRIMARY partition ``acceptance/__init__.py::
+    # through a COORD-partition ``STATUS_STATE`` resolution (as an earlier
+    # revision of this module did) locates that husk instead and permanently
+    # misses ``meta.json`` — the split-brain that blocked THIS mission's own
+    # ``decision open`` (tracer-tooling-friction.md). Route through the
+    # dedicated ``PRIMARY_METADATA`` resolution instead, so this read agrees
+    # with the SAME PRIMARY partition ``acceptance/__init__.py::
     # _has_blocking_clarification_marker`` already reads
     # (``load_index(file_path.parent)``). The decisions LEDGER directory
-    # itself (``decisions/index.json`` / ``DM-<id>.md``) stays COORD-routed
-    # via ``_mission_dir`` — only this identity read moves.
+    # itself (``decisions/index.json`` / ``DM-<id>.md``) is PRIMARY-routed
+    # via ``_ledger_dir`` — only this identity read moves.
     feature_dir = _primary_metadata_dir(repo_root, mission_slug, owned=owned)
     # FR-005 / post-#2091 + FR-007 / #3162: this site hard-fails on a missing
     # meta.json (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would
@@ -332,38 +332,13 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str, *, owned: OwnedCheck
     return str(mission_id)
 
 
-def _mission_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
-    """Return the READ-side COORD-partition kitty-specs/<mission_slug>/ dir.
-
-    ``status.events.jsonl`` is coord-authority-owned STATUS-partition state --
-    the SAME directory ``decisions/emit.py``'s write target resolves to
-    (data-model.md:31, the 2 permanent-by-design coord_authority writes).
-    Routed through ``placement_seam(...).read_dir(STATUS_STATE)`` so this
-    read stays topology-aware and agrees with where emit.py writes.
-
-    coord-artifact-single-home-01M3V4BE WP09: this is the READ-ONLY half of
-    the read/write split (analyze-report correction "Read/write split in
-    service.py too"): ``read_dir``'s ``EMPTY`` -> PRIMARY leniency (C-002),
-    never ``write_dir``, so resolving it never seeds or materializes a
-    coordination surface. Writers use :func:`_write_mission_dir` /
-    :func:`_write_events_path` instead. The opened-row and terminal-row
-    existence checks no longer read through this helper: they run after a
-    write call has pre-resolved :func:`_write_events_path` and read that
-    same file (#4848), so the check and the append cannot disagree.
-
-    #4966 AC-D2 (WP03 residual): the decisions LEDGER directory
-    (``decisions/index.json`` / ``DM-<id>.md``) does not resolve through
-    this helper -- see :func:`_ledger_dir` below.
-    """
-    mission_dir: Path = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.STATUS_STATE)
-    return mission_dir
-
-
 def _write_mission_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the WRITE location of ``kitty-specs/<mission_slug>/`` for decision events.
 
     coord-artifact-single-home-01M3V4BE WP09 (FR-003/FR-003a, #5519): the
-    write-side counterpart of :func:`_mission_dir`. Routed through
+    single STATUS_STATE accessor of this module (the read-side companion
+    was removed in #6766, caller-less since #6762's #4848 write-side
+    pre-resolution). Routed through
     ``placement_seam(...).write_dir(STATUS_STATE)``, which materializes,
     seeds, restores, or refuses loudly as the coordination state requires --
     replacing the two direct ``materialize_coord_surface_for_write`` calls
@@ -396,8 +371,9 @@ def _ledger_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | No
     ``acceptance/__init__.py::_has_blocking_clarification_marker`` reads
     (``load_index(file_path.parent)``, where ``file_path`` is one of the
     PRIMARY planning artifacts ``_planning_read_dir`` resolves via the
-    ``SPEC`` kind). Previously this resolved through ``_mission_dir`` ->
-    ``STATUS_STATE`` (COORD), so a deferred->resolved decision's ledger
+    ``SPEC`` kind). Previously this resolved through a COORD-partition
+    ``STATUS_STATE`` read (a helper since removed, #6766), so a
+    deferred->resolved decision's ledger
     CONTENT never reached the dir ``accept`` reads from on a materialised
     coord husk -- a split-brain that left ``accept`` permanently blocked on a
     resolved clarification marker. Asks the seam for the ledger's OWN kind,
@@ -863,7 +839,7 @@ def open_decision(
 
     mission_id = _resolve_mission_id(repo_root, mission_slug, owned=owned)
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
-    # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir`` used for
+    # ``_ledger_dir``) -- NOT the write-side ``_write_events_path`` used for
     # ``status.events.jsonl`` below.
     mission_dir = _ledger_dir(repo_root, mission_slug, owned=owned)
 
@@ -1073,7 +1049,7 @@ def _terminal_command(
     events_path = _write_events_path(repo_root, mission_slug, owned=owned)  # pre-resolve: any placement failure fails before write
 
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
-    # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir``.
+    # ``_ledger_dir``) -- NOT the write-side ``_write_events_path``.
     mission_dir = _ledger_dir(repo_root, mission_slug, owned=owned)
     lock_path = _decisions_lock_path(mission_dir)
     with _decisions_lock(lock_path, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S, mission_slug=mission_slug, decision_id=decision_id):

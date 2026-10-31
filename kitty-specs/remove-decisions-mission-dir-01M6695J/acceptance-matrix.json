@@ -1,0 +1,49 @@
+{
+  "mission_slug": "remove-decisions-mission-dir-01M6695J",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "grep -n _mission_dir src/specify_cli/decisions/service.py -> only _write_mission_dir remains; deletion independently verified by reviewer (review-cycle-1.md, checklist 4/5 PASS); 452 tests green incl. the three architectural gates",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T12:27:31.103120+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Both orphaned pins deleted from tests/specify_cli/test_read_seam_leniency.py (module docstring ledger corrected incl. the reference/ path fix; unused imports removed \u2014 ruff clean); file's 8 remaining tests pass; reviewer checklist 4 PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T12:27:38.307876+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "All five service.py prose sites re-pointed at surviving seams (reviewer verified each against the actual seam); WP06 ledger row in docs/development/reference/read-side-seam-classification.md records the removal per the (removed, #NNNN) convention; reviewer checklist 4 PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T12:27:41.604578+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Guard test test_service_status_state_access.py: RED on planning base (1 failed / 1 passed at commit 467e007522, independently reproduced by the reviewer in a throwaway worktree), GREEN on head (2 passed); write_dir positive control prevents vacuous pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-30T12:27:45.161473+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
