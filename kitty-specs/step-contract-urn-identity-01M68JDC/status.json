@@ -1,7 +1,7 @@
 {
-  "event_count": 13,
-  "last_event_id": "01M68NREY77NGVCSZ7AFSZ8783",
-  "materialized_at": "2026-10-31T09:48:23.367130+00:00",
+  "event_count": 14,
+  "last_event_id": "01M68NRF6T6SS2YJX22D8QV77T",
+  "materialized_at": "2026-10-31T09:48:23.642704+00:00",
   "mission_number": "",
   "mission_slug": "step-contract-urn-identity-01M68JDC",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 1,
+    "for_review": 2,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -76,9 +76,9 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01M68NREY77NGVCSZ7AFSZ8783",
-      "last_transition_at": "2026-10-31T09:48:23.367130+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M68NRF6T6SS2YJX22D8QV77T",
+      "last_transition_at": "2026-10-31T09:48:23.642704+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-31T09:48:14Z – unknown – Gate written and green (5 tests: corpus both directions, anti-empty-scan, two planted-divergence arms). Documented the URN rule in docs/architecture/doctrine-kinds.md and added the [Unreleased] changelog entry (897 chars). Verification: 5 new gate tests green; docs freshness errors=0 (4 pre-existing HELP-DRIFT warnings from the installed CLI); make test-fast 2610 passed / 5 skipped."
