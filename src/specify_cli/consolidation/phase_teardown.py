@@ -798,7 +798,7 @@ def _remove_lane_worktrees(run: _MergeRunState) -> None:
     False and skips this function entirely (ADVISORY-3: do not map the
     operator retain flag onto the guard's ``retain`` parameter here).
     """
-    from specify_cli.workspace import delete_context
+    from specify_cli.workspace import delete_context, get_context_path
 
     lanes_manifest = run.lanes_manifest
     delay = _worktree_removal_delay()
@@ -831,9 +831,63 @@ def _remove_lane_worktrees(run: _MergeRunState) -> None:
     # (e.g. a planning-artifact lane) or one already tombstoned. The
     # filename MUST equal ``_created_lane_worktree(...).name`` (the string
     # ``save_context`` wrote) — never independently composed.
+    tombstoned: list[Path] = []
     for lane in worktree_lanes(lanes_manifest):
         workspace_name = _created_lane_worktree(run.main_repo, lanes_manifest.mission_slug, lane.lane_id).name
-        delete_context(run.main_repo, workspace_name)
+        context_path = get_context_path(run.main_repo, workspace_name)
+        if delete_context(run.main_repo, workspace_name):
+            tombstoned.append(context_path)
+    _commit_tombstoned_workspace_contexts(run, tombstoned)
+
+
+def _commit_tombstoned_workspace_contexts(run: _MergeRunState, tombstoned: list[Path]) -> None:
+    """Persist the workspace-context tombstones this cleanup phase just made (#6450).
+
+    This phase runs AFTER ``_phase_commit_and_assert`` — the run's only
+    bookkeeping commit — so a tombstoned context that the project TRACKS
+    (``.kittify/workspaces/*.json`` is tracked in some consumer projects,
+    ignored in this repository) would otherwise leave a tracked-file deletion
+    in the working tree of a merge that reported success. The deletion is
+    concluded in its own scoped bookkeeping commit through the ONE sanctioned
+    protected-flow seam.
+
+    Only paths whose removal git actually sees as a change are committed: a
+    deletion of an untracked context is not a content change, so it must not
+    create an empty commit (``_paths_have_status_changes`` is the same
+    predicate ``_phase_commit_and_assert`` uses). Nothing tracked removed
+    means no commit at all.
+
+    A failure here must not fail an already-landed merge; it is reported and
+    the run keeps its existing teardown behaviour.
+    """
+    if not tombstoned:
+        return
+    deleted = [path for path in tombstoned if _paths_have_status_changes(run.main_repo, [path])]
+    if not deleted:
+        return
+    try:
+        commit_merge_bookkeeping(
+            repo_root=run.main_repo,
+            worktree_root=run.main_repo,
+            mission_slug=run.mission_slug,
+            branch=run.lanes_manifest.target_branch,
+            destination_ref_override=run.lanes_manifest.target_branch,
+            message=f"chore({run.mission_slug}): tombstone lane workspace contexts",
+            paths=tuple(deleted),
+        )
+    except Exception as exc:  # noqa: BLE001 — teardown is post-landing; warn, never fail the merge
+        names = ", ".join(str(path.relative_to(run.main_repo)) for path in deleted)
+        logger.warning("Could not commit tombstoned workspace contexts (%s): %s", names, exc)
+        console.print(f"  [yellow]Warning:[/yellow] tombstoned workspace context(s) {escape(names)} were not committed: {escape(str(exc))}")
+        return
+    # ``_phase_push`` runs BEFORE this phase, so a ``--push`` run would otherwise leave this one
+    # bookkeeping commit local-only — the same "landed but not where the operator looks" gap.
+    # Reuse that phase (its own ``run.push``/remote guards make this a no-op otherwise) rather
+    # than duplicating the push.
+    if run.push:
+        from specify_cli.consolidation.phase_finalize import _phase_push  # noqa: PLC0415 — avoids an import cycle
+
+        _phase_push(run)
 
 
 def _delete_lane_branch_guarded(run: _MergeRunState, branch_name: str) -> bool:
