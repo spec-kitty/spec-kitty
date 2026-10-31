@@ -387,6 +387,8 @@ class TestDoctorSkillsJson:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        from types import SimpleNamespace
+
         from typer.testing import CliRunner
 
         from specify_cli.cli.commands import _command_surface_doctor, doctor
@@ -403,7 +405,15 @@ class TestDoctorSkillsJson:
         monkeypatch.setattr(
             _command_surface_doctor,
             "_load_command_skill_state",
-            lambda _project_path: (object(), object(), [], [], [], False),
+            lambda _project_path: (
+                object(),
+                object(),
+                [],
+                [],
+                [],
+                False,
+                SimpleNamespace(explicit_agent_list=True),
+            ),
         )
         monkeypatch.setattr(
             _command_surface_doctor,
