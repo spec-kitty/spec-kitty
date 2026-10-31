@@ -1,4 +1,6 @@
 {
+  "contracts": "none",
+  "contracts_rationale": "No API, CLI flag, exit-code or JSON-envelope change. The only new interface is one Python function on the existing charter.activation.api seam (code_producing_for), and the consumer change re-keys a pre-existing internal gate. The review-readiness refusal text, the #6715/#5939 error codes and every CLI surface are unchanged.",
   "created_at": "2026-10-31T12:42:22.804208+00:00",
   "flattened": false,
   "friendly_name": "Enforce the implementation-commit review prerequisite from code_producing",
