@@ -147,12 +147,21 @@ def test_dry_run_payload_is_byte_identical_to_a_real_transition(tmp_path: Path) 
         report = teamspace_dry_run(repo)
 
     assert report.valid, report.errors
-    assert report.envelope_count == len(captured) == len(_durable_rows(mission))
-    for payload, row in zip(captured, _durable_rows(mission), strict=True):
+    rows = _durable_rows(mission)
+    assert report.envelope_count == len(captured) == len(rows)
+    # The fixture really exercises both shapes: a legacy row the reader has to
+    # backfill identity for, and rows that carry mission_id in the row itself.
+    assert "mission_id" not in rows[0]
+    assert all(row["mission_id"] == _MISSION_ID for row in rows[1:])
+    for payload, row in zip(captured, rows, strict=True):
         # The oracle is the durable row itself: project it onto the contract
         # model's field set. No model construction, no builder call -- this is
         # what the row says the transition was.
         expected = {name: row[name] for name in StatusTransitionPayload.model_fields if name in row}
+        if "mission_id" not in row:
+            # ``status.store.read_events`` backfills mission_id from meta.json
+            # for a legacy row; the payload carries the resolved identity.
+            expected["mission_id"] = _MISSION_ID
         assert _canonical(payload) == _canonical(expected), row["event_id"]
 
 
@@ -187,9 +196,9 @@ def test_dry_run_builds_the_payload_through_the_facade_builder(
     calls: list[dict[str, Any]] = []
     real_build = mission_state.build_status_event_payload
 
-    def _spy(**kwargs: Any) -> dict[str, Any]:
+    def _spy(event: StatusEvent, **kwargs: Any) -> dict[str, Any]:
         calls.append(kwargs)
-        return real_build(**kwargs)
+        return real_build(event, **kwargs)
 
     monkeypatch.setattr(mission_state, "build_status_event_payload", _spy)
 

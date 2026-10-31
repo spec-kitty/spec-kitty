@@ -55,7 +55,17 @@
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01M68JJQ75EHM5BX4Z8FQV9853",
-      "last_transition_at": "2026-10-31T08:52:49.509593+00:00"
+      "last_transition_at": "2026-10-31T08:52:49.509593+00:00",
+      "notes": [
+        "- 2026-10-31T10:04:17Z – unknown – Call site routed through the facade builder; the payload literal and canonical-producer-exempt marker are gone; a model rejection is reported as PAYLOAD_INVALID (mapped violations) instead of raising. 5 red-first parity/authority tests in tests/migration/test_mission_state_teamspace_payload_authority.py pass; tests/migration 204 passed / 4 pre-existing birth-cutover reds (#6801); doctor CLI 48 passed; integration/migration 40 passed / 1 pre-existing red (#6787); ruff+mypy clean; canonical-producer lint identical to pristine main; docs freshness errors=0."
+      ],
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     }
   }
 }

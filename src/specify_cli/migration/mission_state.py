@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from specify_cli.status.wp_metadata import WPMetadata
 
 from packaging.version import Version
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from kernel.git import GitCommandError, is_tracked, status_entries
 from kernel.locks import LockNotAcquired, SyncMachineFileLock, machine_file_lock
@@ -67,6 +67,7 @@ from specify_cli.status import ULID_PATTERN, Lane, StatusEvent, extend_mission_w
 from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
+    build_status_event_payload,
     decode_actor,
     is_non_lane_event,
     serialize_event_line,
@@ -1019,13 +1020,36 @@ def teamspace_dry_run(
             continue
         for index, status_event in enumerate(sorted(events, key=lambda e: (e.at, e.event_id)), start=1):
             count += 1
-            envelope = _status_event_to_teamspace_envelope(
-                status_event,
-                project_uuid=project_uuid,
-                lamport_clock=index,
-                project_slug=project_slug,
-                repo_slug=repo_slug,
-            )
+            try:
+                envelope = _status_event_to_teamspace_envelope(
+                    status_event,
+                    project_uuid=project_uuid,
+                    lamport_clock=index,
+                    project_slug=project_slug,
+                    repo_slug=repo_slug,
+                )
+            except ValidationError as exc:
+                # The payload is now constructed THROUGH the contract model (#6449),
+                # so an unrepresentable row is rejected here rather than at the
+                # conformance pass below. One bad row must not abort the whole
+                # run: report it and move on, as the PAYLOAD_INVALID contract
+                # always promised.
+                errors.append(
+                    {
+                        "mission_slug": status_event.mission_slug,
+                        "event_id": status_event.event_id,
+                        "error": "PAYLOAD_INVALID",
+                        "model_violations": [
+                            {
+                                "field": ".".join(str(part) for part in violation["loc"]),
+                                "message": violation["msg"],
+                                "violation_type": violation["type"],
+                            }
+                            for violation in exc.errors()
+                        ],
+                    }
+                )
+                continue
             row_location = row_locations.get(status_event.event_id)
             row_mappings.append(
                 TeamspaceDryRunRowMapping(
@@ -1290,7 +1314,6 @@ def _build_teamspace_envelope(
     )
 
 
-# canonical-producer-exempt: #1198 -- historical migration-replay envelope builder.
 def _status_event_to_teamspace_envelope(
     status_event: StatusEvent,
     *,
@@ -1309,23 +1332,17 @@ def _status_event_to_teamspace_envelope(
         )
 
     from_lane = str(status_event.from_lane)
-    to_lane = str(status_event.to_lane)
     if status_event.from_lane is Lane.IN_PROGRESS and status_event.to_lane is Lane.IN_REVIEW:
         # Older local logs skipped the explicit for_review queue lane.
         from_lane = str(Lane.FOR_REVIEW)
 
-    payload = {
-        "mission_slug": status_event.mission_slug,
-        "wp_id": status_event.wp_id,
-        "from_lane": from_lane,
-        "to_lane": to_lane,
-        "actor": status_event.actor,
-        "force": status_event.force,
-        "reason": status_event.reason,
-        "execution_mode": status_event.execution_mode,
-        "review_ref": status_event.review_ref,
-        "evidence": evidence,
-    }
+    # ONE authority for the payload shape (#6449): the CORE builder constructs it
+    # through ``StatusTransitionPayload``, so the dry-run cannot drift from the
+    # contract model. The two historical rewrites above are the only overrides.
+    payload = build_status_event_payload(
+        status_event,
+        overrides={"from_lane": from_lane, "evidence": evidence},
+    )
     return _build_teamspace_envelope(
         event_id=status_event.event_id,
         event_type="WPStatusChanged",
