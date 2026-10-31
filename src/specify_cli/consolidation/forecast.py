@@ -23,9 +23,20 @@ from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     CoordinationWorktreeUnmaterialized,
+    resolve_status_surface,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root, resolve_merge_retention
+from specify_cli.consolidation.git_probes import GitProbeError, resolve_commit
+from specify_cli.consolidation.reconciliation import (
+    Divergence,
+    MergeOutcomeVerifier,
+    VerifyResult,
+    _lane_branch_for,
+    _with_attribution_hint,
+    build_approved_wp_set,
+    claim_integrity_refusal,
+)
 from specify_cli.lanes.persistence import (
     CorruptLanesError,
     MissingLanesError,
@@ -148,11 +159,7 @@ def _emit_review_artifact_block(
         repo_root=main_repo_for_diag,
     )
     if json_output:
-        diagnostic_code = (
-            diagnostics[0]["diagnostic_code"]
-            if diagnostics
-            else REJECTED_REVIEW_ARTIFACT_CONFLICT
-        )
+        diagnostic_code = diagnostics[0]["diagnostic_code"] if diagnostics else REJECTED_REVIEW_ARTIFACT_CONFLICT
         print(
             json.dumps(
                 {
@@ -173,17 +180,13 @@ def _emit_review_artifact_block(
             finding,
             repo_root=main_repo_for_diag,
         )
-        console.print(
-            f"  - {format_review_artifact_finding(finding, repo_root=main_repo_for_diag)}"
-        )
+        console.print(f"  - {format_review_artifact_finding(finding, repo_root=main_repo_for_diag)}")
         console.print(f"    diagnostic_code: {diagnostic['diagnostic_code']}")
         console.print(f"    branch_or_work_package: {diagnostic['branch_or_work_package']}")
         console.print(f"    violated_invariant: {diagnostic['violated_invariant']}")
         console.print(f"    latest_review_cycle_path: {diagnostic['latest_review_cycle_path']}")
         if "latest_review_cycle_verdict" in diagnostic:
-            console.print(
-                f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}"
-            )
+            console.print(f"    latest_review_cycle_verdict: {diagnostic['latest_review_cycle_verdict']}")
         remediation = diagnostic.get("remediation", [])
         if not isinstance(remediation, list):
             remediation = [str(remediation)]
@@ -260,6 +263,97 @@ def _refuse_protected_status_target_in_forecast(main_repo: Path, mission_slug: s
     raise typer.Exit(1)
 
 
+#: ``--dry-run`` error code for the #6771 forecast refusal: the landing would introduce
+#: content no approved WP authored (a lane's merged dependency branch that was never
+#: declared, or genuinely un-attributable work). Stable so a scripted preflight can act on it.
+UNATTRIBUTABLE_CONTENT_FORECAST = "UNATTRIBUTABLE_CONTENT_FORECAST"
+#: ``--dry-run`` error code for a claim-level refusal the real run would also hit (a
+#: mis-declared ``--dependency-ref``, an unevaluable claim): the preview must not be green
+#: while the run refuses.
+CLAIM_REFUSED_FORECAST = "CLAIM_REFUSED_FORECAST"
+
+
+def _refuse_unattributable_in_forecast(
+    *,
+    repo_root: Path,
+    resolved_feature: str,
+    resolved_target_branch: str,
+    lanes_manifest: LanesManifest,
+    dependency_refs: tuple[str, ...],
+    json_output: bool,
+) -> None:
+    """Run the closed-world window scan the real run will run, before any ref moves (#6771).
+
+    The pre-#6771 forecast terminated before reconciliation ever ran, so a mission whose lane
+    merged a dependency branch's newer head previewed green and refused on the real run. This
+    builds the SAME claim (so a mis-declaration refuses here too) and runs the SAME per-commit
+    closed-world filter (:meth:`MergeOutcomeVerifier._unattributable_in`) over the refs the
+    landing WOULD introduce: the mission branch and the target. Only that axis is forecast —
+    the merge-only reachability axes cannot be judged before the landing exists.
+
+    A refusal calls :func:`_emit_dry_run_error` (so ``--json`` stays valid JSON) and exits 1.
+    Nothing is mutated: the claim build and the scan are read-only.
+    """
+    main_repo = get_main_repo_root(repo_root)
+    try:
+        window_base = resolve_commit(main_repo, resolved_target_branch)
+    except GitProbeError:
+        # No resolvable target commit means no landing window exists to forecast, and the run's
+        # own target preflight owns that refusal — a preview refusing here would only duplicate
+        # it with a weaker message. Everything the forecast DOES evaluate is below this point,
+        # where a probe error refuses (NFR-002).
+        logger.debug("no resolvable window base for the closed-world forecast", exc_info=True)
+        return
+    try:
+        # The claim reads the STATUS surface the real run reads; resolved read-only here —
+        # the forecast never seeds or materializes a coordination surface.
+        status_dir = Path(resolve_status_surface(main_repo, resolved_feature)).parent
+        claim = build_approved_wp_set(
+            main_repo,
+            status_dir,
+            lanes_manifest,
+            coord_base_ref=lanes_manifest.mission_branch,
+            excluded_window_base=window_base,
+            external_dependency_refs=dependency_refs,
+        )
+        refusal = claim_integrity_refusal(claim)
+        if refusal is not None:
+            _emit_dry_run_error(
+                error_msg=f"Reconciliation would REFUSE (fail-closed): {refusal} The real run refuses this Mission at claim time; this dry run moved nothing.",
+                json_output=json_output,
+                error_code=CLAIM_REFUSED_FORECAST,
+            )
+            raise typer.Exit(1)
+        # The refs the landing would integrate: the mission branch, every lane branch the
+        # landing folds into it, and the target (whose own window commits are already there).
+        landing_refs = (
+            lanes_manifest.mission_branch,
+            *(_lane_branch_for(lanes_manifest, lane.lane_id) for lane in lanes_manifest.lanes),
+            resolved_target_branch,
+        )
+        unattributable = MergeOutcomeVerifier(main_repo)._unattributable_in(landing_refs, claim)
+    except GitProbeError as exc:
+        _emit_dry_run_error(
+            error_msg=f"the closed-world reconciliation window could not be read ({exc}); the forecast cannot prove the landing is attributable (fail-closed).",
+            json_output=json_output,
+            error_code=CLAIM_REFUSED_FORECAST,
+        )
+        raise typer.Exit(1) from exc
+    if not unattributable:
+        return
+    # The SAME clause rendering and the SAME recovery hint the real run prints: one authority
+    # (``Divergence.describe`` + ``_with_attribution_hint``), so the two surfaces agree.
+    result = _with_attribution_hint(VerifyResult.failed(Divergence(unattributable_content=tuple(unattributable))), claim)
+    detail = result.divergence.describe().rstrip(".") if result.divergence is not None else "unknown divergence"
+    hint = f" {result.attribution_hint}" if result.attribution_hint else ""
+    _emit_dry_run_error(
+        error_msg=(f"Reconciliation would FAIL: {detail}.{hint} The real run refuses this landing and restores its pre-run refs; this dry run moved nothing."),
+        json_output=json_output,
+        error_code=UNATTRIBUTABLE_CONTENT_FORECAST,
+    )
+    raise typer.Exit(1)
+
+
 def run_dry_run_forecast(
     *,
     repo_root: Path,
@@ -270,6 +364,7 @@ def run_dry_run_forecast(
     remove_worktree: bool | None,
     push: bool,
     json_output: bool,
+    dependency_refs: tuple[str, ...] = (),
 ) -> None:
     """Render the ``merge --dry-run`` forecast and exit.
 
@@ -303,9 +398,7 @@ def run_dry_run_forecast(
         # ``-coord`` husk for a coord-topology mission, where ``lanes.json`` is
         # absent → the forecast spuriously reports missing lanes. Route by kind so
         # the dry-run reads the real PRIMARY lane manifest.
-        lanes_manifest = require_lanes_json(
-            seam.read_dir(MissionArtifactKind.LANE_STATE)
-        )
+        lanes_manifest = require_lanes_json(seam.read_dir(MissionArtifactKind.LANE_STATE))
     except (MissingLanesError, CorruptLanesError) as exc:
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
@@ -317,9 +410,7 @@ def run_dry_run_forecast(
     # REJECTED_REVIEW_ARTIFACT_CONFLICT — dry-run must surface the same
     # blocker in both human and JSON output, so operators can trust the
     # preview as a readiness signal.
-    dry_run_all_wp_ids: list[str] = [
-        wp for lane in lanes_manifest.lanes for wp in lane.wp_ids
-    ]
+    dry_run_all_wp_ids: list[str] = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     feature_dir_for_preview, review_artifact_preflight = _preview_review_artifacts(
         repo_root,
         resolved_feature,
@@ -362,6 +453,17 @@ def run_dry_run_forecast(
         )
         raise typer.Exit(1)
 
+    # #6771: predict the closed-world refusal the real run would hit, on the content this
+    # landing would introduce — before this preview reports anything as ready.
+    _refuse_unattributable_in_forecast(
+        repo_root=repo_root,
+        resolved_feature=resolved_feature,
+        resolved_target_branch=resolved_target_branch,
+        lanes_manifest=lanes_manifest,
+        dependency_refs=dependency_refs,
+        json_output=json_output,
+    )
+
     would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)
 
     # FR-008 (#3131, #3833): resolve the SAME retention decision the merge
@@ -399,10 +501,10 @@ def run_dry_run_forecast(
             "warnings": list(retention_decision.warnings),
         },
     }
+    if dependency_refs and not json_output:
+        console.print(f"[cyan]declared dependency ref(s)[/cyan] {', '.join(dependency_refs)} — their commits are attributed as inherited history.")
     if would_assign_number is not None and not json_output:
-        console.print(
-            f"[cyan]would assign[/cyan] mission_number={would_assign_number} to mission {resolved_feature}"
-        )
+        console.print(f"[cyan]would assign[/cyan] mission_number={would_assign_number} to mission {resolved_feature}")
     if json_output:
         print(json.dumps(payload))
     else:
