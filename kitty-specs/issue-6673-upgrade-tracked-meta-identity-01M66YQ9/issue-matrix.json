@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5811": {
+      "evidence_ref": "cited as context/boundary in spec.md; this mission owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6543": {
+      "evidence_ref": "cited as context/boundary in spec.md; this mission owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6627": {
+      "evidence_ref": "cited as context/boundary in spec.md; this mission owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6668": {
+      "evidence_ref": "cited as context/boundary in spec.md; this mission owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6669": {
+      "evidence_ref": "cited as context/boundary in spec.md; this mission owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6673": {
+      "evidence_ref": "PR #6843: upgrade restores the tracked meta.json or refuses with the restore command; 6 new test files/paths green, both branches pinned; reproduces on main (01REALMIS -> minted 01M66YHMT4)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

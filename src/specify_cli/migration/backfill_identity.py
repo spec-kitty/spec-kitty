@@ -96,12 +96,48 @@ class BackfillResult:
 # ---------------------------------------------------------------------------
 
 
+def _missing_tracked_meta(feature_dir: Path) -> str | None:
+    """The restore-command notice for a tracked-but-absent ``meta.json``, or ``None`` (#6673)."""
+    from specify_cli.core.paths import locate_project_root
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    repo_root = locate_project_root(feature_dir) or feature_dir
+    classified = classify_missing_tracked_meta(feature_dir, repo_root)
+    return None if classified is None else classified.notice
+
+
+def _restore_tracked_meta(feature_dir: Path, *, dry_run: bool) -> bool:
+    """Write the tracked ``meta.json`` git holds back to the working tree; ``False`` when it cannot (#6673)."""
+    from specify_cli.mission_metadata import restore_tracked_meta
+
+    if dry_run:
+        return False
+    return restore_tracked_meta(feature_dir)
+
+
+def _tracked_mission_id(feature_dir: Path) -> str | None:
+    """The non-empty ``mission_id`` git holds for *feature_dir*, or ``None`` (#6673)."""
+    from specify_cli.mission_metadata import read_tracked_meta
+
+    tracked_id = (read_tracked_meta(feature_dir).meta or {}).get("mission_id")
+    if isinstance(tracked_id, str) and tracked_id.strip():
+        return tracked_id
+    return None
+
+
 def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillResult:
     """Idempotently write ``mission_id`` into ``<feature_dir>/meta.json``.
 
     If ``mission_id`` is already present and non-empty the call is a no-op
     (returns ``action="skip"``).  If missing or empty a fresh ULID is minted
     and written atomically.
+
+    A Mission whose ``meta.json`` git tracks is never given a fresh identity (#6673):
+    when the working-tree copy is absent it is restored from the copy git holds and this
+    same backfill then runs on it, and when the present copy has lost its ``mission_id``
+    the tracked one is written back. Only a copy git cannot give back is a REFUSAL --
+    ``action="skip"`` with the restore command in ``reason``, and nothing written. The
+    guard lives here so no caller can fork an identity through this function.
 
     Also applies legacy ``mission_number`` type coercion (T020): a string
     value that parses as a positive integer (e.g. ``"042"``) is rewritten as
@@ -121,13 +157,21 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
 
     # --- missing meta.json ---------------------------------------------------
     if not meta_path.exists():
-        logger.debug("Skipping %s (no meta.json)", slug)
-        return BackfillResult(
-            feature_dir=feature_dir,
-            slug=slug,
-            action="skip",
-            reason="meta.json not found",
-        )
+        # A tracked meta.json is restored from the copy git holds, then this same backfill runs
+        # on it (#6673): minting a fresh ULID over the tracked identity would fork the Mission.
+        # When that copy cannot be used the call is a REFUSAL with the restore command -- never
+        # an identity. Every caller is covered here, not only the upgrade seams before it.
+        if _restore_tracked_meta(feature_dir, dry_run=dry_run):
+            logger.info("Restored the tracked meta.json for %s (#6673)", slug)
+        else:
+            reason = _missing_tracked_meta(feature_dir) or "meta.json not found"
+            logger.debug("Skipping %s (%s)", slug, reason)
+            return BackfillResult(
+                feature_dir=feature_dir,
+                slug=slug,
+                action="skip",
+                reason=reason,
+            )
 
     # The read, the decisions and the write run in ONE hold of the Mission write lock (dry runs
     # included, so a dry run reports what a concurrent writer left), never on a stale copy.
@@ -150,6 +194,16 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
 
         # --- mission_id ----------------------------------------------------------
         existing_id: str | None = meta.get("mission_id") or None  # treat "" as None
+        identity_from_git = False
+        if existing_id is None:
+            # A copy that lost its mission_id takes the tracked one back instead of a fresh ULID
+            # (#6673): FR-002 covers "including when the working-tree copy has lost it".
+            tracked_id = _tracked_mission_id(feature_dir)
+            if tracked_id is not None:
+                existing_id = tracked_id
+                meta[MISSION_ID_KEY] = tracked_id
+                identity_from_git = True
+                changed = True
         if existing_id is not None:
             skip_id = True
             new_id = existing_id
@@ -179,7 +233,7 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
         if changed and not dry_run:
             write_meta(feature_dir, meta, validate=False)
 
-        if skip_id and not number_coerced:
+        if skip_id and not number_coerced and not identity_from_git:
             return BackfillResult(
                 feature_dir=feature_dir,
                 slug=slug,
@@ -190,8 +244,9 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
             )
 
         action: BackfillAction = "skip" if dry_run and skip_id else "wrote" if not skip_id else "skip"
-        # If mission_id was already present but number was coerced, report "wrote"
-        if number_coerced and not dry_run:
+        # If mission_id was already present but number was coerced, or the identity was taken
+        # back from git, report "wrote"
+        if (number_coerced or identity_from_git) and not dry_run:
             action = "wrote"
         if dry_run and not skip_id:
             action = "wrote"  # dry-run would-write
