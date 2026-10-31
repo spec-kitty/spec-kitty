@@ -28,6 +28,7 @@
   "purpose_context": "Fix #6768: charter resynthesize refuses every activated project directive because the CLI request snapshot mixes the built-in DRG layer with the project's own directives. Separate the layers at the request builder, red-first.",
   "purpose_tldr": "Resynthesizing a project's own project directive stops colliding with the built-in layer",
   "slug": "charter-resynth-project-directive-layer-split-01M690W8",
+  "status_phase": "1",
   "target_branch": "issue-6768-charter-resynth-project-directive",
   "topology": "coord",
   "vcs": "git",
