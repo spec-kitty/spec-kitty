@@ -132,12 +132,20 @@ Every blocking finding must map to a specific, verifiable remediation action.
 
 When the rejection advertises a path inside the Mission (`kitty-specs/<slug>/tasks/<wp>/review-feedback-N.md`),
 that file is a **draft**: the committed `review-cycle-N.md` carries its text verbatim, so the rejection
-removes the draft once that record is durable. Otherwise the draft would be left untracked and the WP's
-next `move-task --to for_review` would refuse on it. The draft is **kept** — silently, because nothing
-is wrong with it — when the record is not committed (`--no-auto-commit`), when you already committed
-the draft yourself, or when it lies outside the Mission directory (a scratch note under `/tmp`, as
-below, is never removed). It is kept **with a warning on stderr** when it could not be removed safely:
-it changed after the record was written, it could not be re-read, or the unlink failed.
+removes the draft once it has read the committed record back and found the text in it. Otherwise the
+draft would be left untracked and the WP's next `move-task --to for_review` would refuse on it.
+
+Only this work package's own `review-feedback-*.md`, directly inside its `tasks/<wp>/` directory, is ever
+removed. A different file (`notes.md`, `research.md`, another work package's draft), a scratch note
+under `/tmp` (as below), and a symbolic link are never touched. The removal is announced on stderr
+(`Removed feedback draft <path> (its text is kept in review-cycle-N.md)`) and reported as
+`retired_feedback_draft` in the `--json` output. There is deliberately no opt-out: the text is kept in
+the review-cycle record, so nothing is lost.
+
+The draft is **kept** silently when the record is not committed (`--no-auto-commit`) or when you
+already committed it. It is kept **with a warning on stderr** when it could not be removed safely: it
+is tracked and has uncommitted edits, the committed record does not hold its current text, it could
+not be re-read, or the unlink failed.
 
 In your terminal:
 
