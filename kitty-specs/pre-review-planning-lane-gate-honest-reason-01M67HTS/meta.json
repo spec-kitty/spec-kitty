@@ -12,5 +12,7 @@
   "purpose_tldr": "Make the pre-review gate record why it did not inspect a planning-lane WP's committed diff, instead of claiming no files changed.",
   "slug": "pre-review-planning-lane-gate-honest-reason-01M67HTS",
   "target_branch": "issue-6792-planning-lane-gate-honest-reason",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:25:08.215519+00:00"
 }
