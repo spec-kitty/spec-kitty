@@ -9,6 +9,7 @@ requirement_refs:
 - C-001
 - C-002
 - C-003
+- SC-002
 planning_base_branch: issue-6449-migration-dry-run-payload-authority
 merge_target_branch: issue-6449-migration-dry-run-payload-authority
 branch_strategy: Planning artifacts for this mission were generated on issue-6449-migration-dry-run-payload-authority. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6449-migration-dry-run-payload-authority unless the human explicitly redirects the landing branch.
