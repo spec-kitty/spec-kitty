@@ -3466,7 +3466,7 @@
   notes: null
 - path: docs/changelog/CHANGELOG.md
   tag: current
-  divio_type: reference
+  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
