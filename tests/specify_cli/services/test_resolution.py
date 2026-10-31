@@ -396,6 +396,74 @@ def test_a_supplied_binary_that_is_not_the_pinned_build_refuses(tmp_path: Path, 
     assert remedy_marker in refusal.remedy
 
 
+def _copy(source: Path, dest: Path) -> Path:
+    """A companion-style copy of a pinned asset at a path of its own (the slot never runs it in place)."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(source.read_bytes())
+    return dest
+
+
+def test_install_tier_is_preferred_over_a_warm_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6904 FR-011: the companion slot wins even when the cache already holds the pinned build."""
+    release = _release(tmp_path)
+    assert _resolve(release).source == "cache"  # positive control: the cache is warm and would serve it
+    companion = _copy(release.native(), tmp_path / "site" / "bin" / "write-service")
+    monkeypatch.setattr(resolution, "_binary_providers", lambda service: (_Entry(lambda: companion),))
+    resolved = _resolve(release)
+    assert resolved.source == "install"
+    assert resolved.sha256 == release.pin.assets[ServiceTarget.LINUX_X64].sha256
+
+
+def test_explicit_tier_beats_the_install_tier_without_asking_the_provider(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6904 FR-011: an explicit path wins, and the companion's provider is never even called."""
+    release = _release(tmp_path)
+    calls: list[str] = []
+
+    def _provider() -> Path:
+        calls.append("called")
+        return release.native()
+
+    monkeypatch.setattr(resolution, "_binary_providers", lambda service: (_Entry(_provider),))
+    assert _resolve(release, {EXPLICIT_ENV: str(release.native())}).source == "explicit"
+    assert calls == []
+    assert _resolve(release).source == "install"  # positive control: the same provider serves without the explicit path
+    assert calls == ["called"]
+
+
+def test_install_tier_wrong_digest_refuses_even_with_a_warm_cache(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6904 FR-011: a tampered companion binary refuses; it never falls through to a good cached copy."""
+    release = _release(tmp_path)
+    assert _resolve(release).source == "cache"  # the cache holds the pinned build
+    foreign = _foreign_build(tmp_path)
+    monkeypatch.setattr(resolution, "_binary_providers", lambda service: (_Entry(lambda: foreign),))
+    refusal = _refusal(lambda: _resolve(release))
+    assert refusal.code is ServiceRefusalCode.DIGEST_MISMATCH
+    assert cached_path(release.pin, release.pin.assets[ServiceTarget.LINUX_X64], release.cache_root).read_bytes() == release.native().read_bytes()
+
+
+def test_install_tier_can_supply_the_pinned_jar_under_java(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6904 FR-011: the slot also accepts the pinned jar, run from the cache under Java 25+."""
+    release = _release(tmp_path)
+    monkeypatch.setattr(resolution, "find_java", lambda **_: JAVA)
+    companion = _copy(release.jar(), tmp_path / "site" / "lib" / "write-service.jar")
+    monkeypatch.setattr(resolution, "_binary_providers", lambda service: (_Entry(lambda: companion),))
+    resolved = _resolve(release)
+    assert resolved.source == "install"
+    assert resolved.argv_prefix == (str(JAVA), "-jar", str(cached_path(release.pin, release.pin.assets[ServiceTarget.JVM], release.cache_root)))
+
+
+def test_install_tier_jar_without_java_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6904 FR-011 (current behaviour, pinned): a slot-supplied jar with no Java refuses; it does not fall through."""
+    release = _release(tmp_path)
+    jar = _copy(release.jar(), tmp_path / "site" / "lib" / "write-service.jar")
+    monkeypatch.setattr(resolution, "_binary_providers", lambda service: (_Entry(lambda: jar),))
+    refusal = _refusal(lambda: _resolve(release))
+    assert refusal.code is ServiceRefusalCode.UNSUPPORTED_PLATFORM
+    native = _copy(release.native(), tmp_path / "site" / "bin" / "write-service")
+    monkeypatch.setattr(resolution, "_binary_providers", lambda service: (_Entry(lambda: native),))
+    assert _resolve(release).source == "install"  # positive control: the native build from the same slot resolves
+
+
 def test_install_tier_broken_provider_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     release = _release(tmp_path)
 
