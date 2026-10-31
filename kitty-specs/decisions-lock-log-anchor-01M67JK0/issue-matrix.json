@@ -1,0 +1,125 @@
+{
+  "rows": {
+    "#4848": {
+      "evidence_ref": "cited only: the original one-open-per-decision hold whose lock pair this mission extends; its property is preserved and re-pinned",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4966": {
+      "evidence_ref": "cited only: AC-D2 ledger-dir partition resolution in _ledger_dir, unchanged by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5023": {
+      "evidence_ref": "cited only: the ledger re-home that made the ledger dir the PRIMARY leg, unchanged by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5925": {
+      "evidence_ref": "cited only: the decisions runtime-lock sidecar and its gitignore/repair machinery, deliberately unchanged (C-002)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6196": {
+      "evidence_ref": "cited only: the future write-service handover that would make the log/ledger split common; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6606": {
+      "evidence_ref": "cited only: the interim event-log lock contract we CONSUME (event_log_lock_path), not a change to it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6628": {
+      "evidence_ref": "cited only: the repair-runtime-lock / coherence-screen machinery built on the sidecar, deliberately unchanged (C-002)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6762": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6765": {
+      "evidence_ref": "PR https://github.com/spec-kitty/spec-kitty/pull/6872 (branch issue-6765-decisions-lock-log-anchor): the decision write lock is keyed on the event-log anchor, so two checkouts sharing one log serialize; tests/specify_cli/decisions/test_decisions_lock_log_anchor.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Decisions lock is per ledger directory, not per event log: opens from two checkouts with the same explicit decision_id are not serialized",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6841": {
+      "evidence_ref": "cited only: the sibling PR that owns the decisions lock-TIMEOUT refusal; this mission stays on lock KEYING and changes no refusal wording (C-001)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
