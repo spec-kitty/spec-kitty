@@ -44,8 +44,10 @@ make sync-services ARGS=--offline   # use the cache and SPEC_KITTY_SERVICE_ASSET
 
 For each pin, the target takes the host's native build (the jar when the pin has no build for this
 host) plus every extras asset, and fetches and verifies each into
-`${XDG_CACHE_HOME:-~/.cache}/spec-kitty/services/<service>/<tag>/<name>`. It exits 1 with a stable
-`SERVICE_*` code on any failure. The script behind it is `scripts/sync_services.py`; pass
+`<cache dir>/services/<service>/<tag>/<name>`, where `<cache dir>` is the per-user cache
+directory: `${XDG_CACHE_HOME:-~/.cache}/spec-kitty` on Linux, `~/Library/Caches/spec-kitty` on
+macOS, `%LOCALAPPDATA%\spec-kitty\Cache` on Windows (one authority since #6488:
+`kernel.user_dirs.user_cache_dir()`). It exits 1 with a stable `SERVICE_*` code on any failure. The script behind it is `scripts/sync_services.py`; pass
 `--service <name>` to handle one service.
 
 ## Fetch and verify in CI
@@ -124,7 +126,7 @@ timeout is `SPEC_KITTY_SERVICE_START_TIMEOUT` (seconds, default 15).
 | Code | Meaning | What to do |
 |---|---|---|
 | `SERVICE_PIN_INVALID` | No pin for the service in this core version, or the lockfile is malformed or a placeholder. | Wait for the first release, or re-run `spec-kitty service vendor`. |
-| `SERVICE_BINARY_MISSING` | The asset is not in the cache and cannot be fetched (offline, unreachable, or the cache is full or not writable), or the verified binary cannot be executed (no exec permission, a `noexec` mount). | Fetch while online, set `SPEC_KITTY_SERVICE_ASSET_DIR`, free space in or fix the cache, or move the cache (`XDG_CACHE_HOME`) to an exec-capable file system. |
+| `SERVICE_BINARY_MISSING` | The asset is not in the cache and cannot be fetched (offline, unreachable, or the cache is full or not writable), or the verified binary cannot be executed (no exec permission, a `noexec` mount). | Fetch while online, set `SPEC_KITTY_SERVICE_ASSET_DIR`, free space in or fix the cache, or move the cache to an exec-capable file system (set `XDG_CACHE_HOME` on Linux and macOS; on Windows the cache follows `%LOCALAPPDATA%`). |
 | `SERVICE_BINARY_DIGEST_MISMATCH` | The bytes are not the pinned bytes. | Delete the copy and fetch again; if it persists, the release or mirror does not match the pin. |
 | `SERVICE_UNSUPPORTED_PLATFORM` | The pin has no build for this host, and either no jar or no Java 25+ runtime to run the pinned jar. | Install a Java 25 runtime (`JAVA_HOME`, or an absolute `PATH` entry) when the pin has a jar, or use a supported host. |
 | `SERVICE_UNHEALTHY` | The service started but did not become healthy, or its directory in the git common dir cannot be created or written (a read-only or full `.git`, a symlinked `service.log`). | Read the service log, run `spec-kitty service stop`, retry; or make the directory the message names writable. |

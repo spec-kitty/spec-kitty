@@ -30,8 +30,10 @@ before tests that read pack content.
 
 ## Work offline
 
-Fetched trees are cached at `${XDG_CACHE_HOME:-~/.cache}/spec-kitty/open-packs/<sha>/<subtree>`
-and shared by all worktrees. To use only the cache:
+Fetched trees are cached under the per-user cache directory plus `open-packs/<sha>/<subtree>`,
+and shared by all worktrees. That directory is `${XDG_CACHE_HOME:-~/.cache}/spec-kitty` on
+Linux, `~/Library/Caches/spec-kitty` on macOS and `%LOCALAPPDATA%\spec-kitty\Cache` on
+Windows (one authority since #6488: `kernel.user_dirs.user_cache_dir()`). To use only the cache:
 
 ```bash
 uv run --frozen python scripts/sync_packs.py --pack all --offline
@@ -65,7 +67,7 @@ generated copies and are not edited either.
 | `PACK_PIN_INVALID` | Lockfile missing, malformed, or still the all-zero placeholder commit | Bump the pin to a real open-packs commit |
 | `PACK_COMMIT_UNRESOLVABLE` | The commit or ref cannot be found upstream, or the pinned commit lacks the pack subtree | Check the SHA exists in `spec-kitty-open-packs` and contains `packs/<pack>` |
 | `PACK_SYNC_UNAVAILABLE` | No network and no cache entry | Run once online, then `--offline` works |
-| `PACK_DIGEST_MISMATCH` | Fetched tree does not match the pinned digest, a cached tree was tampered with, or the fetched tree contains a symlink | Clear the cache entry (`${XDG_CACHE_HOME:-~/.cache}/spec-kitty/open-packs/<sha>`) and re-run `make sync-packs`; re-bump the pin only if the upstream content changed. Do not edit the digest by hand |
+| `PACK_DIGEST_MISMATCH` | Fetched tree does not match the pinned digest, a cached tree was tampered with, or the fetched tree contains a symlink | Clear that cache entry (`<cache dir>/open-packs/<sha>`, where `<cache dir>` is the per-user cache directory named above) and re-run `make sync-packs`; re-bump the pin only if the upstream content changed. Do not edit the digest by hand |
 | `PACK_TREE_STALE` | Placed tree differs from the pin | Run `make sync-packs` |
 
 A source checkout whose built-in tree was never fetched raises `BuiltInPackMissing`, which
