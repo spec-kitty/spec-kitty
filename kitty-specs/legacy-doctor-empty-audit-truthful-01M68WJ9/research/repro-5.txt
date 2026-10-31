@@ -1,0 +1,10 @@
+# repro-5: the stated-empty shape (agents.available: []) on current origin/main
+# This shape is #6493/#6894's, NOT this Mission's. Recorded so the overlap is explicit:
+# today it prints the same two vacuous lines, which #6894 replaces with 'no CLI-managed agents -- nothing to check'.
+$ spec-kitty doctor skills
+Command Skills: all manifest entries healthy (0 file(s))
+exit=0
+
+$ spec-kitty doctor tool-surfaces
+Tool Surfaces: all surfaces healthy (0 checked)
+exit=0

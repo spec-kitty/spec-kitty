@@ -1,0 +1,16 @@
+# Half-by-half non-vacuity proof (SC-004) — revert each half of the fix in turn.
+# base: e47a7cc959 (the fix) on the lane branch
+# Each half is reverted in the working tree, the two legacy-summary tests are run, then the
+# file is restored with 'git checkout --' so the next half starts from the full fix.
+
+## Half A reverted: the skills summary branch (the legacy shape is back to the health line)
+$ uv run --frozen python -m pytest tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py -q -k 'legacy_skills_summary or legacy_tool_surfaces_summary'
+FAILED tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py::test_legacy_skills_summary_names_the_missing_agent_list
+1 failed, 1 passed, 9 deselected in 0.79s
+
+## Half B reverted: the tool-surface summary branch
+$ uv run --frozen python -m pytest tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py -q -k 'legacy_skills_summary or legacy_tool_surfaces_summary'
+FAILED tests/specify_cli/cli/commands/test_doctor_legacy_no_agent_list_reports.py::test_legacy_tool_surfaces_summary_names_the_missing_agent_list
+1 failed, 1 passed, 9 deselected in 0.68s
+
+## Reverted halves leave the OTHER half green: each test depends on its own half only.

@@ -1,0 +1,35 @@
+# repro-2: realistic legacy project — a .claude/commands tree from an old init, no agent list, no .agents/skills manifest
+# fixture: .kittify/config.yaml = 'agents: {auto_commit: true}'; .claude/commands/spec-kitty.<cmd>.md written by hand (stale bodies)
+$ find . -path ./.git -prune -o -type f -print | sort | head -20
+./.claude/commands/spec-kitty.accept.md
+./.claude/commands/spec-kitty.analyze.md
+./.claude/commands/spec-kitty.charter.md
+./.claude/commands/spec-kitty.consolidate.md
+./.claude/commands/spec-kitty.implement.md
+./.claude/commands/spec-kitty.plan.md
+./.claude/commands/spec-kitty.research.md
+./.claude/commands/spec-kitty.review.md
+./.claude/commands/spec-kitty.specify.md
+./.claude/commands/spec-kitty.status.md
+./.claude/commands/spec-kitty.tasks-finalize.md
+./.claude/commands/spec-kitty.tasks-outline.md
+./.claude/commands/spec-kitty.tasks-packages.md
+./.claude/commands/spec-kitty.tasks.md
+./.kittify/config.yaml
+
+$ spec-kitty doctor skills   # claims health over 0 examined files
+Command Skills: all manifest entries healthy (0 file(s))
+exit=0
+
+$ spec-kitty doctor tool-surfaces   # claims health over 0 checked surfaces
+Tool Surfaces: all surfaces healthy (0 checked)
+exit=0
+
+$ spec-kitty doctor command-files | head -6   # the sibling command, which does report real findings
+
+Command Files — 112 issue(s) found
+
+  Agent           Command             File                                      
+  qwen            accept              /home/exedev/.qwen/commands/spec-kitty.…  
+  qwen            analyze             /home/exedev/.qwen/commands/spec-kitty.…  
+exit(command-files)=1
