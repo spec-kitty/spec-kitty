@@ -1,0 +1,73 @@
+{
+  "event_count": 33,
+  "last_event_id": "01M68QYF12Z4QBBN0400MMK887",
+  "materialized_at": "2026-10-31T10:26:37.218269+00:00",
+  "mission_number": "",
+  "mission_slug": "per-user-locations-single-authority-01M68JF2",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "python-pedro",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M68QYAQAWE83D1SP1CA1ZBQQ",
+      "last_transition_at": "2026-10-31T10:26:32.810641+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 801121,
+      "shell_pid_created_at": "1793436947.64"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M68QYC1ZFNB4TKRQ0NCMF5KG",
+      "last_transition_at": "2026-10-31T10:26:34.175095+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M68QYDJHJ57HMWY2X31VJFGM",
+      "last_transition_at": "2026-10-31T10:26:35.729173+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M68QYF12Z4QBBN0400MMK887",
+      "last_transition_at": "2026-10-31T10:26:37.218269+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      }
+    }
+  }
+}
