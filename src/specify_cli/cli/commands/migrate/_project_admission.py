@@ -3,9 +3,9 @@
 from pathlib import Path
 
 from kernel.git_topology import git_toplevel_uncached
-from kernel.paths import get_kittify_home
 from kernel.resolution import resolve_rejecting_loops
 from specify_cli.core.paths import get_project_root_override
+from specify_cli.runtime.home import get_kittify_home
 
 
 def admit_migration_project_root(repo_root: Path, *, require_git: bool = False) -> Path:
