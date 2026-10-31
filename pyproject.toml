@@ -2123,7 +2123,6 @@ exclude = [
     "tests/specify_cli/test_worktrees_index.py",
     "tests/specify_cli/tool_surface/bundles/_support.py",
     "tests/specify_cli/tool_surface/bundles/test_claude.py",
-    "tests/specify_cli/tool_surface/bundles/test_claude_wrapper.py",
     "tests/specify_cli/tool_surface/bundles/test_model.py",
     "tests/specify_cli/tool_surface/integration/test_compat_support.py",
     "tests/specify_cli/tool_surface/integration/test_doctor_tool_surfaces_cli.py",
