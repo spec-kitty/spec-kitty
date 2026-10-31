@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "issue-6462-charter-render-scope-per-call-01M69065",
+  "mission_id": "01M69065RYZN5J968NHPW8YCPQ",
+  "mission_branch": "kitty/mission-issue-6462-charter-render-scope-per-call-01M69065",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/catalog.py",
+        "src/charter/activation/interview.py",
+        "src/charter/activation/resolver.py",
+        "src/charter/offering/agent_profiles/repository.py",
+        "tests/charter/_render_census.py",
+        "tests/charter/activation/test_offering_catalog_scope_6462.py",
+        "tests/charter/test_charter_render_scope_6462.py",
+        "tests/charter/test_charter_render_scope_board_6462.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T13:02:21.823666+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "dfe9efb0e802f66f6011be3f3dd1cea1e258c7f6"
+}

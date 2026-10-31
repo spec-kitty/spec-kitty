@@ -1,0 +1,89 @@
+{
+  "event_count": 12,
+  "last_event_id": "01M69549GY321VN47YXZB489WA",
+  "materialized_at": "2026-10-31T14:16:59.678264+00:00",
+  "mission_number": "",
+  "mission_slug": "issue-6462-charter-render-scope-per-call-01M69065",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 2,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M694EEN9FE0E2AC46T2X60KK",
+      "last_transition_at": "2026-10-31T14:05:04.041214+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T13:58:14Z – python-pedro – shell_pid=426165 – Out-of-map edit: six existing test doubles stub charter.activation.resolver.load_offering_catalog with a zero-arg lambda; the resolver now passes domains=..., so they take **kwargs. Same assertions, no gate weakened.",
+        "Ready for review: scoped catalog load + census guards green",
+        "Review passed (round 1, reviewer-renata): scoped loader + call sites match contract S-1..S-7; census red 265 parses / 213 unused-domain -> green 52 / 0; parity byte-identical for rendered text and GovernanceResolution; fail-closed unknown-domain path verified before any read; no warning text or order change. One finding fixed in round: contract/data-model claimed ArtifactKind acceptance and a 54-document baseline (delivered API takes domain tokens; measured 52)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 426165,
+      "shell_pid_created_at": "1793451804.71",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "approved",
+      "last_event_id": "01M69549GY321VN47YXZB489WA",
+      "last_transition_at": "2026-10-31T14:16:59.678264+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T14:11:44Z – python-pedro – shell_pid=1146207 – WP02 out-of-map note: docs/changelog/CHANGELOG.md is listed in owned_files, so no exception. Verified no other module reads repository._drg (git grep ._drg src/).",
+        "Ready for review: lazy lineage + board census guard green",
+        "Review passed (round 1, reviewer-renata): single _graph() accessor used by every former self._drg reader (lineage parent, drg property, reachability); explicit drg= is authoritative; DRGLoadError degradation preserved and pinned by a test that patches the seam the catch wraps; census red 14 graph parses -> green 0, with the board's 👤 marker asserted for parity; lazy build is per-instance, no cross-process cache (C-001). Noted, no action: a concurrent first-use may build the graph twice, which is idempotent and not made worse by this change."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1146207,
+      "shell_pid_created_at": "1793455519.21",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    }
+  }
+}
