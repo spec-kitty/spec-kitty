@@ -150,8 +150,38 @@ def _service_ids(offering: _Offering, yaml_key: str) -> set[str]:
 
 
 def _as_stems(ids: Iterable[str], kind: ArtifactKind, identity: IdentityIndex) -> set[str]:
-    """*ids* spelled as activation stems; an id the index cannot map is kept as given."""
+    """*ids* spelled as activation stems; an id the index cannot map is kept as given.
+
+    An unknown id (a service-only artifact) is kept so it cannot vanish; a known
+    one is listed once, by its stem, whichever spelling it arrived in.
+    """
     return {identity.stem(kind, item) or item for item in ids}
+
+
+def _union_ids(
+    scanned: Iterable[str],
+    service_keys: Iterable[str],
+    kind: ArtifactKind,
+    identity: IdentityIndex,
+    *,
+    with_service: bool = True,
+) -> set[str]:
+    """The one effective-set union, in activation-stem spelling (#6435).
+
+    *scanned* is already spelled as stems (``list_available_detailed`` emits the
+    config stem); *service_keys* are the service mapping's **declared ids**, so
+    they are mapped through the identity index before they are unioned. Both the
+    resolved half and the ``fallback_ids`` half call this, so the spelling rule
+    cannot drift between them.
+
+    *with_service* is ``False`` for the kinds whose service half nothing may add:
+    ``directive`` (the scan already lists every directive file by its stem) and
+    ``mission-type`` (an activation ledger, never a corpus here).
+    """
+    ids = set(scanned)
+    if with_service:
+        ids.update(_as_stems(service_keys, kind, identity))
+    return ids
 
 
 def _built_in_ships(kind: ArtifactKind) -> bool:
@@ -166,9 +196,13 @@ def _resolve_one(offering: _Offering, ctx: ProjectContext, token: str, yaml_key:
     """Resolve one key against an already loaded offering, in activation-stem spelling."""
     kind = ArtifactKind.from_operator_token(token)
     try:
-        ids = _scanned_ids(offering, ctx, token)
-        if token != _DIRECTIVE:
-            ids.update(_as_stems(_service_ids(offering, yaml_key), kind, identity))
+        ids = _union_ids(
+            _scanned_ids(offering, ctx, token),
+            _service_ids(offering, yaml_key),
+            kind,
+            identity,
+            with_service=token != _DIRECTIVE,
+        )
     except Exception as exc:
         logger.debug("effective set for %r unresolved: %s", yaml_key, exc)
         return EffectiveSet(kind=token, yaml_key=yaml_key, resolved=False, reason=f"an artifact layer cannot be scanned: {exc}")
@@ -210,15 +244,15 @@ def _fallback_service(repo_root: Path) -> Any:  # noqa: ANN401 — the doctrine 
 def _fallback_ids(roots: list[dict[str, Path]], ctx: ProjectContext, token: str, service: Any, identity: IdentityIndex) -> frozenset[str]:  # noqa: ANN401
     """The union of ids available across every readable layer (``EffectiveSet.fallback_ids``), as activation stems."""
     manager = ActiveCharterManager()
-    ids: set[str] = set()
+    scanned: set[str] = set()
     for layer_roots in roots:
         try:
-            ids.update(manager.list_available(ctx, token, layer_roots=layer_roots))
+            scanned.update(manager.list_available(ctx, token, layer_roots=layer_roots))
         except Exception as exc:  # noqa: BLE001 — one unreadable pack must not drop the rest
             logger.debug("layer roots %s unreadable for %r: %s", layer_roots, token, exc)
-    if service is not None and token not in (_DIRECTIVE, MISSION_TYPE_TOKEN):
-        ids.update(_as_stems(_service_keys(service, YAML_KEY_MAP[token]), ArtifactKind.from_operator_token(token), identity))
-    return frozenset(ids)
+    if service is None or token in (_DIRECTIVE, MISSION_TYPE_TOKEN):
+        return frozenset(scanned)
+    return frozenset(_union_ids(scanned, _service_keys(service, YAML_KEY_MAP[token]), ArtifactKind.from_operator_token(token), identity))
 
 
 def _with_fallbacks(repo_root: Path, results: dict[str, EffectiveSet], service: Any) -> dict[str, EffectiveSet]:  # noqa: ANN401
