@@ -1,0 +1,35 @@
+{
+  "accept_commit": "e661d6d812eb3eeae7212f64b4736e02052d1eca",
+  "acceptance_history": [
+    {
+      "accept_commit": "e661d6d812eb3eeae7212f64b4736e02052d1eca",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T14:00:39.401385+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "9ee9a37b1b458eaf6ee98bf8bc07a29858a44d1c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T14:00:39.401385+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "9ee9a37b1b458eaf6ee98bf8bc07a29858a44d1c",
+  "baseline_merge_commit": "ef33a24ee52cec7ec77fc1e388f389f16cc2679c",
+  "created_at": "2026-10-31T12:42:02.063301+00:00",
+  "flattened": true,
+  "friendly_name": "Model-built payloads for the three post-mission lifecycle events",
+  "merged_at": "2026-10-31T13:49:48.228561+00:00",
+  "merged_commit": "32f1f3862564d3c9c64aca8b1d6f3f63aebc5002",
+  "mid8": "01M68ZPD",
+  "mission_id": "01M68ZPDBEY9W4W3BJAHRZR8GY",
+  "mission_number": 245,
+  "mission_slug": "issue-6438-build-lifecycle-payloads-from-models-01M68ZPD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances Model-built payloads for the three post-mission lifecycle events on issue-6438-build-lifecycle-payloads-from-models so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Build MissionReopened, FollowUpRecorded and ReviewerSelfApproval payloads through their spec-kitty-events models so invalid payloads fail before they are written",
+  "slug": "issue-6438-build-lifecycle-payloads-from-models-01M68ZPD",
+  "status_phase": "1",
+  "target_branch": "issue-6438-build-lifecycle-payloads-from-models",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T12:46:26.888704+00:00"
+}

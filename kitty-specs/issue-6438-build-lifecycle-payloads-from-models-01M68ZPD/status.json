@@ -1,0 +1,119 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M693HRPM5C1J5WFRB21VA218",
+  "materialized_at": "2026-10-31T13:49:24.052166+00:00",
+  "mission_number": "245",
+  "mission_slug": "issue-6438-build-lifecycle-payloads-from-models-01M68ZPD",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M693HKE04Q5A5G3285WJF0YB",
+      "last_transition_at": "2026-10-31T13:49:18.656605+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T12:55:31Z – python-pedro – shell_pid=151072 – Wrote tests/specify_cli/status/test_model_built_payloads_6438.py. Red-first proven on the pre-change emitters: 4 negative cases fail with DID NOT RAISE (empty/none reason, empty recorded_by, empty failure_reason), 5 positive cases pass. Discovery: append_raw_rows_atomic writes with sort_keys=True, so the persisted payload order is alphabetical, not model field order; the positive tests assert the key set, and the mission contract doc (contracts/lifecycle-payloads.md, committed on the primary branch) was corrected to say so.",
+        "Ready for review: red-first contract tests",
+        "- 2026-10-31T13:05:37Z – python-pedro – shell_pid=151072 – Review round 1: added the mypy fixes (cast for the persisted payload, Literal follow_up_type, no unused ignore); ruff and mypy clean on the new module. Red evidence unchanged: 4 negatives DID NOT RAISE, 5 positives pass.",
+        "Review passed: both contract directions per emitter, one shared fixture per emitter, negatives are model-only rejections, pre-existing tests untouched, red proven on the pre-change emitters, ruff+mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 151072,
+      "shell_pid_created_at": "1793450782.8",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M693HPV612NEME6HESQ6BMR4",
+      "last_transition_at": "2026-10-31T13:49:22.150090+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T13:19:19Z – python-pedro – shell_pid=480824 – Model-built payloads for all three emitters. Out-of-map edit, one line of rationale: tests/specify_cli/status/test_post_mission_lifecycle_events.py::test_renderer_reopen_without_reason_omits_suffix previously used emit_mission_reopened to produce an empty-reason row, which the contract now refuses by design; the fixture appends the same historical row through append_lifecycle_event and every assertion is unchanged. Blast radius: tests/specify_cli/status/ 611 passed; tests/architectural/test_events_tracker_public_imports.py 1 passed; ruff clean; mypy clean on the module.",
+        "Ready for review",
+        "- 2026-10-31T13:29:55Z – python-pedro – shell_pid=480824 – Review round 1 (reviewer-renata): verified guard order (completion guard and follow_up_type guard before construction), no try/except or suppression around ValidationError, envelope/constants/dedup keys untouched, discriminated_type narrowing type-safe, pre-existing fixture edit justified with assertions unchanged. Extra blast radius beyond the WP list: tests/specify_cli/cli/commands/test_mission_reopen.py + tests/status/test_lifecycle_events.py + tests/status/test_doctor.py = 109 passed.",
+        "Review passed: payload construction only, guards first, no fallback, write path untouched, blast radius green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 480824,
+      "shell_pid_created_at": "1793451998.92",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M693HRPM5C1J5WFRB21VA218",
+      "last_transition_at": "2026-10-31T13:49:24.052166+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T13:34:09Z – unknown – Changelog [Unreleased]/Fixed entry added (802 chars, impact-first, cites #6438, names that #6607 already delivered the hosted-builder item). check_docs_freshness --ci: exit 0, errors=0, warnings=6 (all pre-existing: help-drift on migrate activation-ledger/migrate ledger/service status, two stale link probes).",
+        "Ready for review",
+        "Review passed: one [Unreleased]/Fixed entry, impact-first, cites #6438, 802 chars, no pre-existing text rewritten, docs freshness errors=0.",
+        "Changelog entry ready for independent review",
+        "Review passed: [Unreleased]/Fixed entry is impact-first, cites #6438, 802 chars, no pre-existing text rewritten, docs freshness errors=0.",
+        "Claiming the changelog entry as implementer of record",
+        "Changelog entry ready for independent review"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 886523,
+      "shell_pid_created_at": "1793454477.58",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done"
+      }
+    }
+  }
+}

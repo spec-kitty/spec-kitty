@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "mission_slug": "issue-6438-build-lifecycle-payloads-from-models-01M68ZPD",
+  "mission_id": "01M68ZPDBEY9W4W3BJAHRZR8GY",
+  "mission_branch": "kitty/mission-issue-6438-build-lifecycle-payloads-from-models-01M68ZPD",
+  "target_branch": "issue-6438-build-lifecycle-payloads-from-models",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/specify_cli/status/test_model_built_payloads_6438.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/lifecycle_events.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-31T12:45:23.177338+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "8b2d7af8ac640c0bd426bdb3e008e28779536bda"
+}
