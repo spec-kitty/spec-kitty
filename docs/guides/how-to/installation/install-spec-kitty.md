@@ -118,8 +118,14 @@ pipx run spec-kitty-cli init <PROJECT_NAME>
 
 **Using uvx:**
 ```bash
-uvx spec-kitty-cli init <PROJECT_NAME>
+uvx --from spec-kitty-cli spec-kitty init <PROJECT_NAME>
 ```
+
+`uvx` runs the executable named after the *distribution*, and this distribution
+ships `spec-kitty`, so the short form `uvx spec-kitty-cli …` fails with `An
+executable named 'spec-kitty-cli' is not provided by package 'spec-kitty-cli'`.
+Add a version to pin one (`uvx --from "spec-kitty-cli==4.0.0" spec-kitty …`);
+without a pin a pre-release line resolves to the latest stable release.
 
 ### Add to an Existing Project
 
