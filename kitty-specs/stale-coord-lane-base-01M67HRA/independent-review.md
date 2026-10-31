@@ -50,3 +50,21 @@ Verified independently, not taken on trust:
 | 4 | NIT | `capture_branch_tip` resolves a local branch only, so an `origin/<target>`-only target degrades to silence. | **Fixed** (`a35f996`): recorded in `_stale_base_warning`'s docstring as a deliberate edge case. |
 | 5 | NIT | The "explicit base that is also stale" spec edge case had no test. | **Fixed** (`a35f996`): new fixture variant asserts the report names the ref it actually used. |
 | 6 | NIT (cosmetic) | The checkout-root "ignored" line also covers `owned_checkout`, which is not necessarily repository-root planning work. | **Not fixed on purpose.** Changing the wording breaks byte-parity with the top-level command's FR-007 line, which is the property the check exists to preserve. Named in the PR's `## Deferred`. |
+
+## Development-assist test verdicts (issue-named file census)
+
+The mission's first files were named `test_issue_6753_*`, which trips
+`tests/architectural/test_issue_named_test_census.py` (a shrink-only
+high-water mark of 83 issue-named files; two new ones made 85). Per the
+`development-assist-test-cleanup` procedure the verdict is **keep, renamed after the
+contract**:
+
+| Was | Now | Verdict |
+| --- | --- | --- |
+| `tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py` | `tests/specify_cli/lanes/test_stale_coord_lane_base_report.py` | keep, renamed after the contract it guards |
+| `tests/specify_cli/cli/commands/agent/test_issue_6753_agent_action_implement_base.py` | `tests/specify_cli/cli/commands/agent/test_agent_action_implement_base.py` | keep, renamed after the contract it guards |
+
+Both files are the permanent regression home for a standing invariant (the report's
+three-state probe and the `--base` honour/refuse contract), not slice scaffolding, so
+neither is folded or retired; only the issue-numbered *name* went, and the census
+mark was left at 83 rather than bumped.
