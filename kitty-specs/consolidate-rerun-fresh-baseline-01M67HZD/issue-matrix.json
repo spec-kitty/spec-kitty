@@ -97,7 +97,7 @@
       "wp": "WP01"
     },
     "#6770": {
-      "evidence_ref": "spec.md:FR-001..FR-003",
+      "evidence_ref": "tests/terminus/test_rollback_record_rebaseline.py (red-first, 3 passed) + PR #6867",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,8 +105,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": "WP01"
+      "verdict": "fixed",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
