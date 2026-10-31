@@ -23,11 +23,6 @@ used throughout ``charter.activation.context``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from charter.activation.scope import CharterScope
-
 from typing import TYPE_CHECKING, NamedTuple
 
 from charter.activation import progressive_disclosure as _pd
@@ -51,6 +46,7 @@ if TYPE_CHECKING:
 
     from charter.activation.context import _ActionGovernanceBundle
     from charter.activation.schemas import GovernanceCharterConfig
+    from charter.activation.scope import CharterScope
     from charter.offering.agent_profiles import AgentProfile
 
 __all__ = [

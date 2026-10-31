@@ -22,11 +22,6 @@ used throughout ``charter.activation.context``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from charter.activation.scope import CharterScope
-
 import logging
 from typing import TYPE_CHECKING
 
@@ -38,6 +33,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from charter.activation.schemas import GovernanceCharterConfig
+    from charter.activation.scope import CharterScope
 
 __all__ = [
     "_render_activation_block",
