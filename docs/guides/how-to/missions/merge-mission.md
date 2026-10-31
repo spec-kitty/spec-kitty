@@ -81,7 +81,7 @@ The order is: `--strategy`, then `merge.strategy`, then `squash`. A value outsid
 
 ## Restack onto a Newer Dependency Branch
 
-Sometimes a Mission is built on another branch that is still moving — a shared feature, a
+Sometimes a Mission is built on another branch that is still moving — a shared component, a
 platform refactor — and it must pick up that branch's newer head before it lands. Merge that
 head into the lane that depends on it, with a real merge so the reviewed commits are not
 rewritten, then have the lane reviewed again on the merged tree:
@@ -101,10 +101,9 @@ spec-kitty consolidate --mission 015-user-authentication --dependency-ref <depen
 spec-kitty consolidate --mission 015-user-authentication --dependency-ref <dependency-branch>
 ```
 
-`--dependency-ref` is repeatable and is recorded on the run, so `--resume` rebuilds the same
-claim. A declaration is verified before anything lands: the ref must resolve, the mission
+`--dependency-ref` is repeatable and is a `spec-kitty consolidate` flag only: `orchestrator-api consolidate-mission` cannot declare one and refuses an undeclared restack. The ref is recorded on the run and pinned to the commit it named when the claim was built, so `--resume` rebuilds the same claim; if the name has moved by the gate or the resume, the run refuses (`DEPENDENCY_REF_MOVED`). A `--resume` that names a different set is refused too (`consolidate --abort` first). A declaration is verified before anything lands: the ref must resolve, the mission
 branch or one of its lane branches must reach it, and no commit of any lane's own history or
-of the mission branch may sit in it. A declaration that covers mission-authored work is
+of the mission branch may sit in it, and it may not be named in the Mission's own branch namespace or hold a head a work package recorded. A declaration that covers mission-authored work is
 refused — that is what keeps a removed work package from riding a carrier lane — and the
 declared commits are attributed as inherited history, never to a work package.
 

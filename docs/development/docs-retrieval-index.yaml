@@ -3329,6 +3329,7 @@ pages:
     - {slug: "follow-up-2026-10-16-a-canceled-dependency-lane-that-never-started-5937", text: "Follow-up 2026-10-16: a canceled dependency lane that never started (#5937)", level: 2}
     - {slug: "amendment-2026-10-22-canceled-content-is-judged-line-by-line-6309", text: "Amendment 2026-10-22: canceled content is judged line by line (#6309)", level: 2}
     - {slug: "follow-up-2026-10-27-an-unreadable-carrier-spine-refuses-6313", text: "Follow-up 2026-10-27: an unreadable carrier spine REFUSEs (#6313)", level: 2}
+    - {slug: "amendment-2026-10-31-an-operator-declared-dependency-ref-is-inherited-history-6771", text: "Amendment 2026-10-31: an operator-declared dependency ref is inherited history (#6771)", level: 2}
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"
@@ -13220,6 +13221,7 @@ pages:
     - {slug: "a-lane-failed-to-merge", text: "A lane failed to merge", level: 3}
     - {slug: "reconciliation-failed-or-refused", text: "Reconciliation FAILED or refused", level: 3}
     - {slug: "a-failed-run-that-rolled-back-completely-drops-its-baseline", text: "A failed run that rolled back completely drops its baseline", level: 3}
+    - {slug: "an-un-attributable-verdict-after-merging-a-dependency-branch", text: "An `un-attributable` verdict after merging a dependency branch", level: 3}
     - {slug: "a-lane-changed-after-its-work-package-was-approved", text: "A lane changed after its work package was approved", level: 3}
     - {slug: "a-branch-moved-without-a-record", text: "A branch moved without a record", level: 3}
     - {slug: "exit-code-75-the-landing-stands", text: "Exit code 75: the landing stands", level: 3}
