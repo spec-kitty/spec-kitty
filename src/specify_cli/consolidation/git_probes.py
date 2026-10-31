@@ -665,6 +665,27 @@ def path_state_at(repo_root: Path, ref: str, path: str) -> str | None:
     return None if entry is None else entry.oid
 
 
+def commit_parents(repo_root: Path, sha: str) -> list[str]:
+    """Return the parent SHAs of *sha*, first parent first (``git rev-list --parents -n1``).
+
+    The line is ``<sha> [<parent> ...]``: a root commit has no parents, an ordinary commit
+    one, a merge two or more. Raises :class:`GitProbeError` on any git error (an unresolvable
+    *sha*, a corrupt object store, ...); an error is never read as "no parents".
+    """
+    ret, out, err = run_command(
+        ["git", "rev-list", "--parents", "-n1", sha],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if ret != 0:
+        raise GitProbeError(f"git rev-list --parents -n1 {sha} failed (exit {ret}): {(err or '').strip()}")
+    tokens = (out or "").split()
+    if not tokens:
+        raise GitProbeError(f"git rev-list --parents -n1 {sha} produced no output")
+    return tokens[1:]
+
+
 def is_merge_commit(repo_root: Path, sha: str) -> bool:
     """Return True when *sha* has 2 or more parents (a merge commit).
 
@@ -681,18 +702,7 @@ def is_merge_commit(repo_root: Path, sha: str) -> bool:
     unresolvable *sha*, a corrupt object store, …); never silently reads an
     error as "not a merge" (fail-closed, mirrors every other probe here).
     """
-    ret, out, err = run_command(
-        ["git", "rev-list", "--parents", "-n1", sha],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret != 0:
-        raise GitProbeError(f"git rev-list --parents -n1 {sha} failed (exit {ret}): {(err or '').strip()}")
-    tokens = (out or "").split()
-    if not tokens:
-        raise GitProbeError(f"git rev-list --parents -n1 {sha} produced no output")
-    return len(tokens) >= 3
+    return len(commit_parents(repo_root, sha)) >= 2
 
 
 # ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from collections.abc import Sequence
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -488,8 +489,8 @@ def test_the_landed_window_keeps_a_tip_that_still_resolves(tmp_path: Path) -> No
     Non-vacuity: an implementation that always prefers the supplied landing commit turns this
     window into ``planning..<landing>``, which every assertion below catches.
     """
-    repo, _fd, planning, landing = _implemented_lane_with_a_later_target_commit(tmp_path)
-    assert ev._tip_resolves(repo, _LANE_BRANCH), "the lane branch must still resolve for this arm"
+    repo, _fd, planning, landing = _pr_landing(tmp_path, {"WP01": "src/m1/**"}, {"lane-a": ["src/m1/real.py"]}, prune=False)
+    assert not ev._branch_ref_absent(repo, _LANE_BRANCH), "the lane branch must still resolve for this arm"
 
     judged = ev._landed_window(repo, (planning, _LANE_BRANCH), landing)
 
@@ -500,12 +501,12 @@ def test_the_landed_window_keeps_a_tip_that_still_resolves(tmp_path: Path) -> No
 
 def test_the_landed_window_stands_in_for_a_pruned_tip(tmp_path: Path) -> None:
     """A tip that no longer resolves is replaced by the supplied landing commit, and recorded (#6780)."""
-    repo, _fd, planning, landing = _implemented_lane_with_a_later_target_commit(tmp_path)
-    _git(repo, "branch", "-D", _LANE_BRANCH)
+    repo, _fd, planning, landing = _pr_landing(tmp_path, {"WP01": "src/m1/**"}, {"lane-a": ["src/m1/real.py"]})
+    assert ev._branch_ref_absent(repo, _LANE_BRANCH)
 
     judged = ev._landed_window(repo, (planning, _LANE_BRANCH), landing)
 
-    assert judged.window == (planning, landing)
+    assert judged.window == (_git(repo, "rev-parse", f"{landing}^1"), landing), "the PR's own side: first parent to landing"
     assert judged.absent_ref == _LANE_BRANCH
     assert judged.landed_commit == landing
 
@@ -538,6 +539,162 @@ def test_a_stand_in_that_does_not_contain_the_planning_commit_is_refused(tmp_pat
     assert diffs == [], "an unproven stand-in must be refused before any window is diffed"
     with pytest.raises(ev.GitProbeError):
         ev._landed_window(repo, (planning, _LANE_BRANCH), stray)
+
+
+def _pr_landing(
+    tmp_path: Path,
+    owned: dict[str, str],
+    lane_work: dict[str, list[str]],
+    *,
+    target_work: Sequence[str] = (),
+    prune: bool = True,
+) -> tuple[Path, Path, str, str]:
+    """A Mission landed by a true merge commit on main: ``(repo, feature_dir, planning, landing)``.
+
+    One lane branch per ``lane_work`` key (``lane-a`` -> ``kitty/mission-fx-lane-a``) is cut from the
+    planning commit and committed to, the lanes are merged into the Mission branch, ``target_work``
+    paths are committed on main AFTER the planning commit (unrelated work that reached the target
+    before the PR merged), and the Mission branch is then merged into main with ``--no-ff``.
+    """
+    repo = _repo(tmp_path)
+    fd = _feature_dir(repo, owned)
+    planning = _commit(repo, f"kitty-specs/{_SLUG}/plan.md", "# plan\n", "planning")
+    _git(repo, "branch", "kitty/mission-fx")
+    for lane_id, paths in lane_work.items():
+        branch = f"kitty/mission-fx-{lane_id}"
+        _git(repo, "checkout", "-q", "-b", branch, planning)
+        for path in paths:
+            _commit(repo, path, message=f"{lane_id}: {path}")
+        _git(repo, "checkout", "-q", "kitty/mission-fx")
+        _git(repo, "merge", "--no-ff", "-q", "-m", f"merge {lane_id}", branch)
+    _commit(repo, f"kitty-specs/{_SLUG}/status.events.jsonl", "{}\n", "chore: mission bookkeeping")
+    _git(repo, "checkout", "-q", "main")
+    for path in target_work:
+        _commit(repo, path, message=f"unrelated target work: {path}")
+    _git(repo, "merge", "--no-ff", "-q", "-m", "Merge PR: land fx", "kitty/mission-fx")
+    landing = _git(repo, "rev-parse", "HEAD")
+    if prune:
+        for lane_id in lane_work:
+            _git(repo, "branch", "-D", f"kitty/mission-fx-{lane_id}")
+    return repo, fd, planning, landing
+
+
+def _evaluate_landing(repo: Path, fd: Path, planning: str, lanes: dict[str, list[str]], landing: str | None) -> ev.EvidenceReport:
+    wps = [wp for wp_ids in lanes.values() for wp in wp_ids]
+    events = [event for seq, wp in enumerate(wps) for event in _independent_review(fd, wp, seq=seq * 4)]
+    _write_events(fd, events)
+    manifest = _manifest([_lane(lane_id, wp_ids) for lane_id, wp_ids in lanes.items()], planning)
+    return _evaluate(repo, fd, manifest, dict.fromkeys(wps, "approved"), events=events, landed_commit=landing)
+
+
+def test_a_pruned_lane_cannot_borrow_another_work_packages_change_through_overlapping_ownership(tmp_path: Path) -> None:
+    """#6780 fold: the merge alone cannot attribute a change to a work package whose ownership overlaps another's.
+
+    WP01 (``src/**``) committed nothing; WP02 (``src/b/**``) committed ``src/b/x.py``, which sits inside
+    WP01's glob. Both lane branches are pruned, so the landing's PR side is all there is. Judging WP01 on
+    it would let it pass on WP02's change.
+    """
+    lanes = {"lane-a": ["WP01"], "lane-b": ["WP02"]}
+    repo, fd, planning, landing = _pr_landing(tmp_path, {"WP01": "src/**", "WP02": "src/b/**"}, {"lane-a": [], "lane-b": ["src/b/x.py"]})
+
+    report = _evaluate_landing(repo, fd, planning, lanes, landing)
+
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE, "WP02": ev.IMPLEMENTATION_UNREADABLE}, report.refusal
+    refusal = str(report.refusal)
+    assert "owned_files overlap" in refusal
+    assert "refs/spec-kitty/lane-tip/" in refusal, "the refusal must name the restore remedy"
+    assert "WP01" in refusal and "WP02" in refusal
+
+
+def test_unrelated_target_work_before_the_merge_is_not_evidence_for_a_pruned_lane(tmp_path: Path) -> None:
+    """#6780 fold: the window is the PR's own side (``landing^1..landing``), not everything since planning.
+
+    WP01 is hollow. An unrelated commit reached main inside WP01's glob between the planning commit and
+    the merge; it is the landing's first parent's history, so it must not count.
+    """
+    lanes = {"lane-a": ["WP01"]}
+    repo, fd, planning, landing = _pr_landing(tmp_path, {"WP01": "src/m1/**"}, {"lane-a": []}, target_work=["src/m1/unrelated.py"])
+
+    report = _evaluate_landing(repo, fd, planning, lanes, landing)
+
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_MISSING}, report.refusal
+
+
+def test_a_pruned_lane_with_its_own_change_in_the_pr_side_passes(tmp_path: Path) -> None:
+    """The legitimate path: disjoint owners, each with a change on the PR side, both pass."""
+    lanes = {"lane-a": ["WP01"], "lane-b": ["WP02"]}
+    repo, fd, planning, landing = _pr_landing(
+        tmp_path, {"WP01": "src/a/**", "WP02": "src/b/**"}, {"lane-a": ["src/a/x.py"], "lane-b": ["src/b/x.py"]}, target_work=["src/a/unrelated.py"]
+    )
+
+    report = _evaluate_landing(repo, fd, planning, lanes, landing)
+
+    assert report.refusal is None, report.refusal
+
+
+def test_a_non_merge_landing_cannot_stand_in_for_a_pruned_lane(tmp_path: Path) -> None:
+    """A squash or fast-forward landing has one parent: the PR's own change cannot be separated, so it refuses."""
+    repo, fd, planning = _lane_fixture(tmp_path)
+    _git(repo, "checkout", "-q", _LANE_BRANCH)
+    _commit(repo, "src/m1/real.py")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "merge", "--squash", "-q", _LANE_BRANCH)
+    _git(repo, "commit", "-qm", "Squash PR: land fx")
+    landing = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "branch", "-D", _LANE_BRANCH)
+
+    report = _evaluate_landing(repo, fd, planning, {"lane-a": ["WP01"]}, landing)
+
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE}, report.refusal
+    assert "not a merge commit" in str(report.refusal)
+
+
+def test_a_planning_commit_only_on_the_target_side_of_the_landing_is_refused(tmp_path: Path) -> None:
+    """The planning commit must sit on the merged-in side: a landing that merged something else cannot stand in."""
+    repo, fd, planning = _lane_fixture(tmp_path)
+    _git(repo, "branch", "-D", _LANE_BRANCH)
+    _git(repo, "checkout", "-q", "--orphan", "other")
+    _git(repo, "rm", "-rfq", ".")
+    _commit(repo, "elsewhere.txt", message="unrelated history")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "merge", "--no-ff", "-q", "--allow-unrelated-histories", "-m", "merge unrelated", "other")
+    landing = _git(repo, "rev-parse", "HEAD")
+
+    report = _evaluate_landing(repo, fd, planning, {"lane-a": ["WP01"]}, landing)
+
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE}, report.refusal
+    assert "merged-in side" in str(report.refusal)
+
+
+def test_a_pruned_lane_without_a_landing_commit_names_the_ref_and_the_merge_commit_scope(tmp_path: Path) -> None:
+    """With no landing commit the refusal names the absent branch and scopes the remedy to merge-commit landings."""
+    repo, fd, planning, _landing = _pr_landing(tmp_path, {"WP01": "src/a/**"}, {"lane-a": ["src/a/x.py"]})
+
+    report = _evaluate_landing(repo, fd, planning, {"lane-a": ["WP01"]}, None)
+
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE}, report.refusal
+    refusal = str(report.refusal)
+    assert f"the window tip {_LANE_BRANCH} no longer exists" in refusal
+    assert "pull request merge commit (not a squash)" in refusal
+    assert refusal.count("pull request merge commit (not a squash)") == 2, "the per-work-package line and the recovery line both carry the scope"
+
+
+def test_a_lane_ref_that_exists_but_cannot_be_read_refuses_instead_of_falling_back(tmp_path: Path) -> None:
+    """#6780 fold: only a truly absent branch ref falls back; a present-but-unpeelable one is unreadable.
+
+    Non-vacuity: with the fallback keyed on 'does not peel to a commit' this ref (a missing object)
+    is treated as pruned and the work package passes on the landing.
+    """
+    lanes = {"lane-a": ["WP01"]}
+    repo, fd, planning, landing = _pr_landing(tmp_path, {"WP01": "src/a/**"}, {"lane-a": ["src/a/x.py"]})
+    (repo / ".git" / "refs" / "heads" / "kitty").mkdir(parents=True, exist_ok=True)
+    (repo / ".git" / "refs" / "heads" / _LANE_BRANCH).write_text("1" * 40 + "\n", encoding="utf-8")
+
+    report = _evaluate_landing(repo, fd, planning, lanes, landing)
+
+    assert report.verdicts == {"WP01": ev.IMPLEMENTATION_UNREADABLE}, report.refusal
+    assert "no longer exists" not in str(report.refusal), "a present ref is not a pruned one"
+    assert "could not be diffed" in str(report.refusal)
 
 
 def test_planning_lane_is_windowed_to_the_target(tmp_path: Path) -> None:

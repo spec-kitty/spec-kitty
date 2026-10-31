@@ -143,7 +143,7 @@ def test_a_dependency_window_counts_the_lanes_own_commits(lanes_mission: _Facts,
     lanes_mission.manifest = _manifest(_lane("lane-a", ("WP01",)), _lane("lane-b", ("WP02",), depends_on=("lane-a",)))
     dependency_window = ("mergebase", "kitty/mission-fx-lane-b")
     lanes_mission.paths = {_lane_b_window(): set(), dependency_window: {"tools/check.sh"}}
-    monkeypatch.setattr(wp_evidence, "_dependency_evidence_windows", lambda _repo, _manifest, _lane: [dependency_window])
+    monkeypatch.setattr(wp_evidence, "_dependency_evidence_windows", lambda _repo, _manifest, _lane, tip=None: [dependency_window])
 
     move_task_module._mt_require_implementation_evidence(_state(Lane.FOR_REVIEW))
 
@@ -153,7 +153,7 @@ def test_a_dependency_window_counts_the_lanes_own_commits(lanes_mission: _Facts,
 def test_an_unreadable_dependency_window_refuses_unreadable(lanes_mission: _Facts, monkeypatch: pytest.MonkeyPatch) -> None:
     lanes_mission.manifest = _manifest(_lane("lane-a", ("WP01",)), _lane("lane-b", ("WP02",), depends_on=("lane-a",)))
 
-    def _unreadable(_repo: Path, _manifest: LanesManifest, _lane: ExecutionLane) -> list[tuple[str, str]]:
+    def _unreadable(_repo: Path, _manifest: LanesManifest, _lane: ExecutionLane, tip: str | None = None) -> list[tuple[str, str]]:
         raise GitProbeError("no merge base")
 
     monkeypatch.setattr(wp_evidence, "_dependency_evidence_windows", _unreadable)
