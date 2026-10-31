@@ -1118,6 +1118,13 @@ def assert_late_window_landed(
         target_content = _read_git_blob_bytes(main_repo, target_ref, target_rel)
         if coord_content == target_content:
             continue
+        if coord_content is None:
+            # A deletion on the coordination branch that the target still holds: no projection
+            # expresses it, and `git checkout <branch> -- <path>` has nothing to check out.
+            raise LateProjectionRefused(
+                f"the coordination branch deletes {repo_rel}, and a projection can only bring content forward; the target still holds it",
+                kind=LateProjectionRefusalKind.DELETION_CANNOT_BE_EXPRESSED,
+            )
         unlanded.append(repo_rel)
     if not unlanded:
         return

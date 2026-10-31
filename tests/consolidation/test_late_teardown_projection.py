@@ -242,29 +242,6 @@ def test_a_record_only_in_the_target_working_tree_is_not_landed(refused_run: _Re
     assert_late_window_landed(**kwargs, target_ref=mission.target_branch)
 
 
-def test_resume_refuses_a_late_deletion_of_a_coordination_record(refused_run: _RefusedRun) -> None:
-    """Forward-only: a projection cannot express a deletion, so it refuses instead of resurrecting or dropping it."""
-    run, mission = refused_run, refused_run.mission
-    matrix_rel = _matrix_path(run.worktree, mission).relative_to(run.worktree)
-    _git(run.worktree, "rm", "-q", str(matrix_rel))
-    _git(run.worktree, "commit", "-qm", "chore: delete the issue matrix on the coordination branch")
-    before = _git(mission.repo, "show", f"{mission.target_branch}:{matrix_rel}")
-
-    resumed = run.resume()
-
-    output = f"stdout:\n{resumed.stdout}\nstderr:\n{resumed.stderr}"
-    assert resumed.returncode != 0, output
-    assert "issue-matrix.json" in " ".join((resumed.stdout + resumed.stderr).split()), output
-    assert run.branch_exists() and run.worktree.is_dir(), f"the coordination branch and worktree must survive\n{output}"
-    assert _git(mission.repo, "show", f"{mission.target_branch}:{matrix_rel}") == before, output
-    # #6791 review: the remedy must be the one that clears THIS refusal. The target already holds
-    # the record (the projection simply cannot express the deletion), so "land the file on the
-    # target yourself" would clear nothing -- the record has to be restored on the branch instead.
-    flat = " ".join((resumed.stdout + resumed.stderr).split())
-    assert "restore the deleted file on" in flat, output
-    assert "Land the file on" not in flat, output
-
-
 @pytest.mark.parametrize("kind", tuple(LateProjectionRefusalKind))
 def test_each_late_projection_refusal_names_the_remedy_that_clears_it(kind: LateProjectionRefusalKind) -> None:
     """Every kind keeps the triple, names its exit code, and rules out `--abort` by name."""
@@ -373,34 +350,35 @@ def refused_run_with_checkpoint_tracer(tmp_path: Path) -> tuple[_RefusedRun, Pat
     return _refuse_teardown(mission, tmp_path), tracer_rel
 
 
-def test_resume_refuses_a_window_that_deletes_a_checkpoint_present_record(refused_run_with_checkpoint_tracer: tuple[_RefusedRun, Path]) -> None:
-    """#6791: the ASSERTION's own failing branch, end to end.
+@pytest.mark.parametrize("deleted", ("issue-matrix.json", "traces/checkpoint-tracer.md"), ids=("gate-matrix", "tracer"))
+def test_resume_refuses_a_window_that_deletes_a_checkpoint_present_record(refused_run_with_checkpoint_tracer: tuple[_RefusedRun, Path], deleted: str) -> None:
+    """#6791: forward-only. A window that deletes a record the target holds exits 1 and keeps everything.
 
-    The existing "late deletion" case trips the gate-matrix projection's forward-only guard before
-    the assertion runs. Here the deleted record is a TRACER -- no projection seam carries it, so
-    only :func:`assert_late_window_landed` can catch it: it must exit 1, name the file, and keep
-    the coordination branch, its worktree and the Mission's coordination marker.
+    The gate matrix trips the projection's own forward-only guard; the tracer is carried by no
+    projection seam, so only :func:`assert_late_window_landed` can catch it. Either way the
+    deletion is not expressible as a projection, and the remedy is restoring the file on the
+    branch -- ``git checkout <branch> -- <path>`` has nothing to check out for a deleted record.
     """
-    run, tracer_rel = refused_run_with_checkpoint_tracer
+    run, _tracer_rel = refused_run_with_checkpoint_tracer
     mission = run.mission
-    assert blob_present_at(mission.repo, mission.target_branch, str(tracer_rel)), "fixture invalid: the checkpoint must hold the tracer on the target"
-    assert blob_present_at(mission.repo, mission.coord_branch, str(tracer_rel)), "fixture invalid: the checkpoint must hold the tracer on the coordination branch"
-    _git(run.worktree, "rm", "-q", str(tracer_rel))
-    _git(run.worktree, "commit", "-qm", "chore: delete the checkpoint tracer on the coordination branch")
+    rel = Path("kitty-specs") / mission.slug / deleted
+    assert blob_present_at(mission.repo, mission.target_branch, str(rel)), "fixture invalid: the checkpoint must hold the record on the target"
+    assert blob_present_at(mission.repo, mission.coord_branch, str(rel)), "fixture invalid: the checkpoint must hold the record on the coordination branch"
+    _git(run.worktree, "rm", "-q", str(rel))
+    _git(run.worktree, "commit", "-qm", "chore: delete the record on the coordination branch")
 
     resumed = run.resume()
 
     output = f"stdout:\n{resumed.stdout}\nstderr:\n{resumed.stderr}"
     flat = " ".join((resumed.stdout + resumed.stderr).split())
     assert resumed.returncode == 1, output
-    assert str(tracer_rel) in flat, f"the refusal must name the record it could not land\n{output}"
-    assert "not landed on the target" in flat, output
+    assert deleted in flat, f"the refusal must name the record it could not land\n{output}"
     assert run.branch_exists(), f"the coordination branch must be kept\n{output}"
     assert run.worktree.is_dir(), f"the coordination worktree must be kept\n{output}"
     assert _coordination_marker(mission) == mission.coord_branch, f"the coordination marker must be kept\n{output}"
-    assert blob_present_at(mission.repo, mission.target_branch, str(tracer_rel)), "the target must not lose the record either"
-    # The remedy is the per-kind one for an unlanded record, not the generic "land the file".
-    assert f"land the named record on {mission.target_branch!r}" in flat, output
+    assert blob_present_at(mission.repo, mission.target_branch, str(rel)), "the target must not lose the record either"
+    assert f"restore the deleted file on {mission.coord_branch!r}" in flat, output
+    assert "land the named record" not in flat, output
 
 
 def test_late_projection_refuses_a_copy_that_drops_a_row_the_target_holds(refused_run: _RefusedRun) -> None:
