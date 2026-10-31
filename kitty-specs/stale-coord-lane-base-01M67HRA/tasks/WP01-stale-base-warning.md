@@ -15,6 +15,9 @@ requirement_refs:
 planning_base_branch: issue-6753-stale-coord-lane-base
 merge_target_branch: issue-6753-stale-coord-lane-base
 branch_strategy: Planning artifacts for this mission were generated on issue-6753-stale-coord-lane-base. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6753-stale-coord-lane-base unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-stale-coord-lane-base-01M67HRA
+base_commit: 8d00acf689f2860f84f35eed2431e3b169ac5315
+created_at: '2026-10-30T23:22:54.325760+00:00'
 subtasks:
 - T001
 - T002
