@@ -281,15 +281,24 @@ def parse_agent_boundary_string(
     given (C-002/C-007).
 
     Accepts both the bare ``tool`` form (``"claude"``) and the full compact
-    ``tool:model:profile:role`` form; missing trailing segments and empty
-    interior segments (``"claude::reviewer-renata:"``) both normalize to
-    ``None``. Raises :class:`ValueError` for an empty ``tool`` segment — a
-    tool is required to identify the agent at all.
+    ``tool:model:profile:role`` form; missing trailing segments and empty or
+    whitespace-only interior segments (``"claude::reviewer-renata:"``,
+    ``"claude: :"``) all normalize to ``None`` — every segment is stripped
+    first, so stray whitespace never rides into the stored actor (#6755).
+    Raises :class:`ValueError` for an empty (or blank-after-strip) ``tool``
+    segment — a tool is required to identify the agent at all — and for a
+    value with **more than four** segments: such a value is not a compact
+    agent string, and silently dropping the extra segments would store an
+    identity the operator never gave (#6755). The lenient free-text paths
+    never see that refusal: :func:`~specify_cli.status.actor_from_option`
+    pre-checks the segment count and stores such a value whole (#6400).
     """
     segments = raw.split(":")
+    if len(segments) > 4:
+        raise ValueError(f"Too many segments in --agent value: {raw!r} (expected at most 4, got {len(segments)})")
     while len(segments) < 4:
         segments.append("")
-    tool, model_seg, profile_seg, role_seg = segments[:4]
+    tool, model_seg, profile_seg, role_seg = (segment.strip() for segment in segments[:4])
     if not tool:
         raise ValueError(f"Empty agent tool in --agent value: {raw!r}")
     return tool, (model_seg or None), (profile_seg or None), (role_seg or None)
