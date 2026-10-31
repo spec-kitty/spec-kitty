@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances synthesis ownership single reader on issue-6767-synthesis-ownership-single-reader so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "synthesis ownership single reader",
   "slug": "synthesis-ownership-single-reader-01M68ZJM",
+  "status_phase": "1",
   "target_branch": "issue-6767-synthesis-ownership-single-reader",
   "topology": "lanes",
   "vcs": "git",
