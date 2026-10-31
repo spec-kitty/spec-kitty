@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "optional-lamport-clock-consumer-audit-01M68ZMF",
+  "mission_id": "01M68ZMFGV0P0XF1B4JFMH82M8",
+  "mission_branch": "issue-6414-optional-lamport-clock-consumer-audit",
+  "target_branch": "issue-6414-optional-lamport-clock-consumer-audit",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/reference/optional-lamport-clock-consumers.md",
+        "src/specify_cli/status/migrate_lifecycle_envelope.py",
+        "tests/status/test_optional_lamport_clock_consumers.py",
+        "tests/status/test_optional_lamport_clock_migration.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:45:12.645129+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "990591ef4effac8294977bd4e77f741d452b5cb1"
+}

@@ -1,0 +1,33 @@
+{
+  "accept_commit": "c0cdd19006a4c6572540dbd817247d0e65fd7a3a",
+  "acceptance_history": [
+    {
+      "accept_commit": "c0cdd19006a4c6572540dbd817247d0e65fd7a3a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T13:44:41.054630+00:00",
+      "accepted_by": "pi:deepseek-v4.1-flash:python-pedro",
+      "accepted_from_commit": "f58a702ca89c15052a4bded076b2ecd0339055f5"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T13:44:41.054630+00:00",
+  "accepted_by": "pi:deepseek-v4.1-flash:python-pedro",
+  "accepted_from_commit": "f58a702ca89c15052a4bded076b2ecd0339055f5",
+  "baseline_merge_commit": "13a763c44549c0a70b0b3ba66515f1134a52273c",
+  "created_at": "2026-10-31T12:40:58.845919+00:00",
+  "flattened": false,
+  "friendly_name": "Optional Lamport clock consumer audit",
+  "merged_at": "2026-10-31T13:52:52.726387+00:00",
+  "merged_commit": "13a763c44549c0a70b0b3ba66515f1134a52273c",
+  "mid8": "01M68ZMF",
+  "mission_id": "01M68ZMFGV0P0XF1B4JFMH82M8",
+  "mission_number": 245,
+  "mission_slug": "optional-lamport-clock-consumer-audit-01M68ZMF",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Optional Lamport clock consumer audit on issue-6414-optional-lamport-clock-consumer-audit so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Audit core consumers of Event.lamport_clock and the events ordering keys, and stop the migration writing a fake clocked position",
+  "slug": "optional-lamport-clock-consumer-audit-01M68ZMF",
+  "status_phase": "1",
+  "target_branch": "issue-6414-optional-lamport-clock-consumer-audit",
+  "topology": "single_branch"
+}

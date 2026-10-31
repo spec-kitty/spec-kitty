@@ -1,0 +1,91 @@
+{
+  "event_count": 20,
+  "last_event_id": "01M693R4XR9D5PQQMHNAKJW6XA",
+  "materialized_at": "2026-10-31T13:52:53.176817+00:00",
+  "mission_number": "245",
+  "mission_slug": "optional-lamport-clock-consumer-audit-01M68ZMF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi:deepseek-v4.1-flash:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M693R4JGDD92JBRZSSWQ3MXV",
+      "last_transition_at": "2026-10-31T13:52:52.816583+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Claim WP01: migration sentinel fix",
+        "Ready for review: migration emits unclocked null (red-first test then green); idempotency and already-migrated rows pinned",
+        "Review passed: sentinel fix + red-first proof re-verified by reverting the one line (2 failures) then restoring (green); changelog now names the real ledger step migrate_lifecycle_envelope; no other production file touched",
+        "Re-claim with the real agent identity",
+        "Re-submit unchanged: fix + red-first test already committed",
+        "Review passed (cycle 2): same diff, re-reviewed; changelog names the real ledger step; red-first proof re-verified"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:deepseek-v4.1-flash:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M693R4XR9D5PQQMHNAKJW6XA",
+      "last_transition_at": "2026-10-31T13:52:53.176817+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: audit page + 14 mixed-stream/inventory proofs; docs freshness errors=0",
+        "Review passed: fixed the page's changelog link depth; verified every table row's proof runs and the inventory test is non-vacuous; docs freshness errors=0; 14/14 tests green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 405071,
+      "shell_pid_created_at": "1793451754.31",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}
