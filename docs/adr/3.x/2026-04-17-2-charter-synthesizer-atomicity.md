@@ -109,6 +109,8 @@ All staging writes go through `PathGuard`. The staging dir (`.kittify/charter/.s
 
 On any FAILED transition, the staging dir is renamed to `.staging/<runid>.failed/` (not deleted). A `cause.yaml` diagnostic is written into the failed dir recording the exception class, message, and traceback. Operators can inspect, repair, and rerun. The `.staging/` subtree is in `.gitignore` so failed dirs are never accidentally committed.
 
+The preserved dirs are bounded (#6723): after the current run's failure is written, only the newest three are kept and the rest are removed through `PathGuard.rmtree`. The run being reported is never removed, and a live `.staging/<runid>/` is never a candidate. Before that bound, a repeatedly-refused project accumulated one directory per attempt (#4226).
+
 ---
 
 ## Consequences
@@ -118,7 +120,7 @@ On any FAILED transition, the staging dir is renamed to `.staging/<runid>.failed
 - Manifest-last provides a single, checkable "committed" signal that consumers and `bundle validate` can rely on without walking the content tree.
 - Staging under `.kittify/charter/.staging/` means content files under `.kittify/doctrine/` are never touched during failed runs. Legacy projects and consuming tools are never exposed to partial content.
 - `os.replace` is atomic at the OS level on POSIX and Windows — the promote window is O(file_count) individual atomic renames, not a database transaction. At kilobyte scale and tens of files, this is acceptable.
-- Preserved `.failed/` dirs give operators diagnostic information without requiring a re-run to reproduce the failure.
+- Preserved `.failed/` dirs give operators diagnostic information without requiring a re-run to reproduce the failure; keeping only the newest three bounds the disk cost of repeated refusals.
 
 ### Negative
 

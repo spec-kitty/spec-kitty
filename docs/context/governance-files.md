@@ -37,7 +37,7 @@ own them.
 | `.kittify/charter/generated/{directives,tactics,styleguides}/` | Agent harness | Candidate YAML artifacts consumed by `charter synthesize` | No routine hand edits |
 | `.kittify/charter/synthesis-manifest.yaml` | `charter synthesize` / `charter resynthesize` | Manifest of promoted synthesized artifacts and content hashes | No |
 | `.kittify/charter/provenance/*.yaml` | `charter synthesize` / `charter resynthesize` | Provenance sidecars for project-local doctrine artifacts | No |
-| `.kittify/charter/.staging/` | Synthesizer | Temporary validation/promote workspace; `.failed` dirs may remain for diagnosis | No |
+| `.kittify/charter/.staging/` | Synthesizer | Temporary validation/promote workspace; the newest 3 `.failed` dirs remain for diagnosis, older ones are pruned by the next refusal (#6723) | No |
 | `.kittify/charter-packs/` | `charter synthesize` / `charter resynthesize` | Project layer, used with the built-in Charter Pack | No |
 | `.kittify/charter-packs/PROVENANCE.md` | `charter synthesize` fresh-project path | Human-readable provenance for the minimal doctrine seed of a fresh project | No |
 
