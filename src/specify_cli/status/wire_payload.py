@@ -105,10 +105,7 @@ def build_status_event_payload(
     resolved = dict(overrides or {})
     unknown = sorted(set(resolved) - set(StatusTransitionPayload.model_fields))
     if unknown:
-        raise ValueError(
-            f"unknown WPStatusChanged payload override(s): {', '.join(unknown)}; "
-            f"known fields: {', '.join(StatusTransitionPayload.model_fields)}"
-        )
+        raise ValueError(f"unknown WPStatusChanged payload override(s): {', '.join(unknown)}; known fields: {', '.join(StatusTransitionPayload.model_fields)}")
 
     fields: dict[str, Any] = {}
     for payload_field, event_attr in _EVENT_FIELD_ATTRS.items():

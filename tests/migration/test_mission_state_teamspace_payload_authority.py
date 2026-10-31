@@ -188,9 +188,7 @@ def test_dry_run_payload_is_valid_conformance_and_carries_the_mission_id(tmp_pat
 # ---------------------------------------------------------------------------
 
 
-def test_dry_run_builds_the_payload_through_the_facade_builder(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dry_run_builds_the_payload_through_the_facade_builder(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo = _make_repo(tmp_path)
     _emit_real_transitions(repo)
     calls: list[dict[str, Any]] = []
@@ -284,6 +282,4 @@ def test_model_rejected_row_is_reported_while_valid_rows_still_map(tmp_path: Pat
     assert payload_errors[0]["model_violations"]
     # positive control on the same fixture: the valid rows are still mapped, so
     # the rejection did not abort the run.
-    assert {mapping.source_event_id for mapping in report.row_mappings} == {
-        row["event_id"] for row in _durable_rows(mission) if row["event_id"] != rejected_id
-    }
+    assert {mapping.source_event_id for mapping in report.row_mappings} == {row["event_id"] for row in _durable_rows(mission) if row["event_id"] != rejected_id}
