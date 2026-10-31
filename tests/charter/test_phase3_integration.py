@@ -206,11 +206,11 @@ def test_phase3_is_generic_scoped_logic() -> None:
     from charter.activation.synthesizer.write_pipeline import _is_generic_scoped
 
     # No evidence → all artifacts are generic-scoped
-    assert _is_generic_scoped("tactic", "testing-philosophy", None) is True
+    assert _is_generic_scoped("testing-philosophy", None) is True
 
     # Evidence with no code_signals → all generic
     empty_bundle = EvidenceBundle()
-    assert _is_generic_scoped("tactic", "testing-philosophy", empty_bundle) is True
+    assert _is_generic_scoped("testing-philosophy", empty_bundle) is True
 
     # Python scope_tag → python-scoped slug is NOT generic
     cs = CodeSignals(
@@ -223,10 +223,10 @@ def test_phase3_is_generic_scoped_logic() -> None:
         detected_at="",
     )
     bundle = EvidenceBundle(code_signals=cs)
-    assert _is_generic_scoped("tactic", "python-style-guide", bundle) is False, (
+    assert _is_generic_scoped("python-style-guide", bundle) is False, (
         "slug containing scope_tag must be language-scoped, not generic"
     )
-    assert _is_generic_scoped("tactic", "testing-philosophy", bundle) is True, (
+    assert _is_generic_scoped("testing-philosophy", bundle) is True, (
         "slug not containing scope_tag must be generic-scoped"
     )
 

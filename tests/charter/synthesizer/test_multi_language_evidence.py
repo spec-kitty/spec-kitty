@@ -273,23 +273,23 @@ def _bundle(*languages: str) -> EvidenceBundle:
 
 @pytest.mark.parametrize("slug", ["kotlin-style-guide", "typescript-style-guide", "jvm-build-guide"])
 def test_gate_exempts_any_observed_language_or_its_family(slug: str) -> None:
-    assert _is_generic_scoped("tactic", slug, _bundle("kotlin", "typescript")) is False
+    assert _is_generic_scoped(slug, _bundle("kotlin", "typescript")) is False
 
 
 def test_gate_still_lints_generic_slugs_in_a_polyglot_repository() -> None:
-    assert _is_generic_scoped("tactic", "testing-philosophy", _bundle("kotlin", "typescript")) is True
-    assert _is_generic_scoped("tactic", "java-style-guide", _bundle("kotlin", "typescript")) is True
+    assert _is_generic_scoped("testing-philosophy", _bundle("kotlin", "typescript")) is True
+    assert _is_generic_scoped("java-style-guide", _bundle("kotlin", "typescript")) is True
 
 
 def test_gate_exempts_a_declared_language() -> None:
-    assert _is_generic_scoped("tactic", "go-style-guide", _bundle("python"), ("go",)) is False
-    assert _is_generic_scoped("tactic", "go-style-guide", None, ("go",)) is False
-    assert _is_generic_scoped("tactic", "testing-philosophy", _bundle("python"), ("go",)) is True
+    assert _is_generic_scoped("go-style-guide", _bundle("python"), ("go",)) is False
+    assert _is_generic_scoped("go-style-guide", None, ("go",)) is False
+    assert _is_generic_scoped("testing-philosophy", _bundle("python"), ("go",)) is True
 
 
 def test_gate_treats_unknown_scope_as_generic() -> None:
     unknown = EvidenceBundle(code_signals=_signals(stack_id="unknown", primary_language="unknown", scope_tag="unknown"))
-    assert _is_generic_scoped("tactic", "unknown-style-guide", unknown) is True
+    assert _is_generic_scoped("unknown-style-guide", unknown) is True
 
 
 def test_declared_languages_come_from_language_scope_or_the_alias() -> None:
@@ -306,7 +306,7 @@ def test_language_scope_entries_resolve_through_the_language_authority() -> None
 
     declared = _declared_scope_languages({"language_scope": ["Kotlin and Spring"]})
     assert declared == ("kotlin",)
-    assert _is_generic_scoped("tactic", "kotlin-style-guide", None, declared) is False
+    assert _is_generic_scoped("kotlin-style-guide", None, declared) is False
     assert _declared_scope_languages({"language_scope": ["Gradle"]}) == ("jvm",)
 
 

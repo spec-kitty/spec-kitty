@@ -3,6 +3,17 @@
 Scans configured roots for banned language-specific terms in generic-scoped files.
 Language-scoped files listed in ``language_scoped_allowlist.yaml`` are exempt.
 
+Scope here is the artifact's *audience*, not its vocabulary. A generic-scoped
+artifact addresses every project, so a language-specific term in it is an
+unstated assumption about the reader's stack — the bias this lint exists to stop.
+An artifact whose audience is one known stack has no such assumption to make: a
+Python project's own guidance may name ``pytest``. Callers therefore exclude
+language-scoped artifacts before scanning. A synthesized companion tactic
+(``how-we-apply-<directive-id>``, whose audience is the project that ran
+synthesis) is still scanned, with the banned terms of the project's own languages
+exempted (``exempt_languages``; a term's language is its id prefix, see
+``_term_language``); terms of other languages stay banned (#6724).
+
 Contracts:
   - C-3  src/charter/activation/neutrality/banned_terms.yaml (banned terms schema)
   - C-4  contracts/banned-terms-schema.yaml
@@ -25,6 +36,18 @@ __all__ = [
     "run_neutrality_lint",
 ]
 
+
+
+#: The one owner of "which language does a banned term belong to": the id prefix
+#: (``PY-001`` -> ``python``), as the schema's ``LANG-NNN`` id convention already says.
+#: A prefix missing here belongs to no known language, so no project scope exempts it
+#: (fail closed). Add the prefix here when adding the first term of a new language.
+_BANNED_TERM_PREFIX_LANGUAGE: dict[str, str] = {"PY": "python"}
+
+
+def _term_language(term_id: str) -> str | None:
+    """Return the language a banned term belongs to, or None when its prefix is unmapped."""
+    return _BANNED_TERM_PREFIX_LANGUAGE.get(term_id.split("-", 1)[0])
 
 
 # ---------------------------------------------------------------------------
@@ -428,6 +451,7 @@ def run_neutrality_lint(
     scan_roots: list[Path] | None = None,
     banned_terms_path: Path | None = None,
     allowlist_path: Path | None = None,
+    exempt_languages: frozenset[str] = frozenset(),
 ) -> NeutralityLintResult:
     """Run the neutrality lint scanner.
 
@@ -438,6 +462,9 @@ def run_neutrality_lint(
             only traverses these paths (used by fault-injection tests).
         banned_terms_path: Override the path to ``banned_terms.yaml``.
         allowlist_path: Override the path to ``language_scoped_allowlist.yaml``.
+        exempt_languages: Languages whose banned terms are not reported (the scanned
+            artifact is allowed to name them). A term with an unmapped id prefix is
+            never exempted.
 
     Returns:
         A :class:`NeutralityLintResult` describing hits, stale entries, and counts.
@@ -450,7 +477,11 @@ def run_neutrality_lint(
     )
 
     # Load configuration (compile regexes once)
-    terms = _load_banned_terms(banned_terms_path)
+    terms = [
+        term
+        for term in _load_banned_terms(banned_terms_path)
+        if (_term_language(term.term_id) or "") not in exempt_languages
+    ]
     allowlist_paths = _load_allowlist(allowlist_path)
 
     # Resolve allowlist entries once; stale checks and exemptions share semantics.

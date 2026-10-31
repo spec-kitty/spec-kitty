@@ -1,0 +1,87 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M67P6BKQD6PYBBK2PGQNPPPM",
+  "materialized_at": "2026-10-31T00:36:44.279052+00:00",
+  "mission_number": "244",
+  "mission_slug": "companion-tactic-neutrality-scope-01M67JR8",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67P6AR44FEHQ2YQ2WC38PH9",
+      "last_transition_at": "2026-10-31T00:36:43.396638+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "- 2026-10-31T00:22:45Z – python-pedro – shell_pid=1091046 – Review round 1 (reviewer-renata, in-session). Findings: R1 the resynthesize entry point into the same gate was unproven — added test_resynthesize_of_the_companion_is_promoted (RED under mutation, GREEN now). Half-by-half mutation proof: removing the companion branch fails the CLI + unit cases; widening the predicate to ignore the artifact kind fails the styleguide-in-companion-section case; dropping source_section at the call site fails the CLI case. No finding on banned_terms/allowlist (diff empty); ruff C90 clean; mypy's 2 no-any-return errors on write_pipeline.py:212/217 are pre-existing on origin/main.",
+        "Approved after review round 1 (in-session reviewer role)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1091046,
+      "shell_pid_created_at": "1793403571.76",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67P6BKQD6PYBBK2PGQNPPPM",
+      "last_transition_at": "2026-10-31T00:36:44.279052+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs, ADR amendment and changelog; freshness errors=0",
+        "- 2026-10-31T00:31:13Z – python-pedro – shell_pid=1645336 – Review round 1 (reviewer-renata, in-session). Checked each doc claim against the code: the ADR amendment's two halves and its detection rule match _is_companion_tactic; the lint module docstring states audience/scope rather than vocabulary; the changelog entry is 875 chars, impact-first, before/after, with the unconfigured-project half named. Verified docs gate: check_docs_freshness --ci errors=0 (base origin/main also errors=0, 8 warnings; the 3 help-drift warnings here are pre-existing on main); docs_index --write produced exactly one added anchor line; freshen_adr_inventory unchanged; check_changelog_style 0 errors; terminology guard 98 passed. Deliberately NOT adding a gate section to docs/guides/how-to/governance/synthesize-doctrine.md: that guide never described the gate, so adding one is outside this defect's locality.",
+        "Approved: docs match the code, freshness errors=0, terminology guard green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1645336,
+      "shell_pid_created_at": "1793406301.63",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    }
+  }
+}
