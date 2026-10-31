@@ -10865,6 +10865,7 @@ pages:
     - {slug: "charter", text: "charter", level: 3}
     - {slug: "charter-offering", text: "Charter offering", level: 3}
     - {slug: "charter-pack", text: "Charter Pack", level: 3}
+    - {slug: "contract-scenario", text: "Contract Scenario", level: 3}
     - {slug: "activation-preset", text: "Activation preset", level: 3}
     - {slug: "active-charter", text: "Active charter", level: 3}
     - {slug: "activation-ledger", text: "Activation ledger", level: 3}

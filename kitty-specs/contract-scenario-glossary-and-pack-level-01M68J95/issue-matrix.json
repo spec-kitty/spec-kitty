@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#6046": {
+      "evidence_ref": "context citation only: prior docs commit for requires_core/pack_level in the same entry",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6048": {
+      "evidence_ref": "context citation only: 4dd757384d introduced the wording this mission corrects",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6403": {
+      "evidence_ref": "0778fd53fb shipped the PACK_LEVEL_MISSING wording; this mission preserves it clause for clause while changing only 'tier' to 'level'",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6439": {
+      "evidence_ref": "docs/context/charter.md gains the Contract Scenario entry (definition, home, related terms, Do NOT use when); docs/context/governance.md Pack Level and docs/context/charter.md Charter Pack now say level/level token; tests/docs/test_context_glossary_contract_scenario_and_pack_level.py pins both",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
