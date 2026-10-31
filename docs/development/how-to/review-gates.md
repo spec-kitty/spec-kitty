@@ -164,10 +164,12 @@ Configuration (`.kittify/config.yaml`, under `review:`):
 > `planning-lane WP — committed diff not inspected (a planning_artifact WP commits on the target branch, so no workspace diff exists)`
 > as its `no_coverage` reason, and the transition is never blocked by it. Every
 > other WP with an empty diff keeps the `no changed files detected for this WP`
-> wording. Classification asks the WP's declared `execution_mode` first and, when
-> the frontmatter is silent, the kind view in `lanes.json`; an unreadable
-> manifest falls back to the incumbent wording rather than claiming a planning
-> lane.
+> wording. Classification asks the WP's declared `execution_mode` first and,
+> when the frontmatter is silent, requires BOTH `lanes.json` conditions — the WP
+> sits in a lane `is_planning_lane` owns **and** its `planning_artifact_wps` kind
+> view names it — because a `single_branch` mission's one repo-root lane also
+> holds code work packages. An unreadable manifest falls back to the incumbent
+> wording rather than claiming a planning lane.
 
 ## Review-cycle artifacts and the consolidation gate
 
