@@ -49,6 +49,7 @@ MISSION_ID = "01KSHAD00000000000000000000"
 MISSION_DIRNAME = f"{SLUG}-{MID8}"
 MISSION_BRANCH = f"kitty/mission-{MISSION_DIRNAME}"
 COORD_BRANCH = MISSION_BRANCH
+TOPIC_BRANCH = "fixture-topic"
 
 _WP_FILE = "---\nwork_package_id: WP01\ntitle: Shadow WP01\ndependencies: []\nsubtasks: []\n---\n\n# WP01\n"
 
@@ -143,7 +144,13 @@ def _seed_planned_on_primary(repo: Path) -> None:
 
 
 def _build_mission(root: Path, *, coordination: bool) -> Path:
-    """Materialize a mission with a lanes manifest at ``root``, on its own mission branch."""
+    """Materialize a mission with a lanes manifest at ``root``.
+
+    ``coordination=False`` is the branch-flat ``lanes`` shape: the mission dir and its status
+    log are committed on the mission branch, which is also the target branch.
+    ``coordination=True`` is the ``lanes_with_coord`` shape: the primary checkout sits on a
+    non-protected topic branch and the status log lives on the coordination branch.
+    """
     root.mkdir(parents=True)
     _git(root, "init", "-q", "-b", "main")
     _git(root, "config", "user.email", "t@example.invalid")
@@ -152,7 +159,8 @@ def _build_mission(root: Path, *, coordination: bool) -> Path:
     (root / "README.md").write_text("fixture\n", encoding="utf-8")
     _git(root, "add", "README.md")
     _git(root, "commit", "-q", "-m", "root commit")
-    _git(root, "checkout", "-q", "-b", MISSION_BRANCH)
+    landing_branch = TOPIC_BRANCH if coordination else MISSION_BRANCH
+    _git(root, "checkout", "-q", "-b", landing_branch)
 
     feature_dir = root / "kitty-specs" / MISSION_DIRNAME
     (feature_dir / "tasks").mkdir(parents=True)
@@ -160,7 +168,7 @@ def _build_mission(root: Path, *, coordination: bool) -> Path:
         "mission_slug": SLUG,
         "mission_id": MISSION_ID,
         "mid8": MID8,
-        "target_branch": MISSION_BRANCH,
+        "target_branch": landing_branch,
         "mission_branch": MISSION_BRANCH,
     }
     if coordination:
@@ -176,7 +184,7 @@ def _build_mission(root: Path, *, coordination: bool) -> Path:
     )
     write_lanes_json(
         feature_dir,
-        _manifest(mission_branch=MISSION_BRANCH, target_branch=MISSION_BRANCH),
+        _manifest(mission_branch=MISSION_BRANCH, target_branch=landing_branch),
     )
     _git(root, "add", "kitty-specs")
     _git(root, "commit", "-q", "-m", "seed mission")
