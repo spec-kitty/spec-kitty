@@ -30,6 +30,7 @@ from charter.activation.synthesizer.manifest import (
 )
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 from charter.bundle import compute_bundle_content_hash
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 
 pytestmark = [pytest.mark.unit, pytest.mark.regression]
 
@@ -343,3 +344,112 @@ def test_an_unreadable_manifest_without_legacy_state_is_left_to_its_own_reader(t
     (tmp_path / MANIFEST_PATH).write_text("{unclosed: [", encoding="utf-8")
 
     assert not rename_legacy_project_intent_directive(tmp_path).pending
+
+
+# ---------------------------------------------------------------------------
+# #6565: the rename carries an activation deny entry with the artifact
+# ---------------------------------------------------------------------------
+
+_LEDGER = Path(".kittify") / "charter" / "activation.yaml"
+
+
+def _ledger_project(
+    root: Path,
+    *,
+    allow: list[str] | None = None,
+    deny: list[str] | None = None,
+    **other: list[str],
+) -> None:
+    """A git-initialised ledger project seeded through the seam's own writer (never a raw YAML write)."""
+    (root / _CONFIG).parent.mkdir(parents=True, exist_ok=True)
+    (root / _CONFIG).write_text("{}\n", encoding="utf-8")
+    seeded: dict[str, Any] = {"activated_directives": allow if allow is not None else [_LEGACY_STEM, "DIRECTIVE_003"], **other}
+    if deny is not None:
+        seeded["deactivated_directives"] = deny
+    seed_activation_ledger(root, **seeded)
+
+
+def _deny(root: Path) -> list[str]:
+    return list(read_activation_ledger(root).get("deactivated_directives") or [])
+
+
+def test_the_rename_carries_a_deny_entry(tmp_path: Path) -> None:
+    """#6565: the exclusion the user recorded by the old stem follows the artifact, so it still applies."""
+    _ledger_project(tmp_path, deny=[_LEGACY_STEM])
+
+    report = rename_legacy_project_intent_directive(tmp_path)
+
+    assert any("deactivated_directives" in action for action in report.actions), report.actions
+    assert read_activation_ledger(tmp_path)["activated_directives"] == [_NEW_STEM, "DIRECTIVE_003"]
+    assert _deny(tmp_path) == [_NEW_STEM]
+
+
+def test_a_legacy_surface_deny_key_is_left_alone(tmp_path: Path) -> None:
+    """A pre-ledger deny key is never applied, so the rename does not rewrite it (and must not refuse)."""
+    _legacy_project(tmp_path)
+    charter_yaml = tmp_path / _CHARTER_YAML
+    charter_yaml.write_text(charter_yaml.read_text(encoding="utf-8") + f"deactivated_directives:\n- {_LEGACY_STEM}\n", encoding="utf-8")
+
+    rename_legacy_project_intent_directive(tmp_path)
+
+    document = _load(charter_yaml)
+    assert document["activated_directives"] == [_NEW_STEM, "DIRECTIVE_003"]
+    assert document["deactivated_directives"] == [_LEGACY_STEM]
+
+
+def test_a_second_run_does_not_rewrite_the_deny_entry(tmp_path: Path) -> None:
+    _ledger_project(tmp_path, deny=[_LEGACY_STEM])
+    assert rename_legacy_project_intent_directive(tmp_path).pending
+    settled = (tmp_path / _LEDGER).read_bytes()
+
+    report = rename_legacy_project_intent_directive(tmp_path)
+
+    assert report.actions == ()
+    assert (tmp_path / _LEDGER).read_bytes() == settled
+
+
+def test_other_deny_entries_are_untouched(tmp_path: Path) -> None:
+    _ledger_project(
+        tmp_path,
+        deny=[_LEGACY_STEM, "DIRECTIVE_003"],
+        deactivated_tactics=["acceptance-test-first"],
+        deactivated_skills=["fixture-skill"],
+    )
+
+    rename_legacy_project_intent_directive(tmp_path)
+
+    ledger = read_activation_ledger(tmp_path)
+    assert ledger["deactivated_directives"] == [_NEW_STEM, "DIRECTIVE_003"]
+    assert ledger["deactivated_tactics"] == ["acceptance-test-first"]
+    assert ledger["deactivated_skills"] == ["fixture-skill"]
+
+
+def test_both_spellings_of_the_deny_entry_collapse(tmp_path: Path) -> None:
+    _ledger_project(tmp_path, deny=[_LEGACY_STEM, _NEW_STEM, _LEGACY_STEM])
+
+    rename_legacy_project_intent_directive(tmp_path)
+
+    assert _deny(tmp_path) == [_NEW_STEM]
+
+
+def test_a_dry_run_names_the_deny_rewrite_and_writes_nothing(tmp_path: Path) -> None:
+    _ledger_project(tmp_path, deny=[_LEGACY_STEM])
+    before = (tmp_path / _LEDGER).read_bytes()
+
+    report = rename_legacy_project_intent_directive(tmp_path, dry_run=True)
+
+    assert report.dry_run
+    assert any("deactivated_directives" in action for action in report.actions), report.actions
+    assert (tmp_path / _LEDGER).read_bytes() == before
+    assert _deny(tmp_path) == [_LEGACY_STEM]
+
+
+def test_a_deny_only_project_is_detected_and_carried(tmp_path: Path) -> None:
+    """The narrow window: the artifact files were already renamed, only the stale deny entry is left."""
+    _ledger_project(tmp_path, allow=[_NEW_STEM], deny=[_LEGACY_STEM])
+
+    report = rename_legacy_project_intent_directive(tmp_path)
+
+    assert len(report.actions) == 1 and "deactivated_directives" in report.actions[0]
+    assert ".kittify/charter/activation.yaml" in report.actions[0]
+    assert _deny(tmp_path) == [_NEW_STEM]

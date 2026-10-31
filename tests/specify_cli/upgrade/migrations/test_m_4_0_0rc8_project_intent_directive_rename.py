@@ -22,6 +22,7 @@ from specify_cli.upgrade.migrations.m_4_0_0rc8_project_intent_directive_rename i
 )
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
+from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
 
@@ -117,3 +118,43 @@ def test_the_runner_applies_it_and_the_ledger_records_success(tmp_path: Path) ->
     records = MigrationLedger(tmp_path).read_tracked()
     ours = [r for r in records if r.id == ProjectIntentDirectiveRenameMigration.migration_id]
     assert ours and ours[-1].result == "success"
+
+
+# ---------------------------------------------------------------------------
+# #6565: the exclusion follows the artifact
+# ---------------------------------------------------------------------------
+
+_LEGACY_STEM = "001-mission-type-scope-directive"
+_NEW_STEM = "001-project-intent-directive"
+
+
+def _ledger_deny(project: Path) -> list[str]:
+    return list(read_activation_ledger(project).get("deactivated_directives") or [])
+
+
+def test_apply_carries_a_ledger_deny_entry(tmp_path: Path) -> None:
+    """#6565: the exclusion a user recorded by the old stem still applies after the upgrade."""
+    _legacy_project(tmp_path)
+    seed_activation_ledger(tmp_path, activated_directives=[_LEGACY_STEM, "DIRECTIVE_003"], deactivated_directives=[_LEGACY_STEM])
+    migration = ProjectIntentDirectiveRenameMigration()
+
+    assert migration.detect(tmp_path) is True
+    result = migration.apply(tmp_path)
+
+    assert result.success, result.errors
+    assert any("deactivated_directives" in change for change in result.changes_made), result.changes_made
+    assert _ledger_deny(tmp_path) == [_NEW_STEM]
+    assert read_activation_ledger(tmp_path)["activated_directives"] == [_NEW_STEM, "DIRECTIVE_003"]
+    assert migration.detect(tmp_path) is False
+    assert migration.apply(tmp_path).changes_made == []
+
+
+def test_detect_sees_a_deny_only_stale_stem(tmp_path: Path) -> None:
+    """The narrow window: nothing left to rename but the exclusion, and the migration still runs."""
+    seed_activation_ledger(tmp_path, activated_directives=[_NEW_STEM], deactivated_directives=[_LEGACY_STEM])
+    migration = ProjectIntentDirectiveRenameMigration()
+
+    assert migration.detect(tmp_path) is True
+    assert migration.apply(tmp_path).success
+
+    assert _ledger_deny(tmp_path) == [_NEW_STEM]
