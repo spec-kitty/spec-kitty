@@ -44,7 +44,7 @@ import fnmatch
 import logging
 import re
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -433,9 +433,12 @@ def _tip_resolves(repo_root: Path, tip: str) -> bool:
 class _LandedWindow:
     """The window actually judged for a lane, plus what it stands in for (#6780).
 
-    ``absent_ref`` names the window tip that no longer resolves; ``landed_commit`` is the
-    caller-verified PR landing commit that stands in for it, or ``None`` when none was
-    supplied (the window is then the absent one, and its diff fails closed as before).
+    ``absent_ref`` names the window tip that no longer resolves (``None`` while it still
+    does); ``landed_commit`` is the caller-verified PR landing commit that stands in for it,
+    or ``None`` when none was supplied (the window is then the absent one, and its diff
+    fails closed as before). The two are independent: a pruned tip with no stand-in keeps
+    ``absent_ref`` so the refusal can name it, and a stand-in is only ever recorded beside
+    the ref it replaces.
     """
 
     window: tuple[str, str]
@@ -469,6 +472,19 @@ def _landed_window(repo_root: Path, window: tuple[str, str], landed_commit: str 
             f"(the window {base}..{landed_commit} would not describe this Mission's work)"
         )
     return _LandedWindow((base, landed_commit), absent_ref=tip, landed_commit=landed_commit)
+
+
+def _naming_an_absent_tip(repo_root: Path, judged: _LandedWindow) -> _LandedWindow:
+    """*judged* with ``absent_ref`` filled in when its window tip no longer resolves (#6780).
+
+    A failed diff is not proof that the tip is gone (the object store may be unreadable for
+    another reason), so the tip is probed here — on the failure path only. A window that
+    still reads pays no extra probe, and a refusal can name the pruned branch instead of
+    quoting git's own paraphrase of the refspec.
+    """
+    if judged.absent_ref is not None or _tip_resolves(repo_root, judged.window[1]):
+        return judged
+    return replace(judged, absent_ref=judged.window[1])
 
 
 def _unreadable_line(wp_id: str, lane: ExecutionLane, judged: _LandedWindow, exc: GitProbeError) -> str:
@@ -585,6 +601,7 @@ def _scan_lane(repo_root: Path, lanes_manifest: LanesManifest, scan: _Scan, lane
     try:
         paths = evidence_paths(repo_root, judged.window, lanes_manifest.mission_slug)
     except GitProbeError as exc:
+        judged = _naming_an_absent_tip(repo_root, judged)
         for wp_id in approved:
             scan.add(wp_id, _unreadable_line(wp_id, lane, judged, exc))
         return
