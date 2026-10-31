@@ -1,70 +1,90 @@
-"""Per-user base directories for cache and state files (#6481).
+"""Per-user cache, state and config directories -- the one authority (#6488).
 
-Shared resolution of ``XDG_CACHE_HOME`` / ``XDG_STATE_HOME`` /
-``LOCALAPPDATA`` into a directory. Both helpers return the *base* directory;
-callers append their own ``spec-kitty/...`` subpath. Known exception:
-``specify_cli.compat.cache`` resolves its cache through ``platformdirs`` under
-different rules (#6488).
+``platformdirs`` semantics win for every kind of per-user directory (operator
+triage on #6488, 2026-10-19). This module is the only place in the codebase that
+turns a platform and an environment into such a path; every caller resolves
+through :func:`user_cache_dir`, :func:`user_state_dir` or :func:`user_config_dir`
+and appends only its own subpath. Before #6488 each caller carried a copy of the
+rule and they disagreed, so on macOS the upgrade, pack and service caches landed
+in ``~/.cache/spec-kitty`` while the upgrade-nag cache landed in
+``~/Library/Caches/spec-kitty``.
 
-The helpers reproduce, byte for byte, the locations the callers used before
-this module existed, so no file moved when they switched over:
+The resolved directories (app name ``spec-kitty``, ``appauthor=False``):
 
-* :func:`user_cache_dir` -- ``%LOCALAPPDATA%`` (else ``~/AppData/Local``) on
-  Windows; ``$XDG_CACHE_HOME`` (else ``~/.cache``) everywhere else, macOS
-  included. ``windows_local_appdata=False`` drops the Windows branch, so the
-  XDG rule applies on Windows too.
-* :func:`user_state_dir` -- ``$XDG_STATE_HOME`` (else ``~/.cache``) on every
-  platform. The fallback is the literal ``~/.cache``: it does not consult
-  ``XDG_CACHE_HOME`` and is not the XDG-spec ``~/.local/state``.
+* cache -- ``$XDG_CACHE_HOME/spec-kitty`` (else ``~/.cache/spec-kitty``) on
+  Linux; ``$XDG_CACHE_HOME/spec-kitty`` (else ``~/Library/Caches/spec-kitty``)
+  on macOS; ``%LOCALAPPDATA%\\spec-kitty\\Cache`` on Windows.
+* state -- ``$XDG_STATE_HOME/spec-kitty`` (else ``~/.local/state/spec-kitty``)
+  on Linux; ``$XDG_STATE_HOME/spec-kitty`` (else
+  ``~/Library/Application Support/spec-kitty``) on macOS;
+  ``%LOCALAPPDATA%\\spec-kitty`` on Windows.
+* config -- ``$XDG_CONFIG_HOME/spec-kitty`` (else ``~/.config/spec-kitty``) on
+  Linux; ``$XDG_CONFIG_HOME/spec-kitty`` (else
+  ``~/Library/Application Support/spec-kitty``) on macOS;
+  ``%LOCALAPPDATA%\\spec-kitty`` on Windows.
 
-An empty environment variable counts as unset. Relative values are used as
-given. This does not use ``platformdirs``: it resolves other locations
-(``~/Library/Caches`` on macOS, an extra ``Cache`` level on Windows), so it
-would move the files these callers already wrote.
+Three details are deliberate:
+
+* The ``platformdirs`` class is chosen here rather than by
+  ``platformdirs``' own import-time platform detection, so a test can exercise
+  the macOS and Windows branches from any host (spec C-005). The Windows choice
+  goes through :func:`kernel.paths.is_windows`, the seam the tests already fake.
+* ``appauthor=False`` keeps one Windows convention across the tool:
+  :func:`kernel.paths.get_kittify_home` and ``specify_cli.paths.windows_paths``
+  pass it too. The default (``appauthor`` = app name) would produce the doubled
+  ``%LOCALAPPDATA%\\spec-kitty\\spec-kitty\\Cache``.
+* ``ensure_exists`` stays ``False``: resolving a directory is a pure environment
+  read that creates nothing, and a caller decides when to write.
+
+State and config coincide on macOS and Windows because that is what
+``platformdirs`` documents for those platforms; on Linux they differ, which is
+the XDG spec.
 """
 
 from __future__ import annotations
 
-import os
+import sys
 from pathlib import Path
+
+from platformdirs.api import PlatformDirsABC
+from platformdirs.macos import MacOS
+from platformdirs.unix import Unix
+from platformdirs.windows import Windows
 
 from kernel import paths as _paths
 
-__all__ = ["user_cache_dir", "user_state_dir"]
+__all__ = ["user_cache_dir", "user_config_dir", "user_state_dir"]
 
-_XDG_CACHE_HOME = "XDG_CACHE_HOME"
-_XDG_STATE_HOME = "XDG_STATE_HOME"
-_LOCALAPPDATA = "LOCALAPPDATA"
+APP_NAME = "spec-kitty"
 
 
-def user_cache_dir(*, windows_local_appdata: bool = True) -> Path:
-    """Return the per-user base cache directory.
+def _platform_dirs() -> PlatformDirsABC:
+    """Return the ``platformdirs`` instance for the current platform and app.
 
-    Windows, when *windows_local_appdata* is true: ``%LOCALAPPDATA%``, or
-    ``~/AppData/Local`` when it is unset or empty. Otherwise:
-    ``$XDG_CACHE_HOME``, or ``~/.cache`` when it is unset or empty.
-
-    The Windows check goes through :func:`kernel.paths.is_windows` at call
-    time, so tests can monkeypatch that seam.
+    The Windows check goes through :func:`kernel.paths.is_windows` at call time
+    (so tests can fake it); macOS is read from ``sys.platform`` for the same
+    reason. Everything else takes the Unix class, which is also what
+    ``platformdirs`` itself would pick.
     """
-    if windows_local_appdata and _paths.is_windows():
-        local_app_data = os.environ.get(_LOCALAPPDATA)
-        if local_app_data:
-            return Path(local_app_data)
-        return Path.home() / "AppData" / "Local"
-    xdg = os.environ.get(_XDG_CACHE_HOME)
-    if xdg:
-        return Path(xdg)
-    return Path.home() / ".cache"
+    if _paths.is_windows():
+        platform_dirs: type[PlatformDirsABC] = Windows
+    elif sys.platform == "darwin":
+        platform_dirs = MacOS
+    else:
+        platform_dirs = Unix
+    return platform_dirs(appname=APP_NAME, appauthor=False, ensure_exists=False)
+
+
+def user_cache_dir() -> Path:
+    """Return the per-user cache directory for spec-kitty (disposable files)."""
+    return Path(_platform_dirs().user_cache_dir)
 
 
 def user_state_dir() -> Path:
-    """Return the per-user base state directory.
+    """Return the per-user state directory for spec-kitty (small persistent markers)."""
+    return Path(_platform_dirs().user_state_dir)
 
-    ``$XDG_STATE_HOME``, or ``~/.cache`` when it is unset or empty, on every
-    platform (no Windows or macOS branch).
-    """
-    state_home = os.environ.get(_XDG_STATE_HOME)
-    if state_home:
-        return Path(state_home)
-    return Path.home() / ".cache"
+
+def user_config_dir() -> Path:
+    """Return the per-user config directory for spec-kitty (operator-edited settings)."""
+    return Path(_platform_dirs().user_config_dir)
