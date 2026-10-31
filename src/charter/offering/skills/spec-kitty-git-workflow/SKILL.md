@@ -74,10 +74,11 @@ This reuses the lane worktree instead of creating a second workspace:
 
 Before creating a worktree, Python checks if `kitty-specs/042-mission/` has
 uncommitted changes on the primary branch. If so, it commits through
-`BookkeepingTransaction` and `safe_commit`:
+`BookkeepingTransaction` and `safe_commit`, which takes exact file paths and refuses a
+directory (`SAFE_COMMIT_DIRECTORY_ARGUMENT`); the `spec-kitty safe-commit <dir>` CLI expands one:
 
 ```
-safe_commit(paths=["kitty-specs/042-mission/"], message="chore: Planning artifacts for 042-mission")
+safe_commit(paths=["kitty-specs/042-mission/spec.md", "kitty-specs/042-mission/plan.md"], message="chore: Planning artifacts for 042-mission")
 ```
 
 **Controlled by:** `auto_commit: true` in `.kittify/config.yaml` (default: true).
