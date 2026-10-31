@@ -1,0 +1,49 @@
+{
+  "mission_slug": "decisions-lock-log-anchor-01M67JK0",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/decisions/test_decisions_lock_log_anchor.py::test_two_checkouts_writing_one_log_share_a_lock (shared anchor) + ::test_two_checkouts_writing_distinct_logs_share_no_lock (distinct anchors)",
+      "pass_fail": "pass",
+      "verified_by": "Ivan Melck (maintainer-agent Q18-retry)",
+      "verified_at": "2026-10-31T04:35:29.513768+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "::test_a_forward_write_takes_the_anchor_then_the_sidecar + ::test_two_checkouts_writing_one_log_do_not_interleave_an_open (red 10/10 pre-fix, green 20/20 post-fix)",
+      "pass_fail": "pass",
+      "verified_by": "Ivan Melck (maintainer-agent Q18-retry)",
+      "verified_at": "2026-10-31T04:35:32.798144+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "::test_two_checkouts_writing_distinct_logs_share_no_lock + ::test_the_overlap_probe_sees_independent_writers (probe proven able to observe overlap)",
+      "pass_fail": "pass",
+      "verified_by": "Ivan Melck (maintainer-agent Q18-retry)",
+      "verified_at": "2026-10-31T04:35:36.454480+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "360 passed across tests/specify_cli/decisions/, tests/decisions/test_decisions_reconciler.py, tests/integration/test_owned_decision_runtime_lock.py, tests/specify_cli/orchestrator_api/test_decision_verbs.py, tests/specify_cli/cli/commands/test_decision.py",
+      "pass_fail": "pass",
+      "verified_by": "Ivan Melck (maintainer-agent Q18-retry)",
+      "verified_at": "2026-10-31T04:35:40.082934+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

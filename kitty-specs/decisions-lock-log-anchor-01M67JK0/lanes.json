@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "decisions-lock-log-anchor-01M67JK0",
+  "mission_id": "01M67JK0MZT18PW8D8S4MD3737",
+  "mission_branch": "kitty/mission-decisions-lock-log-anchor-01M67JK0",
+  "target_branch": "issue-6765-decisions-lock-log-anchor",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/decisions/service.py",
+        "tests/specify_cli/decisions/test_decisions_lock_log_anchor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T23:37:40.498385+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "50a88cf4eb376856c72d471132af481ec537466a"
+}
