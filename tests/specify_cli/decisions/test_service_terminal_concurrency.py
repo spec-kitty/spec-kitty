@@ -3,13 +3,36 @@
 A terminal call (resolve / defer / cancel) holds the decisions lock across the
 index save, the artifact write and the terminal event.  Every test here
 pauses the REAL emit on its first call so the interleaving is decided by
-events, not by timing luck; every thread is a daemon with a bounded join.
+events, not by timing luck; every thread is a daemon.
+
+This file owns exactly two wall clocks, and no test here inherits one from the
+product (#6773):
+
+* ``_WAIT_S`` -- a rendezvous participant must reach (or leave) its event.  A
+  failure here names the missed rendezvous.
+* ``_DEADLOCK_BUDGET_S`` -- the single backstop deciding "stuck": a worker that
+  has not returned by then is deadlocked, and its failure carries a thread dump
+  plus the decisions-lock holder record (``_deadlock_report``).
+
+``_WAIT_S`` is the largest legitimate wait any scenario can incur, so
+``_DEADLOCK_BUDGET_S`` is sized above it and below every ``@pytest.mark.timeout``
+marker in this file: a genuine deadlock must produce this file's verdict, never
+a bare ``Failed: Timeout`` from the marker.
+
+The coexistence scenario additionally pins the decisions-lock acquire bound it
+runs under (``_run_coexistence``), so a holder that is merely slow on a loaded
+runner can never be reported as a deadlock.  The product's bounded refusal keeps
+its own coverage in ``test_decisions_lock_waiter_times_out_and_writes_nothing``.
 """
 
 from __future__ import annotations
 
+import faulthandler
+import io
 import json
+import tempfile
 import threading
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -17,6 +40,8 @@ from typing import Any
 import pytest
 
 from specify_cli.decisions import emit as _emit
+from specify_cli.decisions import service as _service
+from specify_cli.decisions import store as _store
 from specify_cli.decisions.index_fold import fold_events
 from specify_cli.decisions.models import DecisionErrorCode, DecisionStatus, DecisionTerminalResponse, IndexEntry, OriginFlow
 from specify_cli.decisions.service import DecisionError, open_decision, resolve_decision
@@ -25,7 +50,16 @@ pytestmark = [pytest.mark.unit]
 
 MISSION_ID = "01KTEST_MISSION_ID_000002"
 MISSION_SLUG = "concurrency-mission"
+#: A rendezvous participant must reach its event (see ``_Pause``).  Bounded so a
+#: missed rendezvous fails by name instead of hanging the worker.
 _WAIT_S = 20.0
+#: The ONE deadline that decides "stuck" (#6773).  ``_WAIT_S`` is the largest
+#: legitimate wait inside a scenario, so this keeps more than 2x headroom over it
+#: and stays below every ``@pytest.mark.timeout`` marker in the file (60 s on the
+#: pause-driven tests, 90 s on the coexistence ratchet): a genuine deadlock
+#: produces this file's verdict (a thread dump plus the decisions-lock holder),
+#: never a bare ``Failed: Timeout`` from the marker.
+_DEADLOCK_BUDGET_S = 45.0
 
 
 def _mission_dir(repo_root: Path) -> Path:
@@ -90,13 +124,40 @@ class _Pause:
         return int(self._real(*args, **kwargs))
 
 
+def _deadlock_report(repo_root: Path | None) -> str:
+    """Diagnose a join that timed out: live thread stacks and the decisions lock state.
+
+    ``kernel.locks`` truncates a lock file on release, so a non-empty record names
+    the holder that never let go and an empty one names a released lock.
+    """
+    buffer = io.StringIO()
+    buffer.write("\n\nlive threads (the participant that never returned is in here):\n")
+    # ``faulthandler`` writes to a real file descriptor, so it cannot target the
+    # StringIO directly; a temporary file keeps the dump off stdout.
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as dump:
+        faulthandler.dump_traceback(file=dump, all_threads=True)
+        dump.seek(0)
+        buffer.write(dump.read())
+    lock_files = sorted((_mission_dir(repo_root) / "decisions").glob("*.lock")) if repo_root is not None else []
+    if lock_files:
+        buffer.write("\ndecisions lock files (truncated on release, so a record names the holder):\n")
+        for path in lock_files:
+            try:
+                record = path.read_text(encoding="utf-8").strip()
+            except OSError as exc:  # pragma: no cover - unreadable sidecar
+                record = f"<unreadable: {exc}>"
+            buffer.write(f"  {path}: {record or '<empty: released>'}\n")
+    return buffer.getvalue()
+
+
 class _Worker:
     """Run *fn* on a daemon thread, capturing its result or exception."""
 
-    def __init__(self, fn: Callable[[], Any]) -> None:
+    def __init__(self, fn: Callable[[], Any], *, repo_root: Path | None = None) -> None:
         self.result: Any = None
         self.error: BaseException | None = None
         self._fn = fn
+        self._repo_root = repo_root
         self.thread = threading.Thread(target=self._run, daemon=True)
 
     def _run(self) -> None:
@@ -109,9 +170,10 @@ class _Worker:
         self.thread.start()
         return self
 
-    def finish(self, timeout: float = 30.0) -> None:
+    def finish(self, timeout: float = _DEADLOCK_BUDGET_S) -> None:
         self.thread.join(timeout)
-        assert not self.thread.is_alive(), "worker did not finish"
+        if self.thread.is_alive():
+            raise AssertionError(f"worker did not finish within {timeout:g}s -- a participant is stuck, not merely slow{_deadlock_report(self._repo_root)}")
         assert self.error is None, repr(self.error)
 
 
@@ -191,9 +253,25 @@ def _raise_oserror(*_a: Any, **_k: Any) -> None:
     raise OSError("simulated interruption")
 
 
-@pytest.mark.timeout(90)
-def test_terminal_calls_do_not_deadlock_with_other_decision_lock_holders(tmp_path: Path) -> None:
-    """Ratchet (NFR-002 (2)): terminal calls, an open, the doctor repair and a status-lock writer coexist."""
+def _run_coexistence(tmp_path: Path, *, slow_hold_s: float = 0.0) -> None:
+    """Run the four-participant coexistence interleaving (#6773, NFR-002 (2)).
+
+    The scenario owns the decisions-lock acquire bound it runs under.  The
+    product bounds that wait at ``_LOCK_ACQUIRE_TIMEOUT_S`` (10 s) because a
+    caller must fail loudly rather than hang, and that refusal is correct: it is
+    pinned by ``test_decisions_lock_waiter_times_out_and_writes_nothing``.
+    Inside THIS scenario a bounded wait would let a loaded runner turn "the
+    holder is slow" into ``LOCK_TIMEOUT`` and be reported as a failed worker --
+    the false red #6773 diagnosed.  Pinning the bound to ``None`` (the same
+    unbounded wait ``open_decision`` already uses for ``_OPEN_LOCK_WAIT_S``)
+    leaves ``_DEADLOCK_BUDGET_S`` as the only deadline, so the verdict is "a
+    participant never returned", never "a participant was slow".
+
+    ``slow_hold_s`` injects a FINITE hold into every holder's critical section;
+    it exists so the proof in
+    ``test_coexistence_ratchet_is_indifferent_to_the_ambient_acquire_bound`` can
+    exercise a slow-but-finite environment through the same scenario body.
+    """
     from specify_cli.cli.commands import _decisions_doctor as doctor
     from specify_cli.status import feature_status_lock, mission_lock_key
     from specify_cli.workspace.root_resolver import resolve_status_lock_root
@@ -218,21 +296,86 @@ def test_terminal_calls_do_not_deadlock_with_other_decision_lock_holders(tmp_pat
 
         return run
 
-    workers = [
-        _Worker(gated(lambda: (_resolve(tmp_path, d1), _resolve(tmp_path, d2)))),
-        _Worker(gated(lambda: _open(tmp_path, "k3"))),
-        _Worker(gated(doctor_repair)),
-        _Worker(gated(status_writer)),
-    ]
-    for w in workers:
-        w.start()
-    for w in workers:
-        w.finish()
+    # The context manager restores both constants even when a worker raises, so a
+    # sibling test in the same xdist worker never inherits an unbounded acquire.
+    with pytest.MonkeyPatch.context() as pinned:
+        pinned.setattr(_service, "_LOCK_ACQUIRE_TIMEOUT_S", None)
+        pinned.setattr(doctor, "_LOCK_ACQUIRE_TIMEOUT_S", None)
+        if slow_hold_s:
+            real_save_index = _store.save_index
+
+            def slow_save_index(*args: Any, **kwargs: Any) -> None:
+                time.sleep(slow_hold_s)
+                real_save_index(*args, **kwargs)
+
+            pinned.setattr(_store, "save_index", slow_save_index)
+
+        workers = [
+            _Worker(gated(lambda: (_resolve(tmp_path, d1), _resolve(tmp_path, d2))), repo_root=tmp_path),
+            _Worker(gated(lambda: _open(tmp_path, "k3")), repo_root=tmp_path),
+            _Worker(gated(doctor_repair), repo_root=tmp_path),
+            _Worker(gated(status_writer), repo_root=tmp_path),
+        ]
+        for w in workers:
+            w.start()
+        # If one participant is stuck, reporting it is the whole point: the first
+        # failing finish raises (with the report) and the remaining daemon workers
+        # are abandoned rather than waited on a second time. They only touch this
+        # test's own tmp_path locks, so nothing leaks into a later test.
+        for w in workers:
+            w.finish()
 
     events_dir = doctor._mission_dir(tmp_path, MISSION_SLUG)
     ledger_dir = doctor._ledger_dir(tmp_path, MISSION_SLUG)
     report, _ = doctor._diagnose(events_dir, ledger_dir, MISSION_SLUG)
     assert report.clean
+
+
+@pytest.mark.timeout(90)
+def test_terminal_calls_do_not_deadlock_with_other_decision_lock_holders(tmp_path: Path) -> None:
+    """Ratchet (NFR-002 (2)): terminal calls, an open, the doctor repair and a status-lock writer coexist."""
+    _run_coexistence(tmp_path)
+
+
+@pytest.mark.timeout(60)
+def test_coexistence_ratchet_is_indifferent_to_the_ambient_acquire_bound(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A slow-but-finite holder is not a deadlock, whatever bound is ambient (#6773).
+
+    Red before the fix, with this exact injection: the scenario inherited the
+    ambient bound, so a holder slower than it made a peer refuse with
+    ``LOCK_TIMEOUT`` and the ratchet reported a deadlock that did not exist (the
+    reproducible pre-fix output is recorded in the mission's
+    ``research/deadlock-budget-probe.md``).  The ambient bound here is tighter
+    than the injected hold, so this stays non-vacuous: it can only pass because
+    the scenario pins its own bound.
+    """
+    monkeypatch.setattr(_service, "_LOCK_ACQUIRE_TIMEOUT_S", 0.1)
+    _run_coexistence(tmp_path, slow_hold_s=0.3)
+
+
+@pytest.mark.timeout(60)
+def test_deadlock_backstop_reports_a_participant_that_never_finishes(tmp_path: Path) -> None:
+    """The backstop must bite, and name the lock (FR-004): a parked worker reds the verdict.
+
+    Without this, the "no false red" fix would have bought silence instead of
+    determinism: a participant that never returns must still fail the ratchet,
+    inside its budget, with a report that names the decisions lock.
+    """
+    _open(tmp_path)  # mint the ledger so the report has a decisions lock path to name
+    parked = threading.Event()
+    worker = _Worker(parked.wait, repo_root=tmp_path).start()
+    try:
+        with pytest.raises(AssertionError) as raised:
+            worker.finish(timeout=0.2)
+    finally:
+        parked.set()
+        worker.thread.join(_WAIT_S)
+    assert not worker.thread.is_alive(), "the parked worker must be joined before the test returns"
+
+    message = str(raised.value)
+    assert "worker did not finish" in message
+    assert "index.json.lock" in message, message
+    assert "in wait" in message and "threading.py" in message, message  # the parked frame
 
 
 @pytest.mark.timeout(60)
