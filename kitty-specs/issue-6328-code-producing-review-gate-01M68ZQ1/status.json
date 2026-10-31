@@ -1,0 +1,43 @@
+{
+  "event_count": 3,
+  "last_event_id": "01M68ZXDR6XD8RRE857KGHD72S",
+  "materialized_at": "2026-10-31T12:45:51.750806+00:00",
+  "mission_number": "",
+  "mission_slug": "issue-6328-code-producing-review-gate-01M68ZQ1",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 3
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M68ZXD724YB23V60WER994Q5",
+      "last_transition_at": "2026-10-31T12:45:51.202474+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M68ZXDFA84HSD8RPP8HG2P0R",
+      "last_transition_at": "2026-10-31T12:45:51.466505+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M68ZXDR6XD8RRE857KGHD72S",
+      "last_transition_at": "2026-10-31T12:45:51.750806+00:00"
+    }
+  }
+}

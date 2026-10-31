@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "issue-6328-code-producing-review-gate-01M68ZQ1",
+  "mission_id": "01M68ZQ1JC60N280B54GMCBB6K",
+  "mission_branch": "issue-6328-code-producing-review-gate",
+  "target_branch": "issue-6328-code-producing-review-gate",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/api.py",
+        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/offering/missions/models.py",
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "tests/charter/test_code_producing_capability.py",
+        "tests/specify_cli/cli/commands/agent/test_ready_for_review_code_producing_gate.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:45:52.005551+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "33a940d2d41f2c76913534e11d5f25b5968ded49"
+}
