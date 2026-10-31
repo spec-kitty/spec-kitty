@@ -510,7 +510,7 @@ spec-kitty agent config remove gemini
 
 **Problem**: `.kittify/config.yaml` is missing, unreadable, or has invalid YAML syntax.
 
-**Symptoms**: If config.yaml is missing or has no agents section, the project states no agent list: the CLI then treats the project as using the agents whose project surface already exists (and warns once), while `agent config list` reports "No agents configured." until the set is recorded with `spec-kitty agent config add`. If config.yaml has invalid YAML syntax, commands fail with a parsing error.
+**Symptoms**: `agent config list` names the agent-list shape it found: "No stated agent list." when `.kittify/config.yaml` has no `agents.available` list — the CLI then treats the project as using the agents whose project surface already exists, and warns once — and "No CLI-managed agents." when the list is explicitly empty (`available: []`), which is how a harness-plugin-installed project states that the CLI manages none of its surfaces. If config.yaml has invalid YAML syntax, commands fail with a parsing error.
 
 **Solution**:
 
