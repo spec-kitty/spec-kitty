@@ -1,0 +1,34 @@
+{
+  "accept_commit": "910d05498c12e2c7c2076c70a84d2ff08c073a7f",
+  "acceptance_history": [
+    {
+      "accept_commit": "910d05498c12e2c7c2076c70a84d2ff08c073a7f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T01:07:25.113138+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f0ecfe979d56f1208bed2a61668726025cd37cc9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T01:07:25.113138+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "f0ecfe979d56f1208bed2a61668726025cd37cc9",
+  "baseline_merge_commit": "12a9b9761642f6531fc02a9c521ff9550972bc4a",
+  "created_at": "2026-10-30T23:32:14.370850+00:00",
+  "flattened": true,
+  "friendly_name": "cascade stem resolution pass",
+  "merged_at": "2026-10-31T01:12:18.958187+00:00",
+  "merged_commit": "25ca69e6f20add4baf6254bb23dcea8d922cc89c",
+  "mid8": "01M67JG7",
+  "mission_id": "01M67JG7KAMYV4YFWN3YVZ5VTT",
+  "mission_number": 244,
+  "mission_slug": "cascade-stem-resolution-pass-01M67JG7",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances cascade stem resolution pass on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "cascade stem resolution pass",
+  "slug": "cascade-stem-resolution-pass-01M67JG7",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:34:56.728208+00:00"
+}
