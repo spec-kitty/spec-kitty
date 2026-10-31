@@ -78,7 +78,7 @@
     },
     "WP03": {
       "actor": "pi",
-      "agent": "claude",
+      "agent": "pi:tokenfactory/kimi-k3:reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -87,7 +87,8 @@
       "last_transition_at": "2026-10-31T09:52:04.192869+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "- 2026-10-31T09:48:14Z – unknown – Gate written and green (5 tests: corpus both directions, anti-empty-scan, two planted-divergence arms). Documented the URN rule in docs/architecture/doctrine-kinds.md and added the [Unreleased] changelog entry (897 chars). Verification: 5 new gate tests green; docs freshness errors=0 (4 pre-existing HELP-DRIFT warnings from the installed CLI); make test-fast 2610 passed / 5 skipped."
+        "- 2026-10-31T09:48:14Z – unknown – Gate written and green (5 tests: corpus both directions, anti-empty-scan, two planted-divergence arms). Documented the URN rule in docs/architecture/doctrine-kinds.md and added the [Unreleased] changelog entry (897 chars). Verification: 5 new gate tests green; docs freshness errors=0 (4 pre-existing HELP-DRIFT warnings from the installed CLI); make test-fast 2610 passed / 5 skipped.",
+        "PASS. The drift gate reads the built-in fragment graph only (load_built_in_graph over packs/built-in; IdentityIndex with org_roots=[] and project_root=None), so no org overlay can leak in; verified mechanically that the same checker reports exactly the 21 pre-fix-spelling nodes (mission_step_contract:documentation-accept … tasks) when fed the #6741 consumer spelling and zero against the shipped corpus, in both directions (from_graph == from_contracts, pinned at 21). Non-vacuity is real: the planted-divergence tests call the identical _drifted_urns with planted DRGNodes (pre-fix step-contract spelling plus an ordinary directive tail), and test_the_gate_actually_checked_every_kind_it_claims_to_guard is a genuine anti-empty-scan assertion over 8 required kinds. Changelog entry: under [Unreleased] Fixed, bold impact-first lead, cites (#6741), before/after, 1054 characters. doctrine-kinds.md paragraph is accurate (checked against step_contract_urn, IdentityIndex.urn and the ownership-rule call sites) and claims nothing the code does not do. Checklist: no packs/ change in origin/main..HEAD, no dead code (_MSC_URN_PREFIX removed), tests run against the real shipped corpus not synthetic fixtures, locked decisions D-1..D-4 respected, WP02/WP03 file ownership disjoint. Minor doc nit (no block): the corpus test docstring says 'RED on the pre-#6741 tree' — precisely, pre-WP01 the module would error at import; the 21-node reporting is proven via the planted arm. Tally: 5 passed."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
