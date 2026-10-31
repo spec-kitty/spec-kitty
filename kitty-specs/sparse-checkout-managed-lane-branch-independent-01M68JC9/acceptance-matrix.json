@@ -1,0 +1,59 @@
+{
+  "mission_slug": "sparse-checkout-managed-lane-branch-independent-01M68JC9",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "A lane worktree's managed policy is resolved from that lane's own kitty-specs/<mission-dir>/meta.json, so the repository-root checkout's branch cannot flip the classification.",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/sparse_checkout/test_detection.py::TestManagedLaneIsBranchIndependent::test_managed_lane_verdict_on_both_root_branches",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:38:34.176551+00:00",
+      "notes": "Automated: tests/integration/sparse_checkout/test_detection.py::TestManagedLaneIsBranchIndependent::test_managed_lane_verdict_on_both_root_branches (red on the pre-fix tree: off-branch verdict LEGACY_USER)"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Every existing managed-lane guard keeps deciding (active core.sparseCheckout, managed pattern shape, expected lane branch, registered worktree), so genuine legacy state still refuses.",
+      "proof_type": "automated_test",
+      "evidence": "test_genuine_legacy_state_still_refuses_on_mission_free_branch + test_lane_without_own_meta_json_stays_blocking + test_unreadable_lane_meta_json_fails_closed_without_raising + pre-existing drift/foreign-branch controls",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:38:37.915715+00:00",
+      "notes": "Automated: Same suite: test_genuine_legacy_state_still_refuses_on_mission_free_branch, test_lane_without_own_meta_json_stays_blocking, test_unreadable_lane_meta_json_fails_closed_without_raising, plus the pre-existing drift/foreign-branch/manual-worktree controls (all still UNKNOWN/blocking)"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The production preflight the implement command calls stops refusing in the branch-switched scenario; the refusal text and --allow-sparse-checkout escape are unchanged.",
+      "proof_type": "automated_test",
+      "evidence": "test_implement_preflight_does_not_refuse_on_mission_free_branch + test_genuine_legacy_state_still_refuses_on_mission_free_branch (unchanged refusal text)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:38:41.474486+00:00",
+      "notes": "Automated: test_detection.py::test_implement_preflight_does_not_refuse_on_mission_free_branch (requires require_no_sparse_checkout) paired with test_genuine_legacy_state_still_refuses_on_mission_free_branch asserting the unchanged message"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "doctor sparse-checkout reports clean and builds no remediation plan on the branch-switched fixture while still reporting genuine legacy state on the same fixture family.",
+      "proof_type": "automated_test",
+      "evidence": "test_doctor_finding.py::test_doctor_managed_lane_is_clean_on_mission_free_branch + test_doctor_still_reports_genuine_legacy_on_mission_free_branch",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:38:44.839241+00:00",
+      "notes": "Automated: tests/integration/sparse_checkout/test_doctor_finding.py::test_doctor_managed_lane_is_clean_on_mission_free_branch, paired with test_doctor_still_reports_genuine_legacy_on_mission_free_branch"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The regression lives in the suites that own the contract, with no issue-named test file, and turns red when the fix is reverted.",
+      "proof_type": "automated_test",
+      "evidence": "folded into tests/integration/sparse_checkout/{test_detection,test_doctor_finding}.py; no issue-named test file; half-by-half revert proof in traces/approach.md",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T09:38:47.971361+00:00",
+      "notes": "Automated: No test_issue_6844*/test_repro_6844* file exists; half-by-half revert of src/specify_cli/git/sparse_checkout.py turns 4 of the 5 new assertions red (recorded in traces/approach.md)"
+    }
+  ],
+  "negative_invariants": []
+}
