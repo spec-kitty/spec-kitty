@@ -68,6 +68,18 @@ from charter.offering.shared.language_catalog import LANGUAGE_TOKENS
 from charter.offering.model_task_routing.evaluator import RoutingRecommendation, evaluate
 from charter.offering.model_task_routing.loader import CatalogLoadResult, load
 
+# Mission-type capability contract — the two capability answers a resolved mission type
+# gives (wp_driven, requires_substantive_spec) as a frozen value object, the structural
+# protocol a source satisfies, and the one read. PUBLIC per
+# DISPOSITION["charter.offering.missions.capabilities"]. The resolver itself stays in
+# charter.activation: this is the contract crossing the seam, not the implementation
+# (ADR 2026-10-16-1, #6331).
+from charter.offering.missions.capabilities import (
+    MissionTypeCapabilities,
+    MissionTypeCapabilitySource,
+    capabilities_of,
+)
+
 #: The complete, curated charter offering public surface. This is the manifest the wheel
 #: exports and the set the wheel-closure gate pins. Keep it sorted and explicit;
 #: every entry MUST carry a disposition of ``PUBLIC`` in the WP01 census manifest.
@@ -80,7 +92,10 @@ __all__ = [
     "AssetResolutionError",
     "CatalogLoadResult",
     "LANGUAGE_TOKENS",
+    "MissionTypeCapabilities",
+    "MissionTypeCapabilitySource",
     "RoutingRecommendation",
+    "capabilities_of",
     "evaluate",
     "load",
     "slug_for",
