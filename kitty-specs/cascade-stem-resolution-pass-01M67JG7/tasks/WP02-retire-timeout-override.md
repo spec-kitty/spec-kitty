@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: issue-6777-cascade-stem-resolution-pass
 merge_target_branch: issue-6777-cascade-stem-resolution-pass
 branch_strategy: Planning artifacts for this mission were generated on issue-6777-cascade-stem-resolution-pass. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6777-cascade-stem-resolution-pass unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-cascade-stem-resolution-pass-01M67JG7
+base_commit: 69f36ede349147c994a919ccfaf81cd6f6834fb6
+created_at: '2026-10-31T00:44:49.666287+00:00'
 subtasks:
 - T005
 - T006
