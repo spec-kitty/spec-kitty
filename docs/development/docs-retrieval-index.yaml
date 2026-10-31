@@ -1484,6 +1484,7 @@ pages:
     - {slug: "negative", text: "Negative", level: 3}
     - {slug: "more-information", text: "More information", level: 2}
     - {slug: "amendment-2026-10-19-the-always-synthesized-directive-is-renamed", text: "Amendment 2026-10-19: the always-synthesized directive is renamed", level: 2}
+    - {slug: "amendment-2026-10-30-what-the-neutrality-gate-judges", text: "Amendment 2026-10-30: what the neutrality gate judges", level: 2}
   - path: "docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md"
     title: "Mutation Testing as a Local-Only Quality Gate"
     divio_type: "none"

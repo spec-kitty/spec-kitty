@@ -150,3 +150,34 @@ matter.
 The always-synthesized directive's slug is now `project-intent-directive` (title "Project Intent Directive"); it was `mission-type-scope-directive` (#6443, mission `charter-synthesis-graph-and-languages-01M59RZ5`). The generated-input layout above is unchanged except for that file name: `directives/<NNN>-project-intent-directive.directive.yaml`. The declared `PROJECT_00N` id, the `directive:PROJECT_00N` URN and the interview section label `mission_type` do not change, and synthesis no longer emits a `requires --> mission_type:*` edge for it.
 
 An existing project converges through one charter-layer helper, `rename_legacy_project_intent_directive` (`charter.activation.api`). It moves the artifact file and this harness input, rewrites the provenance and synthesis-manifest entries (recomputing the manifest hashes), relabels the overlay node, drops the dead edge, rewrites stem tokens in the activation write target and restamps the bundle hash. It never rewrites the artifact body, is idempotent, and refuses on a target collision having changed nothing. The upgrade migration `4.0.0rc8_project_intent_directive_rename` and `charter synthesize` / `resynthesize` (before they write, so a legacy file can never leave two files declaring `PROJECT_00N`) both call it. Without the harness-input move, the next synthesize would raise `GeneratedArtifactMissingError` for the new file name.
+
+## Amendment 2026-10-30: what the neutrality gate judges
+
+`spec-kitty` owns "neutrality gating" (above) without saying what the gate judges.
+It judges **scope**, not vocabulary (#6724, mission
+`companion-tactic-neutrality-scope-01M67JR8`).
+
+A generic-scoped artifact addresses every project, so a language-specific term in
+it is an unstated assumption about the reader's stack — that is the bias the gate
+exists to stop, and it is the harm FR-008 and FR-012 of
+`charter-ownership-consolidation-and-neutrality-hardening-01KPD880` name. An
+artifact whose audience is one known stack has no such assumption to make.
+
+Two halves, both required:
+
+- A **companion tactic** — the `tactic:how-we-apply-<directive-id>` that
+  `interview_mapping` expands from the `selected_directives` interview section, one
+  per explicitly activated directive — is the project's own application note. Its
+  scope is the project's observed and declared languages, so in a project whose
+  languages are known it is language-scoped and is not linted. Its slug is derived
+  from a directive id and names no language; the old slug-component inference could
+  only answer "unknown" for it, and "unknown" was read as "generic", which is what
+  refused a companion naming the project's own test runner.
+- When **no** language is observed and none is declared, the companion stays
+  generic and is still refused. An unconfigured project still gets no Python
+  default, and `banned_terms.yaml` gains no entry.
+
+Detection reads provenance (`source_section`), which records why the artifact
+exists, and the artifact kind — never the slug. The gate's exemption therefore
+cannot admit a styleguide, and cannot admit a tactic authored outside the
+companion expansion.
