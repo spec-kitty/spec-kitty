@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "lane-worktree-status-shadow-authority-01M68JFG",
+  "mission_id": "01M68JFG1ZESDGZS6ZQEDEB8MJ",
+  "mission_branch": "issue-6466-lane-status-shadow",
+  "target_branch": "issue-6466-lane-status-shadow",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/specify_cli/missions/test_lane_worktree_status_shadow.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:52:11.121811+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f408b0104a851d4603d3354ebaca51248c1f2ba1"
+}

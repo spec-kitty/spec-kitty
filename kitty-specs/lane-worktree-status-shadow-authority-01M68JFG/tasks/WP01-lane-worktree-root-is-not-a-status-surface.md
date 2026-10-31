@@ -8,6 +8,9 @@ requirement_refs:
 - SC-001
 - SC-002
 - SC-003
+planning_base_branch: issue-6466-lane-status-shadow
+merge_target_branch: issue-6466-lane-status-shadow
+branch_strategy: Planning artifacts for this mission were generated on issue-6466-lane-status-shadow. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6466-lane-status-shadow unless the human explicitly redirects the landing branch.
 created_at: '2026-10-31T08:55:00+00:00'
 subtasks:
 - T001
