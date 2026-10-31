@@ -1,0 +1,43 @@
+{
+  "accept_commit": "d25552045a0f8647656ab46ff6b6955b5cc7ae73",
+  "acceptance_history": [
+    {
+      "accept_commit": "b7b2b5c961d67908161ee031c23a034e475466c8",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-10-31T14:01:22.957912+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "6729004bd96f990c47f5f62172cdc9e2b26fa31e"
+    },
+    {
+      "accept_commit": "d25552045a0f8647656ab46ff6b6955b5cc7ae73",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-10-31T14:01:33.070061+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "a84f7b851769ec174046a29a44e51254d33324b2"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-10-31T14:01:33.070061+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "a84f7b851769ec174046a29a44e51254d33324b2",
+  "baseline_merge_commit": "923b23f7cf37d6256881fcef37e1513faf09417e",
+  "contracts": "none",
+  "contracts_rationale": "Refactor of two internal seams (a discovery-context builder and an executor-result read) with a developer-docs page; the mission defines no external interface, data model or runnable quickstart beyond the focused pytest suites.",
+  "created_at": "2026-10-31T12:40:38.356711+00:00",
+  "flattened": true,
+  "friendly_name": "workaround audit and removal",
+  "merged_at": "2026-10-31T14:03:32.110746+00:00",
+  "merged_commit": "290464a0f9760522effce5b5d5c1a777abff0b58",
+  "mid8": "01M68ZKV",
+  "mission_id": "01M68ZKVJNZEA00JN3H8Z4WKRW",
+  "mission_number": 245,
+  "mission_slug": "workaround-audit-and-removal-01M68ZKV",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances workaround audit and removal on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "workaround audit and removal",
+  "slug": "workaround-audit-and-removal-01M68ZKV",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T12:47:36.437566+00:00"
+}

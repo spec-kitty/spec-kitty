@@ -1,0 +1,89 @@
+{
+  "mission_slug": "workaround-audit-and-removal-01M68ZKV",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "manual_review+file_exists",
+      "evidence": "docs/development/how-to/auditing-special-case-workarounds.md#the-method",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:00:07.219842+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "manual_review+file_exists",
+      "evidence": "docs/development/how-to/auditing-special-case-workarounds.md#the-ledger-from-6745-2026-10-31 (rows S1-S10)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:00:11.974324+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "child issues #6527 #6898 #6899 #6900 cited in the ledger",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:00:17.035916+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "unit_test",
+      "evidence": "tests/runtime/test_bridge_io.py::test_mission_loader_builds_its_context_through_this_seam",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:00:20.913433+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "unit_test",
+      "evidence": "tests/runtime/test_bridge_io.py::test_mission_loader_builds_its_context_through_this_seam (no _build_discovery_context on the loader); grep -rn _build_discovery_context src/ -> no hits",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:00:24.860353+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "unit_test",
+      "evidence": "tests/specify_cli/next/test_runtime_bridge_composition.py::test_dispatch_logs_the_executor_invocation_count_and_returns_guard_failures",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:00:28.788528+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "unit_test",
+      "evidence": "tests/specify_cli/next/test_runtime_bridge_composition.py::test_non_sized_invocation_ids_is_a_contract_violation_not_a_silent_zero",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:00:33.079600+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "unit_test",
+      "evidence": "tests/docs/test_changelog_style.py (148 passed) with the new [Unreleased] -> Internal entry",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:00:38.386740+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
