@@ -189,6 +189,20 @@ def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
     logger.info(f"Saved agent config to {config_file}")
 
 
+def no_cli_managed_agents(config: AgentConfig) -> bool:
+    """Whether the project *states* that Spec Kitty manages no agent surfaces.
+
+    ``agents.available: []`` written on purpose means "no CLI-managed agents"
+    (#6494): the command surfaces are supplied outside the CLI — by a harness
+    plugin, for example — so they are not the CLI's to install, sync or check.
+    A config with no agent list at all is the legacy all-agents fallback (#6501)
+    and is **not** this state. This is the ONE reader of that distinction for the
+    reporting surfaces (``init``, ``agent config`` and ``doctor``), so their
+    messages cannot drift on it (#6493).
+    """
+    return config.explicit_agent_list and not config.available
+
+
 def get_configured_agents(repo_root: Path) -> list[str]:
     """Get list of configured agents.
 
@@ -228,4 +242,5 @@ __all__ = [
     "save_agent_config",
     "get_configured_agents",
     "get_auto_commit_default",
+    "no_cli_managed_agents",
 ]

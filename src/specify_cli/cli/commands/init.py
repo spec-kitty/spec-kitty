@@ -38,6 +38,7 @@ from specify_cli.core.agent_config import (
     AgentConfig,
     AgentConfigError,
     load_agent_config,
+    no_cli_managed_agents,
     save_agent_config,
 )
 from .init_help import INIT_COMMAND_DOC
@@ -204,15 +205,65 @@ def _resume_command_delivery(project: Path) -> bool:
     return True
 
 
-def _validated_agent_selection(requested: str | None, configured: list[str]) -> list[str]:
-    """Resolve the --ai selection against authored configuration, fail closed."""
+def _validated_agent_selection(
+    requested: str | None,
+    configured: list[str],
+    *,
+    no_managed_agents: bool = False,
+) -> list[str]:
+    """Resolve the --ai selection against authored configuration, fail closed.
+
+    *no_managed_agents* is the project's stated-empty list (#6494/#6493): the
+    project has said the CLI manages none of its agent surfaces, so a requested
+    --ai selection is not "unconfigured" — the stated list wins and nothing is
+    installed. Raising the config-add error there would push the operator to
+    write a second copy of surfaces a harness plugin already supplies.
+    """
     selected = list(dict.fromkeys(part.strip().lower() for part in requested.replace(";", ",").split(",") if part.strip())) if requested is not None else configured
     if requested is not None and (not selected or any(agent not in AI_CHOICES for agent in selected)):
         raise ValueError("Invalid --ai selection; choose from: " + ", ".join(AI_CHOICES))
+    if no_managed_agents:
+        return []
     unconfigured = [agent for agent in selected if agent not in configured]
     if unconfigured:
         raise ValueError("Requested agents are not configured. Run: spec-kitty agent config add " + " ".join(unconfigured))
     return selected
+
+
+def _already_initialized_message(stated_empty: bool, requested_agents: list[str] | None) -> str:
+    """Render the Already-Initialized panel body for the project's agent-list shape (#6493).
+
+    *stated_empty* is :func:`no_cli_managed_agents`: the project states that Spec
+    Kitty manages no agent surfaces, so a re-run installs, verifies and restores
+    none of them and must not claim otherwise. The stated-list body keeps its
+    #4425 meaning: surfaces were verified and per-agent roots restored.
+    """
+    if not stated_empty:
+        return (
+            "[yellow]Already initialized.[/yellow]\n"
+            "Agent skill surfaces were verified on this re-run: missing per-agent\n"
+            "skill roots were restored. A missing or unusable managed surface exits 1\n"
+            "naming the affected paths — shared command skills with the recovery command\n"
+            "[cyan]spec-kitty agent config sync --create-missing --keep-orphaned[/cyan];\n"
+            "an unusable per-agent skill file is preserved untouched, so rename or\n"
+            "remove it and re-run init.\n"
+            "Run [cyan]spec-kitty upgrade[/cyan] to migrate to the latest version."
+        )
+    body = (
+        "[yellow]Already initialized.[/yellow]\n"
+        "This project states that Spec Kitty manages no CLI-managed agents:\n"
+        "`agents.available` is explicitly empty in .kittify/config.yaml, so a\n"
+        "harness or plugin supplies the commands, skills and profiles. Nothing\n"
+        "was installed, verified or restored on this re-run."
+    )
+    if requested_agents:
+        body += (
+            "\n[cyan]--ai " + " ".join(requested_agents) + "[/cyan] was ignored: the agent list this project states\n"
+            "wins over the flag. Naming an agent hands its surfaces to the CLI as\n"
+            "well; run `spec-kitty agent config add <agent>` only if that is the\n"
+            "ownership you want."
+        )
+    return body + "\nRun [cyan]spec-kitty upgrade[/cyan] to migrate to the latest version."
 
 
 def _check_initialized_command_skills(project: Path, requested: str | None) -> list[str]:
@@ -221,7 +272,8 @@ def _check_initialized_command_skills(project: Path, requested: str | None) -> l
     from specify_cli.skills.paths import skill_path_observations
     from specify_cli.skills.vibe_config import skill_path_configured
 
-    selected = _validated_agent_selection(requested, load_agent_config(project).available)
+    config = load_agent_config(project)
+    selected = _validated_agent_selection(requested, config.available, no_managed_agents=no_cli_managed_agents(config))
     if not _COMMAND_SKILL_AGENTS.intersection(selected):
         return selected
     missing = []
@@ -896,10 +948,15 @@ def init(  # noqa: C901
     # NATIVE-root gaps are restored additively through the canonical installer.
     _config_yaml = project_path / ".kittify" / "config.yaml"
     if _config_yaml.exists():
+        stated_empty = False
         try:
             resumed = _resume_command_delivery(project_path)
             if not resumed:
-                if selected_agents_from_option:
+                # #6493: a stated-empty agent list means the CLI owns none of this
+                # project's surfaces, so there is nothing to repair; the panel below
+                # says so instead of the #4425 "verified/restored" wording.
+                stated_empty = no_cli_managed_agents(load_agent_config(project_path))
+                if selected_agents_from_option and not stated_empty:
                     _repair_requested_command_skills(project_path, selected_agents_from_option)
                 selected = _check_initialized_command_skills(project_path, ai_assistant)
                 _restore_native_project_skills(project_path, selected)
@@ -911,14 +968,7 @@ def init(  # noqa: C901
             raise typer.Exit(0)
         _console.print(
             Panel(
-                "[yellow]Already initialized.[/yellow]\n"
-                "Agent skill surfaces were verified on this re-run: missing per-agent\n"
-                "skill roots were restored. A missing or unusable managed surface exits 1\n"
-                "naming the affected paths — shared command skills with the recovery command\n"
-                "[cyan]spec-kitty agent config sync --create-missing --keep-orphaned[/cyan];\n"
-                "an unusable per-agent skill file is preserved untouched, so rename or\n"
-                "remove it and re-run init.\n"
-                "Run [cyan]spec-kitty upgrade[/cyan] to migrate to the latest version.",
+                _already_initialized_message(stated_empty, selected_agents_from_option),
                 title="[yellow]Already Initialized[/yellow]",
                 border_style="yellow",
                 padding=(1, 2),
