@@ -1,19 +1,19 @@
 {
-  "event_count": 15,
-  "last_event_id": "01M68QE6106BSAHXD6V8H69C0P",
-  "materialized_at": "2026-10-31T10:17:43.712659+00:00",
+  "event_count": 16,
+  "last_event_id": "01M68QEAC6JVZG64V2T767XHD6",
+  "materialized_at": "2026-10-31T10:17:48.166103+00:00",
   "mission_number": "",
   "mission_slug": "migration-dry-run-payload-authority-01M68JCJ",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 2,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 0
   },
@@ -34,7 +34,8 @@
         "Builder and tests are already committed (ad2e54281e); the in_progress claim was recorded after the commits, so the claim-base window is empty",
         "Review round 1 (reviewer-renata): 3 findings raised and fixed in 2792906d4c — (1) builder docstring claimed TypeError for a missing required field, it is ValidationError; (2) evidence normalization (contract model always materializes verification: []) was undocumented, now recorded in contracts/wp-status-changed-payload.md; (3) structured resolved-binding dict actor was untested, now pinned by test_structured_resolved_binding_actor_rides_verbatim. Anti-pattern checklist: dead-code WARN-only (production caller lands in WP02, same lane), synthetic-fixture PASS, silent-return PASS, FR coverage PASS, frozen surface none, locked decisions PASS, shared-file PASS, fragility PASS. 10 red-first tests green; ruff/mypy clean; status-module-boundary + integration-boundary + dead-symbol gates green.",
         "Re-record the implementer identity for the single-branch independence gate (#6715): the original claim was logged with a generic actor, so accept cannot confirm the reviewer differs. No code change.",
-        "Re-review handoff: no code change since the approved tip; the implementer identity is now recorded for the independence gate."
+        "Re-review handoff: no code change since the approved tip; the implementer identity is now recorded for the independence gate.",
+        "Re-review round 3 (identity-correlated, reviewer-renata @ glm-5.3): reviewed the unchanged tip 3b2ba2a8a2 plus the aggregate diff; no new finding. The builder is constructed through StatusTransitionPayload, the dry-run import is facade-only, parity is pinned against a real emitted row, and the rejection path is reported non-raising with model_violations."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -54,14 +55,14 @@
       }
     },
     "WP02": {
-      "actor": "reviewer-renata",
+      "actor": "pi",
       "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 2,
-      "lane": "approved",
-      "last_event_id": "01M68Q1PW86BNCFPS2R3GT5MD2",
-      "last_transition_at": "2026-10-31T10:10:54.984633+00:00",
+      "force_count": 3,
+      "lane": "in_progress",
+      "last_event_id": "01M68QEAC6JVZG64V2T767XHD6",
+      "last_transition_at": "2026-10-31T10:17:48.166103+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-31T10:04:17Z – unknown – Call site routed through the facade builder; the payload literal and canonical-producer-exempt marker are gone; a model rejection is reported as PAYLOAD_INVALID (mapped violations) instead of raising. 5 red-first parity/authority tests in tests/migration/test_mission_state_teamspace_payload_authority.py pass; tests/migration 204 passed / 4 pre-existing birth-cutover reds (#6801); doctor CLI 48 passed; integration/migration 40 passed / 1 pre-existing red (#6787); ruff+mypy clean; canonical-producer lint identical to pristine main; docs freshness errors=0.",
