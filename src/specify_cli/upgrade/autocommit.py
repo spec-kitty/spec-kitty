@@ -44,6 +44,7 @@ from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
 from kernel.paths import to_posix
+from specify_cli.upgrade.ledger import is_ledger_lock_path
 from specify_cli.skills.ownership import SKILLS_ROOT_PREFIX, is_projected_skills_path, manifest_owned_skills_paths
 
 UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please review and commit manually."
@@ -341,6 +342,10 @@ def is_upgrade_commit_eligible(path: str, checkout: Path) -> bool:
         return False
 
     if normalized.startswith("../"):
+        return False
+
+    # A migration-ledger lock sidecar is per-clone machine state (#6613), never ours to commit.
+    if is_ledger_lock_path(normalized):
         return False
 
     # Never auto-commit ~/.kittify or root-level dotfiles/files when users
