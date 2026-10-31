@@ -73,6 +73,7 @@ _SEAM_TABLE: list[tuple[str, str]] = [
     ("IdentityIndex", "charter.activation.identity_index"),
     ("MANIFEST_PATH", "charter.activation.synthesizer.manifest"),
     ("append_synthesized_activations", "charter.activation.synthesizer.reach_only"),
+    ("SynthesizedActivationAppend", "charter.activation.synthesizer.reach_only"),
     ("canonical_mission_type_key", "charter.activation.mission_type_key"),
     ("canonical_yaml", "charter.activation.synthesizer.synthesize_pipeline"),
     ("created_slugs_by_kind", "charter.activation.synthesizer.reach_only"),

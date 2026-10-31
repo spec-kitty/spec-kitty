@@ -1,0 +1,42 @@
+{
+  "accept_commit": "8b6dce2af2ce4ffa2d7d7ba24a10bbde45d89887",
+  "acceptance_history": [
+    {
+      "accept_commit": "1fc629d35463a0cd1481575495c987915d00cb6f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:40:49.170599+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "012b250f2167a729c961fb58960cc178478037f8"
+    },
+    {
+      "accept_commit": "8b6dce2af2ce4ffa2d7d7ba24a10bbde45d89887",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:40:57.548455+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "90a0947d7613343270247ce32dfec340d5acb061"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T14:40:57.548455+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "90a0947d7613343270247ce32dfec340d5acb061",
+  "baseline_merge_commit": "5254031e258452efb5706093e5ea3cd80ad1771d",
+  "created_at": "2026-10-30T13:24:45.552015+00:00",
+  "flattened": false,
+  "friendly_name": "synthesize commit reminder write surface",
+  "merged_at": "2026-10-30T14:41:35.780185+00:00",
+  "merged_commit": "5ba4c2d7d85b903305ae438feb3982e606478f20",
+  "mid8": "01M66FQX",
+  "mission_id": "01M66FQXRBGQKXJWVDZDJNW4RV",
+  "mission_number": 244,
+  "mission_slug": "synthesize-commit-reminder-write-surface-01M66FQX",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances synthesize commit reminder write surface on issue-6631-synthesize-reminder-write-surface so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "synthesize commit reminder write surface",
+  "slug": "synthesize-commit-reminder-write-surface-01M66FQX",
+  "status_phase": "1",
+  "target_branch": "issue-6631-synthesize-reminder-write-surface",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T13:32:10.603305+00:00"
+}
