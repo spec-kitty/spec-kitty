@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/migration/test_mission_state_teamspace_payload_authority.py::test_model_rejected_row_is_reported_while_valid_rows_still_map (PAYLOAD_INVALID + model_violations, run completes, valid rows still mapped)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:34.929843+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
