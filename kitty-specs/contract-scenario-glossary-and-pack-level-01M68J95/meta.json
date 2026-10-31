@@ -1,0 +1,35 @@
+{
+  "accept_commit": "002788531fffbc134e90076f515f818b6bdfabed",
+  "acceptance_history": [
+    {
+      "accept_commit": "002788531fffbc134e90076f515f818b6bdfabed",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:36:00.870398+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "ddbf9d5c551c8a96825bdccbc23e61d3762dcafd"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T09:36:00.870398+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "ddbf9d5c551c8a96825bdccbc23e61d3762dcafd",
+  "baseline_merge_commit": "4fc48daf5cd80c127db959ac68c3610f35ac0a84",
+  "contracts": "none",
+  "contracts_rationale": "No new external interface: the mission edits glossary prose in docs/context/ and adds one docs-scoped pytest guard. No CLI command, config key, OpenAPI operation, event or generated contract surface changes.",
+  "created_at": "2026-10-31T08:47:36.150798+00:00",
+  "flattened": false,
+  "friendly_name": "contract scenario glossary and pack level",
+  "merged_at": "2026-10-31T09:40:06.185012+00:00",
+  "merged_commit": "4fc48daf5cd80c127db959ac68c3610f35ac0a84",
+  "mid8": "01M68J95",
+  "mission_id": "01M68J95327RNSWPJHE2TY5RNP",
+  "mission_number": 245,
+  "mission_slug": "contract-scenario-glossary-and-pack-level-01M68J95",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances contract scenario glossary and pack level on issue-6439-contract-scenario-glossary-and-pack-level so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "contract scenario glossary and pack level",
+  "slug": "contract-scenario-glossary-and-pack-level-01M68J95",
+  "status_phase": "1",
+  "target_branch": "issue-6439-contract-scenario-glossary-and-pack-level",
+  "topology": "single_branch"
+}

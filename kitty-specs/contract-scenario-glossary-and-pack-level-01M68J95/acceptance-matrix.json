@@ -1,0 +1,49 @@
+{
+  "mission_slug": "contract-scenario-glossary-and-pack-level-01M68J95",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_context_glossary_contract_scenario_and_pack_level.py green (10 passed); docs/context edits land in 81af09b and b593c34",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T09:35:43.458217+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_context_glossary_contract_scenario_and_pack_level.py green (10 passed); docs/context edits land in 81af09b and b593c34",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T09:35:46.552268+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_context_glossary_contract_scenario_and_pack_level.py green (10 passed); docs/context edits land in 81af09b and b593c34",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T09:35:49.610335+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_context_glossary_contract_scenario_and_pack_level.py green (10 passed); docs/context edits land in 81af09b and b593c34",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T09:35:52.661033+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
