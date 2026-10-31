@@ -3,6 +3,16 @@
 Scans configured roots for banned language-specific terms in generic-scoped files.
 Language-scoped files listed in ``language_scoped_allowlist.yaml`` are exempt.
 
+Scope here is the artifact's *audience*, not its vocabulary. A generic-scoped
+artifact addresses every project, so a language-specific term in it is an
+unstated assumption about the reader's stack — the bias this lint exists to stop.
+An artifact whose audience is one known stack has no such assumption to make: a
+Python project's own guidance may name ``pytest``. Callers therefore exclude
+language-scoped artifacts before scanning, and a synthesized companion tactic
+(``how-we-apply-<directive-id>``, whose audience is the project that ran
+synthesis) is language-scoped whenever that project's languages are known
+(``write_pipeline._is_generic_scoped``, #6724).
+
 Contracts:
   - C-3  src/charter/activation/neutrality/banned_terms.yaml (banned terms schema)
   - C-4  contracts/banned-terms-schema.yaml
