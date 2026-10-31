@@ -298,7 +298,9 @@ def test_unloadable_built_in_graph_keeps_the_previous_behaviour(project: Path, m
     def _explode() -> Any:
         raise DRGLoadError("built-in pack missing")
 
-    monkeypatch.setattr("charter.offering.drg.loader.load_built_in_graph", _explode)
+    # The builder imports through the charter proxy (`charter.drg`), which the
+    # runtime doctrine-boundary ratchet enforces; patch that seam.
+    monkeypatch.setattr("charter.drg.load_built_in_graph", _explode)
 
     request, _ = _build_synthesis_request(project, "generated")
 
