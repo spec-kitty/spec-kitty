@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "decision-record-ascii-change-log-01M68J7C",
+  "mission_id": "01M68J7CFZ023Q7Q22A2M9XXNY",
+  "mission_branch": "kitty/mission-decision-record-ascii-change-log-01M68J7C",
+  "target_branch": "issue-6579-decision-record-ascii",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/decisions/store.py",
+        "tests/specify_cli/decisions/test_store.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T08:49:40.585796+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2bff9ca70c141d91d488e740bc83347cda94ebf8"
+}
