@@ -52,7 +52,15 @@ def _run_for(env: Env, *, coord_ref: str | None = None, is_resume: bool = False)
     ref = coord_ref or _TARGET  # LANES: the coordination checkpoint resolves to the target itself
     checkpoint = run_state._CoordCheckpoint(ref=ref, sha=_rev(env.repo, ref))
     return SimpleNamespace(
-        main_repo=env.repo, state=env.state, lanes_manifest=env.manifest, coord_checkpoint=checkpoint, is_resume=is_resume, own_pre_claim_moves={}
+        # ``canonical_id`` is a real ``_MergeRunState`` field (the merge-state key); the door now
+        # settles the record on a full restore (#6770), so the fake run must carry it like the real one.
+        main_repo=env.repo,
+        state=env.state,
+        lanes_manifest=env.manifest,
+        coord_checkpoint=checkpoint,
+        is_resume=is_resume,
+        own_pre_claim_moves={},
+        canonical_id=env.state.mission_id,
     )
 
 
@@ -377,8 +385,10 @@ def test_report_rollback_resets_this_runs_own_pass_anchor_then_restores(tmp_path
 
     assert _rev(env.repo, _TARGET) == snap_target, "this run's own anchor must not shield its advance"
     assert run.state.reconciliation_passed_target_sha is None
-    printed = str(console.print.call_args_list[-1].args[0])
-    assert "restored" in printed and _TARGET in printed
+    # The report line, not the door's LAST line: since #6770 a full restore also prints the
+    # record-clear line after the report.
+    report_line = next(str(call.args[0]) for call in console.print.call_args_list if "restored" in str(call.args[0]))
+    assert _TARGET in report_line, report_line
 
 
 def test_report_rollback_keeps_a_landing_verified_by_an_earlier_attempt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1163,3 +1173,30 @@ def test_claim_refuses_the_same_move_once_the_target_left_the_pass_anchor(tmp_pa
     output = " ".join(capsys.readouterr().out.split())
     assert excinfo.value.exit_code == 1 and _MISSION_BRANCH in output and moved in output, output
     assert _state_bytes(env) == before
+
+
+def test_the_door_warns_and_keeps_the_original_error_when_the_record_cannot_be_cleared(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6770: a failed record clear is a warning, never a second failure.
+
+    The door's contract is that the caller re-raises the ORIGINAL failure, so the settle step
+    must swallow a clear error (an unwritable runtime dir, a locked file) and say so instead of
+    replacing that error with an ``OSError``.
+    """
+    env = make_env(tmp_path)
+    run = _report_run(env)
+    snap_target = _rev(env.repo, _TARGET)
+    _advance_run(env)
+    console = MagicMock()
+    setattr_executor_family(monkeypatch, "console", console)
+
+    def _unwritable(*_a: Any, **_k: Any) -> bool:
+        raise OSError("read-only state dir")
+
+    monkeypatch.setattr(executor, "clear_state", _unwritable)
+
+    executor._report_rollback(run, anchor_before=None)  # must not raise
+
+    assert _rev(env.repo, _TARGET) == snap_target, "precondition: the attempt was still fully restored"
+    printed = " ".join(str(call.args[0]) for call in console.print.call_args_list)
+    assert "could not clear this run's consolidation record" in printed and "read-only state dir" in printed, printed
+    assert "Cleared the consolidation record" not in printed, "a failed clear must never claim the record is gone"

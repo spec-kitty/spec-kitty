@@ -1,21 +1,21 @@
 {
-  "event_count": 7,
-  "last_event_id": "01M67KFZJ0R1HSVZWCD18V6ZTQ",
-  "materialized_at": "2026-10-30T23:49:33.888485+00:00",
+  "event_count": 11,
+  "last_event_id": "01M67P19TFFA6NJG7DWV2W0SB5",
+  "materialized_at": "2026-10-31T00:33:58.607954+00:00",
   "mission_number": "",
   "mission_slug": "consolidate-rerun-fresh-baseline-01M67HZD",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
+    "for_review": 1,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 2
+    "in_review": 0,
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -25,15 +25,21 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "python-pedro",
-      "lane": "in_review",
-      "last_event_id": "01M67KFZJ0R1HSVZWCD18V6ZTQ",
-      "last_transition_at": "2026-10-30T23:49:33.888485+00:00",
+      "lane": "approved",
+      "last_event_id": "01M67KKAXEFDESS8MD7Z81F393",
+      "last_transition_at": "2026-10-30T23:51:23.822466+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-30T23:38:35Z – python-pedro – shell_pid=893594 – RED (un-fixed tree): uv run pytest tests/terminus/test_repro_6770.py -q => 2 failed, 1 passed. Failure 1: 'a fully rolled back attempt must clear its transaction record' — state.json still at .kittify/runtime/merge/<mid>/state.json. Failure 2: --abort rc=1, 'NOT restored develop observed ... moved since the snapshot but no post-mutation tip was recorded' + 'Kept the consolidation record'. The partial-rollback test passes already (FR-004 ratchet). Re-pin 1: tests/terminus/test_rollback_door.py::test_record_is_cleared_after_a_full_rollback_and_a_rerun_succeeds => FAILED 'a fully rolled-back run leaves no record to resume'. Re-pin 2 (tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py): file is PRE-EXISTING RED on pristine origin/main 512567eee7 (4 failures, EVIDENCE_WINDOW_UNCOMPUTABLE) — cited #6786/#6801 — so that assertion flip cannot be exercised locally.",
-        "Red-first regression delivered (2 red tests + 1 ratchet green; 1 re-pin unverifiable pre-existing red, #6786)"
+        "Red-first regression delivered (2 red tests + 1 ratchet green; 1 re-pin unverifiable pre-existing red, #6786)",
+        "Approved: red proof real and non-vacuous; FR-004 ratchet is the positive control; 1 re-pin unverifiable on a pre-existing red file (#6786/#6801)"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 1199350,
       "shell_pid_created_at": "1793404170.81",
@@ -46,11 +52,29 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "python-pedro",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M67J6N30VJ3VR6BDFHMQJEPD",
-      "last_transition_at": "2026-10-30T23:26:59.680377+00:00"
+      "implementer_of_record": "python-pedro",
+      "lane": "for_review",
+      "last_event_id": "01M67P19TFFA6NJG7DWV2W0SB5",
+      "last_transition_at": "2026-10-31T00:33:58.607954+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T00:27:56Z – python-pedro – shell_pid=1235689 – GREEN: tests/terminus/test_repro_6770.py 3 passed; tests/terminus/test_rollback_door.py 26 passed; tests/consolidation/{rollback_authority,single_rollback_authority,executor_rollback_wiring,refuse_restores_target,rollback_anchor_kill_window,done_bookkeeping_rollback_coherence} 189 passed; abort path (test_consolidate_abort_rollback + test_abort_restores_snapshot + test_teardown_refusal_resume) 43 passed. Mutation probe (vacuity): making the clear unconditional turns the FR-004 ratchet red (record is None) — restored after the probe. ruff check/format clean on both changed files; mypy on executor.py shows only the 3 pre-existing no-any-return findings (same on pristine origin/main). T001 collapsed into T002: RollbackReport.fully_restored is already the single owner of 'the attempt was undone', so adding a second predicate property would duplicate that authority (DIRECTIVE_044). Out-of-map edit: tests/consolidation/test_executor_rollback_wiring.py — its fake run lacked canonical_id (a real _MergeRunState field the door now reads) and its report assertion assumed the report was the LAST printed line, which the new clear line follows."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 1235689,
+      "shell_pid_created_at": "1793404307.52",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
     },
     "WP03": {
       "actor": "finalize-tasks",

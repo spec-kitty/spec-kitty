@@ -65,6 +65,7 @@ from specify_cli.git.sparse_checkout import require_no_sparse_checkout
 from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.consolidation._constants import (
     GLOBAL_MERGE_LOCK_ID as _GLOBAL_MERGE_LOCK_ID,
+    logger,
 )
 from specify_cli.consolidation.bookkeeping_projection import (
     _resolve_ref_sha,
@@ -89,6 +90,7 @@ from specify_cli.consolidation.state import (
     MergeLockError,
     ConsolidationState,
     acquire_merge_lock,
+    clear_state,
     load_state,
     reconciliation_passed_for_tip,
     release_merge_lock,
@@ -636,6 +638,53 @@ def _run_lane_based_consolidation_locked(
     _phase_finalize_and_summary(run)
 
 
+def _clear_record_after_full_restore(run: _MergeRunState, report: rollback.RollbackReport) -> None:
+    """Clear the transaction record when the rollback undid the whole attempt (#6770).
+
+    A record survives only while some of its attempt is still on the target. Every
+    persisted anchor is meaningful only in that window: ``pre_mutation_target_sha`` is the
+    reconciliation window base, and it stays honest exactly while attempt 1's landing is
+    still on the target. After a FULL restore nothing of the attempt remains, so the base is
+    stale the moment anything lands on the target — and because
+    ``resolve._load_or_create_merge_state`` treats any existing record as an interrupted run,
+    the next plain ``consolidate`` would resume it and offer every commit made since
+    attempt 1's tip to the verifier as mission content (the #5667 recurrence this closes).
+    The same record also wedges a plain ``--abort``: the full restore already dropped the
+    recorded post tips (``rollback._clear_bookkeeping``), so a later commit on the target is
+    an "unrecorded move" the authority refuses to restore. Clearing is the honest outcome:
+    the next run is genuinely fresh (it snapshots live tips and captures the live base).
+
+    ``report.fully_restored`` is the ONE owner of "the attempt was undone" (nothing refused,
+    every branch restored or legitimately untouched), so this predicate is not re-derived
+    here. A rollback that left anything behind — a ``NOT_RESTORED`` branch, a verified
+    landing kept by the earlier-reconciliation guard, a missing run-movable branch — keeps
+    the record, and with it the honest base: that content is still on the target.
+
+    Never raises: the caller re-raises the ORIGINAL failure, which must stay the operator's
+    headline. A half-cleared record is at worst an orphan marker, which the next fresh run
+    re-stamps (the same rule ``phase_claim._clear_fresh_record_on_pre_mutation_exit`` follows).
+    """
+    if not report.fully_restored:
+        return
+    try:
+        cleared = clear_state(run.main_repo, run.canonical_id)
+    except OSError as exc:
+        logger.warning("Could not clear the consolidation record for %s: %s", run.canonical_id, exc)
+        console.print(
+            f"[yellow]Warning:[/yellow] could not clear this run's consolidation record ({escape(str(exc))}); a plain re-run still starts fresh.",
+            soft_wrap=True,
+        )
+        return
+    if cleared:
+        target = escape(run.lanes_manifest.target_branch)
+        console.print(
+            "Cleared the consolidation record: nothing of this attempt remains, so the next "
+            f"`spec-kitty consolidate` starts from {target}'s current tip and a plain `spec-kitty consolidate --abort` has nothing left to undo.",
+            markup=False,
+            soft_wrap=True,
+        )
+
+
 def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
     """Roll every snapshotted branch back after a post-mutation failure and print the report (#5318 / #5385).
 
@@ -651,9 +700,13 @@ def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
     anchor from an earlier attempt is unchanged by the span and therefore still
     keeps that verified landing.
 
+    After a total restore it also settles the transaction record: a record survives
+    only while some of its attempt is still on the target (#6770,
+    :func:`_clear_record_after_full_restore`).
+
     Never raises: the caller re-raises the ORIGINAL error, so a failing anchor
-    reset or rollback prints one line naming the branches to inspect instead of
-    replacing that error with its own traceback, and never implies success.
+    reset, rollback or record clear prints one line instead of replacing that
+    error with its own traceback, and never implies success.
     ``BaseException`` on purpose: a second Ctrl-C (or ``SystemExit``) during the
     rollback must not replace the original error either; the caller's bare
     ``raise`` still propagates that original.
@@ -668,6 +721,8 @@ def _report_rollback(run: _MergeRunState, *, anchor_before: str | None) -> None:
         console.print(f"Rollback could not complete: {exc}; inspect {branches} before re-running.", markup=False)
         return
     console.print(report.render(), markup=False)
+    # #6770: a rollback that undid the whole attempt settles the record too (see the helper).
+    _clear_record_after_full_restore(run, report)
 
 
 def _load_lanes_manifest(

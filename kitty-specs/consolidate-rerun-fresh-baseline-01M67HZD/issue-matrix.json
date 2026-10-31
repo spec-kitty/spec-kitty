@@ -1,7 +1,31 @@
 {
   "rows": {
+    "#5001": {
+      "evidence_ref": "research.md:read-persisted-first is the resume behaviour this Mission keeps for a genuine --resume",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5111": {
+      "evidence_ref": "research.md:D1 rejects the refuse-non-resume alternative that would overturn the #5111 auto-resume",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
     "#5372": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md:C-003 the SIGKILL zero-progress residue keeps its own contract",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#5385": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md:C-002 the single rollback door is consumed, not changed",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +45,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5666": {
+      "evidence_ref": "research.md:the between-attempts shape of the same FAIL-path reset; its foreign-commit half is reused as the FR-004 positive control",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#5667": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md:closed duplicate of #5372; this Mission re-fixes the recurrence it accepted",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +69,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5686": {
+      "evidence_ref": "research.md:the begin_attempt settle/unsettle authority is consumed unchanged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#5687": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md:C-003 the --release-branch recovery keeps its contract",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "not-applicable",
+      "wp": "WP01"
     },
     "#6770": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md:FR-001..FR-003",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,8 +105,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
