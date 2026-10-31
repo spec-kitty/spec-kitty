@@ -118,7 +118,7 @@
     },
     "WP04": {
       "actor": "reviewer-renata",
-      "agent": "reviewer-renata",
+      "agent": "reviewer-renata::reviewer-renata",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
@@ -129,7 +129,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-31T15:12:46Z – python-pedro – shell_pid=1712027 – Docs: changelog entry under [Unreleased]/Fixed (1,059 chars, impact-first, #6767). Freshness: check_docs_freshness --ci exits 0, errors=0; the 6 warnings are pre-existing help-drift and link-health findings in unrelated commands (service status, charter activate, migrate activation-ledger, migrate ledger) and two 404 links in docs/api/orchestrator-api.md, none touched by this diff. No docs page other than the changelog names this error code.",
-        "Guard + changelog + freshness; 898 targeted tests pass."
+        "Guard + changelog + freshness; 898 targeted tests pass.",
+        "Review passed. The guard pins the shape (one synthesized_urns definition in the record module, no other module parsing a provenance sidecar through a YAML loader, one SYNTHESIS_MEMBERSHIP_UNREADABLE literal in errors.py, retired names absent) and was red-proved with a planted probe module. Changelog entry is impact-first, 1,059 chars, under [Unreleased]/Fixed with (#6767), and states the documented code. Docs freshness exit=0 errors=0; the 6 warnings are pre-existing help-drift/link-health findings in untouched commands. Verified 898 passed / 14 skipped; ruff/mypy clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
