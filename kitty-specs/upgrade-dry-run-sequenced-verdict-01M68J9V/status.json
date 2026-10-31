@@ -1,41 +1,50 @@
 {
-  "event_count": 6,
-  "last_event_id": "01M68MRHS60YCWS28E32NQ0SJ8",
-  "materialized_at": "2026-10-31T09:30:57.702362+00:00",
+  "event_count": 13,
+  "last_event_id": "01M68N4G0E8MVV6TFPR2EJ9XSQ",
+  "materialized_at": "2026-10-31T09:37:29.099718+00:00",
   "mission_number": "",
   "mission_slug": "upgrade-dry-run-sequenced-verdict-01M68J9V",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
-      "agent": "python-pedro",
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "python-pedro",
-      "lane": "planned",
-      "last_event_id": "01M68MRHS60YCWS28E32NQ0SJ8",
-      "last_transition_at": "2026-10-31T09:30:57.702362+00:00",
+      "lane": "approved",
+      "last_event_id": "01M68N3S75APF27M0JKKQHSJGC",
+      "last_transition_at": "2026-10-31T09:37:05.765148+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Runner decides the dry-run verdict on the run's sequenced view; repoint declares its detect-input predecessor."
+        "Runner decides the dry-run verdict on the run's sequenced view; repoint declares its detect-input predecessor.",
+        "Needs changes: prediction must be operator-visible (M1), --dry-run --verbose preview must use the same sequencing (M2), declarations need an audit gate (M3), plus 4 nits.",
+        "Review round 1 findings addressed: prediction visibility (MigrationResult.predicted_after + rendered line), --dry-run --verbose preview uses the one sequencing function, declaration audit test, plus the four nits.",
+        "Review round 2 PASS (reviewer-renata). Checklist: dead code PASS, synthetic-fixture PASS, silent-return PASS, FR coverage PASS (FR-001..005, NFR-001..003), frozen surface PASS (order_manifest.txt untouched), locked decisions PASS (C-001..003), ownership PASS (CLI file recorded as an out-of-map justified edit), fragility PASS. Round 1 M1/M2/M3 plus four nits verified fixed; the rendered prediction line and the --dry-run --verbose preview were confirmed on a real run. Carried to WP02: a CLI-level test asserting the rendered line and the preview note."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 772919,
-      "shell_pid_created_at": "1793436783.42",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
         "T001": "done",
         "T002": "done",
@@ -45,11 +54,20 @@
       }
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "python-pedro",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M68JG62KZTE7GQB54KTTCTVJ",
-      "last_transition_at": "2026-10-31T08:51:26.419695+00:00"
+      "implementer_of_record": "python-pedro",
+      "lane": "in_progress",
+      "last_event_id": "01M68N4G0E8MVV6TFPR2EJ9XSQ",
+      "last_transition_at": "2026-10-31T09:37:29.099718+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 1307663,
+      "shell_pid_created_at": "1793439441.53"
     }
   }
 }
