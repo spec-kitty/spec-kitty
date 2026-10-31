@@ -8,30 +8,30 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/terminus/test_repro_6770.py::test_a_clean_fail_rollback_leaves_no_record_and_the_rerun_uses_the_current_target_tip (state_path is None after a total restore)",
+      "evidence": "tests/terminus/test_repro_6770.py::test_a_clean_fail_rollback_leaves_no_record_and_the_rerun_uses_the_current_target_tip (record survives; pre_mutation_target_sha None, pre_mutation_refs {}, completed_wps [])",
       "pass_fail": "pass",
-      "verified_by": "python-pedro",
-      "verified_at": "2026-10-31T00:53:10.319520+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:01:32.508700+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/terminus/test_repro_6770.py::test_a_clean_fail_rollback_leaves_no_record_and_the_rerun_uses_the_current_target_tip (captured excluded_window_base == T1)",
+      "evidence": "tests/terminus/test_repro_6770.py::test_a_clean_fail_rollback_leaves_no_record_and_the_rerun_uses_the_current_target_tip (captured excluded_window_base == T1 on the re-run)",
       "pass_fail": "pass",
-      "verified_by": "python-pedro",
-      "verified_at": "2026-10-31T00:53:13.907302+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:01:35.117409+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/terminus/test_repro_6770.py::test_a_plain_abort_after_a_clean_fail_rollback_is_a_no_op_not_a_refusal (real CLI, exit 0, no active state)",
+      "evidence": "tests/terminus/test_repro_6770.py::test_a_plain_abort_after_a_clean_fail_rollback_is_a_no_op_not_a_refusal (real CLI, target commit between attempts, exit 0, record cleared)",
       "pass_fail": "pass",
-      "verified_by": "python-pedro",
-      "verified_at": "2026-10-31T00:53:16.909284+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:01:38.158578+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
@@ -40,18 +40,18 @@
       "proof_type": "automated_test",
       "evidence": "tests/terminus/test_repro_6770.py::test_a_partial_rollback_keeps_the_record_with_its_pre_mutation_base + tests/terminus/test_rollback_door.py::test_dirty_target_checkout_is_reported_not_restored_and_the_record_is_kept",
       "pass_fail": "pass",
-      "verified_by": "python-pedro",
-      "verified_at": "2026-10-31T00:53:19.608974+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:01:41.007311+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "tests/consolidation/test_executor_rollback_wiring.py::test_the_door_warns_and_keeps_the_original_error_when_the_record_cannot_be_cleared",
+      "evidence": "tests/consolidation/test_executor_rollback_wiring.py::test_the_door_warns_and_keeps_the_original_error_when_the_record_cannot_be_rebaselined",
       "pass_fail": "pass",
-      "verified_by": "python-pedro",
-      "verified_at": "2026-10-31T00:53:22.652039+00:00",
+      "verified_by": "claude",
+      "verified_at": "2026-10-31T02:01:43.751212+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     }
   ],

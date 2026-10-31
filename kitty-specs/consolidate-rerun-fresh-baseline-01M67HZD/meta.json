@@ -1,5 +1,5 @@
 {
-  "accept_commit": "490f1231cf99c9e36fc65b7eaeac74199a3afc92",
+  "accept_commit": "7c8564f9c095a34868340d5706b1202c3b038c61",
   "acceptance_history": [
     {
       "accept_commit": "490f1231cf99c9e36fc65b7eaeac74199a3afc92",
@@ -7,18 +7,28 @@
       "accepted_at": "2026-10-31T00:53:41.868053+00:00",
       "accepted_by": "claude",
       "accepted_from_commit": "084a3d98319d890bad95d6917582885bedeb3a6a"
+    },
+    {
+      "accept_commit": "7c8564f9c095a34868340d5706b1202c3b038c61",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T02:01:52.210308+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "dcc1f9d4f5490f98aa0cf3f3b3c458689517f6ff"
     }
   ],
   "acceptance_mode": "pr",
-  "accepted_at": "2026-10-31T00:53:41.868053+00:00",
+  "accepted_at": "2026-10-31T02:01:52.210308+00:00",
   "accepted_by": "claude",
-  "accepted_from_commit": "084a3d98319d890bad95d6917582885bedeb3a6a",
+  "accepted_from_commit": "dcc1f9d4f5490f98aa0cf3f3b3c458689517f6ff",
+  "baseline_merge_commit": "d9a4fd6ecb63eac0b060597550b0854f3c435733",
   "created_at": "2026-10-30T23:23:02.604261+00:00",
   "flattened": false,
   "friendly_name": "consolidate rerun fresh baseline",
+  "merged_at": "2026-10-31T02:02:06.807511+00:00",
+  "merged_commit": "d9a4fd6ecb63eac0b060597550b0854f3c435733",
   "mid8": "01M67HZD",
   "mission_id": "01M67HZD7HDDC0SSQZB2KNFR4Q",
-  "mission_number": null,
+  "mission_number": 244,
   "mission_slug": "consolidate-rerun-fresh-baseline-01M67HZD",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances consolidate rerun fresh baseline on issue-6770-consolidate-rerun-fresh-baseline so stakeholders can track the work from mission creation onward.",
