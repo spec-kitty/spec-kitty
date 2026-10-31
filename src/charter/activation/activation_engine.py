@@ -273,6 +273,14 @@ FROZEN_LIST_NOTE = (
     " use 'spec-kitty charter activate <kind> <id> --only' to keep activation narrow."
 )
 
+#: Why an activation that changes nothing writes nothing (#6685).
+ALREADY_IN_FORCE_WARNING = (
+    "Kind {kind!r} keeps no explicit activation set, and {artifact!r} is already effective while it is absent, "
+    "so nothing in force was deactivated and nothing was written: a list would freeze the kind, and the "
+    "selection alone would narrow it. Run 'spec-kitty charter activate {kind} <id> --only' to keep activation "
+    "narrow and write an explicit list."
+)
+
 
 def _org_required_freeze_warning(kind: str, plural: str) -> str:
     """Why writing a "required" kind's list freezes the org-required set (#6458).
@@ -377,6 +385,32 @@ def _materialise_absent(
 # ---------------------------------------------------------------------------
 
 
+def _stays_implicit(
+    current: list[str] | None,
+    artifact_id: str,
+    effective_ids: Iterable[str],
+    *,
+    effective_when_absent: str,
+    effective_ids_in_force: bool,
+) -> bool:
+    """Whether activating *artifact_id* needs no write at all (#6685).
+
+    True only when the key is absent, its absence puts *every* available artifact in
+    force (``effective_when_absent == "all"``), the caller positively asserts that
+    *effective_ids* is what is in force, and the artifact is in it. The activation then
+    changes nothing: materialising the set would freeze the kind to today's catalog, and
+    writing the selection alone would narrow it (#4253).
+
+    ``mission-type`` (whose absent key puts *nothing* in force, so the caller passes a
+    substitute with ``in_force=False``) and a ``required``-when-absent kind such as
+    ``skill`` (whose absent key puts only the org-required set in force) are therefore
+    never implicit: not writing would lose the activation.
+    """
+    if current is not None or effective_when_absent != "all" or not effective_ids_in_force:
+        return False
+    return artifact_id in set(effective_ids)
+
+
 #: Warning shared by every narrowing caller when what was in force cannot be listed.
 _NARROW_UNRESOLVED_WARNING = "What stopped being in force cannot be listed: the effective set could not be resolved."
 
@@ -439,6 +473,13 @@ def plan_activation(
     restrictive list into a previously-absent key would otherwise flip
     "everything is available" to "only this one is", silently deactivating the
     rest (#4253).
+
+    The one exception is an activation that changes nothing (#6685): when the
+    key is absent, its absence puts everything in force, and *artifact_id* is
+    already in that in-force set, the plan writes no allow list at all —
+    :func:`_stays_implicit`. Not writing keeps the unrestricted state (the
+    strongest form of the #4253 guarantee) and leaves the "nothing chosen yet"
+    state the caller's ``charter synthesize`` relies on (#2577, #4785, #6629).
 
     Parameters
     ----------
@@ -543,6 +584,19 @@ def plan_activation(
             new_list=None,
             activated=[artifact_id],
             warnings=[f"Kind {kind!r} keeps no explicit activation set, so artifacts shipped later stay active."],
+        )
+        return _with_deny(plan, deny_key, deny, artifact_id, deny_change)
+
+    if _stays_implicit(current, artifact_id, effective_ids, effective_when_absent=effective_when_absent, effective_ids_in_force=effective_ids_in_force):
+        # #6685: the key is absent and the artifact is already in force, so this activation
+        # changes nothing. Writing the in-force set would freeze the kind (#6408's note) and
+        # writing the selection alone would deactivate everything else (#4253); a list an
+        # operator never chose also reads as one to `charter synthesize` (#2577, #4785, #6629).
+        plan = ActivationPlan(
+            yaml_key=yaml_key,
+            new_list=None,
+            activated=[artifact_id],
+            warnings=[ALREADY_IN_FORCE_WARNING.format(kind=kind, artifact=artifact_id)],
         )
         return _with_deny(plan, deny_key, deny, artifact_id, deny_change)
 

@@ -176,7 +176,10 @@ class TestGlossaryPackCascadeIsGeneric:
         assert result.exit_code == 0, result.output
 
         data = read_activation_ledger(project_root)
-        assert "spec-kitty-core" in data["activated_glossary_packs"]
+        # #6685: the cascade target is already in force while the key is absent, so the
+        # activation writes no list; the pack is in force either way.
+        assert "activated_glossary_packs" not in data, "an in-force target must not materialise the absent key (#6685)"
+        assert "spec-kitty-core" not in (data.get("deactivated_glossary_packs") or [])
 
     def test_deactivate_glossary_pack_with_cascade_all_removes_from_config(
         self, project_root: Path

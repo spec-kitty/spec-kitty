@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 from click.testing import Result
 
+
 from ._effective_set import builtin_inventory, effective_set, expand
 from ._requirements import REPO_ROOT
 from ._support import active_charter, covers, describe, load_yaml, output_of, run_cli
@@ -93,10 +94,12 @@ def _upgrade_unify(project: Path) -> Result:
     return run_cli(["upgrade", "--yes", "--no-worktrees"], project)
 
 
-#: Callers that must leave an absent ``activated_directives`` key absent: the upgrade
-#: promotion (``4.0.0rc8_promote_interview_selections``, #6629) never writes an absent key,
-#: because every available artifact of the kind is already in force while it is absent.
-KEY_STAYS_ABSENT = frozenset({"upgrade_unify"})
+#: Callers that must leave an absent ``activated_directives`` key absent: every writer that
+#: promotes a *selection* (#6629 for the upgrade, #6685 for the interview) never writes an
+#: absent key, because every available artifact of the kind is already in force while it is
+#: absent. Only the callers that must materialise to keep an activation alive -- the org
+#: required union on a listed kind, and a narrowing activation -- still write one.
+KEY_STAYS_ABSENT = frozenset({"upgrade_unify", "interview", "resynthesize"})
 
 
 def _prepare_resynthesize(project: Path) -> None:
@@ -154,36 +157,51 @@ def _spy_on_preflight(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
     return proposals
 
 
-def _assert_preflight_seeded_from_effective_set(proposals: list[Any], project: Path) -> None:
-    """The preflight's proposed directive selection covers the selection the activation wrote.
+def _config_stems(project: Path, ids: frozenset[str]) -> set[str]:
+    """*ids* mapped to their config-stem spelling (the preflight proposes stems, the service reports declared ids)."""
+    from charter.activation.identity_index import IdentityIndex
+    from charter.drg import ArtifactKind
 
-    The activation write already preserves the effective set at base (#4253), so the written
-    key is the reference; both sides are config ids.
+    index = IdentityIndex.build(project)
+    return {index.stored_spelling(ArtifactKind.DIRECTIVE, item) if index.knows(ArtifactKind.DIRECTIVE, item) else str(item) for item in ids}
+
+
+def _assert_preflight_seeded_from_effective_set(proposals: list[Any], project: Path, in_force_before: frozenset[str]) -> None:
+    """The preflight's proposed directive selection covers everything in force.
+
+    #6685: the activation writes no list for an in-force artifact, so the reference is the
+    in-force set itself (the resolver's available directives) rather than a written key; a
+    written key, where one exists, is compared as before. Both sides are config ids.
     """
     assert proposals and proposals[-1] is not None, "control: the resynthesis preflight ran"
     proposed = set(proposals[-1].activated_directives or ())
-    written_value = active_charter(project).get("activated_directives")
-    assert isinstance(written_value, list), written_value
-    written = {str(i) for i in written_value}
     assert PROMOTED_DIRECTIVE in proposed, "control: the preflight proposes the requested directive"
-    narrowed = sorted(written - proposed)
-    assert not narrowed, f"the resynthesis preflight seeded a narrower set than the activation wrote: {narrowed}"
+    written_value = active_charter(project).get("activated_directives")
+    # The fixture's own measured in-force set (the service, across every readable layer), in the
+    # stem spelling the preflight proposes — not a narrower re-read of the built-in layer.
+    reference = {str(i) for i in written_value} if isinstance(written_value, list) else _config_stems(project, in_force_before)
+    narrowed = sorted(reference - proposed)
+    assert not narrowed, f"the resynthesis preflight seeded a narrower set than what was in force: {narrowed}"
 
 
 #: The synthesis step that follows a resynthesizing activation needs the agent-authored
 #: artifacts under ``.kittify/charter/generated/`` (one per interview target, the
 #: ``how-we-apply-*`` tactics included), which this fixture deliberately does not provide.
-#: The command therefore exits 1 there, after the preflight and the activation write.
+#: Before #6685 the activation wrote a list here and the command therefore exited 1 in that
+#: step. With no write there is nothing to resynthesize, so the command completes.
 SYNTHESIS_NEEDS_GENERATED_ARTIFACTS = "GeneratedArtifactMissingError"
 
 
 def _assert_caller_ran(caller: str, result: Result) -> None:
+    text = output_of(result)
     if caller != "resynthesize":
         assert result.exit_code == 0, describe(result)
         return
-    text = output_of(result)
-    assert result.exit_code == 1, describe(result)
-    assert "Activated" in text and SYNTHESIS_NEEDS_GENERATED_ARTIFACTS in text, describe(result)
+    # #6685: the full synthesis pipeline still runs, but it no longer reads an operator activation,
+    # so it completes without demanding the generated artifacts this fixture does not provide.
+    assert result.exit_code == 0, describe(result)
+    assert "Activated" in text, describe(result)
+    assert SYNTHESIS_NEEDS_GENERATED_ARTIFACTS not in text, describe(result)
 
 
 @covers("FR-015", "US5-1")
@@ -203,7 +221,7 @@ def test_fr015_promotion_preserves_effective_set(caller: str, tmp_path: Path, ch
     else:
         assert "activated_directives" in active_charter(project), "control: the caller promoted the directive key"
     if caller == "resynthesize":
-        _assert_preflight_seeded_from_effective_set(proposals, project)
+        _assert_preflight_seeded_from_effective_set(proposals, project, before["directives"])
     after = expand(effective_set(project, inventory), inventory)
     lost = {kind: sorted(before[kind] - after[kind]) for kind in before if before[kind] - after[kind]}
     assert not lost, f"{caller} narrowed the effective set: {lost}"
@@ -225,15 +243,25 @@ def test_fr015_upgrade_promotion_appends_to_present_key(tmp_path: Path, charter_
 
 
 @covers("FR-015", "US5-2")
-def test_fr015_unresolvable_set_leaves_key_absent_and_reports(tmp_path: Path) -> None:
+def test_fr015_interview_never_writes_a_bare_list_whatever_the_effective_set(tmp_path: Path) -> None:
+    """An absent key stays absent whether or not the effective set resolves (#6685, keeping #4400's guarantee).
+
+    Before #6685 the interview seeded the absent key from the effective set and had to fall
+    back to leaving it absent when that set could not be resolved. Not writing at all satisfies
+    the #4400 guarantee (never a bare restrictive list) more strongly: an absent key is the
+    unrestricted state, so nothing in force is lost either way.
+    """
     healthy = _fixture(tmp_path / "healthy")
-    assert _interview(healthy).exit_code == 0
-    assert "activated_directives" in active_charter(healthy), "control: the healthy fixture promotes"
+    healthy_result = _interview(healthy)
+    assert healthy_result.exit_code == 0, describe(healthy_result)
+    assert "activated_directives" not in active_charter(healthy), "a resolving set must not seed the key either (#6685)"
+    assert "activated_directives" in output_of(healthy_result), "the run names the key it left absent"
     broken = _fixture(tmp_path / "broken")
     config = load_yaml(broken / ".kittify" / "config.yaml")
     config["charter_packs"]["org"]["packs"][1]["local_path"] = "org-packs/does-not-exist"
     finish(broken, config)
     result = _interview(broken)
+    assert result.exit_code == 0, describe(result)
     assert "activated_directives" not in active_charter(broken)
     assert "activated_directives" in output_of(result), describe(result)
 

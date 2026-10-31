@@ -181,6 +181,7 @@ from charter.activation._diagnostics import (
 # ``ActiveCharterConfigError``, is re-exported once below from the activation ledger.
 from charter.activation.pack_context import (
     load_charter_yaml_mapping as load_charter_yaml_mapping,
+    load_denied as load_denied,
 )
 
 # Activation ledger seam (persistent-deactivation-ledger WP02) -- the typed
@@ -288,6 +289,7 @@ __all__ = [
     "ledger_findings",
     "load_activation_ledger",
     "load_charter_yaml_mapping",
+    "load_denied",
     "load_yaml",
     "org_required_stems",
     "plan_ledger_migration",

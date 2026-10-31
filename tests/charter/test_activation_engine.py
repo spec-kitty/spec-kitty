@@ -364,10 +364,11 @@ def test_plan_activation_narrow_base_ignores_the_absent_key_materialisation() ->
     )
     assert plan.new_list == ["001-foo"]
     assert plan.deactivated == ["002-bar", "003-baz"]
-    # positive control: without narrow_base the same inputs materialise everything
+    # #6685: without narrow_base the same inputs write no list at all — the artifact is already
+    # in force while the key is absent, so the unrestricted state is kept instead of frozen.
     wide = plan_activation("directive", "001-foo", yaml_key="activated_directives", available_ids=_AVAILABLE, config_data={}, effective_ids=_AVAILABLE)
-    assert wide.new_list == _AVAILABLE and wide.deactivated == []
-    assert "'spec-kitty charter activate <kind> <id> --only'" in wide.warnings[0]
+    assert wide.new_list is None and wide.deactivated == [] and wide.activated == ["001-foo"]
+    assert "charter activate directive <id> --only" in wide.warnings[0]
 
 
 def test_plan_activation_narrow_base_still_validates_the_id_first(config_path: Path) -> None:

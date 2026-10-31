@@ -89,7 +89,8 @@ def test_include_deactivated_activates_the_child_and_clears_its_exclusion(tmp_pa
     assert "Skipped, deactivated" not in out
     ledger = read_activation_ledger(root)
     assert "deactivated_tactics" not in ledger
-    assert "g-proc" in ledger["activated_procedures"]
+    # #6685: the cascaded procedure is already in force while its key is absent, so no list is written.
+    assert "activated_procedures" not in ledger
 
 
 def test_include_deactivated_without_cascade_is_a_usage_error(tmp_path: Path) -> None:

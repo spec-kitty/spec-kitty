@@ -269,7 +269,9 @@ def test_activate_skill_cascades_to_what_it_requires(cascade_project: Path) -> N
     output = _activate(cascade_project, "--cascade", "procedure,directive", "skill", "s1")
 
     assert "Cascade-activated: procedure/shared-proc" in output
-    assert "shared-proc" in (_activated(cascade_project, "activated_procedures") or [])
+    # #6685: a cascade target the absent key already puts in force is not written into a list.
+    assert _activated(cascade_project, "activated_procedures") is None
+    assert "shared-proc" not in (_activated(cascade_project, "deactivated_procedures") or [])
 
 
 def test_activate_skill_cascade_scope_limits_the_kinds(cascade_project: Path) -> None:
@@ -290,23 +292,32 @@ def test_deactivate_skill_keeps_a_procedure_still_referenced_by_a_directive(casc
     """SC-006: s1 and directive d both require shared-proc; removing s1 keeps it."""
     _activate(cascade_project, "directive", "dir-d")
     _activate(cascade_project, "--cascade", "procedure", "skill", "s1")
-    assert "shared-proc" in (_activated(cascade_project, "activated_procedures") or [])
+    # #6685: procedures are in force while their key is absent (no list is written).
+    assert _activated(cascade_project, "activated_procedures") is None
 
     output = _deactivate(cascade_project, "--cascade", "procedure", "skill", "s1")
 
-    assert "shared-proc" in (_activated(cascade_project, "activated_procedures") or [])
-    assert "Skipped (shared artifact)" in output
-    assert "directive:dir-d" in output
+    # #6685: no allow list exists for procedures any more, so the cascade reports the child as
+    # still active instead of removing a list entry (D-11 never records an exclusion for one).
+    assert "shared-proc" not in (_activated(cascade_project, "deactivated_procedures") or [])
+    assert "still active (no allow-list" in output or "Skipped (shared artifact)" in output, output
     assert "s1" not in (_activated(cascade_project, "activated_skills") or [])
 
 
 def test_deactivate_skill_removes_an_unshared_procedure(cascade_project: Path) -> None:
     """SC-006 control: solo-proc is referenced only by s2, so it goes with it."""
     _activate(cascade_project, "--cascade", "procedure", "skill", "s2")
-    assert "solo-proc" in (_activated(cascade_project, "activated_procedures") or [])
+    assert _activated(cascade_project, "activated_procedures") is None, "no list while the key stays absent (#6685)"
 
     output = _deactivate(cascade_project, "--cascade", "procedure", "skill", "s2")
 
-    assert "Cascade-deactivated: procedure/solo-proc" in output
-    assert "solo-proc" not in (_activated(cascade_project, "activated_procedures") or [])
-    assert "shared-proc" in (_activated(cascade_project, "activated_procedures") or [])
+    # #6685: with no allow list for procedures, the cascade reports the exclusive child as still
+    # active (no list entry to drop, and D-11 records no exclusion for a cascade child). A direct
+    # `charter deactivate procedure solo-proc` is what records the exclusion.
+    assert "still active (no allow-list" in output, output
+    assert "solo-proc" not in (_activated(cascade_project, "deactivated_procedures") or [])
+
+    _deactivate(cascade_project, "procedure", "solo-proc")
+
+    assert "solo-proc" in (_activated(cascade_project, "deactivated_procedures") or [])
+    assert "shared-proc" not in (_activated(cascade_project, "deactivated_procedures") or [])

@@ -97,8 +97,10 @@ def test_fresh_project_only_writes_id_plus_org_required_stem_and_names_every_dro
 
 def test_only_replaces_a_present_list_and_a_following_plain_activate_appends(tmp_path: Path) -> None:
     root = _project(tmp_path, required=False)
-    assert _activate(root, "toolguide", "sonar").exit_code == 0
-    assert len(_list(root) or []) > 3, "fixture invalid: the first activation must materialise the effective set"
+    # #6685: a plain activation of an in-force artifact writes no list, so `--only` seeds the
+    # present list this test replaces and appends to.
+    assert _activate(root, "toolguide", "sonar", "--only").exit_code == 0
+    assert _list(root) == ["sonar"], "fixture invalid: --only must write a present list"
 
     narrowed = _activate(root, "toolguide", _TARGET, "--only")
     assert narrowed.exit_code == 0, narrowed.output
@@ -119,19 +121,19 @@ def test_only_with_preset_exits_2_with_a_clear_message(tmp_path: Path) -> None:
     assert _list(root) is None
 
 
-def test_without_only_the_list_is_unchanged_and_the_warning_says_it_is_frozen(tmp_path: Path) -> None:
+def test_without_only_an_absent_list_stays_absent_and_the_warning_says_why(tmp_path: Path) -> None:
+    """#6685: the default no longer materialises an absent key; the operator is told what happened."""
     root = _project(tmp_path)
-    available = _available(root)
 
     result = _activate(root, "toolguide", _TARGET)
 
     assert result.exit_code == 0, result.output
-    written = _list(root) or []
-    assert _TARGET in written and set(available) <= set(written)
-    assert _ORG_ID not in written, "the org artifact is written once, by its stem (#6435)"
+    assert _list(root) is None, "the absent key must stay absent (#6685)"
     out = " ".join(result.output.split())
-    assert "had no explicit activation set. Initialized from the" in out
-    assert "This list is now explicit" in out and "--only" in out
+    assert "keeps no explicit activation set" in out
+    assert "nothing in force was deactivated" in out
+    assert "--only" in out and "keep activation narrow" in out
+    assert "This list is now explicit" not in out, "no list was written, so nothing is frozen"
     assert "No longer in force" not in out
 
 
@@ -149,16 +151,14 @@ def test_only_with_cascade_narrows_only_the_named_kind(tmp_path: Path) -> None:
     cascaded = listed[1:]
     assert cascaded, "cascade=all must have appended at least one referenced directive"
     assert "Cascade-activated" in result.output
-    # cascaded entries of OTHER kinds were appended to their (previously absent) lists, never narrowed:
-    # each such list is the kind's whole effective set plus the cascaded id.
+    # cascaded entries of OTHER kinds were left in the unrestricted state, never narrowed:
+    # #6685 — an absent key already puts them in force, so no list is written for them.
     other = [(kind, item) for kind, item in re.findall(r"Cascade-activated.*?: (\S+?)/(\S+)", result.output) if kind != "directive"]
     assert other, "fixture invalid: the cascade must reach at least one other kind"
     for kind, item in other:
-        listed_other = data[YAML_KEY_MAP[kind]]
+        assert YAML_KEY_MAP[kind] not in data, f"{kind} gained a list it did not have (#6685)"
         available_other = set(ActiveCharterManager().list_available(ProjectContext.from_repo(root), kind))
-        assert item in listed_other
-        assert available_other <= set(listed_other), f"{kind} was narrowed instead of appended"
-        assert _ORG_ID not in listed_other, "no declared id is written beside its stem (#6435)"
+        assert item in available_other, "the cascaded artifact is in force while its key is absent"
 
 
 def test_only_with_an_unresolvable_effective_set_warns_once_with_the_reason_and_names_no_stand_in_dropped_ids(tmp_path: Path) -> None:

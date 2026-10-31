@@ -41,7 +41,7 @@ from charter.activation.identity_index import IdentityIndex
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.pack_context import PackContext
-from charter.activation.pack_manager import ActiveCharterManager
+from charter.activation.effective_set import resolve_effective_sets
 from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 from kernel.charter_pack_paths import project_pack_root
 from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
@@ -169,10 +169,15 @@ def test_compile_builds_one_identity_index_per_compile(tmp_path: Path, monkeypat
 # ----------------------------------------------------- consistency check ----
 
 
-def test_check_reports_no_unknown_for_a_w2_written_list(tmp_path: Path) -> None:
-    """An absent-key activate (W2) writes the effective set; the check finds nothing unknown in it."""
+def test_check_reports_no_unknown_for_a_materialised_list(tmp_path: Path) -> None:
+    """A list holding a whole effective set (what an absent-key write used to produce) has nothing unknown in it.
+
+    #6685: an activation no longer materialises an absent key, so the fixture seeds the list the
+    writer used to produce; this test's subject is the consistency check, not the writer.
+    """
     root = _project(tmp_path)
-    ActiveCharterManager().activate(ProjectContext.from_repo(root), "toolguide", "gherkin")
+    effective = sorted(resolve_effective_sets(root, ["activated_toolguides"])["activated_toolguides"].ids)
+    seed_activation_ledger(root, activated_toolguides=effective)
     stored = read_activation_ledger(root)["activated_toolguides"]
     assert "gherkin" in stored and len(stored) > 1, stored
 

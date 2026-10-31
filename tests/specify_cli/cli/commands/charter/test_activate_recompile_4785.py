@@ -43,6 +43,16 @@ pytestmark = [pytest.mark.regression, pytest.mark.integration]
 _REAL_DIRECTIVE_STEM = "001-architectural-integrity-standard"
 
 
+def _write_config_with_present_list(project_root: Path) -> Path:
+    """A project whose ``activated_directives`` is present (and empty).
+
+    #6685: an activation of an artifact the ABSENT key already puts in force writes nothing, so a
+    recompile test needs a present list to append to; otherwise the activation (and the staleness
+    the guard observes) would never happen.
+    """
+    return _write_config(project_root, "activated_directives: []\n")
+
+
 def _write_config(project_root: Path, content: str = "# empty config\n") -> Path:
     """Write a minimal .kittify/config.yaml; return .kittify/."""
     kittify = project_root / ".kittify"
@@ -108,7 +118,7 @@ def _coherent(project_root: Path) -> bool:
 
 def test_activate_default_recompiles_catalog_and_stays_coherent(tmp_path: Path) -> None:
     """Contract C1: default `activate` (no flags) recompiles catalog.references."""
-    kittify = _write_config(tmp_path)
+    kittify = _write_config_with_present_list(tmp_path)
     _write_established_catalog(kittify)
 
     result = _activate(tmp_path, "directive", _REAL_DIRECTIVE_STEM)
@@ -120,7 +130,7 @@ def test_activate_default_recompiles_catalog_and_stays_coherent(tmp_path: Path) 
 def test_activate_no_compile_stays_config_only_and_prints_notice(tmp_path: Path) -> None:
     """Contract C1: `--no-compile` is the explicit opt-out -- config-only
     write, an explicit notice, and the catalog is left stale."""
-    kittify = _write_config(tmp_path)
+    kittify = _write_config_with_present_list(tmp_path)
     _write_established_catalog(kittify)
 
     result = _activate(tmp_path, "directive", _REAL_DIRECTIVE_STEM, "--no-compile")
@@ -145,7 +155,9 @@ def test_activate_deactivate_round_trip_stays_coherent(tmp_path: Path) -> None:
     kittify = _write_config(tmp_path)
     _write_established_catalog(kittify)
 
-    activated = _activate(tmp_path, "directive", _REAL_DIRECTIVE_STEM)
+    # #6685: `--only` writes the present list the round trip then removes the entry from — a plain
+    # activation of an in-force artifact writes nothing, and `deactivate` needs a list to remove from.
+    activated = _activate(tmp_path, "directive", _REAL_DIRECTIVE_STEM, "--only")
     assert activated.exit_code == 0, activated.output
     assert _coherent(tmp_path)
 

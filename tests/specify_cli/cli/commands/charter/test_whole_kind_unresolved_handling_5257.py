@@ -77,7 +77,9 @@ def test_activate_keeps_config_write_and_prints_notice_when_whole_kind_unresolve
     assert "not recompiled" in result.output.lower(), result.output
     assert "toolguide" in result.output, "the notice must name the kind that could not be resolved"
     assert _GHOST_ID in result.output
-    assert _PARADIGM in _activated_key(tmp_path, "activated_paradigms"), "the config write already succeeded and must be kept"
+    # #6685: an in-force artifact is not written into an absent key, so nothing was written
+    # before the recompile either; the notice still names the kind that could not be resolved.
+    assert _activated_key(tmp_path, "activated_paradigms") == [], "no list is written for an in-force artifact (#6685)"
     assert catalog_path.read_bytes() == catalog_before, "a failed recompile must not touch the catalog"
 
 

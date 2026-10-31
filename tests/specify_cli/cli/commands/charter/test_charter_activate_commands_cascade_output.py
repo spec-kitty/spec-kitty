@@ -118,7 +118,9 @@ class TestCascadeOutputAbsence:
         assert result.exit_code == 0, result.output
         config = project_root / ".kittify" / "config.yaml"
         data = yaml.safe_load(config.read_text())
-        assert "001-architectural-integrity-standard" in data["activated_directives"]
+        # #6685: the target is already in force while its key is absent, so the activation writes no list.
+        assert "activated_directives" not in data
+        assert "Cascade-activated" in result.output or "Warning:" in result.output
 
 
 # ---------------------------------------------------------------------------
