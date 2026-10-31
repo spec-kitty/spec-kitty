@@ -667,9 +667,7 @@ def test_accept_pr_mode_keeps_the_lane_window_when_the_branch_still_resolves(
     """
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
-    feature_dir, merge_commit, _parent = _create_pr_merged_feature(
-        repo_root, lane_merged=True, hollow_wp=True, mission_side_path="tools/unrelated.py"
-    )
+    feature_dir, merge_commit, _parent = _create_pr_merged_feature(repo_root, lane_merged=True, hollow_wp=True, mission_side_path="tools/unrelated.py")
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
     assert _branch_resolves(repo_root, _lane_branch()), "the control arm needs the lane branch to exist"
