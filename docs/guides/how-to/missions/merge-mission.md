@@ -2,7 +2,7 @@
 title: How to Merge a Mission
 description: 'How to merge a mission with Spec Kitty 3.2: land approved work packages on the local target branch with spec-kitty consolidate, preview it, and choose cleanup.'
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-30'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 related:
@@ -78,6 +78,35 @@ merge:
 ```
 
 The order is: `--strategy`, then `merge.strategy`, then `squash`. A value outside `merge`, `squash` and `rebase` in the config file is an error. A resumed run keeps the strategy of the interrupted run.
+
+## Restack onto a Newer Dependency Branch
+
+Sometimes a Mission is built on another branch that is still moving — a shared feature, a
+platform refactor — and it must pick up that branch's newer head before it lands. Merge that
+head into the lane that depends on it, with a real merge so the reviewed commits are not
+rewritten, then have the lane reviewed again on the merged tree:
+
+```bash
+git switch kitty/mission-<slug>-lane-b
+git merge --no-ff <dependency-branch>
+```
+
+`consolidate` treats every commit a merge's second parent brought in as content no approved
+work package authored, so an undeclared restack is refused with an `un-attributable` verdict
+under both strategies (`--dry-run` refuses it too). Declare the dependency once, on the
+preview and on the real run:
+
+```bash
+spec-kitty consolidate --mission 015-user-authentication --dependency-ref <dependency-branch> --dry-run
+spec-kitty consolidate --mission 015-user-authentication --dependency-ref <dependency-branch>
+```
+
+`--dependency-ref` is repeatable and is recorded on the run, so `--resume` rebuilds the same
+claim. A declaration is verified before anything lands: the ref must resolve, the mission
+branch or one of its lane branches must reach it, and no commit of any lane's own history or
+of the mission branch may sit in it. A declaration that covers mission-authored work is
+refused — that is what keeps a removed work package from riding a carrier lane — and the
+declared commits are attributed as inherited history, never to a work package.
 
 ## Target Branch
 
