@@ -126,7 +126,13 @@ def main_callback(
         # The FR-011 legacy charter gate reads no global state, so it still runs.
         project_root = locate_project_root()
         if project_root is not None:
-            _check_legacy_charter_layout(ctx, project_root)
+            from specify_cli.cli.commands._owned_checkout import startup_project_checkout
+
+            # Same claim scope as the normal leg: no command on this path takes
+            # --owned-checkout today, and one added later must not resurrect the
+            # primary-first refusal (#6845).
+            selected = startup_project_checkout(ctx, project_root)
+            _check_legacy_charter_layout(ctx, selected, inspect_invoking_checkout=selected == project_root)
         return
 
     next_fast_path = _is_next_invocation(sys.argv)
