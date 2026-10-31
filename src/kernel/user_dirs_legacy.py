@@ -44,7 +44,7 @@ from kernel import paths as _paths
 from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 from kernel.user_dirs import APP_NAME, user_cache_dir, user_config_dir, user_state_dir
 
-__all__ = ["discard_legacy_locations", "legacy_roots"]
+__all__ = ["discard_legacy_locations"]
 
 _LOG = logging.getLogger(__name__)
 
@@ -101,14 +101,6 @@ def _candidates() -> tuple[_Candidate, ...]:
         # which nests the app name twice; nothing reads that tree any more.
         candidates.append(_Candidate(local_app_data / APP_NAME / APP_NAME, local_app_data, "compat.cache, compat.config (platformdirs default author)"))
     return tuple(candidates)
-
-
-def legacy_roots() -> tuple[Path, ...]:
-    """The enumerated legacy roots, de-duplicated, in removal order."""
-    seen: dict[Path, None] = {}
-    for candidate in _candidates():
-        seen.setdefault(candidate.root, None)
-    return tuple(seen)
 
 
 def _is_live(root: Path, current: set[Path]) -> bool:
