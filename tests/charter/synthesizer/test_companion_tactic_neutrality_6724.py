@@ -97,11 +97,12 @@ def _write_generated(
     )
 
 
-def _build_project(root: Path, *, known_language: bool) -> None:
+def _build_project(root: Path, *, known_language: bool = True, language: str = "python") -> None:
     """Seed a project that activates one built-in directive and writes its companion.
 
     ``known_language`` decides whether the project's language scope is knowable at
-    all: a declared ``language_scope`` plus a real Python source tree, or neither.
+    all: a declared ``language_scope`` plus a real source tree of ``language``
+    (``python`` or ``rust``), or neither.
     Everything else — the activation, the generated artifacts, the companion body —
     is identical, so the two CLI cases differ in exactly one variable.
     """
@@ -109,14 +110,18 @@ def _build_project(root: Path, *, known_language: bool) -> None:
     _git(root, "config", "user.email", "test@example.com")
     _git(root, "config", "user.name", "Test")
 
-    if known_language:
+    if known_language and language == "python":
         (root / "pyproject.toml").write_text("[project]\nname = 'app'\n", encoding="utf-8")
         (root / "src").mkdir()
         (root / "src" / "app.py").write_text("def answer() -> int:\n    return 42\n", encoding="utf-8")
+    elif known_language:
+        (root / "Cargo.toml").write_text("[package]\nname = 'app'\nversion = '0.1.0'\n", encoding="utf-8")
+        (root / "src").mkdir()
+        (root / "src" / "main.rs").write_text("fn main() {}\n", encoding="utf-8")
 
     answers = root / ".kittify" / "charter" / "interview" / "answers.yaml"
     answers.parent.mkdir(parents=True, exist_ok=True)
-    language_line = "  language_scope: [Python]\n" if known_language else ""
+    language_line = f"  language_scope: [{language.capitalize()}]\n" if known_language else ""
     answers.write_text(_ANSWERS_HEAD + language_line + _ANSWERS_TAIL, encoding="utf-8")
 
     generated = runner.invoke(app, ["generate", "--from-interview"], catch_exceptions=False)
@@ -166,8 +171,8 @@ def _build_project(root: Path, *, known_language: bool) -> None:
         _write_generated(
             root,
             "styleguide",
-            "python-style-guide",
-            {"title": "Python", "scope": "code", "principles": ["Run pytest -q before merging."]},
+            f"{language}-style-guide",
+            {"title": language, "scope": "code", "principles": ["Run pytest -q before merging."]},
         )
 
     seed_activation_ledger(root, activated_directives=[_DIRECTIVE_STEM])
@@ -248,6 +253,28 @@ def test_companion_tactic_in_an_unconfigured_project_is_still_refused(tmp_path: 
     assert list(root.glob(".kittify/charter/.staging/*.failed"))
 
 
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_companion_naming_another_languages_runner_is_refused(tmp_path: Path, charter_cwd_isolation) -> None:
+    """A known scope exempts only the project's OWN languages' terms.
+
+    Same fixture as the promoted case, but the project is Rust-only: ``pytest`` (a
+    Python term) in its companion is a foreign-language assumption and is refused.
+    Before the fix any known language skipped the lint, so this was promoted.
+    """
+    root = charter_cwd_isolation(tmp_path)
+    _build_project(root, language="rust")
+
+    result = _synthesize()
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.stdout)
+    refusals = [w for w in payload["warnings"] if w.startswith("NeutralityGateViolation")]
+    assert refusals, payload["warnings"]
+    assert _COMPANION_SLUG in refusals[0]
+    assert "pytest" in refusals[0]
+
+
 # ---------------------------------------------------------------------------
 # User Story 3 — the narrowing is exactly one artifact class (SC-003/SC-004)
 # ---------------------------------------------------------------------------
@@ -268,30 +295,20 @@ def test_companion_section_label_has_one_owner() -> None:
 
 
 @pytest.mark.parametrize(
-    ("kind", "slug", "source_section", "evidence", "expected"),
+    ("slug", "evidence", "expected"),
     [
-        # A companion tactic in a project whose stack is known: the artifact's scope is
-        # the project's, so its own test runner is not an unstated assumption.
-        ("tactic", _COMPANION_SLUG, "selected_directives", _python_bundle(), False),
-        # No scope known: still generic, still linted.
-        ("tactic", _COMPANION_SLUG, "selected_directives", None, True),
-        # Same section, same slug, a non-tactic kind: the exemption is kind-scoped, so a
-        # styleguide can never reach it.
-        ("styleguide", _COMPANION_SLUG, "selected_directives", _python_bundle(), True),
-        # A non-companion artifact keeps the slug-component rule, in the same project.
-        ("tactic", "testing-philosophy", "testing_philosophy", _python_bundle(), True),
-        ("styleguide", "java-style-guide", "language_scope", _python_bundle(), True),
-        ("tactic", "how-we-apply-directive-003", "testing_philosophy", _python_bundle(), True),
+        # A companion slug names a directive, never a language: generic, so always linted.
+        # What it may name is per language (test_companion_exempt_languages).
+        (_COMPANION_SLUG, _python_bundle(), True),
+        (_COMPANION_SLUG, None, True),
+        # The slug-component rule is unchanged.
+        ("testing-philosophy", _python_bundle(), True),
+        ("java-style-guide", _python_bundle(), True),
+        ("python-style-guide", _python_bundle(), False),
     ],
 )
-def test_scope_rule(
-    kind: str,
-    slug: str,
-    source_section: str,
-    evidence: EvidenceBundle | None,
-    expected: bool,
-) -> None:
-    assert _is_generic_scoped(kind, slug, evidence, (), source_section=source_section) is expected
+def test_scope_rule(slug: str, evidence: EvidenceBundle | None, expected: bool) -> None:
+    assert _is_generic_scoped(slug, evidence, ()) is expected
 
 
 def test_provenance_without_a_section_keeps_the_old_rule() -> None:
@@ -299,4 +316,34 @@ def test_provenance_without_a_section_keeps_the_old_rule() -> None:
     from charter.activation.synthesizer.write_pipeline import _is_companion_tactic
 
     assert _is_companion_tactic("tactic", None) is False
-    assert _is_generic_scoped("tactic", _COMPANION_SLUG, _python_bundle(), ()) is True
+
+
+@pytest.mark.parametrize(
+    ("kind", "section", "evidence", "declared", "expected"),
+    [
+        ("tactic", "selected_directives", _python_bundle(), (), {"python"}),
+        ("tactic", "selected_directives", None, ("rust",), {"rust"}),
+        # No scope known: nothing exempt (FR-012).
+        ("tactic", "selected_directives", None, (), set()),
+        # Not a companion: nothing exempt.
+        ("styleguide", "selected_directives", _python_bundle(), (), set()),
+        ("tactic", "testing_philosophy", _python_bundle(), (), set()),
+    ],
+)
+def test_companion_exempt_languages(
+    kind: str,
+    section: str,
+    evidence: EvidenceBundle | None,
+    declared: tuple[str, ...],
+    expected: set[str],
+) -> None:
+    from charter.activation.synthesizer.write_pipeline import _companion_exempt_languages
+
+    assert _companion_exempt_languages(kind, evidence, declared, source_section=section) == frozenset(expected)
+
+
+def test_term_language_is_owned_by_the_prefix_map_and_fails_closed() -> None:
+    from charter.activation.neutrality.lint import term_language
+
+    assert term_language("PY-001") == "python"
+    assert term_language("ZZ-001") is None  # unmapped prefix: no scope can exempt it

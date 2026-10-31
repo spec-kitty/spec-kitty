@@ -352,13 +352,15 @@ def _is_companion_tactic(target_kind: str, source_section: str | None) -> bool:
     return target_kind == "tactic" and source_section == COMPANION_TACTIC_SECTION
 
 
+def _scope_languages(evidence: EvidenceBundle | None, declared: tuple[str, ...]) -> frozenset[str]:
+    """Return the project's language scope: observed ∪ declared, family-expanded."""
+    return frozenset(expand_language_families((*_observed_languages(evidence), *declared)))
+
+
 def _is_generic_scoped(
-    target_kind: str,
     target_slug: str,
     evidence: EvidenceBundle | None,
     declared: tuple[str, ...] = (),
-    *,
-    source_section: str | None = None,
 ) -> bool:
     """Return True if this artifact slot should be checked for language-specific bias.
 
@@ -367,41 +369,43 @@ def _is_generic_scoped(
     assumption — that is the bias this gate exists to stop. An artifact whose scope is
     a known stack is no place to look for one.
 
-    An artifact is language-scoped when either
+    An artifact is language-scoped when any hyphen-separated component of its slug
+    names an observed language (``CodeSignals.languages``, or the scope_tag), a declared
+    language (*declared*, from the interview), or the family one of those implies
+    (``jvm`` for a Kotlin repository). Everything else is generic-scoped and gets linted.
 
-    - it is a companion tactic (``_is_companion_tactic``) and the project's scope is
-      known: the artifact is this project's own application note, so its scope IS the
-      project's stack and naming the project's test runner is a fact, not a bias; or
-    - any hyphen-separated component of its slug names an observed language
-      (``CodeSignals.languages``, or the scope_tag), a declared language (*declared*,
-      from the interview), or the family one of those implies (``jvm`` for a Kotlin
-      repository).
-
-    Everything else is generic-scoped and gets linted.
-
-    Scope determination rules:
-    - nothing observed (no evidence, no code_signals, scope_tag "unknown") and nothing declared → generic
-    - a companion tactic, with scope known → language-scoped (skip lint)
-    - a slug component is in observed ∪ declared, after family expansion → language-scoped (skip lint)
-    - no component is (``java`` is not in ``javascript-...``) → generic (lint it)
-
-    The order matters: an unknown scope stays generic even for a companion, so an
-    unconfigured project still gets no Python default
-    (``charter-ownership-consolidation-and-neutrality-hardening-01KPD880`` FR-012).
+    A companion tactic's slug names a directive, not a language, so it is generic-scoped
+    and linted. What it may
+    name is decided term by term (``_companion_exempt_languages``).
 
     Example: observed ["python"], slug="python-style-guide" → language-scoped (False)
-    Example: observed ["kotlin", "typescript"], slug="typescript-style-guide" → language-scoped (False)
     Example: observed ["kotlin"], slug="jvm-build-guide" → language-scoped (False)
     Example: observed ["python"], slug="testing-philosophy" → generic (True)
-    Example: observed ["python"], slug="how-we-apply-directive-003", source_section="selected_directives" → language-scoped (False)
-    Example: no scope known, slug="how-we-apply-directive-003", source_section="selected_directives" → generic (True)
+    Example: observed ["python"], slug="how-we-apply-directive-003" → generic (True)
     """
-    scope = set(expand_language_families((*_observed_languages(evidence), *declared)))
+    scope = _scope_languages(evidence, declared)
     if not scope:
         return True  # no scope info → assume generic, apply lint
-    if _is_companion_tactic(target_kind, source_section):
-        return False  # a project application note is scoped to the project's stack
     return scope.isdisjoint(target_slug.split("-"))
+
+
+def _companion_exempt_languages(
+    target_kind: str,
+    evidence: EvidenceBundle | None,
+    declared: tuple[str, ...],
+    *,
+    source_section: str | None,
+) -> frozenset[str]:
+    """Return the languages whose banned terms a companion tactic may name (#6724).
+
+    A companion tactic is this project's own application note, so it may name terms of
+    the project's *own* languages (observed ∪ declared, family-expanded). Terms of any
+    other language stay banned, and a project whose scope is unknown exempts nothing
+    (FR-012: no language default). Any other artifact exempts nothing.
+    """
+    if not _is_companion_tactic(target_kind, source_section):
+        return frozenset()
+    return _scope_languages(evidence, declared)
 
 
 def _run_neutrality_gate(
@@ -437,13 +441,7 @@ def _run_neutrality_gate(
         kind = prov.artifact_kind
         slug = prov.artifact_slug
 
-        if not _is_generic_scoped(
-            kind,
-            slug,
-            evidence,
-            declared,
-            source_section=prov.source_section,
-        ):
+        if not _is_generic_scoped(slug, evidence, declared):
             # Language-scoped artifact — language-specific terms are expected here.
             continue
 
@@ -462,6 +460,9 @@ def _run_neutrality_gate(
         lint_result = run_neutrality_lint(
             repo_root=staging_dir.root,
             scan_roots=[staged_path],
+            exempt_languages=_companion_exempt_languages(
+                kind, evidence, declared, source_section=prov.source_section
+            ),
         )
 
         # Gate only on actual banned-term hits — not on stale allowlist entries.
