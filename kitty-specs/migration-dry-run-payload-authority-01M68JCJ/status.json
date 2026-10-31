@@ -52,7 +52,10 @@
         "T003": "done",
         "T004": "done",
         "T005": "done"
-      }
+      },
+      "tracker_refs": [
+        "#6449"
+      ]
     },
     "WP02": {
       "actor": "pi",
@@ -88,7 +91,10 @@
         "T008": "done",
         "T009": "done",
         "T010": "done"
-      }
+      },
+      "tracker_refs": [
+        "#6449"
+      ]
     }
   }
 }

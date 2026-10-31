@@ -24,6 +24,7 @@
   "purpose_context": "This mission advances migration dry run payload authority on issue-6449-migration-dry-run-payload-authority so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "migration dry run payload authority",
   "slug": "migration-dry-run-payload-authority-01M68JCJ",
+  "status_phase": "1",
   "target_branch": "issue-6449-migration-dry-run-payload-authority",
   "topology": "single_branch"
 }
