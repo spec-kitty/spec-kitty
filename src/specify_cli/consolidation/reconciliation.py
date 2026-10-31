@@ -173,35 +173,35 @@ _GAP_UNCHANGED: PresenceGap = "unchanged"
 # shape), so the operator DECLARES the ref: `specify_cli consolidate --dependency-ref`.
 # These are the fail-closed refusals of a declaration that cannot be honoured; each names
 # the declaration, because the operator has to fix the command, not the repository.
-_REFUSE_DEPENDENCY_UNRESOLVED = (
+_REFUSE_DEPENDENCY_UNRESOLVED: str = (
     "external dependency ref '{ref}' does not resolve to a commit; declare a ref that resolves (a branch, tag or SHA), "
     "or drop --dependency-ref. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNRESOLVED)
 )
-_REFUSE_DEPENDENCY_NOT_MERGED = (
+_REFUSE_DEPENDENCY_NOT_MERGED: str = (
     "external dependency ref '{ref}' is not reachable from the mission branch {mission_branch} or from any lane branch, so the "
     "mission never merged it in and it cannot explain any content in the landing window. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNREACHABLE)
 )
-_REFUSE_DEPENDENCY_COVERS_MISSION_WORK = (
+_REFUSE_DEPENDENCY_COVERS_MISSION_WORK: str = (
     "external dependency ref '{ref}' would exempt commit {sha} which sits on {spine} — an external dependency may never cover "
     "mission-authored work (that is exactly how a removed work package's commit rides a carrier lane). Nothing was exempted"
     + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
 )
-_REFUSE_DEPENDENCY_MISSION_NAMESPACE = (
+_REFUSE_DEPENDENCY_MISSION_NAMESPACE: str = (
     "external dependency ref '{ref}' is named inside this Mission's own branch namespace ({namespace}); a Mission's branches hold "
     "mission-authored work, also after the branch is deleted or its work package is removed. Nothing was exempted"
     + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
 )
-_REFUSE_DEPENDENCY_RECORDED_TIP = (
+_REFUSE_DEPENDENCY_RECORDED_TIP: str = (
     "external dependency ref '{ref}' would exempt commit {sha}, which {recorded} — a Mission's recorded work tip is "
     "mission-authored work, whether or not its work package or lane branch still exists. Nothing was exempted"
     + error_code_suffix(DEPENDENCY_REF_COVERS_MISSION_WORK)
 )
-_REFUSE_DEPENDENCY_NO_WINDOW_BASE = (
+_REFUSE_DEPENDENCY_NO_WINDOW_BASE: str = (
     "dependency ref(s) {refs} are declared but the target's pre-run commit could not be resolved, so the window a "
     "declaration would exempt cannot be bounded (fail-closed). Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNVERIFIABLE)
 )
-_REFUSE_DEPENDENCY_PROBE = "a git probe failed while {doing}: {exc}. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNVERIFIABLE)
-_REFUSE_DEPENDENCY_MOVED = (
+_REFUSE_DEPENDENCY_PROBE: str = "a git probe failed while {doing}: {exc}. Nothing was exempted" + error_code_suffix(DEPENDENCY_REF_UNVERIFIABLE)
+_REFUSE_DEPENDENCY_MOVED: str = (
     "external dependency ref '{ref}' was pinned to {pinned} when this consolidation claimed it, but now resolves to {now}. "
     "A declaration is verified once, against the commit it named; a moved ref would exempt different history than the one "
     "that was verified. Restore the ref to {pinned}, or run `spec-kitty consolidate --abort` and re-run with the new ref" + error_code_suffix(DEPENDENCY_REF_MOVED)
@@ -3292,13 +3292,33 @@ def _namespace_hit(ref: str, namespaces: Sequence[str]) -> str | None:
     return next((stem for stem in namespaces if stem in ref), None)
 
 
-def _recorded_work_hit(window: Sequence[str], lane_heads: frozenset[str], tip_shas: Mapping[str, str]) -> tuple[str, str] | None:
-    """The first window commit that is a recorded Mission work tip, with how it was recorded, or ``None``."""
-    for sha in window:
-        if sha in lane_heads:
-            return sha, "a work package of this Mission recorded as its lane head in the status log"
-        if sha in tip_shas:
-            return sha, f"is the recorded work tip of the Mission lane branch '{tip_shas[sha]}'"
+def _recorded_work_hit(
+    repo_root: Path,
+    window_base: str,
+    window: Sequence[str],
+    lane_heads: frozenset[str],
+    tip_shas: Mapping[str, str],
+) -> tuple[str, str] | None:
+    """The first window commit on the first-parent history of a recorded Mission work tip, with how it was recorded, or ``None``.
+
+    A work package's stamps and a lane's recorded tip are where its work ENDED, not where a
+    carrier lane merged it: a lane merged at commit X that kept going to a stamped Y holds X
+    on Y's first-parent spine, while no stamp or tip sits in ``window_base..X``. So each
+    recorded commit contributes its first-parent spine back to the window base. Commits an
+    external dependency brought in sit on second-parent sides and are not on it. A recorded
+    commit that no longer resolves covers nothing and is skipped; a probe failure raises.
+    """
+    in_window = set(window)
+    recorded = [(sha, "a work package of this Mission recorded as a lane head in the status log") for sha in sorted(lane_heads)]
+    recorded += [(sha, f"is on the history of the recorded work tip of the Mission lane branch '{branch}'") for sha, branch in sorted(tip_shas.items())]
+    for tip, how in recorded:
+        try:
+            resolve_commit(repo_root, tip)
+        except GitProbeError:
+            continue
+        for sha in first_parent_commits_in_range(repo_root, window_base, tip):
+            if sha in in_window:
+                return sha, how
     return None
 
 
@@ -3419,7 +3439,7 @@ def _verify_declared_ref(
         covered = [sha for sha in window if sha in spines]
         if covered:
             return _REFUSE_DEPENDENCY_COVERS_MISSION_WORK.format(ref=ref, sha=covered[0][:10], spine=spines[covered[0]])
-        recorded = _recorded_work_hit(window, lane_heads, tip_shas)
+        recorded = _recorded_work_hit(repo_root, window_base, window, lane_heads, tip_shas)
         if recorded is not None:
             return _REFUSE_DEPENDENCY_RECORDED_TIP.format(ref=ref, sha=recorded[0][:10], recorded=recorded[1])
         ref_blobs, ref_deletions = _final_authored_walk(repo_root, window)

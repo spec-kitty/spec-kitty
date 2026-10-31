@@ -45,6 +45,7 @@ from specify_cli.lanes.persistence import (
 from specify_cli.lanes.consolidation import preview_mission_target_integration
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.consolidation._constants import (
+    DEPENDENCY_REF_SET_CHANGED,
     TARGET_BRANCH_CONTENT_CONFLICT,
     TARGET_BRANCH_CONTENT_CONFLICT_HEADER,
     TARGET_BRANCH_CONTENT_CONFLICT_REMEDIATION_UPDATE,
@@ -53,6 +54,7 @@ from specify_cli.consolidation._constants import (
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.mission_number.bake import assign_next_mission_number
 from specify_cli.consolidation.preflight import refuse_protected_status_target
+from specify_cli.consolidation.resolve import set_changed_message
 from specify_cli.consolidation.state import ConsolidationStateReadError, load_state, needs_number_assignment
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_artifact_surface
 from specify_cli.post_merge.review_artifact_consistency import (
@@ -278,6 +280,8 @@ def _declared_with_recorded(
     lanes_manifest: LanesManifest,
     resolved_feature: str,
     cli_refs: tuple[str, ...],
+    *,
+    json_output: bool,
 ) -> tuple[tuple[str, ...], dict[str, str]]:
     """The refs the real run would verify: the recorded ones (an interrupted run's record) united with the CLI's, plus their pins (#6771).
 
@@ -291,6 +295,9 @@ def _declared_with_recorded(
         recorded = None
     if recorded is None:
         return cli_refs, {}
+    if cli_refs and recorded.dependency_refs and set(cli_refs) != set(recorded.dependency_refs):
+        _emit_dry_run_error(error_msg=set_changed_message(recorded.dependency_refs, cli_refs), json_output=json_output, error_code=DEPENDENCY_REF_SET_CHANGED)
+        raise typer.Exit(1)
     return tuple(dict.fromkeys([*recorded.dependency_refs, *cli_refs])), dict(recorded.dependency_ref_pins)
 
 
@@ -316,7 +323,7 @@ def _refuse_unattributable_in_forecast(
     Nothing is mutated: the claim build and the scan are read-only.
     """
     main_repo = get_main_repo_root(repo_root)
-    dependency_refs, dependency_pins = _declared_with_recorded(main_repo, lanes_manifest, resolved_feature, dependency_refs)
+    dependency_refs, dependency_pins = _declared_with_recorded(main_repo, lanes_manifest, resolved_feature, dependency_refs, json_output=json_output)
     try:
         window_base = resolve_commit(main_repo, resolved_target_branch)
     except GitProbeError:

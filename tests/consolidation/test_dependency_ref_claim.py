@@ -463,3 +463,74 @@ def test_first_claim_pins_an_unpinned_record_once(merged_dependency_repo: dict[s
     run.approved_wp_set = _claim(external_dependency_pins={DEP_BRANCH: "f" * 40})
     _pin_dependency_refs(run)  # type: ignore[arg-type]
     assert run.dependency_ref_pins == {DEP_BRANCH: dep_tip}, "a pin is written once"
+
+
+def test_removed_lane_merged_at_an_earlier_commit_than_its_stamped_tip_cannot_be_declared(merged_dependency_repo: dict[str, object]) -> None:
+    """Red-first: the carrier merged the removed lane at X; the work package later reached the stamped Y.
+
+    No stamp or tip sits in ``base..X``, and X is on no live spine, yet X is on Y's first-parent history.
+    """
+    repo, base, manifest = merged_dependency_repo["repo"], merged_dependency_repo["base"], merged_dependency_repo["manifest"]
+    assert isinstance(repo, Path) and isinstance(base, str) and isinstance(manifest, LanesManifest)
+    _git(repo, "checkout", "-q", "-b", "removed-wp", base)
+    _write(repo, "src/removed.py", "REMOVED = 1\n")
+    merged_at = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", LANE_BRANCH)
+    _git(repo, "merge", "-q", "--no-ff", "--no-edit", "removed-wp")
+    _git(repo, "branch", "-f", MISSION_BRANCH, LANE_BRANCH)
+    _git(repo, "checkout", "-q", "removed-wp")
+    _write(repo, "src/removed_more.py", "MORE = 1\n")
+    stamped_tip = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", LANE_BRANCH)
+    _git(repo, "branch", "-q", "-D", "removed-wp")
+
+    attribution = _resolver(repo, base, manifest, (merged_at,), recorded_lane_heads=frozenset({stamped_tip}))
+
+    assert attribution.refusal is not None, "a removed lane's earlier commit was exempted because only its later tip carried the stamp"
+    assert "Error code: DEPENDENCY_REF_COVERS_MISSION_WORK." in attribution.refusal
+    assert attribution.shas == frozenset()
+    # The same recorded tip as a lane-tip ref (no stamp) refuses too.
+    _git(repo, "update-ref", f"refs/spec-kitty/lane-tip/{MISSION_BRANCH}-lane-removed", stamped_tip)
+    assert _resolver(repo, base, manifest, (merged_at,)).refusal is not None
+
+
+def test_removed_work_package_stamped_in_a_real_event_log_is_read_by_the_claim_builder(merged_dependency_repo: dict[str, object], tmp_path: Path) -> None:
+    """The claim builder reads ``lane_head`` stamps from the status log itself (a WP absent from ``lanes.json`` included)."""
+    import json
+
+    from specify_cli.consolidation.reconciliation import build_approved_wp_set
+
+    repo, base, manifest = merged_dependency_repo["repo"], merged_dependency_repo["base"], merged_dependency_repo["manifest"]
+    assert isinstance(repo, Path) and isinstance(base, str) and isinstance(manifest, LanesManifest)
+    removed_tip = _merge_removed_lane_into_carrier(repo, base, "removed-wp")
+    feature_dir = tmp_path / "kitty-specs" / "test-01M6771A"
+    feature_dir.mkdir(parents=True)
+    event = {
+        "actor": "claude",
+        "at": "2026-10-30T12:00:00+00:00",
+        "event_id": "01HXYZ00000000000000000001",
+        "evidence": None,
+        "execution_mode": "worktree",
+        "feature_slug": "test-01M6771A",
+        "force": False,
+        "from_lane": "in_progress",
+        "reason": None,
+        "review_ref": None,
+        "to_lane": "for_review",
+        "wp_id": "WP99",
+        "policy_metadata": {"lane_head": removed_tip},
+    }
+    (feature_dir / "status.events.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+
+    claim = build_approved_wp_set(
+        repo,
+        feature_dir,
+        manifest,
+        coord_base_ref=base,
+        excluded_window_base=base,
+        external_dependency_refs=(removed_tip,),
+    )
+
+    assert claim.refusal is not None
+    assert "Error code: DEPENDENCY_REF_COVERS_MISSION_WORK." in claim.refusal
+    assert "status log" in claim.refusal
