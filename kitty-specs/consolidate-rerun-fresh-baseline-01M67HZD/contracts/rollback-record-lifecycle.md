@@ -49,7 +49,7 @@ Dropped (`rollback.rebaseline_after_full_restore`):
   `--abort` must not believe it still has a snapshot to restore.
 - `reconciliation_passed_target_sha` — already cleared by `_clear_bookkeeping` on a full restore.
 
-Kept:
+Kept — on a **coordination topology only**:
 
 - `pre_mutation_coord_sha`, `pre_mutation_coord_ref`, `pre_interrupt_lane_tips` — the
   reconciliation **claim's authorship base** (#5001 FOLD-4, #4982, #5051). A full restore puts the
@@ -58,6 +58,18 @@ Kept:
   legitimate merge with an empty authorship set. `test_repro_5051_clean_3way` is the standing
   proof: with the anchors dropped, the re-run false-FAILs with “no approved lane resolved any
   commits”.
+
+Dropped with the rest — on a **LANES or SINGLE_BRANCH** mission:
+
+- The same three fields. There the status surface *is* the target branch, so
+  `pre_mutation_coord_ref` names the target ref and the “anchor” is a second copy of the finished
+  attempt's target tip. Kept, it wins over the freshly read live tip inside
+  `capture_pre_mutation_snapshot` (same key), which re-creates the stale baseline — and the
+  abort wedge with it — behind a correctly re-derived window base. `pre_interrupt_lane_tips` goes
+  with it: the H5 resume guard only applies while a coordination anchor exists, and a fresh claim
+  re-captures the tips. Pinned by
+  `test_rebaseline_drops_a_coordination_anchor_that_is_really_the_target` and, end to end, by the
+  snapshot assertion in `test_a_clean_fail_rollback_rebaselines_the_record_and_the_rerun_uses_the_current_target_tip`.
 - The record itself, its marker, `strategy`, the cleanup flags and `wp_order`: a resume
   re-derives its anchors instead of refusing to exist, `--resume` keeps working, and the Mission
   keeps its provenance trail.
@@ -66,17 +78,23 @@ Kept:
 
 | Rollback outcome | Attempt geometry | Record | Why |
 |---|---|---|---|
-| Every branch restored / already at its restore target / untouched lane (nothing of the attempt landed, or what landed was undone) | **re-baselined** | kept | the next attempt must re-derive from the live tips; the claim's coordination anchors are still accurate and still needed |
+| Every branch restored / already at its restore target / untouched lane (nothing of the attempt landed, or what landed was undone), and no branch was released by the operator nor is a lane branch missing | **re-baselined** | kept | the next attempt must re-derive from the live tips; the claim's coordination anchors are still accurate and still needed |
 | Any `NOT_RESTORED` branch (a foreign commit, a dirty checkout, a missing run-movable branch) | **kept** | kept | that content is still on the target, so the persisted baseline is still the honest one, and `--resume`/`--abort` need the snapshot |
 | `refused_verified_landing` (a landing an **earlier** reconciliation verified) | **kept** | kept | nothing was rolled back |
 | The rollback itself raised / was interrupted | **kept** | kept | the door reports and re-raises; it never guesses |
 | A save of the re-baselined record fails | **kept on disk** | kept | the door warns and names `--abort`; the original failure stays the headline, and the warning never claims the record was settled |
 
-A branch kept by an operator release (`KEPT_BY_OPERATOR`) counts as settled for
-`fully_restored`, so it re-baselines too: the operator deliberately released that content, so it
-is no longer “of this attempt”. Releases are recorded only by `--abort`, which clears the record
-itself, so this state is not reachable through the door today; if it ever is, the outcome is the
-same and the released content stays where the operator put it.
+Two outcome kinds are settled for `fully_restored` but **block** a re-baseline, and
+`RollbackReport.rebaselineable` is the predicate the door uses:
+
+- `KEPT_BY_OPERATOR` — the operator released that branch, so its content is still there and the
+  record is the only place that says so (the release and its reason). Re-baselining would drop
+  that provenance and make the kept content unrecorded. Unreachable through the door today
+  (releases are recorded only by `--abort`, which clears the record itself, and `begin_attempt`
+  wipes them before the mutation span), but stated so a future call site cannot discard a
+  recorded keep.
+- `LANE_MISSING` — the record holds the last persisted copy of a deleted lane branch's snapshot
+  SHA (the recreate hint is printed once), so re-baselining throws that away.
 
 ## Consequences the tests pin
 

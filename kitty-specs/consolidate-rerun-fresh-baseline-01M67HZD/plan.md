@@ -21,8 +21,9 @@ report says the attempt was undone (`RollbackReport.fully_restored`),
 snapshot, restore targets and per-attempt progress (the fields the next attempt must
 re-derive from the live tips) and the door says so in one operator line. A partial
 rollback keeps all of it. The reconciliation claim's coordination/lane authorship
-anchors always stay: after a full restore they are still accurate and a resume needs
-them (#5001, #5051). No new state field, no migration, no change to the rollback
+anchors stay on a coordination topology (after a full restore they are still accurate
+and a resume needs them, #5001/#5051); on lanes or single_branch the status surface IS
+the target, so that anchor is a second copy of the same tip and goes with the rest. No new state field, no migration, no change to the rollback
 authority's per-branch decisions, and `--abort` is untouched: with no snapshot it
 takes its existing no-snapshot path (clean finish, exit 0).
 

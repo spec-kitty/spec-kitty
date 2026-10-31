@@ -204,6 +204,26 @@ class RollbackReport:
         return not self.refused_verified_landing and self.reason is None and all(o.kind in _OK_KINDS for o in self.outcomes)
 
     @property
+    def rebaselineable(self) -> bool:
+        """True when this rollback may re-baseline the record (#6770): the attempt is undone AND
+        nothing it left is load-bearing.
+
+        Stricter than :attr:`fully_restored` in exactly two places. ``KEPT_BY_OPERATOR`` means an
+        operator release deliberately left a branch at its post-mutation tip: that content is
+        still there, it is the operator's, and the record is the only place that says so — a
+        re-baseline would drop the release and its reason. ``LANE_MISSING`` means the record holds
+        the last persisted copy of a deleted lane branch's snapshot SHA (the recreate hint is
+        printed once), so re-baselining throws that away.
+
+        Neither can reach the door today (releases are recorded only by ``--abort``, which clears
+        the record itself, and ``begin_attempt`` wipes them before the mutation span), but the
+        verdict is stated here so a future call site cannot discard a recorded operator keep.
+        """
+        if not self.fully_restored:
+            return False
+        return not any(outcome.kind in (BranchOutcomeKind.KEPT_BY_OPERATOR, BranchOutcomeKind.LANE_MISSING) for outcome in self.outcomes)
+
+    @property
     def advanced_branches(self) -> tuple[str, ...]:
         """Branches left advanced past their snapshot because they could not be restored."""
         return tuple(o.branch for o in self.outcomes if o.kind is BranchOutcomeKind.NOT_RESTORED)
@@ -812,11 +832,12 @@ def _clear_bookkeeping(state: ConsolidationState, outcomes: Iterable[BranchOutco
     state.release_reasons = {}
 
 
-def rebaseline_after_full_restore(state: ConsolidationState) -> bool:
-    """Drop the TRANSACTION geometry a FULL restore invalidated; keep the Mission's provenance anchors (#6770).
+def rebaseline_after_full_restore(state: ConsolidationState, outcomes: Iterable[BranchOutcome]) -> bool:
+    """Drop the TRANSACTION geometry a FULL restore invalidated; keep only anchors that stay accurate (#6770).
 
-    Called by the rollback door once ``RollbackReport.fully_restored`` — every branch it moved
-    is back at its restore target, so nothing of the attempt is on the target any more.
+    Called by the rollback door once the attempt is provably undone, and safe to call after
+    :func:`_clear_bookkeeping` (it re-applies that per-attempt reset, so it owns the whole
+    invariant itself rather than depending on the caller's order).
 
     What must go, and why. ``pre_mutation_target_sha`` is the reconciliation window base and the
     rollback CAS anchor; it describes the transaction that just ended, so a later attempt must
@@ -825,23 +846,33 @@ def rebaseline_after_full_restore(state: ConsolidationState) -> bool:
     "un-attributable" and then restored over). The snapshot, the per-attempt restore targets, the
     recorded post tips and the settle/unsettle state all describe branches that are already back
     where they started; carrying them into the next attempt would let a later rollback restore to
-    a tip two attempts old, and would wedge ``--abort`` (it can restore a branch only while it
-    still holds a tip this record recorded). ``resume_seeded_refs`` goes with the snapshot it
-    annotated, and the releases are spent with the attempt that recorded them.
+    a tip two attempts old, and would wedge ``--abort`` (it restores a branch only while it still
+    holds a tip this record recorded).
 
-    What stays, and why. ``pre_mutation_coord_sha`` / ``pre_mutation_coord_ref`` /
-    ``pre_interrupt_lane_tips`` are the reconciliation CLAIM's authorship base (#5001 FOLD-4,
-    #4982, #5051). They are still accurate after a full restore — the coordination branch is back
-    at exactly the captured tip — and a resume that lost them would rebuild the claim from the
-    live (possibly folded) tree and refuse a legitimate merge with an empty authorship set. The
-    record itself, its marker, its strategy/cleanup flags and its ``wp_order`` also stay: after a
-    full restore there is nothing to resume, but the record is the Mission's own provenance trail,
-    and this repository's contract is that ``--resume`` re-derives its anchors rather than refusing
-    to exist.
+    What stays, and why — and the one alias that must not. On a COORDINATION topology
+    ``pre_mutation_coord_sha`` / ``pre_mutation_coord_ref`` / ``pre_interrupt_lane_tips`` are the
+    reconciliation CLAIM's authorship base (#5001 FOLD-4, #4982, #5051). They are still accurate
+    after a full restore (the coordination branch is back at exactly the captured tip) and a
+    resume that lost them would rebuild the claim from the live, possibly folded, tree and refuse
+    a legitimate merge with an empty authorship set. On a LANES or SINGLE_BRANCH mission the
+    status surface IS the target branch, so ``pre_mutation_coord_ref`` names the same ref as the
+    target and those "anchors" are a second copy of the dead attempt's target tip: kept, they
+    re-seed ``capture_pre_mutation_snapshot`` with the old tip over the freshly read live one,
+    which is the stale-baseline hazard this function exists to remove, relocated into the coord
+    field. So they are dropped whenever ``pre_mutation_coord_ref`` is unset or is the target.
+    ``pre_interrupt_lane_tips`` goes with them: the H5 resume guard only applies while a
+    coordination anchor exists, and a fresh claim re-captures the tips.
+
+    The record, its marker, its strategy/cleanup flags and its ``wp_order`` also stay: after a
+    full restore there is nothing to resume, but the record is the Mission's own provenance
+    trail, and this repository's contract is that ``--resume`` re-derives its anchors rather than
+    refusing to exist.
 
     Idempotent, no I/O: returns ``True`` when something actually changed, so the caller decides
     whether a save (and an operator line) is needed.
     """
+    _clear_bookkeeping(state, outcomes)
+
     changed = False
     if state.pre_mutation_target_sha is not None:
         state.pre_mutation_target_sha = None
@@ -856,10 +887,26 @@ def rebaseline_after_full_restore(state: ConsolidationState) -> bool:
         if value:
             setattr(state, field_name, [])
             changed = True
+    if _coord_anchor_is_the_target(state):
+        for field_name, empty in (("pre_mutation_coord_sha", None), ("pre_mutation_coord_ref", None), ("pre_interrupt_lane_tips", {})):
+            if getattr(state, field_name) != empty:
+                setattr(state, field_name, empty)
+                changed = True
     if state.reconciliation_passed_target_sha is not None:
         state.reconciliation_passed_target_sha = None
         changed = True
     return changed
+
+
+def _coord_anchor_is_the_target(state: ConsolidationState) -> bool:
+    """True when the persisted coordination anchor names the TARGET ref itself (LANES / SINGLE_BRANCH).
+
+    The status surface resolves to the coordination branch only under a coordination topology;
+    otherwise it resolves to the target (``run_state._status_surface_ref``), so
+    ``pre_mutation_coord_sha`` is a second copy of the target's own transaction-start tip and must
+    be dropped with it rather than re-seeding the next attempt's snapshot.
+    """
+    return state.pre_mutation_coord_ref is None or state.pre_mutation_coord_ref == state.target_branch
 
 
 def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outcomes: Iterable[BranchOutcome], context: _RunResidue | None) -> str | None:

@@ -12,11 +12,15 @@ rollback restores the target over that content. Afterwards a plain ``--abort`` r
 because the clean rollback already dropped the recorded post-mutation tips
 (``rollback._clear_bookkeeping``), so the operator's commit reads as an "unrecorded move".
 
-The invariant under test: **a transaction record survives only while some of its attempt is
-still on the target.** A rollback that fully undoes its attempt clears the record, so the
-next run is genuinely fresh and derives its window base from the target's current tip; a
-rollback that keeps a foreign commit keeps the record, and while it survives attempt 1's
-persisted base is still the honest one.
+The invariant under test: **an attempt's transaction geometry — its window base, its snapshot,
+its restore targets, its recorded post tips and its progress — survives only while some of its
+attempt is still on the target.** A rollback that fully undoes its attempt drops that geometry,
+so the next run re-derives its window base and its snapshot from the target's current tip; a
+rollback that keeps a foreign commit keeps all of it, and while it survives attempt 1's
+persisted base is still the honest one. The reconciliation claim's coordination/lane anchors
+survive on a coordination topology only: on a lanes/single_branch mission that "anchor" names
+the target ref itself, so it is a second copy of the finished attempt's tip and goes with the
+rest.
 
 Contract-named, not issue-named: the rule these tests guard is the record's lifecycle across
 consolidation attempts (see ``kitty-specs/consolidate-rerun-fresh-baseline-01M67HZD/
@@ -37,7 +41,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from specify_cli.consolidation import executor, phase_claim
+from specify_cli.consolidation import executor, phase_claim, rollback
 from specify_cli.consolidation.reconciliation import (
     Divergence,
     MergeOutcomeVerifier,
@@ -164,6 +168,20 @@ def test_a_clean_fail_rollback_rebaselines_the_record_and_the_rerun_uses_the_cur
         return real_build(*args, **kwargs)
 
     monkeypatch.setattr(phase_claim, "build_approved_wp_set", spy)
+
+    # The attempt's SNAPSHOT must be re-derived too, not just its window base. On this LANES
+    # mission the status surface IS the target, so a coordination anchor kept from attempt 1
+    # would re-seed this snapshot with T0 and quietly restore the stale baseline behind the
+    # corrected window base (see rollback.rebaseline_after_full_restore).
+    snapshots: list[dict[str, str]] = []
+    real_snapshot = rollback.capture_pre_mutation_snapshot
+
+    def snapshot_spy(*args: object, **kwargs: object) -> dict[str, str]:
+        refs = real_snapshot(*args, **kwargs)
+        snapshots.append(dict(refs))
+        return refs
+
+    monkeypatch.setattr(rollback, "capture_pre_mutation_snapshot", snapshot_spy)
     _consolidate(mission, monkeypatch)  # must not raise: the commit between attempts is not mission content
 
     second = _output(capsys)
@@ -171,6 +189,10 @@ def test_a_clean_fail_rollback_rebaselines_the_record_and_the_rerun_uses_the_cur
         f"the re-run's reconciliation window base must be the target's current tip {t1[:7]}; got {bases} (T0 would re-flag the operator's commit). output={second}"
     )
     assert _is_ancestor(mission.repo, t1, mission.target_branch), "the commit between attempts must stay on the target"
+    assert snapshots and snapshots[-1].get(mission.target_branch) == t1, (
+        f"the re-run's snapshot of {mission.target_branch} must be the live tip {t1[:7]}, not the failed "
+        f"attempt's; got {snapshots[-1].get(mission.target_branch) if snapshots else None}"
+    )
     for owned in ("src/pkg/wp01.py", "src/pkg/wp02.py"):
         assert blob_present_at(mission.repo, mission.target_branch, owned), f"{owned} must land on the target after the re-run"
 

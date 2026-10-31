@@ -449,6 +449,19 @@ _ABORT_KEPT_RECORD_MESSAGE = (
 )
 
 
+def _abort_may_mutate_topology(state: ConsolidationState) -> bool:
+    """True when this record still names coordination state, so the abort mutates more than its own file (#6770).
+
+    A record with no pre-mutation snapshot was exempt from the global merge lock because "it
+    moves no refs". That holds for a bare legacy record: the abort only unlinks ``state.json``.
+    It does not hold for a record the rollback door re-baselined while keeping the reconciliation
+    claim's coordination anchor, or for one carrying a stranded-coordination marker:
+    ``_teardown_coordination_for_abort`` then removes a coordination worktree, branch and marker,
+    which must never happen under another Mission's live consolidation.
+    """
+    return bool(state.pre_mutation_coord_sha or state.pre_mutation_coord_ref or state.pending_coord_reconcile)
+
+
 def _abort_hold_global_lock_or_exit(repo_root: Path, state: ConsolidationState) -> None:
     """Hold the global consolidation lock for the abort, or refuse (exit 1) while another mission's merge is live.
 
@@ -460,10 +473,17 @@ def _abort_hold_global_lock_or_exit(repo_root: Path, state: ConsolidationState) 
     lock (no owner token to attribute it to any mission) does not refuse; the
     restore then runs without the lock. A legacy unowned lock predates owner
     tokens, so there is no mission whose liveness could be checked here, and
-    refusing would leave the operator unable to abort at all. A record with no
-    snapshot moves no refs, so it never takes (or is refused by) the lock.
+    refusing would leave the operator unable to abort at all.
+
+    #6770: "no snapshot" no longer implies "nothing left to mutate". A rollback that restored
+    everything re-baselines the record, so a snapshot-less record is now the normal
+    post-failure state — and a record that still names coordination state can tear the
+    coordination topology down (``_teardown_coordination_for_abort``), which must never
+    happen under another Mission's live consolidation. That shape takes the lock; a bare
+    snapshot-less record (the legacy shape this exemption was written for) still proceeds,
+    since its abort only unlinks its own state file.
     """
-    if not state.pre_mutation_refs:
+    if not state.pre_mutation_refs and not _abort_may_mutate_topology(state):
         return
     if acquire_merge_lock(_GLOBAL_MERGE_LOCK, repo_root, owner_token=state.mission_id):
         return

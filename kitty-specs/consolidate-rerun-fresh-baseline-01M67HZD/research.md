@@ -81,8 +81,10 @@ resume value (its progress bookkeeping is already empty).
   live tree and refused with "no approved lane resolved any commits and the authored-blob
   set is empty". The shipped rule is therefore field-scoped: the attempt's transaction
   geometry (target baseline, snapshot, restore targets, post tips, progress) is dropped
-  on a full restore, while the record, the marker and the claim's coordination/lane
-  authorship anchors stay. Verified: the 11 tests pass untouched, #5051 still passes,
+  on a full restore, while the record, the marker and — on a coordination topology only — the claim's
+  coordination/lane authorship anchors stay (on lanes/single_branch that "anchor" names
+  the target ref, so keeping it re-seeded the next snapshot with the old tip: caught by
+  the aggregate correctness review, pinned by a snapshot assertion and a unit test). Verified: the 11 tests pass untouched, #5051 still passes,
   and the stale-baseline hazard is closed for plain and `--resume` runs alike.
 - **D2 — the "fresh baseline" comes from `_load_or_create_merge_state`, not from a
   new resume flag.** With no record, attempt 2 is a genuinely fresh run: it

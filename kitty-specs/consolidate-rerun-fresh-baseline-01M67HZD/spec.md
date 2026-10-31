@@ -37,10 +37,12 @@ some of its attempt is still on the target.** A rollback door that fully undoes 
 attempt drops that geometry, so the next attempt re-derives its window base from the
 target's current tip. A partial rollback keeps it (nothing is lost), and while it
 survives, attempt 1's persisted base is still the honest one because attempt 1's
-landing is still on the target. What always stays is the reconciliation claim's
+landing is still on the target. What stays on a coordination topology is the reconciliation claim's
 coordination/lane authorship anchors: after a full restore they are still accurate,
 and a resume needs them (#5001, #5051) — dropping them would rebuild the claim from a
-live tree and refuse a legitimate merge.
+live tree and refuse a legitimate merge. On a lanes or single_branch mission the status
+surface is the target itself, so that "anchor" is a second copy of the finished
+attempt's target tip and is dropped with the rest.
 
 - **Primary actor**: the operator recovering a Mission whose consolidation failed.
 - **Trigger**: a post-mutation failure (a reconciliation FAIL/REFUSE, a bookkeeping

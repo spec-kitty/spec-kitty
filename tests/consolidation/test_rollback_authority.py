@@ -29,6 +29,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.consolidation.rollback import (
+    BranchOutcome,
     BranchOutcomeKind,
     OwnMove,
     RollbackReport,
@@ -38,6 +39,7 @@ from specify_cli.consolidation.rollback import (
     clear_advance_intents,
     missing_snapshot_branches,
     note_advance_intent,
+    rebaseline_after_full_restore,
     record_post_mutation_tips,
     release_branch,
     rollback_to_snapshot,
@@ -1115,3 +1117,101 @@ def test_kill_left_landing_without_an_abort_stays_unexplained_at_the_next_attemp
 
     assert _kinds(report)[_TARGET] is BranchOutcomeKind.NOT_RESTORED and not report.fully_restored
     assert _rev(env.repo, _TARGET) == landed
+
+
+# --------------------------------------------------------------- #6770: re-baseline
+
+
+def _attempt_state(**overrides: object) -> ConsolidationState:
+    """A record that just finished an attempt: snapshot, restore targets, posts and progress all set."""
+    state = ConsolidationState(
+        mission_id="M1",
+        mission_slug="m-01ABCDEF",
+        target_branch=_TARGET,
+        wp_order=["WP01"],
+    )
+    state.pre_mutation_target_sha = "T" * 40
+    state.pre_mutation_refs = {_TARGET: "T" * 40, _MISSION_BRANCH: "M" * 40}
+    state.restore_targets = dict(state.pre_mutation_refs)
+    state.post_mutation_refs = {_TARGET: "P" * 40}
+    state.snapshot_lane_branches = ["lane-a"]
+    state.resume_seeded_refs = [_TARGET]
+    state.unsettled_refs = [_TARGET]
+    state.advance_intents = {_TARGET: ["T" * 40, "P" * 40]}
+    state.released_refs = {_TARGET: "P" * 40}
+    state.release_reasons = {_TARGET: "kept"}
+    state.completed_wps = ["WP01"]
+    state.mission_number_baked = True
+    state.reconciliation_passed_target_sha = "P" * 40
+    for key, value in overrides.items():
+        setattr(state, key, value)
+    return state
+
+
+_FULL_RESTORE = (BranchOutcome(_TARGET, BranchOutcomeKind.RESTORED, "T" * 40, "P" * 40, "P" * 40, restored_to_sha="T" * 40),)
+
+
+def test_rebaseline_drops_the_transaction_geometry_and_the_progress() -> None:
+    """The next attempt must re-derive everything the finished transaction anchored (#6770)."""
+    state = _attempt_state()
+
+    assert rebaseline_after_full_restore(state, _FULL_RESTORE) is True
+
+    assert state.pre_mutation_target_sha is None
+    assert state.pre_mutation_refs == {} and state.restore_targets == {} and state.post_mutation_refs == {}
+    assert state.snapshot_lane_branches == [] and state.resume_seeded_refs == [] and state.unsettled_refs == []
+    assert state.advance_intents == {} and state.released_refs == {} and state.release_reasons == {}
+    assert state.reconciliation_passed_target_sha is None
+    # It owns the per-attempt reset itself, so a direct caller cannot leave a record claiming merged WPs.
+    assert state.completed_wps == [] and state.mission_number_baked is False
+    assert rebaseline_after_full_restore(state, _FULL_RESTORE) is False, "idempotent: a second call changes nothing"
+
+
+def test_rebaseline_drops_a_coordination_anchor_that_is_really_the_target() -> None:
+    """LANES / SINGLE_BRANCH: the status surface IS the target, so the "coord" anchor is a stale target tip.
+
+    Kept, it re-seeds ``capture_pre_mutation_snapshot`` with the finished attempt's tip over the
+    freshly read live one — the same stale baseline, relocated. Regression for the alias.
+    """
+    state = _attempt_state(pre_mutation_coord_ref=_TARGET, pre_mutation_coord_sha="T" * 40, pre_interrupt_lane_tips={"lane-b": "L" * 40})
+
+    rebaseline_after_full_restore(state, _FULL_RESTORE)
+
+    assert state.pre_mutation_coord_sha is None and state.pre_mutation_coord_ref is None
+    assert state.pre_interrupt_lane_tips == {}, "the H5 lane-tip guard only applies while a coordination anchor exists"
+
+
+def test_rebaseline_keeps_a_real_coordination_anchor() -> None:
+    """COORD topology: the anchor names its own branch and is still accurate after the restore (#5001, #5051)."""
+    coord = "kitty/mission-m-01ABCDEF"
+    state = _attempt_state(pre_mutation_coord_ref=coord, pre_mutation_coord_sha="C" * 40, pre_interrupt_lane_tips={"lane-b": "L" * 40})
+
+    rebaseline_after_full_restore(state, _FULL_RESTORE)
+
+    assert state.pre_mutation_coord_sha == "C" * 40 and state.pre_mutation_coord_ref == coord
+    assert state.pre_interrupt_lane_tips == {"lane-b": "L" * 40}, "H5 needs an anchor for every lane"
+    assert state.pre_mutation_target_sha is None, "the TARGET base still goes"
+
+
+def _report(*kinds: BranchOutcomeKind) -> RollbackReport:
+    return RollbackReport(outcomes=tuple(BranchOutcome(_TARGET, kind, "T" * 40, "P" * 40, "P" * 40, reason="r") for kind in kinds))
+
+
+@pytest.mark.parametrize(
+    ("kinds", "expected"),
+    [
+        ((BranchOutcomeKind.RESTORED,), True),
+        ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.ALREADY_AT_SNAPSHOT), True),
+        ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.UNCHANGED_BY_RUN), True),
+        ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.NOT_RESTORED), False),
+        ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.KEPT_BY_OPERATOR), False),
+        ((BranchOutcomeKind.RESTORED, BranchOutcomeKind.LANE_MISSING), False),
+    ],
+)
+def test_rebaselineable_is_stricter_than_fully_restored_for_kept_and_missing_branches(kinds: tuple[BranchOutcomeKind, ...], expected: bool) -> None:
+    """A released branch still holds its content and a vanished lane's snapshot SHA is the record's last copy."""
+    report = _report(*kinds)
+
+    assert report.rebaselineable is expected
+    if BranchOutcomeKind.KEPT_BY_OPERATOR in kinds or BranchOutcomeKind.LANE_MISSING in kinds:
+        assert report.fully_restored is True, "the two verdicts differ exactly here"

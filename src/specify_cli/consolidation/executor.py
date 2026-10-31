@@ -650,32 +650,38 @@ def _rebaseline_record_after_full_restore(run: _MergeRunState, report: rollback.
     restore already dropped the recorded post tips (``rollback._clear_bookkeeping``), so a later
     commit on the target reads as an unrecorded move the authority refuses to restore.
 
-    ``rollback.rebaseline_after_full_restore`` owns WHICH fields go and which stay — the
-    reconciliation claim's coordination/lane anchors stay, because they are still accurate and a
-    resume needs them (#5001 FOLD-4, #5051). This helper owns WHEN: only when
-    ``report.fully_restored``, the report's one verdict for "the attempt was undone" (nothing
-    refused, every branch restored or legitimately untouched). A rollback that left anything
+    ``rollback.rebaseline_after_full_restore`` owns WHICH fields go and which stay — including the
+    topology rule that keeps the reconciliation claim's coordination anchor only where it names a
+    branch of its own (#5001 FOLD-4, #5051) and drops it where it is a second copy of the target's
+    tip. This helper owns WHEN: only when ``report.rebaselineable``, the report's verdict for
+    "the attempt is undone and nothing it left is load-bearing". A rollback that left anything
     behind — a ``NOT_RESTORED`` branch, a verified landing kept by the earlier-reconciliation
-    guard — keeps its anchors untouched, because that content is still on the target.
+    guard, content an operator released, a vanished lane branch's recorded snapshot — keeps every
+    anchor untouched.
 
     Never raises: the caller re-raises the ORIGINAL failure, which must stay the operator's
-    headline. A failed save leaves the pre-fix behaviour (a stale base a later attempt inherits),
-    so the warning names ``--abort`` as the way out.
+    headline, so the failure is caught as ``Exception`` (a ``save_state`` that cannot serialize
+    raises ``TypeError``/``ValueError``, not ``OSError``) and the warning itself is the only
+    output. A failed save leaves the pre-fix behaviour (a stale base the next attempt inherits),
+    so the warning names ``--abort`` and says to run it before touching any branch.
     """
-    if not report.fully_restored:
+    if not report.rebaselineable:
         return
     try:
-        changed = rollback.rebaseline_after_full_restore(run.state)
+        changed = rollback.rebaseline_after_full_restore(run.state, report.outcomes)
         if changed:
             save_state(run.state, run.main_repo)
-    except OSError as exc:
-        logger.warning("Could not re-baseline the consolidation record for %s: %s", run.canonical_id, exc)
-        console.print(
-            "[yellow]Warning:[/yellow] could not re-baseline this run's consolidation record "
-            f"({escape(str(exc))}); a re-run may still inherit this attempt's target tip, so run "
-            "`spec-kitty consolidate --abort` before re-running.",
-            soft_wrap=True,
-        )
+    except Exception as exc:  # noqa: BLE001 — the door never replaces the original failure
+        try:
+            logger.warning("Could not re-baseline the consolidation record for %s: %s", run.canonical_id, exc)
+            console.print(
+                "[yellow]Warning:[/yellow] could not re-baseline this run's consolidation record "
+                f"({escape(str(exc))}); a re-run may still inherit this attempt's target tip, so run "
+                "`spec-kitty consolidate --abort` before touching any branch.",
+                soft_wrap=True,
+            )
+        except Exception:  # noqa: BLE001 — not even a broken console may raise here
+            logger.warning("Could not re-baseline the consolidation record for %s (and the warning could not be printed): %s", run.canonical_id, exc)
         return
     if changed:
         target = escape(run.lanes_manifest.target_branch)
