@@ -58,6 +58,7 @@ from specify_cli.lanes.single_branch_landing import worktree_lanes
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.consolidation.preflight import (
     refuse_protected_status_target,
+    refuse_protected_target_override,
 )
 from specify_cli.consolidation.state import (
     ConsolidationState,
@@ -440,6 +441,45 @@ def _refuse_protected_status_target_or_continue(main_repo: Path, mission_slug: s
     except (ActionContextError, MissionMetaReadError) as exc:
         console.print(f"[red]Error:[/red] Cannot probe the done bookkeeping policy: {exc}. Fix the mission's meta.json / status surface before merging.")
         raise typer.Exit(1) from exc
+    if verdict is None:
+        _refuse_protected_target_override_or_continue(main_repo, mission_slug, lanes_manifest, canonical_id)
+        return
+    console.print(f"[red]Error:[/red] {verdict.error_code}: {verdict.message}")
+    console.print(f"  Next step: {verdict.next_step}")
+    console.print(_protected_refusal_footer(get_state_path(main_repo, canonical_id).exists()), markup=False)
+    raise typer.Exit(1)
+
+
+def _refuse_protected_target_override_or_continue(main_repo: Path, mission_slug: str, lanes_manifest: LanesManifest, canonical_id: str) -> None:
+    """#6464: refuse, before any branch moves, a ``--target`` override onto a protected branch.
+
+    The recorded-target probe above reads ``meta.json``; this one reads the target the
+    run would actually commit to (``lanes_manifest.target_branch``, already retargeted by
+    ``--target``) and refuses when it is protected and is not the recorded target. Runs
+    only after the recorded-target probe found nothing, so #5385's pinned refusal text
+    for the recorded-target case is unchanged.
+
+    Like its sibling this is pre-lock, so a refusal writes no merge record (NFR-001) and
+    points at ``consolidate --abort`` when an earlier attempt may have moved a branch.
+    """
+    effective_target = getattr(lanes_manifest, "target_branch", None)
+    if not effective_target:
+        # Every production caller passes a real ``LanesManifest`` (whose
+        # ``target_branch`` is required); this only tolerates the duck-typed manifest
+        # the preflight-seam tests hand in, where there is no retarget to judge.
+        return
+    try:
+        recorded_target, _source = resolve_merge_target_branch(main_repo, mission_slug, None)
+    except MissionMetaReadError:
+        # No readable record means no retarget to judge; the pre-existing preflights own
+        # the unreadable meta.json.
+        return
+    verdict = refuse_protected_target_override(
+        main_repo,
+        mission_slug,
+        recorded_target=recorded_target,
+        effective_target=effective_target,
+    )
     if verdict is None:
         return
     console.print(f"[red]Error:[/red] {verdict.error_code}: {verdict.message}")
