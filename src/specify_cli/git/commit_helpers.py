@@ -107,7 +107,7 @@ from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
-from kernel.git import GitCommandError, changed_paths, commit_paths, tree_entry
+from kernel.git import GitCommandError, GitPath, changed_paths, commit_paths, index_entries, tree_entry
 from kernel.paths import to_posix
 from kernel.resolution import is_symlink_loop_error, resolve_commit_path
 from kernel.git_topology import (
@@ -1748,21 +1748,16 @@ def _is_gitlink(worktree_root: Path, rel_path: str) -> bool:
 
     A submodule's path IS a directory in the worktree, but git commits a single
     gitlink for it, so :func:`_assert_committed_paths_requested` sees one path that
-    matches the request. Only called for a path the filesystem stat already found to
-    be a directory, so the healthy commit path never pays for it.
+    matches the request. The index read is ``kernel.git.index_entries`` (the single
+    owner of that git argv) and only runs for a path the filesystem stat already
+    found to be a directory, so the healthy commit path never pays for it.
     """
-    result = subprocess.run(
-        ["git", "ls-files", "--stage", "--", rel_path],
-        cwd=worktree_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return False
-    return any(line.startswith("160000 ") for line in result.stdout.splitlines())
+    wanted = GitPath.parse(rel_path)
+    try:
+        entries = index_entries(worktree_root, pathspecs=[rel_path])
+    except GitCommandError:
+        return False  # an unreadable index is not proof of a gitlink: refuse as a directory
+    return any(entry.path == wanted and entry.mode == "160000" for entry in entries)
 
 
 def _validate_runtime_lock_removal(
