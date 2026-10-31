@@ -65,6 +65,7 @@ from specify_cli.coordination.atomic_write import (
 )
 from specify_cli.core.env import pre_review_gate_skip_reason
 from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files
+from specify_cli.ownership.models import WorkProductKind
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineTestResult
 from specify_cli.review.gate_bindings import (
@@ -405,6 +406,109 @@ def _mt_empty_scope_verdict(reason: str, *, excluded_scope_files: tuple[str, ...
         ),
         reason=reason,
     )
+
+
+#: The incumbent empty-diff reason (#2573/#2739 wording, unchanged by #6792).
+_PRE_REVIEW_NO_CHANGED_FILES_REASON = "no changed files detected for this WP — skipping the gate cheaply"
+
+#: The honest empty-diff reason for a PLANNING-lane WP (#6792).
+#:
+#: A ``planning_artifact`` WP commits its deliverables on the mission's target
+#: branch, so the workspace the gate resolves IS the checkout sitting on that
+#: branch: the merge-base diff against the target branch is empty by
+#: construction, and a committed-but-clean tree adds no dirty paths. The gate is
+#: therefore right to skip cheaply — but "no changed files detected" contradicts
+#: the commit on disk. #2741 asked for at minimum "committed-diff not inspected"
+#: rather than a misleading ``no_coverage``; this is that record. Reached ONLY
+#: from the empty-diff short-circuit, so a planning-lane WP with uncommitted
+#: deliverables keeps today's dispatch behaviour.
+_PRE_REVIEW_PLANNING_LANE_REASON = (
+    "planning-lane WP — committed diff not inspected (a planning_artifact WP commits on the target branch, so no workspace diff exists)"
+)
+
+
+def _mt_declared_execution_mode(st: _MoveTaskState) -> str:
+    """The WP's declared ``execution_mode`` from its authored frontmatter, or ``""``.
+
+    The declared mode is the first-class signal the workspace resolver itself
+    routes on (``workspace.context._resolve_planning_artifact_arm`` compares it
+    against :data:`WorkProductKind.PLANNING_ARTIFACT`), so it also wins here: a
+    ``single_branch`` mission's repo-root ``lane-planning`` may legitimately hold
+    CODE work packages, and lane membership alone would mislabel them.
+    """
+    wp = getattr(st, "wp", None)
+    frontmatter = getattr(wp, "frontmatter", None)
+    if not isinstance(frontmatter, str) or not frontmatter:
+        return ""
+    return (extract_scalar(frontmatter, "execution_mode") or "").strip()
+
+
+def _mt_lanes_manifest_marks_planning_artifact(st: _MoveTaskState) -> bool:
+    """True when ``lanes.json`` records this WP as a planning-artifact WP.
+
+    The fallback for a WP whose frontmatter declares no ``execution_mode``
+    (older missions). Reads through the placement seam and
+    :func:`~specify_cli.lanes.persistence.read_lanes_json`, the same reader and
+    the same location rule the workspace resolver uses, so there is exactly one
+    ``lanes.json`` authority.
+
+    Two conditions, not one: the WP must sit in a lane ``is_planning_lane`` owns
+    **and** the manifest's KIND view must name it in ``planning_artifact_wps``.
+    Lane membership alone is not enough — a ``single_branch`` mission puts every
+    WP in the one repo-root ``lane-planning`` lane, code WPs included (see
+    :func:`~specify_cli.lanes.compute.compute_single_branch_lanes`), and calling
+    such a WP a planning artifact would be the same false audit claim in reverse.
+    ``planning_artifact_wps`` is the kind-derived view in every topology; a
+    manifest too old to carry it answers ``False``, which keeps today's wording.
+
+    An unknown lane state (missing/corrupt manifest, unreadable identity, ...)
+    also answers ``False``: a failed probe must keep the incumbent wording rather
+    than turn a non-blocking skip into a resolution failure, and it must never
+    fabricate a planning-lane claim on evidence it could not read.
+    """
+    from kernel.errors import GuardedReadError
+    from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    repo_root = getattr(st, "main_repo_root", None)
+    mission_slug = getattr(st, "mission_slug", "")
+    wp_id = getattr(st, "task_id", "")
+    if repo_root is None or not mission_slug or not wp_id:
+        return False
+    try:
+        lanes_read_dir = placement_seam(repo_root, mission_slug, owned=getattr(st, "owned", None)).read_dir(MissionArtifactKind.LANE_STATE)
+        manifest = read_lanes_json(lanes_read_dir)
+    except (GuardedReadError, OSError, ValueError):
+        return False
+    if manifest is None:
+        return False
+    lane = manifest.lane_for_wp(wp_id)
+    return lane is not None and is_planning_lane(lane) and wp_id in manifest.planning_artifact_wps
+
+
+def _mt_pre_review_planning_lane_wp(st: _MoveTaskState) -> bool:
+    """True when the WP whose empty diff we are explaining is a planning-lane WP."""
+    # Annotated local: ``WorkProductKind`` surfaces as ``Any`` under this
+    # quarantined module's ``follow_imports = "skip"``, so pinning the enum's
+    # string value re-establishes the concrete ``str`` comparison (same idiom as
+    # the ``Path`` locals elsewhere in this module).
+    planning_artifact_mode: str = WorkProductKind.PLANNING_ARTIFACT.value
+    declared_mode = _mt_declared_execution_mode(st)
+    if declared_mode:
+        return declared_mode == planning_artifact_mode
+    return _mt_lanes_manifest_marks_planning_artifact(st)
+
+
+def _mt_empty_changed_files_reason(st: _MoveTaskState) -> str:
+    """The reason recorded for an EMPTY changed-file set (#6792).
+
+    Returns the planning-lane reason only for a planning-lane WP; every other WP
+    keeps the incumbent literal byte-for-byte, so the change cannot widen or
+    narrow the gate's policy (C-001).
+    """
+    if _mt_pre_review_planning_lane_wp(st):
+        return _PRE_REVIEW_PLANNING_LANE_REASON
+    return _PRE_REVIEW_NO_CHANGED_FILES_REASON
 
 
 #: #3821: the calm, consumer-facing reason recorded when a bound gate does not
@@ -1008,8 +1112,12 @@ def _mt_collect_transition_gate_verdicts(
 
     Absent an override: a cheap short-circuit first — an empty changed-file set
     means there is nothing to gate, so it degrades to a single ``NO_COVERAGE``
-    warn WITHOUT loading the activation graph (bounded cost, NFR-005). A
-    resolution with no active binding (no contract / no binding / not activated)
+    warn WITHOUT loading the activation graph (bounded cost, NFR-005). The reason
+    that empty-diff arm records is selected by
+    :func:`_mt_empty_changed_files_reason`: a planning-lane WP's change is
+    committed on the target branch itself, so the gate genuinely has no workspace
+    diff to inspect and must SAY that (#6792) rather than claim no files changed.
+    A resolution with no active binding (no contract / no binding / not activated)
     returns the resolver's **distinguishable** ``NO_COVERAGE`` reason
     (FR-008/012), never a silent vanish. A resolution WITH active bindings but
     no declared gate command (``review.test_command`` unset and no override
@@ -1036,7 +1144,7 @@ def _mt_collect_transition_gate_verdicts(
             )
         ]
     if not inputs.changed_files:
-        return [_mt_empty_scope_verdict("no changed files detected for this WP — skipping the gate cheaply")]
+        return [_mt_empty_scope_verdict(_mt_empty_changed_files_reason(st))]
     resolution = _mt_resolve_active_gate_bindings(st)
     if not resolution.active:
         return [_mt_empty_scope_verdict(resolution.reason)]
