@@ -38,6 +38,7 @@ __all__ = [
     "DEFAULT_ROUTER_PATH",
     "FANOUT_ALLOWLIST",
     "DEPENDENCY_MODULE_FANOUT",
+    "ACTIVATION_STORE_MODULE_FANOUT",
     "CLI_COMMAND_MODULE_FANOUT",
     "FANOUT_GROUPS",
     "GROUP_MODULE_FANOUT",
@@ -99,6 +100,30 @@ GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     # #6166 task B -- src/specify_cli/cli/commands/lifecycle.py already routes to `cli`; add the
     # modules whose tests exercise it but that `cli` does not reach (agent, core_misc).
     "cli_lifecycle": frozenset({"agent", "core_misc"}),
+}
+
+# Activation-store fan-out (spec-kitty#6336). The charter activation store
+# (``.kittify/charter/charter.yaml``, the charter read authority, and
+# ``.kittify/charter/activation.yaml``, the single authority for charter activation --
+# ADR 2026-10-19-1) plus the internal-pack pin lockfile (``packs/internal.source.yaml``;
+# the pack tree itself is untracked since #6451, so the pin is the only in-repo signal)
+# change what the charter module's config-parity tests assert. Before this row they
+# matched only the non-src ``corpus`` group and selected NO module, so the charter
+# shard never ran -- the hole through which #6333 reached ``main`` green and then
+# reddened every later PR (which is tested as merged, #6336).
+#
+# Kept OUT of ``GROUP_MODULE_FANOUT``/``FANOUT_GROUPS`` for the same reason
+# ``CLI_COMMAND_MODULE_FANOUT`` is: ``derive_group_module_fanout`` reads the committed
+# consumer census, which records only resolved ``src/**`` imports and
+# ``packs/built-in/missions/**`` runtime reads, so a ``.kittify``/pin group derives an
+# EMPTY set and ``tests/ci/test_fanout_derivation.py`` requires every
+# ``FANOUT_GROUPS`` member to derive >= 1 module. The module set is still the census's
+# own answer reached differently: ``tests/charter/**`` and ``tests/charter_offering/**``
+# (the charter row's two ``test_dirs``) read the activation store and the internal pack.
+# The group stays non-src so it can never mask an unmapped ``src/**`` change (FR-004)
+# and it gates no router job BY DESIGN -- the module matrix is its per-PR executor.
+ACTIVATION_STORE_MODULE_FANOUT: dict[str, frozenset[str]] = {
+    "charter_activation": frozenset({"charter"}),
 }
 
 # Dependency-lock fan-out (#6238, #6605). Kept OUT of the pack consumer census: a lock file is not a
@@ -583,7 +608,12 @@ def select_modules(
     src_selected = selection.matched_groups & modules
     # The dependency fan-out runs the import census, so only a diff matching its group pays for it.
     dependency = dependency_module_fanout() if selection.matched_groups & DEPENDENCY_GROUPS else {}
-    for group, targets in (*GROUP_MODULE_FANOUT.items(), *dependency.items(), *CLI_COMMAND_MODULE_FANOUT.items()):
+    for group, targets in (
+        *GROUP_MODULE_FANOUT.items(),
+        *dependency.items(),
+        *CLI_COMMAND_MODULE_FANOUT.items(),
+        *ACTIVATION_STORE_MODULE_FANOUT.items(),
+    ):
         if group in selection.matched_groups:
             src_selected = src_selected | (targets & modules)
     test_selected = _modules_for_test_paths(paths, router=router, registry_path=registry_path, modules=modules)
