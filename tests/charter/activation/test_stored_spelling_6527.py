@@ -278,7 +278,10 @@ def test_the_in_force_set_is_unchanged_and_nothing_is_stored(tmp_path: Path) -> 
     assert {ORG_TAC_ID, PROJ_TAC_ID} <= served_after["tactics"], served_after
 
 
-@pytest.mark.parametrize("writer", sorted(NON_WRITING_WRITERS))
+@pytest.mark.parametrize(
+    "writer",
+    [pytest.param(name, marks=pytest.mark.timeout(_CASCADE_TIMEOUT_S)) if name == "cascade" else name for name in sorted(NON_WRITING_WRITERS)],
+)
 def test_a_writer_that_names_only_in_force_artifacts_stores_nothing(tmp_path: Path, writer: str) -> None:
     """#6685: the interview, the first activation and a cascade write no list into an absent key.
 
