@@ -65,7 +65,7 @@ def test_default_timeout_is_sixty_seconds() -> None:
     assert DEFAULT_TIMEOUT == 60.0
 
 
-@pytest.mark.parametrize("url", ["http://example.com/a", "ftp://example.com/a", "", "data:,x"])
+@pytest.mark.parametrize("url", ["http://example.com/a", "ftp://example.com/a", "", "data:,x", "file://evil.example/share/a"])
 def test_download_refuses_other_schemes(tmp_path: Path, url: str) -> None:
     with pytest.raises(ValueError, match="https:// or file://"):
         download(url, tmp_path / "out")

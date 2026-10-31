@@ -48,6 +48,8 @@ _CHUNK = 1024 * 1024
 _HTTPS = "https"
 _FILE = "file"
 _SCHEME_ERROR = "release assets come only from https:// or file:// sources"
+_FILE_HOST_ERROR = "a file:// source must name no host (or localhost), not a remote share"
+_LOCAL_HOSTS = ("", "localhost")
 _DISTRIBUTION = "spec-kitty-cli"
 _URL_USERINFO_PREFIX = "***@"
 #: ``errno`` values of a failure to write the download locally (a full disk, a permission, a read-only mount).
@@ -174,6 +176,8 @@ def download(url: str, dest: Path, *, timeout: float = DEFAULT_TIMEOUT) -> None:
     """
     if _scheme(url) not in (_HTTPS, _FILE):
         raise ValueError(f"{_SCHEME_ERROR}; got {_redact(url)!r}")
+    if _scheme(url) == _FILE and urllib.parse.urlsplit(url).netloc.lower() not in _LOCAL_HOSTS:
+        raise ValueError(f"{_SCHEME_ERROR}: {_FILE_HOST_ERROR}; got {_redact(url)!r}")
     dest = Path(dest)
     part = dest.with_name(f"{dest.name}.part-{os.getpid()}")
     source_opened = False
