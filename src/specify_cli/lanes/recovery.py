@@ -5,7 +5,10 @@ contexts, and status events that are out of sync. Provides recovery
 functions to reconcile worktrees, contexts, and status.
 
 Recovery is conservative: it never advances WP status past in_progress.
-All recovery transitions use actor="recovery" for auditability.
+All recovery transitions use the structured system actor
+(``{"tool": "recovery", "role": "system", "profile": null, "model": null}``)
+for auditability; ``RECOVERY_ACTOR`` stays the ``"recovery"`` identity string, which the
+guard context and the readers consume (#6722).
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ from specify_cli.lanes.branch_naming import (
 )
 from specify_cli.lanes.worktree_allocator import persist_lane_context, predict_lane_worktree
 from specify_cli.status import Lane
+from specify_cli.status.actor import build_system_actor
 from specify_cli.workspace.context import (
     WorkspaceContext,
     list_contexts,
@@ -814,7 +818,7 @@ def reconcile_status(
                     mission_slug=mission_slug,
                     wp_id=state.wp_id,
                     to_lane=next_lane,
-                    actor=RECOVERY_ACTOR,
+                    actor=build_system_actor(RECOVERY_ACTOR),
                     reason=f"Recovered after crash -- branch {state.branch_name} exists"
                     + (" with commits" if state.has_commits else ""),
                     execution_mode="worktree",

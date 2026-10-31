@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.status.models import TransitionRequest
+from specify_cli.status.actor import build_system_actor
+from specify_cli.status.models import TransitionRequest, actor_identity_str
 from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.lanes.recovery import (
     RECOVERY_ACTOR,
@@ -537,10 +538,12 @@ class TestStatusReconciliation:
         events = read_events(feature_dir)
         # Filter to recovery-emitted events (the genesis->planned seed uses a
         # different actor and is not part of the reconciliation under test).
-        wp_events = [e for e in events if e.wp_id == "WP01" and e.actor == RECOVERY_ACTOR]
+        # #6722: the stored actor is the structured system actor; the identity it
+        # records is still ``RECOVERY_ACTOR``.
+        wp_events = [e for e in events if e.wp_id == "WP01" and actor_identity_str(e.actor) == RECOVERY_ACTOR]
         assert len(wp_events) == 2
-        assert wp_events[0].actor == RECOVERY_ACTOR
-        assert wp_events[1].actor == RECOVERY_ACTOR
+        assert wp_events[0].actor == build_system_actor(RECOVERY_ACTOR)
+        assert wp_events[1].actor == build_system_actor(RECOVERY_ACTOR)
         assert str(wp_events[0].from_lane) == "planned"
         assert str(wp_events[0].to_lane) == "claimed"
         assert str(wp_events[1].from_lane) == "claimed"
@@ -618,7 +621,7 @@ class TestStatusReconciliation:
         for event in events:
             # Skip the genesis->planned seed; it is not a recovery transition.
             if event.wp_id == "WP01" and str(event.from_lane) != "genesis":
-                assert event.actor == RECOVERY_ACTOR
+                assert event.actor == build_system_actor(RECOVERY_ACTOR)
 
     def test_recovery_from_claimed_emits_only_in_progress(self, tmp_path: Path) -> None:
         """When status is claimed, recovery only emits claimed->in_progress."""
@@ -658,7 +661,7 @@ class TestStatusReconciliation:
         from specify_cli.status.store import read_events
 
         events = read_events(feature_dir)
-        recovery_events = [e for e in events if e.actor == RECOVERY_ACTOR]
+        recovery_events = [e for e in events if actor_identity_str(e.actor) == RECOVERY_ACTOR]
         assert len(recovery_events) == 1
         assert str(recovery_events[0].from_lane) == "claimed"
         assert str(recovery_events[0].to_lane) == "in_progress"
