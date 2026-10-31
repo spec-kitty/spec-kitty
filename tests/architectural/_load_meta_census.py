@@ -221,7 +221,7 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/consolidation/mission_number/bake.py", "_bake_mission_number_on_primary_tree"): (1, "silent-by-contract"),
     ("src/specify_cli/consolidation/mission_number/bake.py", "_compute_next_mission_number_or_none"): (1, "silent-by-contract"),
     ("src/specify_cli/consolidation/mission_number/bake.py", "_write_mission_number_to_branch"): (1, "silent-by-contract"),
-    ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_id"): (1, "silent-by-contract"),
+    ("src/specify_cli/migration/backfill_runtime_state.py", "_mission_identity"): (1, "silent-by-contract"),
     ("src/specify_cli/migration/backfill_runtime_state.py", "_synthesize_claim_anchor"): (1, "silent-by-contract"),
     # #3212: the pre-flip authority probe is a read-only verdict input on the
     # shared dry-run/live path — `on_malformed="none"` is deliberate so the
