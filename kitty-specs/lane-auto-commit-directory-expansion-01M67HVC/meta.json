@@ -1,0 +1,35 @@
+{
+  "accept_commit": "f7583c6e458f5ecd3ac9e6abc4549faee3fa6d9a",
+  "acceptance_history": [
+    {
+      "accept_commit": "f7583c6e458f5ecd3ac9e6abc4549faee3fa6d9a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T02:51:15.498834+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "293b566b8b0f7d9cf0c5932e687f253221411f47"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T02:51:15.498834+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "293b566b8b0f7d9cf0c5932e687f253221411f47",
+  "baseline_merge_commit": "1013696131a10344484379a2541210470090b20a",
+  "created_at": "2026-10-30T23:20:50.753897+00:00",
+  "flattened": false,
+  "friendly_name": "lane auto commit directory expansion",
+  "merged_at": "2026-10-31T02:53:13.811370+00:00",
+  "merged_commit": "cc4c623606b6a6d792f864971cb810f89afdd9c3",
+  "mid8": "01M67HVC",
+  "mission_id": "01M67HVCPCFFS715QMC1XQAPY3",
+  "mission_number": 244,
+  "mission_slug": "lane-auto-commit-directory-expansion-01M67HVC",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances lane auto commit directory expansion on issue-6750-lane-auto-commit-directory-expansion so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "lane auto commit directory expansion",
+  "slug": "lane-auto-commit-directory-expansion-01M67HVC",
+  "status_phase": "1",
+  "target_branch": "issue-6750-lane-auto-commit-directory-expansion",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:25:12.297248+00:00"
+}
