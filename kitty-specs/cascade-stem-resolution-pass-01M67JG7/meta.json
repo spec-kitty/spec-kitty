@@ -14,9 +14,8 @@
   "accepted_by": "exedev",
   "accepted_from_commit": "f0ecfe979d56f1208bed2a61668726025cd37cc9",
   "baseline_merge_commit": "12a9b9761642f6531fc02a9c521ff9550972bc4a",
-  "coordination_branch": "kitty/mission-cascade-stem-resolution-pass-01M67JG7",
   "created_at": "2026-10-30T23:32:14.370850+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "cascade stem resolution pass",
   "merged_at": "2026-10-31T01:12:18.958187+00:00",
   "merged_commit": "25ca69e6f20add4baf6254bb23dcea8d922cc89c",
@@ -30,7 +29,6 @@
   "slug": "cascade-stem-resolution-pass-01M67JG7",
   "status_phase": "1",
   "target_branch": "main",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-10-30T23:34:56.728208+00:00"
 }
