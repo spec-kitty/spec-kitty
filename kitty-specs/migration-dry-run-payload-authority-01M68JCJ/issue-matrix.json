@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6164": {
+      "evidence_ref": "context only: the removal of the hosted/sync transport that made this payload builder the last surviving dry-run site; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6449": {
       "evidence_ref": "the mission's tracked issue; terminal verdict set at wrap-up once the PR is green",
       "fr": null,
