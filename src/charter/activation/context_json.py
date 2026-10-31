@@ -22,17 +22,13 @@ patches ``charter.activation.context.YAML`` directly.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from charter.activation.scope import CharterScope
-
-from typing import Protocol
 from pathlib import Path
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
     from charter.activation.identity_index import IdentityIndex
+    from charter.activation.scope import CharterScope
 
 from ruamel.yaml.error import YAMLError
 
