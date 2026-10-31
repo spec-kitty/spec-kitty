@@ -276,10 +276,7 @@ FROZEN_LIST_NOTE = (
 
 #: Why an activation that changes nothing writes nothing (#6685).
 ALREADY_IN_FORCE_WARNING = (
-    "Kind {kind!r} keeps no explicit activation set, and {artifact!r} is already effective while it is absent, "
-    "so nothing in force was deactivated and nothing was written: a list would freeze the kind, and the "
-    "selection alone would narrow it. Run 'spec-kitty charter activate {kind} <id> --only' to keep activation "
-    "narrow and write an explicit list."
+    "{kind} {artifact} is already in force; nothing written. A list would freeze {kind}. Use `spec-kitty charter activate {kind} {artifact} --only` to write one."
 )
 
 

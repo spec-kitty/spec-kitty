@@ -263,7 +263,7 @@ class TestActivationDelegation:
         assert before, "fixture invalid: the directive kind must have something in force"
 
         result = manager.activate(ctx, kind="directive", artifact_id="025-boy-scout-rule")
-        assert any("already effective" in w for w in result.warnings)
+        assert any("already in force" in w for w in result.warnings)
         data = read_activation_ledger(project_root)  # a fresh project writes the ledger (FR-019)
         assert "activated_directives" not in data, "an in-force artifact must not materialise the absent key (#6685)"
         after = resolve_effective_sets(project_root, ["activated_directives"])["activated_directives"].ids

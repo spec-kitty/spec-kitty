@@ -237,7 +237,7 @@ class TestActivateNoneState:
             artifact_id="001-architectural-integrity-standard",
         )
         assert result.activated == ["001-architectural-integrity-standard"]
-        assert any("already effective" in w for w in result.warnings)
+        assert any("already in force" in w for w in result.warnings)
         # #6685: the artifact was already in force, so no allow list is written into the
         # absent key; the activation ledger therefore gains no activated_<kind> entry.
         data = read_activation_ledger(project_root)
@@ -246,18 +246,16 @@ class TestActivateNoneState:
     def test_warns_that_nothing_was_written_and_how_to_write_a_list(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         """#6685: an activation of an artifact the absent key already puts in force writes no list.
 
-        The operator is told what happened instead: the kind keeps no explicit activation set,
-        the artifact is already effective, nothing in force was deactivated, and ``--only`` is
-        how to write an explicit list (#4253's zero-drop report, #6408's advice).
+        The operator is told what happened instead: the artifact is already in force,
+        nothing was written, and ``--only`` is how to write an explicit list (#4253's zero-drop report, #6408's advice).
         """
         result = manager.activate(
             ctx,
             kind="directive",
             artifact_id="001-architectural-integrity-standard",
         )
-        assert any("keeps no explicit activation set" in w for w in result.warnings)
-        assert any("nothing in force was deactivated" in w for w in result.warnings)
-        assert any("--only" in w and "keep activation narrow" in w for w in result.warnings)
+        assert any("already in force; nothing written" in w for w in result.warnings)
+        assert any("--only" in w and "would freeze" in w for w in result.warnings)
         assert not any("This list is now explicit" in w for w in result.warnings), "no list was written, so nothing is frozen"
 
     def test_a_mission_type_still_materialises_its_absent_ledger(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:

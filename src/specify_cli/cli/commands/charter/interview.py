@@ -93,9 +93,8 @@ def _kept_deactivated_messages(skipped_denied: dict[str, list[str]]) -> list[str
 
 #: One line per kind whose key an interview run leaves absent (#6685).
 _ABSENT_KEY_LEFT_ABSENT = (
-    "{key} was left absent: while it is absent every {token} of that kind is in force, "
-    "so nothing was written. Run `spec-kitty charter interview --narrow-activation` to keep activation narrow "
-    "and write an explicit list."
+    "{key} was left absent: while it is absent every {token} is in force, so nothing was written. "
+    "Use `spec-kitty charter interview --narrow-activation` to write a list."
 )
 
 #: The same, when every id the interview selected for that kind is deactivated (#6685 + FR-009).
