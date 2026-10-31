@@ -16,6 +16,7 @@ from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.core.env import is_truthy
 from specify_cli.core.agent_config import (
     load_agent_config,
+    no_cli_managed_agents,
     save_agent_config,
     AgentConfig,
     AgentConfigError,
@@ -470,6 +471,40 @@ def _check_or_create_configured_agent_dirs(
     return changes_made
 
 
+def _print_auto_commit_setting(config: AgentConfig) -> None:
+    """Print the auto-commit setting shared by every ``agent config list`` shape."""
+    auto_commit_label = _ENABLED_LABEL if config.auto_commit else _DISABLED_LABEL
+    console.print(f"\n[cyan]Auto-commit:[/cyan] {auto_commit_label}")
+    if not config.auto_commit:
+        console.print("[dim]  Agents will stage changes but not create commits unless explicitly instructed.[/dim]")
+        console.print("[dim]  Override per-command with --auto-commit flag.[/dim]")
+
+
+def _print_empty_agent_list(config: AgentConfig) -> None:
+    """Report the two empty agent-list shapes as what they mean (#6493).
+
+    Neither shape is a broken setup, so neither may borrow the old
+    "Run init / agent config add" line: on a stated-empty list those commands
+    install a second copy of surfaces a harness plugin already supplies.
+    """
+    if no_cli_managed_agents(config):
+        console.print("[cyan]No CLI-managed agents.[/cyan]")
+        console.print(
+            "\nThis project states that Spec Kitty manages none of its agent surfaces:\n"
+            "`agents.available` is an explicitly empty list in .kittify/config.yaml, so a\n"
+            "harness or plugin supplies the commands, skills and profiles. The CLI\n"
+            "installs, syncs and checks none of them here; naming an agent hands its\n"
+            "surface to the CLI as well."
+        )
+        return
+    console.print("[cyan]No stated agent list.[/cyan]")
+    console.print(
+        "\n.kittify/config.yaml has no `agents.available` list, so Spec Kitty treats every\n"
+        "supported agent as available (the legacy fallback) and writes a surface for any\n"
+        "agent it is asked to manage."
+    )
+
+
 @app.command(name="list")
 def list_agents():
     """List configured agents and their status."""
@@ -483,8 +518,15 @@ def list_agents():
     config = _load_config_or_exit(repo_root)
 
     if not config.available:
-        console.print("[yellow]No agents configured.[/yellow]")
-        console.print("\nRun 'spec-kitty init' or use 'spec-kitty agent config add' to add agents.")
+        # #6493: an empty agent list has two different meanings and neither is
+        # "not set up". A stated-empty list means the CLI manages no surfaces
+        # (a harness plugin supplies them, #6494); no list at all means every
+        # supported agent is available (legacy fallback, #6501). Reporting
+        # "No agents configured. Run init / agent config add" described both
+        # wrongly and pointed at commands that write a second copy of surfaces
+        # the harness already provides.
+        _print_empty_agent_list(config)
+        _print_auto_commit_setting(config)
         return
 
     # Resolve install state through the surface contract (WP07): the plan is the
@@ -501,11 +543,7 @@ def list_agents():
         console.print(f"  {status} {agent_key} ({location})")
 
     # Show auto-commit setting
-    auto_commit_label = _ENABLED_LABEL if config.auto_commit else _DISABLED_LABEL
-    console.print(f"\n[cyan]Auto-commit:[/cyan] {auto_commit_label}")
-    if not config.auto_commit:
-        console.print("[dim]  Agents will stage changes but not create commits unless explicitly instructed.[/dim]")
-        console.print("[dim]  Override per-command with --auto-commit flag.[/dim]")
+    _print_auto_commit_setting(config)
 
     # Show available but not configured
     all_agent_keys = VALID_AGENTS
