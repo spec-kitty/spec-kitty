@@ -292,9 +292,7 @@ def test_built_in_snapshot_falls_back_to_the_reference_universe() -> None:
 
 
 @pytest.mark.integration
-def test_unloadable_built_in_graph_keeps_the_previous_behaviour(
-    project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_unloadable_built_in_graph_keeps_the_previous_behaviour(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A missing shipped pack is not turned into a new failure mode by the request builder."""
 
     def _explode() -> Any:
