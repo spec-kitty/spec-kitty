@@ -666,6 +666,10 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
         # #6954: proven generated command files and empty command directories
         # are removed through the guard, preserving every unproven user file.
         "upgrade/migrations/m_4_0_0rc8_stamp_globalize_commands.py",
+        # #6548: a historical sweep-created mission override is removed through
+        # guard_destructive_removal only when its bytes are proven equal to the
+        # shipped counterpart; a differing one is preserved and named.
+        "upgrade/migrations/m_4_0_0rc8_repair_historical_sweep_overrides.py",
     }
 )
 
