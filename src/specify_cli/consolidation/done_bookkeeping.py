@@ -26,6 +26,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.consolidation._constants import _STATUS_EVENTS_FILENAME, logger
 from specify_cli.consolidation.git_probes import path_is_under_worktrees
 from specify_cli.consolidation.state import ConsolidationState, save_state
+from specify_cli.status.actor import build_system_actor
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from mission_runtime import MissionArtifactKind, placement_seam, resolve_placement_only
 
@@ -83,6 +84,13 @@ def acceptably_canceled_wp_ids(repo_root: Path, mission_slug: str) -> set[str]:
         if is_acceptable_ending(lane, has_provenance=provenance):
             excluded.add(wp_id)
     return excluded
+
+
+#: The identity every merge-time bookkeeping write records (#6722). It stays a plain
+#: string -- the readers project the structured actor back to it -- and both emits and the
+#: done-write refusal probe build their actor from this one value, so the probe can never
+#: drift from the write.
+MERGE_ACTOR = "merge"
 
 
 def _resolve_merge_actor(repo_root: Path) -> str:
@@ -270,7 +278,7 @@ def _emit_approved_replay_if_needed(
                     mission_slug=mission_slug,
                     wp_id=wp_id,
                     to_lane="approved",
-                    actor="merge",
+                    actor=build_system_actor(MERGE_ACTOR),
                     reason=f"Recorded prior review approval for merged {wp_id}",
                     evidence=evidence.to_dict(),
                     workspace_context=f"merge:{repo_root}",
@@ -422,7 +430,7 @@ def _mark_wp_merged_done(
                 mission_slug=mission_slug,
                 wp_id=wp_id,
                 to_lane="done",
-                actor="merge",
+                actor=build_system_actor(MERGE_ACTOR),
                 reason=f"Merged {wp_id} into {target_branch}",
                 evidence=evidence.to_dict(),
                 workspace_context=f"merge:{repo_root}",

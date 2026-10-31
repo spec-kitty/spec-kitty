@@ -120,7 +120,8 @@ def test_record_goes_through_the_transactional_seam(tmp_path: Path, monkeypatch:
     assert request.wp_id == "WP02"
     assert request.to_lane == Lane.CANCELED
     assert request.force is True
-    assert request.actor == "stijn"
+    # #6722: the event carries the structured system actor; the identity is still "stijn".
+    assert request.actor == {"tool": "stijn", "role": "system", "profile": None, "model": None}
     assert request.reason_source == _OPERATOR
     assert request.reason is not None and request.reason.endswith("verified by hand: file removed on the lane")
     assert request.policy_metadata == {ca.ATTESTATION_KEY: ca.CANCELED_SUPERSEDED}
