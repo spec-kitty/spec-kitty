@@ -777,11 +777,13 @@ def move_task(
             "--review-feedback-file",
             help=(
                 "Path to review feedback file. Required for review-rejection edges "
-                "(--to planned, incl. with --force; and in_review->in_progress). "
-                "Recorded as the transition's on-wire review_ref rationale; omitting "
-                "it makes the status event contract-invalid. On --to approved/done its "
-                "content is recorded when the move writes a new approval review-cycle "
-                "record; otherwise a warning on stderr says it was not recorded (JSON stdout is unchanged)."
+                "(--to planned, incl. with --force; and in_review->in_progress); "
+                "omitting it there makes the status event contract-invalid. "
+                "On --to approved/done its content is recorded when the move writes "
+                "a new approval review-cycle record; otherwise a warning on stderr "
+                "says it was not recorded (JSON stdout is unchanged). Refused "
+                "(exit 1) on every other edge: those edges write no review cycle, "
+                "so the file would be validated and then dropped."
             ),
         ),
     ] = None,
