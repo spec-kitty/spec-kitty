@@ -1,0 +1,90 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M67P8YABEZHYF62CP40JETYP",
+  "materialized_at": "2026-10-31T00:38:08.971430+00:00",
+  "mission_number": "244",
+  "mission_slug": "backfill-runtime-state-idempotent-claim-slots-01M67HR8",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67P8VPHCSV3205ZNGD0B826",
+      "last_transition_at": "2026-10-31T00:38:06.289213+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-30T23:41:59Z – claude – shell_pid=820138 – Red-first: 9/11 rows red on the pre-fix tree (2 ratchets green), 11/11 green after the fix. Half-by-half: reverting only the envelope line turns the same 9 red.",
+        "Ready for review: 11 new rows + 934 neighbouring tests/passed",
+        "Review (reviewer-renata): APPROVE. Anti-pattern checklist all PASS: 1 dead-code (_declared_mission_id has 3 production callers); 2 synthetic-fixture (reverting the writer line re-reds 9 of 11 rows); 3 silent-empty-return (documented degrade for an undeclared id); 4 FR coverage FR-001..FR-009 each asserted; 5 frozen surface (status/store.py has no commit in this WP range); 6 locked decision (no xfail/skip/tolerance added, _seed_row_mismatch untouched); 7 shared-file ownership (src module owned only by WP01); 8 production fragility (no new raise). Non-blocking observations: the invariant row drives private _build_seed_events/_claim_anchors (an extra pin, not the sole proof - the CLI rows cover the production path); a seed id is namespaced on mission identity, so minting a ULID for a Mission already seeded under its slug would append a second inert carrier - pre-existing, not introduced here.",
+        "Post-approval change: development-assist cleanup (fold-or-keep verdict) renamed the regression after the contract it guards and added a contract docstring. No assertion changed. Back to review per LANE_MOVED_AFTER_APPROVAL.",
+        "Re-review requested for the post-approval rename only.",
+        "Re-review (reviewer-renata): APPROVE. Delta since the first approval is exactly one file move (97% similarity) plus a 6-line contract docstring; git diff -M shows no assertion, fixture or gate line changed, and 11/11 rows are green under the new path. The development-assist fold-or-keep verdict (KEEP, renamed after the contract) is recorded in the mission's design-decisions tracer. No new risk surface."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 820138,
+      "shell_pid_created_at": "1793402670.2",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M67P8YABEZHYF62CP40JETYP",
+      "last_transition_at": "2026-10-31T00:38:08.971430+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs: [Unreleased] entry (1055 chars, (#6689), before/after) + cutover-guard remedy row. Gates: check_docs_freshness --ci errors=0, test_no_legacy_terminology 98 passed, test_changelog_style+test_check_cli_reference_freshness 181 passed.",
+        "Review (reviewer-renata): APPROVE. Changelog: [Unreleased] Fixed section, bold impact-first lead ending (#6689), before/after, 1055 chars (<1200), matches neighbouring entry style, no personal data or machine paths. How-to: the remedy row names the observable failure string and the converging command, states the re-run is a no-op, and does not promise a --fix; page updated: bumped to 2026-10-30. Scope: docs-only, no src change, no unrelated docs regeneration. Gates: check_docs_freshness --ci errors=0 (9 pre-existing warnings: 6 HELP-DRIFT on charter activate/migrate ledger/migrate activation-ledger and 3 link-health HTTP 403/404, all unrelated to this diff), test_no_legacy_terminology 98 passed, test_changelog_style + test_check_cli_reference_freshness 181 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1321055,
+      "shell_pid_created_at": "1793404758.56",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    }
+  }
+}
