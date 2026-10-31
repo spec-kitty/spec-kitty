@@ -90,7 +90,7 @@ in the changelog, and note it where the command's cost is described.
 T008 Run the full `tests/charter/activation/test_stored_spelling_6527.py` module under the default timeout and record the `--durations` output
 T009 Run the wider charter activation neighbours (`tests/charter/activation/`) to prove no cross-test drift
 T010 Changelog `[Unreleased]` entry: bold impact-first lead with `(#6777)`, before/after, under 1,200 characters
-T011 Update the docs surface that describes the cascade command's cost/behaviour if it states one; regenerate only what the diff touches and check freshness
+T011 Record the disposition in `docs/development/testing/testing-flakiness.md`'s audit table (this is a threshold-gate case fixed at the root, with the interim 600 s budget withdrawn) and check docs freshness (`check_docs_freshness --ci`, errors=0)
 
 ### Dependencies
 
