@@ -122,9 +122,7 @@ def _evaluate(
     landed_commit: str | None = None,
 ) -> ev.EvidenceReport:
     work_packages = {wp: {"lane": lane} for wp, lane in approved.items()}
-    return ev.evaluate_evidence(
-        repo, fd, manifest, work_packages, (), events=lambda: events or [], is_single_branch=single_branch, landed_commit=landed_commit
-    )
+    return ev.evaluate_evidence(repo, fd, manifest, work_packages, (), events=lambda: events or [], is_single_branch=single_branch, landed_commit=landed_commit)
 
 
 # --------------------------------------------------------------------------- pure helpers
