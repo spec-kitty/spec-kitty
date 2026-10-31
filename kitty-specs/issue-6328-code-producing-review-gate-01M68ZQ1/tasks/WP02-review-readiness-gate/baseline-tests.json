@@ -1,0 +1,100 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-10-31T15:55:14Z",
+  "base_branch": "1036f55e7352166e634d863681a1b2228d6b24e7",
+  "base_commit": "1036f55e7352166e634d863681a1b2228d6b24e7",
+  "test_runner": "custom",
+  "total": 17,
+  "passed": 0,
+  "failed": 17,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.specify_cli.runtime.test_readonly_home_startup.TestCliRunsWithReadOnlyHome.test_json_command_runs_and_keeps_stdout_json",
+      "error": "AssertionError: {'error': {'code': 'mission_required', 'message': '--mission <slug> is required'}, 'ok': False}",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_never_rewrites_existing_lanes_json",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_emit_structured_actor_6400.test_review_claim_with_compact_actor_records_reviewer_profile_and_model",
+      "error": "specify_cli.core.subtask_rows.SubtaskRosterResolutionError: Cannot resolve subtask roster for WP01: tasks directory is missing",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_does_not_rebuild_lanes_when_execution_has_not_begun",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_reports_topology_manifest_mismatch_as_a_finding_not_a_crash",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_lock_fallback_never_mints_marker.test_bare_tree_locks_under_a_non_marker_home",
+      "error": "AssertionError: assert PosixPath('/tmp/spec-kitty-pytest-tmp/run-2039942/popen-gw11/test_bare_tree_locks_under_a_n0/.git/spec-kitty-locks/001-mission.status.lock') == (((PosixPath('/tmp/spec-kitty-pyt",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_status_emit_structured_actor_6400.test_rejection_leaving_in_review_records_reviewer_role",
+      "error": "specify_cli.core.subtask_rows.SubtaskRosterResolutionError: Cannot resolve subtask roster for WP01: tasks directory is missing",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_lock_fallback_never_mints_marker.test_existing_kittify_keeps_its_lock_location",
+      "error": "AssertionError: assert PosixPath('/tmp/spec-kitty-pytest-tmp/run-2039942/popen-gw11/test_existing_kittify_keeps_it0/.git/spec-kitty-locks/001-mission.status.lock') == (((PosixPath('/tmp/spec-kitty-pyt",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_lock_fallback_never_mints_marker.test_existing_dot_git_dir_keeps_its_lock_location",
+      "error": "FileExistsError: [Errno 17] File exists: '/tmp/spec-kitty-pytest-tmp/run-2039942/popen-gw11/test_existing_dot_git_dir_keep0/.git'",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_lock_fallback_never_mints_marker.test_mission_write_lock_on_a_bare_dir_leaves_no_project_for_its_children",
+      "error": "AssertionError: assert PosixPath('/tmp/spec-kitty-pytest-tmp/run-2039942/popen-gw11/test_mission_write_lock_on_a_b0') is None",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_fails_closed_on_corrupt_event_log_without_partial_lanes",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_locking_reentrancy_migration.test_project_event_log_lock_shares_the_same_reentrancy_contract",
+      "error": "AssertionError: assert False",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_rebuild_is_idempotent_on_a_healthy_mission",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_repair_handles_ownerless_wedged_mission_coherently",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_nfr002_detect_cure_parity_for_the_wedge_condition[execution_begun_no_lanes_json (#4758 wedge)-<lambda>-True]",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.unit.migration.test_mission_state_lanes_rebuild.test_rebuild_turns_a_literal_owned_path_matching_nothing_into_a_repair_error",
+      "error": "specify_cli.migration.mission_state.MissionStateRepairError: No mission directories found to repair.",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_write.test_the_non_repository_probe_pins_git_to_the_c_locale",
+      "error": "AssertionError: assert ([{'AI_AGENT': 'pi', 'DBUS_SESSION_BUS_ADDRESS': 'unix:path=/run/user/1000/bus', 'GSM_SKIP_SSH_AGENT_WORKAROUND': 'true', 'HOME': '/tmp/spec-kitty-test-homes/45b9028a3447450ca11",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300
+}
