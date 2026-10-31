@@ -12735,10 +12735,8 @@ pages:
     abstract: "How to install Spec Kitty as a native Claude Code plugin that surfaces canonical mission commands and built-in agent profiles."
     anchors:
     - {slug: "prerequisites", text: "Prerequisites", level: 2}
-    - {slug: "option-1-marketplace-install-recommended", text: "Option 1: Marketplace install (recommended)", level: 2}
-    - {slug: "option-2-dev-install-contributors-and-local-builds", text: "Option 2: Dev install (contributors and local builds)", level: 2}
+    - {slug: "install-the-bundle", text: "Install the bundle", level: 2}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
-    - {slug: "how-the-runtime-wrapper-works", text: "How the runtime wrapper works", level: 2}
   - path: "docs/guides/how-to/installation/install-linux.md"
     title: "Install Spec Kitty on Linux"
     divio_type: "how-to"
