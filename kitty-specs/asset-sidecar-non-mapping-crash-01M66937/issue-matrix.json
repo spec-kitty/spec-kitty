@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6735": {
+      "evidence_ref": "Lane-a commits 2e4c960309 (red, 26 failing cases) and d9cccca2be (fix): a non-mapping sidecar now skips with the usual warning in both tiers; reviewer independently reproduced the red-first proof and approved WP01.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
