@@ -845,6 +845,7 @@ def _run_real_merge(
     attest_approved_reviewed: tuple[str, ...] = (),
     attest_no_implementation: tuple[str, ...] = (),
     origin_check: str | None = None,
+    dependency_refs: tuple[str, ...] = (),
 ) -> None:
     """Run the real lane-based merge + post-merge retrospective / next-step hints."""
     try:
@@ -866,6 +867,7 @@ def _run_real_merge(
             attest_approved_reviewed=attest_approved_reviewed,
             attest_no_implementation=attest_no_implementation,
             origin_check=origin_check,
+            dependency_refs=dependency_refs,
         )
     except SparseCheckoutPreflightError as exc:
         # WP05/T020: surface sparse-checkout preflight as a user-facing error and
@@ -1024,6 +1026,7 @@ class ConsolidateOptions:
     attest_reason: str | None = None
     release_branch: list[str] | None = None
     release_reason: str | None = None
+    dependency_refs: list[str] | None = None
     origin_check: str | None = None
 
 
@@ -1150,6 +1153,17 @@ def consolidate(
         "--release-reason",
         help="Why the released branches are kept, printed in the --abort report (required with --release-branch).",
     ),
+    dependency_refs: list[str] | None = typer.Option(
+        None,
+        "--dependency-ref",
+        help=(
+            "External dependency ref (repeatable) that a work-package branch brought in with "
+            "(for example `git merge --no-ff <dep>`), so its commits are attributed as inherited history "
+            "instead of removed/canceled work (#6771). Verified fail-closed: the ref must resolve, the mission "
+            "branch must reach it, and no commit of any mission lane or mission branch may sit in it. "
+            "Without a declaration the closed-world check stays exactly as strict as before."
+        ),
+    ),
     origin_check: str | None = typer.Option(
         None,
         "--origin-check",
@@ -1195,6 +1209,7 @@ def consolidate(
             release_branch=release_branch,
             release_reason=release_reason,
             origin_check=origin_check,
+            dependency_refs=dependency_refs,
         )
     )
 
@@ -1226,6 +1241,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
     attest_canceled_superseded = options.attest_canceled_superseded
     attest_reason = options.attest_reason
     origin_check = options.origin_check
+    dependency_refs = _clean_dependency_refs(options.dependency_refs)
 
     del context_token, keep_workspace
     attested_wps = _validated_attestation_flags(attest_canceled_superseded, attest_reason, options.attest_approved_reviewed, options.attest_no_implementation)
@@ -1392,6 +1408,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
             remove_worktree=remove_worktree,
             push=push,
             json_output=json_output,
+            dependency_refs=dependency_refs,
         )
         return
 
@@ -1417,6 +1434,7 @@ def run_consolidate(options: ConsolidateOptions) -> None:
         attest_approved_reviewed=approved_attested_wps,
         attest_no_implementation=no_implementation_wps,
         origin_check=origin_check if isinstance(origin_check, str) else None,
+        dependency_refs=dependency_refs,
     )
 
 
@@ -1433,6 +1451,18 @@ def _clean_attestation_inputs(wp_ids: object, reason: object) -> tuple[tuple[str
     if not isinstance(reason, str):
         reason = None
     return tuple(dict.fromkeys(wp.strip() for wp in wp_ids if isinstance(wp, str) and wp.strip())), reason
+
+
+def _clean_dependency_refs(raw: object) -> tuple[str, ...]:
+    """Normalise the raw ``--dependency-ref`` values: stripped, de-duplicated, order kept (#6771).
+
+    Like :func:`_clean_attestation_inputs`, a direct Python call of ``consolidate()`` that omits
+    the parameter passes the unresolved ``typer.Option`` sentinel; anything that is not a list of
+    strings is "not supplied" rather than iterated.
+    """
+    if not isinstance(raw, (list, tuple)):
+        return ()
+    return tuple(dict.fromkeys(ref.strip() for ref in raw if isinstance(ref, str) and ref.strip()))
 
 
 def _validated_attestation_flags(wp_ids: object, reason: object, approved_wp_ids: object = None, no_implementation_wp_ids: object = None) -> tuple[str, ...]:
