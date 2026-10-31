@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5651": {
+      "evidence_ref": "Cited in research.md as precedent for committing staged deletions (_fold_alias_directory); this Mission owes it no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6386": {
+      "evidence_ref": "Closed separately (ReviewLock claim-path fix); #6450 item 3 is explicitly out of this Mission's scope (C-001).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6450": {
+      "evidence_ref": "PR #6924: items (4),(6),(7) fixed with red-first tests; items (1),(2),(3),(5) remain open with reasons in the PR Deferred section.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6715": {
+      "evidence_ref": "Cited in research.md as the closed blocker the 2026-10-27 slicing waited on; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
