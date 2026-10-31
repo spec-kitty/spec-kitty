@@ -431,6 +431,30 @@ def test_interview_reselecting_a_denied_directive_keeps_it_excluded(tmp_path: Pa
     assert f"kept deactivated: directive {_DIRECTIVE_010_STEM}" in " ".join(result.stdout.split())
 
 
+def test_interview_leaves_an_absent_key_absent_and_names_a_denied_selection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6685 + FR-009: an absent key stays absent, and a deactivated selection is reported, never claimed as in force."""
+    _git_init(tmp_path)
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(tmp_path, mission_type_activations=["software-dev"], deactivated_directives=[_DIRECTIVE_001_STEM])
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        charter_app,
+        ["interview", "--defaults", "--profile", "minimal", "--selected-directives", _DIRECTIVE_001_STEM],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.stdout
+    surface = activation_ledger_path(tmp_path)
+    written = YAML(typ="safe").load(surface.read_text(encoding="utf-8")) or {}
+    assert "activated_directives" not in written, "an absent key stays absent (#6685)"
+    out = " ".join(result.stdout.split())
+    assert f"kept deactivated: directive {_DIRECTIVE_001_STEM}" in out, out
+    assert "every selected directive is deactivated" in out, out
+
+
 # --- F1/F2: promotion reads the effective deny only through the activation ledger seam ---
 
 
