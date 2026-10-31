@@ -229,9 +229,17 @@ id. Do not delete it: synthesis would forget which artifacts it created and add 
 One writing synthesis run holds the worktree's synthesis lock at a time. A second `synthesize` or
 `resynthesize` waits about 10 seconds, then refuses with `CHARTER_SYNTHESIS_LOCK_HELD` and writes
 nothing; retry once the other run finishes. `--dry-run`, `--dry-run-evidence` and `--list-topics`
-take no lock. `charter activate`/`deactivate`, presets and the interview restamp the manifest's
-bundle hash under the same lock. While a synthesis run holds it, they save their change, skip the
-restamp and warn; the next activation or synthesis restamps it.
+take no lock.
+
+`charter activate`, `charter deactivate`, `charter activate --preset` and the activation-ledger
+migration write under the same lock, and hold it across the whole read-modify-write
+([#6719](https://github.com/spec-kitty/spec-kitty/issues/6719)). A deactivation that lands while a
+synthesis run is appending is therefore serialized instead of lost, and the migration's manifest
+stamp cannot drop an entry the run just wrote. While another run holds the lock, these commands wait
+about 10 seconds, then exit 1 with `CHARTER_SYNTHESIS_LOCK_HELD`, name the lock file and write
+nothing. Before #6719 they saved their change unlocked and skipped the re-stamp with a warning; that
+unlocked save was the race. `charter interview` keeps promoting its selections best-effort: a lock it
+cannot get is reported as a skipped promotion, not a failure.
 
 The always-synthesized directive is named `project-intent-directive`; synthesis converges a legacy
 `mission-type-scope-directive` first, and `spec-kitty upgrade` does the same through the
@@ -565,6 +573,10 @@ section describes what they do with the ledger and what they print.
 | The activation ledger exists | the activation ledger | the activation ledger |
 | Fresh (no activation keys anywhere, no activation ledger) | the activation ledger (absent keys) | the activation ledger; the first write creates it |
 | Unmigrated (activation keys in `charter.yaml` or `config.yaml`, no activation ledger) | the old allow keys, as before | allow keys on the old surface; every exclusion is refused |
+
+Every activation write here is one read-modify-write under the run-wide synthesis lock, so it
+serializes with `charter synthesize` and `charter resynthesize`; a held lock is a
+`CHARTER_SYNTHESIS_LOCK_HELD` refusal with nothing written (see the synthesis-lock rules above).
 
 `spec-kitty init` writes the activation ledger, so a new project is never unmigrated.
 `spec-kitty upgrade`, or the narrow
