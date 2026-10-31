@@ -165,6 +165,13 @@ def test_merge_without_feature_on_lane_branch_validates_inferred_target(monkeypa
 
 
 def test_explicit_target_overrides_meta_json(monkeypatch, tmp_path: Path) -> None:
+    """An explicit ``--target`` wins over ``meta.json`` in TARGET RESOLUTION.
+
+    The override names an unprotected branch on purpose: #6464 makes an override onto a
+    protected branch (``main`` here) a refusal, pinned by
+    ``tests/terminus/test_protected_target_preflight.py``, so using ``main`` as the
+    resolution example would assert the behaviour that guard forbids.
+    """
     slug = "049-fix-merge-target-resolution"
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -174,17 +181,17 @@ def test_explicit_target_overrides_meta_json(monkeypatch, tmp_path: Path) -> Non
         monkeypatch,
         repo_root,
         current_branch=slug,
-        existing_branches={"main"},
+        existing_branches={"develop"},
     )
 
     result = runner.invoke(
         cli_app,
-        ["consolidate", "--dry-run", "--json", "--target", "main"],
+        ["consolidate", "--dry-run", "--json", "--target", "develop"],
     )
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["target_branch"] == "main"
+    assert payload["target_branch"] == "develop"
 
 
 def test_explicit_feature_flag_reads_meta_target(monkeypatch, tmp_path: Path) -> None:

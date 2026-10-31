@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.terminus.conftest import CoordMission, blob_present_at, run_terminus
+from tests.terminus.conftest import CoordMission, _git as git, blob_present_at, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
 from tests.terminus.rollback_harness import flat, ref_shas
 
@@ -88,3 +88,28 @@ def test_control_unprotected_target_consolidates(tmp_path: Path) -> None:
     assert _envelope(result)["success"] is True, output
     assert _REFUSAL_CODE not in output, output
     assert blob_present_at(mission.repo, "develop", "src/pkg/wp02.py"), output
+
+
+@pytest.mark.regression
+def test_protected_target_override_is_refused_before_any_branch_moves(tmp_path: Path) -> None:
+    """#6464 parity: a ``--target`` override onto a protected branch is refused, not squashed onto it.
+
+    The recorded-target refusal above reads ``meta.json``; this case is the
+    override the operator passes on the command line. The checkout sits on the
+    override target so the run reaches this guard, not the pre-existing
+    ``MERGE_UNSAFE_PRIMARY_OFF_TARGET`` precondition.
+    """
+    mission = build_lanes_mission(tmp_path, wps=("WP01", "WP02"), target_branch="develop", mid8="01M6464A")
+    git(mission.repo, "branch", "main")
+    git(mission.repo, "checkout", "-q", "main")
+    before = ref_shas(mission)
+
+    result = run_terminus(
+        mission,
+        ["orchestrator-api", "consolidate-mission", "--mission", mission.slug, "--target", "main", "--strategy", "squash"],
+    )
+
+    _assert_refused_unmoved(mission, result, before)
+    output = flat(result)
+    assert "→ main" not in output, f"the squash must never reach the protected branch. output={output}"
+    assert not blob_present_at(mission.repo, "main", "src/pkg/wp01.py"), "no squashed content on main"
