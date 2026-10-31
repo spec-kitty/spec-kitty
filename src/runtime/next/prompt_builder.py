@@ -534,7 +534,7 @@ def _governance_context(
                 "MISSION_CONTEXT_CONFLICT",
                 "prompt mission differs from the validated owned checkout",
             )
-        from specify_cli.cli.commands._owned_checkout import charter_scope_for_owned
+        from specify_cli.core.owned_charter import charter_scope_for_owned
 
         scope = charter_scope_for_owned(owned, feature_dir)
     if action:

@@ -39,6 +39,8 @@ pages are kept as a record and are not current guidance. The active cycle is 4.0
 
 ## Live
 
+- [Approved implementation reopen feedback](2026-10-31-approved-reopen-feedback.md) — supplied references and explicit actor identity through canonical transitions.
+
 - [Migration project write admission](2026-10-31-migration-project-admission.md) — fresh Git authority and global runtime storage boundaries.
 
 - [Owned startup project gates](2026-10-30-owned-startup-project-gates.md) — isolated runtime startup custody.

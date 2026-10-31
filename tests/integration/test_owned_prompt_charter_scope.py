@@ -295,7 +295,7 @@ class TestOwnedPromptCharterScope:
         assert not (self.owned / ".kittify/charter/context-state.json").exists()
 
     def test_owned_scope_projection_refuses_other_mission(self, tmp_path: Path) -> None:
-        from specify_cli.cli.commands._owned_checkout import charter_scope_for_owned
+        from specify_cli.core.owned_charter import charter_scope_for_owned
 
         with pytest.raises(ActionContextError, match="charter Mission differs"):
             charter_scope_for_owned(self.fact, tmp_path / "other-mission")

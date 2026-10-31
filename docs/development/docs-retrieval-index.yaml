@@ -14703,6 +14703,7 @@ pages:
     - {slug: "known-limitations-and-qualification-boundaries", text: "Known limitations and qualification boundaries", level: 2}
     - {slug: "resources-and-next-action", text: "Resources and next action", level: 2}
     - {slug: "generated-fetch-closure", text: "Generated fetch closure", level: 2}
+    - {slug: "activation-and-runtime-boundary-correction", text: "Activation and runtime boundary correction", level: 2}
   - path: "docs/plans/engineering-notes/2026-10-30-owned-startup-project-gates.md"
     title: "Owned checkout startup admission repair"
     divio_type: "reference"
@@ -14712,6 +14713,15 @@ pages:
     - {slug: "engineering-decisions", text: "Engineering Decisions", level: 2}
     - {slug: "known-limitations", text: "Known Limitations", level: 2}
     - {slug: "publication-documentation-repair", text: "Publication documentation repair", level: 2}
+  - path: "docs/plans/engineering-notes/2026-10-31-approved-reopen-feedback.md"
+    title: "Approved implementation reopen feedback"
+    divio_type: "none"
+    abstract: "Preserve explicitly supplied reopen references through canonical CLI planning and actor guards."
+    anchors:
+    - {slug: "observed-behavior-and-contract", text: "Observed behavior and contract", level: 2}
+    - {slug: "actor-identity-and-proof-boundary", text: "Actor identity and proof boundary", level: 2}
+    - {slug: "implementation-and-qualification", text: "Implementation and qualification", level: 2}
+    - {slug: "owner-and-next-event", text: "Owner and next event", level: 2}
   - path: "docs/plans/engineering-notes/2026-10-31-migration-project-admission.md"
     title: "Migration project write admission"
     divio_type: "none"
