@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "mission_slug": "plugin-bundle-directory-conformance-01M68ZVP",
+  "mission_id": "01M68ZVPN0WE7D6R2E8A001E67",
+  "mission_branch": "kitty/mission-plugin-bundle-directory-conformance-01M68ZVP",
+  "target_branch": "issue-6479-plugin-bundle-directory-conformance",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/tool_surface/bundles/_builder.py",
+        "src/specify_cli/tool_surface/bundles/projection.py",
+        "tests/specify_cli/tool_surface/bundles/test_plugin_manifest_agent_plugins.py",
+        "tests/specify_cli/tool_surface/bundles/test_projection.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/specify_cli/tool_surface/bundles/assets/**",
+        "src/specify_cli/tool_surface/bundles/claude.py",
+        "src/specify_cli/tool_surface/bundles/claude_wrapper.py",
+        "src/specify_cli/tool_surface/bundles/codex.py",
+        "src/specify_cli/tool_surface/bundles/model.py",
+        "tests/specify_cli/tool_surface/bundles/test_claude.py",
+        "tests/specify_cli/tool_surface/bundles/test_claude_wrapper.py",
+        "tests/specify_cli/tool_surface/test_plugin_build_claude.py",
+        "tests/specify_cli/tool_surface/test_plugin_build_codex.py",
+        "tests/specify_cli/tool_surface/test_plugin_bundle_directory_conformance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/installation/install-claude-code-plugin.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-31T12:47:28.232142+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "349823ffa673bed1e2c1d521c9e1181f4c74273b"
+}

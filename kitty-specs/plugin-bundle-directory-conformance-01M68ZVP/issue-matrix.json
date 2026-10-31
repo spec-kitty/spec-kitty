@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#3535": {
+      "evidence_ref": "Cited for context: CI validator pinning and release attestation stay owned by #3535 (C-002); this mission changes no gate.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6476": {
+      "evidence_ref": "Follow-up: #6476 \u2014 the bundle no longer ships the wrapper module at all, so its uvx fallback is out of this mission; #6476 remains the owner of the general wrapper/console-script question.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#6479": {
+      "evidence_ref": "Fixed in this mission: claude-code bundle ships no top-level bin/ (FR-001), manifest drops the redundant hooks pointer (FR-002), every manifest carries homepage/repository/license (FR-003), codex manifest is SemVer with ./ paths, 30-char shortDescription and the full interface listing set (FR-004), declared images exist and are square (FR-005), Copilot/VS Code emit the Agent Plugins 1.0.0 manifest (FR-006). Conformance suite: tests/specify_cli/tool_surface/test_plugin_bundle_directory_conformance.py and bundles/test_plugin_manifest_agent_plugins.py. Deferred sub-items: marketplace hosting (product call), doctrine skills (tier decision), CI validator pins (#3535).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
