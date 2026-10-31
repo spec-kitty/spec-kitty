@@ -35,11 +35,11 @@ history:
 agent_profile: python-pedro
 authoritative_surface: src/specify_cli/lanes/
 create_intent:
-- tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py
+- tests/specify_cli/lanes/test_stale_coord_lane_base_report.py
 execution_mode: code_change
 owned_files:
 - src/specify_cli/lanes/worktree_allocator.py
-- tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py
+- tests/specify_cli/lanes/test_stale_coord_lane_base_report.py
 role: implementer
 tags: []
 tracker_refs:
@@ -110,7 +110,7 @@ route, and do not merge, rebase or fast-forward either branch (C-001, C-002, C-0
 
 ### Subtask T001 – Red-first: the silence (#6753)
 
-Create `tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py`.
+Create `tests/specify_cli/lanes/test_stale_coord_lane_base_report.py`.
 Reuse the fixture shape of `tests/specify_cli/lanes/test_worktree_allocator_coord.py`
 (`new_topology_repo`: a tmp git repo, `kitty-specs/<slug>/meta.json` carrying
 `coordination_branch`, a minted `kitty/mission-<slug>` branch, `main` as target).
@@ -163,10 +163,10 @@ have changed what the lane is cut from.
 Run, and record the results:
 
 ```
-uv run pytest tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py -q
+uv run pytest tests/specify_cli/lanes/test_stale_coord_lane_base_report.py -q
 uv run pytest tests/specify_cli/lanes tests/lanes -q
-uv run ruff check src/specify_cli/lanes/worktree_allocator.py tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py
-uv run ruff format --check src/specify_cli/lanes/worktree_allocator.py tests/specify_cli/lanes/test_issue_6753_stale_coord_lane_base.py
+uv run ruff check src/specify_cli/lanes/worktree_allocator.py tests/specify_cli/lanes/test_stale_coord_lane_base_report.py
+uv run ruff format --check src/specify_cli/lanes/worktree_allocator.py tests/specify_cli/lanes/test_stale_coord_lane_base_report.py
 ```
 
 Do **not** run `make test-full` or any whole-repo heavy sweep. If an unrelated red
