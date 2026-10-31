@@ -9973,8 +9973,8 @@ pages:
     - {slug: "links", text: "Links", level: 2}
   - path: "docs/changelog/CHANGELOG.md"
     title: "Changelog"
-    divio_type: "reference"
-    abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
+    divio_type: "none"
+    abstract: "<!-- markdownlint-disable MD024 -->"
     anchors:
     - {slug: "unreleased-4-0-0rc8", text: "[Unreleased] - 4.0.0rc8", level: 2}
     - {slug: "breaking", text: "Breaking", level: 3}
