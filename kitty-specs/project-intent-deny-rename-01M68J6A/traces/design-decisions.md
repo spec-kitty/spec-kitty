@@ -10,3 +10,13 @@
   `deactivated_*` key is never applied (ADR 2026-10-19-1 Amendment 2026-10-20) and its save refuses a
   deny change, so rewriting it there would turn the rename into a refusal for no behaviour. The deny
   keys are therefore rewritten only when the resolved write target is the activation ledger.
+
+## Close
+
+- **[2026-10-31][implement] The "ledger only" predicate is asked, not inferred.** Review cycle 1
+  replaced a path comparison with `resolve_ledger_source(...).source is ActivationSource.LEDGER` --
+  the same predicate the write target branches on -- so the two facts cannot drift apart. A future
+  write-target change keeps working instead of silently skipping the deny rename.
+- **[2026-10-31][implement] The FR-014 pins gained a positive control, not an exemption.** The gate
+  still runs every activation-touching migration over a deny-bearing fixture; the rename's
+  allowance is proven used by a same-fixture control rather than excused from the dynamic half.
