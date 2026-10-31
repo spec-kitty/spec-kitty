@@ -57,7 +57,10 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Annotated, Final, NoReturn
+from typing import Annotated, Final, NoReturn, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from charter.activation.scope import CharterScope
 
 import typer
 
@@ -77,6 +80,18 @@ OWNED_CHECKOUT_HELP: Final[str] = (
 # instead, to keep that text byte-identical while still satisfying G5's
 # ``CLI_CLAIM_INPUT_RULE``.
 OwnedCheckoutOption = Annotated[Path | None, typer.Option("--owned-checkout", help=OWNED_CHECKOUT_HELP)]
+
+
+def charter_scope_for_owned(owned: OwnedCheckout, feature_dir: Path | None = None) -> CharterScope:
+    """Project one admitted Mission identity into charter reads and fetch argv."""
+    from dataclasses import replace
+
+    from charter.activation.scope import CharterScope, OwnedCharterInvocation
+
+    if feature_dir is not None and feature_dir.resolve() != owned.mission_dir:
+        raise ActionContextError("MISSION_CONTEXT_CONFLICT", "charter Mission differs from the validated owned checkout")
+    scope = CharterScope.resolve(owned.owned_root, owned.mission_dir)
+    return replace(scope, invocation=OwnedCharterInvocation(owned.owned_root, owned.mission_slug))
 
 
 def owned_checkout_option(help: str) -> object:  # noqa: A002 -- matches typer's own parameter name

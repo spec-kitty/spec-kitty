@@ -20,6 +20,8 @@ verbatim — drift here is a contract violation (R-3 from the WP04 task).
 
 from __future__ import annotations
 
+from charter.activation.scope import CharterScope
+
 import re
 
 __all__ = [
@@ -272,7 +274,7 @@ def _extract_section_body(charter_content: str, heading: str) -> str | None:
     return body.strip("\n").rstrip()
 
 
-def _render_fetch_stanza(heading: str) -> list[str]:
+def _render_fetch_stanza(heading: str, *, scope: CharterScope | None = None) -> list[str]:
     """Return the fetch + when-doing stanza for a missing section.
 
     The shape is the one pinned by the ATDD helper
@@ -287,8 +289,10 @@ def _render_fetch_stanza(heading: str) -> list[str]:
 
     selector = f"section:{_slugify_heading(heading)}"
     when_clause = CRITICAL_SECTION_WHEN_CLAUSES.get(heading, _DEFAULT_WHEN_CLAUSE)
+    from charter.activation.context_renderers.fetch_stanza import fetch_command
+
     return [
-        f"  Run: spec-kitty charter context --include {selector}",
+        f"  Run: {fetch_command(selector, scope=scope)}",
         f"  When you {when_clause}, run this command and apply the returned rule.",
     ]
 
@@ -296,6 +300,8 @@ def _render_fetch_stanza(heading: str) -> list[str]:
 def render_critical_section_bodies(
     charter_content: str,
     action: str,
+    *,
+    scope: CharterScope | None = None,
 ) -> str:
     """Render ``Action-Critical Charter Sections (<action>):`` for *action*.
 
@@ -339,7 +345,7 @@ def render_critical_section_bodies(
         # Emitting both halves keeps the ATDD anchor
         # ``_contains_either_body_or_fetch_with_conditional`` happy for
         # bodies whose verbatim sentence is broken across wrapped lines.
-        blocks.extend(_render_fetch_stanza(heading))
+        blocks.extend(_render_fetch_stanza(heading, scope=scope))
 
     return "\n".join(blocks)
 
@@ -365,6 +371,7 @@ def render_critical_section_include(
     selector_id: str,
     *,
     action: str | None = None,
+    scope: CharterScope | None = None,
 ) -> str | None:
     """Render the body addressed by a ``section:<selector_id>`` fetch selector.
 
@@ -387,7 +394,7 @@ def render_critical_section_include(
         action_name = cleaned.removeprefix("critical-").strip()
         if action is not None and action.strip() and action.strip().lower() != action_name:
             return None
-        return render_critical_section_bodies(charter_content, action_name) or None
+        return render_critical_section_bodies(charter_content, action_name, scope=scope) or None
 
     headings = {
         heading

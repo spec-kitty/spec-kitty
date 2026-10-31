@@ -30,6 +30,8 @@ stays in ``context.py``.
 
 from __future__ import annotations
 
+from charter.activation.scope import CharterScope
+
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -133,8 +135,8 @@ def _include_lookup_id(identity: IdentityIndex | None, kind: ArtifactKind, ident
     token falls back to :meth:`IdentityIndex.unindexed_key`.
     """
     if identity is None:
-        return IdentityIndex.unindexed_key(kind, identifier)
-    return identity.lookup_key(kind, identifier)
+        return str(IdentityIndex.unindexed_key(kind, identifier))
+    return str(identity.lookup_key(kind, identifier))
 
 
 def _render_directive_include(
@@ -350,23 +352,14 @@ def _render_offering_artifact_include(
     )
 
 
-def _render_section_include_selector(
-    repo_root: Path,
-    selector: str,
-    identifier: str,
-    action: str | None,
-) -> str:
+def _render_section_include_selector(repo_root: Path, selector: str, identifier: str, action: str | None, *, scope: CharterScope | None = None) -> str:
     """Render the ``section:<id>`` selector — a charter.md heading lookup."""
-    canonical_root = _bundle_root_for_json(repo_root)
+    canonical_root = _bundle_root_for_json(repo_root, scope=scope)
     charter_path = canonical_root / CHARTER_MD
     if not charter_path.exists():
         raise ValueError("No charter.md found for section selector.")
     charter_content = charter_path.read_text(encoding="utf-8")
-    section = render_critical_section_include(
-        charter_content,
-        identifier,
-        action=action.strip().lower() if action else None,
-    )
+    section = render_critical_section_include(charter_content, identifier, action=action.strip().lower() if action else None, scope=scope)
     if section is None:
         raise ValueError(f"No charter section found for selector '{selector}'.")
     return str(section)

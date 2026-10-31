@@ -57,6 +57,8 @@ caller rather than constructed here.
 
 from __future__ import annotations
 
+from charter.activation.scope import CharterScope
+
 from charter.activation.activations import (
     ALLOWED_ACTIONS,
     ActivationEntry,
@@ -133,6 +135,7 @@ def render_activation_stanza(
     *,
     mission_type: str,
     action: str,
+    scope: CharterScope | None = None,
 ) -> str:
     """Render activation-registry entries matching the runtime context.
 
@@ -175,7 +178,7 @@ def render_activation_stanza(
 
     lines: list[str] = [_ACTIVATION_HEADER]
     for entry in matched:
-        stanza_lines = _render_entry(entry, service, action=action)
+        stanza_lines = _render_entry(entry, service, action=action, scope=scope)
         # Add a leading blank line between header and the first stanza,
         # and between consecutive stanzas, so the block renders as
         # discrete two-line groups inside the larger bootstrap text.
@@ -195,6 +198,7 @@ def _render_entry(
     service: object,
     *,
     action: str,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render one :class:`ActivationEntry` as a fetch + when-doing stanza.
 
@@ -214,7 +218,7 @@ def _render_entry(
     kind_singular = _singular_kind(kind_plural) if kind_plural else "artifact"
     selector = format_selector(kind_singular, entry.artifact_id)
     when_clause = _render_when_clause(entry, action=action)
-    return fetch_stanza_lines(selector, when_clause)
+    return fetch_stanza_lines(selector, when_clause, scope=scope)
 
 
 def _render_when_clause(

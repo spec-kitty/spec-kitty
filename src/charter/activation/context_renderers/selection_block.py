@@ -31,6 +31,8 @@ stay module-private, matching the ``reference_pointers.py`` precedent.
 
 from __future__ import annotations
 
+from charter.activation.scope import CharterScope
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -128,8 +130,8 @@ def _selection_id(identity: IdentityIndex | None, kind: ArtifactKind | None, tok
     index knows falls back to :meth:`IdentityIndex.unindexed_key`.
     """
     if identity is None:
-        return IdentityIndex.unindexed_key(kind, token)
-    return identity.lookup_key(kind, token, selection=True)
+        return str(IdentityIndex.unindexed_key(kind, token))
+    return str(identity.lookup_key(kind, token, selection=True))
 
 
 def _render_selected_artifacts(
@@ -143,6 +145,7 @@ def _render_selected_artifacts(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Shared implementation for the 8 ``_render_selected_<kind>`` helpers.
 
@@ -202,26 +205,14 @@ def _render_selected_artifacts(
                 artifact_id=artifact_id,
                 diagnosis=diagnosis,
             )
-            lines.extend(
-                _shared_fetch_stanza_lines(
-                    f"{selector_kind}:{artifact_id}",
-                    when_clause,
-                    indent="    ",
-                )
-            )
+            lines.extend(_shared_fetch_stanza_lines(f"{selector_kind}:{artifact_id}", when_clause, indent="    ", scope=scope))
             continue
 
         body_lines = body_formatter(artifact)
         if body_lines and _budget_estimate(body_lines) <= _PROFILE_INLINE_BODY_LIMIT_CHARS:
             lines.extend(body_lines)
         else:
-            lines.extend(
-                _shared_fetch_stanza_lines(
-                    f"{selector_kind}:{artifact_id}",
-                    when_clause,
-                    indent="    ",
-                )
-            )
+            lines.extend(_shared_fetch_stanza_lines(f"{selector_kind}:{artifact_id}", when_clause, indent="    ", scope=scope))
 
     return lines
 
@@ -233,6 +224,7 @@ def _render_selected_paradigms(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render globally-selected paradigms into prompt lines."""
     repo = getattr(service, "paradigms", None)
@@ -246,6 +238,7 @@ def _render_selected_paradigms(
         org_source_map=org_source_map,
         repo_root=repo_root,
         identity=identity,
+        scope=scope,
     )
 
 
@@ -256,6 +249,7 @@ def _render_selected_directives(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render globally-selected directives into prompt lines."""
     repo = getattr(service, "directives", None)
@@ -269,6 +263,7 @@ def _render_selected_directives(
         org_source_map=org_source_map,
         repo_root=repo_root,
         identity=identity,
+        scope=scope,
     )
 
 
@@ -279,6 +274,7 @@ def _render_selected_tactics(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render globally-selected tactics into prompt lines."""
     repo = getattr(service, "tactics", None)
@@ -292,6 +288,7 @@ def _render_selected_tactics(
         org_source_map=org_source_map,
         repo_root=repo_root,
         identity=identity,
+        scope=scope,
     )
 
 
@@ -302,6 +299,7 @@ def _render_selected_styleguides(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render globally-selected styleguides into prompt lines (T017).
 
@@ -320,6 +318,7 @@ def _render_selected_styleguides(
         org_source_map=org_source_map,
         repo_root=repo_root,
         identity=identity,
+        scope=scope,
     )
 
 
@@ -330,6 +329,7 @@ def _render_selected_toolguides(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render globally-selected toolguides into prompt lines (T018)."""
     repo = getattr(service, "toolguides", None)
@@ -343,6 +343,7 @@ def _render_selected_toolguides(
         org_source_map=org_source_map,
         repo_root=repo_root,
         identity=identity,
+        scope=scope,
     )
 
 
@@ -353,6 +354,7 @@ def _render_selected_procedures(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render globally-selected procedures into prompt lines (T018)."""
     repo = getattr(service, "procedures", None)
@@ -366,6 +368,7 @@ def _render_selected_procedures(
         org_source_map=org_source_map,
         repo_root=repo_root,
         identity=identity,
+        scope=scope,
     )
 
 
@@ -376,6 +379,7 @@ def _render_selected_agent_profiles(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render globally-selected agent profiles into prompt lines (T018)."""
     repo = getattr(service, "agent_profiles", None)
@@ -389,6 +393,7 @@ def _render_selected_agent_profiles(
         org_source_map=org_source_map,
         repo_root=repo_root,
         identity=identity,
+        scope=scope,
     )
 
 
@@ -399,6 +404,7 @@ def _render_selected_mission_step_contracts(
     org_source_map: dict[str, str] | None = None,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> list[str]:
     """Render globally-selected mission step contracts (T018)."""
     repo = getattr(service, "mission_step_contracts", None)
@@ -412,6 +418,7 @@ def _render_selected_mission_step_contracts(
         org_source_map=org_source_map,
         repo_root=repo_root,
         identity=identity,
+        scope=scope,
     )
 
 
@@ -496,6 +503,7 @@ def _render_selection_block(
     *,
     repo_root: Path | None = None,
     identity: IdentityIndex | None = None,
+    scope: CharterScope | None = None,
 ) -> str:
     """Render the combined 8-kind selection section block.
 
@@ -545,18 +553,24 @@ def _render_selection_block(
 
     blocks: list[str] = []
     sections = (
-        _render_selected_paradigms(charter_config.selected_paradigms, service, org_source_map=org_maps["paradigms"], repo_root=repo_root, identity=identity),
-        _render_selected_directives(charter_config.selected_directives, service, org_source_map=org_maps["directives"], repo_root=repo_root, identity=identity),
-        _render_selected_tactics(charter_config.selected_tactics, service, org_source_map=org_maps["tactics"], repo_root=repo_root, identity=identity),
-        _render_selected_styleguides(charter_config.selected_styleguides, service, org_source_map=org_maps["styleguides"], repo_root=repo_root, identity=identity),
-        _render_selected_toolguides(charter_config.selected_toolguides, service, org_source_map=org_maps["toolguides"], repo_root=repo_root, identity=identity),
-        _render_selected_procedures(charter_config.selected_procedures, service, org_source_map=org_maps["procedures"], repo_root=repo_root, identity=identity),
+        _render_selected_paradigms(
+            charter_config.selected_paradigms, service, org_source_map=org_maps["paradigms"], repo_root=repo_root, identity=identity, scope=scope
+        ),
+        _render_selected_directives(
+            charter_config.selected_directives, service, org_source_map=org_maps["directives"], repo_root=repo_root, identity=identity, scope=scope
+        ),
+        _render_selected_tactics(charter_config.selected_tactics, service, org_source_map=org_maps["tactics"], repo_root=repo_root, identity=identity, scope=scope),
+        _render_selected_styleguides(
+            charter_config.selected_styleguides, service, org_source_map=org_maps["styleguides"], repo_root=repo_root, identity=identity, scope=scope
+        ),
+        _render_selected_toolguides(
+            charter_config.selected_toolguides, service, org_source_map=org_maps["toolguides"], repo_root=repo_root, identity=identity, scope=scope
+        ),
+        _render_selected_procedures(
+            charter_config.selected_procedures, service, org_source_map=org_maps["procedures"], repo_root=repo_root, identity=identity, scope=scope
+        ),
         _render_selected_agent_profiles(
-            charter_config.selected_agent_profiles,
-            service,
-            org_source_map=org_maps["agent_profiles"],
-            repo_root=repo_root,
-            identity=identity,
+            charter_config.selected_agent_profiles, service, org_source_map=org_maps["agent_profiles"], repo_root=repo_root, identity=identity, scope=scope
         ),
         _render_selected_mission_step_contracts(
             charter_config.selected_mission_step_contracts,
@@ -564,6 +578,7 @@ def _render_selection_block(
             org_source_map=org_maps["mission_step_contracts"],
             repo_root=repo_root,
             identity=identity,
+            scope=scope,
         ),
     )
     for section_lines in sections:
@@ -582,6 +597,8 @@ def _extend_named_artifact_lines(
     org_source_map: dict[str, str] | None = None,
     progressive_kind: str | None = None,
     inline_urns: frozenset[str] = frozenset(),
+    *,
+    scope: CharterScope | None = None,
 ) -> None:
     """Append formatted artifact lines when the bucket is non-empty.
 
@@ -616,12 +633,7 @@ def _extend_named_artifact_lines(
         is_linked = progressive_kind is not None and f"{progressive_kind}:{artifact_id}" not in inline_urns
         if is_linked:
             formatted.append(f"    - {artifact_id}: {title}{suffix}")
-            formatted.extend(
-                _render_fetch_stanza(
-                    selector=f"{progressive_kind}:{artifact_id}",
-                    when_clause=_ACTION_DOCTRINE_LINK_WHEN,
-                )
-            )
+            formatted.extend(_render_fetch_stanza(selector=f"{progressive_kind}:{artifact_id}", when_clause=_ACTION_DOCTRINE_LINK_WHEN, scope=scope))
             continue
         summary = getattr(artifact, summary_attr) if summary_attr else None
         if isinstance(summary, str) and summary:

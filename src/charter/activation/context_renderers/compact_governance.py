@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from charter.activation.scope import CharterScope
 
-from typing import cast
 
 from charter.bundle import CHARTER_MD
 from charter.activation.context_renderers import render_authority_paths, render_critical_section_bodies
@@ -49,7 +48,7 @@ __all__ = [
 ]
 
 
-def _compact_section_block(repo_root: Path, action: str | None) -> str:
+def _compact_section_block(repo_root: Path, action: str | None, *, scope: CharterScope | None = None) -> str:
     """Render the compact-mode action-critical section block (DISPLAY-only).
 
     Reads the companion ``charter.md`` for the given *action* and delegates
@@ -67,7 +66,7 @@ def _compact_section_block(repo_root: Path, action: str | None) -> str:
         charter_content = charter_path.read_text(encoding="utf-8")
     except OSError:
         return ""
-    return str(render_critical_section_bodies(charter_content, action))
+    return str(render_critical_section_bodies(charter_content, action, scope=scope))
 
 
 def _render_compact_governance(
@@ -149,7 +148,7 @@ def _render_compact_governance(
     # section block) rather than raising. The block is computed once and
     # reused for both the appended section and the NFR-001 budget input
     # below, instead of re-reading the companion file a second time.
-    section_block_str = _compact_section_block(repo_root, action)
+    section_block_str = _compact_section_block(repo_root, action, scope=scope)
     if section_block_str:
         augmented_blocks.append(section_block_str)
 
@@ -168,7 +167,7 @@ def _render_compact_governance(
         )  # noqa: PLC0415
 
         service = _build_offering_service(repo_root)
-        profile_block_str = _render_profile_sections(profile, service)
+        profile_block_str = _render_profile_sections(profile, service, scope=scope)
         if profile_block_str:
             augmented_blocks.append(profile_block_str)
 
@@ -179,15 +178,7 @@ def _render_compact_governance(
     # WP05 (NFR-001) — compact view shares the budget cap with the
     # bootstrap path so prompts driven through the compact rail (e.g.
     # via the WP06 wiring) honour the same NFR-001 contract.
-    return cast(
-        str,
-        _enforce_token_budget(
-            combined,
-            action=action or "",
-            profile_block=profile_block_str,
-            section_block=section_block_str,
-        ),
-    )
+    return _enforce_token_budget(combined, action=action or "", profile_block=profile_block_str, section_block=section_block_str, scope=scope)
 
 
 def _render_compact_from_bundle(
