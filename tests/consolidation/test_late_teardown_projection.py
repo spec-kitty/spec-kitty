@@ -264,6 +264,14 @@ _REMEDY_PHRASES: dict[LateProjectionRefusalKind, tuple[tuple[str, ...], tuple[st
 }
 
 
+def test_no_two_refusal_kinds_share_a_remedy() -> None:
+    from specify_cli.consolidation.phase_teardown import _late_projection_remedy
+
+    remedies = {kind: _late_projection_remedy(LateProjectionRefused("detail", kind=kind), _BRANCH, _TARGET) for kind in LateProjectionRefusalKind}
+
+    assert len(set(remedies.values())) == len(LateProjectionRefusalKind), f"two kinds share a remedy: {remedies}"
+
+
 @pytest.mark.parametrize("kind", tuple(LateProjectionRefusalKind))
 def test_each_late_projection_refusal_names_the_remedy_that_clears_it(kind: LateProjectionRefusalKind) -> None:
     """Every kind keeps the triple, names its code and exit code, rules out `--abort`, and spells ITS repair."""
@@ -338,6 +346,7 @@ def test_resume_refuses_a_window_that_deletes_a_checkpoint_present_record(refuse
     rel = Path("kitty-specs") / mission.slug / deleted
     assert blob_present_at(mission.repo, mission.target_branch, str(rel)), "fixture invalid: the checkpoint must hold the record on the target"
     assert blob_present_at(mission.repo, mission.coord_branch, str(rel)), "fixture invalid: the checkpoint must hold the record on the coordination branch"
+    before = _git(mission.repo, "show", f"{mission.target_branch}:{rel}")
     _git(run.worktree, "rm", "-q", str(rel))
     _git(run.worktree, "commit", "-qm", "chore: delete the record on the coordination branch")
 
@@ -351,6 +360,7 @@ def test_resume_refuses_a_window_that_deletes_a_checkpoint_present_record(refuse
     assert run.worktree.is_dir(), f"the coordination worktree must be kept\n{output}"
     assert _coordination_marker(mission) == mission.coord_branch, f"the coordination marker must be kept\n{output}"
     assert blob_present_at(mission.repo, mission.target_branch, str(rel)), "the target must not lose the record either"
+    assert _git(mission.repo, "show", f"{mission.target_branch}:{rel}") == before, "the refusal must leave the target's bytes untouched"
     assert f"restore the deleted file on {mission.coord_branch!r}" in flat, output
     assert f"Error code: {COORD_LATE_PROJECTION_REFUSED}." in flat, output
     assert "land the named record" not in flat, output
