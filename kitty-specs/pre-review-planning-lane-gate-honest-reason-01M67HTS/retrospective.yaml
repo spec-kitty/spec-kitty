@@ -1,0 +1,127 @@
+schema_version: 1
+mission_id: 01M67HTSN74F8KRC82JGETD2NW
+mission_slug: pre-review-planning-lane-gate-honest-reason-01M67HTS
+mission_number: 244
+friendly_name: An honest pre-review gate reason for a planning-lane WP
+mission_type: software-dev
+target_branch: issue-6792-planning-lane-gate-honest-reason
+created_at: '2026-10-31T01:19:24.676018+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-31T01:19:24.676018+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-007
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-007
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 1 finding(s)
+  evidence_refs:
+  - e-010
+  details: The analysis-report.md artifact for this mission records 1 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-008
+  details: WP WP01 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP01 used self-review fallback instead of independent review
+  evidence_refs:
+  - e-009
+  details: 'WP WP01 recorded 1 ReviewerSelfApproval event(s): user self-reviewed after intended reviewer reviewer-renata failed
+    (No independent reviewer subagent is available in this harness; the implementer ran the reviewer-renata profile checklist
+    as a second pass over the committed diff (cycle 1 raised and fixed four findings).). Treat this as a review-independence
+    gap.'
+gaps:
+- id: g-001
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/tasks/WP01-planning-lane-gate-reason.md
+- id: e-006
+  kind: file
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/tasks/WP02-docs-and-changelog.md
+- id: e-007
+  kind: file
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/status.events.jsonl
+- id: e-008
+  kind: event_range
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/status.events.jsonl
+  range: 01M67PSVZ9KG7CZQB3NCZ6JHQH..01M67QRR5T8PP33SAQ3TBCZ6YN
+- id: e-009
+  kind: event_range
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/status.events.jsonl
+  range: 01M67PSXVVBKQQRMGC1RGJ8X4T
+- id: e-010
+  kind: file
+  path: kitty-specs/pre-review-planning-lane-gate-honest-reason-01M67HTS/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
