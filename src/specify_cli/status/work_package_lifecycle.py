@@ -434,6 +434,14 @@ def start_implementation_status(
                     actor=actor,
                     force=True,
                     reason=reason,
+                    # #6514: this is a FORCED withdrawal from the review lane, and the
+                    # status schema refuses any ``for_review -> in_progress`` event
+                    # without a ``review_ref``. ``force-override`` is the project's
+                    # established sentinel for exactly that (a recognised, non
+                    # resolvable member of ``review.cycle.REVIEW_FEEDBACK_SENTINELS``),
+                    # so it keeps the event valid without inventing a feedback pointer
+                    # that does not exist.
+                    review_ref="force-override",
                     workspace_context=workspace_context,
                     execution_mode=execution_mode,
                     repo_root=repo_root,
