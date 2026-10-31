@@ -1,0 +1,69 @@
+{
+  "mission_slug": "decisions-ratchet-deadlock-budget-01M67JEW",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/decisions/test_service_terminal_concurrency.py::test_coexistence_ratchet_is_indifferent_to_the_ambient_acquire_bound (green); half-by-half: deleting the two pinned.setattr lines reds it with DecisionError(LOCK_TIMEOUT)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:50:11.274411+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "tests/specify_cli/decisions/test_service_terminal_concurrency.py:56 one named _DEADLOCK_BUDGET_S; _Worker.finish(timeout=_DEADLOCK_BUDGET_S) is the only join budget; no 30.0 default remains (git grep)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:50:15.320639+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/decisions/test_service_terminal_concurrency.py::test_deadlock_backstop_reports_a_participant_that_never_finishes asserts the message carries the thread dump and index.json.lock",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:50:18.861779+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "same proof: a parked participant reds the verdict inside 0.2s of its budget and pytest.raises(AssertionError) would fail if the backstop returned silently",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:50:21.720155+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "uv run --frozen pytest tests/specify_cli/decisions/test_service_terminal_concurrency.py -q -n0 -> 7 passed; no assertion removed (git diff); broad slice 303 passed under -n 4",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:50:24.505091+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "uv run python -m scripts.docs.check_docs_freshness --ci -> exit=0 errors=0; row present in docs/development/testing/testing-flakiness.md",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T00:50:27.628925+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
