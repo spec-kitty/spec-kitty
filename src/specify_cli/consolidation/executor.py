@@ -534,6 +534,7 @@ def _run_lane_based_consolidation_locked(
         # this run reads it through the state so the CLI threading and the persisted
         # record can never disagree about what the claim was built against.
         dependency_refs=tuple(state.dependency_refs),
+        dependency_ref_pins=dict(state.dependency_ref_pins),
         recorded_attestations=recorded_attestations,
         own_pre_claim_moves=own_pre_claim_moves,
     )
