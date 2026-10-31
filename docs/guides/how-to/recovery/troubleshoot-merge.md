@@ -234,7 +234,7 @@ spec-kitty consolidate --mission <slug> --dependency-ref <dependency-branch>
 A declaration that names Mission work, a ref that moved since the claim, or a different set on
 `--resume` is refused with a `DEPENDENCY_REF_*` code (see the
 [refusal codes](../../../api/cli-commands.md#spec-kitty-consolidate-exit-codes-and-refusal-codes)).
-If the commits are a removed or canceled work package's, do not declare them; see
+The check cannot detect every removed work package: a raw-SHA declaration skips the branch-name guard, and a removed work package that left no recorded lane head, no lane-tip ref and no namespaced branch looks like any other dependency. If the commits are a removed or canceled work package's, do not declare them; see
 [restack onto a newer dependency branch](../missions/merge-mission.md#restack-onto-a-newer-dependency-branch).
 
 ### A lane changed after its work package was approved

@@ -395,8 +395,10 @@ riding a carrier lane (#4945), so the operator declares the ref:
   landing would introduce, so it reports claim-time refusals (a mis-declared ref, an
   unevaluable claim) instead of previewing green. It unions the recorded declaration with
   the command line, as a re-run would.
-- **Residual.** A removed work package that never recorded a `lane_head` stamp and whose lane
-  recorded no work tip (recorder hook not installed) and whose branch name is outside the
-  Mission namespace is not recognised as Mission work by name or record; the operator's
-  declaration is then the only authority.
+- **Residual.** The guard detects Mission work only through what the Mission left behind.
+  A raw-SHA declaration skips the namespace-name guard, because a SHA carries no branch name.
+  A removed work package that left no `lane_head` stamp, no lane-tip ref and no namespaced
+  branch cannot be detected: the operator's declaration is then the only authority.
+  Recorded stamps and lane tips are matched against the first-parent history back to the
+  window base, so a lane merged at an earlier commit than its later stamped tip is caught.
 
