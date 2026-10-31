@@ -1,0 +1,91 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M691R9QYPFBJ1MW4WXAHTJYT",
+  "materialized_at": "2026-10-31T13:18:00.958241+00:00",
+  "mission_number": "245",
+  "mission_slug": "ledger-adr-visibility-wording-01M68ZKY",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M691R8GJH2T109DVTTYX75HH",
+      "last_transition_at": "2026-10-31T13:17:59.698524+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T12:50:39Z – pi – shell_pid=122901 – Red-first: guard failed on the pre-fix ADR with ['doctor migrations'] unregistered. After the §5/#E rewrite: 2 passed; ADR/docs suite 139 passed; docs freshness errors=0 (5 pre-existing HELP-DRIFT/link warnings).",
+        "Ready for review: ADR §5/#E reconciled, guard green",
+        "- 2026-10-31T13:03:27Z – unknown – Review round 1 rejected F1 (FR-003 unasserted). Added test_retired_proposal_survives_as_marked_history with two negative controls; 3 guard tests pass, 139 ADR/docs tests pass.",
+        "Review round 1 finding F1 fixed: FR-003 assertion added with negative controls; guard 3 passed, ADR/docs 139 passed.",
+        "- 2026-10-31T13:07:10Z – unknown – Review round 2: F1 resolved — test_retired_proposal_survives_as_marked_history asserts both retired names plus a historical marker in §5; negative controls (paragraph deleted / marker removed) each fail. Guard 3 passed; 139 ADR/docs tests passed; docs freshness errors=0. Approved.",
+        "Review passed (round 2, reviewer-renata): ADR §5/#E name the shipped migrate-ledger surface, the rejected proposal survives as marked history, and the guard binds both. No src change, no alias."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M691R9QYPFBJ1MW4WXAHTJYT",
+      "last_transition_at": "2026-10-31T13:18:00.958241+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T13:09:56Z – pi – shell_pid=523356 – Changelog Fixed entry added (#6362). Gates: check_changelog_style 148 passed; check_spelling 0 findings; docs structural+ADR 37 passed; check_docs_freshness errors=0 (11 pre-existing HELP-DRIFT/link-403 warnings).",
+        "Ready for review: changelog entry + docs gates green",
+        "- 2026-10-31T13:16:02Z – pi – shell_pid=523356 – Review: entry is impact-first, 805 chars, cites (#6362), before/after accurate against the diff; no alias claimed that does not exist. Gates recorded: changelog style 148 passed, spelling 0 findings, freshness errors=0. Approved.",
+        "Review passed (reviewer-renata): changelog entry accurate and scoped; docs gates green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 523356,
+      "shell_pid_created_at": "1793452108.95",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}

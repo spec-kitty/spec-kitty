@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "ledger-adr-visibility-wording-01M68ZKY",
+  "mission_id": "01M68ZKYAA2QET1YH54WDZ5S2X",
+  "mission_branch": "issue-6362-adr-visibility-wording",
+  "target_branch": "issue-6362-adr-visibility-wording",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md",
+        "docs/adr/4.x/index.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/page-inventory.yaml",
+        "tests/docs/test_migration_ledger_adr_visibility.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T13:07:24.703146+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "aae59f2120ba27f77ecd2ef7e270d44314217f7b"
+}
