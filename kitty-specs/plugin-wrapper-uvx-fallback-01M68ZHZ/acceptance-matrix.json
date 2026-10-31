@@ -1,0 +1,89 @@
+{
+  "mission_slug": "plugin-wrapper-uvx-fallback-01M68ZHZ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/bundles/test_claude_wrapper.py::TestWrapperRuntimeFallback::test_bash_falls_back_to_pinned_uvx_when_no_cli_on_path (argv uvx --from spec-kitty-cli==9.9.9 spec-kitty mission list)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:06:13.055704+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_uvx_fallback_uses_from (cmd) + test_series_range_requirement_is_quoted; both rendered wrappers carry the --from form and no bare uvx <dist>",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:06:17.069138+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_bash_retries_within_the_series_when_the_pin_is_unpublished (uvx --from spec-kitty-cli>=9.9.9,<9.10 spec-kitty ...)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:06:20.134242+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_bash_prefers_path_cli_inside_the_supported_series and test_bash_ignores_path_cli_from_another_series",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:06:23.294374+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_bash_reports_the_uv_remedy_when_no_runtime_is_available; grep for 'pip install spec-kitty-cli' returns nothing in the module, tests and install guide",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:06:26.225692+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/guides/how-to/installation/install-claude-code-plugin.md the-runtime-wrapper-works section lists the four resolution steps; check_docs_freshness --ci errors=0",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:06:29.249609+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/changelog/CHANGELOG.md [Unreleased] Fixed entry (#6476), 876 chars; check_changelog_style 0 errors",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T13:06:42.053748+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No generated wrapper content, and no remedy on the Claude Code plugin install page, recommends 'pip install spec-kitty-cli'",
+      "verification_method": "grep_absence",
+      "verification_command": "pip install spec-kitty-cli",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/tool_surface/bundles docs/guides/how-to/installation/install-claude-code-plugin.md"
+    }
+  ]
+}
