@@ -20,6 +20,7 @@ from __future__ import annotations
 from kernel.git import GitCommandError, StatusEntry, changed_paths, status_entries
 from mission_runtime import MissionArtifactKind, MissionTopology, assert_topology_matches_manifest, placement_seam
 import subprocess
+import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -398,6 +399,11 @@ def _lane_base_reachable_from_target(
     )
     return result.returncode == 0
 
+
+#: #6753: bound on the read-only stale-base probe so a wedged ``git`` cannot hang a
+#: lane allocation. A timeout is "unknown" -- silent, never a warning and never a
+#: block (NFR-002), exactly like every other unanswerable probe.
+_STALE_BASE_PROBE_TIMEOUT_SECONDS = 10
 
 #: The destroyed-lane guard's decision-table outcome (WP01 campsite split,
 #: single-branch-topology-honesty-01M3M22V): ``"proceed"`` lets allocation
@@ -1218,6 +1224,29 @@ def allocate_lane_worktree(
             repo_root=repo_root,
             branch=branch,
         )
+        # #6753: a FRESH cut is the only route that decides a lane's parent, so
+        # this is where a base that has fallen behind the target must be
+        # reported. Warn only: the topology-derived parent is the documented
+        # default (C-005/FR-006) and refusing here would block every coord
+        # Mission whose target advanced -- the normal case on a busy target
+        # branch (C-002). The probe reads ``decision.parent_ref``, the ref the
+        # lane is really cut from, so an explicit ``--base`` that already
+        # contains the target tip reports nothing.
+        #
+        # STDERR, not stdout: ``spec-kitty implement --json`` keeps stdout for the
+        # machine-readable payload and its wrapper captures only the rich console
+        # (``_json_safe_output``), so a bare stdout print here would prepend a
+        # WARNING line to the JSON. This diagnostic fires on the common stale-coord
+        # cut, so it must not share that channel.
+        stale_base_warning = _stale_base_warning(
+            repo_root,
+            parent_ref=decision.parent_ref,
+            target_branch=lanes_manifest.target_branch,
+            target_tip=target_tip,
+            wp_id=wp_id,
+        )
+        if stale_base_warning is not None:
+            print(stale_base_warning, file=sys.stderr)
         _ensure_branch_exists(
             repo_root,
             coordination_branch,
@@ -1816,6 +1845,80 @@ def _read_coordination_branch(
     if isinstance(value, str) and value:
         return value
     return None
+
+
+def _lane_base_contains_target_tip(
+    repo_root: Path,
+    parent_ref: str,
+    target_tip: str,
+) -> bool | None:
+    """Return True when ``parent_ref`` contains ``target_tip``, False when not, ``None`` when unknown.
+
+    #6753: the read-only probe behind :func:`_stale_base_warning`. Its three-state
+    answer is deliberate -- a probe that cannot answer (a missing ref, a failed
+    git call, a non-git caller path) must not be read as EITHER "current" or
+    "stale": it stays silent instead of inventing a warning or a clean bill of
+    health (NFR-002).
+    """
+    try:
+        result = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", target_tip, parent_ref],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=_STALE_BASE_PROBE_TIMEOUT_SECONDS,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    return None
+
+
+def _stale_base_warning(
+    repo_root: Path,
+    *,
+    parent_ref: str,
+    target_branch: str,
+    target_tip: str | None,
+    wp_id: str,
+) -> str | None:
+    """Return the #6753 stale-base warning for a FRESH coord lane, or ``None``.
+
+    A coordination-topology lane is parented on the coordination branch by design
+    (C-005/FR-006). When the target branch advanced after that branch was minted,
+    the fresh cut silently starts from a tree that lacks the target's newer
+    commits -- the gap only surfaces later, as a prerequisite missing from the
+    lane (#6753). This turns that silence into one operator-facing line naming the
+    ref the lane was actually cut from, the target branch, the target commit the
+    base does not contain, and the ``--base`` remedy the dispatched agent path
+    accepts (WP02).
+
+    Reports only: the caller prints this and allocation proceeds unchanged. It
+    never re-parents, never merges and never raises (C-001/C-002/C-005).
+    ``None`` for every non-stale answer -- a current base, an unknown probe
+    (NFR-002) and a missing ``target_tip``. ``target_tip`` comes from
+    :func:`~specify_cli.core.vcs.git.capture_branch_tip`, which resolves a LOCAL
+    branch only: a target that exists solely as ``origin/<target>`` degrades to
+    silence rather than guessing (the same edge case the spec records).
+
+    The caller emits this on STDERR: stdout stays the machine-readable channel for
+    ``--json`` callers.
+    """
+    if target_tip is None:
+        return None
+    if _lane_base_contains_target_tip(repo_root, parent_ref, target_tip) is not False:
+        return None
+    return (
+        f"WARNING: stale lane base for {wp_id}: {parent_ref!r} does not contain the "
+        f"{target_branch!r} tip {target_tip[:8]}, so this lane is cut behind the target "
+        f"branch and lacks the commits the target has gained since that base was created. "
+        f"If this WP needs them (a prerequisite merge, for example), re-cut from the "
+        f"current target tip with: spec-kitty agent action implement {wp_id} "
+        f"--agent <name> --base {target_branch} (#6753)"
+    )
 
 
 def _ensure_branch_exists(
