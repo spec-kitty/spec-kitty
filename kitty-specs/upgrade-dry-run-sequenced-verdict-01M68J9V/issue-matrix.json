@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#5927": {
+      "evidence_ref": "spec.md C-005: pre-existing red cited for CI context only; this mission does not attempt #5927",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6552": {
+      "evidence_ref": "spec.md FR-001..FR-006, C-001..C-004: the mission makes the dry run report the sequenced verdict; WP01 owns the runner decision, WP02 the CLI witness and docs",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#6798": {
+      "evidence_ref": "spec.md C-005: pre-existing red cited for CI context only; this mission does not attempt #6798",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "spec.md C-005: pre-existing red cited for CI context only; this mission does not attempt #6801",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "spec.md C-005: pre-existing red cited for CI context only; this mission does not attempt #6816",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
