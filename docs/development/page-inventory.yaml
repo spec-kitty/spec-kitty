@@ -3914,6 +3914,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/how-to/auditing-special-case-workarounds.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/how-to/review-gates.md
   tag: current
   divio_type: how-to
