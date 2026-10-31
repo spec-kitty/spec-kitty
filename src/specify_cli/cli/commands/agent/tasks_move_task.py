@@ -335,6 +335,8 @@ class _MoveTaskState:
     actor: str = "user"
     canonical_lane: str | None = None
     review_feedback_pointer: str | None = None
+    #: #6632: the reviewer's feedback draft the verdict write retired (path), else ``None``.
+    retired_feedback_draft: str | None = None
     rejected_review_result: ReviewResult | None = None
     # SC-007: the structured review outcome (reviewer + verdict + reference) WP06
     # threads into ``build_transition_plan`` (WP02's optional ``review_result``
@@ -1733,6 +1735,7 @@ def _mt_output(st: _MoveTaskState) -> None:
             result["frontmatter_fields_skipped"] = ["agent"]
     if st.review_feedback_pointer is not None:
         result["review_feedback"] = st.review_feedback_pointer
+    result["retired_feedback_draft"] = st.retired_feedback_draft
     if st.pre_review_gate_metadata is not None:
         result["pre_review_gate"] = st.pre_review_gate_metadata
     # WP11 (T049/T050): an explicit ``false`` (never a bare missing key) so a

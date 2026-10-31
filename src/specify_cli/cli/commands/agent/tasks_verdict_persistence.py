@@ -789,6 +789,22 @@ def _announce_kept_feedback_draft(review_cycle: CreatedRejectedReviewCycle | Non
         typer.echo(f"Warning: {warning}", err=True)
 
 
+def _announce_retired_feedback_draft(st: _MoveTaskState, review_cycle: CreatedRejectedReviewCycle | None) -> None:
+    """#6632: say on stderr which feedback draft was removed, and record it for ``--json``.
+
+    Deleting a file is never silent: the notice names the path and the review-cycle
+    record that keeps its text. Stderr, so a ``--json`` caller's stdout is unchanged;
+    the same fact rides the JSON envelope as ``retired_feedback_draft``.
+    """
+    retired = getattr(review_cycle, "retired_feedback_source", None)
+    if retired is None or review_cycle is None:
+        return
+    import typer
+
+    st.retired_feedback_draft = str(retired)
+    typer.echo(f"Removed feedback draft {retired} (its text is kept in {review_cycle.artifact_path.name})", err=True)
+
+
 def _warn_feedback_file_not_recorded(st: _MoveTaskState, reason: str) -> None:
     """#6652: never drop a supplied ``--review-feedback-file`` in silence.
 
@@ -953,6 +969,7 @@ def _persist_approved_review_cycle(st: _MoveTaskState, ports: TasksPorts) -> Ver
     # too, so it retires the reviewer's draft under exactly the same predicates —
     # and therefore owes the operator the same stderr notice when it cannot.
     _announce_kept_feedback_draft(durability_signal.review_cycle)
+    _announce_retired_feedback_draft(st, durability_signal.review_cycle)
     _announce_verdict_durability_gap(st, durability_signal)
     return durability_signal
 
@@ -987,6 +1004,7 @@ def persist_rejected_review_cycle_for_rollback(st: _MoveTaskState, ports: TasksP
     review_cycle = durability_signal.review_cycle
     assert review_cycle is not None
     _announce_kept_feedback_draft(review_cycle)
+    _announce_retired_feedback_draft(st, review_cycle)
     st.review_feedback_pointer = review_cycle.pointer
     st.rejected_review_result = review_cycle.review_result
     _announce_verdict_durability_gap(st, durability_signal)
