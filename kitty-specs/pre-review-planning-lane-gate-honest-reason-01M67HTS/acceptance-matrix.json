@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "tests/.../test_tasks_move_task_pre_review_planning_lane_reason.py::test_code_change_wp_placed_in_the_planning_lane_keeps_the_incumbent_reason + ::test_undeclared_code_wp_in_the_planning_lane_keeps_the_incumbent_reason; classification via WorkProductKind.PLANNING_ARTIFACT and lanes.compute.is_planning_lane (no lane-planning literal)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T01:17:53.005969+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
