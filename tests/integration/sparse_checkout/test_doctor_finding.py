@@ -164,3 +164,114 @@ def test_doctor_fix_plan_skips_managed_lane_sparse_checkout(
     assert "git sparse-checkout disable (primary)" in result.stdout
     assert "repeat steps" not in result.stdout
     assert str(wt) not in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# #6844: the root checkout's branch must not turn a managed lane into legacy
+# ---------------------------------------------------------------------------
+
+MISSION_FREE_BRANCH = "before-the-mission"
+
+
+def _init_managed_lane_repo_with_mission_free_branch(repo: Path) -> tuple[Path, str]:
+    """Managed lane repo whose root checkout can stand on a Mission-free branch.
+
+    A base commit, then a branch cut *before* the Mission exists, then the
+    Mission and its lane worktree — the shape #6844 reports: the lane belongs to
+    a (fully merged) Mission that the root checkout's current branch knows
+    nothing about.
+    """
+    _init_bare_repo(repo)
+    _run(["git", "-C", str(repo), "branch", MISSION_FREE_BRANCH])
+
+    spec_dir = repo / "kitty-specs" / MISSION_SLUG
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
+    (spec_dir / "status.events.jsonl").write_text("{}\n", encoding="utf-8")
+    (spec_dir / "status.json").write_text("{}\n", encoding="utf-8")
+    (spec_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": MISSION_SLUG,
+                "mission_id": MISSION_ID,
+                "coordination_branch": COORD_BRANCH,
+            }
+        ),
+        encoding="utf-8",
+    )
+    _run(["git", "-C", str(repo), "add", "-A"])
+    _run(["git", "-C", str(repo), "commit", "-m", "mission"])
+    _run(["git", "-C", str(repo), "branch", COORD_BRANCH])
+
+    wt = _add_worktree(repo, f"{MISSION_SLUG}-lane-a")
+    _run(
+        [
+            "git",
+            "-C",
+            str(wt),
+            "checkout",
+            "-q",
+            "-B",
+            f"{COORD_BRANCH}-lane-a",
+            COORD_BRANCH,
+        ],
+    )
+    register_lane_sparse_checkout(wt, MISSION_SLUG, MID8)
+    return wt, MISSION_FREE_BRANCH
+
+
+def _truncate_lane_patterns(lane_path: Path) -> None:
+    """Leave only ``/*`` in the lane's pattern file, so it is not the managed shape."""
+    raw = _run(
+        ["git", "-C", str(lane_path), "rev-parse", "--git-path", "info/sparse-checkout"],
+    ).stdout.strip()
+    pattern_file = Path(raw)
+    if not pattern_file.is_absolute():
+        pattern_file = lane_path / pattern_file
+    pattern_file.write_text("/*\n", encoding="utf-8")
+
+
+def test_doctor_managed_lane_is_clean_on_mission_free_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#6844: on a branch that lacks the Mission, the lane is still not legacy.
+
+    The refusal used to advertise ``doctor sparse-checkout --fix`` for those
+    lanes, which would disable them — the remediation #1413 rules out.
+    """
+    repo = tmp_path / "branch-switched"
+    wt, mission_free = _init_managed_lane_repo_with_mission_free_branch(repo)
+    _run(["git", "-C", str(repo), "checkout", "-q", mission_free])
+    assert not (repo / "kitty-specs" / MISSION_SLUG).exists()
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
+        lambda: repo,
+    )
+
+    result = CliRunner().invoke(doctor_app, ["sparse-checkout"])
+    assert result.exit_code == 0, result.stdout
+    assert "No legacy sparse-checkout state detected" in result.stdout
+    assert "Legacy sparse-checkout state detected" not in result.stdout
+    assert str(wt) not in result.stdout
+
+
+def test_doctor_still_reports_genuine_legacy_on_mission_free_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Positive control on the same fixture family: drift is still reported."""
+    repo = tmp_path / "branch-switched-drift"
+    wt, mission_free = _init_managed_lane_repo_with_mission_free_branch(repo)
+    _truncate_lane_patterns(wt)
+    _run(["git", "-C", str(repo), "checkout", "-q", mission_free])
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
+        lambda: repo,
+    )
+
+    result = CliRunner().invoke(doctor_app, ["sparse-checkout"])
+    assert result.exit_code == 1, result.stdout
+    assert "Legacy sparse-checkout state detected" in result.stdout
+    assert str(wt) in result.stdout
+    assert "spec-kitty doctor sparse-checkout --fix" in result.stdout
