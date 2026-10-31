@@ -59,6 +59,9 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # Widened by mission ``doctrine-public-api-surface-01KZPDSR`` WP03
         # (T011): the gate-binding model on a mission-step contract. FACADE-ONLY.
         ("GateBinding", "charter.offering.missions.step_contracts"),
+        # Widened by #6741: the one step-contract URN rule, so the runtime
+        # pre-review gate join composes the same node identity the DRG mints.
+        ("step_contract_urn", "charter.offering.missions.step_contracts"),
     ],
     "charter.drg": [
         # PUBLIC: re-exported from the curated public surface ``charter.offering.api``
