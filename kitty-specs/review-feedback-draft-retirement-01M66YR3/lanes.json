@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "review-feedback-draft-retirement-01M66YR3",
+  "mission_id": "01M66YR37SCCQT0VNEBXJRWYEN",
+  "mission_branch": "kitty/mission-review-feedback-draft-retirement-01M66YR3",
+  "target_branch": "issue-6632-review-feedback-draft-retirement",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py",
+        "src/specify_cli/review/cycle.py",
+        "tests/specify_cli/cli/commands/agent/test_review_feedback_draft_retirement.py",
+        "tests/specify_cli/review/test_cycle_feedback_draft_retirement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/missions/review-work-package.md",
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "tests/agent/test_review_prompt_feedback_draft.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:52:01.021056+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "40acbc1b16b57f4f4e6b4117b510df5b7deb8046"
+}

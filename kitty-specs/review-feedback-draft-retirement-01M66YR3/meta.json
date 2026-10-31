@@ -1,0 +1,38 @@
+{
+  "accept_commit": "4d0d78c1d809390a64e2f31f0fbe56dc88fe2d89",
+  "acceptance_history": [
+    {
+      "accept_commit": "4d0d78c1d809390a64e2f31f0fbe56dc88fe2d89",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T19:27:23.049467+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "2183dbe6d23c6eec25e9b4c25c86df40452e05c2"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T19:27:23.049467+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "2183dbe6d23c6eec25e9b4c25c86df40452e05c2",
+  "baseline_merge_commit": "4980826ecbba6a0fd36b1d12839c436aa09c1c40",
+  "contracts": "none",
+  "contracts_rationale": "The mission adds no interface: no CLI flag, JSON document, protocol or event schema changes. The retirement is internal to review/cycle.py::create_rejected_review_cycle, and the review prompt wording is prose in an existing surface.",
+  "created_at": "2026-10-30T17:46:59.830703+00:00",
+  "flattened": false,
+  "friendly_name": "review feedback draft retirement",
+  "merged_at": "2026-10-30T19:29:40.377773+00:00",
+  "merged_commit": "d539fbb72fdad3b9aa64b1c91fbdeef86ffc2fce",
+  "mid8": "01M66YR3",
+  "mission_id": "01M66YR37SCCQT0VNEBXJRWYEN",
+  "mission_number": 244,
+  "mission_slug": "review-feedback-draft-retirement-01M66YR3",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances review feedback draft retirement on issue-6632-review-feedback-draft-retirement so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "A review rejection cleans up its own feedback draft instead of dead-ending the next move-task",
+  "slug": "review-feedback-draft-retirement-01M66YR3",
+  "status_phase": "1",
+  "target_branch": "issue-6632-review-feedback-draft-retirement",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T17:53:38.865322+00:00"
+}
