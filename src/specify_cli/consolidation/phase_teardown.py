@@ -57,7 +57,10 @@ from specify_cli.consolidation.bookkeeping_projection import (
     _project_status_bookkeeping_to_target,
     _resolve_ref_sha,
     AliasStatusEventsNotPreserved,
+    LateProjectionRefused,
     assert_alias_events_preserved,
+    assert_late_window_landed,
+    project_late_gate_matrix_commits,
 )
 from specify_cli.consolidation.state import (
     save_state,
@@ -376,6 +379,14 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     A resume that cannot build the window (no recorded coordination checkpoint or
     pre-mutation tip) while the branch still exists FAILS CLOSED instead: it cannot tell
     whether a late commit sits on the branch, and the delete that follows reads the live tip.
+
+    #6791 widens WHICH records this window carries and adds the proof that it carried them: a
+    gate matrix committed here (``agent issue-verdict`` after the refusal's own instruction to
+    commit on the coordination branch) is projected too -- the general path selector excludes
+    those kinds for the MID-merge window only, where the coord ref can hold a stale placeholder
+    -- and after the projection commit every coordination record changed in the window must be
+    byte-identical on the target, or the teardown REFUSES (branch, worktree and marker kept)
+    instead of deleting a commit it did not land.
     """
     checkpoint = run.coord_checkpoint
     base = run.state.pre_mutation_coord_sha
@@ -408,16 +419,57 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
             coord_ref=checkpoint.ref,
         )
         late_paths = [run.main_repo / rel for rel in _post_checkpoint_mission_paths(run.main_repo, run.mission_slug, base, checkpoint.ref)]
+        # #6791: a gate matrix committed in this window is newer than anything the target
+        # holds (every commit here landed after the landing was verified), so it is
+        # projected too -- with a guard that never loses or overturns a judgement the
+        # target already holds.
+        gate_matrix_paths = list(
+            project_late_gate_matrix_commits(
+                main_repo=run.main_repo,
+                mission_slug=run.mission_slug,
+                coord_ref=checkpoint.ref,
+                checkpoint_sha=base,
+            )
+        )
     except GitCommandError as exc:
         raise CoordinationTeardownError(
             f"the coordination commits that landed during teardown could not be read ({escape(str(exc))}); "
             f"branch {branch!r} was NOT deleted. Re-run `spec-kitty consolidate --resume` once the git error is fixed."
         ) from exc
-    paths = [path for path in dict.fromkeys([events_path, status_path, *late_paths]) if path.exists()]
-    if not _paths_have_status_changes(run.main_repo, paths):
-        return
-    _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)")
-    console.print(f"  Projected the coordination commit(s) that landed during teardown onto {target}")
+    except LateProjectionRefused as exc:
+        raise CoordinationTeardownError(_late_projection_refusal(branch, target, str(exc))) from exc
+    paths = [path for path in dict.fromkeys([events_path, status_path, *late_paths, *gate_matrix_paths]) if path.exists()]
+    if paths and _paths_have_status_changes(run.main_repo, paths):
+        _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): project coordination commits that landed during teardown (#5570)")
+        console.print(f"  Projected the coordination commit(s) that landed during teardown onto {target}")
+    # #6791: whatever the seams above could not carry is REFUSED here, before the branch
+    # delete, instead of dying with the branch at exit 0.
+    try:
+        assert_late_window_landed(
+            main_repo=run.main_repo,
+            mission_slug=run.mission_slug,
+            coord_ref=checkpoint.ref,
+            checkpoint_sha=base,
+            target_feature_dir=run.target_feature_dir,
+        )
+    except LateProjectionRefused as exc:
+        raise CoordinationTeardownError(_late_projection_refusal(branch, target, str(exc))) from exc
+
+
+def _late_projection_refusal(branch: str, target: str, detail: str) -> str:
+    """Operator-facing refusal for a late coordination commit that cannot be landed (#6791).
+
+    The coordination triple stays together -- branch, worktree and marker -- and the landing
+    is NOT rolled back (teardown runs after the rollback door), so the operator's work is
+    still there to land by hand.
+    """
+    return (
+        f"a coordination commit that landed after teardown began cannot be landed on {target!r} from "
+        f"branch {branch!r}: {detail}. Branch {branch!r} was NOT deleted, its worktree and the mission's "
+        "coordination marker were left intact, and the verified landing was not rolled back. "
+        f"Land the file on {target!r} yourself (or move it out of the Mission and commit it there), "
+        "then run `spec-kitty consolidate --resume` again."
+    )
 
 
 COORD_STATUS_FOLD_SUBJECT = "chore({slug}): fold coordination status before flatten (#3272)"

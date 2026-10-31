@@ -221,6 +221,25 @@ def _missing_issue_matrix_message(feature_dir: Path, issue_list: list[str]) -> s
     )
 
 
+def terminal_issue_verdicts() -> frozenset[str]:
+    """The TERMINAL ``issue-matrix.json`` verdicts (the ``done``-gate vocabulary).
+
+    One authority for "a row whose verdict is settled": every
+    :class:`~specify_cli.cli.commands.review._issue_matrix.IssueMatrixVerdict` member except the
+    documented non-terminal ``in-mission``. The scaffold placeholder ``unknown`` is not a member at
+    all and is therefore non-terminal too -- exactly the pair the
+    ``issue_matrix_verdict_terminality`` gate calls "unresolved".
+
+    It lives here, beside the terminality rule itself, because the CONSUMERS are domain-side: the
+    policy gate above and the consolidation late-teardown projection, which may not import the CLI
+    command layer. The enum's own import stays function-local, like every other read of it in this
+    module (#5222 F4: policy -> domain, not policy -> CLI).
+    """
+    from specify_cli.cli.commands.review._issue_matrix import IssueMatrixVerdict
+
+    return frozenset(member.value for member in IssueMatrixVerdict if member is not IssueMatrixVerdict.IN_MISSION)
+
+
 def issue_matrix_done_outcome(
     feature_dir: Path,
     *,

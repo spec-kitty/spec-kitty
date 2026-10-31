@@ -14,6 +14,7 @@ One-way import: this module never imports the command shim.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -659,7 +660,14 @@ def _post_checkpoint_commit_shas(main_repo: Path, checkpoint_sha: str, coord_ref
     return [line for line in out.splitlines() if line.strip()]
 
 
-def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoint_sha: str, coord_ref: str) -> list[str]:
+def _post_checkpoint_mission_paths(
+    main_repo: Path,
+    mission_slug: str,
+    checkpoint_sha: str,
+    coord_ref: str,
+    *,
+    include_gate_matrices: bool = False,
+) -> list[str]:
     """Non-status COORD-partition mission paths changed in ``checkpoint_sha..coord_ref``.
 
     Scoped to ``kitty-specs/<slug>/`` and with the two status byte-sets removed —
@@ -710,7 +718,18 @@ def _post_checkpoint_mission_paths(main_repo: Path, mission_slug: str, checkpoin
     #     #2804). The general projection must NOT overwrite an already-accepted target
     #     fill with the coord branch's stale finalize-time placeholder.
     # An unclassified kind (``None``) is not a coordination record and is not projected (#5697).
+    #
+    # #6791 -- the gate-matrix exclusion is WINDOW-SCOPED, not a property of the kind:
+    # in the MID-MERGE window above the coord ref can only hold the stale placeholder,
+    # but in the POST-TEARDOWN window (``pre_mutation_coord_sha..coord-tip`` on a
+    # ``--resume`` after a refused teardown) every commit landed AFTER the landing was
+    # verified, so a matrix commit there is newer than anything the target holds. That
+    # window passes ``include_gate_matrices=True`` and lands it through
+    # :func:`project_late_gate_matrix_commits`; the default keeps this selector's path
+    # set byte-identical because its output feeds the reconciliation squash proof.
     excluded_kinds = {MissionArtifactKind.ISSUE_MATRIX, MissionArtifactKind.ACCEPTANCE_MATRIX}
+    if include_gate_matrices:
+        excluded_kinds = set()
     # ``meta.json`` stays excluded on purpose (load-bearing, #5460): the driver replay runs the
     # registry body base-aware, while the real squash runs the meta driver two-way
     # (``SPEC_KITTY_META_MERGE_TWO_WAY``), so a replayed meta.json would not match the squash bytes.
@@ -798,6 +817,218 @@ def project_post_checkpoint_commits_to_target(
         projected_paths=tuple(projected),
         projected_commits=tuple(commits),
         coord_tip_sha=coord_tip,
+    )
+
+
+#: The two accept-time evidence documents whose rows carry judgements (#6791).
+_GATE_MATRIX_KINDS: frozenset[MissionArtifactKind] = frozenset({MissionArtifactKind.ISSUE_MATRIX, MissionArtifactKind.ACCEPTANCE_MATRIX})
+
+
+class LateProjectionRefused(Exception):
+    """A late coordination commit cannot be landed without losing evidence (#6791).
+
+    Raised by :func:`project_late_gate_matrix_commits` and
+    :func:`assert_late_window_landed` when the post-teardown window cannot be projected
+    faithfully. The teardown phase turns it into a ``CoordinationTeardownError`` so the
+    coordination branch, worktree and marker are kept for the operator.
+    """
+
+
+def _terminal_issue_verdicts() -> frozenset[str]:
+    """The TERMINAL ``issue-matrix.json`` verdicts, from their ONE domain home.
+
+    Read through :func:`specify_cli.tasks.issue_matrix_approval.terminal_issue_verdicts` (the same
+    module the ``issue_matrix_verdict_terminality`` gate asks) rather than importing the verdict
+    enum from the CLI command layer, which ``specify_cli/consolidation/**`` may not do.
+    """
+    from specify_cli.tasks.issue_matrix_approval import terminal_issue_verdicts
+
+    # Typed local: the cross-module return resolves as ``Any`` under the
+    # ``follow_imports = skip`` override this file's ``mypy --strict`` check uses.
+    verdicts: frozenset[str] = terminal_issue_verdicts()
+    return verdicts
+
+
+def _terminal_invariant_results() -> frozenset[str]:
+    """The terminal negative-invariant results (an actually established judgement)."""
+    from specify_cli.acceptance.matrix import TERMINAL_INVARIANT_RESULTS
+
+    return frozenset(TERMINAL_INVARIANT_RESULTS)
+
+
+def _established_judgements(kind: MissionArtifactKind, content: bytes | None) -> dict[str, bool] | None:
+    """Map each judgement a gate matrix records to whether it is ESTABLISHED (``True``).
+
+    ``None`` means the document could not be read as one, so nothing can be proven about
+    it (the caller refuses -- fail closed, NFR-002). ``{}`` means "no judgements held".
+    Keys are prefixed with the row kind so two documents can never collide.
+    """
+    if content is None:
+        return {}
+    try:
+        document = json.loads(content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(document, Mapping):
+        return None
+    if kind is MissionArtifactKind.ISSUE_MATRIX:
+        rows = document.get("rows", {})
+        if not isinstance(rows, Mapping):
+            return None
+        terminal = _terminal_issue_verdicts()
+        return {f"row {issue_ref}": isinstance(entry, Mapping) and entry.get("verdict") in terminal for issue_ref, entry in rows.items()}
+    criteria = document.get("criteria", [])
+    invariants = document.get("negative_invariants", [])
+    if not isinstance(criteria, list) or not isinstance(invariants, list):
+        return None
+    terminal_invariants = _terminal_invariant_results()
+    judgements: dict[str, bool] = {}
+    for criterion in criteria:
+        if not isinstance(criterion, Mapping):
+            return None
+        judgements[f"criterion {criterion.get('criterion_id')}"] = criterion.get("pass_fail") == "pass"
+    for invariant in invariants:
+        if not isinstance(invariant, Mapping):
+            return None
+        judgements[f"invariant {invariant.get('invariant_id')}"] = invariant.get("result") in terminal_invariants
+    return judgements
+
+
+def _assert_projection_preserves_evidence(
+    kind: MissionArtifactKind,
+    repo_rel: str,
+    target_content: bytes | None,
+    coord_content: bytes,
+) -> None:
+    """Refuse a gate-matrix projection that would lose or overturn a target judgement.
+
+    The gate-matrix exclusion this window lifts exists to protect accepted evidence, so
+    lifting it must not trade one data-loss mode for another: a coordination copy may bring
+    a row FORWARD (a new verdict, a newer evidence ref), never drop a row the target holds
+    and never turn an established judgement (terminal issue verdict, ``pass`` criterion,
+    terminal negative-invariant result) into a non-established one.
+    """
+    candidate = _established_judgements(kind, coord_content)
+    if candidate is None:
+        raise LateProjectionRefused(
+            f"the coordination branch's {repo_rel} could not be read as a {kind.value} document, "
+            "so the resume cannot prove that projecting it preserves the judgements the target holds"
+        )
+    held = _established_judgements(kind, target_content) or {}
+    dropped = sorted(key for key in held if key not in candidate)
+    overturned = sorted(key for key, established in held.items() if established and not candidate.get(key, False))
+    if not dropped and not overturned:
+        return
+    detail = "; ".join(
+        part
+        for part in (
+            f"drops {', '.join(dropped[:5])}{f' (and {len(dropped) - 5} more)' if len(dropped) > 5 else ''}" if dropped else "",
+            f"overturns {', '.join(overturned[:5])}{f' (and {len(overturned) - 5} more)' if len(overturned) > 5 else ''}" if overturned else "",
+        )
+        if part
+    )
+    raise LateProjectionRefused(f"projecting the coordination branch's {repo_rel} would lose evidence the target already holds: it {detail}")
+
+
+def project_late_gate_matrix_commits(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    coord_ref: str,
+    checkpoint_sha: str,
+) -> tuple[Path, ...]:
+    """Project the gate-matrix commits that landed after the coordination checkpoint (#6791).
+
+    The post-teardown window ``checkpoint_sha..coord_ref`` only holds commits made AFTER the
+    merge verified the landing, so a gate matrix there is newer than anything the target
+    holds -- unlike the mid-merge window the general selector excludes them for. Content is
+    brought FORWARD only: a path deleted on the coordination branch cannot be expressed by a
+    projection and REFUSES rather than resurrecting or silently dropping it.
+
+    Returns the target-checkout paths whose content was brought forward. Raises
+    :class:`LateProjectionRefused` when the projection cannot be proven evidence-preserving.
+    """
+    safe_slug = _validate_mission_slug_path_segment(mission_slug)
+    if not checkpoint_sha:
+        return ()
+    changed_paths = _post_checkpoint_mission_paths(
+        main_repo,
+        safe_slug,
+        checkpoint_sha,
+        coord_ref,
+        include_gate_matrices=True,
+    )
+    mission_prefix = Path(KITTY_SPECS_DIR) / safe_slug
+    target_feature_dir = placement_seam(main_repo, safe_slug).read_dir(_TARGET_SURFACE_KIND)
+    written: list[Path] = []
+    for repo_rel in changed_paths:
+        kind = kind_for_mission_file(repo_rel, mission_slug=safe_slug)
+        if kind not in _GATE_MATRIX_KINDS:
+            continue
+        coord_content = _read_git_blob_bytes(main_repo, coord_ref, repo_rel)
+        trusted = _assert_status_path_within_target_surface(
+            repo_root=main_repo,
+            mission_slug=safe_slug,
+            candidate=target_feature_dir / Path(repo_rel).relative_to(mission_prefix),
+        )
+        target_content = trusted.read_bytes() if trusted.is_file() else None
+        if coord_content is None:
+            if target_content is None:
+                continue
+            raise LateProjectionRefused(f"the coordination branch deletes {repo_rel}, and a projection can only bring content forward; the target still holds it")
+        if coord_content == target_content:
+            continue
+        _assert_projection_preserves_evidence(kind, repo_rel, target_content, coord_content)
+        trusted.parent.mkdir(parents=True, exist_ok=True)
+        trusted.write_bytes(coord_content)
+        written.append(trusted)
+    return tuple(written)
+
+
+def assert_late_window_landed(
+    *,
+    main_repo: Path,
+    mission_slug: str,
+    coord_ref: str,
+    checkpoint_sha: str,
+    target_feature_dir: Path,
+) -> None:
+    """Assert every coordination record of the late window reached the target (#6791).
+
+    The generalisation of the gate-matrix fix: whatever a late coordination commit changed
+    inside the Mission directory and the kind authority classifies as a coordination record
+    must be byte-identical on the target before the coordination branch is deleted, or the
+    teardown refuses. The two status byte-sets are excluded -- the union / rematerialize
+    stage owns them and runs after this projection. ``meta.json`` and every other
+    PRIMARY-partition artifact are not coordination records and are the target's own.
+
+    Raises:
+        LateProjectionRefused: at least one coordination record in the window is not landed.
+    """
+    safe_slug = _validate_mission_slug_path_segment(mission_slug)
+    if not checkpoint_sha:
+        return
+    mission_prefix = f"{KITTY_SPECS_DIR}/{safe_slug}/"
+    unlanded: list[str] = []
+    for changed in git_changed_paths(main_repo, checkpoint_sha, coord_ref, renames=True, pathspecs=(mission_prefix,)):
+        repo_rel = str(changed)
+        # The status byte-sets are owned by the union / rematerialize path (FR-005), which runs
+        # after this projection. Classified through the module's SSOT helper rather than a new
+        # filename list (R-014: one owner decides what a status bookkeeping file is).
+        if _classify_status_bookkeeping_filename(Path(repo_rel).name) is MissionArtifactKind.STATUS_STATE:
+            continue
+        relpath = repo_rel[len(mission_prefix) :]
+        if not is_coordination_kind_file(relpath):
+            continue
+        candidate = target_feature_dir / relpath
+        target_content = candidate.read_bytes() if candidate.is_file() else None
+        if _read_git_blob_bytes(main_repo, coord_ref, repo_rel) != target_content:
+            unlanded.append(repo_rel)
+    if not unlanded:
+        return
+    shown = ", ".join(unlanded[:20]) + (f" (and {len(unlanded) - 20} more)" if len(unlanded) > 20 else "")
+    raise LateProjectionRefused(
+        f"{len(unlanded)} coordination record(s) that landed on the coordination branch after the teardown gate are not landed on the target: {shown}"
     )
 
 
@@ -913,6 +1144,9 @@ __all__ = [
     "_target_branch_still_at_baseline",
     "_project_status_bookkeeping_to_target",
     "ProjectionResult",
+    "LateProjectionRefused",
+    "assert_late_window_landed",
+    "project_late_gate_matrix_commits",
     "project_post_checkpoint_commits_to_target",
     "projected_content_matches_target",
 ]
