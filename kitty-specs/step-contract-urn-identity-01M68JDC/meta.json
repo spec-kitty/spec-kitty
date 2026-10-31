@@ -24,6 +24,7 @@
   "purpose_context": "Activation tokens for built-in mission step contracts resolve to a DRG URN that is not a node, so the activation filter and the config<->graph parity check disagree with the shipped graph. Align the identity and add a drift gate.",
   "purpose_tldr": "One identity authority for mission step-contract DRG URNs (#6741)",
   "slug": "step-contract-urn-identity-01M68JDC",
+  "status_phase": "1",
   "target_branch": "issue-6741-step-contract-urn-identity",
   "topology": "lanes"
 }
