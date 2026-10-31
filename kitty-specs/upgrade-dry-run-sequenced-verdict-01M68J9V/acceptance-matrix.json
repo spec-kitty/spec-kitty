@@ -1,0 +1,79 @@
+{
+  "mission_slug": "upgrade-dry-run-sequenced-verdict-01M68J9V",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_dry_run_sequenced_verdict.py::test_the_dry_run_lists_the_migration_the_real_run_applies (one runner decision; dry applied == real applied)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T09:50:48.094417+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "BaseMigration.sequenced_after + tests/upgrade/test_dry_run_sequenced_verdict.py::test_the_reported_pair_declares_its_detect_input",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T09:50:50.728609+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_the_predicted_verdict_names_the_predecessor (predicted_after + change line); test_the_dry_run_lists_the_migration_the_real_run_applies",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T09:50:53.446143+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_an_undeclared_ordering_pair_claims_only_the_current_tree + test_a_real_run_keeps_its_target_state_wording",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T09:50:56.286157+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "m_3_2_6_issue_matrix_driver_repoint.py sequenced_after; test_the_reported_pair_declares_its_detect_input",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T09:50:59.446806+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_dry_run_sequenced_verdict_cli.py::test_the_dry_run_summary_names_the_migration_it_predicts, ::test_the_verbose_preview_agrees_with_the_dry_run_summary, ::test_a_real_run_lists_the_migration_without_a_prediction",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T09:51:04.983459+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "declaration-never-orders",
+      "description": "A sequenced_after declaration must never enter the execution-order authority",
+      "verification_method": "grep_absence",
+      "verification_command": "sequenced_after",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli/upgrade/migrations/order_manifest.txt"
+    }
+  ]
+}

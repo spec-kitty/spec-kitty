@@ -28,13 +28,14 @@ it silently never runs for users on the current release (the same failure
 mode documented in ``m_unify_charter_activation_finalize.py``).
 
 Same-version ordering: this module must run AFTER
-``m_3_2_6_gate_artifact_merge_drivers`` (which seeds the stale ``.md`` driver
-this migration repoints away from) on same-version ties.
-``MigrationRegistry.get_all()`` sorts by ``Version`` and stably preserves
-registration order for ties, which follows alphabetical ``pkgutil``
-module-discovery order -- ``m_3_2_6_gate_artifact_merge_drivers.py`` sorts
-before ``m_3_2_6_issue_matrix_driver_repoint.py`` (``g`` < ``i``), so the
-required ordering holds without any extra machinery.
+``m_3_2_6_gate_artifact_merge_drivers``, which declares the same config key with
+its own (filled-side) name and therefore rewrites the row-aware name this
+migration's ``detect()`` reads. Order is owned by
+``migrations/order_manifest.txt`` (ADR 2026-10-17-1 §2), where
+``3.2.6_gate_artifact_merge_drivers`` precedes this module under a ``# tie:``
+annotation; ``MigrationRegistry.get_all()`` returns that manifest order. The
+``sequenced_after`` declaration below records the same relationship for the DRY
+RUN (#6552), which writes nothing and so cannot observe the predecessor's write.
 """
 
 from __future__ import annotations
@@ -61,3 +62,10 @@ class IssueMatrixDriverRepointMigration(MergeDriverSeedingMigration):
     target_version = "3.2.6rc1"
     drivers = _DRIVERS
     dry_run_summary = "Would repoint the issue-matrix merge driver to issue-matrix.json"
+    # The gate migration declares the SAME config key with its own (filled-side) name,
+    # and applying it overwrites the row-aware name this migration's detect() reads --
+    # which is exactly what makes this migration needed. A dry run applies nothing, so
+    # without this declaration it would report this migration as
+    # "not needed (project already in target state)" while the real run applies it
+    # (#6552). Detect-input metadata only: order stays with order_manifest.txt.
+    sequenced_after = ("3.2.6_gate_artifact_merge_drivers",)

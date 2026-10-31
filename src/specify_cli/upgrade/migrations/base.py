@@ -171,6 +171,12 @@ class MigrationResult:
     warnings: list[str] = field(default_factory=list)
     manual_review_required: bool = False
     preserved_paths: list[str] = field(default_factory=list)
+    #: The declared detect-input predecessors a DRY RUN used to predict this verdict
+    #: (#6552): the migrations whose writes make ``detect()`` select this migration, and
+    #: which the same run reported (or predicted) applied before it. Empty for every
+    #: direct verdict, so a consumer can tell a prediction from a detection. Set only
+    #: under ``dry_run``; a real run decides from the tree itself.
+    predicted_after: tuple[str, ...] = ()
     #: Files already persisted when a non-atomic migration aborted mid-walk
     #: (FR-005). Empty on a clean run; populated on abort so the partial write is
     #: never silent. Each entry names one mission and one absolute file path.
@@ -274,6 +280,27 @@ class BaseMigration(ABC):
     #: of declaration order). Audit-only: a hash mismatch is surfaced read-only
     #: and never re-selects or re-applies the migration.
     content_hash_sources: ClassVar[tuple[str, ...]] = ()
+
+    #: The migration ids whose application, EARLIER IN THE SAME RUN, changes state
+    #: this migration's :meth:`detect` reads (#6552). A dry run applies nothing, so
+    #: every ``detect()`` would otherwise answer for the pre-run tree and report a
+    #: migration the real run applies as ``not needed``. With this declaration the
+    #: runner reports the dependent as applied once a declared predecessor has been
+    #: reported applied in the same dry run, which is the verdict the real run reaches.
+    #:
+    #: The declaration asserts that the predecessor's write LANDS in every project where
+    #: both migrations apply. A predecessor whose ``apply()`` conditions the write it is
+    #: being trusted for (for example a clone-local git-config write skipped outside a
+    #: repository) makes a prediction possible where the real run would skip.
+    #:
+    #: It is DETECT-INPUT metadata, never an execution-order authority:
+    #: ``order_manifest.txt`` owns order (ADR ``2026-10-17-1`` §2), this declaration
+    #: reorders nothing, and a real run never consults it (there the predecessor has
+    #: already written, so ``detect()`` answers for itself). An id that is not in this
+    #: run's selection, or is unknown to the registry, changes nothing. Leave it empty
+    #: unless ``detect()`` genuinely reads the predecessor's write; an empty declaration
+    #: keeps the honest ``not needed on the current tree`` dry-run wording.
+    sequenced_after: ClassVar[tuple[str, ...]] = ()
 
     #: The migration adopts the ledger: it records other migrations as settled
     #: when it applies (ADR ``2026-10-17-1`` §6, Amendment 2026-10-20). Selection

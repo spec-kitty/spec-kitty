@@ -1,0 +1,35 @@
+{
+  "accept_commit": "d277f083c0f270806d52f01c46b557a2e6da8136",
+  "acceptance_history": [
+    {
+      "accept_commit": "d277f083c0f270806d52f01c46b557a2e6da8136",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:51:18.540773+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "e99fc241e69944a6713a3b528399909e722db466"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T09:51:18.540773+00:00",
+  "accepted_by": "python-pedro",
+  "accepted_from_commit": "e99fc241e69944a6713a3b528399909e722db466",
+  "baseline_merge_commit": "ca0f2e134a5e9989f6362d8c0db3e210d38a946a",
+  "contracts": "none",
+  "contracts_rationale": "This mission adds no interface, endpoint or payload shape: it changes how the existing migration runner decides a dry-run verdict and keeps the existing migrations_applied/migrations_skipped shape.",
+  "created_at": "2026-10-31T08:47:58.633623+00:00",
+  "flattened": false,
+  "friendly_name": "upgrade dry run sequenced verdict",
+  "merged_at": "2026-10-31T09:51:30.485642+00:00",
+  "merged_commit": "ca0f2e134a5e9989f6362d8c0db3e210d38a946a",
+  "mid8": "01M68J9V",
+  "mission_id": "01M68J9V2MJ319PKD4QAGN2GCT",
+  "mission_number": 245,
+  "mission_slug": "upgrade-dry-run-sequenced-verdict-01M68J9V",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances upgrade dry run sequenced verdict on issue-6552-upgrade-dry-run-sequenced-verdict so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "upgrade dry run sequenced verdict",
+  "slug": "upgrade-dry-run-sequenced-verdict-01M68J9V",
+  "status_phase": "1",
+  "target_branch": "issue-6552-upgrade-dry-run-sequenced-verdict",
+  "topology": "single_branch"
+}
