@@ -24,6 +24,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#4327": {
+      "evidence_ref": "context only: the display-only summary payload field, deliberately not produced from a local transition; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6164": {
       "evidence_ref": "context only: the removal of the hosted/sync transport that made this payload builder the last surviving dry-run site; no work owed",
       "fr": null,
