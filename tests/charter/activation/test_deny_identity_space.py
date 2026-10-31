@@ -34,7 +34,7 @@ _OTHER = "010-specification-fidelity-requirement"
 
 
 class _FakeIdentity:
-    """Two directives known by stem and declared id; everything else unknown."""
+    """Two procedures known by stem and declared id; everything else unknown."""
 
     _IDS = {"canvas-review": "PROC_CANVAS_REVIEW", "keep": "KEEP"}
 
@@ -47,6 +47,11 @@ class _FakeIdentity:
         if token in self._IDS:
             return token
         return next((stem for stem, declared in self._IDS.items() if declared == token), None)
+
+    def urn(self, kind: ArtifactKind, token: str) -> str | None:
+        """The plain ``"<kind>:<declared id>"`` rule: these fixtures are ordinary kinds."""
+        declared = self.declared_id(kind, token)
+        return f"{kind.value}:{declared}" if declared is not None else None
 
 
 def _write(path: Path, text: str) -> None:

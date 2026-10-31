@@ -44,7 +44,7 @@ from charter.drg import (
     resolve_org_dirs,
 )
 from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
-from charter.mission_steps import MissionStepContract, MissionStepContractRepository
+from charter.mission_steps import MissionStepContract, MissionStepContractRepository, step_contract_urn
 from kernel.charter_pack_paths import project_pack_root
 from specify_cli.mission_metadata import resolve_mission_identity
 
@@ -71,7 +71,6 @@ _REVIEW_ACTION = "review"
 _IN_PROGRESS_TO_FOR_REVIEW = "in_progress->for_review"
 _FOR_REVIEW_TO_IN_REVIEW = "for_review->in_review"
 _IN_REVIEW_TO_APPROVED = "in_review->approved"
-_MSC_URN_PREFIX = "mission_step_contract"
 _PROJECT_CONTRACTS_DIRNAME = "mission_step_contracts"
 _NO_COVERAGE = "NO_COVERAGE"
 
@@ -148,12 +147,15 @@ def resolve_mission_type(snapshot: object, *, feature_dir: Path | None = None) -
 def owning_contract_urn(mission: str, action: str) -> str:
     """Canonical owning-contract URN ``mission_step_contract:<mission>/<action>``.
 
-    This is the URN of the contract ``get_by_action(mission, action)`` locates
-    (``drg.py:271`` canonical form). Its membership in the activated
-    ``mission_step_contract`` URN set is what gates whether the contract's
-    bindings fire — the handler name never participates in this join.
+    This is the URN of the contract ``get_by_action(mission, action)`` locates. Its membership in the
+    activated ``mission_step_contract`` URN set is what gates whether the contract's bindings fire —
+    the handler name never participates in this join.
+
+    Delegates to :func:`charter.offering.missions.step_contracts.step_contract_urn` (through the
+    ``charter.mission_steps`` facade) so the gate join and the DRG minter cannot spell the same node
+    two ways (#6741).
     """
-    return f"{_MSC_URN_PREFIX}:{mission}/{action}"
+    return step_contract_urn(mission, action)
 
 
 # ---------------------------------------------------------------------------

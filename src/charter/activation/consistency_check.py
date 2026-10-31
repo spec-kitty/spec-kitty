@@ -860,27 +860,48 @@ def _resolve_graph_kind_parity_stem(
     surviving_urns: frozenset[str],
     *,
     identity: IdentityIndex,
+    full_urns: frozenset[str],
     graph_kind_gaps: list[str],
     suggestions: list[str],
 ) -> None:
     """Resolve one activated token and check its per-ID DRG-graph survival (T007).
 
     The token resolves through *identity* (stem, declared id or URN, any layer;
-    FR-017). A token the index does not know is skipped: it is reported once, by
+    FR-017) and its URN through the same authority's canonical-URN map
+    (:meth:`IdentityIndex.urn`), so a kind whose node tail is not the declared id still compares
+    against a node that exists (#6741). A token the index does not know -- or whose canonical URN
+    the index cannot determine -- is skipped: it is reported once, by
     :func:`_check_unknown_references`, never again here (#6433).
+
+    Two distinguishable suggestions (#6741 FR-006), because they call for different operator
+    actions:
+
+    * *urn* absent from *full_urns* -- the artifact is not in the DRG at all, so the graph is
+      stale: regenerate it.
+    * *urn* present in *full_urns* but filtered out of *surviving_urns* -- the node exists and the
+      activation filter drops it. Regenerating cannot change that; the operator has to look at the
+      activation keys, and for a mission step contract at its owning mission type.
     """
-    declared = identity.declared_id(kind_enum, stem)
-    if declared is None:
+    urn = identity.urn(kind_enum, stem)
+    if urn is None:
         return
-    urn = f"{kind_enum.value}:{declared}"
-    if urn not in surviving_urns:
-        graph_kind_gaps.append(f"{cli_kind}/{stem}")
+    if urn in surviving_urns:
+        return
+    graph_kind_gaps.append(f"{cli_kind}/{stem}")
+    if urn in full_urns:
         suggestions.append(
-            f"{cli_kind}/{stem}: Activated in config.yaml but does not "
-            f"survive in the activation-filtered DRG graph. Regenerate "
-            f"graph.yaml / run 'spec-kitty charter resynthesize' and check "
-            f"'activated_kinds' in config.yaml."
+            f"{cli_kind}/{stem}: Resolves in graph.yaml but the activation filter drops it. "
+            f"Check 'activated_mission_types' (a mission step contract is kept only while its "
+            f"owning mission type is active) and 'activated_kinds' in config.yaml; regenerating "
+            f"the graph will not change this."
         )
+        return
+    suggestions.append(
+        f"{cli_kind}/{stem}: Activated in config.yaml but does not "
+        f"survive in the activation-filtered DRG graph. Regenerate "
+        f"graph.yaml / run 'spec-kitty charter resynthesize' and check "
+        f"'activated_kinds' in config.yaml."
+    )
 
 
 def _check_graph_kind_parity(
@@ -951,6 +972,9 @@ def _check_graph_kind_parity(
         return
 
     surviving_urns = frozenset(node.urn for node in activated_drg.nodes)
+    # The unfiltered set separates "this artifact is not in the DRG at all" (regenerate) from
+    # "activation filtered it out" (check the activation keys) -- #6741 FR-006.
+    full_urns = frozenset(node.urn for node in full_drg.nodes)
 
     for cli_kind in _CLI_KIND_TO_DRG_SINGULAR:
         raw_list = raw_activated_by_kind.get(cli_kind)
@@ -964,6 +988,7 @@ def _check_graph_kind_parity(
                 stem,
                 surviving_urns,
                 identity=identity,
+                full_urns=full_urns,
                 graph_kind_gaps=graph_kind_gaps,
                 suggestions=suggestions,
             )

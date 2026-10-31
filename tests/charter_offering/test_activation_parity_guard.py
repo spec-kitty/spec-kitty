@@ -303,7 +303,10 @@ def test_config_kind_absent_from_graph_bites(tmp_path: Path) -> None:
 
     assert report.coherent is False
     assert f"directive/{_REAL_DIRECTIVE_STEM}" in report.graph_kind_gaps
-    assert any("does not survive in the activation-filtered DRG graph" in s for s in report.suggestions)
+    # #6741: the node exists in the DRG and `activated_kinds` filters it out, so the suggestion
+    # names the activation keys instead of sending the operator to resynthesize a healthy graph.
+    assert any("the activation filter drops it" in s and "activated_kinds" in s for s in report.suggestions)
+    assert not any("resynthesize" in s and _REAL_DIRECTIVE_STEM in s for s in report.suggestions)
 
 
 def test_config_kind_present_in_activated_kinds_is_coherent(tmp_path: Path) -> None:

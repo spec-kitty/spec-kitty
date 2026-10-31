@@ -368,7 +368,10 @@ def _resolve_activated_urns_for_kind(
     fail-closed-**report** ``_check_graph_kind_parity``).
 
     Tokens resolve through *identity*, or an index built once for this call over
-    *offering_root*, *org_roots* and ``layer_roots["project"]`` (Decision ``urn_split``).
+    *offering_root*, *org_roots* and ``layer_roots["project"]`` (Decision ``urn_split``). The URN
+    itself comes from :meth:`IdentityIndex.urn` -- the one authority -- so a kind whose node tail is
+    not the declared id (``mission_step_contract``, whose tail is ``<mission>/<action>``) resolves to
+    a node that exists rather than to a phantom URN (#6741).
 
     ``node_kind`` values in :data:`_NO_STEM_RESOLUTION_KINDS` (currently only
     ``anti_pattern``) bypass identity resolution entirely: their
@@ -391,9 +394,9 @@ def _resolve_activated_urns_for_kind(
         identity = IdentityIndex.from_roots(offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
     urns: set[str] = set()
     for token in activated_ids:
-        declared = identity.declared_id(kind_enum, token)
-        if declared is not None:  # an unknown token is skipped: _check_unknown_references reports it
-            urns.add(f"{kind_enum.value}:{declared}")
+        urn = identity.urn(kind_enum, token)
+        if urn is not None:  # an unknown token is skipped: _check_unknown_references reports it
+            urns.add(urn)
     return frozenset(urns)
 
 
