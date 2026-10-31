@@ -78,6 +78,7 @@ from typing import TYPE_CHECKING, Any
 import typer
 
 if TYPE_CHECKING:
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
     from specify_cli.lanes.models import ExecutionLane, LanesManifest
     from specify_cli.workspace.context import ResolvedWorkspace
 
@@ -1185,10 +1186,17 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     manual in-worktree ``git commit`` — violating the tool-drives-commits rule.
     When auto-commit is enabled, stage + commit the finished deliverables via the
     tool (``safe_commit`` on the lane branch) so the readiness guard sees a clean
-    tree. Best-effort: any failure leaves the tree untouched and the existing
-    ``_validate_ready_for_review`` guard explains the situation.
+    tree. Best-effort: a failure BEFORE the commit leaves the tree untouched and
+    the existing ``_validate_ready_for_review`` guard explains the situation.
+
+    The deliverable set is exact files, never a directory (#6750): untracked
+    entries are read expanded (``--untracked-files=all``), because ``safe_commit``
+    refuses a directory pathspec rather than letting git expand it into paths the
+    caller never requested. A ``SafeCommitRecoveryFailed`` means the commit DID
+    land, so it is reported as landed (with its SHA), never as "could not commit".
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
     from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError
 
     if st.owned is not None:
@@ -1228,7 +1236,13 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
         return
 
     try:
-        status = status_entries(worktree_path, untracked=None)
+        # #6750: read untracked entries EXPANDED (``--untracked-files=all``). With the
+        # repository default a brand-new directory arrives as ONE collapsed entry
+        # (``?? .zig-cache/``); that directory would then be requested from
+        # ``safe_commit``, which commits exact file paths and refuses a directory
+        # pathspec. The expansion is the same rule the public ``safe-commit`` CLI
+        # applies (``safe_commit_cmd._expand_arguments``), not a second helper.
+        status = status_entries(worktree_path, untracked="all")
     except GitCommandError:
         # Advisory: a failed probe just skips the best-effort auto-commit; the
         # for_review uncommitted-changes guard still runs and blocks the move.
@@ -1276,11 +1290,37 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
         from specify_cli.lanes.lane_tip import record_tip
 
         record_tip(st.main_repo_root, workspace.branch_name)
-        if not st.json_output:
-            _tasks.console.print(f"[cyan]Committed lane deliverables for {st.task_id} on {workspace.branch_name} before review.[/cyan]")
+        _mt_report_lane_commit(st, f"[cyan]Committed lane deliverables for {st.task_id} on {workspace.branch_name} before review.[/cyan]")
+    except SafeCommitRecoveryFailed as exc:
+        # #6750: with a ``commit_sha`` this class was raised AFTER HEAD moved, so it
+        # must never be rendered as "could not auto-commit" -- that tells the
+        # implementer to redo work that is already committed. Say what is true. The
+        # class is also raised BEFORE any commit when the requested paths' staged
+        # state could not be captured (no ``commit_sha``): that one did not land.
+        _mt_report_lane_commit(st, _mt_lane_commit_failure_message(st, workspace.branch_name, exc))
     except Exception as exc:  # noqa: BLE001 — best-effort; the guard explains on failure
-        if not st.json_output:
-            _tasks.console.print(f"[yellow]Warning:[/yellow] could not auto-commit lane deliverables for {st.task_id}: {exc}")
+        _mt_report_lane_commit(st, f"[yellow]Warning:[/yellow] could not auto-commit lane deliverables for {st.task_id}: {exc}")
+
+
+def _mt_report_lane_commit(st: _MoveTaskState, message: str) -> None:
+    """Print the auto-commit outcome unless the caller asked for JSON output."""
+    if st.json_output:
+        return
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    _tasks.console.print(message)
+
+
+def _mt_lane_commit_failure_message(st: _MoveTaskState, branch_name: str, exc: SafeCommitRecoveryFailed) -> str:
+    """The truthful wording for a recovery-class auto-commit failure (#6750).
+
+    ``SafeCommitRecoveryFailed`` covers both a commit that LANDED (it carries the
+    ``commit_sha``) and a pre-mutation failure whose staged state could not be
+    captured (no ``commit_sha``). Only the first may be reported as landed.
+    """
+    if exc.commit_sha:
+        return f"[yellow]Warning:[/yellow] {st.task_id} lane deliverables landed on {branch_name} as {exc.commit_sha}, but the commit reported a problem: {exc}"
+    return f"[yellow]Warning:[/yellow] could not auto-commit lane deliverables for {st.task_id}: {exc}"
 
 
 def _mt_gather_review_facts(st: _MoveTaskState) -> None:

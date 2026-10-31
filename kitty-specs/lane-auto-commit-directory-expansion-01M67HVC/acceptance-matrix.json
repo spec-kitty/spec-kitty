@@ -1,0 +1,49 @@
+{
+  "mission_slug": "lane-auto-commit-directory-expansion-01M67HVC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mt_lane_deliverable_directory_6750.py::test_collector_commits_an_untracked_directory_without_blaming_a_hook (lane-b 2247aba/ae07380); reverting untracked='all' turns it red",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T02:50:52.343814+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/git/test_safe_commit_directory_argument_6750.py::test_safe_commit_refuses_directory_argument_before_mutation (lane-a decf006/7440542); removal turns it red with the old hook wording",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T02:50:56.018460+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mt_lane_deliverable_directory_6750.py::test_genuine_hook_sweep_still_raises_unrequested_paths (real pre-commit hook, names only the swept path)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T02:50:59.430798+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_collector_reports_a_landed_commit_after_a_hook_sweep + test_collector_reports_a_pre_mutation_failure_as_not_committed (both branches of the landed-vs-failed arm)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T02:51:02.938376+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
