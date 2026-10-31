@@ -82,7 +82,6 @@ from specify_cli.cli.commands.agent.tasks_outline import (
     TaskIdResult,
     _INLINE_SUBTASKS_RE,
     _normalize_task_id_input,
-    _resolve_history_wp_id,
     _resolve_wp_id,
 )
 from specify_cli.core.subtask_rows import (
@@ -353,10 +352,30 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
             _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
 
+def _is_bare_wp_id(task_id: str) -> bool:
+    """True when *task_id* is a work-package id (``WP<digits>``) rather than a subtask id."""
+    return bool(re.fullmatch(r"WP\d+", task_id, re.IGNORECASE))
+
+
 def _owners_for_task(owner_map: dict[str, frozenset[str]], tasks_content: str, task_id: str) -> list[str]:
-    """Owning WPs of *task_id*: the authored rosters decide; ``tasks.md`` only when no roster does."""
-    owners: list[str] = authored_roster_owners(owner_map, task_id) or history_wp_ids(tasks_content, task_id)
-    return owners
+    """Every WP that claims *task_id*: authored rosters UNION structured ``tasks.md`` rows (#6463).
+
+    The union, not a precedence fallback: a legacy WP file that authors no
+    ``subtasks:`` roster still claims its ids through structured ``tasks.md``
+    rows, and hiding that claim behind another WP's roster made a genuinely
+    shared id look unique — the caller then silently wrote to the roster owner.
+    Prose never contributes, because :func:`history_wp_ids` yields structured
+    rows only (#5953).
+
+    A ``WP<digits>`` id is claimed by authored rosters alone: in ``tasks.md`` a
+    ``WP<digits>`` token is a work-package *reference* by construction (a WP index
+    row, a dependency note), so letting it claim the id would turn a work package
+    into its own subtask (#6463).
+    """
+    roster_owners: list[str] = authored_roster_owners(owner_map, task_id)
+    if _is_bare_wp_id(task_id):
+        return roster_owners
+    return sorted(set(roster_owners) | set(history_wp_ids(tasks_content, task_id)))
 
 
 def _not_an_owner_message(st: _MarkStatusState, task_id: str, owners: list[str]) -> str:
@@ -368,13 +387,30 @@ def _not_an_owner_message(st: _MarkStatusState, task_id: str, owners: list[str])
     return f"{head} (owners: {', '.join(owners)}). Re-run with {rerun}."
 
 
+def _wp_shaped_ambiguous_message(st: _MarkStatusState, task_id: str, owners: list[str]) -> str:
+    """Operator message for a work-package id a WP also authors as a subtask (#6463).
+
+    Both readings are legitimate, so the refusal names them and the command for
+    each rather than guessing which one the caller meant.
+    """
+    return (
+        f"{task_id} is a work-package id and a subtask of {', '.join(owners)} in Mission {st.mission_slug}; "
+        f"pass --wp {owners[0]} to record the subtask, or use "
+        f"`spec-kitty agent tasks move-task {task_id} --to <lane>` to change the work package."
+    )
+
+
 def _resolve_task_owners(st: _MarkStatusState, tasks_content: str) -> None:
     """Resolve and record (``st.task_wps``) the owning WP of every requested id.
 
     Refuses BEFORE anything is written when an id is shared by several WPs and no
     ``--wp`` was given, when ``--wp`` does not own the id, or when an authored
     roster cannot be read (fail closed: skipping it could hide a second owner).
-    Bare ``WP<digits>`` ids are left to ``_resolve_wp_id``'s dedicated rejection.
+
+    A bare ``WP<digits>`` id is not exempt: when some WP authors it as a subtask it
+    obeys the same rules (its owner is recorded, so the resolution and the emit
+    agree); when no WP does, it stays out of ``task_wps`` and
+    :func:`_resolve_wp_id`'s lane-transition rejection applies.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
@@ -384,19 +420,24 @@ def _resolve_task_owners(st: _MarkStatusState, tasks_content: str) -> None:
         _tasks._output_error(st.json_output, f"Cannot determine which work package owns the subtasks: {exc}")
         raise typer.Exit(1) from exc
     for task_id in st.task_ids:
-        if re.fullmatch(r"WP\d+", task_id, re.IGNORECASE):
-            continue
         owners = _owners_for_task(owner_map, tasks_content, task_id)
-        if st.wp is None and len(owners) > 1:
-            _tasks._output_error(
-                st.json_output,
-                f"{task_id} is a subtask of {', '.join(owners)} in Mission {st.mission_slug}; pass --wp to select one.",
-            )
-            raise typer.Exit(1)
-        if st.wp is not None and st.wp not in owners:
+        if st.wp is None:
+            # A ``WP<digits>`` id its owner authors as a subtask reads two ways (the
+            # work package, or that subtask), so it is never resolved by guessing:
+            # ``--wp`` selects the subtask reading (#6463).
+            if _is_bare_wp_id(task_id) and owners:
+                _tasks._output_error(st.json_output, _wp_shaped_ambiguous_message(st, task_id, owners))
+                raise typer.Exit(1)
+            if len(owners) > 1:
+                _tasks._output_error(
+                    st.json_output,
+                    f"{task_id} is a subtask of {', '.join(owners)} in Mission {st.mission_slug}; pass --wp to select one.",
+                )
+                raise typer.Exit(1)
+        elif st.wp not in owners:
             _tasks._output_error(st.json_output, _not_an_owner_message(st, task_id, owners))
             raise typer.Exit(1)
-        if owners:
+        if owners and (st.wp is not None or len(owners) == 1):
             st.task_wps[task_id] = st.wp or owners[0]
 
 
@@ -413,6 +454,53 @@ def _classify_against_snapshot(st: _MarkStatusState, result: TaskIdResult, task_
     if subtasks.get(task_id) == requested:
         return TaskIdResult(task_id, TaskIdResolutionOutcome.ALREADY_SATISFIED, result.format, f"{task_id} in {wp_id} is already {requested}; no event written.")
     return TaskIdResult(task_id, TaskIdResolutionOutcome.UPDATED, result.format, f"Recorded {requested} for {task_id} in {wp_id}.")
+
+
+def _not_found_result(task_id: str) -> TaskIdResult:
+    """The canonical ``NOT_FOUND`` result for an id no resolver recognised."""
+    return TaskIdResult(
+        id=task_id,
+        outcome=TaskIdResolutionOutcome.NOT_FOUND,
+        format=None,
+        message=f"{task_id} was not found in any supported task format.",
+    )
+
+
+def _resolve_one_task_id(
+    st: _MarkStatusState,
+    task_id: str,
+    *,
+    before_content: str,
+    checkbox_lines: list[str],
+    pipe_table_lines: list[str],
+) -> TaskIdResult:
+    """Resolve one requested id, honouring the work-package-id rule (#6463).
+
+    A ``WP<digits>`` id that some WP authors as a subtask is resolved from that
+    authored roster — the same source the ownership decision used — so the
+    resolution and the emit cannot disagree about which row it is. A ``WP<digits>``
+    id no WP authors is a lane transition and is rejected HERE, before the legacy
+    row shapes run, so a WP index-table row or an inline ``Subtasks:`` list cannot
+    claim it (the reproduced case recorded ``{"WP02": "done"}`` on WP02).
+
+    Every other id keeps the historical resolver order unchanged: legacy
+    ``tasks.md`` shapes first, then the lane-transition rejection (a no-op for
+    non-WP-shaped ids), then the authored roster.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    if _is_bare_wp_id(task_id):
+        if task_id not in st.task_wps:
+            return _resolve_wp_id(task_id, st.status, st.mission_slug, st.feature_dir) or _not_found_result(task_id)
+        return _resolve_authored_roster(task_id, st.feature_dir) or _not_found_result(task_id)
+    return (
+        _resolve_checkbox(task_id, checkbox_lines, st.status)
+        or _resolve_pipe_table(task_id, pipe_table_lines, st.status)
+        or _tasks._resolve_inline_subtasks(task_id, before_content, st.status, st.feature_dir)
+        or _resolve_wp_id(task_id, st.status, st.mission_slug, st.feature_dir)
+        or _resolve_authored_roster(task_id, st.feature_dir)
+        or _not_found_result(task_id)
+    )
 
 
 def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
@@ -450,18 +538,12 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
             # Probe throwaway copies so only the event emit records completion.
             checkbox_lines = list(lines)
             pipe_table_lines = list(lines)
-            result = (
-                _resolve_checkbox(task_id, checkbox_lines, st.status)
-                or _resolve_pipe_table(task_id, pipe_table_lines, st.status)
-                or _tasks._resolve_inline_subtasks(task_id, before_content, st.status, st.feature_dir)
-                or _resolve_wp_id(task_id, st.status, st.mission_slug, st.feature_dir)
-                or _resolve_authored_roster(task_id, st.feature_dir)
-                or TaskIdResult(
-                    id=task_id,
-                    outcome=TaskIdResolutionOutcome.NOT_FOUND,
-                    format=None,
-                    message=f"{task_id} was not found in any supported task format.",
-                )
+            result = _resolve_one_task_id(
+                st,
+                task_id,
+                before_content=before_content,
+                checkbox_lines=checkbox_lines,
+                pipe_table_lines=pipe_table_lines,
             )
             result = _classify_against_snapshot(st, result, task_id)
             results.append(result)
@@ -502,15 +584,21 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
         return
 
     target_status = _requested_subtask_value(st.status)
-    tasks_content = st.tasks_md.read_text(encoding="utf-8")
     resolved_tasks_by_wp: dict[str, list[str]] = {}
     unresolved_tasks: list[str] = []
     for task_id in st.updated_tasks:
-        history_wp_id = st.task_wps.get(task_id) or _resolve_history_wp_id(tasks_content, task_id) or owning_wp_from_authored_roster(st.feature_dir, task_id)
-        if history_wp_id is None:
+        # ``st.task_wps`` is the ONE ownership authority of this command: the id was
+        # attributed there once, under ``--wp``/ambiguity checks, and the write must
+        # not re-derive it. The former fallbacks (``_resolve_history_wp_id``,
+        # ``owning_wp_from_authored_roster``) picked the first matching WP, so any
+        # divergence between them and the resolution wrote to a WP nobody selected
+        # (#6463). An unattributable id is a hard refusal, collected BEFORE the
+        # first emit so a batch never half-writes.
+        owner_wp_id = st.task_wps.get(task_id)
+        if owner_wp_id is None:
             unresolved_tasks.append(task_id)
         else:
-            resolved_tasks_by_wp.setdefault(history_wp_id, []).append(task_id)
+            resolved_tasks_by_wp.setdefault(owner_wp_id, []).append(task_id)
     if unresolved_tasks:
         joined = ", ".join(unresolved_tasks)
         raise ValueError(f"Could not resolve owning work package for subtask event: {joined}")
@@ -812,18 +900,22 @@ def _resolve_authored_roster(task_id: str, feature_dir: Path) -> TaskIdResult | 
         id=task_id,
         outcome=TaskIdResolutionOutcome.UPDATED,
         format=TaskIdResolutionFormat.AUTHORED_ROSTER,
-        message=f"{task_id} resolved from {wp_id}'s authored subtasks roster.",
+        # Deliberately unnamed: ``owning_wp_from_authored_roster`` returns the FIRST
+        # roster owner, and an id several WPs author must not be reported as one
+        # WP's (#6463). The scoped owner is named by ``_classify_against_snapshot``
+        # from ``st.task_wps``, which is the attribution the write uses.
+        message=f"{task_id} resolved from an authored subtasks roster.",
     )
 
 
 def owning_wp_from_authored_roster(feature_dir: Path, task_id: str) -> str | None:
-    """Return the WP whose authored ``subtasks:`` roster contains *task_id*.
+    """Return the first WP whose authored ``subtasks:`` roster contains *task_id*.
 
-    One source for two surfaces. ``_resolve_authored_roster`` uses it to decide
-    whether an id exists at all, and the event emit uses it to attribute the id
-    to a work package — previously each re-derived ownership from ``tasks.md``
-    row shapes, which is why fixing only the first left the emit failing with
-    "Could not resolve owning work package" (#2962).
+    An EXISTENCE probe for ``_resolve_authored_roster`` ("does any WP author this id
+    as a subtask?"), not an ownership decision: the first roster owner is not
+    necessarily the owner, so this must never attribute a write. The ownership
+    decision and the event attribution both read
+    :func:`~specify_cli.core.subtask_rows.authored_roster_owner_map` instead (#6463).
 
     An unreadable or ambiguous WP file is skipped rather than raised: the guard
     already reports roster corruption on its own path, and the callers here have
