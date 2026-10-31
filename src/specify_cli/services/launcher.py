@@ -125,10 +125,26 @@ def detach_options(*, windows: bool) -> dict[str, Any]:
     return {"start_new_session": True}
 
 
+#: JVM option variables the JVM reads on its own: ambient values would change the verified jar's behaviour.
+JVM_OPTION_ENV_VARS = ("JAVA_TOOL_OPTIONS", "JDK_JAVA_OPTIONS", "_JAVA_OPTIONS")
+_JAR_FLAG = "-jar"
+
+
+def spawn_env(argv: Sequence[str]) -> dict[str, str] | None:
+    """The child environment: ``None`` (inherit) for a native build, the process env minus the JVM option variables for ``java -jar``."""
+    if _JAR_FLAG not in argv[1:3]:
+        return None
+    return {name: value for name, value in os.environ.items() if name not in JVM_OPTION_ENV_VARS}
+
+
 def spawn_detached(argv: Sequence[str], log: IO[bytes]) -> subprocess.Popen[bytes]:
-    """Start *argv* detached, ``stdin`` from the null device and both output streams into *log*."""
+    """Start *argv* detached, ``stdin`` from the null device and both output streams into *log*.
+
+    A ``java -jar`` launch drops the ambient JVM option variables (:data:`JVM_OPTION_ENV_VARS`).
+    """
     return subprocess.Popen(
         list(argv),
+        env=spawn_env(argv),
         stdin=subprocess.DEVNULL,
         stdout=log,
         stderr=log,

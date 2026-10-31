@@ -650,6 +650,28 @@ def test_creation_proof_tells_a_reused_pid_from_an_unproven_one(
     assert launcher_module.creation_proof(_endpoint(4242, "1970-01-01T00:16:40Z"), start_window=15.0) is expected
 
 
+@pytest.mark.parametrize(
+    ("argv", "jvm_vars_kept"),
+    [
+        (["/opt/jdk-25/bin/java", "-jar", "/cache/write-service.jar", "--port", "0"], False),
+        (["/cache/write-service-linux-x64", "--port", "0"], True),  # a native build inherits the environment untouched
+    ],
+)
+def test_a_jar_launch_drops_the_ambient_jvm_option_variables(monkeypatch: pytest.MonkeyPatch, argv: list[str], jvm_vars_kept: bool) -> None:
+    for name in launcher_module.JVM_OPTION_ENV_VARS:
+        monkeypatch.setenv(name, "-javaagent:/tmp/evil.jar")
+    monkeypatch.setenv("PATH", "/usr/bin")
+    popen = mock.Mock()
+    monkeypatch.setattr(launcher_module.subprocess, "Popen", popen)
+    launcher_module.spawn_detached(argv, mock.Mock())
+    env = popen.call_args.kwargs["env"]
+    if jvm_vars_kept:
+        assert env is None
+    else:
+        assert env["PATH"] == "/usr/bin"
+        assert not set(launcher_module.JVM_OPTION_ENV_VARS) & set(env)
+
+
 def test_process_create_time_reads_the_process_table(monkeypatch: pytest.MonkeyPatch) -> None:
     assert launcher_module.process_create_time(0) is None
     assert launcher_module.process_create_time(os.getpid()) == psutil.Process(os.getpid()).create_time()
