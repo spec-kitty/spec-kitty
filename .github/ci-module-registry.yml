@@ -157,6 +157,12 @@ modules:
   roots:
   - src/charter/**
   - src/specify_cli/charter_runtime/**
+  # spec-kitty#6336: the activation ledger's kernel-side floor (ADR 2026-10-19-1). Its readers are
+  # tests/charter/activation/** + tests/charter/conformance/, i.e. this row's own test dirs, so the
+  # floor edit must select this shard. Transcribed verbatim from the scrub `charter` row (the kernel
+  # group still owns src/kernel/**; overlapping src roots are the scrub's existing shape). test_dirs,
+  # cov_targets, tier and shard_count are unchanged by that addition.
+  - src/kernel/activation_ledger_store.py
   cov_targets:
   - charter
   - specify_cli.charter_runtime
