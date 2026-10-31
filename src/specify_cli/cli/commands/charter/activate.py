@@ -38,7 +38,13 @@ from rich.markup import escape
 from specify_cli.cli.console import console, sanitize_terminal_text
 from specify_cli.cli.helpers import parameter_source_name
 
-from charter.activation.api import DenyListChoice, deny_delta
+from charter.activation.api import (
+    DenyListChoice,
+    SynthesisLockHeldError,
+    SynthesisLockUnavailableError,
+    deny_delta,
+    synthesis_lock,
+)
 from charter.activation.cascade import (
     CascadeActivationResult,
     CascadeScope,
@@ -60,11 +66,6 @@ from charter.activation.kind_vocabulary import (
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext, load_denied
 from charter.activation.api import ActivationResult
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
-from charter.activation.synthesizer.synthesis_lock import (
-    SynthesisLockHeldError,
-    SynthesisLockUnavailableError,
-    synthesis_lock,
-)
 from charter.activation.preset_application import (
     PresetApplicationError,
     PresetOutcome,
