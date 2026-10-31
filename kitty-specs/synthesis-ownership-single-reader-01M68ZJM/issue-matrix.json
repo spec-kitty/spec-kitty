@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#6453": {
+      "evidence_ref": "predecessor Mission synthesis-record-integrity-01M5ZBC9 (merged); its created-artifacts record is the fallback this mission unifies on",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6454": {
+      "evidence_ref": "introduced the fail-closed refusal and SYNTHESIS_MEMBERSHIP_UNREADABLE; its refusal is preserved unchanged (C-003, FR-002)",
+      "fr": "FR-002",
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-003",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "One fallback policy preserves the #6454 refusal",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6455": {
+      "evidence_ref": "predecessor Mission synthesis-record-integrity-01M5ZBC9 (merged); record shape carried by C-001",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6456": {
+      "evidence_ref": "predecessor Mission synthesis-record-integrity-01M5ZBC9 (merged); no overlap with this convergence",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6510": {
+      "evidence_ref": "PR #6778 merged; added the sidecar-authoritative URN reader and the direct-write exclusion this mission keeps as the one rule",
+      "fr": "FR-001",
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-001",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "One ownership reader keeps the #6510 direct-write rule",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6767": {
+      "evidence_ref": "this mission; one reader, one fallback, one coded error, one sidecar parser",
+      "fr": "FR-001",
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-001",
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Converge the synthesis-ownership readers and their unreadable-record errors",
+      "verdict": "fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
