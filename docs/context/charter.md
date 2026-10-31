@@ -2,7 +2,7 @@
 title: 'Context: Charter'
 description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-31'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
@@ -51,13 +51,27 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A distributable bundle of charter components (artifacts and their DRG edges) together with optional [activation presets](#activation-preset) shipped as `presets/<name>.yaml`. An org pack may also enforce activations through `required_<kind>` lists in its `org-charter.yaml`. A pack is identified by its `charter_pack_id` (`built-in`, an org pack's configured name, or `project`); org packs are configured under `charter_packs.org.packs` in `.kittify/config.yaml`. Every pack now declares its level in `pack.yaml` via the `pack_level` field — one of `built-in`, `org` or `project` ([ADR 2026-10-11-2](../adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md)). The level names have one authority, `kernel.pack_tiers`; the tier token and the provenance/layer value now share a single spelling, `built-in` (the former no-hyphen `builtin` provenance spelling is folded away). Loading refuses a pack whose declared level disagrees with where it is configured (`PACK_LEVEL_MISMATCH`). A `pack.yaml` that omits the field, or an org pack with no `pack.yaml`, is reported as `PACK_LEVEL_MISSING`. During the deprecation window of [ADR 2026-10-11-2](../adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md) that is a non-blocking diagnostic: loading warns and uses the configured level, and `charter pack validate` reports a `pack.yaml` without the field as an advisory. Once the window closes it becomes a refusal. Validated with `spec-kitty charter pack validate`, listed with `spec-kitty charter pack list`. |
+| **Definition** | A distributable bundle of charter components (artifacts and their DRG edges) together with optional [activation presets](#activation-preset) shipped as `presets/<name>.yaml`. An org pack may also enforce activations through `required_<kind>` lists in its `org-charter.yaml`. A pack is identified by its `charter_pack_id` (`built-in`, an org pack's configured name, or `project`); org packs are configured under `charter_packs.org.packs` in `.kittify/config.yaml`. Every pack now declares its level in `pack.yaml` via the `pack_level` field — one of `built-in`, `org` or `project` ([ADR 2026-10-11-2](../adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md)). The level names have one authority, `kernel.pack_tiers`; the level token and the provenance/layer value now share a single spelling, `built-in` (the former no-hyphen `builtin` provenance spelling is folded away). Loading refuses a pack whose declared level disagrees with where it is configured (`PACK_LEVEL_MISMATCH`). A `pack.yaml` that omits the field, or an org pack with no `pack.yaml`, is reported as `PACK_LEVEL_MISSING`. During the deprecation window of [ADR 2026-10-11-2](../adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md) that is a non-blocking diagnostic: loading warns and uses the configured level, and `charter pack validate` reports a `pack.yaml` without the field as an advisory. Once the window closes it becomes a refusal. Validated with `spec-kitty charter pack validate`, listed with `spec-kitty charter pack list`. |
 | **Context** | Charter |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
 | **Location** | `packs/built-in/`, `charter_packs.org.packs[]`, `src/charter/offering/packs/` |
 | **Related terms** | [Charter offering](#charter-offering), [Activation preset](#activation-preset), [Project layer](#project-layer), [Activation Registry](#activation-registry), [Organization Tier](#organization-tier) |
 | **Do NOT use when** | The concept is a named starting set of activations — use [Activation preset](#activation-preset). The concept is the project's own activation state — use [Active charter](#active-charter). The concept is the `.kittify/charter/` tree — use [Charter Bundle](#charter-bundle). |
+
+---
+
+### Contract Scenario
+
+| | |
+|---|---|
+| **Definition** | A Gherkin scenario that is the behavior half of the charter contract: it names pack files, calls one operation of `contracts/charter/openapi.yaml` and states the answer. Scenarios tagged `@contract` run in `verifyAll`; `@provisional` marks behavior the conformance corpus has yet to decide. |
+| **Context** | Governance |
+| **Status** | candidate |
+| **Applicable to** | `4.x` |
+| **Location** | `contracts/charter/scenarios/` in `spec-kitty/spec-kitty-charter` (today `action_context.feature`, `errors.feature`, `packs.feature`) |
+| **Related terms** | [Charter Pack](#charter-pack); Acceptance Scenario (the scenarios under `tests/scenarios/charter/`) and Conformance Corpus are defined in `spec-kitty-charter`, not in this glossary yet |
+| **Do NOT use when** | You mean the acceptance scenarios under `tests/scenarios/charter/`, the conformance corpus as a whole, or BDD the practice. Do not write "BDD scenarios". |
 
 ---
 
