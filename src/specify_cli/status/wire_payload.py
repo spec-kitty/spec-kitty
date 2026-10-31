@@ -25,7 +25,7 @@ Local-only ``StatusEvent`` fields never cross this boundary: ``policy_metadata``
 on the contract model.
 
 This is a CORE module: it imports the shared contract package and CORE helpers
-only, never ``specify_cli.sync``/``tracker``/hosted surfaces.
+only, never an INTEGRATION (``sync``/``tracker``) surface.
 """
 
 from __future__ import annotations
