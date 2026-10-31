@@ -184,13 +184,11 @@ class TestSingleOrgPackCascade:
         )
         assert result.exit_code == 0, result.output
 
-        data = _config(project_root)
-        activated = data.get("activated_directives") or []
-        assert "a-directive" in activated
-        assert "b-directive" in activated, (
+        # #6685: an absent key stays absent, so the cascade OUTCOME is read from the console.
+        assert "activated_directives" not in _config(project_root), "a cascade of in-force artifacts writes no list (#6685)"
+        assert "Cascade-activated: directive/b-directive" in " ".join(result.output.split()), (
             f"org-pack requires edge did not cascade-activate; output:\n{result.output}"
         )
-        assert "Cascade-activated" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -246,24 +244,25 @@ class TestTwoPackChainCascade:
         )
         assert result.exit_code == 0, result.output
 
-        data = _config(project_root)
-        activated = data.get("activated_directives") or []
-        assert "a-directive" in activated
-        assert "c-directive" in activated, (
+        # #6685: no list is written for in-force artifacts, so the console carries the outcome.
+        assert "activated_directives" not in _config(project_root), "a cascade of in-force artifacts writes no list (#6685)"
+        squashed = " ".join(result.output.split())
+        assert "Cascade-activated: directive/c-directive" in squashed, (
             "cascade did not reach the second org pack in the chain; "
             f"output:\n{result.output}"
         )
         # The config-stem ID must be used, never the raw DRG bare ID -- a
         # fallback to the raw ID is exactly the ID-mapping-widening failure
         # mode T012 proves separately.
-        assert "DIRECTIVE_C" not in activated
+        assert "directive/DIRECTIVE_C" not in squashed
 
     def test_cascade_deactivate_reaches_second_pack(self, project_root: Path) -> None:
         """Symmetric coverage for ``deactivate --cascade`` (T010) over the same chain."""
         _write_two_pack_chain(project_root)
 
+        # #6685: `--only` writes the list this cascade-deactivation then removes entries from.
         activate = _activate(
-            project_root, "--cascade", "all", "directive", "a-directive"
+            project_root, "--cascade", "all", "directive", "a-directive", "--only"
         )
         assert activate.exit_code == 0, activate.output
         assert "c-directive" in (_config(project_root).get("activated_directives") or [])
@@ -431,10 +430,11 @@ class TestNoOrgPackRegression:
             self._CASCADE_SOURCE_ID,
         )
         assert result.exit_code == 0, result.output
+        # #6685: the source and its references are all in force already, so the cascade writes no list.
         data = _config(project_root)
-        assert self._CASCADE_SOURCE_ID in (data.get("activated_agent_profiles") or [])
-        assert data.get("activated_directives"), result.output
-        assert data.get("activated_tactics"), result.output
+        for key in ("activated_agent_profiles", "activated_directives", "activated_tactics"):
+            assert key not in data, f"{key} was written for an in-force cascade (#6685)"
+        assert "Cascade-activated" in result.output
 
     def test_deactivate_cascade_all_unaffected_by_org_roots_threading(
         self, project_root: Path
@@ -502,16 +502,9 @@ class TestNoCascadeWarningNamesOrgPackArtifacts:
         result = _activate(project_root, "directive", "a-directive")
         assert result.exit_code == 0, result.output
 
-        data = _config(project_root)
-        assert "a-directive" in (data.get("activated_directives") or [])
-        # Post-#4253, the first directive activation seeds the UNRESTRICTED set
-        # from every effective directive (org-pack ``b-directive`` included) so
-        # nothing in force is silently deactivated -- so ``b-directive``'s
-        # presence in ``activated_directives`` is expected and is NOT the signal
-        # that it was cascade-activated. Without ``--cascade`` no cascade
-        # activation happens at all: the target is only *reported* by its
-        # config-stem ID in the no-cascade warning, never activated by cascade
-        # (no ``Cascade-activated`` line is emitted).
+        # #6685: the artifact is already in force, so the activation writes no list at all; the
+        # no-cascade warning is what this test reads.
+        assert "activated_directives" not in _config(project_root)
         assert "Cascade-activated" not in result.output, result.output
         assert "b-directive" in result.output, (
             f"no-cascade warning did not name the org-pack requires target "
@@ -573,10 +566,9 @@ class TestGraphlessOrgPackDegradesGracefully:
         assert result.exit_code == 0, result.output
         assert result.exception is None
 
-        # The directly-named target activated.
-        data = _config(project_root)
-        activated = data.get("activated_directives") or []
-        assert "a-directive" in activated
+        # The directly-named target is in force; #6685 writes no list for it.
+        assert "activated_directives" not in _config(project_root)
+        assert "Activated: a-directive" in " ".join(result.output.split()), result.output
 
         # NFR-002: no cascade target was activated under the graphless pack's
         # authority -- the pack has no DRG edges to walk.
@@ -658,19 +650,18 @@ class TestFragmentYamlEdgeCascades:
                 catch_exceptions=True,
             )
 
-        # No crash, direct target activated.
+        # No crash, direct target in force (and, #6685, no list written for it).
         assert result.exit_code == 0, result.output
-        data = _config(project_root)
-        activated = data.get("activated_directives") or []
-        assert "a-directive" in activated
+        assert "activated_directives" not in _config(project_root)
+        squashed = " ".join(result.output.split())
+        assert "Activated: a-directive" in squashed, result.output
 
         # The fragment.yaml `requires` edge now cascades: b-directive IS
         # cascade-activated (the bridge folded the org fragment layer).
-        assert "b-directive" in activated, (
+        assert "Cascade-activated: directive/b-directive" in squashed, (
             f"org fragment.yaml requires edge did not cascade-activate; "
             f"output:\n{result.output}"
         )
-        assert "Cascade-activated" in result.output
 
         # A fragment-bearing pack is NOT graphless (FR-004) -- no graphless
         # warning fires for it.

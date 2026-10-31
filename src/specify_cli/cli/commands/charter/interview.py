@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -90,6 +91,67 @@ def _kept_deactivated_messages(skipped_denied: dict[str, list[str]]) -> list[str
     ]
 
 
+#: One line per kind whose key an interview run leaves absent (#6685).
+_ABSENT_KEY_LEFT_ABSENT = (
+    "{key} was left absent: while an activated_<kind> key is absent every {token} of that kind is in force, "
+    "so nothing was written. Run `spec-kitty charter interview --narrow-activation` to keep activation narrow "
+    "and write an explicit list."
+)
+
+#: The same, when every id the interview selected for that kind is deactivated (#6685 + FR-009).
+_ABSENT_KEY_ALL_SELECTED_DEACTIVATED = (
+    "{key} was left absent and nothing was written: every selected {token} is deactivated, so none of them is in force. "
+    "Run `spec-kitty charter activate {token} <id>` to reinstate one, or `spec-kitty charter interview "
+    "--narrow-activation` to write a list without them."
+)
+
+
+def _present_key_promotions(
+    promotions: dict[str, list[str]],
+    config_data: Mapping[str, Any],
+) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Split *promotions* into the keys that are present and the ones this writer leaves absent (#6685).
+
+    An absent ``activated_<kind>`` key means every available artifact of that kind is
+    in force; writing the key would only turn the "nothing chosen yet" state into an
+    operator's activation, which ``charter synthesize`` reads as one and answers by
+    demanding a companion tactic per directive and skipping the fresh-project seed
+    (#2577, #4785, #6629).
+    """
+    present = {key: ids for key, ids in promotions.items() if config_data.get(key) is not None}
+    left_absent = {key: ids for key, ids in promotions.items() if key not in present}
+    return present, left_absent
+
+
+def _left_absent_messages(repo_root: Path, left_absent: Mapping[str, list[str]]) -> list[str]:
+    """One message per key this run leaves absent, naming any selected id that stays deactivated (#6685, FR-009).
+
+    The interview never clears a deny list, so a selection the operator deactivated is
+    not in force even though the kind is. Saying "every {token} is in force" without
+    that caveat would tell the operator their selection applies when it does not; the
+    ids are reported with the same ``kept deactivated:`` wording the present-key path
+    uses (:func:`_kept_deactivated_messages`).
+    """
+    from charter.activation.api import load_denied
+    from charter.drg import ArtifactKind
+
+    kinds = {ArtifactKind.from_plural(key.removeprefix("activated_")) for key in left_absent}
+    denied = dict(load_denied(repo_root, kinds=kinds)) if kinds else {}
+    messages: list[str] = []
+    kept_deactivated: dict[str, list[str]] = {}
+    for key, ids in left_absent.items():
+        plural = key.removeprefix("activated_")
+        token = ArtifactKind.from_plural(plural).operator_token
+        key_denied = denied.get(plural)
+        held = [item for item in ids if key_denied is not None and not key_denied.admits(item)]
+        if held:
+            kept_deactivated[key] = held
+        template = _ABSENT_KEY_ALL_SELECTED_DEACTIVATED if held and len(held) == len(ids) else _ABSENT_KEY_LEFT_ABSENT
+        messages.append(template.format(key=key, token=token))
+    messages.extend(_kept_deactivated_messages(kept_deactivated))
+    return messages
+
+
 def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narrow: bool = False) -> tuple[list[str], dict[str, list[str]]]:
     """Append-promote captured interview selections into ``config.activated_<kind>`` (FR-007).
 
@@ -102,11 +164,16 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     Routes through the shared :func:`charter.activation.activation_engine.promote_activations`
     primitive — the same append-only seam the migration uses — with the WP01
     ID-form resolver (:func:`charter.activation.kind_vocabulary.resolve_selected_id_to_stem`).
-    An absent key is seeded from the effective set
-    (:func:`charter.activation.effective_set.resolve_effective_sets`, FR-015);
-    when that set cannot be resolved the key stays absent and a warning names
-    it (#4400). This seeding is the #6408 residual: unlike the upgrade, an
-    interview without ``--narrow-activation`` still turns an absent key into a list.
+    An **absent** key is never written (#6685): while it is absent every available
+    artifact of the kind is in force, so a resolved selection is already in force and
+    a list would only turn "nothing chosen yet" into an operator's activation, which
+    ``charter synthesize`` reads as one and answers by demanding a companion tactic
+    per directive and skipping the fresh-project seed (#2577, #4785, #6629). The run
+    names each key it left absent, names any selected id that stays deactivated (the
+    interview never clears a deny list), and names the flag that writes an explicit
+    list. This is the rule the upgrade promotion (``4.0.0rc8_promote_interview_selections``, #6629)
+    and the org-required union (:func:`charter.activation.org_charter._promote_org_required_to_config`)
+    already follow.
 
     Best-effort / non-fatal by contract: the caller wraps this in a broad
     ``except`` so a promotion failure never blocks the interview answers
@@ -166,11 +233,18 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
 
     target_path, config_data, save = resolve_activation_write_target(repo_root)
 
-    absent = [key for key in promotions if config_data.get(key) is None]
-    effective_sets = resolve_effective_sets(repo_root, absent) if absent else {}
+    effective_sets: dict[str, Any] = {}
     if narrow:
         # The effective set is already in stem spelling (#6435); a present list may still hold a legacy declared id.
         config_data = _stem_spelled_config(repo_root, config_data, {f"activated_{kind.plural}": kind for kind in kind_to_selection}, promotions)
+        # Narrowing is the explicit choice, so it *does* write an absent key: the selection plus the org-required ids.
+        absent = [key for key in promotions if config_data.get(key) is None]
+        effective_sets = resolve_effective_sets(repo_root, absent) if absent else {}
+    else:
+        promotions, left_absent = _present_key_promotions(promotions, config_data)
+        warnings.extend(_left_absent_messages(repo_root, left_absent))
+        if not promotions:
+            return warnings, {}
     outcome = promote_activations(
         promotions,
         config_path=target_path,

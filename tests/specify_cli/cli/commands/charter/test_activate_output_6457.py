@@ -138,8 +138,9 @@ def test_plain_activation_on_an_unresolvable_kind_keeps_the_preservation_warning
 
 def test_only_on_a_present_list_names_the_written_list_with_its_count(tmp_path: Path) -> None:
     root = _empty_project(tmp_path)
-    assert _activate(root, "toolguide", "sonar").exit_code == 0
-    assert len(_written(root, _TOOLGUIDES) or []) > 1, "fixture invalid: the first activation must materialise a list"
+    # #6685: a plain activation of an in-force artifact writes nothing, so `--only` seeds the list.
+    assert _activate(root, "toolguide", "sonar", "--only").exit_code == 0
+    assert len(_written(root, _TOOLGUIDES) or []) == 1, "fixture invalid: --only must write a present list"
 
     result = _activate(root, "toolguide", _TARGET, "--only")
 

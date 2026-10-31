@@ -91,7 +91,8 @@ class TestActivateSeesFullOrgChain:
         # Activation keys off the config stem (beta_only.directive.yaml).
         result = runner.invoke(
             charter_app,
-            ["activate", "--repo-root", str(two_pack_project), "--no-compile", "directive", "beta_only"],
+            # #6685: `--only` is the write path (a plain activation of an in-force artifact writes nothing).
+            ["activate", "--repo-root", str(two_pack_project), "--no-compile", "directive", "beta_only", "--only"],
         )
         assert result.exit_code == 0, result.output
         config = yaml.safe_load((two_pack_project / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
