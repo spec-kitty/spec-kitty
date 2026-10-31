@@ -484,6 +484,22 @@ def _implemented_lane_with_a_later_target_commit(tmp_path: Path) -> tuple[Path, 
     return repo, fd, planning, landing
 
 
+def test_the_landed_window_keeps_a_tip_that_still_resolves(tmp_path: Path) -> None:
+    """#6780 precedence: the lane window is the first choice even when a landing commit is supplied.
+
+    Non-vacuity: an implementation that always prefers the supplied landing commit turns this
+    window into ``planning..<landing>``, which every assertion below catches.
+    """
+    repo, _fd, planning, landing = _implemented_lane_with_a_later_target_commit(tmp_path)
+    assert ev._tip_resolves(repo, _LANE_BRANCH), "the lane branch must still resolve for this arm"
+
+    judged = ev._landed_window(repo, (planning, _LANE_BRANCH), landing)
+
+    assert judged.window == (planning, _LANE_BRANCH)
+    assert judged.absent_ref is None
+    assert judged.landed_commit is None
+
+
 def test_the_landed_window_stands_in_for_a_pruned_tip(tmp_path: Path) -> None:
     """A tip that no longer resolves is replaced by the supplied landing commit, and recorded (#6780)."""
     repo, _fd, planning, landing = _implemented_lane_with_a_later_target_commit(tmp_path)

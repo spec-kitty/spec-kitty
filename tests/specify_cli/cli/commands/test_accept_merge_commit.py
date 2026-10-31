@@ -160,6 +160,7 @@ def _create_pr_merged_feature(
     prune_lane: bool = False,
     hollow_wp: bool = False,
     dependency_lane: bool = False,
+    mission_side_path: str | None = None,
 ) -> tuple[Path, str, str]:
     """Create an accept-ready mission whose PR already merged into main.
 
@@ -185,7 +186,10 @@ def _create_pr_merged_feature(
     implemented WP02 (owning ``tools/**``) in lane-a, so a test can prove the #6715 gate still
     refuses a hollow work package. ``dependency_lane=True`` adds an implemented WP03 in
     ``lane-b`` and makes ``lane-a`` depend on it, so the dependency widening has to use the same
-    stand-in tip when lane-a's branch is pruned and lane-b's still resolves.
+    stand-in tip when lane-a's branch is pruned and lane-b's still resolves. ``mission_side_path``
+    commits an unrelated path on the mission branch AFTER the lane branch was cut, so it sits in
+    ``planning_commit..<landing commit>`` but not in ``planning_commit..<lane branch>`` — the shape
+    that separates the two windows.
     """
     _git(repo_root, "init", ".")
     _git(repo_root, "config", "user.email", "test@test.com")
@@ -333,6 +337,14 @@ def _create_pr_merged_feature(
         if dependency_lane:
             _git(repo_root, "merge", "--no-ff", "-m", f"Merge {_lane_branch('lane-b')} into the mission", _lane_branch("lane-b"))
         _git(repo_root, "merge", "--no-ff", "-m", f"Merge {lane_branch} into the mission", lane_branch)
+    if mission_side_path:
+        # Target-side work committed after the lane branch was cut: inside
+        # planning_commit..<landing commit>, outside planning_commit..<lane branch>.
+        side_path = repo_root / mission_side_path
+        side_path.parent.mkdir(parents=True, exist_ok=True)
+        side_path.write_text("# unrelated target-side work\n")
+        _git(repo_root, "add", "-A")
+        _git(repo_root, "commit", "-m", f"unrelated work touching {mission_side_path}")
 
     # The PR-shaped landing on main: first parent predates the corpus.
     _git(repo_root, "checkout", "main")
@@ -640,36 +652,56 @@ def test_accept_pr_mode_judges_evidence_against_the_landing_when_lane_branch_is_
     assert _porcelain(repo_root) == "", "accept left a dirty working tree"
 
 
-def test_accept_pr_mode_keeps_the_lane_window_when_the_branch_still_resolves(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_accept_pr_mode_keeps_the_lane_window_when_the_branch_still_resolves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     """The lane-branch window stays the first choice (#6780 control arm).
 
-    With the lane branch readable the accept takes the lane window — the same window it
-    takes today — so the landed-window stand-in cannot reinterpret an intact Mission.
+    With the lane branch readable the accept judges ``planning_commit..<lane branch>`` — the
+    same window it takes today — so the landed-window stand-in cannot reinterpret an intact
+    Mission. To make that discriminate, unrelated work committed on the mission branch AFTER
+    the lane branch was cut touches WP02's ``tools/**``: it is inside
+    ``planning_commit..<landing commit>`` and outside ``planning_commit..<lane branch>``, so
+    only an inverted precedence (always prefer the supplied landing commit) would let the
+    hollow WP02 through.
     """
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
-    feature_dir, merge_commit, pre_merge_parent = _create_pr_merged_feature(repo_root, lane_merged=True)
+    feature_dir, merge_commit, _parent = _create_pr_merged_feature(
+        repo_root, lane_merged=True, hollow_wp=True, mission_side_path="tools/unrelated.py"
+    )
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
     assert _branch_resolves(repo_root, _lane_branch()), "the control arm needs the lane branch to exist"
-
-    accept(
-        mission=_SLUG,
-        mode="pr",
-        actor="tester",
-        test=[],
-        json_output=False,
-        lenient=False,
-        no_commit=False,
-        diagnose=False,
-        allow_fail=False,
-        merge_commit=merge_commit,
-        attest_first_landing=True,
+    assert "tools/unrelated.py" not in _git(repo_root, "ls-tree", "-r", "--name-only", _lane_branch()).stdout.split(), (
+        "the discriminating path must NOT be on the lane branch, or the lane window would carry it too"
+    )
+    assert "tools/unrelated.py" in _git(repo_root, "ls-tree", "-r", "--name-only", merge_commit).stdout.split(), (
+        "...and must be on the landed tree, or the landed window would not carry it either"
     )
 
+    with pytest.raises(typer.Exit) as exit_info:
+        accept(
+            mission=_SLUG,
+            mode="pr",
+            actor="tester",
+            test=[],
+            json_output=True,
+            lenient=False,
+            no_commit=False,
+            diagnose=False,
+            allow_fail=False,
+            merge_commit=merge_commit,
+            attest_first_landing=True,
+        )
+
+    assert exit_info.value.exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error_code"] == "IMPLEMENTATION_MISSING"
+    assert "IMPLEMENTATION_MISSING: WP02" in payload["error"], "the lane window, not the landed one, must judge WP02"
+    assert "IMPLEMENTATION_MISSING: WP01" not in payload["error"], "WP01 is implemented on the lane branch and must pass"
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
-    assert meta["baseline_merge_commit"] == pre_merge_parent
-    assert meta["pr_merge_commit"] == merge_commit
+    assert "baseline_merge_commit" not in meta
 
 
 def test_accept_pr_mode_still_refuses_a_hollow_wp_after_pruning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
