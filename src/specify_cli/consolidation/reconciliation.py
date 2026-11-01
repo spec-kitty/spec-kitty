@@ -3265,7 +3265,7 @@ def _mission_namespaces(lanes_manifest: LanesManifest) -> tuple[str, ...]:
     for lane in lanes_manifest.lanes:
         branch = _lane_branch_for(lanes_manifest, lane.lane_id)
         stems[branch] = None
-        stems[branch.rsplit("-lane-", 1)[0]] = None
+        stems[branch.removesuffix(f"-{lane.lane_id}")] = None
     return tuple(stems)
 
 
