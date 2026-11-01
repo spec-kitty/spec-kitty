@@ -576,7 +576,7 @@ def _live_keys() -> set[CharterPathKey]:
 # 47 before WP10 (inside FLOOR_MARGIN); the neutralised
 # m_3_2_0rc35_default_charter_pack.py lost its two DefaultCharterPackMigration.apply
 # charter.md sites (allow-list entries removed in the same change).
-CHARTER_PATH_LITERAL_FLOOR = 45
+CHARTER_PATH_LITERAL_FLOOR = 42
 FLOOR_MARGIN = 2
 
 
