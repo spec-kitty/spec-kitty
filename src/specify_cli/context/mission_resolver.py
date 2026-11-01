@@ -5,7 +5,9 @@ Resolution priority (most-specific → least-specific):
 1. **Full mission_id** (26-char ULID): exact match on ``meta.json.mission_id``
 2. **mid8 prefix** (8 chars): match on ``mission_id[:8]``
 3. **Full slug with numeric prefix** (e.g. ``"083-foo-bar"``): directory name match
-4. **Human slug without prefix** (e.g. ``"foo-bar"``): stripped slug match
+4. **Human slug** (e.g. ``"foo-bar"`` for ``"083-foo-bar"``, or ``"smoke-test"`` for
+   ``"smoke-test-01M6BTQX"``): the slug with any leading ``NNN-`` prefix and this
+   Mission's own trailing ``-<mid8>`` removed (:func:`_human_slug_for_index_entry`)
 5. **Numeric prefix alone** (e.g. ``"083"``): directory prefix match
 
 If a handle unambiguously identifies one mission at any priority level, it is
@@ -748,6 +750,40 @@ def _is_numeric_prefix(handle: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Internal: handle-form folds
+# ---------------------------------------------------------------------------
+
+
+def _human_slug_for_index_entry(mission: ResolvedMission) -> str:
+    """Return the human slug a composed ``<human-slug>-<mid8>`` directory name implies.
+
+    A Mission created today is named ``<human-slug>-<mid8>`` (#6278), so its
+    directory name carries two decorations a human does not type: any legacy
+    ``NNN-`` prefix and the trailing mid8. This folds both away, using only the
+    fields already in the index (:attr:`ResolvedMission.mission_slug` and
+    :attr:`ResolvedMission.mid8`) — no extra ``meta.json`` read.
+
+    The mid8 tail is stripped **only when it is this Mission's own**
+    ``mission_id[:8]``, mirroring
+    :func:`~specify_cli.lanes.branch_naming._human_slug_for_mid8_branch` for
+    branch composition: a coincidental eight-character tail is not an identity
+    marker, so ``smoke-test-01M6BTQX`` whose ``mission_id`` starts
+    ``01ZZZZZZ`` keeps ``smoke-test-01M6BTQX`` as its human slug and
+    ``smoke-test`` names nothing.
+
+    Examples:
+        ``smoke-test-01M6BTQX`` (mid8 ``01M6BTQX``) -> ``smoke-test``
+        ``083-foo-bar`` (no mid8 tail)            -> ``foo-bar``
+        ``foo-bar-01M6BTQX`` (mid8 ``01ZZZZZZ``)  -> ``foo-bar-01M6BTQX``
+    """
+    human_slug = strip_numeric_prefix(mission.mission_slug)
+    suffix = f"-{mission.mid8}"
+    if mission.mid8 and human_slug.endswith(suffix):
+        return human_slug[: -len(suffix)]
+    return human_slug
+
+
+# ---------------------------------------------------------------------------
 # Public resolver
 # ---------------------------------------------------------------------------
 
@@ -764,7 +800,8 @@ def _resolve_from_index(handle: str, missions: list[ResolvedMission]) -> Resolve
     1. Full mission_id (26-char ULID)
     2. mid8 prefix (8 chars of upper alphanumeric)
     3. Full slug with numeric prefix (directory name)
-    4. Human slug without prefix
+    4. Human slug: the directory name without its ``NNN-`` prefix and without
+       this Mission's own trailing ``-<mid8>``
     5. Numeric prefix alone (all-digits handle)
 
     Raises:
@@ -794,10 +831,14 @@ def _resolve_from_index(handle: str, missions: list[ResolvedMission]) -> Resolve
         return _resolve_or_raise(handle, matches)
 
     # ------------------------------------------------------------------
-    # Priority 4: Human slug without numeric prefix (e.g. "foo-bar")
+    # Priority 4: Human slug, i.e. the slug without its ``NNN-`` prefix and
+    # without this Mission's own trailing ``-<mid8>`` (e.g. "foo-bar" for
+    # "083-foo-bar
+    # "083-foo-bar", and "smoke-test" for "smoke-test-01M6BTQX"). #6278:
+    # two Missions sharing a human slug still raise AmbiguousHandleError.
     # ------------------------------------------------------------------
     if not _is_numeric_prefix(handle):
-        human_matches = [m for m in missions if strip_numeric_prefix(m.mission_slug) == handle]
+        human_matches = [m for m in missions if _human_slug_for_index_entry(m) == handle]
         if human_matches:
             return _resolve_or_raise(handle, human_matches)
 

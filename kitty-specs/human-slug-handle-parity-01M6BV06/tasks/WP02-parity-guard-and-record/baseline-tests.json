@@ -1,0 +1,20 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-11-01T17:27:26Z",
+  "base_branch": "9eab232ad2e6b466cf46c128b4da0aeed78062ea",
+  "base_commit": "9eab232ad2e6b466cf46c128b4da0aeed78062ea",
+  "test_runner": "custom",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "pytest.internal",
+      "error": "internal error",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 1800
+}

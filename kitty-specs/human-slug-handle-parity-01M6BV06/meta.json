@@ -1,0 +1,42 @@
+{
+  "accept_commit": "b7efb1366ffcbac35bdaf350654d3f6073a54e2a",
+  "acceptance_history": [
+    {
+      "accept_commit": "a1abb2f11895507f3772cbb94f54df05e5838ff7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:33:04.653786+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "cc189ef5232aad23c383357849212520005ca50f"
+    },
+    {
+      "accept_commit": "b7efb1366ffcbac35bdaf350654d3f6073a54e2a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:33:16.744009+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "6f9edd94ad6e63cf94c3e5a6cd01949e67db7b86"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:33:16.744009+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "6f9edd94ad6e63cf94c3e5a6cd01949e67db7b86",
+  "baseline_merge_commit": "17c957f678963722f9092fea6a8bb2c6af95d288",
+  "created_at": "2026-11-01T15:17:43.262493+00:00",
+  "flattened": false,
+  "friendly_name": "human slug handle parity",
+  "merged_at": "2026-11-01T17:34:20.756788+00:00",
+  "merged_commit": "6c9e6cd4800de7ec40cbda3c7d9e95ba8174da04",
+  "mid8": "01M6BV06",
+  "mission_id": "01M6BV06JYKEVP5ZQQZ89F5PA5",
+  "mission_number": 246,
+  "mission_slug": "human-slug-handle-parity-01M6BV06",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances human slug handle parity on issue-6278-human-slug-handle-parity so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "human slug handle parity",
+  "slug": "human-slug-handle-parity-01M6BV06",
+  "status_phase": "1",
+  "target_branch": "issue-6278-human-slug-handle-parity",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:23:23.055713+00:00"
+}
