@@ -78,6 +78,20 @@ these things about that pipeline are worth knowing before you read a red check:
   outside its code scope, add its row to `scan_scopes`.
   `tests/architectural/test_battery_scan_scope_routing.py` proves the property
   for every declared gate and glob.
+- **A declaration must be complete, and CI checks it ([#7000](https://github.com/spec-kitty/spec-kitty/issues/7000)).**
+  A row is only as good as the read it describes: when a gate starts reading a new
+  root, a stale row lets routing miss it again. `tests/architectural/test_gate_scan_scope_completeness.py`
+  extracts, statically, every repository-rooted read a gate makes --
+  `_REPO_ROOT / "…"`, a chain built from it, a `glob`/`rglob`/`iterdir`/`walk`
+  call, in the gate file and in the `tests.architectural` helpers it imports --
+  and fails when neither the gate's `scan_scopes` row nor the battery code scope
+  (`src/**`, `tests/architectural/**` and the router's own code groups) covers it.
+  A read whose whole path is computed at runtime (`_REPO_ROOT / rel`) names no
+  repository path and is recorded rather than guessed at; a partly computed read
+  is checked at its literal parent. The only exemptions are reads that are not
+  repository reads at all -- a synthetic probe path or an untracked scratch dir --
+  and each one carries a reason and goes stale-red. Adding a read therefore means
+  adding a glob, not editing the check.
 - **Corpus tests have one advisory owner.** `packs.yml` runs the `-m corpus`
   suite as the advisory job `built-in / -m corpus suite (advisory)`. The corpus
   tests that have no other blocking per-PR home run blocking in two router jobs:
