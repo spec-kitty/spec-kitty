@@ -11,7 +11,7 @@ repair, write the file into a spec-kitty-events checkout, which publishes it in 
 
     uv run --frozen python -m tests.glossary.test_torn_tail_repair_goldens <events checkout>/<path of repair-cases.json>
 
-A missing fetch fails collection (never skips): the goldens are read at import through ``tests.pinned_service_assets``.
+A missing fetch fails each test that reads the goldens (never skips); collecting this module never touches the pinned cache.
 """
 
 from __future__ import annotations
@@ -24,11 +24,13 @@ from typing import Any
 import pytest
 
 from glossary.events import TORN_TAIL_SUFFIX, _repair_torn_tail
-from tests.pinned_service_assets import pinned_extra
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-GOLDENS = pinned_extra("fixtures") / "event-log" / "torn-tail" / "repair-cases.json"
+_GOLDENS_RELATIVE = Path("event-log") / "torn-tail" / "repair-cases.json"
+#: Where the pinned goldens are (or will be) unpacked, from the pin alone; reading it at import is never needed.
+GOLDENS = expected_extra_root("fixtures") / _GOLDENS_RELATIVE
 
 _BLOCK = 64 * 1024
 #: A run of at least this many equal bytes is written as one repeated segment.
@@ -118,18 +120,26 @@ def render_goldens() -> str:
     return json.dumps(document, indent=2) + "\n"
 
 
-_COMMITTED: list[dict[str, Any]] = json.loads(GOLDENS.read_text(encoding="utf-8"))["cases"]
+def _goldens_text() -> str:
+    """The pinned goldens, read at test time; fails closed with the ``SERVICE_*`` code when the extra is not fetched."""
+    return (require_pinned_extra("fixtures") / _GOLDENS_RELATIVE).read_text(encoding="utf-8")
+
+
+def _committed() -> list[dict[str, Any]]:
+    cases: list[dict[str, Any]] = json.loads(_goldens_text())["cases"]
+    return cases
 
 
 def test_the_committed_goldens_are_what_python_produces() -> None:
-    assert GOLDENS.read_text(encoding="utf-8") == render_goldens(), (
+    assert _goldens_text() == render_goldens(), (
         "the pinned goldens differ from live Python: regenerate them in a spec-kitty-events checkout with "
         "`uv run --frozen python -m tests.glossary.test_torn_tail_repair_goldens <path of repair-cases.json>` and bump the pin"
     )
 
 
 def test_the_goldens_cover_the_shapes_the_port_must_handle() -> None:
-    names = {case["name"] for case in _COMMITTED}
+    committed = _committed()
+    names = {case["name"] for case in committed}
     assert {
         "whole-ledger",
         "empty-ledger",
@@ -137,12 +147,19 @@ def test_the_goldens_cover_the_shapes_the_port_must_handle() -> None:
         "no-newline-across-several-blocks",
         "quarantine-already-holds-fragments",
     } <= names
-    assert any(case["repaired"] for case in _COMMITTED)
-    assert any(not case["repaired"] for case in _COMMITTED)
+    assert any(case["repaired"] for case in committed)
+    assert any(not case["repaired"] for case in committed)
 
 
-@pytest.mark.parametrize("case", _COMMITTED, ids=[case["name"] for case in _COMMITTED])
-def test_python_repair_matches_the_golden(case: dict[str, Any], tmp_path: Path) -> None:
+def test_the_goldens_hold_exactly_the_listed_cases() -> None:
+    """The per-case test below is parametrized over :data:`CASES`; the pinned file must hold those cases, no more, no fewer."""
+    assert [case["name"] for case in _committed()] == [name for name, *_ in CASES]
+
+
+@pytest.mark.parametrize("name", [name for name, *_ in CASES])
+def test_python_repair_matches_the_golden(name: str, tmp_path: Path) -> None:
+    case = next((case for case in _committed() if case["name"] == name), None)
+    assert case is not None, f"the pinned goldens carry no case {name!r}"
     repaired, after, torn_after, log, _ = _repair_in(tmp_path, _bytes(case["ledger"]) or b"", _bytes(case["torn_before"]))
     assert repaired == case["repaired"]
     assert after == _bytes(case["expected_ledger"])

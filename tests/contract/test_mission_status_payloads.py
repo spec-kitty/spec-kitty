@@ -865,7 +865,7 @@ def test_only_transitions_and_the_seven_lifecycle_types_are_forwarded(source: he
 
 def test_the_projector_work_package_rule_is_the_contracts_wpid_pattern() -> None:
     document = helper.bundled_schema("WpId")
-    assert document["pattern"] == helper.WP_ID_PATTERN and document["maxLength"] == helper.WP_ID_MAX_LENGTH
+    assert document["pattern"] == helper.wp_id_pattern() and document["maxLength"] == helper.wp_id_max_length()
     assert helper.is_wp_id("WP01") and helper.is_wp_id("WP100")
     for bad in ("WP1", "wp01", "WP-01", "01", "WP01 ", "", None, 1, "WP" + "0" * 70):
         assert not helper.is_wp_id(bad), bad
@@ -1141,9 +1141,9 @@ def test_the_bundled_readers_refuse_an_unknown_title_or_path_and_an_example_free
 
 def test_the_bundled_readers_return_copies_of_the_pinned_bundle() -> None:
     schema = helper.bundled_schema("WpId")
-    assert schema["pattern"] == helper.WP_ID_PATTERN and "description" not in schema, "the uses describe WpId differently"
+    assert schema["pattern"] == helper.wp_id_pattern() and "description" not in schema, "the uses describe WpId differently"
     schema["pattern"] = "planted"
-    assert helper.bundled_schema("WpId")["pattern"] == helper.WP_ID_PATTERN
+    assert helper.bundled_schema("WpId")["pattern"] == helper.wp_id_pattern()
     document = helper.bundled_document()
     assert set(document) >= {"openapi", "info", "paths"} and "/drift" in document["paths"]
     document["paths"].clear()

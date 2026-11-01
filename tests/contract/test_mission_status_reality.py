@@ -1073,7 +1073,10 @@ def scan_eligible_files(mission: ScannedMission) -> list[str]:
 # The examinations: build everything a service would answer, compare it with the independent scans, count what ran
 # ---------------------------------------------------------------------------
 
-VERDICTS = frozenset(helper.bundled_schema("ReviewVerdict")["enum"])
+
+def _verdicts() -> frozenset[str]:
+    """The contract's ``ReviewVerdict`` values, read at test time (collecting must not need the pinned cache, #6915)."""
+    return frozenset(helper.bundled_schema("ReviewVerdict")["enum"])
 
 
 def count_problems(name: str, *, examined: int, discovered: int, floor: int) -> list[str]:
@@ -1393,7 +1396,7 @@ def _examine_work_package(
 
 
 def _examine_cycles(mission: ScannedMission, wp_id: str, body: Mapping[str, Any], exam: DetailExam, context: _DetailContext) -> None:
-    scanned = scan_cycles(mission, wp_id, context.rows, VERDICTS)
+    scanned = scan_cycles(mission, wp_id, context.rows, _verdicts())
     served = body["reviewCycles"]
     exam.review_cycle_files += len(served)
     exam.independent_cycle_files += len(scanned)
@@ -2014,7 +2017,7 @@ def test_the_v1_controls_hold_on_the_fixture_and_each_planted_mismatch_fails(exa
 def test_the_cycle_checks_hold_on_the_fixture_and_each_planted_mismatch_fails(exam_repo: Path, tools: helper.ContractTools) -> None:
     body, _v1, _scanned = _clean_detail_and_v1(exam_repo, tools)
     mission = scan_missions(exam_repo)[helper.fixture_ulid(1)]
-    scanned = scan_cycles(mission, "WP01", scan_event_rows(mission.directory), VERDICTS)
+    scanned = scan_cycles(mission, "WP01", scan_event_rows(mission.directory), _verdicts())
     assert [cycle.verdict for cycle in scanned] == ["approved", None, None] and [cycle.parsed for cycle in scanned] == [True, False, True]
     assert cycle_problems(body["reviewCycles"], scanned, True) == [], "control: the served cycles agree with the files and the log"
     served = body["reviewCycles"]
