@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "dispatch-router-docs-coverage-01M6BTTX",
+  "mission_id": "01M6BTTXA9B98ZEY6T8W6G4RSG",
+  "mission_branch": "kitty/mission-dispatch-router-docs-coverage-01M6BTTX",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/profile-invocation.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/dispatch.py",
+        "src/specify_cli/invocation/router.py",
+        "tests/specify_cli/invocation/cli/test_dispatch.py",
+        "tests/specify_cli/invocation/test_docs_domain_routing.py",
+        "tests/specify_cli/invocation/test_router.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:26:29.996196+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "287a226cfe27b32da8fedc8eb598e2c09b5731e8"
+}

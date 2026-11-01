@@ -126,10 +126,7 @@ def test_adr3_document_exists() -> None:
             break
         search = search.parent
     else:
-        pytest.fail(
-            "ADR-3 document not found under kitty-specs/profile-invocation-runtime-audit-trail-01KPQRX2/"
-            " — searched from repo root upward"
-        )
+        pytest.fail("ADR-3 document not found under kitty-specs/profile-invocation-runtime-audit-trail-01KPQRX2/ — searched from repo root upward")
 
     content = adr_path.read_text(encoding="utf-8")
     assert "Option A" in content, "ADR-3 must document Option A as the accepted decision"
@@ -238,20 +235,22 @@ def test_router_success(
 ) -> None:
     """Router returns correct RouterDecision for unambiguous inputs."""
     # Use a mock registry with only two profiles to avoid ambiguity
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-fixture",
-            "role_value": "implementer",
-            "routing_priority": 50,
-            "domain_keywords": ["implement", "build", "code"],
-        },
-        {
-            "profile_id": "reviewer-fixture",
-            "role_value": "reviewer",
-            "routing_priority": 50,
-            "domain_keywords": ["review", "audit", "assess"],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-fixture",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": ["implement", "build", "code"],
+            },
+            {
+                "profile_id": "reviewer-fixture",
+                "role_value": "reviewer",
+                "routing_priority": 50,
+                "domain_keywords": ["review", "audit", "assess"],
+            },
+        ]
+    )
 
     router = ActionRouter(registry)
     decision = router.route(request_text, profile_hint=profile_hint)
@@ -269,20 +268,22 @@ def test_router_success(
 
 def test_router_ambiguity_two_profiles_same_score() -> None:
     """Two profiles with equal routing_priority and overlapping verbs → ROUTER_AMBIGUOUS."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-a",
-            "role_value": "implementer",
-            "routing_priority": 50,  # same priority
-            "domain_keywords": [],
-        },
-        {
-            "profile_id": "implementer-b",
-            "role_value": "implementer",
-            "routing_priority": 50,  # same priority
-            "domain_keywords": [],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-a",
+                "role_value": "implementer",
+                "routing_priority": 50,  # same priority
+                "domain_keywords": [],
+            },
+            {
+                "profile_id": "implementer-b",
+                "role_value": "implementer",
+                "routing_priority": 50,  # same priority
+                "domain_keywords": [],
+            },
+        ]
+    )
 
     router = ActionRouter(registry)
     with pytest.raises(RouterAmbiguityError) as exc_info:
@@ -302,14 +303,16 @@ def test_router_ambiguity_two_profiles_same_score() -> None:
 
 def test_router_no_match_vague_request() -> None:
     """'help me' → ROUTER_NO_MATCH (no canonical verb, no keyword)."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-fixture",
-            "role_value": "implementer",
-            "routing_priority": 50,
-            "domain_keywords": [],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-fixture",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+        ]
+    )
 
     router = ActionRouter(registry)
     with pytest.raises(RouterAmbiguityError) as exc_info:
@@ -345,14 +348,16 @@ def test_router_no_match_empty_catalog_suggestion_names_activation() -> None:
 
 def test_router_missing_profile_hint() -> None:
     """profile_hint='nonexistent' → RouterAmbiguityError(PROFILE_NOT_FOUND)."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-fixture",
-            "role_value": "implementer",
-            "routing_priority": 50,
-            "domain_keywords": [],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-fixture",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+        ]
+    )
 
     router = ActionRouter(registry)
     with pytest.raises(RouterAmbiguityError) as exc_info:
@@ -368,20 +373,22 @@ def test_router_missing_profile_hint() -> None:
 
 def test_router_priority_tiebreaker_selects_higher_priority() -> None:
     """When two profiles match the same verb, the one with higher routing_priority wins."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-low",
-            "role_value": "implementer",
-            "routing_priority": 10,
-            "domain_keywords": [],
-        },
-        {
-            "profile_id": "implementer-high",
-            "role_value": "implementer",
-            "routing_priority": 80,
-            "domain_keywords": [],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-low",
+                "role_value": "implementer",
+                "routing_priority": 10,
+                "domain_keywords": [],
+            },
+            {
+                "profile_id": "implementer-high",
+                "role_value": "implementer",
+                "routing_priority": 80,
+                "domain_keywords": [],
+            },
+        ]
+    )
 
     router = ActionRouter(registry)
     decision = router.route("implement the feature")
@@ -400,10 +407,7 @@ def test_action_router_plugin_is_noop() -> None:
     """ActionRouterPlugin has no methods in v1 — it is a pure no-op stub."""
     plugin = ActionRouterPlugin()
     # Verify no public methods beyond dunder
-    public_methods = [
-        m for m in dir(plugin)
-        if not m.startswith("_")
-    ]
+    public_methods = [m for m in dir(plugin) if not m.startswith("_")]
     assert public_methods == [], f"ActionRouterPlugin should have no public methods; got {public_methods}"
 
 
@@ -458,14 +462,16 @@ def test_alternatives_empty_on_single_candidate(tmp_path: Path) -> None:
     Acceptance Scenario 1) -- an explicit empty list, never None/absent."""
     from specify_cli.invocation.executor import ProfileInvocationExecutor
 
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-fixture",
-            "role_value": "implementer",
-            "routing_priority": 50,
-            "domain_keywords": [],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-fixture",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+        ]
+    )
     router = ActionRouter(registry)
 
     decision = router.route("implement the payment module")
@@ -506,22 +512,24 @@ def test_alternatives_nonempty_on_two_candidate_tiebreak(tmp_path: Path) -> None
     itself and on dry-run."""
     from specify_cli.invocation.executor import ProfileInvocationExecutor
 
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-fixture",
-            "role_value": "implementer",
-            "routing_priority": 80,
-            "domain_keywords": [],
-        },
-        {
-            "profile_id": "reviewer-fixture",
-            "role_value": "reviewer",
-            "routing_priority": 10,
-            # "gizmo" is not in CANONICAL_VERB_MAP -- a genuine domain-keyword
-            # match, not shadowed by a verb match on this profile's role.
-            "domain_keywords": ["gizmo"],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-fixture",
+                "role_value": "implementer",
+                "routing_priority": 80,
+                "domain_keywords": [],
+            },
+            {
+                "profile_id": "reviewer-fixture",
+                "role_value": "reviewer",
+                "routing_priority": 10,
+                # "gizmo" is not in CANONICAL_VERB_MAP -- a genuine domain-keyword
+                # match, not shadowed by a verb match on this profile's role.
+                "domain_keywords": ["gizmo"],
+            },
+        ]
+    )
     router = ActionRouter(registry)
 
     decision = router.route("implement and gizmo the module")
@@ -556,20 +564,22 @@ def test_router_ambiguous_candidates_carry_confidence_key() -> None:
     key (FR-009)."""
     from specify_cli.invocation.executor import build_ambiguous_dry_run_payload
 
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-a",
-            "role_value": "implementer",
-            "routing_priority": 50,
-            "domain_keywords": [],
-        },
-        {
-            "profile_id": "implementer-b",
-            "role_value": "implementer",
-            "routing_priority": 50,
-            "domain_keywords": [],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-a",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+            {
+                "profile_id": "implementer-b",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+        ]
+    )
     router = ActionRouter(registry)
 
     with pytest.raises(RouterAmbiguityError) as exc_info:
@@ -655,22 +665,24 @@ def test_canonical_verb_beats_domain_keyword_regardless_of_priority() -> None:
     outrank the canonical-verb profile ("implementer-low-priority", 10) --
     this is the exact SK-08 misroute. After WP03, the canonical-verb
     candidate always wins."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-low-priority",
-            "role_value": "implementer",
-            "routing_priority": 10,
-            "domain_keywords": [],
-        },
-        {
-            "profile_id": "reviewer-weak-verb",
-            "role_value": "reviewer",
-            "routing_priority": 80,
-            # "gizmo" is not in CANONICAL_VERB_MAP -- a genuine domain-keyword
-            # match, not shadowed by a verb match on this profile's role.
-            "domain_keywords": ["gizmo"],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-low-priority",
+                "role_value": "implementer",
+                "routing_priority": 10,
+                "domain_keywords": [],
+            },
+            {
+                "profile_id": "reviewer-weak-verb",
+                "role_value": "reviewer",
+                "routing_priority": 80,
+                # "gizmo" is not in CANONICAL_VERB_MAP -- a genuine domain-keyword
+                # match, not shadowed by a verb match on this profile's role.
+                "domain_keywords": ["gizmo"],
+            },
+        ]
+    )
     router = ActionRouter(registry)
 
     decision = router.route("implement and gizmo the module")
@@ -697,14 +709,16 @@ def test_lone_domain_keyword_candidate_auto_selects() -> None:
     operator ruling reverts for the no-competition case. Inverted rather than
     deleted: it pins the restored behavior at the same mock-registry
     granularity the original regression test used."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "reviewer-lone-keyword",
-            "role_value": "reviewer",
-            "routing_priority": 50,
-            "domain_keywords": ["gizmo"],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "reviewer-lone-keyword",
+                "role_value": "reviewer",
+                "routing_priority": 50,
+                "domain_keywords": ["gizmo"],
+            },
+        ]
+    )
     router = ActionRouter(registry)
 
     decision = router.route("gizmo the widget")
@@ -719,14 +733,16 @@ def test_lone_domain_keyword_with_explicit_profile_still_works() -> None:
     --profile hint, still routes successfully -- the explicit-hint path
     (Level 1) bypasses the candidate-selection logic entirely and is
     unaffected by WP03's rerank."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "reviewer-lone-keyword",
-            "role_value": "reviewer",
-            "routing_priority": 50,
-            "domain_keywords": ["gizmo"],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "reviewer-lone-keyword",
+                "role_value": "reviewer",
+                "routing_priority": 50,
+                "domain_keywords": ["gizmo"],
+            },
+        ]
+    )
     router = ActionRouter(registry)
 
     decision = router.route("gizmo the widget", profile_hint="reviewer-lone-keyword")
@@ -756,20 +772,22 @@ def test_two_plus_domain_keyword_candidates_priority_tiebreak_selects_higher_pri
     reserved for a real tie -- see
     test_two_plus_domain_keyword_candidates_tied_priority_still_ambiguous
     below."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "reviewer-high-priority-keyword",
-            "role_value": "reviewer",
-            "routing_priority": 80,
-            "domain_keywords": ["gizmo"],
-        },
-        {
-            "profile_id": "curator-low-priority-keyword",
-            "role_value": "curator",
-            "routing_priority": 10,
-            "domain_keywords": ["widget"],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "reviewer-high-priority-keyword",
+                "role_value": "reviewer",
+                "routing_priority": 80,
+                "domain_keywords": ["gizmo"],
+            },
+            {
+                "profile_id": "curator-low-priority-keyword",
+                "role_value": "curator",
+                "routing_priority": 10,
+                "domain_keywords": ["widget"],
+            },
+        ]
+    )
     router = ActionRouter(registry)
 
     decision = router.route("gizmo and widget stuff")
@@ -788,20 +806,22 @@ def test_two_plus_domain_keyword_candidates_tied_priority_still_ambiguous() -> N
     decides" (the test above) from "no competition, still genuinely tied"
     (this test): the operator ruling narrows FR-007 to the latter, not every
     zero-verb-tier resolution."""
-    registry = _make_mock_registry([
-        {
-            "profile_id": "reviewer-tied-keyword",
-            "role_value": "reviewer",
-            "routing_priority": 50,
-            "domain_keywords": ["gizmo"],
-        },
-        {
-            "profile_id": "curator-tied-keyword",
-            "role_value": "curator",
-            "routing_priority": 50,
-            "domain_keywords": ["widget"],
-        },
-    ])
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "reviewer-tied-keyword",
+                "role_value": "reviewer",
+                "routing_priority": 50,
+                "domain_keywords": ["gizmo"],
+            },
+            {
+                "profile_id": "curator-tied-keyword",
+                "role_value": "curator",
+                "routing_priority": 50,
+                "domain_keywords": ["widget"],
+            },
+        ]
+    )
     router = ActionRouter(registry)
 
     with pytest.raises(RouterAmbiguityError) as exc_info:
@@ -844,20 +864,22 @@ def test_no_op_opened_on_tied_keyword_tier_ambiguous_raise(tmp_path: Path) -> No
 
     project = _setup_executor_project(tmp_path)
 
-    tied_registry = _make_mock_registry([
-        {
-            "profile_id": "implementer-fixture",
-            "role_value": "implementer",
-            "routing_priority": 50,
-            "domain_keywords": ["gizmo"],
-        },
-        {
-            "profile_id": "reviewer-fixture",
-            "role_value": "reviewer",
-            "routing_priority": 50,
-            "domain_keywords": ["widget"],
-        },
-    ])
+    tied_registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-fixture",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": ["gizmo"],
+            },
+            {
+                "profile_id": "reviewer-fixture",
+                "role_value": "reviewer",
+                "routing_priority": 50,
+                "domain_keywords": ["widget"],
+            },
+        ]
+    )
     tied_router = ActionRouter(tied_registry)
     tied_executor = ProfileInvocationExecutor(project, router=tied_router)
     with (
@@ -867,3 +889,219 @@ def test_no_op_opened_on_tied_keyword_tier_ambiguous_raise(tmp_path: Path) -> No
     ):
         tied_executor.invoke("gizmo and widget stuff", actor="test")
     assert not (project / "kitty-ops").exists()
+
+
+# ---------------------------------------------------------------------------
+# #6970 FR-003: multi-token keywords and hyphenated verbs actually match
+# ---------------------------------------------------------------------------
+
+
+def test_phrase_keyword_matches_only_as_a_contiguous_phrase() -> None:
+    """A declared two-word keyword matches the phrase and not a single word of it."""
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "curator-fixture",
+                "role_value": "curator",
+                "routing_priority": 40,
+                "domain_keywords": ["knowledge base"],
+            },
+        ]
+    )
+    router = ActionRouter(registry)
+
+    decision = router.route("refresh the knowledge base article")
+    assert (decision.profile_id, decision.confidence) == ("curator-fixture", "domain_keyword")
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        router.route("share the knowledge")
+    assert exc_info.value.error_code == "ROUTER_NO_MATCH"
+
+
+def test_hyphenated_canonical_verb_matches_its_words() -> None:
+    """`transcribe-notes` is declared with a hyphen; the request spells the two words."""
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "scribe-fixture",
+                "role_value": "documentarian",
+                "routing_priority": 40,
+                "domain_keywords": [],
+                "collab_verbs": ["transcribe-notes"],
+            },
+        ]
+    )
+
+    decision = ActionRouter(registry).route("transcribe notes for the standup")
+
+    assert decision.profile_id == "scribe-fixture"
+
+
+# ---------------------------------------------------------------------------
+# #6970 FR-004/FR-005: ROUTER_NO_MATCH names the closest profiles and the remedy
+# ---------------------------------------------------------------------------
+
+
+# Two-word keywords, so a request containing one word of a phrase produces a PARTIAL
+# overlap (the refusal path) rather than a keyword match (the decision path).
+_NO_MATCH_PROFILES: tuple[dict[str, Any], ...] = (
+    {
+        "profile_id": "python-fixture",
+        "role_value": "implementer",
+        "routing_priority": 80,
+        "domain_keywords": ["splines algorithm"],
+    },
+    {
+        "profile_id": "java-fixture",
+        "role_value": "implementer",
+        "routing_priority": 80,
+        "domain_keywords": ["splines widget"],
+    },
+    {
+        "profile_id": "docs-fixture",
+        "role_value": "curator",
+        "routing_priority": 40,
+        "domain_keywords": ["splines gadget"],
+    },
+    {
+        "profile_id": "unrelated-fixture",
+        "role_value": "reviewer",
+        "routing_priority": 50,
+        "domain_keywords": ["lockfile"],
+    },
+)
+
+
+def _no_match_registry() -> MagicMock:
+    return _make_mock_registry(list(_NO_MATCH_PROFILES))
+
+
+def test_no_match_reports_the_closest_profiles_and_the_remedy() -> None:
+    """A refusal a caller can act on: ids, actions, a partial reason, a runnable command."""
+    router = ActionRouter(_no_match_registry())
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        router.route("reticulate the splines")
+
+    err = exc_info.value
+    assert err.error_code == "ROUTER_NO_MATCH"
+    candidate_ids = [candidate["profile_id"] for candidate in err.candidates]
+    # `splines` partially overlaps three profiles, ordered overlap desc → priority
+    # desc → profile_id asc; `unrelated-fixture` shares nothing and is never named.
+    assert candidate_ids == ["java-fixture", "python-fixture", "docs-fixture"]
+    assert "unrelated-fixture" not in candidate_ids
+    for candidate in err.candidates:
+        assert candidate["confidence"] == "partial"
+        assert "partial overlap" in candidate["match_reason"]
+        assert candidate["action"]
+    assert "--profile java-fixture" in err.suggestion
+    assert "profiles list" in err.suggestion
+
+
+def test_no_match_without_any_overlap_names_no_candidate() -> None:
+    """Nothing is invented when nothing overlaps: empty candidates, profiles-list remedy."""
+    router = ActionRouter(_no_match_registry())
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        router.route("reticulate the gizmo")
+
+    err = exc_info.value
+    assert err.error_code == "ROUTER_NO_MATCH"
+    assert err.candidates == []
+    assert "profiles list" in err.suggestion
+
+
+def test_no_match_refusal_is_bounded_and_deterministic() -> None:
+    """At most three candidates, and a reversed catalog yields the identical refusal."""
+    reversed_registry = _make_mock_registry(list(reversed(_NO_MATCH_PROFILES)))
+
+    def _refusal(router: ActionRouter) -> tuple[list[str], str]:
+        with pytest.raises(RouterAmbiguityError) as exc_info:
+            router.route("reticulate the splines")
+        err = exc_info.value
+        return [candidate["profile_id"] for candidate in err.candidates], err.suggestion
+
+    first = _refusal(ActionRouter(_no_match_registry()))
+    second = _refusal(ActionRouter(reversed_registry))
+
+    assert first == second
+    assert len(first[0]) == 3
+
+
+def test_refusal_quoting_survives_a_quote_in_the_request() -> None:
+    """The rendered --profile command stays runnable when the request has a double quote."""
+    router = ActionRouter(_no_match_registry())
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        router.route('reticulate the "splines"')
+
+    suggestion = exc_info.value.suggestion
+    assert "--profile java-fixture" in suggestion
+    assert '"splines"' not in suggestion
+
+
+# ---------------------------------------------------------------------------
+# #6970 FR-006: ROUTER_AMBIGUOUS names the tied ids and one command per id
+# ---------------------------------------------------------------------------
+
+
+def test_ambiguous_suggestion_names_every_tied_profile() -> None:
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "implementer-a",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+            {
+                "profile_id": "implementer-b",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": [],
+            },
+        ]
+    )
+
+    with pytest.raises(RouterAmbiguityError) as exc_info:
+        ActionRouter(registry).route("implement the feature")
+
+    err = exc_info.value
+    assert err.error_code == "ROUTER_AMBIGUOUS"
+    assert [candidate["profile_id"] for candidate in err.candidates] == ["implementer-a", "implementer-b"]
+    assert "--profile implementer-a" in err.suggestion
+    assert "--profile implementer-b" in err.suggestion
+
+
+# ---------------------------------------------------------------------------
+# #6970 FR-009/FR-012, NFR-005: purity — one catalog read, ranking only on refusal
+# ---------------------------------------------------------------------------
+
+
+def test_route_reads_the_catalog_exactly_once() -> None:
+    """The refusal ranking reuses the single list_all() the router already performs."""
+    registry = _no_match_registry()
+    router = ActionRouter(registry)
+
+    with pytest.raises(RouterAmbiguityError):
+        router.route("reticulate the splines")
+    registry.list_all.assert_called_once()
+
+
+def test_decided_route_has_no_ranking_side_effects() -> None:
+    """A decided route reports no alternatives; the nearest-profile ranking never runs."""
+    registry = _make_mock_registry(
+        [
+            {
+                "profile_id": "only-fixture",
+                "role_value": "implementer",
+                "routing_priority": 50,
+                "domain_keywords": ["splines"],
+            },
+        ]
+    )
+
+    decision = ActionRouter(registry).route("reticulate the splines")
+
+    assert decision.profile_id == "only-fixture"
+    assert decision.alternatives == []

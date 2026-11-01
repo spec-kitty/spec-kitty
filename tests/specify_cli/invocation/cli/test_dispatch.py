@@ -818,3 +818,191 @@ def test_dispatch_dry_run_non_git_project_exits_1_with_git_init_advice(tmp_path:
     assert result.exit_code == 1
     assert "not inside a git repository" in result.output
     assert "git init" in result.output
+
+
+# ---------------------------------------------------------------------------
+# #6970 — a refusal is legible on the console and unchanged on the wire
+#
+# The router now reports candidates and a runnable remedy, but `dispatch`
+# without `--json` used to print the raw `routing_failed` envelope to stderr.
+# These tests pin the human rendering on all three refusal paths (real,
+# dry-run, unknown --profile) and the unchanged five-key `--json` envelope.
+# ---------------------------------------------------------------------------
+
+# Two-word keywords: a request carrying one word of a phrase produces the
+# partial overlap that drives the ROUTER_NO_MATCH path (a full phrase would
+# legitimately route), so the refusal has candidates to name.
+_PARTIAL_OVERLAP_PROFILES: tuple[dict[str, object], ...] = (
+    {
+        "profile_id": "python-fixture",
+        "role_value": "implementer",
+        "routing_priority": 80,
+        "domain_keywords": ["splines algorithm"],
+    },
+    {
+        "profile_id": "docs-fixture",
+        "role_value": "curator",
+        "routing_priority": 40,
+        "domain_keywords": ["splines gadget"],
+    },
+)
+
+
+def _partial_overlap_registry() -> MagicMock:
+    return _make_mock_registry(list(_PARTIAL_OVERLAP_PROFILES))
+
+
+def test_no_match_without_json_renders_a_human_refusal(tmp_path: Path) -> None:
+    """#6970 FR-007: no `--json` means no JSON blob -- code, candidates, remedy."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+
+    result = _run_with_registry(
+        project,
+        ["dispatch", "reticulate the splines"],
+        _partial_overlap_registry(),
+    )
+
+    assert result.exit_code == 1, result.output
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(result.output)
+    assert "ROUTER_NO_MATCH" in result.output
+    # Candidates come from the router, not from prose hard-coded in the CLI.
+    assert "python-fixture" in result.output
+    assert "docs-fixture" in result.output
+    assert "--profile python-fixture" in result.output
+    assert "Remedy:" in result.output
+
+
+def test_dry_run_no_match_without_json_renders_the_same_human_refusal(tmp_path: Path) -> None:
+    """The dry-run refusal shares one renderer with the real path (T009)."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+
+    result = _run_with_registry(
+        project,
+        ["dispatch", "reticulate the splines", "--dry-run"],
+        _partial_overlap_registry(),
+    )
+
+    assert result.exit_code == 1, result.output
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(result.output)
+    assert "ROUTER_NO_MATCH" in result.output
+    assert "python-fixture" in result.output
+    assert "--profile python-fixture" in result.output
+
+
+def test_unknown_profile_without_json_renders_a_human_refusal(tmp_path: Path) -> None:
+    """An unknown `--profile` is a refused dispatch too -- never a raw envelope."""
+    project = _setup_project(tmp_path)
+
+    result = _run(
+        project,
+        ["dispatch", "implement", "--profile", "nonexistent-profile"],
+    )
+
+    assert result.exit_code == 1, result.output
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(result.output)
+    assert "PROFILE_NOT_FOUND" in result.output
+    assert "spec-kitty profiles list" in result.output
+
+
+def test_no_match_json_envelope_keeps_five_keys_and_candidates(tmp_path: Path) -> None:
+    """#6970 FR-008: the machine path is unchanged apart from carrying candidates."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+
+    result = _run_with_registry(
+        project,
+        ["dispatch", "reticulate the splines", "--json"],
+        _partial_overlap_registry(),
+    )
+
+    assert result.exit_code == 1, result.output
+    envelope = json.loads(result.output)
+    assert set(envelope) == {"error", "error_code", "message", "candidates", "suggestion"}
+    assert envelope["error"] == "routing_failed"
+    assert envelope["error_code"] == "ROUTER_NO_MATCH"
+    candidate_ids = [candidate["profile_id"] for candidate in envelope["candidates"]]
+    assert candidate_ids == ["python-fixture", "docs-fixture"]
+    for candidate in envelope["candidates"]:
+        assert candidate["confidence"] == "partial"
+        assert candidate["action"]
+    assert "--profile python-fixture" in envelope["suggestion"]
+
+
+def test_ambiguous_without_json_names_every_tied_id_with_a_remedy(tmp_path: Path) -> None:
+    """#6970 FR-006 rendered: a genuine tie stays a refusal but is resolvable."""
+    project = _setup_project(tmp_path)
+    _write_configured_charter(project)
+
+    result = _run_with_registry(
+        project,
+        ["dispatch", "implement the feature"],
+        _tied_implementers_registry(),
+    )
+
+    assert result.exit_code == 1, result.output
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(result.output)
+    assert "ROUTER_AMBIGUOUS" in result.output
+    assert "implementer-a" in result.output
+    assert "implementer-b" in result.output
+    assert "--profile implementer-a" in result.output
+    assert "--profile implementer-b" in result.output
+
+
+# ---------------------------------------------------------------------------
+# #6970 FR-001/SC-001 at the command surface (T014)
+#
+# The router unit test proves `route()`; this proves the command an agent runs,
+# against the REAL shipped `packs/built-in/agent_profiles` catalog.
+# ---------------------------------------------------------------------------
+
+REPO_ROOT = Path(__file__).resolve().parents[4]
+SHIPPED_PROFILES_DIR = REPO_ROOT / "packs" / "built-in" / "agent_profiles"
+
+
+def _setup_shipped_project(tmp_path: Path) -> Path:
+    """A project whose `.kittify/profiles` is the shipped catalog, not fixtures."""
+    profiles_dir = tmp_path / ".kittify" / "profiles"
+    profiles_dir.mkdir(parents=True)
+    shipped = sorted(SHIPPED_PROFILES_DIR.glob("*.agent.yaml"))
+    assert shipped, f"No shipped profiles found under {SHIPPED_PROFILES_DIR}"
+    for source in shipped:
+        shutil.copy(source, profiles_dir / source.name)
+    _write_configured_charter(tmp_path)
+    return tmp_path
+
+
+def test_issue_request_routes_through_the_dispatch_command(tmp_path: Path) -> None:
+    """#6970 reproduction: the reported request must not be refused by `dispatch`."""
+    project = _setup_shipped_project(tmp_path)
+
+    result = _run(
+        project,
+        ["dispatch", "mark ADR-0068 Accepted and regenerate the ADR index", "--dry-run", "--json"],
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["status"] == "dry_run"
+    assert envelope["profile_id"] == "curator-carla"
+    assert envelope["router_confidence"] == "domain_keyword"
+    assert isinstance(envelope["alternatives"], list)
+
+
+def test_bare_database_index_still_refuses_at_the_command_surface(tmp_path: Path) -> None:
+    """FR-002 at the CLI: `index` alone is not a documentation signal."""
+    project = _setup_shipped_project(tmp_path)
+
+    result = _run(
+        project,
+        ["dispatch", "index the invoice table", "--dry-run", "--json"],
+    )
+
+    assert result.exit_code == 1, result.output
+    envelope = json.loads(result.output)
+    assert envelope["error_code"] == "ROUTER_NO_MATCH"
