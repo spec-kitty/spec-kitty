@@ -1,0 +1,35 @@
+# Pin lockfile: which released build of this service core runs.
+# Bump only with `spec-kitty service vendor --service <name> --tag <tag>`; never edit by hand.
+service: read-service
+repository: https://github.com/spec-kitty/spec-kitty-events
+tag: service-v0.1.0-rc.1
+commit: 2f5e03948b5262185d15e45019fe14fbc473b9b5
+protocol_versions:
+- 1
+requires_core: '>=4.0.0rc8,<5'
+assets:
+  jvm:
+    name: mission-status-api-0.1.0-rc.1.jar
+    sha256: ee4d2505c6f3059b14cedd5d541a63a0be67b15e632666a833c193af4e60f1ae
+  linux-arm64:
+    name: mission-status-api-0.1.0-rc.1-linux-arm64
+    sha256: de2fa6b49c32972ebe0c17ce53e480b27aac41119e22625a1d85460c4bf51060
+  linux-x64:
+    name: mission-status-api-0.1.0-rc.1-linux-x64
+    sha256: e78c83111803c5ae43baf310d695a8e2a6fba3e79913ea282c10cd2781bbb112
+  macos-arm64:
+    name: mission-status-api-0.1.0-rc.1-macos-arm64
+    sha256: 964e6890daf29968b208555f518f49c906d228d98035f675f7f4c5b47a854597
+  windows-x64:
+    name: mission-status-api-0.1.0-rc.1-windows-x64.exe
+    sha256: ba8cc5e0da3a61e644788bf07d2f726447777d6eceb0851c40075eb967a10c96
+extras:
+  contract_tools:
+    name: contract-tools-0.1.0-rc.1.tar.gz
+    sha256: 8ac707a2b30abfbc40005a755f70d68ab17df62381c73f0e964289018d56c934
+  contracts:
+    name: contract-bundles-0.1.0-rc.1.tar.gz
+    sha256: fbfa6f97dea2acd39858598f17756f225870f65cfdbda6493eecca62fe66b275
+  fixtures:
+    name: conformance-fixtures-0.1.0-rc.1.tar.gz
+    sha256: 30b1a462b64b28fa608ec4af0ab0924ee0e71c98e79d959ab5d7426f34d84563
