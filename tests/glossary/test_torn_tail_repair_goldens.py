@@ -122,7 +122,10 @@ _COMMITTED: list[dict[str, Any]] = json.loads(GOLDENS.read_text(encoding="utf-8"
 
 
 def test_the_committed_goldens_are_what_python_produces() -> None:
-    assert GOLDENS.read_text(encoding="utf-8") == render_goldens(), "regenerate: uv run --frozen python -m tests.glossary.test_torn_tail_repair_goldens"
+    assert GOLDENS.read_text(encoding="utf-8") == render_goldens(), (
+        "the pinned goldens differ from live Python: regenerate them in a spec-kitty-events checkout with "
+        "`uv run --frozen python -m tests.glossary.test_torn_tail_repair_goldens <path of repair-cases.json>` and bump the pin"
+    )
 
 
 def test_the_goldens_cover_the_shapes_the_port_must_handle() -> None:

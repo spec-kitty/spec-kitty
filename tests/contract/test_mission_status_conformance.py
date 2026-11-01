@@ -1,6 +1,6 @@
 """The golden-honesty test of the Mission Status API conformance gate (spec FR-008 (ii), AC-8a/8b/8d, AC-5d, AC-1f, AC-6e).
 
-The committed goldens under ``services/mission-status-api/src/test/resources/conformance/`` must equal live output of the Python
+The goldens under ``conformance/`` of the pinned ``conformance-fixtures`` asset (spec-kitty-events, ``make sync-services``) must equal live output of the Python
 reference helpers, byte for byte. Every fixture is provisioned into a temporary directory (a git repository only where the class
 needs one) by ``_mission_status_conformance``; nothing reads the committed trees in place.
 

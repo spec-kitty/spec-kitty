@@ -153,6 +153,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.write and args.root is None:
         parser.error("--write needs --root: the pinned fixtures are read-only")
+    if args.root is None:
+        from tests.pinned_service_assets import pinned_extra
+
+        pinned_extra("fixtures")  # fail closed with the SERVICE_* code and the remedy, like the conformance generator
     cases_file, golden_file = (
         (CASES_FILE, GOLDEN_FILE) if args.root is None else (args.root / ARTIFACT_CONFORMANCE / "cases.json", args.root / ARTIFACT_CONFORMANCE / "golden.json")
     )
