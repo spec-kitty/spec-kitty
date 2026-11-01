@@ -17,12 +17,12 @@ plan that the migration must rewrite, and a mutated body that must be caught.
 
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Final
 
 import pytest
 
+from kernel.content_digest import sha256_digest
 from scripts.docs._dockitty_contract import body_of, is_immutable
 from scripts.docs.dockitty_frontmatter_migration import Corpus, migrate_text
 
@@ -35,7 +35,7 @@ _MIN_IMMUTABLE_FILES: Final[int] = 400
 
 
 def _sha(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+    return sha256_digest(text.encode("utf-8"))
 
 
 def _immutable_files() -> list[tuple[str, Path]]:
