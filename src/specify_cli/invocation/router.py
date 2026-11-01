@@ -197,6 +197,261 @@ def _normalize_tokens(text: str) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# DOCUMENTATION_DOMAIN_ALIASES: request noun → the profile keyword it stands for
+# ---------------------------------------------------------------------------
+# #6970: a documentation-maintenance request ("mark ADR-0068 Accepted and
+# regenerate the ADR index") matched nothing. No shipped profile declares `adr`,
+# `changelog`, `readme`, `docstring`, `guide`, `handbook` or `tutorial` as a
+# domain keyword, and the one profile that DOES own the documentation domain
+# (`curator-carla`: `documentation`, `knowledge base`, `glossary`, `doctrine`, …)
+# never saw its own keyword either. ADR-3 names expanding the vocabulary table as
+# the sanctioned remedy for a coverage gap (this issue is exactly the
+# "real invocation event data" ADR-3 said would drive that expansion), so the
+# expansion lives here, in the router, not in the fetched profile pack.
+#
+# The mapping is  canonical profile keyword -> request-side aliases .  A request
+# token in an alias set contributes the canonical keyword to the request's domain
+# term set, so a profile that declares the canonical keyword matches through the
+# ordinary domain_keyword path.
+#
+# Deliberate exclusions:
+#   * bare `index` is NOT an alias: "index the invoice table" also means a
+#     database/binary index, and misrouting that to a documentation curator is
+#     worse than refusing it. "ADR index" / "documentation index" already carry
+#     an unambiguous noun.
+#   * maintenance verbs (`mark`, `regenerate`, `refresh`, `publish`) are NOT in
+#     CANONICAL_VERB_MAP: a verb maps to a ROLE, and "regenerate" says nothing
+#     about who should own the work. Domain nouns discriminate here; verbs do not.
+#
+# Tier position (#6970 FR-011): aliases are the LAST signal tier, consulted only
+# when the request has no literal single-token and no literal phrase keyword
+# match, so no request that routes today can move to a different profile.
+DOCUMENTATION_DOMAIN_ALIASES: dict[str, frozenset[str]] = {
+    "documentation": frozenset(
+        {
+            "adr",
+            "adrs",
+            "changelog",
+            "changelogs",
+            "doc",
+            "docs",
+            "documentation",
+            "docstring",
+            "docstrings",
+            "guide",
+            "guides",
+            "handbook",
+            "readme",
+            "readmes",
+            "tutorial",
+            "tutorials",
+        }
+    ),
+}
+
+#: How many nearest profiles a ``ROUTER_NO_MATCH`` refusal may name (#6970 FR-004,
+#: NFR-002). Bounded so the message stays readable for a catalog of any size.
+_NEAREST_PROFILE_LIMIT = 3
+
+
+# ---------------------------------------------------------------------------
+# Profile vocabulary helpers (pure)
+# ---------------------------------------------------------------------------
+
+
+def _profile_keywords(profile: object) -> list[str]:
+    """The declared routing vocabulary of one profile.
+
+    ``specialization_context.domain_keywords`` is the documented source; the
+    profile-level ``collaboration.canonical_verbs`` are folded in as additional
+    signals (pre-existing behaviour, unchanged by #6970).
+    """
+    sc = getattr(profile, "specialization_context", None)
+    keywords: list[str] = list(sc.domain_keywords) if sc and sc.domain_keywords else []
+    collab = getattr(profile, "collaboration", None)
+    collab_verbs: list[str] = list(collab.canonical_verbs) if collab and collab.canonical_verbs else []
+    for verb in collab_verbs:
+        if verb not in keywords:
+            keywords.append(verb)
+    return keywords
+
+
+def _keyword_tokens(keyword: str) -> tuple[str, ...]:
+    """Normalize one declared keyword with the same splitter used on the request."""
+    return tuple(_normalize_tokens(keyword))
+
+
+def _is_single_token_match(keyword_tokens: tuple[str, ...], token_set: frozenset[str]) -> bool:
+    """Tier 2: today's exact-token rule (byte-identical to pre-#6970 behaviour)."""
+    return len(keyword_tokens) == 1 and keyword_tokens[0] in token_set
+
+
+def _is_phrase_match(keyword_tokens: tuple[str, ...], tokens: list[str]) -> bool:
+    """Tier 3: the keyword's own tokens appear as a contiguous run (#6970 FR-003).
+
+    Before #6970 a keyword was compared by exact token equality, so any declared
+    keyword containing a space (``knowledge base``, ``bug fix``) or a hyphen
+    (``transcribe-notes``, ``detect-drift``) could never match — a dead signal.
+    """
+    size = len(keyword_tokens)
+    if size < 2 or size > len(tokens):
+        return False
+    return any(tuple(tokens[index : index + size]) == keyword_tokens for index in range(len(tokens) - size + 1))
+
+
+def _is_alias_match(keyword_tokens: tuple[str, ...], token_set: frozenset[str]) -> bool:
+    """Tier 4: a documentation-artifact noun stands for the canonical keyword."""
+    if len(keyword_tokens) != 1:
+        return False
+    aliases = DOCUMENTATION_DOMAIN_ALIASES.get(keyword_tokens[0])
+    if not aliases:
+        return False
+    return bool(aliases & token_set)
+
+
+def _default_action_for_role(role: object) -> str:
+    """The action a keyword-tier match reports for a profile of *role*."""
+    caps = DEFAULT_ROLE_CAPABILITIES.get(role) if isinstance(role, Role) else None
+    if caps and caps.canonical_verbs:
+        return str(caps.canonical_verbs[0])
+    return "review"
+
+
+def _collect_keyword_matches(
+    profiles: list[object],
+    tokens: list[str],
+    token_set: frozenset[str],
+    *,
+    single_token: bool = False,
+    phrase: bool = False,
+    alias: bool = False,
+) -> list[tuple[str, str, str]]:
+    """One keyword pass: ``(profile_id, action, keyword)`` for every matching profile.
+
+    Exactly one selector flag is set per pass, which is what makes the tier ladder
+    in :func:`_keyword_tier_matches` explicit: the caller decides which tier runs,
+    never this helper.
+
+    The first matching keyword per profile wins, preserving the pre-#6970
+    "first declared keyword" semantics inside a tier.
+    """
+
+    def _matches(keyword_tokens: tuple[str, ...]) -> bool:
+        if single_token:
+            return _is_single_token_match(keyword_tokens, token_set)
+        if phrase:
+            return _is_phrase_match(keyword_tokens, tokens)
+        if alias:
+            return _is_alias_match(keyword_tokens, token_set)
+        return False
+
+    matches: list[tuple[str, str, str]] = []
+    for profile in profiles:
+        action = _default_action_for_role(getattr(profile, "role", None))
+        for keyword in _profile_keywords(profile):
+            keyword_tokens = _keyword_tokens(keyword)
+            if not keyword_tokens or not _matches(keyword_tokens):
+                continue
+            matches.append((str(getattr(profile, "profile_id", "")), action, keyword))
+            break
+    return matches
+
+
+def _nearest_profiles(profiles: list[object], tokens: list[str]) -> list[tuple[object, str, list[str]]]:
+    """Rank the profiles a refusal could have named (#6970 FR-004).
+
+    Overlap is the number of the request's normalized tokens that appear in the
+    profile's own normalized keyword/verb vocabulary. The order is total — overlap
+    desc, ``routing_priority`` desc, ``profile_id`` asc — so two identical calls
+    return identical candidates for any catalog order (NFR-001).
+
+    A profile with zero overlap is never listed: the refusal must not invent a
+    closest match that does not exist (FR-005).
+    """
+    token_set = set(tokens)
+    scored: list[tuple[int, int, str, object, list[str]]] = []
+    for profile in profiles:
+        vocabulary: set[str] = set()
+        for keyword in _profile_keywords(profile):
+            vocabulary.update(_keyword_tokens(keyword))
+        shared = sorted(token_set & vocabulary)
+        if not shared:
+            continue
+        priority = getattr(profile, "routing_priority", 0)
+        scored.append((len(shared), priority if isinstance(priority, int) else 0, str(getattr(profile, "profile_id", "")), profile, shared))
+    scored.sort(key=lambda entry: (-entry[0], -entry[1], entry[2]))
+    return [(profile, _default_action_for_role(getattr(profile, "role", None)), shared) for _, _, _, profile, shared in scored[:_NEAREST_PROFILE_LIMIT]]
+
+
+def _quote_request(request_text: str) -> str:
+    """Quote a request for a copy-pasteable suggestion command.
+
+    Double quotes match the existing suggestion wording; embedded double quotes
+    are neutralized so the rendered ``--profile`` command stays runnable (#6970).
+    """
+    return '"' + request_text.replace('"', "'") + '"'
+
+
+def _keyword_tier_matches(profiles: list[object], tokens: list[str]) -> list[tuple[str, str, str]]:
+    """The keyword ladder: single token (today's rule) → phrase → docs alias.
+
+    A later tier runs only when the earlier one produced no match (#6970 FR-011), so
+    the new signals can only ever turn a refusal into a route — never move a route
+    that already exists.
+    """
+    token_set = frozenset(tokens)
+    for selector in ("single_token", "phrase", "alias"):
+        matches = _collect_keyword_matches(profiles, tokens, token_set, **{selector: True})
+        if matches:
+            return matches
+    return []
+
+
+def _no_match_suggestion(request_text: str, nearest: list[tuple[object, str, list[str]]]) -> str:
+    """The ``ROUTER_NO_MATCH`` remedy, naming the candidates when there are any.
+
+    #6970 FR-004/FR-005: the reported session saw only ``ROUTER_NO_MATCH`` and had to
+    guess a profile id. The suggestion now carries a runnable ``--profile`` command
+    naming a real candidate; when nothing overlaps it points at ``profiles list``
+    instead of inventing an id.
+    """
+    quoted = _quote_request(request_text)
+    if nearest:
+        listed = ", ".join(f"{getattr(profile, 'profile_id', '')} ({action})" for profile, action, _ in nearest)
+        first_profile_id = getattr(nearest[0][0], "profile_id", "")
+        return (
+            f"No profile matched. Closest: {listed}. "
+            f"Retry with 'spec-kitty dispatch {quoted} --profile {first_profile_id}', "
+            "or run 'spec-kitty profiles list' for the full catalog."
+        )
+    return (
+        "No profile matched and no profile shares a keyword with this request. "
+        "Run 'spec-kitty profiles list' to choose one, then retry with "
+        f"'spec-kitty dispatch {quoted} --profile <id>'."
+    )
+
+
+def _ambiguous_suggestion(request_text: str, tied: list[dict[str, str]]) -> str:
+    """The ``ROUTER_AMBIGUOUS`` remedy: the tied ids and a ``--profile`` command per id.
+
+    #6970 FR-006: a genuine tie stays a refusal (the router never invents a winner),
+    but the caller must be able to resolve it in one step, so every tied id gets its
+    own runnable command. The command list is capped at three so a large tie stays
+    readable; the remaining ids are still named in the list that opens the sentence.
+
+    *tied* is expected in ``profile_id`` order (the raise site sorts it), so the
+    suggestion is identical for any catalog order.
+    """
+    quoted = _quote_request(request_text)
+    listed = ", ".join(f"{candidate['profile_id']} ({candidate['action']})" for candidate in tied)
+    commands = " or ".join(f"'spec-kitty dispatch {quoted} --profile {candidate['profile_id']}'" for candidate in tied[:3])
+    if not commands:
+        return "Multiple profiles matched. Run 'spec-kitty profiles list' to choose one and retry with --profile <id>."
+    remainder = f" (and {len(tied) - 3} more in the list above)" if len(tied) > 3 else ""
+    return f"Multiple profiles matched: {listed}. Retry with {commands}{remainder}, or run 'spec-kitty profiles list' for the full catalog."
+
+
+# ---------------------------------------------------------------------------
 # ActionRouter
 # ---------------------------------------------------------------------------
 
@@ -207,11 +462,18 @@ class ActionRouter:
     Pure function: no I/O, no network, no LLM call.  All routing decisions
     are based on CANONICAL_VERB_MAP tokens and profile domain keywords.
 
-    Routing precedence (ADR-3):
+    Routing precedence (ADR-3), extended by #6970 with the signal-tier ladder:
       1. Explicit profile_hint → exact match
       2. Canonical verb match → canonical_verb confidence
-      3. Domain keyword match → domain_keyword confidence
-      4. Zero or ambiguous matches → RouterAmbiguityError
+      3. Literal single-token domain keyword → domain_keyword confidence
+      4. Literal phrase keyword / canonical verb → domain_keyword confidence
+         (#6970: previously dead signals)
+      5. Documentation-artifact noun → domain_keyword confidence (#6970)
+      6. Zero or ambiguous matches → RouterAmbiguityError naming the candidates
+
+    Tiers 3-5 are a LADDER, not one pool: a later tier is consulted only when the
+    earlier one produced no candidate, so the new signals are strictly additive and
+    a request that routed before this change cannot move to another profile.
     """
 
     def __init__(
@@ -294,24 +556,18 @@ class ActionRouter:
                     verb_matches[role] = (action, token)
 
         # ------------------------------------------------------------------
-        # Level 3: Domain keyword match (per-profile)
+        # Level 3-5: domain keyword match (per-profile), as a TIER LADDER
         # ------------------------------------------------------------------
-        # Check specialization_context.domain_keywords (NOT specialization.domain_keywords).
-        keyword_matches: list[tuple[str, str, str]] = []  # (profile_id, action, keyword)
-        for profile in profiles:
-            sc = getattr(profile, "specialization_context", None)
-            kws: list[str] = list(sc.domain_keywords) if sc and sc.domain_keywords else []
-            # Also fold in collaboration.canonical_verbs as profile-level verb signals
-            collab = getattr(profile, "collaboration", None)
-            collab_verbs: list[str] = list(collab.canonical_verbs) if collab and collab.canonical_verbs else []
-            for cv in collab_verbs:
-                if cv not in kws:
-                    kws.append(cv)
-            for kw in kws:
-                if kw.lower() in tokens:
-                    caps = DEFAULT_ROLE_CAPABILITIES.get(profile.role) if isinstance(profile.role, Role) else None
-                    action = caps.canonical_verbs[0] if caps and caps.canonical_verbs else "review"
-                    keyword_matches.append((profile.profile_id, action, kw))
+        # Check specialization_context.domain_keywords (NOT specialization.domain_keywords),
+        # with collaboration.canonical_verbs folded in as additional signals (#6970
+        # extracted that fold into _profile_keywords so the refusal ranking reads the
+        # same vocabulary).
+        #
+        # #6970 FR-011: the passes run in order and a later pass is consulted ONLY when
+        # the earlier one produced no match. That is what keeps the new signals
+        # additive — every request that routed before this change resolves in the
+        # first (single-token) pass, byte-identically to the pre-#6970 matcher.
+        keyword_matches = _keyword_tier_matches(profiles, tokens)
 
         # ------------------------------------------------------------------
         # Aggregate candidates
@@ -346,11 +602,20 @@ class ActionRouter:
                 existing_ids.add(profile_id)
 
         if not candidates:
+            nearest = _nearest_profiles(profiles, tokens)
             raise RouterAmbiguityError(
                 request_text,
                 "ROUTER_NO_MATCH",
-                [],
-                "No profile matched. Use 'spec-kitty dispatch \"<request>\" --profile <id>' or run 'spec-kitty profiles list'.",
+                [
+                    {
+                        "profile_id": str(getattr(profile, "profile_id", "")),
+                        "action": action,
+                        "match_reason": ("partial overlap on " + ", ".join(f"'{token}'" for token in shared)),
+                        "confidence": "partial",
+                    }
+                    for profile, action, shared in nearest
+                ],
+                _no_match_suggestion(request_text, nearest),
             )
 
         # ------------------------------------------------------------------
@@ -473,9 +738,9 @@ class ActionRouter:
                     # from err.candidates without a schema mismatch.
                     "confidence": c["_confidence"],
                 }
-                for c in top_candidates
+                for c in sorted(top_candidates, key=lambda candidate: candidate["profile_id"])
             ],
-            "Multiple profiles matched. Use 'spec-kitty dispatch \"<request>\" --profile <id>' or run 'spec-kitty profiles list'.",
+            _ambiguous_suggestion(request_text, sorted(top_candidates, key=lambda candidate: candidate["profile_id"])),
         )
 
     def _derive_action_from_tokens(self, request_text: str, role: object) -> str:
