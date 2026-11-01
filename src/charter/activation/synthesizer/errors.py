@@ -20,6 +20,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from kernel.errors import KittyInternalConsistencyError
+
 __all__ = [
     "DuplicateTargetError",
     "FixtureAdapterMissingError",
@@ -33,6 +35,7 @@ __all__ = [
     "ProjectDirectiveScanError",
     "StagingPromoteError",
     "SynthesisError",
+    "SynthesisMembershipUnreadableError",
     "SynthesisSchemaError",
     "TopicSelectorAmbiguousError",
     "TopicSelectorUnresolvedError",
@@ -67,6 +70,66 @@ def render_error_panel(error: SynthesisError, console: Console | None = None) ->
     title = type(error).__name__
     body = str(error)
     console.print(Panel(Text(body, style="red"), title=f"[bold red]{title}[/]", border_style="red"))
+
+
+# ---------------------------------------------------------------------------
+# The one synthesis-ownership refusal (#6767)
+# ---------------------------------------------------------------------------
+
+#: The documented code for an unreadable synthesis ownership record. It is operator-visible
+#: (`charter context` prints it, exit 1) and is the only code this condition raises.
+SYNTHESIS_MEMBERSHIP_UNREADABLE = "SYNTHESIS_MEMBERSHIP_UNREADABLE"
+
+
+class SynthesisMembershipUnreadableError(SynthesisError, KittyInternalConsistencyError):
+    """The synthesis ownership record cannot be read, so membership is unknown (#6454, #6767).
+
+    One condition, one error: whichever part of the record is unreadable -- the synthesis
+    manifest, a provenance sidecar it lists, or the created-artifacts record that stands in
+    for it -- every reader raises this class with :data:`SYNTHESIS_MEMBERSHIP_UNREADABLE`.
+
+    Raised instead of an empty set, which would re-root every synthesized artifact and hand
+    agents the doctrine of an inactive directive (fail-open). ``body`` is the operator-facing
+    message (what could not be read, which file, why, and the remedy), and ``__str__`` returns
+    it, so both renderers show the remedy: the synthesis commands' ``SynthesisError`` panel and
+    ``charter context``'s coded-error path (which prints ``code`` and ``body``).
+
+    Two bases on purpose (``kernel.errors`` cross-cutting-error rule: subclass, never
+    flat-replace): :class:`SynthesisError` keeps every existing synthesis catch site matching,
+    and :class:`KittyInternalConsistencyError` keeps the coded refusal identical to the one
+    #6454 shipped. Unlike the taxonomy's frozen dataclasses, this error validates nothing, so
+    it carries plain attributes.
+
+    Attributes
+    ----------
+    record_path:
+        Repo-relative path of the record that owns the answer (the synthesis manifest).
+    offending_artifact:
+        Repo-relative path of the file that could not be read, when one file is at fault
+        (a provenance sidecar), else ``None``.
+    reason:
+        The underlying failure's text, for diagnosis.
+    kind:
+        The artifact kind whose membership was asked for, when known.
+    """
+
+    def __init__(
+        self,
+        body: str,
+        *,
+        record_path: str,
+        offending_artifact: str | None = None,
+        reason: str = "",
+        kind: str | None = None,
+    ) -> None:
+        super().__init__(SYNTHESIS_MEMBERSHIP_UNREADABLE, body)
+        self.record_path = record_path
+        self.offending_artifact = offending_artifact
+        self.reason = reason
+        self.kind = kind
+
+    def __str__(self) -> str:
+        return self.body or self.code
 
 
 # ---------------------------------------------------------------------------

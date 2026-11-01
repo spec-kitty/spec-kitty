@@ -9,7 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 import specify_cli.cli.commands.charter as charter_pkg
-from charter.activation.synthesizer.reach_only import SynthesisMembershipUnreadableError
+from charter.activation.synthesizer.errors import SynthesisMembershipUnreadableError
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -20,7 +20,7 @@ _BODY = "the synthesis manifest cannot be read. Remediation: restore it."
 @pytest.fixture
 def _refusing_context(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     def _raise(*_args: object, **_kwargs: object) -> None:
-        raise SynthesisMembershipUnreadableError(_BODY)
+        raise SynthesisMembershipUnreadableError(_BODY, record_path="m.yaml")
 
     monkeypatch.setattr(charter_pkg, "find_repo_root", lambda: tmp_path)
     monkeypatch.setattr("charter.activation.context.build_charter_context", _raise)

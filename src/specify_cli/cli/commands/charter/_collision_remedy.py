@@ -30,6 +30,7 @@ from charter.activation.api import (
     ProjectDirectiveScanError,
     ProjectDRGValidationError,
     SynthesisError,
+    SynthesisMembershipUnreadableError,
     project_directive_ids,
     synthesis_owned_directive_ids,
 )
@@ -77,10 +78,10 @@ def _project_directive_remedy(repo_root: Path, urn: str, directive_id: str, proj
     manifest = MANIFEST_PATH.as_posix()
     try:
         owned = bool(synthesis_owned_directive_ids(repo_root, [directive_id], project_ids=project_ids))
-    except ManifestIntegrityError as exc:
+    except (SynthesisMembershipUnreadableError, ManifestIntegrityError) as exc:
         return (
             f"'{urn}' is an activated project directive, and the synthesis ownership record is unreadable "
-            f"({exc.offending_artifact}, listed by {manifest}), so its origin cannot be told. "
+            f"({_unreadable_record_detail(exc, manifest)}), so its origin cannot be told. "
             f"Restore {manifest} and its provenance sidecars from version control and re-run. {_KEEP_ACTIVE}"
         )
     if owned:
@@ -93,6 +94,14 @@ def _project_directive_remedy(repo_root: Path, urn: str, directive_id: str, proj
         f"If synthesis created it, restore {manifest} and its provenance sidecar from version control and re-run. "
         f"If you authored it by hand, give it an id synthesis does not generate. {_KEEP_ACTIVE}"
     )
+
+
+def _unreadable_record_detail(error: SynthesisMembershipUnreadableError | ManifestIntegrityError, manifest: str) -> str:
+    """Name the file at fault once; when that is the manifest itself, do not repeat it as "listed by"."""
+    offending: str = error.offending_artifact
+    if offending == manifest:
+        return offending
+    return f"{offending}, listed by {manifest}"
 
 
 def remedy_lines(remedy: str | None) -> list[str]:

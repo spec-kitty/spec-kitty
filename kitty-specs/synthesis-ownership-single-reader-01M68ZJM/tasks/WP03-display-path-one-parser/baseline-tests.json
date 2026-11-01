@@ -1,0 +1,14 @@
+{
+  "wp_id": "WP03",
+  "captured_at": "2026-10-31T14:55:52Z",
+  "base_branch": "949db9911011b019c0da3557815dd66a944a4698",
+  "base_commit": "949db9911011b019c0da3557815dd66a944a4698",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300
+}

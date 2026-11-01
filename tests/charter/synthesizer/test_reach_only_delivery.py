@@ -21,6 +21,7 @@ import yaml
 from charter.activation.action_governance_bundle import _load_action_governance_bundle
 from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
 from charter.activation.pack_context import PackContext
+from charter.activation.synthesizer.path_guard import PathGuard
 from charter.activation.synthesizer.reconcile import synthesized_edge_reason
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
@@ -52,9 +53,26 @@ def _tactic_yaml(tactic_id: str) -> str:
     )
 
 
-def _write_manifest(repo_root: Path, slugs: tuple[str, ...]) -> None:
-    """A synthesis manifest registering *slugs* as synthesized tactics."""
-    from charter.activation.synthesizer.manifest import MANIFEST_PATH, ManifestArtifactEntry, SynthesisManifest, finalize_manifest
+def _write_manifest(
+    repo_root: Path,
+    slugs: tuple[str, ...],
+    *,
+    direct_write_slugs: frozenset[str] = frozenset(),
+) -> None:
+    """A synthesis manifest registering *slugs* as synthesized tactics, with a sidecar each (#6767).
+
+    A real synthesis tree records one provenance sidecar per manifest entry, and that sidecar
+    is where the ownership reader finds the URN. A slug in *direct_write_slugs* is recorded as a
+    ``project-direct-write`` registration (``charter activate``), not synthesis ownership.
+    """
+    from charter.activation.synthesizer.manifest import (
+        MANIFEST_PATH,
+        ManifestArtifactEntry,
+        SynthesisManifest,
+        finalize_manifest,
+    )
+    from charter.activation.synthesizer.provenance import ProvenanceEntry
+    from charter.activation.synthesizer.provenance import dump_yaml as dump_provenance
 
     manifest = finalize_manifest(
         SynthesisManifest(
@@ -77,6 +95,27 @@ def _write_manifest(repo_root: Path, slugs: tuple[str, ...]) -> None:
             ],
         )
     )
+    for slug in slugs:
+        sidecar = ProvenanceEntry(
+            artifact_urn=f"tactic:{slug}",
+            artifact_kind="tactic",
+            artifact_slug=slug,
+            artifact_content_hash="a" * 64,
+            inputs_hash="b" * 64,
+            adapter_id="project-direct-write" if slug in direct_write_slugs else "test",
+            adapter_version="0.0.0",
+            synthesizer_version="0.0.0",
+            source_section="project",
+            source_urns=[],
+            source_input_ids=[],
+            generated_at="2026-10-19T00:00:00+00:00",
+            produced_at="2026-10-19T00:00:00+00:00",
+            corpus_snapshot_id="(none)",
+            synthesis_run_id="01TESTRUNID0000000000000001",
+        )
+        sidecar_path = repo_root / f".kittify/charter/provenance/tactic-{slug}.yaml"
+        sidecar_path.parent.mkdir(parents=True, exist_ok=True)
+        dump_provenance(sidecar, sidecar_path, PathGuard(repo_root, extra_allowed_prefixes=[repo_root]))
     target = repo_root / MANIFEST_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(yaml.safe_dump(manifest.model_dump(mode="json")), encoding="utf-8")
@@ -93,6 +132,7 @@ def _write_overlay(
     *,
     with_edge: bool,
     manifest_slugs: tuple[str, ...] = (_REACH_ONLY, _EDGELESS_SYNTH),
+    direct_write_slugs: frozenset[str] = frozenset(),
     extra_edges: tuple[dict[str, str], ...] = (),
 ) -> None:
     """Project overlay: reach-only tactic (+ derived edge), edgeless synthesized tactic, hand-authored tactic."""
@@ -106,7 +146,7 @@ def _write_overlay(
         yaml.safe_dump({"schema_version": "1.0", "generated_at": "2026-10-19T00:00:00+00:00", "generated_by": "test", "nodes": nodes, "edges": edges}),
         encoding="utf-8",
     )
-    _write_manifest(repo_root, manifest_slugs)
+    _write_manifest(repo_root, manifest_slugs, direct_write_slugs=direct_write_slugs)
 
 
 def _merged_graph(*, with_edge: bool) -> DRGGraph:
@@ -341,7 +381,8 @@ def test_operator_removed_reach_only_tactic_is_not_delivered_through_its_directi
 
 
 def test_synthesis_never_adds_a_denied_tactic_even_on_first_creation(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH, append_synthesized_activations
+    from charter.activation.synthesizer.manifest import CREATED_ARTIFACTS_PATH
+    from charter.activation.synthesizer.reach_only import append_synthesized_activations
     from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 
     (tmp_path / ".kittify").mkdir()
@@ -377,7 +418,7 @@ def _corrupt_manifest(repo_root: Path) -> None:
 
 
 def _write_created_record(repo_root: Path, body: str) -> None:
-    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH
+    from charter.activation.synthesizer.manifest import CREATED_ARTIFACTS_PATH
 
     target = repo_root / CREATED_ARTIFACTS_PATH
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -425,9 +466,10 @@ def test_unreadable_manifest_falls_back_to_the_created_record(tmp_path: Path, da
 
 
 def test_unreadable_manifest_falls_back_to_the_legacy_tactic_record(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import _LEGACY_CREATED_TACTICS_PATH, reach_only_ids
+    from charter.activation.synthesizer.manifest import LEGACY_CREATED_ARTIFACTS_PATH
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
-    legacy = tmp_path / _LEGACY_CREATED_TACTICS_PATH
+    legacy = tmp_path / LEGACY_CREATED_ARTIFACTS_PATH
     legacy.parent.mkdir(parents=True, exist_ok=True)
     legacy.write_text(f"created_tactics:\n  - {_REACH_ONLY}\n", encoding="utf-8")
     _write_overlay(tmp_path, with_edge=True)
@@ -459,7 +501,9 @@ def test_unreadable_manifest_does_not_deliver_the_tactic_of_an_inactive_directiv
 )
 def test_unreadable_manifest_without_a_usable_record_fails_closed(tmp_path: Path, record: str | None) -> None:
     from charter.activation.synthesizer.manifest import MANIFEST_PATH
-    from charter.activation.synthesizer.reach_only import CREATED_ARTIFACTS_PATH, SynthesisMembershipUnreadableError, reach_only_ids
+    from charter.activation.synthesizer.errors import SynthesisMembershipUnreadableError
+    from charter.activation.synthesizer.manifest import CREATED_ARTIFACTS_PATH
+    from charter.activation.synthesizer.reach_only import reach_only_ids
 
     if record is not None:
         _write_created_record(tmp_path, record)
@@ -475,7 +519,7 @@ def test_unreadable_manifest_without_a_usable_record_fails_closed(tmp_path: Path
 
 
 def test_unreadable_manifest_without_a_usable_record_refuses_delivery(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.reach_only import SynthesisMembershipUnreadableError
+    from charter.activation.synthesizer.errors import SynthesisMembershipUnreadableError
 
     with pytest.raises(SynthesisMembershipUnreadableError):
         _delivered_with_corrupt_manifest(tmp_path, directives=frozenset())
@@ -499,3 +543,49 @@ def test_unreadable_manifest_is_not_consulted_without_a_synthesized_edge(tmp_pat
     _corrupt_manifest(tmp_path)
 
     assert reach_only_ids(tmp_path, "tactic") == frozenset()
+
+
+# --- #6767: delivery reads the one ownership reader, so the record's rules are the gating rules ---
+
+
+def test_hand_authored_registered_tactic_is_not_reach_only(tmp_path: Path) -> None:
+    """A ``project-direct-write`` registration is not synthesis ownership, so the tactic stays a root.
+
+    Matches ``reach_only_ids``' documented contract ("Hand-authored artifacts ... never count"):
+    the manifest records the file, but only a synthesis-written sidecar makes it synthesis-owned.
+    """
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True, direct_write_slugs=frozenset({_HAND_AUTHORED}))
+    _write_manifest(tmp_path, (_REACH_ONLY, _EDGELESS_SYNTH, _HAND_AUTHORED), direct_write_slugs=frozenset({_HAND_AUTHORED}))
+
+    ids = reach_only_ids(tmp_path, "tactic")
+
+    assert _HAND_AUTHORED not in ids
+    assert ids == frozenset({_REACH_ONLY})  # positive control: the synthesized one is still owned
+
+
+def test_missing_sidecar_falls_back_to_the_created_record(tmp_path: Path) -> None:
+    """A readable manifest whose sidecar is gone still answers from the record (never an empty set)."""
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    (tmp_path / ".kittify" / "charter" / "provenance" / f"tactic-{_REACH_ONLY}.yaml").unlink()
+    _write_created_record(tmp_path, f"created_tactics:\n  - {_REACH_ONLY}\n")
+
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
+
+
+def test_missing_sidecar_without_a_record_still_answers_from_the_manifest(tmp_path: Path) -> None:
+    """A tactic's node identity is its slug, so the manifest entry answers without the sidecar.
+
+    Only a directive's id lives in the sidecar alone; for reach-only kinds treating the
+    manifest entry as owned is the fail-closed direction, so delivery still gates the tactic
+    rather than delivering it unconditionally (positive control: the record is not needed).
+    """
+    from charter.activation.synthesizer.reach_only import reach_only_ids
+
+    _write_overlay(tmp_path, with_edge=True)
+    (tmp_path / ".kittify" / "charter" / "provenance" / f"tactic-{_REACH_ONLY}.yaml").unlink()
+
+    assert reach_only_ids(tmp_path, "tactic") == frozenset({_REACH_ONLY})
