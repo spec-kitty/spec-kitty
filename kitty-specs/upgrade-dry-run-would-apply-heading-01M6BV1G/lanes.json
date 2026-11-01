@@ -1,0 +1,32 @@
+{
+  "computed_at": "2026-11-01T15:26:35.700211+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "lanes": [
+    {
+      "depends_on_lanes": [],
+      "lane_id": "lane-planning",
+      "parallel_group": 0,
+      "predicted_surfaces": [],
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/6234.fixed.md",
+        "docs/guides/how-to/installation/upgrade-project.md",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "tests/upgrade/test_dry_run_sequenced_verdict_cli.py",
+        "tests/upgrade/test_upgrade_outcome_rendering.py"
+      ]
+    }
+  ],
+  "mission_branch": "issue-6234-upgrade-dry-run-would-apply-heading",
+  "mission_id": "01M6BV1GGRS0JMA284R6GDY60G",
+  "mission_slug": "upgrade-dry-run-would-apply-heading-01M6BV1G",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "8727d20ba2736d299154bc122e88d86c9f1c5027",
+  "target_branch": "issue-6234-upgrade-dry-run-would-apply-heading",
+  "version": 1
+}
