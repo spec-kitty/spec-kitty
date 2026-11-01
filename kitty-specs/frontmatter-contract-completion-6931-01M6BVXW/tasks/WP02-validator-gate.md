@@ -32,7 +32,6 @@ create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- scripts/docs/frontmatter_contract.py
 - tests/docs/test_frontmatter_contract_corpus.py
 role: implementer
 tags: []
