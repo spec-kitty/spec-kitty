@@ -43,7 +43,8 @@ def test_human_in_charge_in_shipped() -> None:
 def test_kanban_shows_hic_marker(tmp_path: Path) -> None:
     """Kanban status renders 👤 marker for WPs with agent_profile: human-in-charge.
 
-    Covers both the lazy (repo=None) and pre-built repo paths.
+    Covers both the self-resolving (``sentinels=None``, #6917) and pre-built
+    sentinel-map paths.
     """
     # repo_root is 3 levels up from _SHIPPED_DIR:
     # shipped/ → agent_profiles/ → doctrine/ → src/ → repo_root
@@ -51,20 +52,21 @@ def test_kanban_shows_hic_marker(tmp_path: Path) -> None:
 
     from specify_cli.cli.commands.agent.tasks import _get_hic_marker
 
-    # --- lazy path: repo=None, resolved internally ---
+    # --- self-resolving path: sentinels=None, resolved internally (#6917) ---
     marker = _get_hic_marker("human-in-charge", repo_root)
     assert "👤" in marker, f"Expected '👤' marker for human-in-charge (lazy), got: {repr(marker)}"
 
-    # --- pre-built repo path ---
-    pre_built = AgentProfileRepository(built_in_dir=_SHIPPED_DIR)
-    marker_prebuilt = _get_hic_marker("human-in-charge", repo_root, repo=pre_built)
+    # --- pre-built sentinel map path (the shape a render builds, #6917) ---
+    pre_built = AgentProfileRepository(built_in_dir=_SHIPPED_DIR, only_ids=["human-in-charge", "generic-agent"])
+    sentinels = {profile.profile_id: profile.sentinel for profile in pre_built.list_all()}
+    marker_prebuilt = _get_hic_marker("human-in-charge", repo_root, sentinels=sentinels)
     assert "👤" in marker_prebuilt, (
         f"Expected '👤' marker for human-in-charge (pre-built), got: {repr(marker_prebuilt)}"
     )
 
     # Non-sentinel profiles should return empty string (both paths)
     assert _get_hic_marker("generic-agent", repo_root) == ""
-    assert _get_hic_marker("generic-agent", repo_root, repo=pre_built) == ""
+    assert _get_hic_marker("generic-agent", repo_root, sentinels=sentinels) == ""
 
     # Unknown/None profiles should return empty string gracefully
     assert _get_hic_marker(None, tmp_path) == ""
@@ -76,7 +78,7 @@ def test_hic_marker_survives_narrowed_activation(tmp_path: Path) -> None:
     ``activated_agent_profiles`` to a set that excludes ``human-in-charge``.
 
     Regression (charter-sole-door-bypass-closure-01KZ3WAA landing-fold
-    defect 1): ``_get_hic_marker``'s self-resolving fallback (``repo=None``)
+    defect 1): ``_get_hic_marker``'s self-resolving fallback (``sentinels=None``)
     built its profile lookup from ``ActiveCharterService.agent_profiles`` -- the
     activation-*gated* dict -- so a project that narrows activation to
     exclude ``human-in-charge`` (e.g. ``activated_agent_profiles:

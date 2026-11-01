@@ -11,6 +11,7 @@ Provides:
 - Save/delete for project profiles
 """
 
+from collections.abc import Collection
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,10 @@ from .validation import reject_agent_profile_inline_refs, validate_agent_profile
 _MAX_LOW_WORKLOAD = 2
 _MAX_MEDIUM_WORKLOAD = 4
 _AGENT_PROFILE_GLOB = "*.agent.yaml"
+#: Filename convention for one profile document: ``<profile-id>.agent.yaml``.
+#: The scoped load (``only_ids``) resolves ids against it, so it can find a
+#: profile without parsing the rest of the catalogue.
+_AGENT_PROFILE_SUFFIX = ".agent.yaml"
 
 #: Layer ordinals used to sort skipped-profile diagnostics deterministically
 #: (NFR-002). Built-in records come first, then org, then project; within a
@@ -243,6 +248,7 @@ class AgentProfileRepository:
         project_dir: Path | None = None,
         active_languages: list[str] | tuple[str, ...] | None = None,
         drg: DRGGraph | None = None,
+        only_ids: Collection[str] | None = None,
     ):
         """Initialize repository with built-in, org, and/or project directories.
 
@@ -255,10 +261,23 @@ class AgentProfileRepository:
             active_languages: Language filter; None means no filtering
             drg: Doctrine Relationship Graph used to resolve profile lineage
                 (``specializes_from`` edges). When ``None``, the shipped built-in
-                graph (the ``packs/built-in/*.graph.yaml`` fragments) is loaded.
-                Lineage is read
+                graph (``packs/built-in/graph.yaml``) is built on first lineage
+                use (#6462) rather than in this constructor. Lineage is read
                 exclusively from this graph; the retired ``specializes-from``
                 profile field is no longer consulted (FR-002, C-009).
+            only_ids: Opt-in scope (#6917). When set, only the profile documents
+                that can supply one of these ids are parsed, resolved by the
+                repository's ``<profile-id>.agent.yaml`` filename convention in
+                every layer. The loader, validator, merge, skip diagnostics and
+                ``applies_to_languages`` gate are the same ones the unscoped load
+                uses, so ``get()`` answers agree field-for-field with a full load;
+                ``list_all()`` returns the scoped subset, not the catalogue. Use it
+                for read-only single-field lookups (the board's 👤 sentinel);
+                catalogue, provenance and lineage callers keep the default
+                ``None``, which is byte-for-byte the pre-#6917 load. A profile
+                document whose filename stem differs from its ``profile-id`` is not
+                visible to a scoped load; the unscoped repository remains the
+                authority for it.
         """
         self._profiles: dict[str, AgentProfile] = {}
         self._provenance: dict[str, str] = {}
@@ -269,7 +288,18 @@ class AgentProfileRepository:
         self._org_dirs: list[Path] = list(org_dirs) if org_dirs else []
         self._project_dir = project_dir
         self._active_languages = None if active_languages is None else normalize_languages(active_languages)
-        self._drg: DRGGraph = drg if drg is not None else self._default_drg()
+        self._only_ids = (
+            None if only_ids is None else frozenset(item for item in only_ids if isinstance(item, str) and item)
+        )
+        self._only_file_names = (
+            None if self._only_ids is None else frozenset(f"{profile_id}{_AGENT_PROFILE_SUFFIX}" for profile_id in self._only_ids)
+        )
+        # Lineage is read on demand (#6462): building the shipped graph here cost
+        # every caller the DRG parse, including the many that only read the profile
+        # map (``get``/``list_all``/provenance/sentinel). An explicit ``drg`` is
+        # authoritative and marks the graph resolved, so the lazy path never runs
+        # for it.
+        self._drg: DRGGraph | None = drg
         self._hierarchy_index: dict[str, list[str]] | None = None
         self._load()
 
@@ -301,6 +331,22 @@ class AgentProfileRepository:
                 nodes=[],
                 edges=[],
             )
+
+    def _graph(self) -> DRGGraph:
+        """Return the lineage graph, building the shipped one on first use.
+
+        Restores #6462's decision (``perf(6462): build profile lineage on first
+        use``) after a later lineage refactor restored the eager build in the
+        constructor: a profile-map reader — ``get``/``list_all``/provenance/the
+        board's ``sentinel`` read — never traverses lineage, and the shipped graph
+        is a 358-node document. An explicit ``drg`` stays authoritative, and the
+        ``DRGLoadError`` empty-graph degradation moves here with the build.
+        """
+        graph = self._drg
+        if graph is None:
+            graph = self._default_drg()
+            self._drg = graph
+        return graph
 
     def _record_skip(
         self,
@@ -432,6 +478,11 @@ class AgentProfileRepository:
             return loaded
 
         scan = directory.rglob(_AGENT_PROFILE_GLOB) if recursive else directory.glob(_AGENT_PROFILE_GLOB)
+        if self._only_file_names is not None:
+            # Scoped load (#6917): a document can only supply a requested id when
+            # it carries the repository's ``<profile-id>.agent.yaml`` name, so the
+            # rest of the catalogue is never parsed.
+            scan = (path for path in scan if path.name in self._only_file_names)
         for yaml_file in sorted(scan):
             profile = self._parse_profile_from_file(
                 yaml, yaml_file, layer=layer, built_in_profiles=built_in_profiles
@@ -703,7 +754,7 @@ class AgentProfileRepository:
         A profile may declare at most one lineage parent; if several edges are
         present the first by sorted target id is returned for determinism.
         """
-        edges = self._drg.edges_from(_profile_urn(profile_id), Relation.SPECIALIZES_FROM)
+        edges = self._graph().edges_from(_profile_urn(profile_id), Relation.SPECIALIZES_FROM)
         if not edges:
             return None
         parents = sorted(_profile_id_from_urn(e.target) for e in edges)
@@ -937,7 +988,7 @@ class AgentProfileRepository:
         the graph but must not import the charter projection (layer direction:
         charter → charter.offering).
         """
-        return self._drg
+        return self._graph()
 
     def profile_channel_reached(self, profile_id: str) -> frozenset[str]:
         """Every artefact URN a loaded *profile* reaches through the profile channel.
@@ -960,12 +1011,13 @@ class AgentProfileRepository:
         walk); the render layer applies its NodeKind delivery table (C4).
         """
         seed = _profile_urn(profile_id)
-        if seed not in agent_profile_seed_urns(self._drg):
+        graph = self._graph()
+        if seed not in agent_profile_seed_urns(graph):
             return frozenset()
         # Annotated local for the same reason as ``_score_profile``: ``charter.*``
         # imports resolve to ``Any`` under ``follow_imports = "skip"``, so a bare
         # ``return`` here reads as ``no-any-return`` (#4292).
-        reached: frozenset[str] = profile_channel_reachable(self._drg, {seed})
+        reached: frozenset[str] = profile_channel_reachable(graph, {seed})
         return reached
 
     def profile_channel_procedure_ids(self, profile_id: str) -> list[str]:

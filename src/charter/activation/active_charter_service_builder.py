@@ -74,6 +74,7 @@ unification.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -89,6 +90,7 @@ __all__ = [
     "_build_active_charter_service",
     "_build_offering_service",
     "build_active_charter_service",
+    "build_agent_profile_sentinels",
 ]
 
 
@@ -348,3 +350,47 @@ def build_active_charter_service(
         interview=interview,
         prefer_interview=prefer_interview,
     )
+
+def build_agent_profile_sentinels(repo_root: Path, profile_ids: Iterable[str]) -> dict[str, bool]:
+    """Resolve the structural ``sentinel`` flag for *profile_ids* only (#6917).
+
+    The read-only work-package board renders one 👤 marker per claimed row from
+    ``profile.sentinel``. Building ``ActiveCharterService`` for that answer cost
+    a pack context, an activation ledger, the offering service and then the whole
+    profile catalogue plus the lineage graph, although no activation key gates a
+    structural field. This entry point keeps the same layer resolution and the
+    same profile loader while skipping the governance machinery the answer does
+    not read.
+
+    Parameters
+    ----------
+    repo_root:
+        Repository root containing ``.kittify/config.yaml`` and the pack overlay.
+    profile_ids:
+        The profile ids the caller's rows name. Blank, duplicate and non-``str``
+        entries are ignored.
+
+    Returns
+    -------
+    dict[str, bool]
+        A total mapping over the request: one entry per distinct non-empty id,
+        ``True`` when the effective profile (after built-in → org → project
+        layering and the ``applies_to_languages`` gate) declares
+        ``sentinel: true``, ``False`` otherwise — including ids no layer ships.
+
+    Why no ``PackContext``: ``sentinel`` is structural, exactly like
+    ``get_provenance()`` — see
+    :attr:`~charter.activation.resolver.ActiveCharterService.agent_profile_repository`.
+    The configuration reads that *do* happen are the layer resolution below, so a
+    malformed ``.kittify/config.yaml`` still fails closed here rather than
+    degrading to an empty mapping.
+
+    Construction stays in this module on purpose: it is the ONE place that builds
+    the inner ``charter.offering.service.CharterOfferingService`` (Gate 1/Gate 2
+    exempt it), so no new construction site appears outside the sole door.
+    """
+    from charter.activation.context import _build_offering_service  # noqa: PLC0415
+
+    inner = _build_offering_service(repo_root, org_roots=_self_resolve_existing_org_roots(repo_root))
+    sentinels: dict[str, bool] = inner.agent_profile_sentinels(profile_ids)
+    return sentinels
