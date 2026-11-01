@@ -5442,7 +5442,7 @@ pages:
   - path: "docs/architecture/charter-synthesis-drg.md"
     title: "Understanding Charter: Synthesis, DRG, and Governed Context"
     divio_type: "none"
-    abstract: "How charter synthesize works, what the DRG is, how governed context flows to agents, and known limitations."
+    abstract: "How charter synthesize works, what the DRG is, how governed context flows to agents, the shipped-graph orphan residual, and known limitations."
     anchors:
     - {slug: "what-the-charter-bundle-is", text: "What the charter bundle is", level: 2}
     - {slug: "how-synthesis-works", text: "How synthesis works", level: 2}
@@ -5451,6 +5451,10 @@ pages:
     - {slug: "bootstrap-vs-compact-context", text: "Bootstrap vs compact context", level: 2}
     - {slug: "why-the-authoritative-vs-generated-distinction-matters", text: "Why the authoritative vs generated distinction matters", level: 2}
     - {slug: "known-limitations", text: "Known limitations", level: 2}
+    - {slug: "the-shipped-graph-orphan-residual-current-state", text: "The shipped-graph orphan residual (current state)", level: 2}
+    - {slug: "why-each-group-is-residual", text: "Why each group is residual", level: 3}
+    - {slug: "ceiling-ledger", text: "Ceiling ledger", level: 3}
+    - {slug: "where-the-older-records-live", text: "Where the older records live", level: 3}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/architecture/diagrams/01_context/README.md"
     title: "System Context (living)"
