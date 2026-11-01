@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "decisions-ratchet-deadlock-budget-01M67JEW",
+  "mission_id": "01M67JEWSJ2GH6JWBJJZ0G6MCM",
+  "mission_branch": "issue-6773-decisions-ratchet-deadlock-budget",
+  "target_branch": "issue-6773-decisions-ratchet-deadlock-budget",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/development/testing/testing-flakiness.md",
+        "tests/specify_cli/decisions/test_service_terminal_concurrency.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T23:34:15.735277+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5d8065e42c33668c65939ffb06dffc4e8444dee3"
+}
