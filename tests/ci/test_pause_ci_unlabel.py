@@ -8,9 +8,9 @@ label name), so such a run must stay a cheap no-op that neither cancels nor supe
 - **Jobs:** every job that can start on its own carries the label guard, so the whole run skips.
 - **Required checks:** a skipped job still posts a check run under its own name, and a skipped
   required check passes. The gate jobs therefore carry a different name in a no-op run. (These
-  tests prove the name expression never resolves to the required name there; whether GitHub posts
-  a skipped job's evaluated name or its raw text is not observable offline, and both differ from
-  the required name.)
+  tests prove the name expression never resolves to the required name there. GitHub posts a
+  skipped job under the raw text of its ``name:`` expression, not its evaluated value, as seen
+  on #7047; that text differs from the required name too.)
 - **Concurrency:** a no-op run gets its own group, so it never cancels the in-flight run.
 - **Followers:** CI Aggregate keys a skipped CI Modules source apart, and the fleet verdict never
   reads a skipped label-triggered run as the latest evidence.
