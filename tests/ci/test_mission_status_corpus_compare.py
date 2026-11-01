@@ -20,6 +20,8 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
+from tests.pinned_service_assets import contract_tools_dir, service_cache_root
+
 pytestmark = pytest.mark.fast
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -379,7 +381,8 @@ def test_main_writes_the_report_and_returns_the_exit_code(cc: ModuleType, tmp_pa
     service.items = [dict(item, wpTotal=77) for item in service.items]
     from contextlib import nullcontext
 
-    monkeypatch.setattr(cc, "open_oracle", lambda root: nullcontext(oracle))
+    monkeypatch.setattr(cc, "open_oracle", lambda root, tools_root=None: nullcontext(oracle))
+    monkeypatch.setattr(cc, "default_tools_root", lambda root: tmp_path / "tools")
     monkeypatch.setattr(cc, "HttpService", lambda base_url, **_: service)
     monkeypatch.setattr(cc, "independent_count", lambda root: 2)
     monkeypatch.setattr(cc, "FLOOR", 1)
@@ -414,7 +417,7 @@ def _fixture_repo(tmp_path: Path) -> Path:
 
 def test_the_real_oracle_is_built_through_a_monkeypatch_context_and_matches_a_service_that_replays_it(cc: ModuleType, tmp_path: Path) -> None:
     repo = _fixture_repo(tmp_path)
-    with cc.open_oracle(repo, REPO_ROOT) as oracle:
+    with cc.open_oracle(repo, contract_tools_dir()) as oracle:
         names = oracle.names()
         assert names == ["alpha-mission", "beta-mission"]
         ordered = oracle.order([oracle.overview(name) for name in names])
@@ -473,3 +476,80 @@ def test_the_canonical_sample_tells_the_three_json_knobs_apart() -> None:
     reference = _conformance_module().canonical_json
     for label, variant in variants.items():
         assert any(variant(document) != reference(document) for document in CANONICAL_SAMPLE), label
+
+
+# --- where the contract tools come from (#6915) ----------------------------------------------------------------------------------
+
+
+def test_the_default_tools_root_is_the_pinned_contract_tools_extra(cc: ModuleType) -> None:
+    assert cc.default_tools_root(REPO_ROOT, cache_root=service_cache_root()) == contract_tools_dir()
+    assert (cc.default_tools_root(REPO_ROOT, cache_root=service_cache_root()) / "contract_resolver.py").is_file()
+
+
+def test_a_tools_extra_missing_from_the_cache_is_refused_with_its_service_code(cc: ModuleType, tmp_path: Path) -> None:
+    with pytest.raises(cc.ToolsRootUnavailable) as refused:
+        cc.default_tools_root(REPO_ROOT, cache_root=tmp_path / "empty-cache")
+    assert refused.value.code.startswith("SERVICE_"), refused.value.code
+
+
+def _main_capturing_the_tools_root(cc: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *extra: str) -> list[Path | None]:
+    from contextlib import nullcontext
+
+    oracle, service = _twin(cc, 2)
+    seen: list[Path | None] = []
+
+    def capture(root: Path, tools_root: Path | None = None) -> Any:
+        seen.append(tools_root)
+        return nullcontext(oracle)
+
+    monkeypatch.setattr(cc, "open_oracle", capture)
+    monkeypatch.setattr(cc, "HttpService", lambda base_url, **_: service)
+    monkeypatch.setattr(cc, "independent_count", lambda root: 2)
+    monkeypatch.setattr(cc, "FLOOR", 1)
+    code = cc.main(["--base-url", "http://127.0.0.1:8787", "--repo-root", str(tmp_path), "--report", str(tmp_path / "r.json"), *extra])
+    assert code == PASS
+    return seen
+
+
+def test_main_hands_the_tools_root_flag_to_the_oracle(cc: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    planted = tmp_path / "planted-tools"
+    monkeypatch.setattr(cc, "default_tools_root", lambda root: pytest.fail("the default must not be resolved when --tools-root is given"))
+    assert _main_capturing_the_tools_root(cc, tmp_path, monkeypatch, "--tools-root", str(planted)) == [planted]
+
+
+def test_main_defaults_to_the_pinned_tools_of_the_repo_root(cc: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    default = tmp_path / "pinned-tools"
+    asked: list[Path] = []
+
+    def pinned(root: Path) -> Path:
+        asked.append(root)
+        return default
+
+    monkeypatch.setattr(cc, "default_tools_root", pinned)
+    assert _main_capturing_the_tools_root(cc, tmp_path, monkeypatch) == [default]
+    assert asked == [tmp_path]
+
+
+def test_main_without_the_pinned_tools_cannot_do_its_job_and_names_the_code(
+    cc: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def missing(root: Path) -> Path:
+        raise cc.ToolsRootUnavailable("SERVICE_BINARY_MISSING")
+
+    monkeypatch.setattr(cc, "default_tools_root", missing)
+    monkeypatch.setattr(cc, "independent_count", lambda root: 2)
+    code = cc.main(["--base-url", "http://127.0.0.1:8787", "--repo-root", str(tmp_path), "--report", str(tmp_path / "r.json")])
+    assert code == CANNOT
+    out = capsys.readouterr().out
+    assert "SERVICE_BINARY_MISSING" in out and str(tmp_path) not in out
+
+
+def test_the_oracle_loads_its_tools_from_a_planted_tools_root(cc: ModuleType, tmp_path: Path) -> None:
+    import shutil
+
+    planted = tmp_path / "planted-tools"
+    shutil.copytree(contract_tools_dir(), planted)
+    (tmp_path / "repo").mkdir()
+    repo = _fixture_repo(tmp_path / "repo")
+    with cc.open_oracle(repo, planted) as oracle:
+        assert Path(oracle._tools.resolver.__file__).resolve().parent == planted.resolve()

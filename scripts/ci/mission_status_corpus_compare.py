@@ -18,12 +18,17 @@ an oracle that cannot be built).
 The output names Mission slugs, ``mission_id``, the difference class and the field, never a path and never an exception message.
 The oracle imports ``pytest``, ``yaml`` and the ``src`` packages, so it needs the fully synced test environment even though no job
 step runs ``pytest``; it is imported lazily, so ``--help`` works anywhere.
+
+The oracle validates with the contract tools and bundle that spec-kitty-events releases with the service (#6915): by default the
+pinned ``contract-tools`` extra of ``read-service`` that ``make sync-services`` unpacks into the shared cache; ``--tools-root`` names
+another directory of those tools. A tools extra that is not fetched is exit 2, naming its ``SERVICE_*`` code.
 """
 
 from __future__ import annotations
 
 import argparse
 import http.client
+import importlib.util
 import json
 import subprocess
 import sys
@@ -32,6 +37,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Protocol
 from urllib.parse import quote, urlsplit
 
@@ -311,13 +317,51 @@ class PythonOracle:
         return [dict(item) for item in self._payloads.order_overviews(overviews)]
 
 
+READ_SERVICE = "read-service"
+CONTRACT_TOOLS_EXTRA = "contract_tools"
+_SYNC_SERVICES = _REPO_ROOT / "scripts" / "sync_services.py"
+_SYNC_SERVICES_MODULE = "_sync_services_for_corpus_compare"
+
+
+class ToolsRootUnavailable(RuntimeError):
+    """The pinned contract tools are not in the cache (or do not match their pin); ``code`` is the ``SERVICE_*`` code."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def _sync_services() -> ModuleType:
+    """``scripts/sync_services.py``, loaded by file path (it is a script, not a package module)."""
+    loaded = sys.modules.get(_SYNC_SERVICES_MODULE)
+    if loaded is not None:
+        return loaded
+    spec = importlib.util.spec_from_file_location(_SYNC_SERVICES_MODULE, _SYNC_SERVICES)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[_SYNC_SERVICES_MODULE] = module  # dataclasses resolve their module through sys.modules
+    spec.loader.exec_module(module)
+    return module
+
+
+def default_tools_root(repo_root: Path, cache_root: Path | None = None) -> Path:
+    """The pinned ``contract-tools`` extra of ``read-service`` (``<extra>/contracts/tools``), unpacked from the verified cache."""
+    module = _sync_services()
+    try:
+        root: Path = module.extras_root(repo_root, READ_SERVICE, CONTRACT_TOOLS_EXTRA, cache_root=cache_root)
+    except module.SyncServicesError as error:
+        raise ToolsRootUnavailable(error.code) from error
+    return root / "contracts" / "tools"
+
+
 @contextmanager
 def open_oracle(repo_root: Path, tools_root: Path | None = None) -> Iterator[PythonOracle]:
     """Build the oracle once.
 
-    The contract tools come from ``tools_root`` (the checkout itself by default); their ``ContractTools`` value is built inside a
-    MonkeyPatch context that is held for the whole comparison.
+    The contract tools come from ``tools_root`` (the pinned ``contract-tools`` extra by default, :func:`default_tools_root`); their
+    ``ContractTools`` value is built inside a MonkeyPatch context that is held for the whole comparison.
     """
+    tools = default_tools_root(repo_root) if tools_root is None else tools_root
     import pytest  # the oracle module imports pytest at module level, so it is installed whenever the oracle can run
 
     from tests.contract import _mission_status_memo as memo
@@ -325,7 +369,7 @@ def open_oracle(repo_root: Path, tools_root: Path | None = None) -> Iterator[Pyt
     from tests.contract import _mission_status_project as project
 
     with pytest.MonkeyPatch.context() as patch:
-        yield PythonOracle(repo_root, payloads, project, memo, payloads.load_contract_tools(patch, tools_root or repo_root))
+        yield PythonOracle(repo_root, payloads, project, memo, payloads.load_contract_tools(patch, repo_root, tools))
 
 
 def independent_count(repo_root: Path) -> int:
@@ -548,6 +592,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--base-url", required=True, help="the service, http://127.0.0.1:<port>")
     parser.add_argument("--repo-root", required=True, type=Path, help="the checkout whose kitty-specs/ is the corpus")
     parser.add_argument("--report", required=True, type=Path, help="where to write nightly-report.json (written, never read)")
+    parser.add_argument(
+        "--tools-root",
+        type=Path,
+        default=None,
+        help="the contract tools directory (default: the pinned contract-tools extra of read-service, fetched by make sync-services)",
+    )
     return parser
 
 
@@ -564,8 +614,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return EXIT_CANNOT
     try:
         count = independent_count(args.repo_root)
-        with open_oracle(args.repo_root) as oracle:
+        tools_root = default_tools_root(args.repo_root) if args.tools_root is None else args.tools_root
+        with open_oracle(args.repo_root, tools_root) as oracle:
             report = compare_corpus(oracle, service, independent_count=count, floor=FLOOR)
+    except ToolsRootUnavailable as error:
+        _say(f"CANNOT the pinned contract tools are not available ({error.code}); run `make sync-services`")
+        return EXIT_CANNOT
     except (ImportError, OSError, subprocess.CalledProcessError) as error:
         _say(f"CANNOT the oracle or the independent count could not be built ({type(error).__name__})")
         return EXIT_CANNOT
