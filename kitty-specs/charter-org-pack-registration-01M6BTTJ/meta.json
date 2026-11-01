@@ -1,0 +1,33 @@
+{
+  "accept_commit": "031e365110b2f7537e09e0998e0c62782c2c7dab",
+  "acceptance_history": [
+    {
+      "accept_commit": "031e365110b2f7537e09e0998e0c62782c2c7dab",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T19:51:31.360806+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "466001197a8d15ca386b77222fede1bfdd41f001"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T19:51:31.360806+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "466001197a8d15ca386b77222fede1bfdd41f001",
+  "coordination_branch": "kitty/mission-charter-org-pack-registration-01M6BTTJ",
+  "created_at": "2026-11-01T15:14:39.281992+00:00",
+  "flattened": false,
+  "friendly_name": "charter org pack registration",
+  "mid8": "01M6BTTJ",
+  "mission_id": "01M6BTTJV4N5J2YFA5Y0ANR6P2",
+  "mission_number": null,
+  "mission_slug": "charter-org-pack-registration-01M6BTTJ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter org pack registration on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter org pack registration",
+  "slug": "charter-org-pack-registration-01M6BTTJ",
+  "status_phase": "1",
+  "target_branch": "issue-6267-charter-org-pack-registration",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:20:07.630340+00:00"
+}

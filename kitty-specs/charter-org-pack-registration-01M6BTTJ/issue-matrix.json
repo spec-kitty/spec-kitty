@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#5243": {
+      "evidence_ref": "Out of scope: external pack install/update/uninstall lifecycle, unrelated to registering an existing pack (spec C-005).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6101": {
+      "evidence_ref": "Acceptance-scenario wave 3 stays tracked in #6101; this mission only removes the blocker (spec C-005).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6266": {
+      "evidence_ref": "Merged PR referenced as motivation only (spec C-005).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6267": {
+      "evidence_ref": "Mission charter-org-pack-registration-01M6BTTJ: charter org add/remove implemented on issue-6267-charter-org-pack-registration (WP01 write seam, WP02 CLI door, WP03 docs/changelog); 27 CLI acceptance tests + 17 seam tests green.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

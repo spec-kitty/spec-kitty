@@ -887,12 +887,13 @@ _Mission type commands (activated types only)._
 
 ## spec-kitty charter org
 
-_Manage org Charter Pack authoring (init, validate)._
+_Manage org Charter Pack authoring (init, validate) and registration (add, remove)._
 
 ```
  Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
 
- Manage org Charter Pack authoring (init, validate).
+ Manage org Charter Pack authoring (init, validate) and registration (add,
+ remove).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -900,6 +901,51 @@ _Manage org Charter Pack authoring (init, validate)._
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ init      Scaffold a minimal org pack or render from a template.             │
 │ validate  Validate an org Charter Pack using schema and DRG checks (FR-006). │
+│ add       Register an org Charter Pack with this project (#6267).            │
+│ remove    Retire an org Charter Pack registration (#6267).                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org add
+
+```
+ Usage: spec-kitty charter org add [OPTIONS] {name}
+
+ Register an org Charter Pack with this project (#6267).
+
+ Validates the pack exactly as ``spec-kitty charter org validate`` does, then
+ writes one ``charter_packs.org.packs[]`` entry through the registry's own
+ write seam -- the operator never hand-edits ``.kittify/config.yaml``.
+
+ Every refusal exits 1 and leaves the config byte-identical. With ``--url``
+ the pack root may be absent: it is then registered for
+ ``spec-kitty charter fetch`` rather than validated. Nothing here touches the
+ network.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    name      <str>  Name to register the pack under. [required]            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --local-path           <str>  Pack root: relative to the project root,    │
+│                                  absolute, ~-prefixed, or a ${VAR} template  │
+│                                  (tokens are never expanded or frozen;       │
+│                                  redundant ./ and trailing separators are    │
+│                                  normalised). May be absent when --url is    │
+│                                  given.                                      │
+│                                  [required]                                  │
+│    --url                  <str>  Remote source URL. Registers the pack for   │
+│                                  `charter fetch` instead of requiring a      │
+│                                  local pack.                                 │
+│    --ref                  <str>  Git ref to fetch (requires --url).          │
+│    --source-type          <str>  Remote source type:                         │
+│                                  git|https|artifactory|api (requires --url;  │
+│                                  defaults to git).                           │
+│    --subdir               <str>  Subdirectory of the pack root that holds    │
+│                                  the doctrine artifacts.                     │
+│    --force                       Replace an existing registration of the     │
+│                                  same name (declaration order is kept).      │
+│    --json                        Output as JSON.                             │
+│    --help         -h             Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -942,6 +988,28 @@ _Manage org Charter Pack authoring (init, validate)._
 │ --branch              <str>  Git ref when --template is a git URL (may also  │
 │                              be encoded in TEMPLATE).                        │
 │ --help        -h             Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter org remove
+
+```
+ Usage: spec-kitty charter org remove [OPTIONS] {name}
+
+ Retire an org Charter Pack registration (#6267).
+
+ Deletes exactly that ``charter_packs.org.packs[]`` entry; every other key,
+ comment and pack in ``.kittify/config.yaml`` is left alone. The pack
+ directory is never deleted -- the command prints where it stays (C-003).
+ An unknown name exits 1 listing the configured names; the config is then
+ byte-identical.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    name      <str>  Name of the registered pack to retire. [required]      │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output as JSON.                                            │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

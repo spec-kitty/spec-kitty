@@ -2,7 +2,13 @@
 
 The operator-facing config shape belongs below both ``charter`` and
 ``specify_cli`` so every consumer sees the same configured packs. The
-canonical ``charter_packs.org.packs`` schema is the only shape read.
+canonical ``charter_packs.org.packs`` schema is the only shape read -- and the
+only shape written: :func:`register_org_pack` and :func:`unregister_org_pack`
+(#6267) are the write half of that single authority, so ``spec-kitty charter org
+add|remove`` never mutates the registry block from a second module. Writes go
+through :func:`kernel.atomic.atomic_write` and a round-trip YAML dumper tuned to
+the emitter settings ``.kittify/config.yaml`` itself is written with, so
+comments, quoting, key order and unrelated sections survive byte-for-byte.
 The retired pre-cutover org-pack keys are
 rewritten by ``spec-kitty upgrade``; an unmigrated project is refused at the
 CLI root (``LEGACY_CHARTER_STATE``, mission ``charter-pack-cutover-01M491G6``
@@ -13,13 +19,17 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections.abc import Mapping, MutableMapping, MutableSequence
+from io import StringIO
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 from ulid import ULID
 
+from kernel.atomic import atomic_write
 from kernel.env_expand import expand_raw_template, find_empty_env_token, find_unresolved_token
 from kernel.resolution import resolve_rejecting_loops
 
@@ -31,6 +41,8 @@ __all__ = [
     "OrgPackSubdirEscapeError",
     "ensure_pack_identity",
     "load_pack_registry",
+    "register_org_pack",
+    "unregister_org_pack",
     "resolve_existing_org_roots",
     "resolve_org_dirs",
     "resolve_org_roots",
@@ -47,6 +59,10 @@ _BUILTIN_PACK_NAME = "built-in"
 
 #: The top-level ``.kittify/config.yaml`` key of the org-pack registry block.
 _CANONICAL_ORG_PACKS_KEY = "charter_packs"
+#: The org-layer key inside the registry block.
+_ORG_KEY = "org"
+#: The named-pack list inside the org block.
+_PACKS_KEY = "packs"
 
 # Stable, well-known ULID for the built-in pack (idempotent, deterministic).
 # This is the canonical ULID specification doc-example value (timestamp
@@ -610,6 +626,238 @@ def _registry_from_org_packs_block(data: dict[str, Any]) -> PackRegistry | None:
             f"declare the pack as a named entry of `{_CANONICAL_ORG_PACKS_KEY}.org.packs[]` (name, local_path)"
         )
     return PackRegistry()
+
+
+# ----------------------------------------------------------------------
+# write seam (#6267): register/unregister one entry, nothing else
+# ----------------------------------------------------------------------
+
+
+def _round_trip_yaml() -> YAML:
+    """Round-trip YAML instance matching how the CLI itself writes the config.
+
+    ``_yaml()`` sets 4/2 sequence indentation, which is a readable default for
+    freshly rendered documents but is NOT what ``.kittify/config.yaml`` looks
+    like: ``specify_cli.core.agent_config.save_agent_config`` writes that file
+    with plain ``YAML()`` + ``preserve_quotes``, and every project the CLI has
+    ever initialised carries that shape. Dumping with the same instance is what
+    makes an add-then-remove round trip byte-identical for a file this tool owns
+    (NFR-002/SC-002); ``_yaml()`` would re-indent every block sequence.
+    """
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    return yaml
+
+
+def _org_pack_entry(pack: OrgPackConfig) -> CommentedMap:
+    """Render one registry entry, writing only the fields that are set.
+
+    The key set is exactly :class:`OrgPackConfig`'s declared fields (minus the
+    optional ``pack_id``, which identity backfill owns): a written entry can
+    therefore never carry a key the reader would reject (``extra="forbid"``).
+    ``local_path`` keeps its ``${VAR}``/``~`` tokens -- they are never expanded or
+    frozen into a machine-specific path (only redundant ``./`` and trailing
+    separators are already normalised by the path model).
+    """
+    entry = CommentedMap()
+    entry["name"] = pack.name
+    entry["local_path"] = str(pack.local_path)
+    if pack.subdir is not None:
+        entry["subdir"] = pack.subdir
+    if pack.source_type is not None:
+        entry["source_type"] = pack.source_type
+    if pack.url is not None:
+        entry["url"] = pack.url
+    if pack.ref is not None:
+        entry["ref"] = pack.ref
+    return entry
+
+
+def _require_mapping(value: Any, dotted_key: str) -> MutableMapping[str, Any]:
+    """Return *value* as a mapping, or raise naming the key that is the wrong shape."""
+    if not isinstance(value, MutableMapping):
+        raise ValueError(f"`{dotted_key}` must be a mapping, got {type(value).__name__}")
+    return value
+
+
+def _require_sequence(value: Any, dotted_key: str) -> MutableSequence[Any]:
+    """Return *value* as a list, or raise naming the key that is the wrong shape."""
+    if not isinstance(value, MutableSequence):
+        raise ValueError(f"`{dotted_key}` must be a list, got {type(value).__name__}")
+    return value
+
+
+def _find_org_packs_container(
+    data: MutableMapping[str, Any],
+) -> tuple[MutableMapping[str, Any], MutableMapping[str, Any], MutableSequence[Any]] | None:
+    """Return the existing ``(registry block, org block, packs list)``, or ``None``.
+
+    ``None`` means at least one link of the path is absent. A link of the wrong
+    type raises: the caller has already read the registry strictly, so that can
+    only be a file that changed underneath it.
+    """
+    section = data.get(_CANONICAL_ORG_PACKS_KEY)
+    if section is None:
+        return None
+    _require_mapping(section, _CANONICAL_ORG_PACKS_KEY)
+    org = section.get(_ORG_KEY)
+    if org is None:
+        return None
+    _require_mapping(org, f"{_CANONICAL_ORG_PACKS_KEY}.{_ORG_KEY}")
+    packs = org.get(_PACKS_KEY)
+    if packs is None:
+        return None
+    _require_sequence(packs, f"{_CANONICAL_ORG_PACKS_KEY}.{_ORG_KEY}.{_PACKS_KEY}")
+    return section, org, packs
+
+
+def _require_org_packs_container(
+    data: MutableMapping[str, Any],
+) -> tuple[MutableMapping[str, Any], MutableMapping[str, Any], MutableSequence[Any]]:
+    """Return ``(registry block, org block, packs list)``, creating absent links."""
+    found = _find_org_packs_container(data)
+    if found is not None:
+        return found
+    section = data.get(_CANONICAL_ORG_PACKS_KEY)
+    if section is None:
+        section = data[_CANONICAL_ORG_PACKS_KEY] = CommentedMap()
+    _require_mapping(section, _CANONICAL_ORG_PACKS_KEY)
+    org = section.get(_ORG_KEY)
+    if org is None:
+        org = section[_ORG_KEY] = CommentedMap()
+    _require_mapping(org, f"{_CANONICAL_ORG_PACKS_KEY}.{_ORG_KEY}")
+    packs = org.get(_PACKS_KEY)
+    if packs is None:
+        packs = org[_PACKS_KEY] = CommentedSeq()
+    _require_sequence(packs, f"{_CANONICAL_ORG_PACKS_KEY}.{_ORG_KEY}.{_PACKS_KEY}")
+    return section, org, packs
+
+
+def _named_entry_index(packs: MutableSequence[Any], name: str) -> int | None:
+    """Index of the entry named *name*, or ``None``."""
+    for index, entry in enumerate(packs):
+        if isinstance(entry, Mapping) and entry.get("name") == name:
+            return index
+    return None
+
+
+def _load_config_for_write(config_path: Path) -> MutableMapping[str, Any]:
+    """Load the config for a read-modify-write, preserving every other block."""
+    if not config_path.exists():
+        return CommentedMap()
+    text = config_path.read_text(encoding="utf-8")
+    if not text.strip():
+        return CommentedMap()
+    data = _round_trip_yaml().load(text)
+    if data is None:
+        return CommentedMap()
+    if not isinstance(data, MutableMapping):
+        raise ValueError(
+            f"{config_path} is not a YAML mapping at the top level; refusing to rewrite it"
+        )
+    return data
+
+
+def _write_config(config_path: Path, data: MutableMapping[str, Any]) -> None:
+    """Dump *data* and replace the config atomically (no partial file, ever).
+
+    The dump stays local on purpose: it has to reproduce ``.kittify/config.yaml``'s
+    own emitter settings (see :func:`_round_trip_yaml`), while the kernel house
+    writer :func:`kernel.yaml_io.write_mapping_atomic` deliberately dumps wider
+    and strips ruamel's trailing-whitespace artifacts -- either of which rewrites
+    spans this command never touched and breaks the add-then-remove byte
+    round-trip (NFR-002). Atomicity itself comes from
+    :func:`kernel.atomic.atomic_write`, the same temp-then-rename primitive every
+    other config writer here uses.
+    """
+    stream = StringIO()
+    _round_trip_yaml().dump(data, stream)
+    atomic_write(config_path, stream.getvalue(), mkdir=True)
+
+
+def register_org_pack(repo_root: Path, pack: OrgPackConfig, *, replace: bool = False) -> bool:
+    """Register *pack* under ``charter_packs.org.packs``; return whether it replaced one.
+
+    The existing registry is read *strictly* first, so a config that cannot be
+    read or validated is never rewritten (fail closed). An already-registered
+    name raises unless *replace* is set; a replacement keeps the entry's position
+    in the list, because declaration order is the org layer's ``layer_index``.
+
+    Validation of the pack's contents is the caller's business (the CLI runs the
+    same ``validate_pack_with_org_charter`` door as ``charter org validate``
+    before calling this); this function owns the config shape only.
+    """
+    registry = load_pack_registry(repo_root, strict=True)
+    existing = registry.get(pack.name)
+    if existing is not None and not replace:
+        raise ValueError(
+            f"org pack {pack.name!r} is already registered in {_config_path(repo_root)}; "
+            "pass --force to replace it, or remove it first"
+        )
+
+    config_path = _config_path(repo_root)
+    data = _load_config_for_write(config_path)
+    _section, _org, packs = _require_org_packs_container(data)
+
+    entry = _org_pack_entry(pack)
+    index = _named_entry_index(packs, pack.name)
+    if index is None:
+        packs.append(entry)
+    else:
+        packs[index] = entry
+
+    _write_config(config_path, data)
+    return existing is not None
+
+
+def unregister_org_pack(repo_root: Path, name: str) -> OrgPackConfig:
+    """Remove the entry named *name*; return the entry that was removed.
+
+    Only the config is edited -- no pack directory is deleted. Removing the last
+    entry prunes the scaffolding it leaves behind (``org.packs``, then ``org``,
+    then ``charter_packs``), so the file does not keep an empty shell, and only
+    containers that are actually empty are dropped. An unknown name raises with
+    the configured names, and the file is left alone.
+
+    If the strictly-read registry lists *name* but the file no longer carries the
+    matching raw entry, that is a concurrent rewrite, not a successful removal:
+    it raises instead of reporting success it cannot prove, and leaves the file
+    untouched.
+    """
+    registry = load_pack_registry(repo_root, strict=True)
+    config_path = _config_path(repo_root)
+    removed = registry.get(name)
+    if removed is None:
+        configured = ", ".join(registry.names()) or "(none)"
+        raise ValueError(
+            f"org pack {name!r} is not registered in {config_path}; configured packs: {configured}"
+        )
+
+    data = _load_config_for_write(config_path)
+    container = _find_org_packs_container(data)
+    if container is None:
+        raise ValueError(
+            f"{config_path} no longer declares a "
+            f"`{_CANONICAL_ORG_PACKS_KEY}.{_ORG_KEY}.{_PACKS_KEY}` block although the registry "
+            f"listed {name!r}; refusing to report it removed without rewriting the config"
+        )
+    section, org, packs = container
+    index = _named_entry_index(packs, name)
+    if index is None:
+        raise ValueError(
+            f"{config_path} lists {name!r} in the registry but carries no matching entry in "
+            f"`{_CANONICAL_ORG_PACKS_KEY}.{_ORG_KEY}.{_PACKS_KEY}`; refusing to rewrite it"
+        )
+    del packs[index]
+    if not packs:
+        del org[_PACKS_KEY]
+    if not org:
+        del section[_ORG_KEY]
+    if not section:
+        del data[_CANONICAL_ORG_PACKS_KEY]
+    _write_config(config_path, data)
+
+    return removed
 
 
 def ensure_pack_identity(pack: OrgPackConfig) -> OrgPackConfig:

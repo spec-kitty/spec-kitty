@@ -63,7 +63,10 @@ def fetch(
     registry = load_pack_registry(repo_root)
     if not registry.packs:
         console.print("[red]No org charter packs configured.[/red]")
-        console.print("Add an entry to the [bold]charter_packs.org.packs[/bold] list in .kittify/config.yaml.")
+        console.print(
+            "Register one with [bold]spec-kitty charter org add <name> --local-path <dir>[/bold]; "
+            "it writes the [bold]charter_packs.org.packs[/bold] entry in .kittify/config.yaml for you."
+        )
         raise typer.Exit(1)
 
     target_packs = list(registry.packs)
