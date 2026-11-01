@@ -3,7 +3,8 @@
 
 Keeps the Unreleased section in the house shape: the six ``###`` headings in order, entries that
 lead with a bold headline and show what changed, no internal tokens, and bounded length. It reads
-only the Unreleased section; released sections are never restyled.
+only the Unreleased section and the per-PR fragments in ``docs/changelog/unreleased/`` (each checked as if it sat in
+its section); released sections are never restyled.
 
 Run it from the repository root::
 
@@ -31,6 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Final, Literal
 
+from scripts.release.changelog_fragments import DEFAULT_FRAGMENT_DIR, FRAGMENT_DIR_REL, Fragment, load_fragments
 from scripts.release.validate_release import UnreleasedSection, unreleased_section
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
@@ -616,6 +618,28 @@ def check(text: str, path: str = "docs/changelog/CHANGELOG.md") -> list[Finding]
     return sorted(findings, key=lambda finding: finding.sort_key)
 
 
+def check_fragment(fragment: Fragment) -> list[Finding]:
+    """Check one ``docs/changelog/unreleased/`` fragment with the same rules, at the fragment's own lines.
+
+    The fragment is wrapped in a synthetic changelog (``## [Unreleased]``, then its ``###``
+    section heading), checked like the real file, and each finding is moved back to the line it
+    sits on in the fragment.
+    """
+    header = ("## [Unreleased]", "", f"### {fragment.section}", "")
+    findings = check("\n".join([*header, *fragment.lines]) + "\n", _display_path(fragment.path))
+    offset = len(header)
+    return [Finding(f.severity, f.rule, f.path, f.line - offset, f.where, f.fix) for f in findings]
+
+
+def check_fragments(directory: Path) -> list[Finding]:
+    """Check every fragment in *directory*: naming and shape first, then the house style."""
+    fragments, problems = load_fragments(directory)
+    findings = [Finding("error", "fragment", _display_path(directory), 0, f"[{FRAGMENT_DIR_REL}]", problem) for problem in problems]
+    for fragment in fragments:
+        findings.extend(check_fragment(fragment))
+    return findings
+
+
 def format_finding(finding: Finding) -> str:
     """Render ``path:line: [rule] where — fix``; warnings get a ``warning: `` prefix."""
     line = f"{finding.path}:{finding.line}: [{finding.rule}] {finding.where} — {finding.fix}"
@@ -641,11 +665,26 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_CHANGELOG,
         help="changelog file to check; a relative path resolves against the repository root (default: docs/changelog/CHANGELOG.md)",
     )
+    parser.add_argument(
+        "--fragments",
+        type=Path,
+        default=None,
+        help="per-PR fragment directory to check as well (default: docs/changelog/unreleased/ when --changelog is not given, else none)",
+    )
     return parser
 
 
 def _exit_code_of(exc: SystemExit) -> int:
     return exc.code if isinstance(exc.code, int) else 0 if exc.code is None else 2
+
+
+def _fragment_dir(args: argparse.Namespace) -> Path | None:
+    """The fragment directory to check: explicit, else the live one only for the live changelog."""
+    explicit: Path | None = args.fragments
+    if explicit is not None:
+        return explicit if explicit.is_absolute() else REPO_ROOT / explicit
+    changelog: Path = args.changelog if args.changelog.is_absolute() else REPO_ROOT / args.changelog
+    return DEFAULT_FRAGMENT_DIR if changelog.resolve() == DEFAULT_CHANGELOG.resolve() else None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -660,10 +699,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (OSError, UnicodeDecodeError) as exc:
         print(f"cannot read {changelog}: {exc}", file=sys.stderr)
         return 2
-    if unreleased_section(text) is None:
+    fragments = _fragment_dir(args)
+    if unreleased_section(text) is None and fragments is None:
         print("no [Unreleased] section found; nothing to check")
         return 0
     findings = check(text, _display_path(changelog))
+    if fragments is not None:
+        findings.extend(check_fragments(fragments))
     for finding in findings:
         print(format_finding(finding))
     errors = sum(1 for finding in findings if finding.severity == "error")

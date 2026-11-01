@@ -54,6 +54,7 @@ from ruamel.yaml.error import YAMLError
 
 from scripts.docs._guards import assert_examined_floor
 from scripts.docs._inventory import parse_frontmatter
+from scripts.docs._page_scope import is_docs_page
 
 __all__ = [
     "DEFAULT_STYLEGUIDE",
@@ -168,6 +169,8 @@ def compute_touched_set(base: str, repo_root: Path) -> list[Path]:
         parts = rel.split("/")
         if parts[0] != DEFAULT_DOCS_ROOT or parts[-1] in _NAV_BASENAMES:
             continue
+        if not is_docs_page(repo_root / rel, repo_root / DEFAULT_DOCS_ROOT):
+            continue  # a changelog fragment is an entry, not a page
         pages.append((repo_root / rel).resolve())
     return sorted(pages)
 
