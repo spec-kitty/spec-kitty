@@ -79,14 +79,6 @@ def lifecycle_records_dir(repo_root: Path) -> Path:
     return repo_root / LIFECYCLE_RECORDS_RELATIVE_DIR
 
 
-def lifecycle_record_files(repo_root: Path) -> frozenset[Path]:
-    """Return every per-record file currently under ``repo_root``'s record directory."""
-    directory = lifecycle_records_dir(repo_root)
-    if not directory.is_dir():
-        return frozenset()
-    return frozenset(path for path in directory.glob(f"*{LIFECYCLE_RECORD_SUFFIX}") if path.is_file())
-
-
 def _new_record_id() -> str:
     """Return a ULID that sorts after every one this process issued before.
 
