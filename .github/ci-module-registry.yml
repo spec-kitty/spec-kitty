@@ -1044,6 +1044,7 @@ special_tiers:
       - {gate: tests/architectural/test_docs_cli_reference_parity.py, globs: ['docs/api/**']}
       - {gate: tests/architectural/test_doctrine_census.py, globs: ['kitty-specs/**']}
       - {gate: tests/architectural/test_doctrine_regenerate_graph_roundtrip.py, globs: ['packs/built-in/**']}
+      - {gate: tests/architectural/test_events_cutover_absent.py, globs: ['contracts/**']}
       - {gate: tests/architectural/test_fast_tier_marker_completeness.py, globs: ['tests/**']}
       - {gate: tests/architectural/test_first_party_hosts_are_owned.py, globs: ['scripts/**', 'packs/built-in/**']}
       - {gate: tests/architectural/test_gate_os_tier.py, globs: ['.python-version']}

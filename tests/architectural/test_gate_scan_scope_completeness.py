@@ -69,9 +69,10 @@ def test_every_exemption_is_narrow_justified_and_needed() -> None:
     assert not scope.validate_exemptions(), "\n".join(scope.validate_exemptions())
 
 
-def test_the_exemptions_are_the_two_non_repository_reads() -> None:
+def test_the_exemptions_are_the_three_non_repository_reads() -> None:
     """Guard the exemption table's size: a third entry needs a reviewer's attention, not a commit."""
     assert sorted(scope.EXEMPT_READS) == [
+        "tests/architectural/test_events_cutover_absent.py",
         "tests/architectural/test_help_startup_third_party_imports.py",
         "tests/architectural/test_real_home_isolation_guard.py",
     ]
