@@ -44,7 +44,10 @@ def test_channel_is_walk_edges_not_resolve_context() -> None:
     Folding the channel into ``resolve_context`` would silently measure nothing.
     """
     repo = AgentProfileRepository()
-    graph = repo._drg
+    # ``drg`` is the public read-only accessor; the backing field is lazy since
+    # #6917 (lineage is built on first use), so reading it directly would yield
+    # ``None`` before any lineage call.
+    graph = repo.drg
     seed = f"agent_profile:{_DAPHNE}"
 
     # resolve_context measures zero from a profile seed at any depth.
