@@ -14,6 +14,7 @@ from tests.docs.conftest import commit_all_changes, init_git_repo_with_base
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MAINTAINER = "docs/context/audience/internal/maintainer.md"
+_REAL_DOCS = Path(__file__).resolve().parents[2] / "docs"
 
 
 def _write(root: Path, rel: str, text: str) -> Path:
@@ -224,21 +225,31 @@ def test_mixed_line_endings_are_refused(repo: Path) -> None:
 
 @pytest.mark.parametrize(
     "rel",
-    ["adr/1.x/README.md", "architecture/README.md", "changelog/unreleased/1.fixed.md", "architecture/event-ledger-writers-and-readers.md"],
+    ["adr/1.x/README.md", "architecture/README.md", "changelog/unreleased/1.fixed.md"],
 )
 def test_skipped_files_are_never_edited(repo: Path, rel: str) -> None:
     text = f"---\ntitle: S\naudience: {_MAINTAINER}\n---\n"
     assert _migrate(repo, rel, text)[0] == text
 
 
-def test_frozen_pages_match_the_events_freeze_gate() -> None:
-    """Every docs page ADR 2026-10-29-1 D-9 freezes is skipped, and nothing else is called frozen."""
+def test_events_frozen_docs_pages_are_at_the_fixed_point() -> None:
+    """A re-run never moves a page the events freeze pins (ADR 2026-10-29-1 D-9).
+
+    The frozen page's migration was operator-approved and re-pinned in
+    ``test_events_import_frozen.py`` (#6929); a later ``--apply`` must not change
+    its bytes again, or the freeze gate goes red.
+    """
     from tests.architectural.test_events_import_frozen import _FROZEN_OBJECTS
 
-    frozen_docs = {path.removeprefix("docs/") for path in _FROZEN_OBJECTS if path.startswith("docs/")}
+    frozen_docs = sorted(path.removeprefix("docs/") for path in _FROZEN_OBJECTS if path.startswith("docs/"))
     assert frozen_docs, "non-vacuity: the freeze gate pins no docs page"
-    assert frozen_docs == mig.FROZEN_PAGES
-    assert all(mig.is_skipped(rel) for rel in frozen_docs)
+    corpus = mig.Corpus.load(docs_root=_REAL_DOCS, repo_root=_REAL_DOCS.parent)
+    moved = [
+        rel
+        for rel in frozen_docs
+        if mig.migrate_text(rel, (_REAL_DOCS / rel).read_text(encoding="utf-8"), corpus) != (_REAL_DOCS / rel).read_text(encoding="utf-8")
+    ]
+    assert moved == []
 
 
 def test_adr_era_index_frontmatter_is_migrated(repo: Path) -> None:
