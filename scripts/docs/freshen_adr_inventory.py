@@ -51,7 +51,9 @@ __all__ = [
     "build_parser",
     "detect_missing_adrs",
     "freshen",
+    "indexed_era_adrs",
     "main",
+    "read_adr_meta",
 ]
 
 
@@ -159,7 +161,7 @@ def _clean_title(raw: object) -> str:
     return text
 
 
-def _read_adr_meta(adr_path: Path) -> AdrMeta:
+def read_adr_meta(adr_path: Path) -> AdrMeta:
     """Parse an ADR's frontmatter into the facts its README row needs."""
     try:
         text = adr_path.read_text(encoding="utf-8")
@@ -263,7 +265,7 @@ def _insert_readme_row(readme_text: str, meta: AdrMeta) -> tuple[str, bool]:
 
 def _freshen_readme_row(adr_path: Path, docs_root: Path) -> str | None:
     """Add ``adr_path``'s row to its era index. Return basename if changed."""
-    meta = _read_adr_meta(adr_path)
+    meta = read_adr_meta(adr_path)
     era_index = _era_index_for(adr_path, docs_root)
     if not era_index.exists():
         raise FreshenError(f"era index not found: {era_index}")
@@ -349,17 +351,18 @@ def _era_has_table(era_index: Path) -> bool:
     return True
 
 
-def detect_missing_adrs(docs_root: Path) -> list[Path]:
-    """Every ADR under ``docs/adr/<era>/`` missing from its era index table.
+def indexed_era_adrs(docs_root: Path) -> list[Path]:
+    """Every ADR under ``docs/adr/<era>/`` whose era landing page maintains an index table.
 
-    Only eras whose landing page actually maintains an index table are considered —
-    legacy eras without a table (e.g. 1.x/2.x) are intentionally skipped rather
-    than back-filled with a table they never carried.
+    Only eras whose landing page actually maintains an index table are considered --
+    legacy eras without a table (e.g. 1.x/2.x) are intentionally skipped rather than
+    back-filled with a table they never carried. A canonical ``index.md`` that declares
+    an ``## Index`` section but carries no table is a hard error.
     """
     adr_root = docs_root / _ADR_SUBDIR
     if not adr_root.is_dir():
         return []
-    missing: list[Path] = []
+    adrs: list[Path] = []
     for era_dir in sorted(p for p in adr_root.iterdir() if p.is_dir()):
         if not _ERA_RE.match(era_dir.name):
             continue
@@ -373,12 +376,26 @@ def detect_missing_adrs(docs_root: Path) -> list[Path]:
         era_index = canonical_index if canonical_index.exists() else era_dir / _README_NAME
         if not _era_has_table(era_index):
             continue
-        for adr_path in sorted(era_dir.glob("*.md")):
-            if adr_path.name in {_INDEX_NAME, _README_NAME}:
-                continue
-            if not _readme_has_row(adr_path, docs_root):
-                missing.append(adr_path)
-    return missing
+        adrs.extend(
+            adr_path
+            for adr_path in sorted(era_dir.glob("*.md"))
+            if adr_path.name not in {_INDEX_NAME, _README_NAME}
+        )
+    return adrs
+
+
+def detect_missing_adrs(docs_root: Path) -> list[Path]:
+    """Every ADR of :func:`indexed_era_adrs` missing from its era index table.
+
+    ``--all`` adds exactly these rows, so a ``--all`` run reconciles every ADR present
+    and a second run is a no-op (the post-merge regeneration bot,
+    ``scripts/ci/regen_docs_index.py``, relies on that).
+    """
+    return [
+        adr_path
+        for adr_path in indexed_era_adrs(docs_root)
+        if not _readme_has_row(adr_path, docs_root)
+    ]
 
 
 def _targets_missing_rows(adr_paths: list[Path], docs_root: Path) -> list[str]:

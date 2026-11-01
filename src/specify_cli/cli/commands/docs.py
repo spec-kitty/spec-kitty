@@ -57,7 +57,9 @@ _VALID_DIVIO_TYPES: tuple[str, ...] = tuple(t.value for t in DivioType)
 _GENERATOR_HINT = (
     "`docs query` requires a committed Common Docs retrieval index, which this "
     "project does not have (it is an opt-in artifact; in the Spec Kitty "
-    "repository itself, `python scripts/docs/docs_index.py --write` generates it)"
+    "repository itself it is committed and regenerated on main after merge by the "
+    "`ci/regen-docs-index` bot pull request; `python scripts/docs/docs_index.py "
+    "--write` builds a local copy, which a pull request must not commit)"
 )
 
 

@@ -888,6 +888,11 @@ jobs:
   # changelog [Unreleased] style guard. Always-on because its inputs span
   # docs/**, README.md, packs/built-in/**/*.md, pyproject.toml and uv.lock,
   # which no single path group covers. Runs no pytest (duplicate-suite ledger).
+  # Also the generated-surface guard: a PR must not edit the docs retrieval
+  # index, the page inventory or add ADR era table rows; the post-merge
+  # `ci/regen-docs-index` bot (docs-index-regen.yml) owns them. The script
+  # skips every event but pull_request and the bot's own PR; fetch-depth 2
+  # gives it the PR merge commit's base parent (HEAD^1).
   docs-lint:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: docs lint (spelling + changelog style, always-on)
@@ -895,6 +900,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 2
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
@@ -902,6 +909,7 @@ jobs:
           uv sync --frozen
           uv run --frozen python -m scripts.docs.check_spelling
           uv run --frozen python -m scripts.docs.check_changelog_style
+          uv run --frozen python -m scripts.ci.check_generated_docs_untouched
 
   # Agent Skills conformance (#6475, FR-015 / SC-001): every skill a fresh
   # `spec-kitty init` writes and every shipped skill (projected for the shared

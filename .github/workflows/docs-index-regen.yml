@@ -1,0 +1,85 @@
+# Docs index regeneration -- post-merge home of the generated docs surfaces.
+#
+# The docs retrieval index (docs/development/docs-retrieval-index.yaml), the page
+# inventory (docs/development/page-inventory.yaml) and the ADR era table rows
+# (docs/adr/<era>/index.md) are generated from the docs/ tree. Every docs PR used to
+# regenerate them, so every merge conflicted every docs PR in flight. Operator ruling
+# (Option A): pull requests no longer touch them; this workflow regenerates them on
+# `main` after a merge and proposes the result as ONE pull request on the fixed branch
+# `ci/regen-docs-index` (scripts/ci/regen_docs_index.py). The per-PR guard that keeps
+# PRs off these files is scripts/ci/check_generated_docs_untouched.py (ci-router.yml
+# `docs-lint`); the per-PR content check is
+# tests/docs/test_docs_index_regenerates_cleanly.py.
+#
+# Modelled on ci-shard-recapture.yml:
+#   * The `regenerate` step runs the generators with NO credential (the script refuses
+#     to run when the PAT is in its environment) and records `changed`.
+#   * The `publish` step alone gets the PAT. It commits as the bot, force-pushes the
+#     fixed branch and opens a PR when none is open. Forcing is safe here: the branch is
+#     always `main` plus one regeneration commit, a pure function of `main`, so a newer
+#     run replaces the older proposal instead of stacking on it.
+#   * The PAT, never GITHUB_TOKEN, pushes and opens the PR, so the bot PR triggers normal
+#     per-PR CI like a human-authored one (a GITHUB_TOKEN push would not).
+#
+# Secret: the shared CHARTER_SHARD_RECAPTURE_TOKEN PAT is reused as an INTERIM measure
+# (the token ci-shard-recapture.yml already uses); a dedicated secret is tracked in
+# spec-kitty/spec-kitty#6986. It needs `contents: write` and `pull-requests: write` on
+# this repository.
+#
+# Triggers: a push to `main` that touches docs/** (the bot PR's own merge re-runs it
+# once and finds nothing to do), a daily backstop and manual dispatch. No
+# pull_request trigger: a PR event can never start it, and it never enters a
+# merge-blocking `needs:` chain. All `uses:` references are SHA-pinned (DIR-051).
+
+name: Docs Index Regeneration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+  schedule:
+    # 05:37 UTC daily -- off a round minute and away from ci-nightly.yml (17 3 * * *),
+    # ci-shard-recapture.yml (41 4 * * *) and ci-stale-running-sweep.yml (23 */4 * * *).
+    - cron: '37 5 * * *'
+  workflow_dispatch:
+
+# Static, deliberately: every run pushes the SAME fixed branch, so overlapping runs
+# queue on one slot instead of racing on it (ci-shard-recapture.yml precedent).
+concurrency:
+  group: docs-index-regen
+  cancel-in-progress: false
+
+# Least privilege: the push and the PR go through the PAT, never GITHUB_TOKEN.
+permissions:
+  contents: read
+
+# Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
+# only. On a fork the guarded jobs skip; pull_request and workflow_dispatch still
+# run everywhere. Pinned by tests/ci/test_fork_guard.py.
+jobs:
+  regenerate-docs-index:
+    # Never publish a topic branch's regeneration: a dispatch from another ref skips.
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      # No credential in .git/config: the publish step hands the PAT to each git/gh
+      # subprocess through its own environment only.
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      - name: Set up environment
+        run: uv sync --frozen
+      - name: Regenerate the generated docs surfaces (no credentials)
+        id: regen
+        run: |
+          uv run --frozen python -m scripts.ci.regen_docs_index regenerate
+      - name: Publish the regeneration proposal
+        if: ${{ steps.regen.outputs.changed == 'true' }}
+        env:
+          CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
+        run: |
+          uv run --frozen python -m scripts.ci.regen_docs_index publish
