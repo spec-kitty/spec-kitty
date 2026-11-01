@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2050": {
+      "evidence_ref": "cited in research.md for the bare-modern-slug fold this widens",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4723": {
+      "evidence_ref": "cited in research.md for the read-path ambiguity refusal",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4745": {
+      "evidence_ref": "Reviewer finding (WP01 round 1): the human-slug fold rule now exists twice (mission_resolver._human_slug_for_index_entry and branch_naming._human_slug_for_mid8_branch). Unifying them belongs in mission_runtime.identity. Follow-up: #4745 owns folding the Mission-resolution paths onto one seam.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#5875": {
+      "evidence_ref": "cited in research.md for the selection population",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6278": {
+      "evidence_ref": "WP01 840894d10c folds the Mission's own trailing -<mid8> in the identity resolver's human-slug rung; smoke-test resolves smoke-test-01M6BTQX on the ladder too (#6278 reproduction).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6517": {
+      "evidence_ref": "cited in research.md for the exact-directory short-circuit",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

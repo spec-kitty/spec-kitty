@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "human-slug-handle-parity-01M6BV06",
+  "mission_id": "01M6BV06JYKEVP5ZQQZ89F5PA5",
+  "mission_branch": "kitty/mission-human-slug-handle-parity-01M6BV06",
+  "target_branch": "issue-6278-human-slug-handle-parity",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/context/mission_resolver.py",
+        "tests/context/test_mission_resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "src/specify_cli/cli/commands/implement.py",
+        "tests/specify_cli/cli/commands/agent/test_implement_mission_handle.py",
+        "tests/specify_cli/cli/commands/test_selector_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-01T17:06:53.297123+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "b4ed395998c7adbaaeb9c353bd542fba6ceefec1"
+}
