@@ -61,7 +61,7 @@
       "wp": "WP01"
     },
     "#6928": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S-4 scope of this Mission (later WP)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,7 +69,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
       "wp": null
     },
     "#6929": {
