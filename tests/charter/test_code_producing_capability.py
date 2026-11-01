@@ -214,14 +214,18 @@ def test_unknown_mission_type_is_false(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(("mission_type", "expected"), [("software-dev", True), ("qa", False)])
-def test_resolution_failure_falls_back_to_builtin_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mission_type: str, expected: bool) -> None:
+def test_resolution_failure_falls_back_to_builtin_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, mission_type: str, expected: bool
+) -> None:
     """NFR-001: a raising resolver must not crash the consumer (which is a gate)."""
 
     def _boom(*_args: object, **_kwargs: object) -> object:
         raise RuntimeError("charter config is unreadable")
 
     monkeypatch.setattr("charter.activation.mission_type_profiles.resolve_mission_type_context", _boom)
-    assert code_producing_for(tmp_path, mission_type) is expected
+    with caplog.at_level("WARNING", logger="charter.activation.mission_type_profiles"):
+        assert code_producing_for(tmp_path, mission_type) is expected
+    assert any(mission_type in r.getMessage() and "built-in default" in r.getMessage() for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------
