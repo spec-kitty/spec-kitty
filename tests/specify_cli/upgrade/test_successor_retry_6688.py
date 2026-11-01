@@ -51,6 +51,7 @@ from tests.specify_cli.upgrade.test_residue_safe_successors_6669 import (
     _write,
 )
 
+from specify_cli.status import materialize
 from specify_cli.upgrade.ledger import TRACKED_LEDGER_RELPATH, MigrationLedger, build_record
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
@@ -125,6 +126,15 @@ def test_an_unsettled_predecessor_lets_the_successor_repair_a_pre_ledger_project
     assert records[old] != "success"
 
 
+def _materialize_beside_no_log(mission: Path) -> None:
+    """Leave what a later migration (``3.2.0a4_normalize_mission_lifecycle``) leaves on a Mission with no event log (#6843).
+
+    It materializes the reducer's own ``status.json`` for the empty log. The shipped sweep reads
+    that shape as an orphan snapshot; a re-selected successor must leave it where it is.
+    """
+    materialize(mission)
+
+
 @pytest.mark.parametrize("earlier_failure", [False, True], ids=["first-repair", "after-failed-attempt"])
 @pytest.mark.parametrize("recorded", ["failed", "skipped"])
 @pytest.mark.parametrize(("old", "new"), PAIRS, ids=PAIR_IDS)
@@ -137,12 +147,14 @@ def test_a_completed_repair_is_never_replayed(tmp_path: Path, old: str, new: str
     successor's history is ``[failed, success]`` (an earlier attempt failed, a later one repaired).
     """
     project = _plain_project(tmp_path)
-    _dirty_mission(project)
+    mission = _dirty_mission(project)
     _pre_ledger(project, RECORDED_VERSION, {old: recorded})
     first = MigrationRunner(project).upgrade(TARGET, include_worktrees=False)
     assert first.success, first.errors
     assert new in first.migrations_applied
     assert _results(project, new) == ["success"]
+    if new == NEW_206:
+        _materialize_beside_no_log(mission)
     before = _snapshot(project / "kitty-specs")
     tracked_ledger = project / TRACKED_LEDGER_RELPATH
     if earlier_failure:

@@ -15,10 +15,13 @@ class by name here would make this successor vanish after
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.runtime.doctor import check_stale_legacy_assets
+from specify_cli.status import SNAPSHOT_FILENAME, StoreError, materialize_snapshot, materialize_to_json
+from specify_cli.upgrade.feature_meta import build_baseline_feature_meta, load_feature_meta
 
 from ..registry import MigrationRegistry, settled_in_selection_view
 from ..tracked_meta_notice import MissingTrackedMeta, classify_missing_tracked_meta
@@ -26,13 +29,78 @@ from ._residue_successor import partition_kitty_specs, residue_warnings
 from .base import BaseMigration, MigrationResult
 from .m_2_0_6_consistency_sweep import (
     _cleanup_legacy_worktree_assets,
+    _feature_has_status_drift,
     _feature_requires_repair,
     _has_legacy_worktree_assets,
+    _has_orphan_status_snapshot,
     _migrate_runtime_assets,
+    _normalize_wp_frontmatter,
     _repair_feature,
+    _repair_feature_meta,
+    _rewrite_tasks_prompt_refs,
+    _tasks_md_has_legacy_prompt_refs,
+    _wp_frontmatter_needs_normalization,
 )
 
 PREDECESSOR_ID = "2.0.6_consistency_sweep"
+
+
+def _is_derived_projection(mission_dir: Path) -> bool:
+    """True when *mission_dir*'s event-less ``status.json`` is the projection the reducer itself writes, not an orphan.
+
+    A later migration (``3.2.0a4_normalize_mission_lifecycle``) and every status read path
+    materialize ``status.json`` for a Mission with no event log. The shipped sweep reads that
+    shape as an orphan snapshot and archives it. This successor is re-selected on every upgrade
+    while its predecessor is unsettled (#6688), so without this check the second upgrade would
+    rename the file the first one's later migration wrote (#6843). Byte equality with the reducer's
+    own output tells that projection apart from a stale snapshot, and reads nothing it cannot rebuild.
+    """
+    if not _has_orphan_status_snapshot(mission_dir):
+        return False
+    try:
+        current = (mission_dir / SNAPSHOT_FILENAME).read_text(encoding="utf-8")
+        return bool(current == materialize_to_json(materialize_snapshot(mission_dir)))
+    except (OSError, ValueError, StoreError):
+        return False
+
+
+def _requires_repair(mission_dir: Path, project_path: Path) -> bool:
+    """The shipped repair check, except that the reducer's own projection is not an orphan to archive."""
+    if not _is_derived_projection(mission_dir):
+        return bool(_feature_requires_repair(mission_dir, project_path))
+    try:
+        meta = load_feature_meta(mission_dir)
+    except json.JSONDecodeError:
+        return True
+    return bool(
+        meta != build_baseline_feature_meta(mission_dir, project_path, existing_meta=meta)
+        or _tasks_md_has_legacy_prompt_refs(mission_dir)
+        or _wp_frontmatter_needs_normalization(mission_dir)
+        or _feature_has_status_drift(mission_dir)
+    )
+
+
+def _repair_mission(mission_dir: Path, project_path: Path, dry_run: bool) -> tuple[list[str], list[str]]:
+    """Run the shipped per-folder repair; for the reducer's projection, its steps without the orphan archive.
+
+    A Mission holding that projection has no event log (that is what made it look like an
+    orphan), so the shipped steps that read the log (unreadable-log quarantine, status
+    regeneration) have nothing to do and are left out with the archive.
+    """
+    if not _is_derived_projection(mission_dir):
+        repaired_changes, repaired_warnings = _repair_feature(mission_dir, project_path, dry_run)
+        return repaired_changes, repaired_warnings
+    changes, warnings = _repair_feature_meta(mission_dir, project_path, dry_run)
+    normalized, normalize_warnings = _normalize_wp_frontmatter(mission_dir, dry_run)
+    warnings.extend(f"{mission_dir.name}: {warning}" for warning in normalize_warnings)
+    if normalized:
+        verb = "would normalize" if dry_run else "normalized"
+        changes.append(f"{mission_dir.name}: {verb} {normalized} work package files")
+    rewrites = _rewrite_tasks_prompt_refs(mission_dir, dry_run)
+    if rewrites:
+        verb = "would rewrite" if dry_run else "rewrote"
+        changes.append(f"{mission_dir.name}: {verb} {rewrites} legacy prompt reference(s)")
+    return changes, warnings
 
 
 @MigrationRegistry.register
@@ -57,7 +125,7 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
 
         kitty_specs = project_path / KITTY_SPECS_DIR
         missions, _residue = partition_kitty_specs(kitty_specs, project_path)
-        return any(_feature_requires_repair(mission_dir, project_path) for mission_dir in missions)
+        return any(_requires_repair(mission_dir, project_path) for mission_dir in missions)
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Consistency repair only needs a spec project root."""
@@ -102,7 +170,7 @@ class ResidueSafeConsistencySweepMigration(BaseMigration):
                 # git knows this Mission's meta.json but cannot give it back: repair nothing here, so no
                 # later step writes state (or an identity) for a Mission we could not identify (#6673).
                 continue
-            feature_changes, feature_warnings = _repair_feature(mission_dir, project_path, dry_run)
+            feature_changes, feature_warnings = _repair_mission(mission_dir, project_path, dry_run)
             changes.extend(feature_changes)
             warnings.extend(feature_warnings)
 
