@@ -100,7 +100,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Cutover: 618 pages migrated (excluded folders untouched), related reader on slugs, shape invariant; verify-against origin/main 0 body changes; docs suites 2114 passed. Pre-review gate skipped: make test-fast runs in parallel and its result is recorded in the PR.",
-        "Independent review"
+        "Independent review",
+        "APPROVE: 618 files verified frontmatter-only line by line against the merge-base; complete (only #6928 residual); T007b sanction exact; excluded skip matches docs-walk.mjs. Findings folded before approval (external_references checked on every page; verify-against uses merge-base); writer-side follow-up filed."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
