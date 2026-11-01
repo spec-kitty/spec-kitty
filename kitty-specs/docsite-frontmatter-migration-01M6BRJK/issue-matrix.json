@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6927": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Parallel session owns it (ledgers / dual-index folders); this Mission only avoids its files",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6928": {
