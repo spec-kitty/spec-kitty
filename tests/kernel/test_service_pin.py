@@ -21,6 +21,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from tests.kernel.service_release_fixture import pin_path
+from kernel import service_pin
 from kernel.service_pin import (
     DEFAULT_ASSET_PREFIXES,
     KNOWN_SERVICES,
@@ -438,6 +439,22 @@ def test_asset_suffix_is_derived_from_the_target() -> None:
 
 def test_every_known_service_has_an_asset_prefix() -> None:
     assert set(DEFAULT_ASSET_PREFIXES) == set(KNOWN_SERVICES)
+
+
+def test_the_asset_prefixes_are_the_names_each_repository_records() -> None:
+    """#6909: the charter prefix is spec-kitty-charter's recorded name (ADR-0046), not provisional."""
+    assert dict(DEFAULT_ASSET_PREFIXES) == {
+        "write-service": "command-cli",
+        "read-service": "mission-status-api",
+        "charter-service": "spec-kitty-charter-service",
+    }
+
+
+def test_the_charter_prefix_carries_no_provisional_marker() -> None:
+    """Positive control on the same fixture: a marker this test knows is there is still found."""
+    source = Path(service_pin.__file__).read_text(encoding="utf-8")
+    assert "Provisional" not in source
+    assert "Recorded by spec-kitty-charter ADR-0046" in source
 
 
 def test_pin_file_names_the_lockfile_in_a_pin_directory(tmp_path: Path) -> None:

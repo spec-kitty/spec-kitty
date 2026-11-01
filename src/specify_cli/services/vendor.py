@@ -20,10 +20,16 @@ Tag to commit: an ``https://`` repository is asked with ``git ls-remote`` agains
 must then agree. A ``file://`` repository (fixtures, offline mirrors) has no git remote,
 so ``commit`` is required there.
 
-Follow-ups, out of scope here: verifying the release's SLSA build attestation, and
-``protocol_versions`` from release metadata. No release carries those versions today,
-so the caller passes them (default ``1``) and they must match the release notes.
-TODO(#6590): read them from the release manifest spec-kitty-events plans to publish.
+Each service's release comes from its own repository (:data:`DEFAULT_REPOSITORIES`):
+spec-kitty-events for the events write and read services, spec-kitty-charter for the charter
+service (its ADR-0046). On a GitHub ``https://`` release, every downloaded asset's build
+attestation is verified (signer workflow and source ref, #6909) after the digest check and
+before the lockfile is written; ``--no-attestation`` is the explicit escape and a ``file://``
+mirror is skipped.
+
+Out of scope here: ``protocol_versions`` from release metadata. No release carries those
+versions today, so the caller passes them (default ``1``) and they must match the release
+notes. TODO(#6590): read them from the release manifest spec-kitty-events plans to publish.
 """
 
 from __future__ import annotations
@@ -31,6 +37,7 @@ from __future__ import annotations
 import hmac
 import re
 import tempfile
+import types
 import urllib.parse
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -56,8 +63,9 @@ from kernel.service_pin import (
     write_service_pin,
 )
 from kernel.service_pin import tag_version as _release_version
+from specify_cli.services.attestation import AttestationError, verify_release_attestation
 
-__all__ = ["VendorError", "check_pin", "vendor_pin"]
+__all__ = ["DEFAULT_REPOSITORIES", "VendorError", "check_pin", "default_repository", "vendor_pin"]
 
 VENDOR_USAGE = "SERVICE_VENDOR_USAGE"
 VENDOR_COMMIT_REQUIRED = "SERVICE_VENDOR_COMMIT_REQUIRED"
@@ -67,7 +75,18 @@ VENDOR_RELEASE_INVALID = "SERVICE_VENDOR_RELEASE_INVALID"
 VENDOR_DIGEST_MISMATCH = "SERVICE_VENDOR_DIGEST_MISMATCH"
 VENDOR_REQUIRES_CORE = "SERVICE_VENDOR_REQUIRES_CORE"
 
-DEFAULT_REPOSITORY = "https://github.com/spec-kitty/spec-kitty-events"
+EVENTS_REPOSITORY = "https://github.com/spec-kitty/spec-kitty-events"
+CHARTER_REPOSITORY = "https://github.com/spec-kitty/spec-kitty-charter"
+#: The repository each service releases its ``service-v*`` line from, used for a **new** pin
+#: (an existing pin's repository wins, and ``--repository`` overrides both).
+DEFAULT_REPOSITORIES: Mapping[str, str] = types.MappingProxyType(
+    {
+        "read-service": EVENTS_REPOSITORY,
+        "write-service": EVENTS_REPOSITORY,
+        # spec-kitty-charter ADR-0046: the charter service releases from its own repository.
+        "charter-service": CHARTER_REPOSITORY,
+    }
+)
 SUMS_FILE = "SHA256SUMS"
 _HTTPS = "https"
 _FILE = "file"
@@ -254,13 +273,27 @@ def map_assets(service: str, names: Iterable[str], *, prefix: str, version: str)
     return mapped, tuple(ignored)
 
 
-def _verified_asset(repository: str, tag: str, name: str, digest: str, scratch: Path) -> ServiceAsset:
-    """Download *name* and check it against its ``SHA256SUMS`` digest; the digest is never echoed."""
+def default_repository(service: str) -> str:
+    """The release repository of *service* for a new pin (:data:`DEFAULT_REPOSITORIES`)."""
+    return DEFAULT_REPOSITORIES[service]
+
+
+def _verified_asset(repository: str, tag: str, name: str, digest: str, scratch: Path, *, check_provenance: bool) -> ServiceAsset:
+    """Download *name*, check it against its ``SHA256SUMS`` digest and, on GitHub, its build attestation.
+
+    The digest is never echoed. A ``file://`` repository is skipped: a local mirror has no
+    attestation, and asking ``gh`` about it could only refuse.
+    """
     dest = scratch / "assets" / name
     dest.parent.mkdir(exist_ok=True)
     _fetch(repository, tag, name, dest)
     if not hmac.compare_digest(sha256_file(dest), digest):
         raise VendorError(VENDOR_DIGEST_MISMATCH, f"the downloaded {name} does not match its line in {SUMS_FILE} of {tag}")
+    if check_provenance and _scheme(repository) == _HTTPS:
+        try:
+            verify_release_attestation(dest, repository=repository, tag=tag)
+        except AttestationError as exc:
+            raise VendorError(exc.code, exc.message) from exc
     try:
         return ServiceAsset(name=name, sha256=digest)
     except ServicePinError as exc:
@@ -290,7 +323,7 @@ class _Request:
     version: str
 
 
-def _download_release(request: _Request, scratch: Path) -> _Release:
+def _download_release(request: _Request, scratch: Path, *, check_provenance: bool) -> _Release:
     repository, tag = request.repository, request.tag
     resolved = resolve_commit(repository, tag, request.commit, scratch=scratch)
     sums = _read_sums(repository, tag, scratch)
@@ -298,7 +331,7 @@ def _download_release(request: _Request, scratch: Path) -> _Release:
     assets: dict[ServiceTarget, ServiceAsset] = {}
     extras: dict[str, ServiceAsset] = {}
     for field, name in mapped.items():
-        asset = _verified_asset(repository, tag, name, sums[name], scratch)
+        asset = _verified_asset(repository, tag, name, sums[name], scratch, check_provenance=check_provenance)
         if isinstance(field, ServiceTarget):
             assets[field] = asset
         else:
@@ -316,27 +349,35 @@ def vendor_pin(
     protocol_versions: Sequence[int] = (1,),
     asset_prefix_override: str | None = None,
     core_version: str,
+    verify_attestation: bool = True,
 ) -> VendorResult:
     """Rewrite ``<pins_dir>/<service>.source.yaml`` from release *tag*; fail closed, the lockfile is untouched on any refusal.
 
-    *repository* defaults to the current pin's, else :data:`DEFAULT_REPOSITORY`. A new pin keeps
-    the current ``requires_core`` (or ``>=<core>,<<major+1>``), and *core_version* must satisfy it.
-    Builds are matched by exact name, ``<prefix>-<ver>-<target>`` and ``<prefix>-<ver>.jar``, where
-    ``<ver>`` is *tag* without ``service-v`` and the prefix is *asset_prefix_override* or the
-    service's entry in :data:`DEFAULT_ASSET_PREFIXES`.
+    *repository* defaults to the current pin's, else the service's :data:`DEFAULT_REPOSITORIES`
+    entry (spec-kitty-charter for the charter service, spec-kitty-events for the events
+    services). A new pin keeps the current ``requires_core`` (or ``>=<core>,<<major+1>``), and
+    *core_version* must satisfy it. Builds are matched by exact name,
+    ``<prefix>-<ver>-<target>`` and ``<prefix>-<ver>.jar``, where ``<ver>`` is *tag* without
+    ``service-v`` and the prefix is *asset_prefix_override* or the service's entry in
+    :data:`DEFAULT_ASSET_PREFIXES`.
+
+    With *verify_attestation* (the default), every downloaded asset of an ``https://`` release
+    is also checked against the release's build attestation before the lockfile is written;
+    ``file://`` repositories are skipped. Pass ``False`` only for an offline mirror or a
+    rehearsal (``spec-kitty service vendor --no-attestation``).
     """
     _check_service(service)
     version = tag_version(tag)
     prefix = asset_prefix(service, asset_prefix_override)
     path = pin_file(pins_dir, service)
     current = _current_pin(path)
-    repository = repository or (current.repository if current else DEFAULT_REPOSITORY)
+    repository = repository or (current.repository if current else default_repository(service))
     _check_repository(repository)
     requires_core = current.requires_core if current else _default_requires_core(core_version)
     _check_requires_core(requires_core, core_version)
     with tempfile.TemporaryDirectory(prefix=_SCRATCH_PREFIX) as scratch_name:
         request = _Request(service=service, repository=repository, tag=tag, commit=commit, prefix=prefix, version=version)
-        release = _download_release(request, Path(scratch_name))
+        release = _download_release(request, Path(scratch_name), check_provenance=verify_attestation)
     try:
         pin = ServicePin(
             service=service,

@@ -6,10 +6,12 @@ The operator surface of ``kitty-specs/pinned-service-binaries-01M64N66/contracts
   the host has no native build) into the cache (FR-010). ``--all`` means every pinned service
   the CLI launches (ADR 2026-10-29-1 D-6: the read service is pinned for CI conformance only,
   so it is fetched only when named with ``--service``). Exit 0, or 1 on a refusal.
-* ``vendor`` -- the only path that rewrites ``pins/<service>.source.yaml`` (FR-013), through
-  :mod:`specify_cli.services.vendor`; ``--check`` verifies the lockfile instead. Exit 0, 1 on a
-  refusal, 2 on a usage error. A bump writes only the ``pins/`` of the spec-kitty source
-  checkout this CLI runs from, and only when invoked inside it; anywhere else it is a usage error.
+* ``vendor`` -- the only path that rewrites ``pins/<service>.source.yaml`` (FR-013), from
+  the service's own release, through :mod:`specify_cli.services.vendor`; ``--check`` verifies
+  the lockfile instead. Exit 0, 1 on a refusal, 2 on a usage error. A bump writes only the
+  ``pins/`` of the spec-kitty source checkout this CLI runs from, and only when invoked inside
+  it; anywhere else it is a usage error. A GitHub bump verifies each asset's build
+  attestation before writing the pin; ``--no-attestation`` is the explicit escape.
 * ``status`` -- the pin, the cache state of each pinned asset and the running instance. It only
   reads: it never starts a service, never writes and never evicts (a cached copy that does not
   verify is reported ``corrupt`` and left in place, like ``make sync-services --check``). Exit 0.
@@ -352,7 +354,9 @@ def _vendor_check(service: str, offline: bool) -> None:
 
 def _check_vendor_usage(check: bool, offline: bool, bump_options: Sequence[object]) -> None:
     if check and any(option is not None for option in bump_options):
-        raise _usage("--check verifies the lockfile only; it cannot be combined with --tag, --repository, --commit, --protocol-versions or --asset-prefix.")
+        raise _usage(
+            "--check verifies the lockfile only; it cannot be combined with --tag, --repository, --commit, --protocol-versions, --asset-prefix or --no-attestation."
+        )
     if offline and not check:
         raise _usage("--offline applies to --check only; a bump needs the release.")
 
@@ -360,10 +364,16 @@ def _check_vendor_usage(check: bool, offline: bool, bump_options: Sequence[objec
 @app.command()
 def vendor(
     service: ServiceOption = DEFAULT_SERVICE,
-    tag: Annotated[str | None, typer.Option("--tag", help="The spec-kitty-events release tag to pin (service-vX.Y.Z).")] = None,
+    tag: Annotated[str | None, typer.Option("--tag", help="The service's release tag to pin (service-vX.Y.Z).")] = None,
     repository: Annotated[
         str | None,
-        typer.Option("--repository", help="The release repository (https:// or file://); default: the current pin's, else spec-kitty-events."),
+        typer.Option(
+            "--repository",
+            help=(
+                "The service's release repository (https:// or file://); default: the current pin's, else the service's own "
+                "(spec-kitty-charter for charter-service, spec-kitty-events for the events services)."
+            ),
+        ),
     ] = None,
     commit: Annotated[
         str | None,
@@ -388,10 +398,20 @@ def vendor(
             help="The release name prefix of this service's builds (<prefix>-<ver>-<target>, <prefix>-<ver>.jar); default: the service's known prefix.",
         ),
     ] = None,
+    no_attestation: Annotated[
+        bool,
+        typer.Option(
+            "--no-attestation",
+            help=(
+                "Skip the release's build-provenance check (`gh attestation verify`, signer workflow and source tag ref). "
+                "Only for an offline mirror or a rehearsal; never for a real bump."
+            ),
+        ),
+    ] = False,
 ) -> None:
-    """Bump (or --check) pins/<service>.source.yaml from a spec-kitty-events release; the only way to change a pin."""
+    """Bump (or --check) pins/<service>.source.yaml from the service's own release; the only way to change a pin."""
     _check_service(service)
-    _check_vendor_usage(check, offline, (tag, repository, commit, protocol_versions, asset_prefix))
+    _check_vendor_usage(check, offline, (tag, repository, commit, protocol_versions, asset_prefix, no_attestation or None))
     if check:
         _vendor_check(service, offline)
         return
@@ -409,6 +429,7 @@ def vendor(
             protocol_versions=versions,
             asset_prefix_override=asset_prefix,
             core_version=get_version(),
+            verify_attestation=not no_attestation,
         )
     except VendorError as exc:
         typer.echo(f"{exc.message}\nError code: {exc.code}.", err=True)

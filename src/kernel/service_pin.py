@@ -1,9 +1,9 @@
 """Service pin lockfile model (``pins/<service>.source.yaml``, #6590).
 
-A pin records **which released build of a service core runs**: the
-spec-kitty-events ``service-v*`` tag, the commit it resolves to, the protocol
-versions the build speaks, the core range it needs and, per target, the release
-asset's file name and SHA-256 digest (ADR 2026-10-29-1, D-3). The schema is
+A pin records **which released build of a service core runs**: the ``service-v*`` tag of the
+service's own release repository, the commit it resolves to, the protocol versions the build
+speaks, the core range it needs and, per target, the release asset's file name and SHA-256
+digest (ADR 2026-10-29-1, D-3). The schema is
 ``kitty-specs/pinned-service-binaries-01M64N66/contracts/service-pin.schema.md``.
 
 Everything is validated once, at load or construction time, into frozen value
@@ -67,7 +67,7 @@ DEFAULT_ASSET_PREFIXES: Mapping[str, str] = types.MappingProxyType(
         "read-service": "mission-status-api",
         # Agreed with spec-kitty-events (its ADR 0003): command-cli's binary is the write service.
         "write-service": "command-cli",
-        # Provisional: until spec-kitty-charter (where the charter service's releases live) names its release asset.
+        # Recorded by spec-kitty-charter ADR-0046 decision 4 for its own service-v* release line.
         "charter-service": "spec-kitty-charter-service",
     }
 )

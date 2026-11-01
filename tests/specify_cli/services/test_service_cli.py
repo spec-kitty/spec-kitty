@@ -18,9 +18,12 @@ from typing import Any
 import pytest
 from typer.testing import CliRunner
 
+from kernel.service_artifacts import sha256_file
 from kernel.service_pin import ServicePin, ServiceTarget, write_service_pin
 from specify_cli.cli.commands import service as service_module
 from specify_cli.services import resolution
+from specify_cli.services import vendor as vendor_module
+from specify_cli.services.attestation import SERVICE_ATTESTATION_FAILED, AttestationError
 from specify_cli.services.client import ServiceUnreachable
 from specify_cli.services.launcher import ServiceLauncher, StopOutcome
 from specify_cli.services.policies import WRITE_SERVICE
@@ -38,6 +41,7 @@ from tests.kernel.service_release_fixture import FIXTURE_COMMIT, SUMS_FILE, buil
 pytestmark = pytest.mark.fast
 
 TAG = "service-v0.1.0"
+HTTPS_REPO = "https://github.com/spec-kitty/spec-kitty-events"
 FAKE_SERVICE = Path(__file__).with_name("fake_service.py")
 TOKEN = "t" * 43
 #: The only executables the status test lets through: the read-only git probe, exactly `git` (POSIX) or `git.exe` (Windows).
@@ -129,6 +133,44 @@ def test_fetch_verifies_the_host_build_into_the_cache(repo: Path, release: tuple
     assert cached.is_file()
     assert str(cached) in result.output
     assert asset.sha256[:12] in result.output
+
+
+# -- the charter service's fixture pin is digest-verified end to end (#6909) --------------------------
+
+
+def _charter_fixture(repo: Path, tmp_path: Path) -> tuple[ServicePin, Path]:
+    pin, release_dir = build_release(tmp_path / "releases", service="charter-service", tag=TAG)
+    _pin(repo, pin)
+    return pin, release_dir
+
+
+def _charter_cached(tmp_path: Path, asset_name: str) -> Path:
+    return tmp_path / "cache" / "spec-kitty" / "services" / "charter-service" / TAG / asset_name
+
+
+def test_fetch_verifies_a_charter_service_fixture_pin(repo: Path, tmp_path: Path) -> None:
+    pin, _ = _charter_fixture(repo, tmp_path)
+    asset = pin.assets[ServiceTarget.LINUX_X64]
+
+    result = _invoke("fetch", "--service", "charter-service")
+
+    assert result.exit_code == 0, result.output
+    cached = _charter_cached(tmp_path, asset.name)
+    assert cached.is_file()
+    assert sha256_file(cached) == asset.sha256
+
+
+def test_fetch_refuses_a_tampered_charter_service_asset(repo: Path, tmp_path: Path) -> None:
+    """Same fixture, tampered bytes: the probe can see a verified asset, so the refusal is not blind."""
+    pin, release_dir = _charter_fixture(repo, tmp_path)
+    asset = pin.assets[ServiceTarget.LINUX_X64]
+    (release_dir / asset.name).write_bytes(b"#!/bin/sh\necho tampered\n")
+
+    result = _invoke("fetch", "--service", "charter-service")
+
+    assert result.exit_code == 1
+    assert "SERVICE_BINARY_DIGEST_MISMATCH" in result.output
+    assert not _charter_cached(tmp_path, asset.name).exists()
 
 
 def test_fetch_json_shape(repo: Path, release: tuple[ServicePin, Path]) -> None:
@@ -557,6 +599,64 @@ def test_vendor_help_documents_the_file_commit_rule() -> None:
     result = _invoke("vendor", "--help")
     assert result.exit_code == 0
     assert "file://" in result.output
+
+
+def test_vendor_help_names_the_owning_release_repository() -> None:
+    """#6909: the charter service's releases live in spec-kitty-charter, and the help says so."""
+    result = _invoke("vendor", "--help")
+    assert result.exit_code == 0
+    flat = " ".join(result.output.split())
+    assert "spec-kitty-charter" in flat
+    assert "--no-attestation" in flat
+    assert "The spec-kitty-events release tag" not in flat
+
+
+def test_no_attestation_is_a_bump_option_only(repo: Path) -> None:
+    result = _invoke("vendor", "--check", "--no-attestation")
+    assert result.exit_code == 2
+    assert "--no-attestation" in " ".join(result.output.split())
+
+
+def _serve_fixture_over_https(monkeypatch: pytest.MonkeyPatch, release_dir: Path) -> None:
+    """Make an https:// bump read the local fixture release: no network, no git."""
+    monkeypatch.setattr(vendor_module, "remote_tag_commit", lambda cwd, remote, tag: FIXTURE_COMMIT)
+
+    def download(url: str, dest: Path) -> None:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes((release_dir / url.rsplit("/", 1)[1]).read_bytes())
+
+    monkeypatch.setattr(vendor_module, "download", download)
+
+
+def test_vendor_cli_refuses_a_release_whose_attestation_fails(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """The production CLI path, not only vendor_pin(): a refused attestation exits 1 and writes no pin."""
+    _pin, release_dir = release
+    _serve_fixture_over_https(monkeypatch, release_dir)
+
+    def refuse(asset: Path, *, repository: str, tag: str) -> None:
+        raise AttestationError(SERVICE_ATTESTATION_FAILED, f"`gh attestation verify` refused {asset.name}")
+
+    monkeypatch.setattr(vendor_module, "verify_release_attestation", refuse)
+
+    result = _invoke("vendor", "--tag", TAG, "--repository", HTTPS_REPO, "--commit", FIXTURE_COMMIT)
+
+    assert result.exit_code == 1, result.output
+    assert SERVICE_ATTESTATION_FAILED in result.output
+    assert not pin_path(repo, "write-service").exists()
+
+
+def test_vendor_cli_no_attestation_skips_the_provenance_check(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same fixture, the documented escape: the pin is written and the verifier is never called."""
+    _pin, release_dir = release
+    _serve_fixture_over_https(monkeypatch, release_dir)
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(vendor_module, "verify_release_attestation", lambda *args, **kwargs: calls.append(args))
+
+    result = _invoke("vendor", "--tag", TAG, "--repository", HTTPS_REPO, "--commit", FIXTURE_COMMIT, "--no-attestation")
+
+    assert result.exit_code == 0, result.output
+    assert calls == []
+    assert pin_path(repo, "write-service").is_file()
 
 
 def test_vendor_refuses_when_the_cli_is_not_a_source_checkout(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
