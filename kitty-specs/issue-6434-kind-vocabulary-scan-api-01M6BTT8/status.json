@@ -1,0 +1,59 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6C2S9JEV13E0ZY4J9BBMBZ2",
+  "materialized_at": "2026-11-01T17:33:45.422837+00:00",
+  "mission_number": "246",
+  "mission_slug": "issue-6434-kind-vocabulary-scan-api-01M6BTT8",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C2S9JEV13E0ZY4J9BBMBZ2",
+      "last_transition_at": "2026-11-01T17:33:45.422837+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-01T16:41:30Z – unknown – Owned-files map extended during implementation: the ratchet's first red run named six test modules and two source docstring sites the plan did not list (test_activation_consumers, test_context_org_chain, test_action_bundle_tension_arbiters, test_action_governance_bundle_org_fragment, test_default_in_force_snapshot, test_synthesize_styleguide_edge_6442; interview.py, context_renderers/delivery_table.py). Changelog moved to the repo's per-PR fragment convention (docs/changelog/unreleased/6434-kind-vocabulary-scan-api.internal.md) after check_changelog_style rejected an [Unreleased] edit shape.",
+        "- 2026-11-01T16:52:09Z – unknown – Verification: ratchet red on the untouched tree (47 retired references, 16 files), then green (10 passed, scan 1.06s). Targeted suite 1108 passed / 0 failed in 456.91s over the 33 files the rename touches plus the parity, recursion, memoization, identity, governance-bundle and re-export gates. mypy clean on the five production modules; ruff clean; check_changelog_style 0 errors; check_spelling 0 findings.",
+        "Work landed before the claim event: commit 5896739f5e (refactor(6434)) carries the whole WP, and the claim was recorded afterwards in this single-agent run, so no commit can follow it. Verified tree is clean (git status empty) and the 33-file targeted suite is green (1108 passed).",
+        "APPROVE (review round 1, reviewer profile reviewer-renata; disclosed: single-agent run, so the reviewer role is played in-session and an independent human/agent review is still owed by the operator). Checklist: 1 dead code PASS (all 8 promoted helpers have live production callers in kind_vocabulary/identity_index; scan/load_action_governance_bundle/direct_root_urns all called); 2 synthetic-fixture PASS (ratchet drives the real scanner and imports the real modules; reverting the renames makes it red); 3 silent-empty-return PASS (no new returns; existing fail-soft None contracts unchanged and documented); 4 FR coverage PASS (FR-001/002/006 by the ratchet tests, FR-003/004 by the rewired index plus its two probe tests, FR-005 by the governance renames plus the re-export import control, FR-007 by the 1108-test behaviour pin); 5 frozen surface PASS (no frozen path touched); 6 locked decision PASS (no aliases: git grep for = aliases is empty; no body/order/signature change); 7 shared-file ownership PASS (single WP); 8 production fragility PASS (no new raise). Findings fixed this round: patch-call callee check and non-vacuity probe (commit 2ae969db9e)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3795293,
+      "shell_pid_created_at": "1793552034.71",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}

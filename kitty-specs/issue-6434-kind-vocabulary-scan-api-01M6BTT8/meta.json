@@ -1,0 +1,35 @@
+{
+  "accept_commit": "757b80aad1e5132e94ae1c4d11e255b6023a603c",
+  "acceptance_history": [
+    {
+      "accept_commit": "757b80aad1e5132e94ae1c4d11e255b6023a603c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:33:12.233844+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "a5fb1c896124e79763444952c55dc34bf2e5a799"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:33:12.233844+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "a5fb1c896124e79763444952c55dc34bf2e5a799",
+  "baseline_merge_commit": "3dd2a8b6fdb1ad10c66a387519a7bb53a80bf480",
+  "contracts": "none",
+  "contracts_rationale": "Behaviour-preserving promotion of internal charter-layer helper names: no endpoint, event, schema or CLI contract changes.",
+  "created_at": "2026-11-01T15:14:28.281170+00:00",
+  "flattened": false,
+  "friendly_name": "Promote kind_vocabulary scanning helpers to a module-internal API",
+  "merged_at": "2026-11-01T17:33:45.216036+00:00",
+  "merged_commit": "3dd2a8b6fdb1ad10c66a387519a7bb53a80bf480",
+  "mid8": "01M6BTT8",
+  "mission_id": "01M6BTT85ZDKQ7QAGJ5DGB13G5",
+  "mission_number": 246,
+  "mission_slug": "issue-6434-kind-vocabulary-scan-api-01M6BTT8",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Promote kind_vocabulary scanning helpers to a module-internal API on issue-6434-kind-vocabulary-scan-api so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "IdentityIndex and its tests stop coupling to kind_vocabulary underscore names.",
+  "slug": "issue-6434-kind-vocabulary-scan-api-01M6BTT8",
+  "status_phase": "1",
+  "target_branch": "issue-6434-kind-vocabulary-scan-api",
+  "topology": "single_branch"
+}

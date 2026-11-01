@@ -1,0 +1,88 @@
+{
+  "mission_slug": "issue-6434-kind-vocabulary-scan-api-01M6BTT8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ratchet test",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:25.747965+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_charter_kind_vocabulary_public_scan_api.py::test_kind_vocabulary_exports_and_documents_the_scanning_api (id helpers documented) + tests/charter/activation/test_identity_index.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:31:59.387474+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_charter_kind_vocabulary_public_scan_api.py::test_no_retired_scanning_name_is_reachable_from_src_or_tests (identity_index has no private kind_vocabulary reach)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:03.189359+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/activation/test_context_identity_reuse.py + tests/charter/test_resolver_directive_activation_keying.py wrap IdentityIndex.scan (scan counts unchanged, 1108 passed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:07.282781+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_charter_kind_vocabulary_public_scan_api.py re-export import control + tests/charter/synthesizer/test_styleguide_reach_only.py direct_root_urns",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:11.274860+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_charter_kind_vocabulary_public_scan_api.py::test_no_retired_scanning_name_is_reachable_from_src_or_tests (red on the pre-change tree: 47 references / 16 files)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:15.626060+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "33-file targeted suite: 1108 passed / 0 failed (identity, memoization, recursion-parity, config-stem parity, governance bundle, re-export gates)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:20.337992+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "no-retired-seam-alias",
+      "description": "No source or test file re-introduces a retired scanning-seam name as a compatibility alias",
+      "verification_method": "grep_absence",
+      "verification_command": "^\\s*_(scan_roots|scan_dir_matches|iter_artifact_paths|read_id|parse_id|id_field_for|config_stem|built_in_scan_dir|load_action_governance_bundle|direct_root_urns)\\s*=",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches"
+    }
+  ]
+}

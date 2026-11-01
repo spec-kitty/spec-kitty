@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6404": {
+      "evidence_ref": "Cited for context only: this mission is the pre-PR review finding from the #6404-#6408 Mission (landed in PR #6440); no #6404 work is owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6434": {
+      "evidence_ref": "commit 5896739f5e + tests/architectural/test_charter_kind_vocabulary_public_scan_api.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6440": {
+      "evidence_ref": "Merged PR that introduced IdentityIndex under the #6404-#6408 Mission; cited only as the origin of this review finding.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
