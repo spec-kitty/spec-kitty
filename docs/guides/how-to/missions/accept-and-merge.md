@@ -53,6 +53,24 @@ To run a read-only checklist (in your terminal):
 spec-kitty accept --mode checklist
 ```
 
+### What Accept Tells You Next
+
+The next steps `accept` prints follow the Mission's topology, because the way a
+Mission lands is not the same everywhere:
+
+- **Lane and single-branch Missions** end with `spec-kitty consolidate --mission
+  <handle>`, and a pull request is suggested only where the Mission actually
+  needs one.
+- **Coordination-topology Missions** are landed by `spec-kitty consolidate`. Their
+  coordination branch is internal, so `accept` names that command and does not
+  suggest pushing the branch and opening a pull request.
+
+A coordination-topology Mission's `accept` therefore never asks for a pull
+request. When a Mission's issue matrix is refused at `done`, the message names
+the validation diagnostics; the `spec-kitty agent issue-verdict` remedy appears
+only when a verdict is actually missing, still `in-mission`, or an `unknown`
+placeholder.
+
 ### When a Mission Defines No Contracts
 
 The software-dev Mission type requires a `contracts/` directory, and strict

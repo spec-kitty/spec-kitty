@@ -80,6 +80,17 @@ the late commit is intact and the target is not rolled back.
 - **Mission branch without a coordination topology:** land the commit(s) that
   belong on the target yourself, then delete the branch.
 
+### The lane workspace contexts are committed on teardown
+
+`consolidate` tombstones each lane's `.kittify/workspaces/<slug>-<lane>.json` when
+it removes that lane's worktree. Those tombstones are committed as one scoped
+bookkeeping commit, so a landed run ends with a clean target branch even in a
+project that tracks those files; the commit is skipped when nothing tracked was
+removed, and a `--push` run pushes it too. If the commit cannot land (a
+protected-ref refusal, a concurrent move), the run warns and names the paths
+rather than failing a merge that already landed — commit them yourself before
+the next `consolidate`.
+
 ### What a resume lands from the coordination branch
 
 A `--resume` that finishes the teardown projects every coordination record the

@@ -1,0 +1,143 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M69774RTH1R8PC077J9NWCBQ",
+  "materialized_at": "2026-10-31T14:53:30.266486+00:00",
+  "mission_number": "245",
+  "mission_slug": "consolidate-run-gap-truthfulness-01M68ZR2",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M697711MNMAGBWGCR47VR834",
+      "last_transition_at": "2026-10-31T14:53:26.452275+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review round 1 (reviewer profile, same harness as the implementer). Checklist PASS: live caller, red-first test through the real cleanup seam, no frozen surface, no gate change. One finding fixed in this round: _phase_push runs before teardown, so a --push run would have left the new tombstone commit local-only; the commit path now re-uses _phase_push. Suites: 10/10 tombstone, 672 passed in tests/consolidation -k 'teardown or cleanup or merge'."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 206548,
+      "shell_pid_created_at": "1793450920.62",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6977285HYVHH37HEFYCWB82",
+      "last_transition_at": "2026-10-31T14:53:27.685875+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review round 1 (reviewer profile, same harness). Checklist PASS: new helper has one production caller and reads the existing meta authority (no second resolver); the coord arm is additive and the flat-topology arm is byte-identical (positive control test); no gate/protection change. Suites: acceptance regressions 39 passed + 1 pre-existing red tracked by #6786 (IMPLEMENTATION_MISSING planning-artifact accept), unrelated to this diff and reproduced on the base."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 717548,
+      "shell_pid_created_at": "1793453093.13",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M69773JB82RX5K58NFHYHKRH",
+      "last_transition_at": "2026-10-31T14:53:29.035431+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review round 1 (reviewer profile, same harness). Checklist PASS: _rows_owe_a_verdict reuses terminal_issue_verdicts() and the existing validator diagnostic code (no second vocabulary); only the header and the remedy line are conditional, the returned blocker and the gate verdict are unchanged. Suites: 110 passed in the two touched suites, 220 in tests/policy, 285 in tests/agent/cli/commands."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 888715,
+      "shell_pid_created_at": "1793454489.97",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M69774RTH1R8PC077J9NWCBQ",
+      "last_transition_at": "2026-10-31T14:53:30.266486+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs+changelog ready: 855-char Unreleased entry with (#6450), accept next-step truthfulness section, teardown tombstone commit section; docs index regenerated (errors=0) and the terminology test passes (98).",
+        "Review round 1 (reviewer profile, same harness). Checklist PASS: entry is 855 chars (<1,200), impact-first, cites (#6450), before/after accurate against the diff; both doc edits are prose-only in existing pages; the docs index rows were regenerated, not hand-edited; check_docs_freshness --ci errors=0 (4 pre-existing HELP-DRIFT warnings from the shared installed CLI cache, unrelated to this diff) and test_no_legacy_terminology 98 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1574067,
+      "shell_pid_created_at": "1793457567.7",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    }
+  }
+}

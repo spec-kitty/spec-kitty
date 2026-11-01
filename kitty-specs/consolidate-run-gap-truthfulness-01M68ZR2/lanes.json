@@ -1,0 +1,89 @@
+{
+  "version": 1,
+  "mission_slug": "consolidate-run-gap-truthfulness-01M68ZR2",
+  "mission_id": "01M68ZR2D30HN3TX9795RG5KY3",
+  "mission_branch": "kitty/mission-consolidate-run-gap-truthfulness-01M68ZR2",
+  "target_branch": "issue-6450-consolidate-run-gap-truthfulness",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "tests/specify_cli/test_workspace_context_tombstone.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "tests/specify_cli/test_acceptance_regressions.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/tasks/issue_matrix_approval.py",
+        "tests/policy/test_merge_gates_issue_matrix.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_parsing_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/**",
+        "docs/development/recovery/**"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-31T12:47:13.093556+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "219bbe046ab89ebbadb27429945a144e7c0c87a0"
+}
