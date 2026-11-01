@@ -103,7 +103,7 @@ class MigrationRegistry:
         (and re-skipped idempotently), a failed one is retried.
         A migration that declares a ``predecessor_id`` (a residue-safe successor,
         #6688) is further settled only while that predecessor's recorded outcome
-        proves the repair ran (:func:`predecessor_outcome_settled`), because first
+        proves the repair ran (inside :func:`_settled_in_view`), because first
         adoption settles an id from the version stamp rather than from a run.
         The version window (``from_v < target <= to_v``) is RETIRED as the
         applied authority; ``detect()``/``can_apply`` stay the runner's
@@ -243,26 +243,10 @@ def settled_in_selection_view(project_path: Path, migration_id: str) -> bool:
     return _settled_in_view(ledger, migration, adopting)
 
 
-def predecessor_outcome_settled(project_path: Path, migration: BaseMigration) -> bool:
-    """True when *migration*'s declared predecessor's recorded outcome proves its repair ran (#6688).
-
-    The same answer :func:`_settled_in_view` reaches inside selection, over the same
-    pending-adoption projection (:func:`_selection_view`), so a dry run and a live run
-    agree on a pre-ledger project. This is the seam the runner's skip gate reaches
-    through :meth:`BaseMigration.reselect_when_recorded`, which keeps selection and
-    apply-time settlement on one rule. A migration with no predecessor is always
-    settled here.
-    """
-    ledger, adopting = _selection_view(project_path)
-    return _predecessor_outcome_settled_in_view(ledger, migration, adopting)
-
-
 def _selection_view(project_path: Path | str) -> tuple[MigrationLedger, frozenset[str]]:
     """The ledger and pending-adoption projection a selection-view answer is computed from.
 
-    One preamble for :func:`settled_in_selection_view` and
-    :func:`predecessor_outcome_settled`, so the two public projections cannot
-    drift. Runs inside the upgrade-only legacy activation scope for the same
+    Runs inside the upgrade-only legacy activation scope for the same
     reason :meth:`MigrationRegistry.get_applicable` does.
     """
     # Lazy import: ``base`` must not load at registry import.
@@ -301,7 +285,7 @@ def migration_settled(ledger: MigrationLedger, migration: BaseMigration) -> bool
     the selection authority, and for a migration that declares a
     ``predecessor_id`` it also requires the predecessor's outcome to prove the
     repair ran (#6688); the runner's skip gate reaches the same second half
-    through :meth:`BaseMigration.reselect_when_recorded`. Read this as "the
+    through :func:`settled_in_selection_view`. Read this as "the
     record says applied", never as "the run may skip it".
     """
     migration_id = migration.migration_id

@@ -54,7 +54,7 @@ from tests.specify_cli.upgrade.test_residue_safe_successors_6669 import (
 from specify_cli.upgrade.ledger import TRACKED_LEDGER_RELPATH, MigrationLedger, build_record
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
-from specify_cli.upgrade.registry import MigrationRegistry, predecessor_outcome_settled, settled_in_selection_view
+from specify_cli.upgrade.registry import MigrationRegistry, settled_in_selection_view
 from specify_cli.upgrade.runner import MigrationRunner
 from specify_cli.upgrade.supersession import SUPERSEDED_MIGRATIONS
 
@@ -111,7 +111,6 @@ def test_an_unsettled_predecessor_lets_the_successor_repair_a_pre_ledger_project
     mission = _dirty_mission(project)
     _pre_ledger(project, RECORDED_VERSION, {old: recorded})
 
-    assert predecessor_outcome_settled(project, _get(new)) is False
     assert settled_in_selection_view(project, new) is False
     assert new in _selected(project)
 
@@ -211,7 +210,6 @@ def test_a_settled_predecessor_keeps_the_successor_inert(tmp_path: Path, old: st
     project = _plain_project(tmp_path)
     _dirty_mission(project)
     _pre_ledger(project, RECORDED_VERSION, {old: "success"})
-    assert predecessor_outcome_settled(project, _get(new)) is True
     assert settled_in_selection_view(project, new) is True
     assert new not in _selected(project)
     before = _snapshot(project / "kitty-specs")
@@ -231,7 +229,6 @@ def test_a_migration_without_a_predecessor_keeps_its_success_only_settlement(tmp
     project = _plain_project(tmp_path)
     MigrationLedger(project).append(build_record(ordinary, "success"))
 
-    assert predecessor_outcome_settled(project, ordinary) is True
     assert ordinary.reselect_when_recorded(project) is False
     assert settled_in_selection_view(project, ORDINARY_MIGRATION) is True
 
@@ -268,6 +265,8 @@ def test_a_predecessor_the_registry_no_longer_carries_keeps_the_recorded_word(tm
             return MigrationResult(success=True)
 
     project = _plain_project(tmp_path)
-    MigrationLedger(project).append(build_record(_RetiredPredecessorSuccessor(), "success"))
+    successor = _RetiredPredecessorSuccessor()
+    MigrationRegistry.register(_RetiredPredecessorSuccessor)
+    MigrationLedger(project).append(build_record(successor, "success"))
 
-    assert predecessor_outcome_settled(project, _RetiredPredecessorSuccessor()) is True
+    assert settled_in_selection_view(project, successor.migration_id) is True

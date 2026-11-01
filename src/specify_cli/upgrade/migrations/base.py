@@ -320,16 +320,13 @@ class BaseMigration(ABC):
     def reselect_when_recorded(self, project_path: Path) -> bool:
         """True when a recorded application must not settle this migration.
 
-        Two qualifications exist. A ``runs_first`` migration whose
-        :meth:`structural_detect` reports the old state present is re-selected (a
-        pulled ``metadata.yaml`` or a merge can bring the legacy state back after
-        the first application). A migration that declares a
-        :attr:`predecessor_id` is re-selected while that predecessor's recorded
-        outcome does not prove the repair ran: first adoption can stamp this
-        migration ``success`` without the work having happened (#6688, residual
-        ``C-006`` of ADR ``2026-10-17-1``). Every other recorded migration is
-        skipped as applied, and the empty-``predecessor_id`` check runs before
-        any ledger read, so an ordinary migration pays nothing for the rule.
+        A ``runs_first`` migration whose :meth:`structural_detect` reports the old
+        state present is re-selected (a pulled ``metadata.yaml`` or a merge can
+        bring the legacy state back after the first application, #6613). Every
+        other recorded migration is skipped as applied. A residue-safe
+        successor's predecessor outcome (#6688) is NOT a reason here: it is part
+        of the ledger predicate ``registry._settled_in_view``, which the runner's
+        skip gate consults through ``registry.settled_in_selection_view``.
 
         Clone-local reselection is no longer a per-migration hook: under the
         two-partition ledger (ADR ``2026-10-17-1``) a clone-local migration's
@@ -339,15 +336,7 @@ class BaseMigration(ABC):
         already present. The ``clone_local_effect`` flag survives only as the
         ledger's routing key.
         """
-        if self.runs_first and self.structural_detect(project_path):
-            return True
-        if not self.predecessor_id:
-            return False
-        # Lazy: ``registry`` imports this package lazily in turn, and ``base``
-        # must stay importable on its own (see the module docstrings).
-        from ..registry import predecessor_outcome_settled
-
-        return not predecessor_outcome_settled(project_path, self)
+        return self.runs_first and self.structural_detect(project_path)
 
     @abstractmethod
     def detect(self, project_path: Path) -> bool:

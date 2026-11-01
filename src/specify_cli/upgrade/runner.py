@@ -29,7 +29,7 @@ from .detector import VersionDetector
 from .ledger import SETTLED_RESULT, SKIPPED_RESULT, MigrationLedger, build_record
 from .metadata import _METADATA_HEADER, ProjectMetadata, VersionStamp, canonical_schema_capabilities
 from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError, legacy_upgrade_scope
-from .registry import MigrationRegistry, migration_settled
+from .registry import MigrationRegistry, migration_settled, settled_in_selection_view
 
 logger = logging.getLogger(__name__)
 
@@ -216,6 +216,22 @@ def _commit_worktree_churn(
         )
         warnings.append(prefix + held)
     return warnings
+
+
+def _skip_as_applied(ledger: MigrationLedger, migration: BaseMigration, project_path: Path) -> bool:
+    """True when the runner may skip *migration* as already applied.
+
+    The ledger record settles it, the registry's selection-view predicate agrees
+    (it adds a residue-safe successor's predecessor outcome, #6688, so selection
+    and this apply-time skip cannot disagree), and no structural reselection
+    (#6613) overrides. The cheap record check runs first so the selection view is
+    only built for a recorded migration.
+    """
+    return (
+        migration_settled(ledger, migration)
+        and settled_in_selection_view(project_path, migration.migration_id)
+        and not migration.reselect_when_recorded(project_path)
+    )
 
 
 class MigrationRunner:
@@ -442,7 +458,7 @@ class MigrationRunner:
         # authority. A drifted source never changes this: a recorded migration
         # stays recorded whatever its content now hashes to (C-004).
         ledger = MigrationLedger(self.project_path)
-        if migration_settled(ledger, migration) and not migration.reselect_when_recorded(self.project_path):
+        if _skip_as_applied(ledger, migration, self.project_path):
             return (
                 MigrationResult(
                     success=True,
@@ -742,7 +758,7 @@ class MigrationRunner:
             # Apply migrations to worktree
             wt_ledger = MigrationLedger(worktree)
             for migration in worktree_migrations:
-                if migration_settled(wt_ledger, migration) and not migration.reselect_when_recorded(worktree):
+                if _skip_as_applied(wt_ledger, migration, worktree):
                     continue
 
                 # Same fail-closed handling as the main checkout in
