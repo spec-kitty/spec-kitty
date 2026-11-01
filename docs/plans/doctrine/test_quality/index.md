@@ -2,9 +2,10 @@
 title: Test Quality Doctrine
 description: Research and planning notes for test-quality doctrine — test slicing/scoping and mocking-boundary discipline.
 doc_status: draft
-updated: '2026-07-26'
+updated: '2026-07-26T00:00:00Z'
 related:
 - docs/plans/doctrine/index.md
+kind: Hub
 ---
 # Test Quality Doctrine
 

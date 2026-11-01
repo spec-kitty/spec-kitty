@@ -3,7 +3,9 @@ title: 'ADR: Shared Package Boundary Cutover'
 description: 'Retires the standalone runtime package by internalizing the surface the CLI needs, with an import-graph test forbidding production imports of the retired package.'
 status: Accepted
 date: '2026-04-25'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 ## Context

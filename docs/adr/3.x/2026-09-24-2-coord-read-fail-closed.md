@@ -3,7 +3,9 @@ title: 'ADR: the placement read seam raises on an unmaterialized coordination wo
 description: 'A coord-partition read on CoordState.UNMATERIALIZED now raises CoordinationWorktreeUnmaterialized instead of silently substituting an empty PRIMARY path.'
 status: Accepted
 date: '2026-09-24'
-updated: '2026-10-02'
+updated: '2026-10-02T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 ## Context and Problem Statement

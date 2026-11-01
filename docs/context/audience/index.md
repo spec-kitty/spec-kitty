@@ -2,10 +2,11 @@
 title: Architecture Audience
 description: 'Architecture audience catalog: the canonical internal and external persona references for Spec Kitty, split by delivery-boundary membership for journeys and reviews.'
 doc_status: active
-updated: '2026-03-10'
+updated: '2026-03-10T00:00:00Z'
 related:
 - docs/context/audience/external/index.md
 - docs/context/audience/internal/index.md
+kind: Hub
 ---
 # Architecture Audience
 

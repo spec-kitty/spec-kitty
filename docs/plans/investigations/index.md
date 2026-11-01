@@ -2,10 +2,11 @@
 title: Investigations
 description: Scope and compatibility investigations — issue analyses, schema-generation research, and mission review reports, split into live and historical.
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
+kind: Hub
 ---
 # Investigations
 

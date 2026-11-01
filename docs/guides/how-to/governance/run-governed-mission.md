@@ -2,11 +2,11 @@
 title: How to Run a Governed Mission
 description: Run spec-kitty next with Charter context injection, read JSON output, handle composed steps and blocked decisions.
 doc_status: active
-updated: '2026-10-08'
-type: how-to
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
 - docs/context/charter-overview.md
+kind: How-To
 ---
 # How to Run a Governed Mission
 

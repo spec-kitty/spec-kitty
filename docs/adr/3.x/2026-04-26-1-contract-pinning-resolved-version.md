@@ -3,6 +3,9 @@ title: 'ADR: Contract Pinning to the Resolved Package Version'
 description: 'Contract tests must resolve external package versions from the lockfile at runtime instead of embedding literals, with envelope snapshots keyed by that version.'
 status: Accepted
 date: '2026-04-26'
+doc_status: active
+kind: ADR
+updated: '2026-04-26T00:00:00Z'
 ---
 
 `tests/contract/test_cross_repo_consumers.py`

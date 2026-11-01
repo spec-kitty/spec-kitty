@@ -4,6 +4,8 @@ description: 'doc-kitty replaces DocFX for docs.spec-kitty.ai: a site/ sub-proje
 status: Proposed
 doc_status: active
 date: '2026-10-31'
+kind: ADR
+updated: '2026-10-31T00:00:00Z'
 ---
 
 # The docsite is built with doc-kitty, consumed as a pinned git dependency, at directory URLs with every legacy URL redirected

@@ -2,9 +2,8 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: reference
 related:
 - docs/development/how-to/pr-landing.md
 - docs/development/getting-started/onboarding-run.md
@@ -12,6 +11,7 @@ related:
 - docs/development/testing/testing-parallel.md
 - docs/development/reference/red-main-and-release-readiness.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+kind: Reference
 ---
 # Known Current Friction Points
 

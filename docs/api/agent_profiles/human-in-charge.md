@@ -2,10 +2,11 @@
 title: Human in Charge — Agent Profile
 description: Workflow sentinel indicating this work package requires direct human execution
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
+kind: Reference
 ---
 
 # Human in Charge — Agent Profile

@@ -8,6 +8,9 @@ related:
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
 - docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
 - docs/adr/3.x/2026-05-24-3-shipped-to-built-in-cutover.md
+doc_status: active
+kind: ADR
+updated: '2026-08-16T00:00:00Z'
 ---
 
 # Open-packs Is the Source of Truth for Built-in Doctrine; Core Pins and Fetches It

@@ -4,6 +4,9 @@ description: 'Hosted-sync state is isolated by project UUID behind one ProjectSy
 status: Superseded
 date: '2026-08-09'
 superseded_by: docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
+doc_status: superseded
+kind: ADR
+updated: '2026-08-09T00:00:00Z'
 ---
 
 > **Superseded (2026-09-06)** by

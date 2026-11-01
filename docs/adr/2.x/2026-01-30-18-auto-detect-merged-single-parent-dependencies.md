@@ -3,6 +3,9 @@ title: Auto-Detect Merged Single-Parent Dependencies
 description: Recognised that an integrated dependency already sits in the target branch and branched from there, rather than failing because its worktree had been cleaned up.
 status: Superseded
 date: '2026-01-30'
+doc_status: superseded
+kind: ADR
+updated: '2026-01-30T00:00:00Z'
 ---
 
 > Superseded on 2026-04-05 by

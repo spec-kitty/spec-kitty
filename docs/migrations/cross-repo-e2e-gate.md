@@ -2,7 +2,8 @@
 title: Cross-Repo E2E Gate — Operator Migration Guide
 description: 'Operator migration guide for the cross-repo E2E gate, active since the stability-and-hygiene-hardening mission (2026-04-26): how the gate works and what operators do.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

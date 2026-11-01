@@ -2,11 +2,12 @@
 title: 'Context: Topology'
 description: 'Topology glossary: the four topologies, write checkout, repo-root and code lanes, protected target, mission branch, lane work tip, absorbed lane, started work package.'
 doc_status: active
-updated: '2026-10-16'
+updated: '2026-10-16T00:00:00Z'
 related:
 - docs/context/orchestration.md
 - docs/context/execution.md
 - docs/architecture/execution-lanes.md
+kind: Explanation
 ---
 ## Context: Topology
 

@@ -4,6 +4,9 @@ title: 'ADR: Pack Augmentation Vocabulary — `overrides` and `enhances` as Decl
 description: 'Adds mutually exclusive overrides and enhances fields to five doctrine artifact kinds, making full replacement versus field-level augmentation a declared intent.'
 status: Accepted
 date: '2026-05-24'
+doc_status: active
+kind: ADR
+updated: '2026-05-24T00:00:00Z'
 ---
 
 - [`2026-05-24-1-charter-freshness-ux-contract.md`](2026-05-24-1-charter-freshness-ux-contract.md) (sibling — surfaces `overrides` / `enhances` in the freshness banners and preflight checks)

@@ -8,6 +8,9 @@ supersedes:
 - docs/adr/3.x/2026-04-11-1-saas-rollout-and-readiness.md
 - docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md
 - docs/adr/2.x/2026-02-27-1-cli-tracker-surface-gated-by-saas-sync-flag.md
+doc_status: active
+kind: ADR
+updated: '2026-09-06T00:00:00Z'
 ---
 
 ## Context and Problem Statement

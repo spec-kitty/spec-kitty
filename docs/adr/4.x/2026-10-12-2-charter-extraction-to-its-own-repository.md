@@ -3,7 +3,9 @@ title: 'ADR: the charter becomes an external contract package in its own reposit
 description: 'The charter becomes an external contract package in its own repository, consumed through charter.offering.api; precondition #645 is now GA-gating. Extends 2026-08-02-1.'
 status: Superseded
 date: '2026-10-12'
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
+doc_status: superseded
+kind: ADR
 ---
 
 **Status:** Superseded (2026-10-19) by `spec-kitty-charter` ADR-0008 and ADR-0010. Accepted

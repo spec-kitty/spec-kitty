@@ -6,13 +6,14 @@
 title: 'Domain Throughlines — Catalog'
 description: 'One-hop catalog of the durable domain throughlines under docs/plans/domains/: doctrine & charter, packs extraction, and API & dashboard.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/domains/packs-extraction-domain-plan.md
 - docs/plans/domains/api-dashboard-domain-plan.md
+kind: Hub
 ---
 # Domain Throughlines — Catalog
 

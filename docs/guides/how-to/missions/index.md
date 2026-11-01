@@ -2,8 +2,8 @@
 title: Run a Mission
 description: "Author and drive a mission from specification through plan, tasks, implementation, review, and merge."
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+updated: '2026-08-10T00:00:00Z'
+kind: Hub
 ---
 
 # Run a Mission

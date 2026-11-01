@@ -3,7 +3,9 @@ title: 'ADR: a bare-slug coordination Mission has one exact directory alias set,
 description: 'A coordination Mission with a bare primary directory owns two directory names; one resolver pairs them from recorded identity, and consolidate folds them into one directory.'
 status: Accepted
 date: '2026-10-05'
-updated: '2026-10-05'
+updated: '2026-10-05T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted

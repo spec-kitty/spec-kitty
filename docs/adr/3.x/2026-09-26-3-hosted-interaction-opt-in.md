@@ -3,6 +3,9 @@ title: 'ADR: hosted interaction is opt-in, twice, with no packaged endpoint'
 description: 'Reverses the #3980 packaged hosted-endpoint default and records the two-scope live-drain consent model plus the ledger-projection flag this mission ships (#4971).'
 status: Accepted
 date: '2026-09-26'
+doc_status: active
+kind: ADR
+updated: '2026-09-26T00:00:00Z'
 ---
 
 ## Context and Problem Statement

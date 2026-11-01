@@ -2,8 +2,9 @@
 title: Charter-Resolution Program
 description: 'Program overview, mission map (M1-M6) and run instructions for the charter-resolution defect cluster: org/project doctrine that loads healthy but reaches no consumer.'
 doc_status: active
-updated: '2026-10-03'
+updated: '2026-10-03T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
+kind: Hub
 ---
 
 # Charter-Resolution Program

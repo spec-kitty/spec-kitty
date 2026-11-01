@@ -3,7 +3,9 @@ title: 'ADR: one requirement-ID grammar, one authority'
 description: 'Accepted: every requirement-ID surface reads mission-scoped kinds through one shared grammar module, replacing six divergent parsers.'
 status: Accepted
 date: '2026-09-29'
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted

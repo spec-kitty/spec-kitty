@@ -3,6 +3,9 @@ title: 'ADR: Sequence Charter-Activation-Driven Mission-Type Availability Ahead 
 description: 'Sequences charter-activation-driven mission-type availability ahead of mission-type-as-ArtifactKind, landed with mission-tree resolution unification as one slice.'
 status: Accepted
 date: '2026-08-05'
+doc_status: active
+kind: ADR
+updated: '2026-08-05T00:00:00Z'
 ---
 
 ## Context and Problem Statement

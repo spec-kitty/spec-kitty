@@ -2,11 +2,11 @@
 title: Baseline Refresh — P0 Test Failures
 description: 'Targeted P0 test-failure baseline refresh of 2026-06-01: per-cluster results for issues #1301/#1303 and others, marking which still reproduce versus went stale.'
 doc_status: active
-type: reference
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-06-01'
+updated: '2026-06-01T00:00:00Z'
 related:
 - docs/operations/index.md
+kind: Reference
 ---
 # Baseline Refresh — P0 Test Failures
 

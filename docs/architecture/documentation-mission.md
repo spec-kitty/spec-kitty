@@ -2,10 +2,11 @@
 title: Documentation Mission Guide
 description: The Documentation Kitty mission — Divio 4-type system, gap analysis, generators, and Charter-era governance integration.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/architecture/governed-profile-invocation.md
+kind: Explanation
 ---
 # Documentation Mission Guide
 

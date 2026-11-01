@@ -2,9 +2,8 @@
 title: How to Accept and Consolidate a Mission
 description: "How to accept and consolidate a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and consolidate into the mission's target branch."
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-04T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
-type: how-to
 related:
 - docs/guides/how-to/installation/install-and-upgrade.md
 - docs/guides/how-to/missions/keep-main-clean.md
@@ -13,6 +12,7 @@ related:
 - docs/guides/how-to/collaboration/run-an-autonomous-mission.md
 - docs/guides/how-to/recovery/troubleshoot-merge.md
 - docs/guides/how-to/governance/use-retrospective-learning.md
+kind: How-To
 ---
 # How to Accept and Consolidate a Mission
 

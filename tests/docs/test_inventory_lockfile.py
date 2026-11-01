@@ -37,7 +37,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 pytestmark = pytest.mark.architectural
 
 PAGE_WITH_FRONTMATTER = (
-    "---\ntitle: Getting Started\ndescription: A how-to page.\ntype: how-to\nversion_tag: current\nowning_workstream: E\n---\n\n# Getting Started\n"
+    "---\ntitle: Getting Started\ndescription: A how-to page.\nkind: How-To\nversion_tag: current\nowning_workstream: E\n---\n\n# Getting Started\n"
 )
 
 PAGE_PLAIN = "# No frontmatter here\n\nJust prose.\n"
@@ -77,7 +77,7 @@ def test_frontmatter_mutation_changes_generation_and_reds_drift(
     # Mutate exactly one in-rollup frontmatter field on one page.
     page = docs_root / "guides" / "getting-started.md"
     page.write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: reference"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Reference"),
         encoding="utf-8",
     )
 
@@ -105,7 +105,7 @@ def test_report_only_stays_exit_zero_under_drift(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: explanation"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Explanation"),
         encoding="utf-8",
     )
     report = lockfile.run_generate_and_compare(
@@ -127,7 +127,7 @@ def test_strict_flag_flips_drift_to_nonzero_exit(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: explanation"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Explanation"),
         encoding="utf-8",
     )
     report = lockfile.run_generate_and_compare(
@@ -213,8 +213,14 @@ def test_rendered_lockfile_roundtrips_through_load_inventory(tmp_path: Path) -> 
     }
 
 
-def test_frontmatter_maps_type_and_version_tag(tmp_path: Path) -> None:
-    """Frontmatter ``type`` -> divio_type and ``version_tag`` -> tag."""
+def test_frontmatter_maps_kind_and_version_tag(tmp_path: Path) -> None:
+    """Frontmatter ``kind`` -> divio_type and ``version_tag`` -> tag (#6931).
+
+    The Divio axis used to be read from ``type``; doc-kitty defines ``type`` as the
+    *section* name and ``kind`` as how to read the page (its ADR-0009), so the
+    rollup reads ``kind``. ``test_a_divio_type_alone_is_no_longer_read`` guards the
+    old key so a regression cannot reintroduce the split reading.
+    """
     entry = lockfile.entry_for_page(
         "docs/x.md",
         lockfile.parse_frontmatter(PAGE_WITH_FRONTMATTER),
@@ -223,6 +229,18 @@ def test_frontmatter_maps_type_and_version_tag(tmp_path: Path) -> None:
     assert entry.tag is VersionTag.CURRENT
     assert entry.current_target is True
     assert entry.owning_workstream == "E"
+
+
+def test_a_divio_type_alone_is_no_longer_read(tmp_path: Path) -> None:
+    """A page carrying only the Divio ``type`` reads ``none`` (#6931).
+
+    This is the regression guard for the reader port: ``type`` is doc-kitty's
+    section axis now, so a Divio value there must not silently keep feeding the
+    Divio quadrant the corpus migration moved into ``kind``.
+    """
+    page = PAGE_WITH_FRONTMATTER.replace("kind: How-To", "type: how-to")
+    entry = lockfile.entry_for_page("docs/x.md", lockfile.parse_frontmatter(page))
+    assert entry.divio_type is DivioType.NONE
 
 
 def test_plain_page_defaults_to_current_none(tmp_path: Path) -> None:
@@ -250,7 +268,7 @@ def test_cli_report_only_exit_zero_and_writes_report(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: reference"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Reference"),
         encoding="utf-8",
     )
     report_path = repo_root / "drift.json"
@@ -294,7 +312,7 @@ def test_orchestrator_lockfile_subcheck_emits_non_blocking_warnings(tmp_path: Pa
     )
     # Diverge frontmatter so the regeneration drifts from the committed rollup.
     (docs_root / "guides" / "getting-started.md").write_text(
-        PAGE_WITH_FRONTMATTER.replace("type: how-to", "type: reference"),
+        PAGE_WITH_FRONTMATTER.replace("kind: How-To", "kind: Reference"),
         encoding="utf-8",
     )
     findings = orchestrator._check_inventory_lockfile_drift(committed_path, docs_root)

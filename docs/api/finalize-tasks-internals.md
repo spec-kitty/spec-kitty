@@ -2,7 +2,8 @@
 title: finalize-tasks internals reference
 description: 'finalize-tasks internals: empty owned_files, lane-depth cycle safety, the planning-pin refresh (override and automatic), and the LANE_MEMBERSHIP_FROZEN refusal.'
 doc_status: active
-updated: '2026-10-13'
+updated: '2026-10-13T00:00:00Z'
+kind: Reference
 ---
 # `finalize-tasks` internals reference
 

@@ -2,11 +2,12 @@
 title: 'Git Workflow: Who Does What'
 description: "The boundary between infrastructure git that Python owns (worktrees, status commits, merges) and content git that agents own (code, rebases, conflicts), plus auto-commit rules."
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-04T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/execution-lanes.md
 - docs/architecture/git-worktrees.md
+kind: Explanation
 ---
 # Git Workflow: Who Does What
 

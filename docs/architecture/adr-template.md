@@ -2,8 +2,9 @@
 title: '[Short descriptive title]'
 description: 'The ADR authoring template for Spec Kitty: the filename convention, status/date/decider header, and section structure every architecture decision record follows.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
+kind: Explanation
 ---
 # [Short descriptive title]
 

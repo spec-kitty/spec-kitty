@@ -2,9 +2,9 @@
 title: 2.x ADRs
 description: Index and era history for the 2.x decisions — event-sourced status, doctrine and glossary governance, tracker connectors, and the canonical runtime next command loop.
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+updated: '2026-08-10T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
+kind: Hub
 ---
 
 # 2.x ADRs

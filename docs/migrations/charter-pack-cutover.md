@@ -2,15 +2,15 @@
 title: 'Migration: Charter Pack Cutover'
 description: 'Runbook for the charter pack cutover (#3732): run spec-kitty upgrade once, handle LEGACY_CHARTER_STATE and lanes in flight, update packs, and rewrite saved scripts.'
 doc_status: active
-type: how-to
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-21'
+updated: '2026-10-21T00:00:00Z'
 related:
 - docs/adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md
 - docs/context/charter.md
 - docs/changelog/CHANGELOG.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
 - docs/migrations/relocate-builtin-doctrine-packs.md
+kind: How-To
 ---
 # Migration: Charter Pack Cutover
 

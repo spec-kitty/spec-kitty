@@ -2,8 +2,8 @@
 title: Tutorials
 description: "Learning-oriented Spec Kitty walkthroughs that teach the workflow end to end, from first install to a full multi-agent mission."
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+updated: '2026-08-10T00:00:00Z'
+kind: Hub
 ---
 
 # Tutorials

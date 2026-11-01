@@ -2,10 +2,11 @@
 title: Randy Reducer — Agent Profile
 description: Semantic compression specialist for behavior-preserving code reduction
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
+kind: Reference
 ---
 
 # Randy Reducer — Agent Profile

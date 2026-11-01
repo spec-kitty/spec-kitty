@@ -3,6 +3,9 @@ title: 'ADR: RuntimeEventEmitter Seam Disposition — Rewire-Ready Consolidation
 description: 'Keeps the reserved E3 seam behind a factory, deletes the duplicate runtime.next.event_emitter class, fixes the flush-target bug, and bounds Mission B scope.'
 status: Accepted
 date: '2026-09-06'
+doc_status: active
+kind: ADR
+updated: '2026-09-06T00:00:00Z'
 ---
 
 ## Context and Problem Statement

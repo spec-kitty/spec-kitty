@@ -3,6 +3,9 @@ title: Post-Merge Mission Audit Artifact and Event Emission
 description: Emits a canonical audit artifact and lifecycle events once a Mission is integrated, giving a durable, projectable answer to whether delivery matched the spec.
 status: Accepted
 date: '2026-02-25'
+doc_status: active
+kind: ADR
+updated: '2026-02-25T00:00:00Z'
 ---
 
 ## Context and Problem Statement

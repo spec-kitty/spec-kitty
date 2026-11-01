@@ -2,12 +2,13 @@
 title: Functional Ownership Map (demoted — narrative only)
 description: 'Historical functional-ownership narrative. Not authoritative: module boundaries are owned by the enforced pyproject wheel packages plus the test_layer_rules layer chain.'
 doc_status: superseded
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/00_landscape/README.md
 - pyproject.toml
 - tests/architectural/test_layer_rules.py
+kind: Explanation
 ---
 # Functional Ownership Map (demoted — narrative only)
 

@@ -2,7 +2,7 @@
 title: Explanation
 description: 'Understanding-oriented background on Spec Kitty: spec-driven development, the mission system, execution lanes, git workflow, and multi-agent orchestration.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/ai-agent-architecture.md
@@ -15,6 +15,7 @@ related:
 - docs/architecture/multi-agent-orchestration.md
 - docs/architecture/runtime-loop.md
 - docs/architecture/spec-driven-development.md
+kind: Explanation
 ---
 # Explanation
 

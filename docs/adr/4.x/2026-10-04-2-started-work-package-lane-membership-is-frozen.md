@@ -3,7 +3,9 @@ title: 'ADR: a started work package keeps its recorded execution lane on re-fina
 description: 'Lane computation keeps started work packages on their recorded lane by construction and refuses unsatisfiable amendments with LANE_MEMBERSHIP_FROZEN before a status or lane write.'
 status: Accepted
 date: '2026-10-04'
-updated: '2026-10-05'
+updated: '2026-10-05T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted

@@ -3,6 +3,9 @@ title: 'ADR: promote the glossary to a first-order doctrine artefact (GLOSSARY_P
 description: 'The glossary is promoted to a charter-activatable `GLOSSARY_PACK` artefact kind, the runtime glossary retires, and terminology enforcement ships as an executable ASSET gate.'
 status: Accepted
 date: '2026-07-21'
+doc_status: active
+kind: ADR
+updated: '2026-07-21T00:00:00Z'
 ---
 
 **Status:** Accepted

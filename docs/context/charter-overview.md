@@ -2,12 +2,12 @@
 title: How Charter Works
 description: The Charter mental model — synthesis, DRG, governed context, and profile invocation.
 doc_status: active
-updated: '2026-10-08'
-type: explanation
+updated: '2026-10-08T00:00:00Z'
 related:
 - docs/context/governance-files.md
 - docs/guides/how-to/governance/setup-governance.md
 - docs/architecture/charter-pack-usage-journey.md
+kind: Explanation
 ---
 # How Charter Works
 

@@ -2,13 +2,14 @@
 title: Architecture Diagrams (living C4)
 description: The living C4 model for the current architecture, carried forward from the 2.x snapshot and refreshed in place against the ratified domain model.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/README.md
 - docs/architecture/diagrams/01_context/README.md
 - docs/architecture/diagrams/02_containers/README.md
 - docs/architecture/diagrams/03_components/README.md
+kind: Hub
 ---
 # Architecture Diagrams (living C4)
 

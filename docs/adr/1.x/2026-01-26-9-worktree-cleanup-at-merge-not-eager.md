@@ -3,6 +3,9 @@ title: Worktree Cleanup at Merge, Not Eager
 description: Rejected eager deletion of a finished dependency's worktree so parallel and diamond-shaped work stayed runnable; cleanup waited for lane consolidation.
 status: Superseded
 date: '2026-01-26'
+doc_status: superseded
+kind: ADR
+updated: '2026-01-26T00:00:00Z'
 ---
 
 > Superseded by `../2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.

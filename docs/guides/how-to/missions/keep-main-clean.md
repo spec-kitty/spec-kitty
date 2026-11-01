@@ -2,14 +2,14 @@
 title: How to Keep Main Clean
 description: 'How to keep main clean with Spec Kitty 3.2: Use this guide when you want planning to happen from the repository root checkout but you do not want the.'
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+updated: '2026-06-03T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/missions/create-plan.md
 - docs/guides/how-to/missions/create-specification.md
 - docs/guides/how-to/missions/generate-tasks.md
 - docs/guides/how-to/missions/merge-mission.md
+kind: How-To
 ---
 # How to Keep Main Clean
 

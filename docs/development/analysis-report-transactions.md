@@ -2,12 +2,12 @@
 title: Analysis report transactions
 description: Record an analysis report while preserving unrelated work and checking the report commit against its material governance inputs.
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
-type: reference
 related:
 - docs/api/agent-subcommands.md
 - docs/development/reference/issue-matrix-verdicts.md
+kind: Reference
 ---
 
 # Analysis report transactions

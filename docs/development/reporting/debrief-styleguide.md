@@ -2,12 +2,12 @@
 title: 'Executive Debrief House Style'
 description: 'House style for Spec Kitty executive debriefs (what-happened reports): the long-form and one-pager layouts, readers and voice, brand palette, and print treatment.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: reference
 related:
 - docs/development/how-to/pr-landing.md
 - docs/changelog/index.md
+kind: Reference
 ---
 # Debrief house style — executive debriefs ("what happened")
 

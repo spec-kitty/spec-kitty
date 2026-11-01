@@ -3,6 +3,9 @@ title: 'ADR: Doctrine Layer Merge Semantics — Field-Level Merge with Collision
 description: 'Doctrine layers combine by field-level overlay with explicit collision warnings, preserving partial project overrides instead of replacing whole artifacts.'
 status: Accepted
 date: '2026-05-16'
+doc_status: active
+kind: ADR
+updated: '2026-05-16T00:00:00Z'
 ---
 
 ## Context

@@ -2,11 +2,12 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-10-27T00:00:00Z'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
 - docs/development/reference/issue-matrix-verdicts.md
+kind: Reference
 ---
 # CLI Command Reference
 

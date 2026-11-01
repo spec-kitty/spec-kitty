@@ -2,12 +2,12 @@
 title: Use Spec Kitty in Google Antigravity
 description: 'Use Spec Kitty in Google Antigravity through the shared .agents/skills/ command skills: install, invocation, partial-tier status and the archived workflow files.'
 doc_status: active
-updated: '2026-10-21'
-type: how-to
+updated: '2026-10-21T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/installation/install-spec-kitty.md
 - docs/migrations/command-skill-hyphen-names.md
+kind: How-To
 ---
 # Use Spec Kitty in Google Antigravity
 

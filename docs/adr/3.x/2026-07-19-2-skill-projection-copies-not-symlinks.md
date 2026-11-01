@@ -3,6 +3,9 @@ title: 'Skill projection delivers copies, not symlinks'
 description: 'Skill projection always copies files rather than symlinking a machine-global root, ending cross-project action-at-a-distance; stale symlinks convert on the next upgrade.'
 status: Accepted
 date: '2026-07-19'
+doc_status: active
+kind: ADR
+updated: '2026-07-19T00:00:00Z'
 ---
 
 # Skill projection delivers copies, not symlinks

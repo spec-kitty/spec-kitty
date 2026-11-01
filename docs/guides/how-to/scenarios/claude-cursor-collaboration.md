@@ -2,9 +2,9 @@
 title: Claude and Cursor Collaboration
 description: Combine Anthropic Claude for planning with Cursor for implementation inside Spec Kitty worktrees while keeping the kanban workflow and guardrails intact.
 doc_status: active
-updated: '2026-08-10'
-type: how-to
+updated: '2026-08-10T00:00:00Z'
 audience: docs/context/audience/external/tech-lead-evaluator.md
+kind: How-To
 ---
 
 # Claude & Cursor Collaboration

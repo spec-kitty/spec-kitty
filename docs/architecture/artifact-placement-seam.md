@@ -2,7 +2,7 @@
 title: The Artifact Placement Seam
 description: How a mission artifact's kind and topology resolve to a physical tree, the two composition roots, and where callers still bypass the seam.
 doc_status: active
-updated: '2026-10-17'
+updated: '2026-10-17T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/branch-target-routing.md
@@ -11,6 +11,7 @@ related:
 - docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md
 - docs/adr/4.x/2026-10-01-3-decision-ledger-primary-partition.md
 - docs/context/orchestration.md
+kind: Explanation
 ---
 # The Artifact Placement Seam
 

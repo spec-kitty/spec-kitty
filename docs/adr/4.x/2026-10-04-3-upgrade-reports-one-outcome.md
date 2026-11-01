@@ -3,7 +3,9 @@ title: 'ADR: a completed upgrade run reports one outcome'
 description: 'The upgrade outcome owns the kind, reasons, messages, JSON status, closing line and exit code of a run; presentation code reads them and cannot build its own.'
 status: Accepted
 date: '2026-10-04'
-updated: '2026-10-13'
+updated: '2026-10-13T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted, except the exit-code rule for unresolved drift, which is the current contract and is **pending operator confirmation** in [#5745](https://github.com/spec-kitty/spec-kitty/issues/5745) (see [Open decision](#open-decision-exit-code-for-unresolved-drift)).

@@ -3,6 +3,9 @@ title: 'ADR 10: Per-Feature Mission Selection'
 description: Moves workflow-type choice from project setup to each Mission's specify step, letting research, documentation, and software-dev work coexist in one repository.
 status: Accepted
 date: '2026-01-27'
+doc_status: active
+kind: ADR
+updated: '2026-01-27T00:00:00Z'
 ---
 
 ## Context

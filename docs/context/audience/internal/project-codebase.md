@@ -2,7 +2,8 @@
 title: 'Stakeholder Persona: Project Codebase'
 description: 'Internal project-codebase persona (system actor): preserves structural coherence while enabling safe, incremental change throughout the repository.'
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-06-12T00:00:00Z'
+kind: Explanation
 ---
 # Stakeholder Persona: Project Codebase
 

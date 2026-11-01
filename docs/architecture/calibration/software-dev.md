@@ -2,8 +2,9 @@
 title: 'Calibration Report: software-dev'
 description: 'Calibration report for the software-dev mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
+kind: Explanation
 ---
 # Calibration Report: software-dev
 

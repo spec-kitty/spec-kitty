@@ -2,9 +2,9 @@
 title: 'Consumer census: keep CI fan-out honest'
 description: What the committed consumer census is, when its CI gates go red, how to regenerate it with --write or --check, and how to fix an unrouted consumer.
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: how-to
+kind: How-To
 ---
 # Consumer census: keep CI fan-out honest
 

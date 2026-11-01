@@ -2,9 +2,10 @@
 title: 'Context: Dossier'
 description: 'Glossary context for the dossier: the local artifact inventory, integrity validation, and drift-detection system covering mission-lifecycle artifacts.'
 doc_status: active
-updated: '2026-03-10'
+updated: '2026-03-10T00:00:00Z'
 related:
 - docs/context/technology-foundations.md
+kind: Explanation
 ---
 ## Context: Dossier
 

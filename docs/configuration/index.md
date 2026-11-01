@@ -2,7 +2,7 @@
 title: Configuration
 description: 'Durable configuration and toolchain references for Spec Kitty: library choices and CI linting policy.'
 doc_status: active
-updated: '2026-06-27'
+updated: '2026-06-27T00:00:00Z'
 related:
 - docs/configuration/linting-cutoff-policy.md
 - docs/configuration/pack-yaml.md
@@ -11,6 +11,7 @@ related:
 - docs/index.md
 - docs/operations/index.md
 - docs/plans/index.md
+kind: Hub
 ---
 # Configuration
 

@@ -2,13 +2,13 @@
 title: How to enable the internal charter and skills
 description: Register the internal org pack in your clone, project the four kitty-* maintainer skills into each tool, verify them, and work around two known defects.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: how-to
 related:
 - docs/development/how-to/create-a-pack-skill.md
 - docs/architecture/org-doctrine-layer.md
 - docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md
+kind: How-To
 ---
 # How to enable the internal charter and skills
 

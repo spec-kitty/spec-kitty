@@ -2,8 +2,9 @@
 title: Charter-Resolution Program Brief
 description: 'Investigation-grounded brief for the charter-resolution program: root causes, mission decomposition, sequencing, risks and spec-time operator decisions.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
+kind: Planning
 ---
 
 # Mission Brief — Doctrine Reach & Resolution Honesty

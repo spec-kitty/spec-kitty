@@ -7,6 +7,9 @@ related:
 - docs/architecture/mission-gates.md
 - docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
 - docs/adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md
+doc_status: active
+kind: ADR
+updated: '2026-08-13T00:00:00Z'
 ---
 # Gate outcomes carry a typed severity; an operator-configured strategy decides the CLI effect
 

@@ -2,7 +2,7 @@
 title: Development
 description: The contributor/maintainer zone for Spec Kitty — subdivided into getting-started, how-to runbooks, reference policy, and testing — kept separate from end-user guides.
 doc_status: active
-updated: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/getting-started/index.md
@@ -11,6 +11,7 @@ related:
 - docs/development/testing/index.md
 - docs/development/how-to/create-a-doctrine-artifact.md
 - docs/guides/index.md
+kind: Hub
 ---
 # Development
 

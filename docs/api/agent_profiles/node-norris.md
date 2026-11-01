@@ -2,10 +2,11 @@
 title: Node Norris — Agent Profile
 description: Server-side Node.js implementer for HTTP APIs, event-loop discipline, streaming, and npm ecosystem
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
+kind: Reference
 ---
 
 # Node Norris — Agent Profile

@@ -3,6 +3,9 @@ title: Vendor spec-kitty-events Library Instead of External PyPI Dependency
 description: Vendors the events library into the CLI because PyPI refuses direct git dependencies, trading repository purity for a package that can actually be published.
 status: Accepted
 date: '2026-01-31'
+doc_status: active
+kind: ADR
+updated: '2026-01-31T00:00:00Z'
 ---
 
 ## Context and Problem Statement

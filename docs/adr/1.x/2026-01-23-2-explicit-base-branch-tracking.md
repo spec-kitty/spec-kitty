@@ -3,6 +3,9 @@ title: Explicit Base Branch Tracking in Work Package Frontmatter
 description: Stores each work package's base branch in its frontmatter instead of recomputing it from git, making workspace provenance visible, auditable, and recreatable.
 status: Accepted
 date: '2026-01-23'
+doc_status: active
+kind: ADR
+updated: '2026-01-23T00:00:00Z'
 ---
 
 ## Context and Problem Statement

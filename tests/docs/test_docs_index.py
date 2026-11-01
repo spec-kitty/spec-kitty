@@ -55,7 +55,7 @@ pytestmark = [pytest.mark.unit]
 # ---------------------------------------------------------------------------
 
 _ZETA_MD = """---
-type: how-to
+kind: How-To
 ---
 # Zeta Page
 
@@ -70,7 +70,7 @@ Steps here.
 _ALPHA_MD = """---
 title: Alpha Title
 description: The alpha page abstract, from frontmatter.
-type: reference
+kind: Reference
 ---
 # Alpha (ignored — frontmatter title wins)
 

@@ -1,9 +1,8 @@
 ---
 title: Engine-side alignment review against the Kitty Shared Architecture — 2026-09-27
 description: 'Engine-side, point-in-time review of what spec-kitty offers and lacks for a proposed hosted target architecture: 29 findings, term collisions, next steps.'
-doc_status: point_in_time
-type: explanation
-updated: '2026-09-27'
+doc_status: draft
+updated: '2026-09-27T00:00:00Z'
 audience:
 - docs/context/audience/internal/system-architect.md
 - docs/context/audience/internal/maintainer.md
@@ -19,6 +18,7 @@ related:
 - docs/adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md
 - docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md
 - docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
+kind: Explanation
 ---
 # Engine-side alignment review against the Kitty Shared Architecture — 2026-09-27
 

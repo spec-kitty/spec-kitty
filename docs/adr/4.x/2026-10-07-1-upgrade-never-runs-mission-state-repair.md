@@ -3,7 +3,9 @@ title: 'ADR: upgrade never runs the mission-state repair'
 description: 'spec-kitty upgrade, including --yes, only reports TeamSpace mission-state blockers (and only when hosted drain is on); doctor mission-state --fix is the sole repair consent path.'
 status: Accepted
 date: '2026-10-07'
-updated: '2026-10-14'
+updated: '2026-10-14T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted

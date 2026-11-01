@@ -2,8 +2,8 @@
 title: Status & History
 description: "Check mission progress from the CLI and review your git operation history."
 doc_status: active
-updated: '2026-10-27'
-type: explanation
+updated: '2026-10-27T00:00:00Z'
+kind: Hub
 ---
 
 # Status & History

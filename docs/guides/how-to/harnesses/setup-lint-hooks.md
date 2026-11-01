@@ -2,9 +2,9 @@
 title: Set up Post-Edit Lint Hooks
 description: Configure your AI agent harness to automatically run ruff and mypy after every code edit using spec-kitty lint.
 doc_status: active
-updated: '2026-09-28'
-type: how-to
+updated: '2026-09-28T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
+kind: How-To
 ---
 # Set up Post-Edit Lint Hooks
 

@@ -4,6 +4,9 @@ title: 'Defer #391 still-open structural extraction sub-tickets from the 3.2.x s
 description: 'Keeps three open structural-extraction tickets out of the 3.2.x stabilization scope, since refactors with no release-blocking symptom inflate regression risk.'
 status: Accepted
 date: '2026-05-11'
+doc_status: active
+kind: ADR
+updated: '2026-05-11T00:00:00Z'
 ---
 
 - Epic [#822](https://github.com/Priivacy-ai/spec-kitty/issues/822) — 3.2.0 stabilization and release readiness

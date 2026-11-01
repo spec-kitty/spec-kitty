@@ -3,6 +3,9 @@ title: 'ADR: Catalog languages — four states and the reserved unknown value'
 description: 'Accepted: catalog.languages keeps absent, empty and recognised states and gains a reserved unknown value, with a regenerate-only precedence bypass and tech-agnostic doctrine.'
 status: Accepted
 date: '2026-09-29'
+doc_status: active
+kind: ADR
+updated: '2026-09-29T00:00:00Z'
 ---
 
 **Status:** Accepted

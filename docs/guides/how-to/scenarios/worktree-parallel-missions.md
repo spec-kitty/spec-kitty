@@ -2,9 +2,9 @@
 title: Parallel Mission Development with Worktrees
 description: Develop three or more Spec Kitty missions at once using git worktrees to avoid branch-switching churn and preserve each mission's IDE state.
 doc_status: active
-updated: '2026-08-10'
-type: how-to
+updated: '2026-08-10T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
+kind: How-To
 ---
 
 # Parallel Mission Development with Worktrees

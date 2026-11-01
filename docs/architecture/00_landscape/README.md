@@ -2,8 +2,9 @@
 title: System Landscape (living)
 description: "Living system landscape (C4 level 0): Spec Kitty's domain containers, their interaction directions, and the packages that implement them today."
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
+kind: Hub
 ---
 # System Landscape (living)
 

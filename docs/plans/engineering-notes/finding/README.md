@@ -2,10 +2,11 @@
 title: Engineering notes — Findings
 description: 'Landing page for the findings engineering notes: process observations from running missions end-to-end, as read-only inputs to future doctrine improvements.'
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/engineering-notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
+kind: Hub
 ---
 # Engineering notes — Findings
 

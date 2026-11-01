@@ -3,6 +3,9 @@ title: 'ADR 6: Config-Driven Agent Management'
 description: Makes .kittify/config.yaml the single source of truth for which AI agents a project supports, so upgrades stop resurrecting directories the user deleted.
 status: Accepted
 date: '2026-01-23'
+doc_status: active
+kind: ADR
+updated: '2026-01-23T00:00:00Z'
 ---
 
 ## Context

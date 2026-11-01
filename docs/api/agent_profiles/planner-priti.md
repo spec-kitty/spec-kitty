@@ -2,10 +2,11 @@
 title: Planner Priti — Agent Profile
 description: Work decomposition and delivery sequencing specialist
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
+kind: Reference
 ---
 
 # Planner Priti — Agent Profile

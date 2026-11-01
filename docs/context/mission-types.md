@@ -2,10 +2,10 @@
 title: Mission Types
 description: 'The four Mission types Spec Kitty ships today, their purpose, phases, and how to choose one.'
 doc_status: active
-updated: '2026-09-27'
-type: explanation
+updated: '2026-09-27T00:00:00Z'
 related:
 - docs/context/ops-vs-missions.md
+kind: Explanation
 ---
 # Mission Types
 

@@ -4,6 +4,9 @@ title: 'ADR: Common Docs Consolidation — Reconciliation of Metadata, Structure
 description: 'Folds four documentation roots into one Common Docs tree and makes in-file frontmatter the per-page metadata source, with the page inventory regenerated as a lockfile.'
 status: Accepted
 date: '2026-06-27'
+doc_status: active
+kind: ADR
+updated: '2026-06-27T00:00:00Z'
 ---
 
 ## Context and Problem Statement

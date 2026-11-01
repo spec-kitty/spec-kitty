@@ -2,7 +2,8 @@
 title: Spec Kitty slash commands reference — CLI quick reference
 description: Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and consolidate within AI coding agents.
 doc_status: active
-updated: '2026-08-15'
+updated: '2026-08-15T00:00:00Z'
+kind: Reference
 ---
 # Slash Command Reference
 

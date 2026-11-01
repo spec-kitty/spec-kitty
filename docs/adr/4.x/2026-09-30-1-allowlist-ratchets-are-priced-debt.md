@@ -3,6 +3,9 @@ title: 'ADR: allowlist ratchets are priced debt'
 description: 'Accepted: an allowlist ratchet costs CI money on every run and keeps a known defect alive, so it is owned, time-boxed and drained; a defect-class gate closes with no allowlist.'
 status: Accepted
 date: '2026-09-30'
+doc_status: active
+kind: ADR
+updated: '2026-09-30T00:00:00Z'
 ---
 
 # ADR: allowlist ratchets are priced debt

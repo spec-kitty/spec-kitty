@@ -3,6 +3,9 @@ title: Record Architecture Decisions
 description: Adopts lightweight one-decision-per-file ADRs as the durable home for architectural rationale, so settled choices stop being relitigated in chat history.
 status: Accepted
 date: '2026-01-23'
+doc_status: active
+kind: ADR
+updated: '2026-01-23T00:00:00Z'
 ---
 
 ## Context and Problem Statement

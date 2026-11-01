@@ -2,11 +2,12 @@
 title: 'Context: Lexical'
 description: "Glossary context for the glossary's own data model: how terms are represented, resolved, and tracked, including the term-surface concept."
 doc_status: active
-updated: '2026-03-10'
+updated: '2026-03-10T00:00:00Z'
 related:
 - docs/context/execution.md
 - docs/context/identity.md
 - docs/context/system-events.md
+kind: Explanation
 ---
 ## Context: Lexical
 

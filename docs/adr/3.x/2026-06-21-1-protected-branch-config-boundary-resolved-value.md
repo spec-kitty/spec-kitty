@@ -4,6 +4,9 @@ title: Protected-branch configuration is a standalone boundary-resolved value,
 description: 'Protected-branch configuration resolves once into a standalone value object with `is_protected(ref)`, because the `safe-commit` deadlock site holds no mission context.'
 status: Accepted
 date: '2026-06-21'
+doc_status: active
+kind: ADR
+updated: '2026-06-21T00:00:00Z'
 ---
 
 ## Context and Problem Statement

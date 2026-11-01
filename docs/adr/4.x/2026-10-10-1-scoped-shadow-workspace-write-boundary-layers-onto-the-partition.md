@@ -3,6 +3,9 @@ title: 'ADR: a scoped workspace handle layers onto the coordination/primary part
 description: 'The #3129 write-boundary class is one shared root cause; the fix is a capability-scoped write handle layered onto the existing partition (Option B), not a foreign shadow topology.'
 status: Accepted
 date: '2026-10-10'
+doc_status: active
+kind: ADR
+updated: '2026-10-10T00:00:00Z'
 ---
 
 **Status:** Accepted

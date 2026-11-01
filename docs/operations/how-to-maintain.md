@@ -2,13 +2,13 @@
 title: How to Maintain — Spec Kitty Issue Tracker
 description: 'Maintainer runbook for Spec Kitty tracker hygiene: issue-tracker structure, priority levels, issue types, and milestone/release-goal conventions grounded in live repo data.'
 doc_status: active
-type: how-to
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-06-16'
+updated: '2026-06-16T00:00:00Z'
 related:
 - docs/operations/index.md
 - docs/changelog/release-goals.md
 - docs/changelog/3.2.x.md
+kind: How-To
 ---
 # HOW TO MAINTAIN — Spec Kitty Issue Tracker
 

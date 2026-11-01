@@ -2,9 +2,8 @@
 title: 'Onboarding Run: Priming a Co-Maintainer Mission Session'
 description: 'A reusable priming prompt and 12-step cadence for running a full Spec-Driven Development mission the way this team runs them — for onboarding prospective co-maintainers.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: how-to
 related:
 - docs/development/reference/known-friction-points.md
 - docs/development/how-to/pr-landing.md
@@ -12,6 +11,7 @@ related:
 - docs/development/testing/testing-parallel.md
 - docs/development/testing/testing-flakiness.md
 - docs/development/reference/quality-and-tech-debt-standing-orders.md
+kind: How-To
 ---
 # Onboarding Run: Priming a Co-Maintainer Mission Session
 

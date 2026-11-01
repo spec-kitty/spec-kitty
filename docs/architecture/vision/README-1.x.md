@@ -2,8 +2,9 @@
 title: 1.x — vision (history slot)
 description: 'Per-era vision record for the 1.x architecture track: part of the versioned history beneath the living architecture, giving the decay path a home as content ages out.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
+kind: Explanation
 ---
 # 1.x — vision (history slot)
 

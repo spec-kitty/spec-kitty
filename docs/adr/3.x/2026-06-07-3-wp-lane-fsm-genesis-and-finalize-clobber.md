@@ -4,6 +4,9 @@ title: 'ADR: WP Lane Finite State Machine, the `genesis` lane, and the finalize 
 description: 'Adds a non-display `genesis` lane so seeding a work package becomes a real persisted edge, and stops finalize-tasks overwriting the canonical event log with a stale copy.'
 status: Accepted
 date: '2026-06-07'
+doc_status: active
+kind: ADR
+updated: '2026-06-07T00:00:00Z'
 ---
 
 ## Context

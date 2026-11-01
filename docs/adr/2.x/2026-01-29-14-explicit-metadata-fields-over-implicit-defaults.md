@@ -3,6 +3,9 @@ title: Explicit Metadata Fields Over Implicit Defaults
 description: Requires meta.json to spell out target branch and version control system rather than lean on hidden defaults, so configuration is readable without running code.
 status: Accepted
 date: '2026-01-29'
+doc_status: active
+kind: ADR
+updated: '2026-01-29T00:00:00Z'
 ---
 
 ## Context and Problem Statement

@@ -3,6 +3,9 @@ title: 'ADR: QA and core share ownership of the acceptance scenarios, and engine
 description: 'QA and core co-own tests/scenarios and core owns the runner; integration and e2e tests retire into gating scenarios via a checked ledger, and red nights escalate.'
 status: Proposed
 date: '2026-10-15'
+doc_status: active
+kind: ADR
+updated: '2026-10-15T00:00:00Z'
 ---
 
 **Status:** Proposed, 2026-10-15. Needs the owner's acceptance. Decision 5 also needs the agreement of the spec-kitty-qa lead, because it settles open item 3 of spec-kitty-qa ADR-0001.

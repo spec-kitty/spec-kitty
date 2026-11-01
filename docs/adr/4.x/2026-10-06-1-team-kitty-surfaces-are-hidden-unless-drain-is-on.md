@@ -3,7 +3,9 @@ title: 'ADR: the Team Kitty surfaces are hidden unless hosted drain is on'
 description: 'Team Kitty is no longer supported: the spk-team-* skills are retired and its six CLI entries are hidden from listings unless the hosted drain posture is on.'
 status: Accepted
 date: '2026-10-06'
-updated: '2026-10-14'
+updated: '2026-10-14T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted. **Amended 2026-10-12** — the "do not build toward Team Kitty" rule is

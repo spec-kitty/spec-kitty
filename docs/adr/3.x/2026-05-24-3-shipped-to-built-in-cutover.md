@@ -3,6 +3,9 @@ title: 'ADR: `shipped` → `built-in` Vocabulary Cutover for Doctrine Layer Labe
 description: 'Renames the doctrine layer label from shipped to built-in across identifiers, messages, and CLI JSON output in one breaking cutover with no deprecation window.'
 status: Accepted
 date: '2026-05-24'
+doc_status: active
+kind: ADR
+updated: '2026-05-24T00:00:00Z'
 ---
 
 - [ADR 2026-05-16-1 — Doctrine Layer Merge Semantics](2026-05-16-1-doctrine-layer-merge-semantics.md)

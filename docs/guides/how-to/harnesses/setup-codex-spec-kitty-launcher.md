@@ -2,9 +2,9 @@
 title: Set Up Codex for Spec Kitty
 description: Configure Codex CLI to load Spec Kitty project-local agent skills from `.agents/skills/`.
 doc_status: active
-updated: '2026-10-21'
-type: how-to
+updated: '2026-10-21T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
+kind: How-To
 ---
 # Set Up Codex for Spec Kitty
 

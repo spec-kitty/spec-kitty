@@ -2,7 +2,8 @@
 title: 'Migration: Shared Package Boundary Cutover'
 description: 'Migration for the shared-package-boundary cutover (mission 01KQ22DS, released in 3.2.0): how vendored copies were removed in favor of the external PyPI packages.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-06-03T00:00:00Z'
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

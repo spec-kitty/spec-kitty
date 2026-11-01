@@ -2,14 +2,14 @@
 title: Create and activate a pack skill
 description: Author a pack skill, set its namespace, activate it into each configured tool's project skill root, and keep it healthy with doctor skills and upgrade.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-21T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
-type: how-to
 related:
 - docs/development/how-to/create-a-doctrine-artifact.md
 - docs/architecture/doctrine-kinds.md
 - docs/context/execution.md
 - docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md
+kind: How-To
 ---
 # Create and activate a pack skill
 

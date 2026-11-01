@@ -2,10 +2,11 @@
 title: Governance Files Reference
 description: Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 related:
 - docs/context/charter-overview.md
 - docs/architecture/charter-pack-usage-journey.md
+kind: Explanation
 ---
 # Governance Files Reference
 

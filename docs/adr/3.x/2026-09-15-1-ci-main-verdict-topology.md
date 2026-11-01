@@ -3,7 +3,9 @@ title: 'ADR: Main-Tip Verdict Topology — Adjudicating the #4347/#4371/#4360-A/
 description: 'Ratified coupled levers (main-concurrency, fan-out cap, main-green source, terminal-cancel verdict) so a landed main tip proves itself green honestly, in bounded time.'
 status: Accepted
 date: '2026-09-15'
-updated: '2026-09-15'
+updated: '2026-09-15T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 ## Context and Problem Statement

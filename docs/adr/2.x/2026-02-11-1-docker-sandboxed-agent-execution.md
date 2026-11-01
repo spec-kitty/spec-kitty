@@ -3,6 +3,9 @@ title: Docker-Sandboxed Agent Execution
 description: Proposes running agents inside containers with memory, CPU, and process limits so a runaway agent cannot take the orchestrator or the host machine down with it.
 status: Proposed
 date: '2026-02-11'
+doc_status: active
+kind: ADR
+updated: '2026-02-11T00:00:00Z'
 ---
 
 ## Context and Problem Statement

@@ -2,14 +2,14 @@
 title: Events in core
 description: 'Contributor rules for writing and reading event logs in core today, what not to do, and how to adopt a new spec-kitty-events release without a red nightly.'
 doc_status: active
-updated: '2026-10-28'
+updated: '2026-10-28T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: reference
 related:
 - docs/architecture/event-ledger-writers-and-readers.md
 - docs/architecture/status-model.md
 - docs/development/how-to/contract-pinning.md
 - docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md
+kind: Reference
 ---
 
 # Events in core

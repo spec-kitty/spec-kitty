@@ -3,6 +3,9 @@ title: Rich JSON Outputs for Agent Commands
 description: Expands agent-facing JSON with commit hashes and touched-file lists so an agent can confirm what actually happened instead of inferring it from a dirty tree.
 status: Accepted
 date: '2026-01-29'
+doc_status: active
+kind: ADR
+updated: '2026-01-29T00:00:00Z'
 ---
 
 ## Context and Problem Statement

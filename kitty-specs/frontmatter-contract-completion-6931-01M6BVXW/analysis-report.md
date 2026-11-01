@@ -92,3 +92,33 @@ define.
 Ready for implementation. No blocking ambiguity that requires a maintainer decision
 before coding; the two decision-shaped items (finding 4, finding 5) are recorded for
 the PR body.
+
+
+## Findings discovered during implementation (recorded, not papered over)
+
+7. **The two generated docs artifacts may not be committed by a PR.** `scripts/ci/check_generated_docs_untouched.py`
+   refuses any PR change to `docs/development/page-inventory.yaml` and
+   `docs/development/docs-retrieval-index.yaml`; the `ci/regen-docs-index` bot
+   regenerates them after merge. The reader port (WP03) changes 181 rollup rows, so
+   the regenerated artifacts were produced, verified drift-free, and then **reverted**
+   from the branch. Consequence, exactly as the repo's own docs page describes:
+   `INVENTORY-LOCKFILE-DRIFT` / `DOCS-INDEX-DRIFT` report warnings until the bot PR
+   lands, and `check_docs_freshness --ci` stays at `errors=0`. Recorded in the PR's
+   `## Deferred`.
+8. **One ADR's `date` is prose, not a date.** `docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md`
+   carries `date: '2026-06-19 (original) · **Amended**: 2026-06-21 · **Amended**: 2026-10-01'`,
+   so D-7's "ADRs take their `updated` from `date`" has nothing to take. The migration
+   refuses rather than parsing prose; the file got an authored
+   `updated: '2026-10-01T00:00:00Z'` (its last amendment) in the same commit. This is
+   the single non-mechanical frontmatter decision in the migration and it is visible
+   in the diff.
+9. **`scripts/docs/touched_set_gates.py::_is_how_to` keys the Divio axis off `type`
+   and matches `how_to`** (underscore), which never matched the corpus's `how-to`.
+   The rule is inert before and after this change. Reviving it would activate a
+   placement rule over every touched page — 670 in this PR — so it is left inert and
+   recorded in `## Deferred`.
+10. **`docs/guides/` needed two sub-tree `kind` rows.** The section is mixed
+    (`how-to/`, `tutorials/`, and loose pages), so a loose page with no Divio `type`
+    would have been unclassified. `docs/guides/how-to/` → `How-To` and
+    `docs/guides/tutorials/` → `Tutorial` were added to the path table; 201 remainder
+    pages resolved with no unclassified page.

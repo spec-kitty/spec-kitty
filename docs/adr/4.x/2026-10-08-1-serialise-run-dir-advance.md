@@ -3,6 +3,9 @@ title: 'ADR: advancing a mission run is serialised by a per-run-dir lock and a c
 description: 'Concurrent `spec-kitty next` on one run is serialised: a stale advance is refused with a named `blocked` reason, and at most one writer mutates a run cursor at a time.'
 status: Accepted
 date: '2026-10-08'
+doc_status: active
+kind: ADR
+updated: '2026-10-08T00:00:00Z'
 ---
 
 **Status:** Accepted

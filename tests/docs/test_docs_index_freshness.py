@@ -216,7 +216,7 @@ def test_inventory_lockfile_drift_findings_unchanged_by_wp02(tmp_path: Path) -> 
     docs_root = tmp_path / "inv_docs"
     (docs_root).mkdir(parents=True)
     (docs_root / "other.md").write_text(
-        "---\nversion_tag: current\ntype: how-to\nowning_workstream: Q\n---\n\n# Other\n\nBody.\n",
+        "---\nversion_tag: current\nkind: How-To\nowning_workstream: Q\n---\n\n# Other\n\nBody.\n",
         encoding="utf-8",
     )
     inventory_path = tmp_path / "inventory.yaml"

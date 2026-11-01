@@ -148,7 +148,8 @@ def test_carried_fields_land_in_rendered_frontmatter(tmp_path: Path) -> None:
 
     assert "doc_status: draft" in rendered  # internal + not current_target
     assert "version_tag: internal" in rendered
-    assert "type: explanation" in rendered  # divio axis lives under `type:`
+    assert "kind: Explanation" in rendered  # divio axis lives under `kind:` (#6931)
+    assert "type:" not in rendered  # doc-kitty owns `type` (the section name)
     assert "owning_workstream: architecture" in rendered
     # ruamel quotes the date-shaped string; the value still lands verbatim.
     assert _STUB_UPDATED in rendered

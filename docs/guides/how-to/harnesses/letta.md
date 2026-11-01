@@ -2,11 +2,11 @@
 title: Use Spec Kitty in Letta Code
 description: 'How to use Spec Kitty in Letta Code (partial tier): command-skill packages install in 3.2, but real-session smoke evidence is not yet recorded.'
 doc_status: active
-updated: '2026-10-21'
-type: how-to
+updated: '2026-10-21T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/installation/install-spec-kitty.md
+kind: How-To
 ---
 # Use Spec Kitty in Letta Code
 

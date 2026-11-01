@@ -2,7 +2,8 @@
 title: TeamSpace Mission-State 920 Closeout Evidence
 description: 'Closeout evidence for TeamSpace mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly.'
 doc_status: deprecated
-updated: '2026-07-04'
+updated: '2026-07-04T00:00:00Z'
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

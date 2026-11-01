@@ -2,9 +2,9 @@
 title: SPDD and the REASONS Canvas
 description: Optional set of Spec Kitty built-in artifacts that records change-intent and change-boundary as a structured artifact alongside the spec and plan.
 doc_status: active
-updated: '2026-10-08'
-type: explanation
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
+kind: Explanation
 ---
 # SPDD and the REASONS Canvas (opt-in artifact set)
 

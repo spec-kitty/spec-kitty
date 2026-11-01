@@ -3,6 +3,9 @@ title: 'ADR: Steps are the mission-type building block; "template" is a doctrine
 description: 'A step is the mission-type building block — the existing ACTION node enriched, not a new node kind — while `template` narrows to one doctrine artefact kind.'
 status: Proposed
 date: '2026-07-16'
+doc_status: active
+kind: ADR
+updated: '2026-07-16T00:00:00Z'
 ---
 
 # Steps are the mission-type building block; "template" is a doctrine artefact kind

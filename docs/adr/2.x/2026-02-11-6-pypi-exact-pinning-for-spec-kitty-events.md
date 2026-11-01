@@ -3,6 +3,9 @@ title: PyPI Exact Pinning for `spec-kitty-events` Across Consumer Repos
 description: Forces the CLI and the hosted backend onto the same exact published version of the events contract, banning git refs and committed path overrides that caused drift.
 status: Accepted
 date: '2026-02-11'
+doc_status: active
+kind: ADR
+updated: '2026-02-11T00:00:00Z'
 ---
 
 ## Context and Problem Statement

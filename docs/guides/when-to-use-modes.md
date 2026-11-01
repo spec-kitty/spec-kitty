@@ -2,13 +2,13 @@
 title: When to use Spec Kitty modes
 description: 'Choose the lightest Spec Kitty path for your work: no Spec Kitty, ad-hoc specialist session, adversarial squad review, or full mission pipeline.'
 doc_status: active
-updated: '2026-08-11'
-type: explanation
+updated: '2026-08-11T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/collaboration/adhoc-specialist-session.md
 - docs/guides/tutorials/missions-overview.md
 - docs/guides/tutorials/multi-agent-workflow.md
+kind: Explanation
 ---
 # When to use Spec Kitty modes
 

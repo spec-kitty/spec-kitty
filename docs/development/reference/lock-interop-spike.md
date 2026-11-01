@@ -2,12 +2,12 @@
 title: Lock-interop spike (#6193)
 description: 'Verdict and CI evidence of the #6193 spike: which Java lock excludes the CLI''s event-log lock on Linux, macOS and Windows, and whether mixed appends pass both readers.'
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-10-27T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: reference
 related:
 - docs/adr/4.x/2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md
 - docs/development/reference/events-in-core.md
+kind: Reference
 ---
 
 # Lock-interop spike (#6193)

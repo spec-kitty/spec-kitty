@@ -2,10 +2,11 @@
 title: Doctrine
 description: Doctrine layering, charter boundary, and artifact-selection planning — architecture reviews, gap analyses, and mission scope notes.
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
+kind: Hub
 ---
 # Doctrine
 

@@ -2,7 +2,7 @@
 title: 2.x Documentation (Archive)
 description: Historical Spec Kitty 2.x archive page for 2.x Documentation (Archive); use Spec Kitty 3.2 docs for current Charter-era workflows.
 doc_status: deprecated
-updated: '2026-06-03'
+updated: '2026-06-03T00:00:00Z'
 related:
 - docs/context/index.md
 - docs/changelog/2x/adr-coverage.md
@@ -12,6 +12,7 @@ related:
 - docs/changelog/2x/runtime-and-missions.md
 - docs/index.md
 - docs/migrations/index.md
+kind: Hub
 ---
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 

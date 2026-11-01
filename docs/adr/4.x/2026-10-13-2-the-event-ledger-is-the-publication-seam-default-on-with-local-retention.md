@@ -3,7 +3,9 @@ title: 'ADR: the event ledger is the publication seam, on by default, with a ver
 description: 'Integrations read the committed ledger through a versioned row schema in spec-kitty-events; publication is on by default, apart from hosted drain; local logs get retention.'
 status: Accepted
 date: '2026-10-13'
-updated: '2026-10-22'
+updated: '2026-10-22T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 # The event ledger is the publication seam, on by default, with a versioned row contract and local-log retention

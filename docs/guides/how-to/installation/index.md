@@ -2,8 +2,8 @@
 title: Installation & Upgrade
 description: "Install, upgrade, repair, and uninstall the Spec Kitty CLI and project across macOS, Linux, and Windows."
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+updated: '2026-08-10T00:00:00Z'
+kind: Hub
 ---
 
 # Installation & Upgrade

@@ -2,10 +2,11 @@
 title: Historical Terms and Mappings
 description: "Legacy Spec Kitty terminology mapped to its current canonical term, with applicable version scope and migration notes for each historical wording."
 doc_status: active
-updated: '2026-07-16'
+updated: '2026-07-16T00:00:00Z'
 related:
 - docs/context/index.md
 - docs/context/naming-decision-tool-vs-agent.md
+kind: Explanation
 ---
 # Historical Terms and Mappings
 

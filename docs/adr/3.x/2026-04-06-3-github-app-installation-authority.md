@@ -5,6 +5,9 @@ status: Accepted
 date: '2026-04-06'
 related:
 - docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
+doc_status: active
+kind: ADR
+updated: '2026-04-06T00:00:00Z'
 ---
 # ADR: GitHub App Installation Identity Is Provider-Authoritative; Nango Is Secondary
 

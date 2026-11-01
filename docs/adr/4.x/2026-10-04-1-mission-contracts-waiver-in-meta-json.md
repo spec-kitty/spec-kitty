@@ -3,7 +3,9 @@ title: 'ADR: a Mission waives the contracts/ deliverable with a meta.json declar
 description: 'Strict accept keeps contracts/ required unless meta.json declares "contracts": "none" with a non-empty contracts_rationale, read by one fail-closed helper.'
 status: Accepted
 date: '2026-10-04'
-updated: '2026-10-04'
+updated: '2026-10-04T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted

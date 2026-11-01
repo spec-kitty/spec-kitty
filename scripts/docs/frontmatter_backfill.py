@@ -46,6 +46,7 @@ from typing import Any, Final
 
 from ruamel.yaml import YAML
 
+from scripts.docs.frontmatter_contract import KIND_TO_DIVIO_TYPE
 from scripts.docs._inventory import (
     DivioType,
     PageInventoryEntry,
@@ -72,14 +73,16 @@ __all__ = [
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
 DEFAULT_INVENTORY: Final[str] = "docs/development/page-inventory.yaml"
 
-# Frontmatter key names shared with ``scripts.docs.inventory_lockfile`` — the
-# divio axis lives under the existing ``type:`` key, not ``divio_type:``.
+# Frontmatter key names shared with ``scripts.docs.inventory_lockfile`` — the Divio
+# axis is written to doc-kitty's ``kind:`` key (#6931). It used to be written to
+# ``type:``, which doc-kitty defines as the *section* name; a Divio value there is a
+# wrong section name, and the migration folded those values into ``kind``.
 _FM_TITLE: Final[str] = "title"
 _FM_DESCRIPTION: Final[str] = "description"
 _FM_DOC_STATUS: Final[str] = "doc_status"
 _FM_UPDATED: Final[str] = "updated"
 _FM_VERSION_TAG: Final[str] = "version_tag"
-_FM_DIVIO_TYPE: Final[str] = "type"
+_FM_KIND: Final[str] = "kind"
 _FM_OWNING_WORKSTREAM: Final[str] = "owning_workstream"
 _FM_RELATED: Final[str] = "related"
 _FM_NOTES: Final[str] = "notes"
@@ -93,7 +96,7 @@ _KEY_ORDER: Final[tuple[str, ...]] = (
     _FM_DOC_STATUS,
     _FM_UPDATED,
     _FM_VERSION_TAG,
-    _FM_DIVIO_TYPE,
+    _FM_KIND,
     _FM_OWNING_WORKSTREAM,
     _FM_NOTES,
     _FM_RELATED,
@@ -104,6 +107,13 @@ _FRONTMATTER_FENCE: Final[str] = "---"
 # Inline markdown link: ``[text](target)``. Reference-style and bare autolinks
 # are intentionally out of scope — only explicit inline links seed ``related``.
 _LINK_RE: Final[re.Pattern[str]] = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+
+
+#: Inverse of the contract's :data:`KIND_TO_DIVIO_TYPE`, for the writer. Kept next to
+#: the import so the two directions cannot drift apart unnoticed.
+_KIND_BY_DIVIO_TYPE: Final[dict[DivioType, str]] = {
+    divio: kind for kind, divio in KIND_TO_DIVIO_TYPE.items()
+}
 
 
 class DocStatus(StrEnum):
@@ -413,7 +423,12 @@ def render_page(existing_text: str, backfill: PageBackfill) -> str:
     merged: dict[str, Any] = dict(existing)
     merged[_FM_DOC_STATUS] = backfill.doc_status.value
     merged[_FM_VERSION_TAG] = backfill.version_tag.value
-    merged[_FM_DIVIO_TYPE] = backfill.divio_type.value
+    # Only write a `kind` when the row's Divio quadrant names one: `DivioType.NONE`
+    # is "no quadrant", and doc-kitty requires a kind, so fabricating one here would
+    # be the guess this mission forbids. An unclassified row is caught by
+    # scripts.docs.frontmatter_contract instead.
+    if backfill.divio_type is not DivioType.NONE:
+        merged[_FM_KIND] = _KIND_BY_DIVIO_TYPE[backfill.divio_type]
     merged[_FM_OWNING_WORKSTREAM] = backfill.owning_workstream
     if backfill.updated is not None:
         merged[_FM_UPDATED] = backfill.updated

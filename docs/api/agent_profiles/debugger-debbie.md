@@ -2,10 +2,11 @@
 title: Debugger Debbie — Agent Profile
 description: Recurring-bug structural-root-cause investigator using five-paradigm parallel debugging
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
+kind: Reference
 ---
 
 # Debugger Debbie — Agent Profile

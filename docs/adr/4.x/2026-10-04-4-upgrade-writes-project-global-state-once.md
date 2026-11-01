@@ -3,7 +3,9 @@ title: 'ADR: upgrade writes project-global state once, in the repository root ch
 description: 'Upgrade writes project-global state once on the repository root checkout; integration merge sites resolve target-owned bookkeeping by one declared rule.'
 status: Accepted
 date: '2026-10-04'
-updated: '2026-10-05'
+updated: '2026-10-05T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted

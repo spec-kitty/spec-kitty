@@ -2,7 +2,10 @@
 title: 'ADR: Coordination-Worktree-Empty Surface Policy — Loud Primary Fallback (amended)'
 description: 'Reads of an empty coordination worktree fall back loudly to the repository-root checkout; writes establish the coordination surface (amended 2026-10-01).'
 status: Superseded
+updated: '2026-10-01T00:00:00Z'
 date: '2026-06-19 (original) · **Amended**: 2026-06-21 · **Amended**: 2026-10-01'
+doc_status: superseded
+kind: ADR
 ---
 
 **loud primary fallback** decision in the Amendment section below.

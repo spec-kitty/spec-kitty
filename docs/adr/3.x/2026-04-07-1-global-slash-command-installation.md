@@ -3,6 +3,9 @@ title: Global Slash Command Installation
 description: 'Slash command files install once into machine-level agent directories at CLI startup; init stops writing them and a migration deletes the per-project copies.'
 status: Accepted
 date: '2026-04-07'
+doc_status: active
+kind: ADR
+updated: '2026-04-07T00:00:00Z'
 ---
 
 **Amended by:** ADR [2026-10-20-1](../4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md) (home-folder writer scoped to configured agents; the `antigravity` row below is superseded: Antigravity reads command skills, not `~/.agent/workflows/`).

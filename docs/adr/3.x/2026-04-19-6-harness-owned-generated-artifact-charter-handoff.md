@@ -3,6 +3,9 @@ title: Harness-Owned Generated-Artifact Charter Handoff Contract
 description: 'Fixes the layout and identity rules the harness must satisfy for generated doctrine YAML before it is promoted from the staging tree into the live doctrine tree.'
 status: Accepted
 date: '2026-04-19'
+doc_status: active
+kind: ADR
+updated: '2026-04-19T00:00:00Z'
 ---
 
 ## Context

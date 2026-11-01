@@ -2,14 +2,14 @@
 title: Guides
 description: "End-user Spec Kitty guides: learning-oriented tutorials and task-oriented how-tos for installing, running, governing, and monitoring your missions."
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+updated: '2026-08-10T00:00:00Z'
 related:
 - docs/guides/tutorials/index.md
 - docs/guides/how-to/index.md
 - docs/context/index.md
 - docs/development/index.md
 - docs/api/index.md
+kind: Hub
 ---
 
 # Guides

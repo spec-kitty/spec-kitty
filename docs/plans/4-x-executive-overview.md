@@ -2,8 +2,7 @@
 title: '4.x Executive Overview'
 description: 'Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make.'
 doc_status: active
-type: explanation
-updated: '2026-10-12'
+updated: '2026-10-12T00:00:00Z'
 audience: docs/context/audience/external/product-manager-evaluator.md
 related:
 - docs/plans/4-0-0-milestone-roadmap.md
@@ -11,6 +10,7 @@ related:
 - docs/changelog/index.md
 - docs/context/team-kitty.md
 - docs/plans/index.md
+kind: Explanation
 ---
 
 # 4.x Executive Overview

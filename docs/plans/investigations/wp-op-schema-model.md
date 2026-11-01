@@ -2,8 +2,9 @@
 title: WP & Op Schema Model — Formalising Work-Package and Op Records
 description: 'Idea + grounding to formalise WP files and the Op record via code-owned models/schemas; the model is ~60-70% already shipped, so the win is a narrow hash/field-eviction fix.'
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
+kind: Planning
 ---
 # WP & Op Schema Model
 
