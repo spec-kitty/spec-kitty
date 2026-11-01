@@ -38,6 +38,9 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  # Merge queue (landing-merge-queue ADR): the queue tests each PR on main plus
+  # the PRs ahead of it, and this workflow's required check must report there.
+  merge_group:
   workflow_dispatch:
     inputs:
       mode:
@@ -708,6 +711,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
           PUSH_BEFORE: ${{ github.event.before }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
           PYTHONPATH: ${{ github.workspace }}
         run: |
           set -uo pipefail
@@ -715,6 +719,7 @@ jobs:
           case "$EVENT_NAME" in
             pull_request) base="$BASE_SHA" ;;
             push) base="$PUSH_BEFORE" ;;
+            merge_group) base="$MERGE_GROUP_BASE" ;;
           esac
 
           # Degenerate/null base (missing PR base SHA, or a push whose

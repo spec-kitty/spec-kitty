@@ -107,6 +107,7 @@ jobs:
     runs-on: ubuntu-24.04
     if: >-
       (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') &&
+      github.event.workflow_run.event != 'merge_group' &&
       (github.event_name == 'workflow_dispatch' ||
       github.event.workflow_run.conclusion == 'success' ||
       github.event.workflow_run.conclusion == 'failure')
@@ -319,6 +320,7 @@ jobs:
       contents: read
     if: >-
       (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') &&
+      github.event.workflow_run.event != 'merge_group' &&
       always() &&
       (needs.collect.outputs.mode == 'full' ||
         (needs.collect.result == 'success' &&
@@ -673,7 +675,7 @@ jobs:
   aggregate-gate:
     name: CI Aggregate gate
     needs: [collect, diff-cover]
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') && always() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') && github.event.workflow_run.event != 'merge_group' && always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
