@@ -1244,6 +1244,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: tests/architectural/test_scenario_contract.py runs the pinned contract-tools' codeowners_check.py
+      # (tests/pinned_service_assets.py fails closed without it); ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
 
       - name: Run the full architectural battery base (no partition, run-all-regardless)
         if: always()

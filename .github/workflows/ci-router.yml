@@ -1042,6 +1042,14 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           python-version: '3.12'
+      # #6915: tests/architectural/test_scenario_contract.py runs the pinned contract-tools' codeowners_check.py
+      # (tests/pinned_service_assets.py fails closed without it); ~230 KB, cached on the pin hash.
+      # `uv run` without --no-sync: the project environment does not exist yet at this step.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          python: uv run --frozen python
+          extras-only: 'true'
       - run: |
           uv sync --frozen --all-extras
           PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_packs.py --pack all
@@ -1185,6 +1193,13 @@ jobs:
       - name: Sync packs
         if: steps.scope.outputs.run != 'false'
         uses: ./.github/actions/sync-packs
+      # #6915: tests/architectural/test_scenario_contract.py runs the pinned contract-tools' codeowners_check.py
+      # (tests/pinned_service_assets.py fails closed without it); ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        if: steps.scope.outputs.run != 'false'
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
       # Shared test-universe collection (mission shared-collection-and-shard-recapture,
       # FR-008/FR-009). A leg that holds a test requesting the universe, and the `ci`
       # module shard, collect once HERE, before pytest, and the tests reuse the stored

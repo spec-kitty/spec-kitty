@@ -203,11 +203,31 @@ def bundled_path_item(path_key: str, module: str = MISSION_STATUS_MODULE) -> dic
     return item
 
 
-_WP_ID_SCHEMA = bundled_schema("WpId")
 # The one definition of a work package id is the contract's own WpId schema; the projector reads it, it does not copy it.
-WP_ID_PATTERN: str = _WP_ID_SCHEMA["pattern"]
-WP_ID_MAX_LENGTH: int = _WP_ID_SCHEMA["maxLength"]
-_WP_ID = re.compile(WP_ID_PATTERN)
+# Read on first use, never at import: collecting a test module must not need the pinned cache (#6915).
+
+
+@functools.cache
+def _wp_id_schema() -> dict[str, Any]:
+    return bundled_schema("WpId")
+
+
+def wp_id_pattern() -> str:
+    """The ``pattern`` of the bundled ``WpId`` schema."""
+    return str(_wp_id_schema()["pattern"])
+
+
+def wp_id_max_length() -> int:
+    """The ``maxLength`` of the bundled ``WpId`` schema."""
+    return int(_wp_id_schema()["maxLength"])
+
+
+@functools.cache
+def wp_id_regex() -> re.Pattern[str]:
+    """:func:`wp_id_pattern`, compiled."""
+    return re.compile(wp_id_pattern())
+
+
 _MISSION_ID = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 _RFC3339_SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:[Zz]|[+-]\d{2}:\d{2})$")
 _SENTINELS = frozenset({"__resolved_model_absent__", "__resolved_profile_absent__", "__resolved_profile_version_absent__", "__resolved_provider_absent__"})
@@ -665,7 +685,7 @@ def load_contract_tools(mp: pytest.MonkeyPatch, repo_root: Path, tools_root: Pat
 
 def is_wp_id(value: Any) -> bool:
     """True when ``value`` is a work package id by the contract's ``WpId`` schema (pattern and length)."""
-    return isinstance(value, str) and len(value) <= WP_ID_MAX_LENGTH and bool(_WP_ID.fullmatch(value))
+    return isinstance(value, str) and len(value) <= wp_id_max_length() and bool(wp_id_regex().fullmatch(value))
 
 
 def _schema_nodes(tree: Any, found: dict[str, dict[str, Any]], *, examples_required: bool = True) -> None:
@@ -1052,10 +1072,10 @@ def _subtask_progress(subtasks: Mapping[str, str]) -> dict[str, int]:
 
 
 def build_work_package_summary(source: MissionSource, authored: AuthoredWorkPackage, projector: Projector) -> dict[str, Any]:
-    wp_id = str(projector.strict(authored.metadata.work_package_id, "wpId", nullable=False, pattern=_WP_ID))
+    wp_id = str(projector.strict(authored.metadata.work_package_id, "wpId", nullable=False, pattern=wp_id_regex()))
     view = reconstruct_wp_view(source.read_dir, wp_id, metadata=authored.metadata)
     lane = projector.lane(view.resolved.lane, f"{wp_id}.statusLane")
-    deps = projector.strict_list(view.authored.dependencies, f"{wp_id}.dependencies", _WP_ID)
+    deps = projector.strict_list(view.authored.dependencies, f"{wp_id}.dependencies", wp_id_regex())
     readiness = _readiness(source, wp_id, deps)
     state = source.snapshot.work_packages.get(wp_id) or {}
     return {
@@ -1182,12 +1202,12 @@ def history_entries(source: MissionSource, wp_id: str, projector: Projector) -> 
 def build_work_package(source: MissionSource, authored: AuthoredWorkPackage, projector: Projector, *, include_prompt: bool = False) -> dict[str, Any]:
     """One ``WorkPackage`` payload: authored plan from the file, resolved state from the status snapshot."""
     meta = authored.metadata
-    wp_id = str(projector.strict(meta.work_package_id, "wpId", nullable=False, pattern=_WP_ID))
+    wp_id = str(projector.strict(meta.work_package_id, "wpId", nullable=False, pattern=wp_id_regex()))
     view = reconstruct_wp_view(source.read_dir, wp_id, metadata=meta)
     resolved, plan = view.resolved, view.authored
     state: Mapping[str, Any] = source.snapshot.work_packages.get(wp_id) or {}
     lane = projector.lane(resolved.lane, f"{wp_id}.statusLane")
-    deps = projector.strict_list(plan.dependencies, f"{wp_id}.dependencies", _WP_ID)
+    deps = projector.strict_list(plan.dependencies, f"{wp_id}.dependencies", wp_id_regex())
     readiness = _readiness(source, wp_id, deps)
     subtasks = {str(projector.strict(key, f"{wp_id}.subtasks", nullable=False, pattern=_RELATIVE_REFERENCE)): value for key, value in resolved.subtasks.items()}
     payload: dict[str, Any] = {

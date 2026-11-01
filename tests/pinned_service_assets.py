@@ -20,10 +20,8 @@ outside the test run.
 
 from __future__ import annotations
 
-import functools
-import importlib.util
+import importlib
 import os
-import sys
 from pathlib import Path
 from types import ModuleType
 
@@ -45,21 +43,14 @@ __all__ = [
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 READ_SERVICE = "read-service"
-_SCRIPT = REPO_ROOT / "scripts" / "sync_services.py"
-_MODULE_NAME = "_sync_services_for_tests"
+_MODULE_NAME = "scripts.sync_services"
 _REAL_HOME_ENV_VAR = "SPEC_KITTY_REAL_HOME_FOR_TESTS"
 _SERVICES_CACHE = Path("spec-kitty") / "services"
 
 
-@functools.cache
 def _sync_services() -> ModuleType:
-    """``scripts/sync_services.py``, loaded once by file path (it is a script, not a package module)."""
-    spec = importlib.util.spec_from_file_location(_MODULE_NAME, _SCRIPT)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[_MODULE_NAME] = module  # dataclasses resolve their module through sys.modules
-    spec.loader.exec_module(module)
-    return module
+    """``scripts/sync_services.py``, imported as ``scripts.sync_services`` (``scripts`` is a namespace package on the repo root)."""
+    return importlib.import_module(_MODULE_NAME)
 
 
 def service_cache_root() -> Path:

@@ -19,6 +19,7 @@ definition that alone feeds ``artifactReferences.prompt`` and the ``tasks/<wp-sl
 from __future__ import annotations
 
 import fnmatch
+import functools
 import re
 import stat
 import subprocess
@@ -81,20 +82,40 @@ def _schema(title: str) -> dict[str, Any]:
     return helper.bundled_schema(title)
 
 
-_REF_SCHEMA = _schema("RelativeReference")
-# The schema's own pattern and length, so the reader and the contract cannot drift (``.`` excludes a line break, ``\Z`` ends the string).
-RELATIVE_REFERENCE = re.compile(rf"(?=.{{1,{_REF_SCHEMA['maxLength']}}}\Z)" + _REF_SCHEMA["pattern"])
-_WP_ID = re.compile(helper.WP_ID_PATTERN)
-_WORKSPACE_PROPERTIES = _schema("Workspace")["properties"]
-_BRANCH = re.compile(_WORKSPACE_PROPERTIES["laneBranch"]["pattern"])
-_BRANCH_MAX = int(_WORKSPACE_PROPERTIES["laneBranch"]["maxLength"])
-_PLANNING_BRANCH_MAX = int(_WORKSPACE_PROPERTIES["planningBranch"]["maxLength"])
-_LANE_ID = re.compile(_WORKSPACE_PROPERTIES["laneId"]["pattern"])
-_LANE_ID_MAX = int(_WORKSPACE_PROPERTIES["laneId"]["maxLength"])
-_REVIEW_CYCLE_PROPERTIES = _schema("ReviewCycle")["properties"]
-_POINTER = re.compile(_REVIEW_CYCLE_PROPERTIES["feedbackReference"]["pattern"])
+@dataclass(frozen=True)
+class _ContractRules:
+    """The rules this reader takes from the contract's own schemas, so the reader and the contract cannot drift."""
+
+    relative_reference: re.Pattern[str]
+    branch: re.Pattern[str]
+    branch_max: int
+    planning_branch_max: int
+    lane_id: re.Pattern[str]
+    lane_id_max: int
+    pointer: re.Pattern[str]
+    verdicts: frozenset[str]
+
+
+@functools.cache
+def _contract() -> _ContractRules:
+    """The rules, read on first use and never at import: collecting a test module must not need the pinned cache (#6915)."""
+    ref = _schema("RelativeReference")
+    workspace = _schema("Workspace")["properties"]
+    review_cycle = _schema("ReviewCycle")["properties"]
+    return _ContractRules(
+        # The schema's own pattern and length (``.`` excludes a line break, ``\Z`` ends the string).
+        relative_reference=re.compile(rf"(?=.{{1,{ref['maxLength']}}}\Z)" + ref["pattern"]),
+        branch=re.compile(workspace["laneBranch"]["pattern"]),
+        branch_max=int(workspace["laneBranch"]["maxLength"]),
+        planning_branch_max=int(workspace["planningBranch"]["maxLength"]),
+        lane_id=re.compile(workspace["laneId"]["pattern"]),
+        lane_id_max=int(workspace["laneId"]["maxLength"]),
+        pointer=re.compile(review_cycle["feedbackReference"]["pattern"]),
+        verdicts=frozenset(_schema("ReviewVerdict")["enum"]),
+    )
+
+
 _CYCLE_NAME = re.compile(r"^review-cycle-(?P<number>[1-9][0-9]*)\.md$")
-_VERDICTS = frozenset(_schema("ReviewVerdict")["enum"])
 
 # ---------------------------------------------------------------------------
 # Outcome, host capability, refusals
@@ -307,7 +328,7 @@ def subtask_entries(
         raw = titles.get(subtask_id)
         entries.append(
             {
-                "id": str(projector.strict(subtask_id, f"{wp_id}.subtasks", nullable=False, pattern=RELATIVE_REFERENCE)),
+                "id": str(projector.strict(subtask_id, f"{wp_id}.subtasks", nullable=False, pattern=_contract().relative_reference)),
                 "title": None if raw is None else human_text(tools, projector, raw, f"{wp_id}.subtasks.title"),
                 "statusLane": projector.lane(states.get(subtask_id), f"{wp_id}.subtasks.statusLane"),
             }
@@ -334,7 +355,7 @@ def dependency_entries(
     a credential. A dependency that names no work package of the Mission keeps its id as title and has no lane.
     """
     entries = []
-    for authored_id in projector.strict_list(list(dependencies), f"{wp_id}.dependencies", _WP_ID):
+    for authored_id in projector.strict_list(list(dependencies), f"{wp_id}.dependencies", helper.wp_id_regex()):
         known = index.get(authored_id)
         title = authored_id
         if known is not None:
@@ -359,7 +380,7 @@ def cycle_pointer(mission_slug: str, wp_slug: str, name: str) -> str | None:
         validate_review_cycle_pointer(pointer)
     except ReviewCycleError:
         return None
-    return pointer if _POINTER.fullmatch(pointer) else None
+    return pointer if _contract().pointer.fullmatch(pointer) else None
 
 
 def cycle_verdict(rows: Sequence[Mapping[str, Any]], wp_id: str, pointer: str | None) -> str | None:
@@ -377,7 +398,7 @@ def cycle_verdict(rows: Sequence[Mapping[str, Any]], wp_id: str, pointer: str | 
         reference = result.get("reference")
         if isinstance(reference, str) and reference.strip() == pointer:
             value = result.get("verdict")
-            verdict = value if value in _VERDICTS else None
+            verdict = value if value in _contract().verdicts else None
     return verdict
 
 
@@ -480,15 +501,15 @@ def workspace_of(ctx: ReaderContext, opened: OpenedMission, wp_id: str, host: Ho
     authored = opened.index[wp_id]
     manifest = read_lanes_json(opened.mission_dir)  # CorruptLanesError is a GuardedReadError: the read fails, never a silent fallback
     planning = projector.strict(authored.metadata.planning_base_branch, f"{wp_id}.workspace.planningBranch", nullable=True)
-    planning = None if planning is not None and len(planning) > _PLANNING_BRANCH_MAX else planning
+    planning = None if planning is not None and len(planning) > _contract().planning_branch_max else planning
     lane = None if manifest is None else manifest.lane_for_wp(wp_id)
     if manifest is None or lane is None:
         return WorkspaceView({"laneId": None, "laneBranch": None, "planningBranch": planning, "worktreePresent": False}, None, None)
     slug = str(opened.source.identity.mission_slug)
-    lane_id = _fits(lane.lane_id, _LANE_ID, _LANE_ID_MAX)
+    lane_id = _fits(lane.lane_id, _contract().lane_id, _contract().lane_id_max)
     branch = None
     if lane_id is not None and lane_id != PLANNING_LANE_ID:
-        branch = _fits(lane_branch_name(slug, lane_id, target_branch=manifest.target_branch), _BRANCH, _BRANCH_MAX)
+        branch = _fits(lane_branch_name(slug, lane_id, target_branch=manifest.target_branch), _contract().branch, _contract().branch_max)
     worktree = _lane_worktree(ctx, slug, wp_id, host) if lane_id is not None else None
     workspace = {"laneId": lane_id, "laneBranch": branch, "planningBranch": planning, "worktreePresent": worktree is not None}
     return WorkspaceView(workspace, worktree, manifest.target_branch)
@@ -520,7 +541,7 @@ def _matchable(pattern: str) -> bool:
 
 def _usable_target(target_branch: str | None) -> bool:
     """A manifest target branch is a bare string: it must pass the lane branch pattern and not look like an option before it reaches git."""
-    return isinstance(target_branch, str) and _fits(target_branch, _BRANCH, _BRANCH_MAX) is not None and not target_branch.startswith("-")
+    return isinstance(target_branch, str) and _fits(target_branch, _contract().branch, _contract().branch_max) is not None and not target_branch.startswith("-")
 
 
 def committed_change_set(worktree: Path, lane_branch: str, target_branch: str) -> tuple[str, ...] | None:
@@ -638,7 +659,7 @@ def _assemble(ctx: ReaderContext, opened: OpenedMission, wp_id: str, host: HostC
     view = reconstruct_wp_view(source.read_dir, wp_id, metadata=authored.metadata)
     lanes = {other: str(state.get("lane")) for other, state in source.snapshot.work_packages.items()}
     titles = title_rows(read_tasks_md(ctx, opened.mission_dir) or "", wp_id)
-    owned = projector.strict_list(list(view.authored.owned_files), f"{wp_id}.ownedFiles", RELATIVE_REFERENCE)
+    owned = projector.strict_list(list(view.authored.owned_files), f"{wp_id}.ownedFiles", _contract().relative_reference)
     workspace = workspace_of(ctx, opened, wp_id, host, projector)
     return {
         "missionId": str(source.identity.mission_id),
