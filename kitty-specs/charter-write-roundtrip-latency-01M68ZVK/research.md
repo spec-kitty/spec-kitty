@@ -6,7 +6,7 @@ All figures below were measured **before any code change**, on this checkout of 
 entries). Reproduction:
 
 ```bash
-mkdir -p /tmp/sk6506-repro && cd /tmp/sk6506-repro && git init -q .
+mkdir -p <tmp>/sk6506-repro && cd <tmp>/sk6506-repro && git init -q .
 cp -r <clone>/.kittify . && cp -r <clone>/packs .
 time spec-kitty charter deactivate tactic analysis-extract-before-interpret
 time spec-kitty charter activate   tactic analysis-extract-before-interpret
@@ -154,7 +154,7 @@ naming "#6506" as the repository-scale gap.
 
 ## Evidence retained
 
-Raw profiles: `/tmp/deact.prof` (cProfile, 74.6 s instrumented, 159 M calls) and the
-wall-clock attribution harnesses `/tmp/instr.py`, `/tmp/instr2.py` used to produce the tables
+Raw profiles: `<tmp>/deact.prof` (cProfile, 74.6 s instrumented, 159 M calls) and the
+wall-clock attribution harnesses `<tmp>/instr.py`, `<tmp>/instr2.py` used to produce the tables
 above. They are throwaway diagnostics, not committed: the committed tests (FR-004, FR-005)
 reproduce the two quantities that matter — round trips per write, and command-over-floor ratio.
