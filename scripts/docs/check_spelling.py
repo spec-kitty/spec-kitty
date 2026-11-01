@@ -46,7 +46,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Literal
 
-from scripts.release import validate_release
+from scripts.release import changelog_fragments, validate_release
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 DEFAULT_CHANGELOG: Final[Path] = Path("docs") / "changelog" / "CHANGELOG.md"
@@ -310,20 +310,37 @@ def _display_path(path: Path, repo_root: Path) -> str:
 
 
 def _run_unreleased(scope: _Scope) -> PassResult:
-    """American spelling in the changelog's ``## [Unreleased]`` section only.
+    """American spelling in the changelog's ``## [Unreleased]`` section and its pending fragments.
 
     The section is located by the shared, fence-aware locator, written to a scratch file, and
     scanned with the US flags. codespell reports lines relative to that file, so each is mapped back
     to its real changelog line: the section body starts on the line after the heading. A scratch
-    file that the configured skip globs would drop raises :class:`SpellcheckError`.
+    file that the configured skip globs would drop raises :class:`SpellcheckError`. The per-PR
+    fragments in ``docs/changelog/unreleased/`` are entries of the same section, so they get the same flags and
+    are reported at their own file and line.
     """
     try:
         text = scope.changelog.read_text(encoding="utf-8")
     except OSError as exc:
         raise SpellcheckError(f"cannot read changelog {scope.changelog}: {exc}") from exc
+    fragment_dir = scope.repo_root / changelog_fragments.FRAGMENT_DIR_REL
+    fragments = [path.relative_to(scope.repo_root).as_posix() for path in changelog_fragments.fragment_paths(fragment_dir)]
     section = validate_release.unreleased_section(text)
-    if section is None:
-        return PassResult(name=_UNRELEASED, findings=(), scanned=0)
+    findings: list[Finding] = []
+    scanned = 0
+    if section is not None:
+        findings.extend(_scan_section(scope, section))
+        scanned += len(section.lines)
+    if fragments:
+        fragment_result = _scan(scope.repo_root, fragments, US_FLAGS, _UNRELEASED)
+        findings.extend(fragment_result.findings)
+        scanned += sum(len((scope.repo_root / name).read_text(encoding="utf-8", errors="replace").splitlines()) for name in fragments)
+    findings.sort(key=_sort_key)
+    return PassResult(name=_UNRELEASED, findings=tuple(findings), scanned=scanned)
+
+
+def _scan_section(scope: _Scope, section: validate_release.UnreleasedSection) -> list[Finding]:
+    """US-spell the Unreleased *section* through a scratch file; findings carry real changelog lines."""
     with tempfile.TemporaryDirectory(prefix="check-spelling-") as scratch:
         scratch_file = Path(scratch) / _SCRATCH_NAME
         # Never claim a scan of a file codespell would drop: refuse when a skip glob matches it.
@@ -332,9 +349,7 @@ def _run_unreleased(scope: _Scope) -> PassResult:
         scratch_file.write_text("\n".join(section.lines) + "\n", encoding="utf-8")
         stdout = _run_codespell(_codespell_cmd(scope.repo_root, US_FLAGS, [str(scratch_file)]), scope.repo_root)
     canonical = _display_path(scope.changelog, scope.repo_root)
-    findings = [Finding(f.severity, f.rule, canonical, section.start_line + f.line, f.where, f.fix) for f in _parse_output(stdout, _RULE_US, {})]
-    findings.sort(key=_sort_key)
-    return PassResult(name=_UNRELEASED, findings=tuple(findings), scanned=len(section.lines))
+    return [Finding(f.severity, f.rule, canonical, section.start_line + f.line, f.where, f.fix) for f in _parse_output(stdout, _RULE_US, {})]
 
 
 _PASS_RUNNERS: Final[dict[str, Callable[[_Scope], PassResult]]] = {

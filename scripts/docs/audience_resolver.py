@@ -53,6 +53,7 @@ from scripts.docs._guards import (
     resolve_changed_files,
 )
 from scripts.docs._inventory import parse_frontmatter
+from scripts.docs._page_scope import iter_docs_pages
 
 __all__ = [
     "AudienceReport",
@@ -139,7 +140,7 @@ def resolve_audiences(
     dangling: list[DanglingReference] = []
 
     if docs_root.exists() and docs_root.is_dir():
-        for md_path in sorted(docs_root.rglob("*.md")):
+        for md_path in iter_docs_pages(docs_root):
             file_checked, file_dangling = _audiences_in_file(
                 md_path, repo_root, catalog
             )

@@ -680,7 +680,9 @@ def _check_page_inventory_completeness(
         return []
 
     findings: list[FreshnessFinding] = []
-    for md_path in sorted(docs_root.rglob("*.md")):
+    from scripts.docs._page_scope import iter_docs_pages
+
+    for md_path in iter_docs_pages(docs_root):
         rel = md_path.as_posix()
         if rel in inventory_paths:
             continue

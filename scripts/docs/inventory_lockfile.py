@@ -43,6 +43,7 @@ from scripts.docs._inventory import (
     load_inventory,
     parse_frontmatter,
 )
+from scripts.docs._page_scope import iter_docs_pages
 
 __all__ = [
     "DEFAULT_DOCS_ROOT",
@@ -185,7 +186,7 @@ def generate_inventory(
     """
     anchor = (repo_root or docs_root.parent).resolve()
     entries: list[PageInventoryEntry] = []
-    for md_path in sorted(docs_root.rglob("*.md")):
+    for md_path in iter_docs_pages(docs_root):
         rel_path = _relative_posix(md_path, anchor)
         try:
             text = md_path.read_text(encoding="utf-8")

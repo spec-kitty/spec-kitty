@@ -72,6 +72,7 @@ _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from scripts.docs._page_scope import iter_docs_pages  # noqa: E402  (sys.path bootstrap above)
 from scripts.docs._guards import (  # noqa: E402  (sys.path bootstrap above)
     GitDiffError,
     assert_examined_floor,
@@ -383,7 +384,7 @@ def iter_doc_files(
     docs = repo_root / DOCS_ROOT
     if not docs.is_dir():
         return
-    for path in sorted(docs.rglob("*.md")):
+    for path in iter_docs_pages(docs):
         rel = path.relative_to(repo_root).as_posix()
         if not rel.startswith(effective):
             yield path

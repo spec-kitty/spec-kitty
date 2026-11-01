@@ -41,6 +41,7 @@ from typing import Final
 
 from scripts.docs._guards import GitDiffError, assert_examined_floor, resolve_changed_files
 from scripts.docs._inventory import parse_frontmatter
+from scripts.docs._page_scope import iter_docs_pages
 
 __all__ = [
     "DEFAULT_DOCS_ROOT",
@@ -133,7 +134,7 @@ def validate_related(*, docs_root: Path, repo_root: Path, min_files: int = 1) ->
     dangling: list[DanglingEdge] = []
 
     if docs_root.exists() and docs_root.is_dir():
-        for md_path in sorted(docs_root.rglob("*.md")):
+        for md_path in iter_docs_pages(docs_root):
             file_checked, file_dangling = _related_edges_in_file(md_path, repo_root)
             checked_count += file_checked
             dangling.extend(file_dangling)
