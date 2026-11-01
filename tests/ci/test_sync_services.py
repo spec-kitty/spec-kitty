@@ -254,14 +254,17 @@ def test_the_script_runs_standalone_with_pythonpath_src(tmp_path: Path) -> None:
     assert "--offline" in result.stdout
 
 
-def test_makefile_has_a_sync_services_target_that_is_not_in_dev_setup() -> None:
+def test_makefile_has_a_sync_services_target_and_dev_setup_fetches_the_extras() -> None:
     makefile = (_REPO / "Makefile").read_text(encoding="utf-8")
     target = re.search(r"^sync-services:.*##.*\n\t(?P<recipe>.+)$", makefile, re.MULTILINE)
     assert target is not None, "the sync-services target (with a ## help comment) is missing"
     assert "scripts/sync_services.py --service all" in target.group("recipe")
     dev_setup = re.search(r"^dev-setup:.*\n((?:\t.*\n)+)", makefile, re.MULTILINE)
     assert dev_setup is not None
-    assert "sync-services" not in dev_setup.group(1), "wire sync-services into dev-setup only together with the first real pin"
+    recipe = dev_setup.group(1)
+    # The pinned extras only (decision 01M6B0JYP9B0CMBWRQ7TR7GBVN): no service binary on a contributor machine.
+    assert "$(MAKE) sync-services ARGS=--extras-only" in recipe, recipe
+    assert recipe.index("sync-packs") < recipe.index("sync-services"), recipe
 
 
 # --------------------------------------------------------------------------- #
@@ -299,13 +302,20 @@ def test_action_runs_the_script_for_every_service_after_the_cache() -> None:
     assert runs and cache and cache[0] < runs[0]
 
 
-def test_action_inputs_match_sync_packs() -> None:
-    def inputs(path: Path) -> dict[str, Any]:
-        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))["inputs"]
-        assert isinstance(loaded, dict)
-        return {name: spec.get("default") for name, spec in loaded.items()}
+def _action_inputs(path: Path) -> dict[str, Any]:
+    loaded = yaml.safe_load(path.read_text(encoding="utf-8"))["inputs"]
+    assert isinstance(loaded, dict)
+    return {name: spec.get("default") for name, spec in loaded.items()}
 
-    assert inputs(_ACTION) == inputs(_PACKS_ACTION)
+
+def test_action_inputs_match_sync_packs_plus_extras_only() -> None:
+    assert _action_inputs(_ACTION) == {**_action_inputs(_PACKS_ACTION), "extras-only": "false"}
+
+
+def test_action_passes_extras_only_to_the_script() -> None:
+    (run,) = [str(step["run"]) for step in _steps(_ACTION) if "scripts/sync_services.py" in str(step.get("run", ""))]
+    assert "inputs.extras-only" in yaml.safe_dump(_steps(_ACTION)) or "EXTRAS_ONLY" in run
+    assert "--extras-only" in run
 
 
 def _workflows_using_the_action(workflows_dir: Path) -> list[str]:
@@ -355,3 +365,197 @@ def test_ratchet_planted_cases(tmp_path: Path, pinned: bool, wired: bool, violat
     assert (violation is not None) is violates
     if violates:
         assert violation is not None and "wire it now" in violation
+
+
+# --------------------------------------------------------------------------- #
+# Cut-over (#6915): extras only, verified unpack, the path query
+# --------------------------------------------------------------------------- #
+
+
+def _tar_gz(members: dict[str, bytes]) -> bytes:
+    """A gzip tarball holding regular files *members* (name -> bytes)."""
+    import io
+    import tarfile
+
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for name, data in members.items():
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            archive.addfile(info, io.BytesIO(data))
+    return buffer.getvalue()
+
+
+def _unsafe_tar_gz(kind: str) -> bytes:
+    """A gzip tarball with one good file and one unsafe member of *kind*."""
+    import io
+    import tarfile
+
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        good = tarfile.TarInfo("conformance/ok.json")
+        good.size = 2
+        archive.addfile(good, io.BytesIO(b"{}"))
+        bad = tarfile.TarInfo({"dotdot": "../escape.json", "absolute": "/abs.json"}.get(kind, "conformance/bad"))
+        if kind == "symlink":
+            bad.type, bad.linkname = tarfile.SYMTYPE, "../../etc/passwd"
+        elif kind == "hardlink":
+            bad.type, bad.linkname = tarfile.LNKTYPE, "conformance/ok.json"
+        elif kind == "device":
+            bad.type = tarfile.CHRTYPE
+        if bad.isreg():
+            bad.size = 2
+            archive.addfile(bad, io.BytesIO(b"{}"))
+        else:
+            archive.addfile(bad)
+    return buffer.getvalue()
+
+
+_FIXTURES_TREE = {"conformance/manifest.json": b'{"cases": []}', "leak-patterns.json": b"[]"}
+_TOOLS_TREE = {"contracts/tools/install_tools.py": b"print('tools')\n"}
+
+
+def _archive_extras() -> dict[str, bytes]:
+    return {"fixtures": _tar_gz(_FIXTURES_TREE), "contract_tools": _tar_gz(_TOOLS_TREE)}
+
+
+@pytest.mark.usefixtures("host_linux_x64")
+def test_extras_only_fetches_the_extras_and_never_a_build(sync: ModuleType, tmp_path: Path) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+    cache = tmp_path / "cache"
+
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+
+    for asset in pin.extras.values():
+        assert cached_path(pin, asset, cache).is_file()
+    for asset in pin.assets.values():
+        assert not cached_path(pin, asset, cache).exists(), asset.name
+
+
+@pytest.mark.usefixtures("host_linux_x64")
+def test_extras_only_check_ignores_a_missing_build(sync: ModuleType, tmp_path: Path) -> None:
+    repo, _ = _pinned_repo(tmp_path, extras=_archive_extras())
+    cache = tmp_path / "cache"
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+
+    assert sync.main(["--extras-only", "--check"], repo_root=repo, cache_root=cache) == 0
+    # Positive control: the full check does see the missing native build.
+    assert sync.main(["--check"], repo_root=repo, cache_root=cache) == 1
+
+
+@pytest.mark.usefixtures("host_linux_x64")
+def test_fetch_unpacks_each_extras_archive_under_its_digest(sync: ModuleType, tmp_path: Path) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+    cache = tmp_path / "cache"
+
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+
+    fixtures = pin.extras["fixtures"]
+    root = cached_path(pin, fixtures, cache).parent / fixtures.sha256
+    assert (root / "conformance" / "manifest.json").read_bytes() == _FIXTURES_TREE["conformance/manifest.json"]
+    marker = root / "leak-patterns.json"
+    before = marker.stat().st_mtime_ns
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+    assert marker.stat().st_mtime_ns == before, "an existing extraction is reused, not rewritten"
+
+
+@pytest.mark.usefixtures("host_linux_x64")
+def test_check_never_unpacks(sync: ModuleType, tmp_path: Path) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+    cache = tmp_path / "cache"
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+    fixtures = pin.extras["fixtures"]
+    root = cached_path(pin, fixtures, cache).parent / fixtures.sha256
+    import shutil
+
+    shutil.rmtree(root)
+    assert sync.main(["--extras-only", "--check"], repo_root=repo, cache_root=cache) == 0
+    assert not root.exists()
+
+
+@pytest.mark.usefixtures("host_linux_x64")
+def test_extras_root_returns_the_unpacked_tree(sync: ModuleType, tmp_path: Path) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+    cache = tmp_path / "cache"
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+
+    root = sync.extras_root(repo, pin.service, "contract_tools", cache_root=cache)
+
+    assert (root / "contracts" / "tools" / "install_tools.py").is_file()
+
+
+def test_extras_root_with_no_cached_archive_fails_with_the_remedy(sync: ModuleType, tmp_path: Path) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+
+    with pytest.raises(sync.SyncServicesError) as raised:
+        sync.extras_root(repo, pin.service, "fixtures", cache_root=tmp_path / "empty-cache")
+
+    assert raised.value.code == "SERVICE_BINARY_MISSING"
+    assert "make sync-services" in str(raised.value)
+    assert not (tmp_path / "empty-cache").exists() or not any((tmp_path / "empty-cache").rglob("*.tar.gz")), "it never downloads"
+
+
+@pytest.mark.usefixtures("host_linux_x64")
+def test_extras_root_with_a_tampered_archive_fails_with_digest_mismatch(sync: ModuleType, tmp_path: Path) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+    cache = tmp_path / "cache"
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+    archive = cached_path(pin, pin.extras["fixtures"], cache)
+    archive.write_bytes(archive.read_bytes() + b"tampered")
+
+    with pytest.raises(sync.SyncServicesError) as raised:
+        sync.extras_root(repo, pin.service, "fixtures", cache_root=cache)
+
+    assert raised.value.code == "SERVICE_BINARY_DIGEST_MISMATCH"
+    assert archive.exists(), "the query never evicts"
+
+
+def test_extras_root_of_an_unknown_extra_is_a_pin_error(sync: ModuleType, tmp_path: Path) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+
+    with pytest.raises(sync.SyncServicesError) as raised:
+        sync.extras_root(repo, pin.service, "contracts", cache_root=tmp_path / "cache")
+
+    assert raised.value.code == "SERVICE_PIN_INVALID"
+
+
+@pytest.mark.parametrize("kind", ["dotdot", "absolute", "symlink", "hardlink", "device"])
+@pytest.mark.usefixtures("host_linux_x64")
+def test_an_unsafe_archive_member_refuses_the_whole_archive(sync: ModuleType, tmp_path: Path, kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras={"fixtures": _unsafe_tar_gz(kind)})
+    cache = tmp_path / "cache"
+
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 1
+
+    assert "SERVICE_ASSET_ARCHIVE_UNSAFE" in capsys.readouterr().err
+    tag_dir = cached_path(pin, pin.extras["fixtures"], cache).parent
+    assert [path.name for path in tag_dir.iterdir() if path.is_dir()] == [], "no extraction directory is left behind"
+    assert not (tmp_path / "escape.json").exists()
+
+
+@pytest.mark.usefixtures("host_linux_x64")
+def test_extras_path_cli_prints_the_root(sync: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+    cache = tmp_path / "cache"
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+    capsys.readouterr()
+
+    assert sync.main(["--extras-path", f"{pin.service}:fixtures"], repo_root=repo, cache_root=cache) == 0
+
+    printed = Path(capsys.readouterr().out.strip())
+    assert (printed / "conformance" / "manifest.json").is_file()
+
+
+def test_extras_path_cli_reports_a_missing_archive(sync: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+
+    assert sync.main(["--extras-path", f"{pin.service}:fixtures"], repo_root=repo, cache_root=tmp_path / "cache") == 1
+
+    assert "SERVICE_BINARY_MISSING" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("value", ["write-service", "nope:fixtures", "write-service:nope"])
+def test_extras_path_cli_refuses_a_malformed_selector(sync: ModuleType, tmp_path: Path, value: str) -> None:
+    with pytest.raises(SystemExit) as raised:
+        sync.main(["--extras-path", value], repo_root=tmp_path, cache_root=tmp_path / "cache")
+    assert raised.value.code == 2
