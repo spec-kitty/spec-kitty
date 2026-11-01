@@ -2,7 +2,8 @@
 #
 # The docs retrieval index (docs/development/docs-retrieval-index.yaml), the page
 # inventory (docs/development/page-inventory.yaml) and the ADR era table rows
-# (docs/adr/<era>/index.md) are generated from the docs/ tree. Every docs PR used to
+# (docs/adr/<era>/index.md; missing rows added, rows of renamed or deleted ADRs pruned)
+# are generated from the docs/ tree. Every docs PR used to
 # regenerate them, so every merge conflicted every docs PR in flight. Operator ruling
 # (Option A): pull requests no longer touch them; this workflow regenerates them on
 # `main` after a merge and proposes the result as ONE pull request on the fixed branch
@@ -81,8 +82,10 @@ jobs:
         id: regen
         run: |
           uv run --frozen python -m scripts.ci.regen_docs_index regenerate
+      # Core repository only: a fork's dispatch has no secret and nothing to propose to,
+      # so it skips here (the script also skips with a notice off the core repository).
       - name: Publish the regeneration proposal
-        if: ${{ steps.regen.outputs.changed == 'true' }}
+        if: ${{ steps.regen.outputs.changed == 'true' && github.repository == 'spec-kitty/spec-kitty' }}
         env:
           CHARTER_SHARD_RECAPTURE_TOKEN: ${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}
         run: |

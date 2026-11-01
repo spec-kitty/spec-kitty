@@ -19,11 +19,15 @@ Usage::
 
     python scripts/docs/freshen_adr_inventory.py docs/adr/3.x/my-adr.md
     python scripts/docs/freshen_adr_inventory.py --all
+    python scripts/docs/freshen_adr_inventory.py --all --prune
     python scripts/docs/freshen_adr_inventory.py --check docs/adr/3.x/my-adr.md
 
 * **Inventory:** the page inventory is regenerated wholesale from frontmatter
   (``render_lockfile(generate_inventory(...))``), so it auto-picks up every new
   doc — including new ADRs. On a clean tree this is a no-op.
+* **Pruning (``--prune``):** a row whose linked ADR file no longer exists (the ADR
+  was renamed or deleted) is removed, so ``--all --prune`` reconciles every era table
+  with the ADRs present. The post-merge regeneration bot runs exactly that.
 * **ADR index rows:** for each target ADR the era landing page's index table gets a
   new row, inserted date-ascending, idempotently (a basename already linked
   **within the index table** is skipped; a prose link elsewhere does not count).
@@ -53,6 +57,7 @@ __all__ = [
     "freshen",
     "indexed_era_adrs",
     "main",
+    "prune_dangling_rows",
     "read_adr_meta",
 ]
 
@@ -76,6 +81,7 @@ _TABLE_HEADER_RE: Final[re.Pattern[str]] = re.compile(
 )
 _TABLE_SEP_RE: Final[re.Pattern[str]] = re.compile(r"^\s*\|[\s:|-]*-[\s:|-]*\|\s*$")
 _TABLE_ROW_RE: Final[re.Pattern[str]] = re.compile(r"^\s*\|.*\|\s*$")
+_ROW_LINK_RE: Final[re.Pattern[str]] = re.compile(r"\]\(([^)\s]+)\)")
 _INDEX_HEADING_RE: Final[re.Pattern[str]] = re.compile(
     r"^\s*##\s+Index\s*$", re.IGNORECASE
 )
@@ -351,18 +357,17 @@ def _era_has_table(era_index: Path) -> bool:
     return True
 
 
-def indexed_era_adrs(docs_root: Path) -> list[Path]:
-    """Every ADR under ``docs/adr/<era>/`` whose era landing page maintains an index table.
+def _table_era_indexes(docs_root: Path) -> list[Path]:
+    """The era landing pages under ``docs/adr/<era>/`` that maintain an index table.
 
-    Only eras whose landing page actually maintains an index table are considered --
-    legacy eras without a table (e.g. 1.x/2.x) are intentionally skipped rather than
-    back-filled with a table they never carried. A canonical ``index.md`` that declares
-    an ``## Index`` section but carries no table is a hard error.
+    Legacy eras without a table (e.g. 1.x/2.x) are skipped rather than back-filled with
+    a table they never carried. A canonical ``index.md`` that declares an ``## Index``
+    section but carries no table is a hard error.
     """
     adr_root = docs_root / _ADR_SUBDIR
     if not adr_root.is_dir():
         return []
-    adrs: list[Path] = []
+    indexes: list[Path] = []
     for era_dir in sorted(p for p in adr_root.iterdir() if p.is_dir()):
         if not _ERA_RE.match(era_dir.name):
             continue
@@ -374,14 +379,62 @@ def indexed_era_adrs(docs_root: Path) -> list[Path]:
                     f"canonical era index has no ADR table: {canonical_index}"
                 )
         era_index = canonical_index if canonical_index.exists() else era_dir / _README_NAME
-        if not _era_has_table(era_index):
+        if _era_has_table(era_index):
+            indexes.append(era_index)
+    return indexes
+
+
+def indexed_era_adrs(docs_root: Path) -> list[Path]:
+    """Every ADR under ``docs/adr/<era>/`` whose era landing page maintains an index table."""
+    return [
+        adr_path
+        for era_index in _table_era_indexes(docs_root)
+        for adr_path in sorted(era_index.parent.glob("*.md"))
+        if adr_path.name not in {_INDEX_NAME, _README_NAME}
+    ]
+
+
+def _dangling_link(row: str, era_dir: Path) -> str | None:
+    """The first local ``.md`` link of *row* whose file does not exist, else ``None``.
+
+    External links (``scheme://``) are never judged; a link resolves relative to the
+    era directory, so ``../index.md`` style links are checked too.
+    """
+    for match in _ROW_LINK_RE.finditer(row):
+        local = match.group(1).split("#", 1)[0]
+        if "://" in local or not local.endswith(".md"):
             continue
-        adrs.extend(
-            adr_path
-            for adr_path in sorted(era_dir.glob("*.md"))
-            if adr_path.name not in {_INDEX_NAME, _README_NAME}
-        )
-    return adrs
+        if not (era_dir / local).exists():
+            return local
+    return None
+
+
+def prune_dangling_rows(docs_root: Path, *, check: bool = False) -> list[str]:
+    """Remove era-table rows whose linked ADR file no longer exists (renamed or deleted).
+
+    Returns ``"<era index relative to docs_root>: <link>"`` per pruned row, in table
+    order. Idempotent and deterministic: only rows of the index tables are touched,
+    prose links are left alone. In ``check`` mode nothing is written.
+    """
+    pruned: list[str] = []
+    for era_index in _table_era_indexes(docs_root):
+        text = era_index.read_text(encoding="utf-8")
+        lines = text.splitlines()
+        data_start, data_end = _find_adr_table(lines)
+        kept: list[str] = []
+        for row in lines[data_start:data_end]:
+            dangling = _dangling_link(row, era_index.parent)
+            if dangling is None:
+                kept.append(row)
+                continue
+            pruned.append(f"{era_index.relative_to(docs_root).as_posix()}: {dangling}")
+        if check or len(kept) == data_end - data_start:
+            continue
+        new_text = "\n".join([*lines[:data_start], *kept, *lines[data_end:]])
+        if text.endswith("\n"):
+            new_text += "\n"
+        era_index.write_text(new_text, encoding="utf-8")
+    return pruned
 
 
 def detect_missing_adrs(docs_root: Path) -> list[Path]:
@@ -478,6 +531,14 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--prune",
+        action="store_true",
+        help=(
+            "Also remove era-table rows whose ADR file no longer exists (renamed or "
+            "deleted); with --check, report them without writing."
+        ),
+    )
+    parser.add_argument(
         "--repo-root",
         type=Path,
         default=Path.cwd(),
@@ -537,6 +598,7 @@ def main(argv: list[str] | None = None) -> int:
     docs_root: Path = args.docs_root if args.docs_root is not None else repo_root / "docs"
 
     try:
+        pruned = prune_dangling_rows(docs_root, check=args.check) if args.prune else []
         targets = _resolve_targets(args, docs_root)
         result = freshen(
             targets, docs_root=docs_root, repo_root=repo_root, check=args.check
@@ -545,7 +607,11 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(f"error: {exc}\n")
         return 2
 
-    return _emit_check(result) if args.check else _emit_write(result)
+    label = "ADR-README-ROW-DANGLING" if args.check else "README-ROW-PRUNED"
+    for row in pruned:
+        sys.stdout.write(f"{label} {row}\n")
+    exit_code = _emit_check(result) if args.check else _emit_write(result)
+    return 1 if (args.check and pruned) else exit_code
 
 
 if __name__ == "__main__":  # pragma: no cover - module-level CLI guard
