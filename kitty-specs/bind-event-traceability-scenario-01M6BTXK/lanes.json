@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "bind-event-traceability-scenario-01M6BTXK",
+  "mission_id": "01M6BTXKVTB45DG7Z1QDF4S91Q",
+  "mission_branch": "issue-6260-bind-event-traceability-scenario",
+  "target_branch": "issue-6260-bind-event-traceability-scenario",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "acceptance-jvm/src/test/java/kitty/acceptance/environment/MissionLifecycle.java",
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/ActSteps.java",
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/ArrangeSteps.java",
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/AssertSteps.java",
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/testing/acceptance-scenarios.md",
+        "tests/scenarios/README.md",
+        "tests/scenarios/status/event-traceability.feature"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:20:47.391838+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9da6a88cd4dbc3a92819b8c53de6e6831938a49c"
+}
