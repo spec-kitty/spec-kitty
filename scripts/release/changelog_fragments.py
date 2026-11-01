@@ -29,7 +29,6 @@ Standard library only.
 from __future__ import annotations
 
 import argparse
-import datetime as dt
 import re
 import sys
 from collections.abc import Sequence
@@ -37,6 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from kernel.clock import now_utc
 from scripts.release.validate_release import unreleased_section
 
 REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
@@ -272,7 +272,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         section = unreleased_section(assembled)
         print("\n".join(section.lines) if section is not None else assembled)
         return 0
-    today = args.today or dt.date.today().isoformat()
+    today = args.today or now_utc().date().isoformat()
     args.changelog.write_text(_set_updated(assembled, today) if fragments else assembled, encoding="utf-8")
     for fragment in fragments:
         fragment.path.unlink()
