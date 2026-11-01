@@ -100,7 +100,7 @@ class PreparedYamlWrite:
     mode: int
     observations: tuple[_YamlInput, ...]
     absent_parents: tuple[Path, ...]
-    section: str
+    section: str  # a multi-section write records a comma-joined label, e.g. "catalog,metadata"
     desired_sha256: str
     kind: str = "file"
     _receipt: _YamlWriteReceipt | None = field(default=None, init=False, compare=False, repr=False)
