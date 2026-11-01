@@ -4,8 +4,8 @@
 #   command that fixes it.
 # - The charter is built only through the CLI (`charter interview --defaults`, `charter generate`,
 #   `charter synthesize`); nothing under .kittify/ is written by the scenario.
-# - Reported paths are checked by file name only: on Windows the JSON envelope spells them with
-#   backslashes (#6277). The files themselves are checked on disk.
+# - Reported repository-relative paths are POSIX on every platform, so the scenario asserts the
+#   full `.kittify/...` spelling the envelope reports (#6277) as well as the files on disk.
 # - Absorbs tests/integration/test_charter_synthesize_fresh.py (fresh seed, dry run, re-run, no
 #   charter), tests/integration/test_charter_status_freshness.py (the freshness shape, synthesis
 #   missing) and tests/integration/test_quickstart_end_to_end.py (steps 1, 3 and 5); see
@@ -26,8 +26,8 @@ Feature: Govern a project with a charter
     Then the command succeeds
     And the JSON field "result" of the output is "success"
     And the JSON field "mode" of the output is "fresh_project_seed"
-    And the output mentions "PROVENANCE.md"
-    And the output mentions "synthesis-manifest.yaml"
+    And the output mentions ".kittify/charter-packs/PROVENANCE.md"
+    And the output mentions ".kittify/charter/synthesis-manifest.yaml"
     And the JSON field "kind" of the output is "seed"
     And the output does not mention "PROJECT_000"
     And the file ".kittify/charter-packs/PROVENANCE.md" exists
@@ -40,8 +40,8 @@ Feature: Govern a project with a charter
     Then the command succeeds
     And the JSON field "result" of the output is "dry_run"
     And the JSON field "mode" of the output is "fresh_project_seed_dry_run"
-    And the output mentions "PROVENANCE.md"
-    And the output mentions "synthesis-manifest.yaml"
+    And the output mentions ".kittify/charter-packs/PROVENANCE.md"
+    And the output mentions ".kittify/charter/synthesis-manifest.yaml"
     And no "charter-packs" folder exists in ".kittify"
 
   Scenario: Synthesizing again changes nothing
