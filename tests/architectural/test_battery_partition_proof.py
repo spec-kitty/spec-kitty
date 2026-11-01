@@ -53,6 +53,8 @@ _MAX_REPORTED: Final = 10
 _STRING_LITERAL: Final = re.compile(r"'[^']*'|\"[^\"]*\"")
 _CONTEXT_REF: Final = re.compile(r"[A-Za-z_][\w-]*(?:\.[\w-]+)*(?:\(\))?")
 _FORK_GUARD_REFS: Final = frozenset({"github.repository", "github.event_name", "always()", "cancelled()", "true", "false"})
+#: The ``pr:pause-ci`` operator off-switch (#6961) pauses every lane alike, so it does not make one lane conditional.
+_PAUSE_GUARD: Final = "!contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')"
 
 FilesOf = Callable[[gc.Gate], frozenset[str]]
 
@@ -97,7 +99,7 @@ def _is_fork_guard_only(condition: object) -> bool:
     Any other context reference (``needs.*``, ``inputs.*``, ``github.event.*``, ``steps.*`` ...)
     makes the job conditional, so its files are not owned unconditionally.
     """
-    text = str(condition or "")
+    text = str(condition or "").replace(_PAUSE_GUARD, "true")
     refs = _CONTEXT_REF.findall(_STRING_LITERAL.sub("''", text.replace("${{", " ").replace("}}", " ")))
     return all(ref in _FORK_GUARD_REFS for ref in refs)
 
@@ -357,6 +359,8 @@ def test_always_on_lanes_exclude_code_scoped_partitioned_and_directory_gates(tmp
         ("github.event.pull_request.draft == false", False),
         ("github.repository == 'o/r' && steps.probe.outputs.ok == 'true'", False),
         ("github.event_name == 'needs.changes'", True),
+        ("${{ github.repository == 'o/r' && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}", True),
+        ("!contains(github.event.pull_request.labels.*.name, 'pr:skip-ci')", False),
     ],
 )
 def test_fork_guard_only_shape(condition: str | None, expected: bool) -> None:
