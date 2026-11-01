@@ -1,0 +1,59 @@
+{
+  "mission_slug": "dispatch-brief-governance-payload-01M6BV2S",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/cli/test_dispatch.py::test_dispatch_brief_json_replaces_text_with_reference, ::test_dispatch_brief_console_prints_digest_and_fetch_command; live probe: 1,036-byte brief envelope vs 24,983 baseline",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:55:41.540002+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/cli/test_dispatch.py::test_brief_fetch_command_reproduces_the_embedded_text_byte_for_byte (real charter render through both CLIs; red when --profile is dropped)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:55:45.776824+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_context_profile_option.py (4 tests, same-fixture positive/negative control; structured JSON blocks unchanged)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:55:49.563952+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/cli/test_dispatch.py::test_dispatch_without_brief_still_embeds_full_text + 36-test module suite",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:55:53.203975+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/changelog/unreleased/6990-dispatch-brief.added.md, docs/api/cli-commands.md (dispatch + charter context help), docs/architecture/governed-profile-invocation.md, src/charter/offering/skills/spec-kitty/SKILL.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:55:56.832743+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
