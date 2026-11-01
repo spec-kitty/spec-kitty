@@ -1,6 +1,6 @@
 """The golden-honesty test of the Mission Status API conformance gate (spec FR-008 (ii), AC-8a/8b/8d, AC-5d, AC-1f, AC-6e).
 
-The committed goldens under ``services/mission-status-api/src/test/resources/conformance/`` must equal live output of the Python
+The goldens under ``conformance/`` of the pinned ``conformance-fixtures`` asset (spec-kitty-events, ``make sync-services``) must equal live output of the Python
 reference helpers, byte for byte. Every fixture is provisioned into a temporary directory (a git repository only where the class
 needs one) by ``_mission_status_conformance``; nothing reads the committed trees in place.
 
@@ -31,11 +31,14 @@ from specify_cli.status.tail_reader import ResumeRefused, validate_resume_cursor
 from tests.contract import _mission_status_conformance as gen
 from tests.contract import _mission_status_payloads as payloads
 from tests.contract import _mission_status_project as project
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.corpus, pytest.mark.git_repo]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CONFORMANCE = REPO_ROOT / gen.CONFORMANCE_DIR
+#: The pinned ``conformance-fixtures`` asset of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+FIXTURES_ROOT = expected_extra_root("fixtures")
+CONFORMANCE = FIXTURES_ROOT / gen.CONFORMANCE_DIR
 LEDGER = "status.events.jsonl"
 MISSIONS = gen.MISSIONS_GOLDEN
 PROJECT = gen.PROJECT_GOLDEN
@@ -80,6 +83,12 @@ CANARY_PREFIX = "CANARY-NOT-A-SECRET-"
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_fixtures() -> Path:
+    """Fail closed (never skip) before any test reads the pinned fixtures: ``make sync-services`` fetches them."""
+    return require_pinned_extra("fixtures")
+
+
 @pytest.fixture(scope="module")
 def tools() -> Iterator[payloads.ContractTools]:
     with pytest.MonkeyPatch.context() as patch:
@@ -115,8 +124,8 @@ def goldens_in(fixtures: list[gen.Fixture], tag: str) -> dict[str, dict[str, Any
 def copy_conformance(target: Path) -> Path:
     """A scratch repository root holding a copy of the conformance tree and of leak-patterns.json."""
     shutil.copytree(CONFORMANCE, target / gen.CONFORMANCE_DIR)
-    (target / gen.LEAK_PATTERNS_FILE).parent.mkdir(parents=True)
-    shutil.copyfile(REPO_ROOT / gen.LEAK_PATTERNS_FILE, target / gen.LEAK_PATTERNS_FILE)
+    (target / gen.LEAK_PATTERNS_FILE).parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(FIXTURES_ROOT / gen.LEAK_PATTERNS_FILE, target / gen.LEAK_PATTERNS_FILE)
     return target
 
 
@@ -313,7 +322,7 @@ def test_a_head_text_that_disagrees_with_the_installed_head_turns_the_assertion_
 
 
 def test_every_generated_file_equals_the_committed_file_byte_for_byte(generated: dict[Path, bytes]) -> None:
-    assert gen.differences(REPO_ROOT, generated) == []
+    assert gen.differences(FIXTURES_ROOT, generated) == []
 
 
 def test_every_non_java_only_fixture_has_exactly_its_goldens(fixtures: list[gen.Fixture]) -> None:
@@ -768,7 +777,7 @@ def test_a_wrong_expected_class_is_caught_by_the_resolver_table() -> None:
 
 def test_the_manifest_records_the_leak_patterns_file_by_sha256_and_the_python_verdict_of_each_probe(tools: payloads.ContractTools) -> None:
     manifest = json.loads((CONFORMANCE / gen.MANIFEST_NAME).read_text(encoding="utf-8"))
-    committed = (REPO_ROOT / gen.LEAK_PATTERNS_FILE).read_bytes()
+    committed = (FIXTURES_ROOT / gen.LEAK_PATTERNS_FILE).read_bytes()
     assert manifest["leakPatternsSha256"] == gen.file_digest(committed)
     assert committed == gen.leak_patterns_bytes(tools)
     assert manifest["patternProbes"] == gen.pattern_probes(tools)
@@ -779,7 +788,7 @@ def test_the_manifest_records_the_leak_patterns_file_by_sha256_and_the_python_ve
 
 def test_the_python_only_regex_divergence_is_recorded_not_rewritten(tools: payloads.ContractTools) -> None:
     manifest = json.loads((CONFORMANCE / gen.MANIFEST_NAME).read_text(encoding="utf-8"))
-    document = json.loads((REPO_ROOT / gen.LEAK_PATTERNS_FILE).read_text(encoding="utf-8"))
+    document = json.loads((FIXTURES_ROOT / gen.LEAK_PATTERNS_FILE).read_text(encoding="utf-8"))
     recorded = {entry["id"] for entry in manifest["patternDivergences"]}
     assert recorded, "the Unicode-aware classes of the Python patterns are a recorded divergence"
     sources = {entry["id"]: entry["pattern"] for entry in document["patterns"]}

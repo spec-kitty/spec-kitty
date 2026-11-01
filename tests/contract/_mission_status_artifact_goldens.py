@@ -1,8 +1,8 @@
 """The golden generator of the artifact conformance gate (mission mission-status-artifact-reads, #957).
 
-The Java service (``services/mission-status-api``) serves ``listArtifacts`` and ``getArtifactContent`` and must answer exactly as the
-Python reference reader (``_mission_status_artifacts.py``) does. The shared cases live in
-``services/mission-status-api/src/test/resources/artifact-conformance/cases.json``: each case is a project tree described as data
+The Java service (spec-kitty-events ``service/``) serves ``listArtifacts`` and ``getArtifactContent`` and must answer exactly as the
+Python reference reader (``_mission_status_artifacts.py``) does. The shared cases live in ``artifact-conformance/cases.json`` of
+the pinned ``conformance-fixtures`` release asset (``pins/read-service.source.yaml``; ``make sync-services``): each case is a project tree described as data
 (text, base64, a repeated byte, parts joined at materialization time, a generated run of files, a directory or a symbolic link) and a
 list of requests. This module materializes each tree into a temporary directory, runs the reference over every request and writes
 what it answers to ``golden.json`` in the same directory. It is not a second oracle: every answer is the reference's own.
@@ -13,8 +13,11 @@ UTF-8 bytes, so the golden file stays small; the Java side computes the same dig
 
 Run from the repository root::
 
-    .venv/bin/python -m tests.contract._mission_status_artifact_goldens --write
     .venv/bin/python -m tests.contract._mission_status_artifact_goldens --check
+    .venv/bin/python -m tests.contract._mission_status_artifact_goldens --write --root <fixtures tree>
+
+``--check`` reads the pinned asset. The pinned cache is read-only, so ``--write`` writes ``artifact-conformance/golden.json``
+under ``--root`` (a spec-kitty-events checkout, which publishes it in its next ``service-v*`` release).
 """
 
 from __future__ import annotations
@@ -35,9 +38,11 @@ import pytest
 
 from tests.contract import _mission_status_artifacts as reference
 from tests.contract._mission_status_payloads import load_contract_tools
+from tests.pinned_service_assets import expected_extra_root
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CONFORMANCE_DIR = REPO_ROOT / "services" / "mission-status-api" / "src" / "test" / "resources" / "artifact-conformance"
+ARTIFACT_CONFORMANCE = Path("artifact-conformance")
+CONFORMANCE_DIR = expected_extra_root("fixtures") / ARTIFACT_CONFORMANCE
 CASES_FILE = CONFORMANCE_DIR / "cases.json"
 GOLDEN_FILE = CONFORMANCE_DIR / "golden.json"
 MODIFIED_AT_MARKER = "<modifiedAt>"
@@ -142,16 +147,26 @@ def render(goldens: Mapping[str, Any]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Write or check the artifact conformance goldens.")
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--write", action="store_true", help="write golden.json")
+    mode.add_argument("--write", action="store_true", help="write artifact-conformance/golden.json under --root")
     mode.add_argument("--check", action="store_true", help="compare golden.json with the reference and write nothing")
+    parser.add_argument("--root", type=Path, default=None, help="fixtures tree (default: the pinned conformance-fixtures; required with --write)")
     args = parser.parse_args(argv)
-    text = render(build_goldens(load_cases()))
+    if args.write and args.root is None:
+        parser.error("--write needs --root: the pinned fixtures are read-only")
+    if args.root is None:
+        from tests.pinned_service_assets import pinned_extra
+
+        pinned_extra("fixtures")  # fail closed with the SERVICE_* code and the remedy, like the conformance generator
+    cases_file, golden_file = (
+        (CASES_FILE, GOLDEN_FILE) if args.root is None else (args.root / ARTIFACT_CONFORMANCE / "cases.json", args.root / ARTIFACT_CONFORMANCE / "golden.json")
+    )
+    text = render(build_goldens(load_cases(cases_file)))
     if args.write:
-        GOLDEN_FILE.write_text(text, encoding="utf-8")
+        golden_file.write_text(text, encoding="utf-8")
         return 0
-    current = GOLDEN_FILE.read_text(encoding="utf-8") if GOLDEN_FILE.exists() else ""
+    current = golden_file.read_text(encoding="utf-8") if golden_file.exists() else ""
     if current != text:
-        sys.stderr.write("golden.json is not what the reference answers; run --write\n")
+        sys.stderr.write("golden.json is not what the reference answers; regenerate it with --write --root in spec-kitty-events\n")
         return 1
     return 0
 

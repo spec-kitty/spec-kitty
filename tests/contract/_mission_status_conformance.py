@@ -1,16 +1,20 @@
 """The golden generator of the Mission Status API conformance gate (spec FR-008, plan section 1 "Python additions").
 
-The goldens under ``services/mission-status-api/src/test/resources/conformance/`` are live output of the Python reference
+The goldens under ``conformance/`` of spec-kitty-events' ``conformance-fixtures`` release asset (pinned in
+``pins/read-service.source.yaml``; ``tests/pinned_service_assets.py`` reads it) are live output of the Python reference
 helpers (``_mission_status_payloads.py`` and ``_mission_status_project.py``), written in one canonical form. This module is
 not a second oracle: it provisions each committed fixture tree into a temporary directory, calls those helpers and writes
 what they answer.
 
 Run from the repository root::
 
-    .venv/bin/python -m tests.contract._mission_status_conformance --write
     .venv/bin/python -m tests.contract._mission_status_conformance --check
+    .venv/bin/python -m tests.contract._mission_status_conformance --write --root <fixtures tree>
 
-``--write`` writes the goldens, ``manifest.json`` and ``leak-patterns.json``; ``--check`` compares and writes nothing.
+``--check`` compares the pinned fixtures (``make sync-services`` first) with what the reference answers and writes nothing.
+``--write`` writes the goldens, ``manifest.json`` and ``leak-patterns.json`` into the tree named by ``--root``, in the
+asset's layout (``conformance/``, ``leak-patterns.json``): the pinned cache is read-only, so goldens are regenerated in a
+spec-kitty-events checkout, which publishes them in its next ``service-v*`` release (ADR 2026-10-29-1).
 
 Provisioning (plan section 1). A committed fixture tree has no ``.git``. A fixture that needs git gets a fresh temporary
 repository (one commit of the primary tree; for a coordination Mission a coordination branch and a worktree registered at the
@@ -48,8 +52,9 @@ from tests.contract import _mission_status_project as project
 from tests.contract._mission_status_memo import ResolverMemo
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CONFORMANCE_DIR = Path("services") / "mission-status-api" / "src" / "test" / "resources" / "conformance"
-LEAK_PATTERNS_FILE = Path("services") / "mission-status-api" / "src" / "main" / "resources" / "leak-patterns.json"
+#: Paths relative to the root of the ``conformance-fixtures`` asset (or of a ``--write --root`` tree).
+CONFORMANCE_DIR = Path("conformance")
+LEAK_PATTERNS_FILE = Path("leak-patterns.json")
 MANIFEST_NAME = "manifest.json"
 RESOLVER_CASES_NAME = "resolver-cases.json"
 GOLDEN_DIR = "golden"
@@ -718,7 +723,7 @@ def resolver_case_ids(conformance: Path) -> list[str]:
 
 
 def generate(conformance: Path, tools: payloads.ContractTools, *, date: str = DEFAULT_GIT_DATE) -> dict[Path, bytes]:
-    """Every generated file, as ``path relative to the repository root`` -> bytes; reads the fixture trees, writes nothing."""
+    """Every generated file, as ``path relative to the fixtures root`` -> bytes; reads the fixture trees, writes nothing."""
     fixtures = discover_fixtures(conformance)
     out: dict[Path, bytes] = {}
     for fixture in fixtures:
@@ -733,7 +738,7 @@ def generate(conformance: Path, tools: payloads.ContractTools, *, date: str = DE
 
 
 def stale_goldens(repo_root: Path, generated: Mapping[Path, bytes]) -> list[Path]:
-    """Golden files below ``repo_root`` that the generator no longer produces."""
+    """Golden files below the fixtures root ``repo_root`` that the generator no longer produces."""
     expected = {repo_root / path for path in generated}
     return sorted(path for path in (repo_root / CONFORMANCE_DIR).glob(f"*/*/{GOLDEN_DIR}/*.json") if path not in expected)
 
@@ -762,21 +767,31 @@ def write_all(repo_root: Path, generated: Mapping[Path, bytes]) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     mode = parser.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--write", action="store_true", help="write the goldens, manifest.json and leak-patterns.json")
-    mode.add_argument("--check", action="store_true", help="compare with the committed files and write nothing")
+    mode.add_argument("--write", action="store_true", help="write the goldens, manifest.json and leak-patterns.json into --root")
+    mode.add_argument("--check", action="store_true", help="compare with the fixtures and write nothing")
+    parser.add_argument("--root", type=Path, default=None, help="fixtures tree (default: the pinned conformance-fixtures; required with --write)")
     arguments = parser.parse_args(argv)
+    if arguments.write and arguments.root is None:
+        parser.error("--write needs --root: the pinned fixtures are read-only")
+    root = arguments.root if arguments.root is not None else _pinned_fixtures_root()
     with pytest.MonkeyPatch.context() as patch:
         tools = payloads.load_contract_tools(patch, REPO_ROOT)
-        generated = generate(REPO_ROOT / CONFORMANCE_DIR, tools)
+        generated = generate(root / CONFORMANCE_DIR, tools)
     if arguments.write:
-        write_all(REPO_ROOT, generated)
+        write_all(root, generated)
         print(f"wrote {len(generated)} files")
         return 0
-    problems = differences(REPO_ROOT, generated)
+    problems = differences(root, generated)
     for problem in problems:
         print(problem)
     print(f"checked {len(generated)} files: {len(problems)} differences")
     return 1 if problems else 0
+
+
+def _pinned_fixtures_root() -> Path:
+    from tests.pinned_service_assets import conformance_fixtures_root
+
+    return conformance_fixtures_root()
 
 
 if __name__ == "__main__":
