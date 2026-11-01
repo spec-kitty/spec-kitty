@@ -631,7 +631,7 @@
    }
   },
   "doctor": {
-   "help": "Project health diagnostics",
+   "help": "Project health diagnostics; a bare invocation runs the default check set",
    "hidden": false,
    "deprecated": false,
    "commands": {
