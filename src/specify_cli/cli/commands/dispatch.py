@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Annotated, NoReturn
 
 import typer
 from specify_cli.cli.console import console
+from rich.markup import escape
 from rich.panel import Panel
 
 if TYPE_CHECKING:
@@ -48,7 +49,6 @@ from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter
 from specify_cli.task_utils import find_repo_root
-
 
 
 def _get_repo_root() -> Path:
@@ -249,39 +249,98 @@ def render_open_hint_task_execution(payload: InvocationPayload) -> None:
     console.print("[dim]Unclosed Ops are reported by `spec-kitty doctor ops` and swept to 'abandoned' when stale.[/dim]")
 
 
-def _emit_routing_error_and_exit(e: RouterAmbiguityError) -> NoReturn:
-    """Build and emit the one exit-1 structured routing-error JSON shape.
+def _routing_error_payload(
+    error_code: str,
+    message: str,
+    candidates: list[dict[str, str]],
+    suggestion: str,
+) -> dict[str, object]:
+    """The one exit-1 ``routing_failed`` envelope shape (FR-008).
 
-    Shared by both the invoke()-path handler and the dry-run-path's non-
-    ROUTER_AMBIGUOUS branch (extracted so the two never hand-duplicate this
-    construction and silently drift apart).
+    The five keys are contractual: ``--json`` consumers already parse them, so
+    neither the key set nor the values may change with #6970.
     """
-    error_obj = {
+    return {
         "error": "routing_failed",
-        "error_code": e.error_code,
-        "message": str(e),
-        "candidates": e.candidates,
-        "suggestion": e.suggestion,
+        "error_code": error_code,
+        "message": message,
+        "candidates": candidates,
+        "suggestion": suggestion,
     }
-    typer.echo(json.dumps(error_obj), err=True)
-    raise typer.Exit(1) from e
 
 
-def profile_not_found_routing(error: ProfileNotFoundError) -> None:
-    """Emit structured routing error JSON, then exit 1."""
-    typer.echo(
-        json.dumps(
-            {
-                "error": "routing_failed",
-                "error_code": "PROFILE_NOT_FOUND",
-                "message": str(error),
-                "candidates": [],
-                "suggestion": "Run 'spec-kitty profiles list' to see available profiles.",
-            }
-        ),
-        err=True,
+def _render_routing_refusal(
+    error_code: str,
+    candidates: list[dict[str, str]],
+    suggestion: str,
+) -> None:
+    """Human-readable refusal (FR-007): the code, each candidate, and the remedy.
+
+    The router owns the decision (C-004) -- this only prints ``e.error_code``,
+    ``e.candidates`` and ``e.suggestion``; it never re-ranks or re-derives a
+    suggestion. Every interpolated value is escaped because the suggestion
+    embeds the caller's request text, which rich would otherwise read as markup.
+    """
+    console.print(f"[bold red]Dispatch refused:[/bold red] {escape(error_code)}")
+    if candidates:
+        console.print(f"[bold]Candidates ({len(candidates)}):[/bold]")
+        for candidate in candidates:
+            profile_id = escape(str(candidate.get("profile_id", "")))
+            action = escape(str(candidate.get("action", "")))
+            reason = escape(str(candidate.get("match_reason", "")))
+            line = f"  - {profile_id} ({action})"
+            if reason:
+                line += f" — {reason}"
+            console.print(line)
+    # ``soft_wrap`` keeps the runnable ``--profile <id>`` command on one line so it
+    # stays copy-pasteable instead of being broken mid-id by the console width.
+    console.print(f"[bold]Remedy:[/bold] {escape(suggestion)}", soft_wrap=True)
+
+
+def _exit_routing_refusal(
+    error_code: str,
+    message: str,
+    candidates: list[dict[str, str]],
+    suggestion: str,
+    *,
+    json_output: bool,
+    cause: BaseException,
+) -> NoReturn:
+    """Emit a refused dispatch in the requested dialect, then exit 1.
+
+    One seam for all three refusal paths (dry-run no-match, real-path routing
+    error, unknown ``--profile``) so the ``--json`` envelope and the console
+    rendering cannot drift apart (FR-007, FR-008).
+    """
+    if json_output:
+        typer.echo(json.dumps(_routing_error_payload(error_code, message, candidates, suggestion)), err=True)
+    else:
+        _render_routing_refusal(error_code, candidates, suggestion)
+    raise typer.Exit(1) from cause
+
+
+def _emit_routing_error_and_exit(e: RouterAmbiguityError, *, json_output: bool) -> NoReturn:
+    """Emit one ``RouterAmbiguityError`` as a refusal, then exit 1."""
+    _exit_routing_refusal(
+        e.error_code,
+        str(e),
+        e.candidates,
+        e.suggestion,
+        json_output=json_output,
+        cause=e,
     )
-    raise typer.Exit(1) from error
+
+
+def profile_not_found_routing(error: ProfileNotFoundError, *, json_output: bool) -> None:
+    """Emit the unknown-``--profile`` refusal, then exit 1."""
+    _exit_routing_refusal(
+        "PROFILE_NOT_FOUND",
+        str(error),
+        [],
+        "Run 'spec-kitty profiles list' to see available profiles.",
+        json_output=json_output,
+        cause=error,
+    )
 
 
 def _dispatch_impl(
@@ -321,9 +380,8 @@ def _dispatch_impl(
                 else:
                     _render_dry_run_ambiguous_rich(ambiguous_payload)
                 return
-            # ROUTER_NO_MATCH: "no partial signal worth reporting" — same
-            # exit-1 shape real dispatch already produces.
-            _emit_routing_error_and_exit(e)
+            # ROUTER_NO_MATCH: same exit-1 refusal real dispatch produces.
+            _emit_routing_error_and_exit(e, json_output=json_output)
         except ProfileNotFoundError as e:
             # LIVE branch: the executor's explicit-hint path calls
             # registry.resolve(profile_hint) directly (NOT via route()), so a
@@ -331,7 +389,7 @@ def _dispatch_impl(
             # Guarded by test_dry_run_unknown_profile_still_raises. (route()
             # runs only on the no-hint branch, where a miss surfaces as
             # RouterAmbiguityError(error_code="PROFILE_NOT_FOUND") instead.)
-            profile_not_found_routing(e)
+            profile_not_found_routing(e, json_output=json_output)
             return  # pragma: no cover — handler always raises typer.Exit
         except (NotInsideRepositoryError, GitCommonDirUnavailableError) as e:
             # #4123: the real (unmocked) routing/context resolution shells out
@@ -350,9 +408,9 @@ def _dispatch_impl(
     except OpWriteRefused as e:
         exit_op_write_refused(e, json_output=json_output)
     except RouterAmbiguityError as e:
-        _emit_routing_error_and_exit(e)
+        _emit_routing_error_and_exit(e, json_output=json_output)
     except ProfileNotFoundError as e:
-        profile_not_found_routing(e)
+        profile_not_found_routing(e, json_output=json_output)
         return  # pragma: no cover — handler always raises typer.Exit
     except InvocationWriteError as e:
         typer.echo(json.dumps({"error": "write_failed", "message": str(e)}), err=True)
