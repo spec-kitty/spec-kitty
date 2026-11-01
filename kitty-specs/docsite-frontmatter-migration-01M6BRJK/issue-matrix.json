@@ -12,6 +12,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6902": {
+      "evidence_ref": "Open PR cited as a collision; no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6927": {
       "evidence_ref": "Parallel session owns it (ledgers / dual-index folders); this Mission only avoids its files",
       "fr": null,
