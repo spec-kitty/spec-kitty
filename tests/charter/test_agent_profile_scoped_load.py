@@ -253,3 +253,42 @@ def test_light_builder_matches_the_charter_service_accessor() -> None:
     assert light == through_service
     assert light[_HIC_ID] is True
     assert light["no-such-profile"] is False
+
+
+# --------------------------------------------------------------------------- #
+# Fail-closed: a config the activation-aware build rejects is rejected here too
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    ("config_text", "label"),
+    [
+        ("charter: [unclosed\n", "malformed-yaml"),
+        ("activated_agent_profiles: 12\n", "invalid-activation-key"),
+        ("charter: .kittify/does-not-exist.yaml\n", "dangling-charter-pointer"),
+    ],
+)
+def test_light_builder_rejects_a_config_the_service_path_rejects(
+    tmp_path: Path, config_text: str, label: str
+) -> None:
+    """The scoped read is lenient in *what it reads*, never in what it validates.
+
+    The layer resolution logs and skips an unreadable config; that would turn a
+    broken project into a successful markerless render, so the builder validates
+    the file through ``PackContext.from_config`` first and raises the same error
+    the activation-aware builder raises.
+    """
+    from charter.activation.active_charter_service_builder import (
+        build_active_charter_service,
+        build_agent_profile_sentinels,
+    )
+    from charter.activation.pack_context import ActiveCharterConfigError
+
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text(config_text, encoding="utf-8")
+
+    with pytest.raises(ActiveCharterConfigError):
+        build_agent_profile_sentinels(tmp_path, [_HIC_ID])
+    with pytest.raises(ActiveCharterConfigError):
+        build_active_charter_service(tmp_path)
+    assert label

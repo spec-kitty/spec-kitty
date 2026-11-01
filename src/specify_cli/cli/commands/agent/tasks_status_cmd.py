@@ -937,11 +937,15 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             # Genuinely-absent-module case only: ``charter`` is first-party
             # and ships in the same wheel, so this can only fire under a
             # broken/partial install. Any other failure here -- most
-            # notably the charter configuration error the builder's layer
-            # resolution raises for a malformed ``.kittify/config.yaml`` --
+            # notably the charter configuration error the builder raises for a
+            # malformed or invalid ``.kittify/config.yaml`` --
             # MUST propagate to ``_do_status``'s outer ``except Exception``
             # handler and surface as a structured error (FR-002's fail-closed
             # contract), not degrade this dashboard to a markerless render.
+            # The builder validates ``.kittify/config.yaml`` through the charter
+            # configuration authority before it reads any layer, so an unreadable
+            # or invalid config raises here exactly as the activation-aware
+            # service build did.
             sentinels = None
 
     for wp in by_lane[Lane.IN_PROGRESS]:
