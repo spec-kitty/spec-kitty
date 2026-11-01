@@ -295,10 +295,7 @@ _BRIEF_FULL_TEXT = "compact governance context"
 
 def _brief_fetch_command(envelope: dict[str, Any]) -> str:
     """The exact command the brief reference prints, built from the envelope."""
-    return (
-        f"spec-kitty charter context --action {envelope['action']} "
-        f"--profile {envelope['profile_id']} --json --no-mark-loaded"
-    )
+    return f"spec-kitty charter context --action {envelope['action']} --profile {envelope['profile_id']} --json --no-mark-loaded"
 
 
 def test_dispatch_brief_json_replaces_text_with_reference(tmp_path: Path) -> None:
@@ -1070,12 +1067,8 @@ def test_brief_fetch_command_reproduces_the_embedded_text_byte_for_byte(tmp_path
         patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
-        full = json.loads(
-            runner.invoke(cli_app, ["dispatch", request, "--profile", profile, "--dry-run", "--json"]).output
-        )
-        brief = json.loads(
-            runner.invoke(cli_app, ["dispatch", request, "--profile", profile, "--dry-run", "--json", "--brief"]).output
-        )
+        full = json.loads(runner.invoke(cli_app, ["dispatch", request, "--profile", profile, "--dry-run", "--json"]).output)
+        brief = json.loads(runner.invoke(cli_app, ["dispatch", request, "--profile", profile, "--dry-run", "--json", "--brief"]).output)
         fetch_command = str(brief["governance_context_reference"]["fetch_command"])
         # The profile is what makes the fetched text the omitted text.
         assert "--profile" in fetch_command
