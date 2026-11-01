@@ -29,6 +29,29 @@ offering itself is unaware of any consumer.
 **Dependency direction:** nothing in this package imports from the `charter`
 facades, `charter.activation` or `specify_cli`.
 
+## Public contract surface
+
+The offering publishes one **in-process Python contract**, not an HTTP surface. It is
+enumerated in `charter.offering.api.__all__` and fronted by the charter facades
+(`charter.drg`, `charter.assets`, `charter.model_routing`, `charter.languages`) that
+re-export those objects by identity.
+
+The frozen census is
+[`tests/architectural/charter_offering_public_surface.yaml`](../../../tests/architectural/charter_offering_public_surface.yaml).
+Per symbol it records the module the api imports it from, its disposition, the facades
+that front it, its contract kind, today's hand-written type and signature, and the
+`spec-kitty-charter` ADR-0004 generated-DTO direction (today's types are transitional;
+#6218 tracks the ADR alignment). It also classifies every path a runtime consumer
+reaches and asserts the public-contract delta is empty.
+
+To change the surface, edit `api.py` and the census in the same change, then run
+`tests/architectural/test_charter_offering_public_surface.py`. Paths that are reached
+but deliberately not on the surface (FACADE-ONLY, the ticketed no-door baseline,
+construction through `charter.offering.service`, package metadata) are named in the
+census and are not part of the contract. A symbol a consumer needs but the surface
+does not carry goes to `public_contract_delta` for operator approval — never a silent
+widening.
+
 ## Authoring pipeline
 
 New artifacts are authored at `<type>/<pack>/[<category>/]<name>.<kind>.yaml` —
