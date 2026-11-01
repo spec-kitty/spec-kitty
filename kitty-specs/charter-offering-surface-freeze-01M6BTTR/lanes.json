@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "charter-offering-surface-freeze-01M6BTTR",
+  "mission_id": "01M6BTTR4SQZ6AWY9G8TS4Y0V5",
+  "mission_branch": "kitty/mission-charter-offering-surface-freeze-01M6BTTR",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/offering/README.md",
+        "src/charter/offering/api.py",
+        "tests/architectural/charter_offering_public_surface.yaml",
+        "tests/architectural/test_charter_offering_public_surface.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:29:18.749424+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "287a226cfe27b32da8fedc8eb598e2c09b5731e8"
+}

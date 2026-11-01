@@ -1,0 +1,33 @@
+{
+  "accept_commit": "d6e21065fc66ace8d564b92c8e970343ceb98807",
+  "acceptance_history": [
+    {
+      "accept_commit": "d6e21065fc66ace8d564b92c8e970343ceb98807",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:51:09.246246+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "f37a278830d0c7595eea6dc6a8c79bb37622a6ff"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:51:09.246246+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "f37a278830d0c7595eea6dc6a8c79bb37622a6ff",
+  "baseline_merge_commit": "287a226cfe27b32da8fedc8eb598e2c09b5731e8",
+  "created_at": "2026-11-01T15:14:44.740959+00:00",
+  "flattened": false,
+  "friendly_name": "charter offering surface freeze",
+  "merged_at": "2026-11-01T17:52:19.443652+00:00",
+  "merged_commit": "118768be75ffa023b35b534c6e56b8afc9798f74",
+  "mid8": "01M6BTTR",
+  "mission_id": "01M6BTTR4SQZ6AWY9G8TS4Y0V5",
+  "mission_number": 246,
+  "mission_slug": "charter-offering-surface-freeze-01M6BTTR",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter offering surface freeze on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter offering surface freeze",
+  "slug": "charter-offering-surface-freeze-01M6BTTR",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
