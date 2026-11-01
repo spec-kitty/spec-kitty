@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "mission_slug": "retrospect-synthesize-generator-proposals-01M68ZKX",
+  "mission_id": "01M68ZKX1DCY9S7NM80G0YQFKY",
+  "mission_branch": "kitty/mission-retrospect-synthesize-generator-proposals-01M68ZKX",
+  "target_branch": "issue-6385-retrospect-synthesize-generator-proposals",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/retrospective/reader.py",
+        "src/specify_cli/retrospective/schema.py",
+        "src/specify_cli/retrospective/writer.py",
+        "tests/retrospective/test_generator_proposal_payload.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/retrospective/generator_proposals.py",
+        "tests/retrospective/test_generator_proposals.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent_retrospect.py",
+        "src/specify_cli/cli/commands/retrospect.py",
+        "tests/cli/commands/test_retrospect.py",
+        "tests/cli/test_agent_retrospect_synthesize.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/api/retrospective-schema.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/governance/use-retrospective-learning.md",
+        "kitty-specs/retrospective-default-policy-01KS049J/contracts/retrospective-record.schema.json"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-31T12:46:20.441949+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "0cd4a02ad6b9473b570f580dee0e8df450b9dbbe"
+}

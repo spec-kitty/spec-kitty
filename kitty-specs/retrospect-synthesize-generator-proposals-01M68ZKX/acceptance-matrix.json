@@ -1,0 +1,79 @@
+{
+  "mission_slug": "retrospect-synthesize-generator-proposals-01M68ZKX",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/retrospective/test_generator_proposal_payload.py::test_payload_survives_round_trip",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T14:17:45.518580+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_agent_retrospect_synthesize.py::test_generator_record_payload_proposal_is_planned",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T14:17:49.890697+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/retrospective/test_generator_proposals.py::test_ids_are_stable_across_runs",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T14:17:53.873070+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_agent_retrospect_synthesize.py::test_generator_record_untranslatable_proposal_is_named",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T14:17:58.008123+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_agent_retrospect_synthesize.py::test_generator_record_with_findings_and_no_proposals_is_diagnosed",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T14:18:02.456807+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/commands/test_retrospect.py::TestCreateHarness::test_create_json_reports_writes_emits_and_commits_the_record",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T14:18:07.716008+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_agent_retrospect_synthesize.py::test_generator_record_with_findings_and_no_proposals_is_diagnosed (exit 0 on an empty batch)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-31T14:18:13.074932+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

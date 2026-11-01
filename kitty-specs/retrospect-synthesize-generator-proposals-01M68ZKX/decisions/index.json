@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-31T12:42:23.297345Z",
+      "decision_id": "01M68ZQ261TWK1F3XEYJHTQSD0",
+      "final_answer": "Application/reporting half only (generation stays in #3947): generator-shape proposals gain an optional structured payload validated by the existing ProposalPayload union, synthesize translates translatable ones into the typed Proposal it applies, names every untranslatable one, and emits a diagnostics block naming record shape, finding counts and zero planned; exit codes stay unchanged so the documented dry-run exit-0 contract holds.",
+      "input_key": "input:discovery",
+      "mission_id": "01M68ZKX1DCY9S7NM80G0YQFKY",
+      "mission_slug": "retrospect-synthesize-generator-proposals-01M68ZKX",
+      "opened_by": "pi",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Scope confirmation for #6385: which half of the create->synthesize gap does this Mission deliver, and how does synthesize stop being a silent no-op without changing the documented exit-code contract?",
+      "rationale": "Batch-14 triage on #6385 splits generation (#3947) from application/reporting; the issue itself names a structured field as the safer direction than verb parsing, and its Minimum bar is that a created record with findings must not end in a silent successful-looking empty batch. Changing the documented exit code would be a contract change on a P2 fix.",
+      "resolved_at": "2026-10-31T12:42:27.794277Z",
+      "resolved_by": "Ivan-Melck",
+      "slot_key": null,
+      "status": "resolved",
+      "step_id": "discovery",
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M68ZKX1DCY9S7NM80G0YQFKY",
+  "version": 1
+}
