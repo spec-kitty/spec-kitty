@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from ruamel.yaml.error import YAMLError
 
 from charter.activation import charter_yaml_io, compiler as compiler_module
 from charter.activation.charter_yaml_io import (
@@ -211,3 +212,17 @@ def test_unchanged_catalog_preserves_the_authored_timestamp(tmp_path: Path) -> N
     _refresh_without_provisioning(root)
     again = charter_yaml_io._yaml_loader().load(charter_yaml_path.read_text(encoding="utf-8"))["metadata"]
     assert again["generated_at"] == stamped["generated_at"]
+
+
+def test_malformed_charter_yaml_refuses_instead_of_restamping(tmp_path: Path) -> None:
+    """An unparseable governed document is refused whole; it is never overwritten or restamped."""
+    root = tmp_path / "malformed"
+    root.mkdir()
+    charter_yaml_path = root / "charter.yaml"
+    malformed = "catalog: [unterminated\nmetadata:\n  generated_at: '2026-01-01T00:00:00Z'\n"
+    charter_yaml_path.write_text(malformed, encoding="utf-8")
+
+    with pytest.raises(YAMLError):
+        _refresh_without_provisioning(root)
+
+    assert charter_yaml_path.read_text(encoding="utf-8") == malformed
