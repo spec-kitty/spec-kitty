@@ -1,7 +1,7 @@
 # Quickstart: verifying the `code_producing` review gate by hand
 
 Everything below runs from the repository root of the mission clone
-(`/home/exedev/work/sk-6328`) with `uv run`, which uses the pinned environment.
+with `uv run`, which uses the pinned environment.
 
 ## 1. The capability answers correctly for the built-ins
 
