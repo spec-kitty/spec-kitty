@@ -36,6 +36,15 @@ def context(
         help=("Fetch selector, e.g. agent-profile:<id>, template:<mission>/<name>, directive:<id>, section:<slug>."),
     ),
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
+    profile: str | None = typer.Option(
+        None,
+        "--profile",
+        help=(
+            "Agent profile whose cited directives and tactics are added to the rendered text "
+            "(same id `spec-kitty dispatch --profile` accepts). With --include it is ignored; "
+            "the structured --json blocks stay profile-agnostic."
+        ),
+    ),
     mission_type: str | None = typer.Option(
         None,
         "--mission-type",
@@ -131,6 +140,7 @@ def context(
         result = build_charter_context(
             repo_root,
             action=action,
+            profile=profile,
             mark_loaded=mark_loaded,
             # T017: pass None so the full chain self-resolves — see the
             # comment above where ``org_roots`` is computed.
