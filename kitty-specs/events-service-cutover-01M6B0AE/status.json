@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent": "claude:opus:python-pedro:implementer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
@@ -39,9 +39,9 @@
         "reviewer": "claude:opus:python-pedro:implementer",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 27165,
-      "shell_pid_created_at": "1793520183.61",
+      "role": "implementer",
+      "shell_pid": 30574,
+      "shell_pid_created_at": "1793520539.0",
       "subtasks": {
         "T001": "done",
         "T002": "done",
