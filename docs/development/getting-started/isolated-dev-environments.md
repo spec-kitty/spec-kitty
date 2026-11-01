@@ -2,13 +2,13 @@
 title: Isolated Dev Environments (Shadow Clones)
 description: 'Run several standalone spec-kitty checkouts on one machine without cross-mission pollution: a clone-local venv plus a clone-local runtime-state root, machine-global CLI intact.'
 doc_status: active
-updated: '2026-10-13'
+updated: '2026-10-13T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
-type: how-to
 related:
 - docs/development/how-to/local-overrides.md
 - docs/development/contributing.md
 - docs/context/execution.md
+kind: How-To
 ---
 # Isolated Dev Environments (Shadow Clones)
 

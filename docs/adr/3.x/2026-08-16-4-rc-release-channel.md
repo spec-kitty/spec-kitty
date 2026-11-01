@@ -3,6 +3,9 @@ title: 'Default-off pre-release (rc) consumer channel, gated by SPEC_KITTY_PRERE
 description: 'A default-off SPEC_KITTY_PRERELEASE preference makes update checks pre-release-aware with a pinned rc install command, without ever nagging stable users.'
 status: Accepted
 date: '2026-08-16'
+doc_status: active
+kind: ADR
+updated: '2026-08-16T00:00:00Z'
 ---
 # Default-off pre-release (rc) consumer channel, gated by `SPEC_KITTY_PRERELEASE`
 

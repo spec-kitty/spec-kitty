@@ -2,12 +2,13 @@
 title: 'Migration: Legacy Topology to the Coordination Model'
 description: 'Operator runbook for the legacy-topology bookkeeping warning: what a pre-coordination mission is, how to detect one, and the supported paths forward.'
 doc_status: active
-updated: '2026-09-26'
+updated: '2026-09-26T00:00:00Z'
 related:
 - docs/architecture/branch-target-routing.md
 - docs/architecture/execution-lanes.md
 - docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md
 - docs/migrations/mission-id-canonical-identity.md
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

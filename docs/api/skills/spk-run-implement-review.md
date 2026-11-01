@@ -2,9 +2,10 @@
 title: "spk-run-implement-review"
 description: "Reference for the spk-run-implement-review skill: orchestrating the claim/implement/review loop across a mission's work packages."
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/skills/index.md
+kind: Reference
 ---
 
 # spk-run-implement-review

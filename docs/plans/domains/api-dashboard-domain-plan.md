@@ -2,7 +2,7 @@
 title: 'API & Dashboard — Domain Plan'
 description: 'Durable domain plan for the mission-data API (#645) and dashboard/UX (#650): the open-core producer API, its consumers, and retiring the Feature-labelled UI drift.'
 doc_status: durable
-updated: '2026-10-12'
+updated: '2026-10-12T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -12,6 +12,7 @@ related:
 - docs/plans/domains/packs-extraction-domain-plan.md
 - docs/architecture/status-model.md
 - docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md
+kind: Planning
 ---
 
 # API & Dashboard — Domain Plan

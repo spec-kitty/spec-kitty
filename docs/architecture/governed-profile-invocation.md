@@ -2,10 +2,11 @@
 title: Understanding Governed Profile Invocation
 description: 'How standalone dispatch works under governance: route, inject context, open an Op, do work, close the trail.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/context/charter-overview.md
+kind: Explanation
 ---
 # Understanding Governed Profile Invocation
 

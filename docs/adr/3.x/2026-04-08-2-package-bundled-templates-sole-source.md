@@ -3,6 +3,9 @@ title: 'ADR 2 (2026-04-08): Package-Bundled Templates as Sole Source'
 description: 'Templates resolve only from the installed package: the GitHub tarball download path and the template-root flag are deleted, leaving one env override for maintainers.'
 status: Accepted
 date: '2026-04-08'
+doc_status: active
+kind: ADR
+updated: '2026-04-08T00:00:00Z'
 ---
 
 ## Context and Problem Statement

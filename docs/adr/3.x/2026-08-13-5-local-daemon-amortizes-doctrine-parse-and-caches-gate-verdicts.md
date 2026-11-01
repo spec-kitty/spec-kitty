@@ -6,6 +6,9 @@ date: '2026-08-13'
 related:
 - docs/architecture/mission-gates.md
 - docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
+doc_status: active
+kind: ADR
+updated: '2026-08-13T00:00:00Z'
 ---
 # A local loopback daemon amortizes doctrine parse and caches deterministic gate verdicts
 

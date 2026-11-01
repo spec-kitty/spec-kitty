@@ -2,12 +2,13 @@
 title: Containers (living)
 description: 'Living containers view (C4 level 2): current logical containers and the planned charter read-service transition.'
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
 - docs/architecture/diagrams/02_containers/runtime-execution-domain.md
 - docs/architecture/diagrams/03_components/README.md
+kind: Hub
 ---
 # Containers (living)
 

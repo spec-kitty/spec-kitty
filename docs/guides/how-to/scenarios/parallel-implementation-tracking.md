@@ -2,9 +2,9 @@
 title: Parallel Implementation Tracking
 description: Track several agents implementing a roadmap in parallel and give leadership continuous visibility through Spec Kitty status views and the WP status event log.
 doc_status: active
-updated: '2026-10-10'
-type: how-to
+updated: '2026-10-10T00:00:00Z'
 audience: docs/context/audience/external/architect-evaluator.md
+kind: How-To
 ---
 
 # Parallel Implementation Tracking

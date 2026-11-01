@@ -3,6 +3,9 @@ title: 'ADR: a mixed lane refuses commits outside every WP work window, with an 
 description: 'Consolidation REFUSEs a mixed lane carrying a content commit no WP window owns (closed world), with an operator-attested override as the escape hatch.'
 status: Accepted
 date: '2026-09-29'
+doc_status: active
+kind: ADR
+updated: '2026-09-29T00:00:00Z'
 ---
 
 ## Context and Problem Statement

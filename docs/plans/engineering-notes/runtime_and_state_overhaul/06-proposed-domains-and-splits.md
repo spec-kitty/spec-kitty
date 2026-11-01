@@ -2,10 +2,11 @@
 title: '06 — Domains & Splits (Archived)'
 description: 'Redirect stub: the runtime and state overhaul domains-and-splits note moved to the docs archive; kept so old links, including ADR links, resolve.'
 doc_status: deprecated
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/archive/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md
+kind: Planning
 ---
 
 # 06 — Domains & Splits (Archived)

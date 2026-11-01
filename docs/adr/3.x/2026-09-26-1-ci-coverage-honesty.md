@@ -3,7 +3,9 @@ title: 'ADR: a green main/nightly must mean the tests actually ran'
 description: 'CI now enforces coverage honesty — dark-suite enrolment, foreign-coverage and src-reachability guards, a nightly run-all lane, and release gated on a green nightly for that SHA.'
 status: Accepted
 date: '2026-09-26'
-updated: '2026-10-01'
+updated: '2026-10-01T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 ## Context and Problem Statement

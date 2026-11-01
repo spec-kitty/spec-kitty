@@ -3,6 +3,9 @@ title: 'ADR: governed planning application seam and status integration'
 description: 'Close the external planning artifact handoff while preserving native workflow, decision, status and commit authorities.'
 status: Accepted
 date: '2026-10-07'
+doc_status: active
+kind: ADR
+updated: '2026-10-07T00:00:00Z'
 ---
 # Governed planning application seam and status integration
 

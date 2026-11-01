@@ -2,9 +2,9 @@
 title: How to Start an Ad-Hoc Specialist Session
 description: 'How to start an ad-hoc specialist session with Spec Kitty 3.2: How to Start an Ad-Hoc Specialist Session.'
 doc_status: active
-updated: '2026-09-30'
-type: how-to
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/external/tech-lead-evaluator.md
+kind: How-To
 ---
 # How to Start an Ad-Hoc Specialist Session
 

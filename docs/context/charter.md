@@ -2,13 +2,14 @@
 title: 'Context: Charter'
 description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-21T00:00:00Z'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
 - docs/context/governance.md
 - docs/context/identity.md
 - docs/context/orchestration.md
+kind: Explanation
 ---
 ## Context: Charter
 

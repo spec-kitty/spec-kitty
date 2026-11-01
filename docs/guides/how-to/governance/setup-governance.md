@@ -2,9 +2,8 @@
 title: How to Set Up Project Governance
 description: The complete interview-to-generation flow for creating, validating, and activating your Spec Kitty project charter.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/external/tech-lead-evaluator.md
-type: how-to
 related:
 - docs/context/charter-overview.md
 - docs/guides/tutorials/charter-governed-workflow.md
@@ -14,6 +13,7 @@ related:
 - docs/guides/how-to/installation/non-interactive-init.md
 - docs/guides/how-to/missions/switch-missions.md
 - docs/architecture/charter-pack-usage-journey.md
+kind: How-To
 ---
 # How to Set Up Project Governance
 

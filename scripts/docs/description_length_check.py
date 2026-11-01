@@ -50,6 +50,16 @@ Exit codes:
      malfunctions and fail regardless of ``--strict``.
 ===  =========================================================================
 
+Retirement (#6931, ADR 2026-10-31-1 D-6). D-6 marks this gate "port" to
+``dockitty-validate-frontmatter`` and deletes it "in the step that ports it". That
+binary is not on ``main`` yet (it arrives with the ``site/`` scaffold, #6930/#6937),
+so deleting this module today would remove description enforcement with no
+replacement. The retirement is therefore deferred, deliberately and in writing:
+when the ``docs-site`` job runs ``dockitty-validate-frontmatter`` over the published
+sections, delete this module and its tests, and move the 50-character lower bound
+(an SEO rule of this repository, not of doc-kitty, which only bounds the upper end)
+into whatever replaces it.
+
 Depends only on the standard library plus ``ruamel.yaml`` (via
 :func:`scripts.docs._inventory.parse_frontmatter`). No new dependency.
 """
@@ -71,6 +81,10 @@ from scripts.docs._published_pages import (
     MINIMUM_EXPECTED_PAGES,
     PublishedPageSet,
     resolve_published_pages,
+)
+from scripts.docs.frontmatter_contract import (
+    MAX_DESCRIPTION_LENGTH as MAX_DESCRIPTION_LENGTH_CONTRACT,
+    MIN_DESCRIPTION_LENGTH as MIN_DESCRIPTION_LENGTH_CONTRACT,
 )
 
 __all__ = [
@@ -120,9 +134,12 @@ DEFAULT_DOCS_ROOT: Final[str] = "docs"
 # it would pull 151 files into a different contract's full field requirements.
 
 #: Inclusive description length band (NFR-003). 50 and 180 are both **valid**;
-#: 49 and 181 are violations. These boundaries are the gate's whole contract.
-MIN_DESCRIPTION_LENGTH: Final[int] = 50
-MAX_DESCRIPTION_LENGTH: Final[int] = 180
+#: 49 and 181 are violations. The band itself lives in the frontmatter-contract
+#: module (#6931), which is the one place a docs frontmatter rule is stated: this
+#: gate keeps its own *SEO* lower bound in the contract's constant table so the two
+#: gates cannot disagree about the upper bound doc-kitty also enforces.
+MIN_DESCRIPTION_LENGTH: Final[int] = MIN_DESCRIPTION_LENGTH_CONTRACT
+MAX_DESCRIPTION_LENGTH: Final[int] = MAX_DESCRIPTION_LENGTH_CONTRACT
 
 #: Exit code for a coverage failure — the gate could not trust its page set.
 EXIT_COVERAGE_FAILURE: Final[int] = 2

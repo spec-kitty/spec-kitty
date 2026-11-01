@@ -3,6 +3,9 @@ title: 'ADR: A Mission-Halting Instrument Is Worth Its Cost — It Runs Before t
 description: 'Records why a pre-mission ablation instrument that nothing consumed and nothing sequenced was worth its cost: it fired at |P| = 5, and the mission halted.'
 status: Accepted
 date: '2026-08-07'
+doc_status: active
+kind: ADR
+updated: '2026-08-07T00:00:00Z'
 ---
 
 ## Context and Problem Statement

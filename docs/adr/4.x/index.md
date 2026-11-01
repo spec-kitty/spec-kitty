@@ -2,9 +2,9 @@
 title: '4.x Architectural Decision Records'
 description: 'Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one.'
 doc_status: active
-updated: '2026-11-01'
-type: explanation
+updated: '2026-11-01T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
+kind: Hub
 ---
 
 # 4.x ADRs

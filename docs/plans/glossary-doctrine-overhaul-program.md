@@ -2,12 +2,13 @@
 title: 'Glossary Doctrine Overhaul — Program Plan'
 description: 'Program plan: promote the glossary to a first-order doctrine artefact (GLOSSARY_PACK kind), retire the runtime glossary, wire terminology enforcement, and build the ASSET gate.'
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
 - docs/architecture/doctrine-kinds.md
+kind: Planning
 ---
 
 # Glossary Doctrine Overhaul — Program Plan

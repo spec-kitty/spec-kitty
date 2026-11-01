@@ -2,11 +2,11 @@
 title: Internal Hosted-Readiness Mode (Removed)
 description: 'Internal hosted-readiness mode was removed from open-core Spec Kitty in #6164; this page remains only so that old links resolve.'
 doc_status: deprecated
-updated: '2026-10-14'
-type: how-to
+updated: '2026-10-14T00:00:00Z'
 related:
 - docs/context/team-kitty.md
 audience: internal / pre-launch operators
+kind: How-To
 ---
 
 # Internal Hosted-Readiness Mode (Removed)

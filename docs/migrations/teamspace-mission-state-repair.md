@@ -2,7 +2,8 @@
 title: TeamSpace Mission-State Repair
 description: How Spec Kitty deterministically repairs historical kitty-specs/ mission state before a repository connects to TeamSpace, starting with the audit-first run.
 doc_status: deprecated
-updated: '2026-06-03'
+updated: '2026-06-03T00:00:00Z'
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

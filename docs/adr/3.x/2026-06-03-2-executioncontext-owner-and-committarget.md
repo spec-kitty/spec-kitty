@@ -3,6 +3,9 @@ title: 'ADR 2026-06-03-2: ExecutionContext Owner and CommitTarget Atomicity'
 description: 'Names `resolve_action_context` the single canonical ExecutionContext resolver, and adopts CommitTarget as ergonomic hardening rather than a correctness fix.'
 status: Accepted
 date: '2026-06-03'
+doc_status: active
+kind: ADR
+updated: '2026-06-03T00:00:00Z'
 ---
 
 ## Context

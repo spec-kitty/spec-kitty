@@ -3,7 +3,9 @@ title: 'ADR: an event-native core with one canonical event writer behind a domai
 description: 'One EventBridge module writes only spec-kitty-events contract events; the run loop calls its port; git and filesystem effects become internal consumers.'
 status: Accepted
 date: '2026-10-14'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 # An event-native core with one canonical event writer behind a domain port

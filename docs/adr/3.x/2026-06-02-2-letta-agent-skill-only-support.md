@@ -4,6 +4,9 @@ title: 'Letta agent is skill-only: no slash-command templates, invoker and sessi
 description: 'Letta ships skill-only because its stateless-versus-sticky memory session model is unvalidated; `.letta/commands/` and LettaInvoker are deferred.'
 status: Accepted
 date: '2026-06-02'
+doc_status: active
+kind: ADR
+updated: '2026-06-02T00:00:00Z'
 ---
 
 ## Context and Problem Statement

@@ -4,6 +4,9 @@ title: 'ADR: Single-Authority Seam + Call-Site Gate for Resolution Boundaries (P
 description: 'Handle canonicalization and surface-authority choices move behind one sanctioned seam policed by an AST call-site gate; the blind primitive stays blind to avoid recursion.'
 status: Accepted
 date: '2026-06-26'
+doc_status: active
+kind: ADR
+updated: '2026-06-26T00:00:00Z'
 ---
 
 ## Context and Problem Statement

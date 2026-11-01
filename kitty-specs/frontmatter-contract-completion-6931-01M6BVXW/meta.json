@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-frontmatter-contract-completion-6931-01M6BVXW",
+  "created_at": "2026-11-01T15:33:58.806211+00:00",
+  "flattened": false,
+  "friendly_name": "frontmatter contract completion 6931",
+  "mid8": "01M6BVXW",
+  "mission_id": "01M6BVXWKTRSD7WMYEY3SM65HC",
+  "mission_number": null,
+  "mission_slug": "frontmatter-contract-completion-6931-01M6BVXW",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances frontmatter contract completion 6931 on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "frontmatter contract completion 6931",
+  "slug": "frontmatter-contract-completion-6931-01M6BVXW",
+  "target_branch": "issue-6931-frontmatter-contract",
+  "topology": "coord"
+}

@@ -3,6 +3,9 @@ title: 'ADR 1 (2026-05-10): Deterministic Historical Mission-State Repair Identi
 description: 'Repairing legacy missions derives absent identifiers from a deterministic ULID seeded by on-disk mission material, and never rewrites an existing valid identity.'
 status: Accepted
 date: '2026-05-10'
+doc_status: active
+kind: ADR
+updated: '2026-05-10T00:00:00Z'
 ---
 
 ## Context

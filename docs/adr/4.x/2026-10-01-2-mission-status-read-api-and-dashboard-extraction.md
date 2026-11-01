@@ -3,7 +3,9 @@ title: 'ADR: a mission status read API replaces the CLI-bundled dashboard (extra
 description: 'Remove the bundled dashboard; keep one read-only mission status API (overview + detail) consumed by external UIs (#645). Accepted 2026-10-12 as the open-core producer surface.'
 status: Accepted
 date: '2026-10-01'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted (2026-10-12). D-1 and D-2 recorded a direction the operator stated on

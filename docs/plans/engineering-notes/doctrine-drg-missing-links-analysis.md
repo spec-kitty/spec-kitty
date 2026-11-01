@@ -2,11 +2,12 @@
 title: 'Built-in Doctrine DRG — missing / under-specified links analysis'
 description: A measured census of the built-in doctrine reference graph's obligation-vs-tension edges and cascade dead-ends — the input analysis for ADR 2026-07-21-1 (in_tension_with).
 doc_status: deprecated
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md
 - docs/plans/engineering-notes/index.md
+kind: Planning
 ---
 # Built-in Doctrine DRG — Missing / Under-Specified Links Analysis
 

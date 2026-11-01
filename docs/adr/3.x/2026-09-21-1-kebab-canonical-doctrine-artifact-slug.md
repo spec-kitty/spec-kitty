@@ -3,7 +3,9 @@ title: 'ADR: kebab-case canonical doctrine artifact slug — id/slug decoupling,
 description: 'Kebab-case canonical slug for project doctrine artifacts, set by one slug_for authority and a manifest-driven bundle validator; id/slug decoupled, filename migration dropped.'
 status: Accepted
 date: '2026-09-21'
-updated: '2026-09-21'
+updated: '2026-09-21T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 ## Context and Problem Statement

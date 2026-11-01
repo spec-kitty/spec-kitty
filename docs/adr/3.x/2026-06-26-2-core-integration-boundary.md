@@ -3,6 +3,9 @@ title: 'ADR: CORE / INTEGRATION Boundary Model'
 description: 'Enforces a one-directional CORE-to-INTEGRATION import rule in place using adapter registries and an AST gate, before any physical extraction to `src/orchestrator/`.'
 status: Accepted
 date: '2026-06-26'
+doc_status: active
+kind: ADR
+updated: '2026-06-26T00:00:00Z'
 ---
 
 # CORE / INTEGRATION Boundary Model

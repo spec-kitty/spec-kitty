@@ -2,8 +2,7 @@
 title: Activation Ledger and the Charter Contract
 description: 'Impact assessment of the proposed charter activation contract on core''s activation ledger: the ACL seam, content alignment, divergences, rc8 gaps and remaining work.'
 doc_status: draft
-updated: '2026-10-20'
-type: explanation
+updated: '2026-10-20T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md
@@ -12,6 +11,7 @@ related:
 - docs/architecture/charter-backend-service-future.md
 - kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md
 - kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md
+kind: Explanation
 ---
 # Activation Ledger and the Charter Contract
 

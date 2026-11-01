@@ -3,6 +3,9 @@ title: ADR 2026-05-18-2 — DELETE specify_cli.auth.transport (deferred to Rober
 description: 'Deletes the auth transport module: it has zero production callers and its architectural gate passes vacuously, so it mediates nothing that it claims to mediate.'
 status: Accepted
 date: '2026-05-18'
+doc_status: active
+kind: ADR
+updated: '2026-05-18T00:00:00Z'
 ---
 
 ## Context

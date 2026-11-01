@@ -3,6 +3,9 @@ title: Vertical-Slice Test Organisation
 description: Reorganises the suite by system capability instead of by unit-versus-integration, demoting test type to pytest markers and filename suffixes where it belongs.
 status: Accepted
 date: '2026-03-15'
+doc_status: active
+kind: ADR
+updated: '2026-03-15T00:00:00Z'
 ---
 
 ## Context and Problem Statement

@@ -2,9 +2,9 @@
 title: Host-Surface Parity Matrix
 description: Spec Kitty's authoritative matrix of how each supported host surface teaches the governance-injection contract for spec-kitty dispatch, with per-surface parity status.
 doc_status: active
-updated: '2026-10-21'
-type: explanation
+updated: '2026-10-21T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
+kind: Explanation
 ---
 # Host-Surface Parity Matrix
 

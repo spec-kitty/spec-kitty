@@ -2,7 +2,8 @@
 title: 'Migration: Relocate Built-In Doctrine to packs/built-in'
 description: 'Migration for the built-in doctrine relocation: content moved from src/doctrine into a top-level packs/built-in/ pack root, resolved through a shared pack-root seam.'
 doc_status: superseded
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

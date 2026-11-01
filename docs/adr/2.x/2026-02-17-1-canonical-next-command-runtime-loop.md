@@ -3,6 +3,9 @@ title: Canonical `spec-kitty next` Command for Agent Execution Loop
 description: Collapses per-step agent entrypoints into a single repeatedly-called next command that returns the prompt and context for whatever the Mission needs done next.
 status: Accepted
 date: '2026-02-17'
+doc_status: active
+kind: ADR
+updated: '2026-02-17T00:00:00Z'
 ---
 
 ## Context and Problem Statement

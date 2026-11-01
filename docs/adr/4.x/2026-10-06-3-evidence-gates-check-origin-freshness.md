@@ -3,7 +3,9 @@ title: 'ADR: evidence gates check origin freshness before they trust local evide
 description: 'Remote contact has one owner; review, accept and consolidate refresh and classify the branches they trust against origin before any mutation, with an explicit opt-out.'
 status: Accepted
 date: '2026-10-06'
-updated: '2026-10-07'
+updated: '2026-10-07T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted

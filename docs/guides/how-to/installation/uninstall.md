@@ -2,12 +2,12 @@
 title: Uninstall Spec Kitty
 description: 'How to uninstall spec kitty with Spec Kitty 3.2: Remove the spec-kitty CLI and, optionally, the project files it generated. This page also covers rollback.'
 doc_status: active
-updated: '2026-06-12'
-type: how-to
+updated: '2026-06-12T00:00:00Z'
 related:
 - docs/guides/how-to/installation/install-macos.md
 - docs/guides/how-to/installation/upgrade-cli.md
 audience: docs/context/audience/external/project-owner.md
+kind: How-To
 ---
 # Uninstall Spec Kitty
 

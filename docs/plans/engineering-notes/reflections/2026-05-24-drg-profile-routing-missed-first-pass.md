@@ -2,7 +2,8 @@
 title: DRG profile routing not applied on first tasks generation
 description: 'Reflection: DRG profile routing was not applied on the first /spec-kitty.tasks run for mission 01KSAF14, so Python WPs were misassigned; what happened and why.'
 doc_status: draft
-updated: '2026-05-26'
+updated: '2026-05-26T00:00:00Z'
+kind: Planning
 ---
 # DRG profile routing not applied on first tasks generation
 

@@ -2,9 +2,10 @@
 title: "spk-run-next"
 description: "Reference for the spk-run-next skill: driving the canonical spec-kitty next control loop and routing its decision kinds."
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/skills/index.md
+kind: Reference
 ---
 
 # spk-run-next

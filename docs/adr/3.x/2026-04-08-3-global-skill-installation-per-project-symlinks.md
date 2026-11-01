@@ -3,6 +3,9 @@ title: 'ADR 3 (2026-04-08): Global Skill Installation with Per-Project Symlinks'
 description: 'Skills live canonically under ~/.kittify/agent-skills/<agent>/ and projects reference them by symlink, with a file-copy fallback where symlinks are unavailable.'
 status: Superseded
 date: '2026-04-08'
+doc_status: superseded
+kind: ADR
+updated: '2026-04-08T00:00:00Z'
 ---
 
 > **Superseded (2026-07-19):** the per-project **symlink** wiring decided here is

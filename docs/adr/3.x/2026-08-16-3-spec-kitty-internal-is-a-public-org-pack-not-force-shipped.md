@@ -7,6 +7,9 @@ related:
 - docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
 - docs/adr/3.x/2026-05-24-2-pack-augmentation-vocabulary.md
+doc_status: active
+kind: ADR
+updated: '2026-08-16T00:00:00Z'
 ---
 
 # spec-kitty-internal Is One Public Org Pack, Consumed via the Org Tier, Never Force-Shipped

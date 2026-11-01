@@ -2,12 +2,12 @@
 title: Claude Code Workflow
 description: End-to-end guide for running Spec Kitty with the Claude Code CLI and lane-based status tracking.
 doc_status: active
-updated: '2026-10-10'
-type: tutorial
+updated: '2026-10-10T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/tutorials/getting-started.md
 - docs/guides/tutorials/claude-code-integration.md
+kind: Tutorial
 ---
 # Claude Code Workflow
 

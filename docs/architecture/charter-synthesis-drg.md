@@ -2,12 +2,13 @@
 title: 'Understanding Charter: Synthesis, DRG, and Governed Context'
 description: How charter synthesize works, what the DRG is, how governed context flows to agents, and known limitations.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/mission-type-resolution.md
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
+kind: Explanation
 ---
 # Understanding Charter: Synthesis, DRG, and Governed Context
 

@@ -2,7 +2,8 @@
 title: 'Migration: --mission to --mission-type'
 description: 'Migration from --mission to --mission-type, deprecated in mission 077: why the rename, the condition-gated removal (no calendar date), and the required changes.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-06-03T00:00:00Z'
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

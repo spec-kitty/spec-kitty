@@ -6,6 +6,9 @@ date: '2026-08-16'
 related:
 - docs/plans/investigations/2026-08-pack-level-metadata-manifest.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
+doc_status: active
+kind: ADR
+updated: '2026-08-16T00:00:00Z'
 ---
 
 # Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage

@@ -9,6 +9,9 @@ related:
 - docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md
 - docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
 - docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md
+doc_status: active
+kind: ADR
+updated: '2026-08-13T00:00:00Z'
 ---
 # Executable doctrine runs only from trusted publishers
 

@@ -2,8 +2,7 @@
 title: 'Agent Profiles'
 description: Catalog of the 18 built-in agent profiles Spec Kitty ships, with identity, routing, and role for each.
 doc_status: active
-updated: '2026-10-08'
-type: reference
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/api/agent_profiles/architect-alphonso.md
@@ -26,6 +25,7 @@ related:
 - docs/api/agent_profiles/reviewer-renata.md
 - docs/api/index.md
 - docs/context/identity.md
+kind: Hub
 ---
 # Agent Profiles
 

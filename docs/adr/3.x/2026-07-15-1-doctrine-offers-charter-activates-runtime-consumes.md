@@ -3,6 +3,9 @@ title: 'ADR: Doctrine Offers, Charter Activates, Runtime Consumes Only Activated
 description: 'Doctrine packs stay pure catalogues, charter activation becomes one mechanism covering mission types, gates and assets, and the loop consumes only activated artefacts.'
 status: Proposed
 date: '2026-07-15'
+doc_status: active
+kind: ADR
+updated: '2026-07-15T00:00:00Z'
 ---
 
 ## Context and Problem Statement

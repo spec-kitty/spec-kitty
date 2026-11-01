@@ -3,6 +3,9 @@ title: Mission Type, Mission, and Mission Run Terminology Boundary
 description: 'Separates three colliding nouns: Mission Type is the reusable blueprint, Mission is the tracked item under kitty-specs, Mission Run is the persisted runtime session.'
 status: Accepted
 date: '2026-04-04'
+doc_status: active
+kind: ADR
+updated: '2026-04-04T00:00:00Z'
 ---
 
 ## Context and Problem Statement

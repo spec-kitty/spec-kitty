@@ -2,11 +2,12 @@
 title: 'Context: Governance'
 description: 'Glossary context for governance: rule ownership, precedence, and policy controls in Spec Kitty, including the charter and doctrine-selection terms.'
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-21T00:00:00Z'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/charter.md
 - docs/context/identity.md
+kind: Explanation
 ---
 ## Context: Governance
 

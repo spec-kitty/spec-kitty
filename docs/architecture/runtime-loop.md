@@ -2,13 +2,14 @@
 title: The Runtime Loop Explained
 description: "How spec-kitty next inverts control so the runtime picks the next action: query versus advancing mode and the four decisions, step, decision_required, blocked, and terminal."
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/kanban-workflow.md
 - docs/architecture/mission-system.md
 - docs/architecture/mission-type-resolution.md
 - docs/architecture/multi-agent-orchestration.md
+kind: Explanation
 ---
 # The Runtime Loop Explained
 

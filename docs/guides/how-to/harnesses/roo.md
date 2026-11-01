@@ -2,9 +2,9 @@
 title: Roo Cline (deprecated)
 description: Roo Code shut down on 2026-05-15 and is no longer a supported Spec Kitty harness.
 doc_status: active
-updated: '2026-06-15'
-type: how-to
+updated: '2026-06-15T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
+kind: How-To
 ---
 # Roo Cline (deprecated)
 

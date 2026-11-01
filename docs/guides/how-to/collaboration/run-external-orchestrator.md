@@ -2,11 +2,11 @@
 title: Run the External Orchestrator
 description: Use spec-kitty-orchestrator with spec-kitty orchestrator-api to automate multi-agent WP execution.
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+updated: '2026-06-03T00:00:00Z'
 audience: docs/context/audience/external/architect-evaluator.md
 related:
 - docs/guides/how-to/collaboration/build-custom-orchestrator.md
+kind: How-To
 ---
 # Run the External Orchestrator
 

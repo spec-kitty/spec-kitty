@@ -2,7 +2,7 @@
 title: 1.x Documentation (Legacy Track)
 description: Historical Spec Kitty 1.x archive page for 1.x Documentation (Legacy Track); use Spec Kitty 3.2 docs for current projects and upgrades.
 doc_status: deprecated
-updated: '2026-06-03'
+updated: '2026-06-03T00:00:00Z'
 related:
 - docs/context/index.md
 - docs/changelog/1x/artifacts-and-commands.md
@@ -11,6 +11,7 @@ related:
 - docs/changelog/1x/workflow.md
 - docs/index.md
 - docs/migrations/index.md
+kind: Hub
 ---
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 

@@ -2,7 +2,8 @@
 title: Mission 01KSAF14 orchestration findings (10 items)
 description: 'Ten process findings from running the charter-ux-and-org-pack-vocabulary mission (01KSAF14) end-to-end on 2026-05-24: 10 WPs across 4 waves.'
 doc_status: draft
-updated: '2026-06-01'
+updated: '2026-06-01T00:00:00Z'
+kind: Planning
 ---
 # Mission 01KSAF14 orchestration findings (10 items)
 

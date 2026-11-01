@@ -2,11 +2,11 @@
 title: Build a Custom Orchestrator
 description: Implement your own external orchestration runtime against spec-kitty orchestrator-api.
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+updated: '2026-06-03T00:00:00Z'
 audience: docs/context/audience/external/architect-evaluator.md
 related:
 - docs/guides/how-to/collaboration/run-external-orchestrator.md
+kind: How-To
 ---
 # Build a Custom Orchestrator
 

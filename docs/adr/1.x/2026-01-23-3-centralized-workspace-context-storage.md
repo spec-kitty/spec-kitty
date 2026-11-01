@@ -3,6 +3,9 @@ title: Centralized Workspace Context Storage
 description: Centralised runtime workspace context in a shared .kittify directory in the main checkout, so agents could read it from anywhere and it outlived the worktree.
 status: Superseded
 date: '2026-01-23'
+doc_status: superseded
+kind: ADR
+updated: '2026-01-23T00:00:00Z'
 ---
 
 > Superseded by `architecture/2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.

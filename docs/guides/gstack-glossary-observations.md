@@ -2,11 +2,11 @@
 title: Render Glossary Observations from InvocationPayload (gstack / host agents)
 description: How gstack-compatible host agents should interpret and display the glossary_observations field returned by the Spec Kitty invocation executor.
 doc_status: active
-updated: '2026-09-30'
-type: reference
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
 related:
 - docs/guides/how-to/harnesses/setup-codex-spec-kitty-launcher.md
+kind: Reference
 ---
 # Render Glossary Observations from InvocationPayload
 

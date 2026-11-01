@@ -2,11 +2,11 @@
 title: Use Spec Kitty in Claude Code
 description: 'How to use Spec Kitty in Claude Code, the first-class integration-tested reference harness: prerequisites, command install, and the slash-command workflow.'
 doc_status: active
-updated: '2026-06-03'
-type: how-to
+updated: '2026-06-03T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/installation/install-spec-kitty.md
+kind: How-To
 ---
 # Use Spec Kitty in Claude Code
 

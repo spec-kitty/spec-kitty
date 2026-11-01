@@ -2,13 +2,14 @@
 title: 'Docs Consolidation (#2165 / #651) — four-lens review and direction'
 description: Adversarial four-lens review of Common Docs adoption for spec-kitty, the premise corrections, and the operator's full-consolidation direction (era-split ADRs, living design).
 doc_status: deprecated
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/adr/3.x/README.md
 - docs/development/page-inventory.yaml
 - docs/docfx.json
 - docs/llms.txt
+kind: Hub
 ---
 # Docs Consolidation (#2165 / #651) — four-lens review and direction
 

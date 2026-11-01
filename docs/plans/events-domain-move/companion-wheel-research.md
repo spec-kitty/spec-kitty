@@ -2,9 +2,9 @@
 title: Companion services wheel — research note
 description: 'Read-only research for the optional spec-kitty-services companion platform wheel that fills the spec_kitty.service_binaries slot (#6904).'
 doc_status: active
-type: explanation
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-10-31'
+updated: '2026-10-31T00:00:00Z'
+kind: Explanation
 ---
 # Companion services wheel: research note
 

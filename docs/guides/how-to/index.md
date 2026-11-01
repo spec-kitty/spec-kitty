@@ -2,8 +2,8 @@
 title: How-To Guides
 description: "Task-oriented Spec Kitty guides grouped by concern: installation, harnesses, missions, governance, collaboration, monitoring, recovery, and scenarios."
 doc_status: active
-updated: '2026-08-10'
-type: explanation
+updated: '2026-08-10T00:00:00Z'
+kind: Hub
 ---
 
 # How-To Guides

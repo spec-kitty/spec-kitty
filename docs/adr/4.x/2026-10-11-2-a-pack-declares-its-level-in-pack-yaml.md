@@ -7,6 +7,9 @@ related:
 - docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
 - docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
+doc_status: active
+kind: ADR
+updated: '2026-10-11T00:00:00Z'
 ---
 
 **Status:** Accepted

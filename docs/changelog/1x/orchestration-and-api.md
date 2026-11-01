@@ -2,9 +2,10 @@
 title: 1.x Orchestration and API Boundary
 description: Historical Spec Kitty 1.x archive page for 1.x Orchestration and API Boundary; use Spec Kitty 3.2 docs for current projects and upgrades.
 doc_status: deprecated
-updated: '2026-06-03'
+updated: '2026-06-03T00:00:00Z'
 related:
 - docs/context/index.md
+kind: Changelog
 ---
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 

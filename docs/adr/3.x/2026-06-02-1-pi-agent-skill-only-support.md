@@ -3,6 +3,9 @@ title: 'Pi agent is skill-only: no prompt templates, invoker deferred'
 description: 'Pi ships skill-only via `.agents/skills/`; no `.pi/prompts/` templates, and PiInvoker waits for the external orchestrator package.'
 status: Accepted
 date: '2026-06-02'
+doc_status: active
+kind: ADR
+updated: '2026-06-02T00:00:00Z'
 ---
 
 ## Context and Problem Statement

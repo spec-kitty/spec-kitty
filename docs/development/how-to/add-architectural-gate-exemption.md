@@ -2,12 +2,12 @@
 title: Add an exemption to an architectural gate
 description: 'How to exempt a source site from a tests/architectural gate by content, never by line number: hand-curated allowlists, census gates and the dead-symbol YAML.'
 doc_status: active
-updated: '2026-10-01'
+updated: '2026-10-01T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: how-to
 related:
 - docs/development/how-to/index.md
 - docs/development/how-to/review-gates.md
+kind: How-To
 ---
 # Add an exemption to an architectural gate
 

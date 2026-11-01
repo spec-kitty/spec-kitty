@@ -2,7 +2,8 @@
 title: 'Stakeholder Persona: Spec Kitty CLI Runtime'
 description: 'Internal Spec Kitty CLI-runtime persona (system actor): enforces deterministic command behavior, artifact lifecycle rules, and governance boundaries.'
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-06-12T00:00:00Z'
+kind: Explanation
 ---
 # Stakeholder Persona: Spec Kitty CLI Runtime
 

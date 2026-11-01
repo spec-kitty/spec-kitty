@@ -3,6 +3,9 @@ title: 'ADR: gate bindings reuse `mission_step_contract` — the content-vs-rela
 description: 'Gate bindings reuse `mission_step_contract` instead of earning a kind: promote only distributable content artefacts, attach relationships and configuration to existing ones.'
 status: Accepted
 date: '2026-07-22'
+doc_status: active
+kind: ADR
+updated: '2026-07-22T00:00:00Z'
 ---
 
 **Status:** Accepted

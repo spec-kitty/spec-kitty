@@ -3,6 +3,9 @@ title: 'ADR: acceptance testing and BDD support with Gherkin scenarios and a bla
 description: 'Promise-tagged Gherkin scenarios live in tests/scenarios, a per-PR Python check guards their tags, and a nightly Cucumber-JVM job drives the built CLI as a black box.'
 status: Accepted
 date: '2026-10-11'
+doc_status: active
+kind: ADR
+updated: '2026-10-11T00:00:00Z'
 ---
 
 **Status:** Accepted — Amended 2026-10-11 — see [Amendment](#amendment-2026-10-11-owner-ruling); the promise-machinery paragraphs below are narrowed by it (never built in core).

@@ -2,7 +2,7 @@
 title: Architecture Decision Records
 description: 'Architecture Decision Records for Spec Kitty, organized by release era (1.x to 4.x); new ADRs land in the 4.x era. Each ADR records one decision and its rationale.'
 doc_status: active
-updated: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 related:
 - docs/adr/1.x/index.md
 - docs/adr/2.x/index.md
@@ -10,6 +10,7 @@ related:
 - docs/adr/4.x/index.md
 - docs/architecture/index.md
 - docs/index.md
+kind: Hub
 ---
 # Architecture Decision Records
 

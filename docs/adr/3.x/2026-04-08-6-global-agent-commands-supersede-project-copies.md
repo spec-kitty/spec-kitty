@@ -3,6 +3,9 @@ title: 'ADR 6 (2026-04-08): Global Agent Commands Supersede Per-Project Copies'
 description: 'Repairs the command-globalization migration with safety invariants that skip cleanup when the global runtime is absent, plus a second pass for already-migrated projects.'
 status: Accepted
 date: '2026-04-08'
+doc_status: active
+kind: ADR
+updated: '2026-04-08T00:00:00Z'
 ---
 
 ## Context and Problem Statement

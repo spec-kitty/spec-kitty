@@ -2,12 +2,12 @@
 title: Claude Code + Spec Kitty Integration Guide
 description: 'Tutorial for Claude Code + Spec Kitty Integration Guide in Spec Kitty 3.2: Claude Code + Spec Kitty Integration Guide.'
 doc_status: active
-updated: '2026-08-11'
-type: tutorial
+updated: '2026-08-11T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/tutorials/getting-started.md
 - docs/guides/tutorials/claude-code-workflow.md
+kind: Tutorial
 ---
 # Claude Code + Spec Kitty Integration Guide
 

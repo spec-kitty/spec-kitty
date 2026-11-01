@@ -3,6 +3,9 @@ title: Repurpose `verify` and Move Setup Checks Under `doctor`
 description: Reassigns verify to checking delivered implementation against artifacts and relocates setup diagnostics under doctor setup, matching what users expect each verb to mean.
 status: Accepted
 date: '2026-02-25'
+doc_status: active
+kind: ADR
+updated: '2026-02-25T00:00:00Z'
 ---
 
 ## Context and Problem Statement

@@ -2,9 +2,8 @@
 title: 'Context: Team Kitty and Zeitgeist'
 description: "Glossary context for Team Kitty and Zeitgeist: the hosted surfaces were removed from open-core in #6164, what that leaves, and why 'sync' is a dead word."
 doc_status: active
-updated: '2026-10-14'
+updated: '2026-10-14T00:00:00Z'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
-type: explanation
 related:
 - docs/context/system-events.md
 - docs/context/orchestration.md
@@ -13,6 +12,7 @@ related:
 - docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 - docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 - docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md
+kind: Explanation
 ---
 # Context: Team Kitty and Zeitgeist
 

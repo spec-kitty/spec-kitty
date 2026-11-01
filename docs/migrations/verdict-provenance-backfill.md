@@ -2,10 +2,11 @@
 title: 'Migration: Verdict-Provenance Backfill'
 description: "Upgrade-time backfill (FR-012/SC-008) reducing each mission's terminal review-cycle .md verdict into the event log, completing event authority after the verdict-reader collapse."
 doc_status: active
-updated: '2026-08-06'
+updated: '2026-08-06T00:00:00Z'
 related:
 - docs/architecture/status-model.md
 - docs/migrations/mission-id-canonical-identity.md
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

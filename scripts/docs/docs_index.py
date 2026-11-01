@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Final
 
 from scripts.docs._inventory import parse_frontmatter
+from scripts.docs.frontmatter_contract import KIND_TO_DIVIO_TYPE
 from scripts.docs.bulk_ref_rewrite import split_frontmatter
 from scripts.docs.generate_kitty_specs_docs import slugify
 
@@ -67,7 +68,9 @@ _FENCE_RE: Final[re.Pattern[str]] = re.compile(r"^\s*```")
 
 _FM_TITLE: Final[str] = "title"
 _FM_DESCRIPTION: Final[str] = "description"
-_FM_DIVIO_TYPE: Final[str] = "type"
+# The Divio axis is read from doc-kitty's ``kind:`` key (#6931); ``type:`` names the
+# *section* in doc-kitty (its ADR-0009), so the Divio meaning moved to ``kind``.
+_FM_KIND: Final[str] = "kind"
 
 
 # ---------------------------------------------------------------------------
@@ -156,12 +159,13 @@ def slug_for_headings(texts: list[str]) -> list[str]:
 
 
 def _coerce_divio_type(raw: object) -> DivioType:
-    """Map a frontmatter ``type`` value to :class:`DivioType`, defaulting to ``none``."""
+    """Map a frontmatter ``kind`` value to its Divio quadrant, defaulting to ``none``.
+
+    Reads through the contract's :data:`KIND_TO_DIVIO_TYPE` so the retrieval index
+    and the frontmatter-contract gate share one reading of ``kind``.
+    """
     if isinstance(raw, str):
-        try:
-            return DivioType(raw.strip())
-        except ValueError:
-            return DivioType.NONE
+        return KIND_TO_DIVIO_TYPE.get(raw.strip(), DivioType.NONE)
     return DivioType.NONE
 
 
@@ -192,7 +196,7 @@ def _entry_for_page(md_path: Path, rel_path: str, text: str) -> DocsQueryEntry:
     return DocsQueryEntry(
         path=rel_path,
         title=resolve_title(frontmatter, body, md_path),
-        divio_type=_coerce_divio_type(frontmatter.get(_FM_DIVIO_TYPE)).value,
+        divio_type=_coerce_divio_type(frontmatter.get(_FM_KIND)).value,
         anchors=anchors,
         abstract=resolve_abstract(frontmatter, body),
     )

@@ -2,14 +2,14 @@
 title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: reference
 related:
 - docs/development/reference/known-friction-points.md
 - docs/development/reference/red-main-and-release-readiness.md
 - docs/development/testing/testing-parallel.md
 - docs/development/how-to/pr-landing.md
+kind: Reference
 ---
 
 # CI and Architectural Gate Mechanics
@@ -643,6 +643,45 @@ The prose of those pages is linted by a separate, always-on job: see
   **ADRs** need only the ADR file: the bot adds the era index-table row
   (`freshen_adr_inventory --all`). An ADR's frontmatter needs `title:`, `date:`,
   `updated:`, and a 50–180 character `description`.
+
+### The frontmatter contract gate
+
+- **Job:** none yet. `python -m scripts.docs.frontmatter_contract --strict` is the
+  check; it runs today where the docs gates run locally, and its tests run under
+  `tests/docs/`.
+- **What it checks:** every **published** page (the set
+  `scripts/docs/_published_pages.py` resolves from `docs/docfx.json`; `archive/`,
+  `reports/` and `convergence/` are out of scope) carries the frontmatter
+  [doc-kitty](https://github.com/spec-kitty/doc-kitty) requires: `title`,
+  `description`, `doc_status`, `updated` and `kind`. It mirrors doc-kitty's own
+  `dockitty-validate-frontmatter` gate, including its severity split: an absent
+  required field, an unclassifiable page or an unparseable `updated` is an **error**;
+  a `kind`/`doc_status`/`type` outside the canonical set, or a date-only `updated`,
+  is a **warning**. Exit codes match the sibling gates: `0` clean, `1` `--strict` and
+  at least one error, `2` a coverage failure (the published set is empty or has
+  collapsed below its non-vacuity floor).
+- **Why it exists:** the migration to doc-kitty (#6100) replaces a DocFX tree whose
+  frontmatter was authored for DocFX. ADR
+  [2026-10-31-1](../../adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md)
+  records the mapping; this gate is how the corpus is held to it **before** the site
+  exists, so the migration lands green instead of turning the new `docs-site` job red
+  on its first run.
+- **What replaces it:** `dockitty-validate-frontmatter --astro-config
+  site/astro.config.mjs`, run over the published sections by the `docs-site` job
+  (#6930, #6937). When that job is required, doc-kitty's verdict is the authority and
+  this gate either agrees with it or is retired. It is **not** a substitute today: it
+  cannot know what doc-kitty's build schema knows, and it deliberately does not
+  claim to.
+- **`--write`** applies the mechanical migration the ADR describes (`kind` from the
+  Divio `type`, `Hub` for indexes, `ADR` for the ADR tree, `doc_status`
+  normalisation, `updated` as a UTC instant), rewriting frontmatter lines only.
+  Re-running it on a migrated tree changes nothing; the bodies of ADRs, plans,
+  reports and changelog entries are pinned by
+  `docs/_meta/immutable-body-hashes.json` and
+  `tests/docs/test_frontmatter_body_immutability.py`.
+- **Do not confuse it with** `scripts/docs/description_length_check.py`, which stays
+  until doc-kitty's gate lands: that one owns the 50-character SEO lower bound this
+  repository adds on top of doc-kitty's upper bound.
 
 ### `docs-lint`
 

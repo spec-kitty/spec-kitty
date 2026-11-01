@@ -7,6 +7,9 @@ related:
 - docs/architecture/mission-gates.md
 - docs/architecture/artifact-placement-seam.md
 - docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
+doc_status: active
+kind: ADR
+updated: '2026-08-13T00:00:00Z'
 ---
 # Gate execution targets a surface through a kernel selector and the topology placement seam
 

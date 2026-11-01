@@ -2,9 +2,9 @@
 title: mission-creation internals reference
 description: 'mission-creation internals: the mission_creation module family, the patch-routing rule, and where to add a create-time decision.'
 doc_status: active
-updated: '2026-10-05'
-type: reference
+updated: '2026-10-05T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
+kind: Reference
 ---
 # `mission_creation` internals reference
 

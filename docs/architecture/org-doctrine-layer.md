@@ -2,12 +2,13 @@
 title: Understanding the Org Layer of the Charter Offering
 description: How the three-layer charter offering resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/charter-synthesis-drg.md
 - docs/architecture/mission-type-resolution.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
+kind: Explanation
 ---
 # Understanding the Org Layer of the Charter Offering
 

@@ -2,10 +2,11 @@
 title: Architect Alphonso — Agent Profile
 description: System architecture and technical design specialist
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
+kind: Reference
 ---
 
 # Architect Alphonso — Agent Profile

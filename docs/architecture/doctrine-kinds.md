@@ -2,8 +2,7 @@
 title: Doctrine artifact kinds
 description: What each doctrine artifact kind is for, with a real built-in example of each — sourced directly from the charter kind-vocabulary code.
 doc_status: active
-updated: '2026-10-08'
-type: explanation
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/development/how-to/create-a-doctrine-artifact.md
@@ -11,6 +10,7 @@ related:
 - docs/architecture/org-doctrine-layer.md
 - docs/guides/how-to/governance/setup-governance.md
 - docs/adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md
+kind: Explanation
 ---
 # Doctrine artifact kinds
 

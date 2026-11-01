@@ -2,12 +2,13 @@
 title: Kanban Workflow Explained
 description: "How Spec Kitty tracks work-package progress: the nine lanes, the 27 allowed transitions and their guards, the append-only event log, and who moves work between them."
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-07T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/ai-agent-architecture.md
 - docs/architecture/execution-lanes.md
 - docs/architecture/spec-driven-development.md
+kind: Explanation
 ---
 # Kanban Workflow Explained
 

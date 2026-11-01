@@ -3,6 +3,9 @@ title: 'ADR: Census-Floor Ratchets — Per-Ratchet Adjudication (Tripwire, Retir
 description: 'Per-ratchet verdicts on the #4315 census-floor ratchets: the routed-meta floor is deleted outright, golden-count and shard markers retire, property gates stay.'
 status: Accepted
 date: '2026-09-14'
+doc_status: active
+kind: ADR
+updated: '2026-09-14T00:00:00Z'
 ---
 
 ## Context and Problem Statement

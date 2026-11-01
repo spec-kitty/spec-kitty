@@ -2,11 +2,12 @@
 title: Targeted Cleanup Scoping — sync.py and walker.py
 description: 'Line-level scoping of the two highest-signal code-quality cleanup targets: the calibration/walker.py duplicated-literal cluster and the cli/commands/sync.py complexity god-module.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/code-quality/index.md
 - docs/archive/plans/refactor/degod-unshim-roadmap.md
+kind: Planning
 ---
 # Targeted Cleanup Scoping — `sync.py` and `walker.py`
 

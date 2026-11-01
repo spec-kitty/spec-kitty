@@ -3,6 +3,9 @@ title: 'ADR: doctrine context is delivered as navigable links, not inlined bodie
 description: 'Doctrine context arrives as navigable links: `requires` edges resolve eagerly and inline, `suggests` edges ship as `when`/`reason` fetch guidance, with an `--include-all` hatch.'
 status: Accepted
 date: '2026-07-28'
+doc_status: active
+kind: ADR
+updated: '2026-07-28T00:00:00Z'
 ---
 
 **Status:** Accepted

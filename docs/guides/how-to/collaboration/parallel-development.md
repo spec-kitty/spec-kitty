@@ -2,13 +2,13 @@
 title: How to Develop in Parallel with Multiple Agents
 description: Run multiple Spec Kitty agents in parallel while keeping work packages isolated and coordinated.
 doc_status: active
-updated: '2026-06-14'
-type: how-to
+updated: '2026-06-14T00:00:00Z'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
 - docs/guides/how-to/missions/handle-dependencies.md
 - docs/guides/how-to/missions/implement-work-package.md
 - docs/guides/how-to/collaboration/run-external-orchestrator.md
+kind: How-To
 ---
 # How to Develop in Parallel with Multiple Agents
 

@@ -2,7 +2,7 @@
 title: Architecture
 description: 'Landing page for the architecture corpus: what lives in docs/architecture/ versus docs/adr/, which pages are living, and which are frozen history.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md
@@ -10,6 +10,7 @@ related:
 - docs/architecture/diagrams/01_context/README.md
 - docs/architecture/diagrams/02_containers/README.md
 - docs/architecture/diagrams/03_components/README.md
+kind: Hub
 ---
 # Architecture
 

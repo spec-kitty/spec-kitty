@@ -2,11 +2,12 @@
 title: WP & Op Schema Model — Related Open Tracker Tickets
 description: 'Deduped map of open tracker issues covering WP-metadata rework, ops/WP-template moves, model-first formalization, and WP prompt/template friction, from a three-lens sweep.'
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/plans/investigations/wp-op-schema-model.md
 - docs/archive/plans/investigations/wp-op-schema-research/README.md
+kind: Planning
 ---
 # WP & Op Schema Model — Related Open Tracker Tickets
 

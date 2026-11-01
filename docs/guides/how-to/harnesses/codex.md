@@ -2,11 +2,11 @@
 title: Use Spec Kitty in Codex CLI
 description: 'How to use Spec Kitty in Codex CLI, the first-class harness with the heaviest agent skills integration: prerequisites, skill install, and the command workflow.'
 doc_status: active
-updated: '2026-10-21'
-type: how-to
+updated: '2026-10-21T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/installation/install-spec-kitty.md
+kind: How-To
 ---
 # Use Spec Kitty in Codex CLI
 

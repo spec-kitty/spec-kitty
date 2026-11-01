@@ -2,11 +2,11 @@
 title: 'Pull the safety cord: unclog a deadlocked Actions queue'
 description: Pause CI on every PR you are not landing with the pr:pause-ci label, drain the Actions queue, and get the PRs you are landing back to a green signal.
 doc_status: active
-updated: '2026-11-01'
+updated: '2026-11-01T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: how-to
 related:
 - docs/development/how-to/pr-landing.md
+kind: How-To
 ---
 # Pull the safety cord: unclog a deadlocked Actions queue
 

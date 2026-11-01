@@ -2,9 +2,10 @@
 title: Mission Types Reference
 description: Reference for Spec Kitty mission types (software-dev, research, documentation, and plan). Learn how blueprints define phases, step bindings, and custom workflows.
 doc_status: active
-updated: '2026-10-13'
+updated: '2026-10-13T00:00:00Z'
 related:
 - docs/api/configuration.md
+kind: Reference
 ---
 # Mission Types Reference
 

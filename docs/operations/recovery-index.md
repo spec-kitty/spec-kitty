@@ -2,11 +2,12 @@
 title: Recovery guides
 description: Recovery procedures for Spec Kitty operational states, such as a coord/lane split-brain or a refusal after an upgrade mid-Mission.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-04T00:00:00Z'
 related:
 - docs/index.md
 - docs/operations/upgrade-with-live-lanes-recovery.md
 - docs/guides/how-to/recovery/index.md
+kind: How-To
 ---
 # Recovery guides
 

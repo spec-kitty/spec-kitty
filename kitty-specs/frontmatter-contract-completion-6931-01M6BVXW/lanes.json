@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "mission_slug": "frontmatter-contract-completion-6931-01M6BVXW",
+  "mission_id": "01M6BVXWKTRSD7WMYEY3SM65HC",
+  "mission_branch": "kitty/mission-frontmatter-contract-completion-6931-01M6BVXW",
+  "target_branch": "issue-6931-frontmatter-contract",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/docs/frontmatter_contract.py",
+        "tests/docs/test_frontmatter_contract.py",
+        "tests/docs/test_frontmatter_contract_upstream_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/docs/test_frontmatter_contract_corpus.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/page-inventory.yaml",
+        "scripts/docs/docs_index.py",
+        "scripts/docs/frontmatter_backfill.py",
+        "scripts/docs/inventory_lockfile.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/_meta/immutable-body-hashes.json",
+        "docs/adr/",
+        "docs/api/",
+        "docs/architecture/",
+        "docs/configuration/",
+        "docs/context/",
+        "docs/guides/",
+        "docs/index.md",
+        "docs/integrations/",
+        "docs/migrations/",
+        "docs/operations/",
+        "docs/plans/",
+        "docs/security/",
+        "tests/docs/test_frontmatter_body_immutability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "scripts/docs/description_length_check.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-11-01T15:50:47.165249+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "f8a5d8358cfa7b30fc920857415a991317ae2cb8"
+}

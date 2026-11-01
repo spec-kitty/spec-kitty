@@ -2,12 +2,13 @@
 title: FoundationalValues and Creed — canonical design
 description: "Single authority for the FoundationalValues/creed design: generic over N values, AMMERSE the default basis, and a signed impacts edge that subsumes in_tension_with."
 doc_status: draft
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 related:
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
 - docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
 - docs/archive/plans/doctrine/squad-reports/index.md
 - docs/plans/doctrine/index.md
+kind: Planning
 ---
 # FoundationalValues and Creed — canonical design
 

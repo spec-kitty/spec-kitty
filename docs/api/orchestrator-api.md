@@ -2,13 +2,14 @@
 title: Orchestrator API Reference
 description: Machine-contract API for external orchestration providers.
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-10-27T00:00:00Z'
 related:
 - docs/api/event-envelope.md
 - docs/migrations/feature-flag-deprecation.md
 - docs/migrations/mission-id-canonical-identity.md
 - docs/migrations/mission-type-flag-deprecation.md
 - docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md
+kind: Reference
 ---
 # Orchestrator API Reference
 

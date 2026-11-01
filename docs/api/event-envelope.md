@@ -2,11 +2,12 @@
 title: Event Envelope Reference
 description: Reference for Spec Kitty event envelopes. Understand the 3.0.0 contract schema, canonical terms, and validation parameters for outbound payloads.
 doc_status: active
-updated: '2026-06-09'
+updated: '2026-06-09T00:00:00Z'
 related:
 - docs/migrations/feature-flag-deprecation.md
 - docs/migrations/mission-id-canonical-identity.md
 - docs/migrations/mission-type-flag-deprecation.md
+kind: Reference
 ---
 # Event Envelope Reference
 

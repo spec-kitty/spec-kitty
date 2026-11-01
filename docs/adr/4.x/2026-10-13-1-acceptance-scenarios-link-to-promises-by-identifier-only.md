@@ -3,6 +3,9 @@ title: 'ADR: acceptance scenarios link to product promises by identifier only; c
 description: 'Scenarios cite promises only by @promise identifier; a JDK-free per-PR check validates feature files, tags and step bindings; nightly legs upload versioned evidence.'
 status: Accepted
 date: '2026-10-13'
+doc_status: active
+kind: ADR
+updated: '2026-10-13T00:00:00Z'
 ---
 
 **Status:** Accepted, accepted by the owner on 2026-10-13. Amended 2026-10-15, see [Amendment](#amendment-2026-10-15-authored-files-in-fixture-builders).

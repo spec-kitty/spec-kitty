@@ -3,6 +3,9 @@ title: 'ADR: Canonical CliConsole seam — one CLI output object, plain --json, 
 description: 'Why Spec Kitty routes all CLI output through a single CliConsole seam: plain --json by construction, colour toggled on the object (never os.environ), no shim, CLI-layer scope.'
 status: Accepted
 date: '2026-07-14'
+doc_status: active
+kind: ADR
+updated: '2026-07-14T00:00:00Z'
 ---
 
 # Canonical CliConsole seam — one CLI output object, plain `--json`, object-not-env determinism

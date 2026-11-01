@@ -2,13 +2,14 @@
 title: Spec Kitty 3.2 Documentation
 description: Current Spec Kitty 3.2 documentation for new adopters, upgrade operators, harness users, and CLI integrators.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 related:
 - docs/changelog/index.md
 - docs/changelog/release-goals.md
 - docs/migrations/from-charter-2x.md
 - docs/migrations/index.md
 - docs/migrations/upgrade-to-0-12-0.md
+kind: Hub
 ---
 
 <section class="sk-docs-hero" aria-labelledby="sk-docs-title">

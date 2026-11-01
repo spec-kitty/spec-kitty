@@ -2,11 +2,12 @@
 title: Version taxonomy
 description: The five version-relevance tags every docs page carries, what each means for the active release line, and how the leakage check enforces them.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/reference/index.md
 - docs/development/page-inventory.yaml
+kind: Reference
 ---
 # Version taxonomy
 

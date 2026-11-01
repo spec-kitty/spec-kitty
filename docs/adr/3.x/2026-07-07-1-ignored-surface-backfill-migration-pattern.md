@@ -3,6 +3,9 @@ title: 'ADR: IGNORED-Surface Backfill Migration Pattern'
 description: 'Every new `GitClass.IGNORED` surface ships a frozen companion gitignore backfill migration in the same pull request, covering entry variants and lane worktrees.'
 status: Accepted
 date: '2026-07-07'
+doc_status: active
+kind: ADR
+updated: '2026-07-07T00:00:00Z'
 ---
 
 ## Context

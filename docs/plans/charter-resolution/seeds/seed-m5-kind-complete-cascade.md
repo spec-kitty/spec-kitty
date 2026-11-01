@@ -2,7 +2,8 @@
 title: Mission Seed M5 - Kind-Complete Cascade and Orphan Wiring
 description: 'Specify-intake seed for the mission closing #2829 and the residual of #3009: expand the cascade relation set and wire the remaining orphaned artefacts.'
 doc_status: active
-updated: '2026-08-19'
+updated: '2026-08-19T00:00:00Z'
+kind: Planning
 ---
 
 # Mission Seed — M5: Kind-Complete Cascade + Orphan Wiring

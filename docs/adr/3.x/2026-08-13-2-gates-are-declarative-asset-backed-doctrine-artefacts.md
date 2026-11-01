@@ -9,6 +9,9 @@ related:
 - docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md
 - docs/adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md
 - docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md
+doc_status: active
+kind: ADR
+updated: '2026-08-13T00:00:00Z'
 ---
 # Transition gates are declarative, asset-backed, first-class doctrine artefacts
 

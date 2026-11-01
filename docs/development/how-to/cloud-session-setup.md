@@ -2,9 +2,9 @@
 title: Set Up a Claude Code Cloud Session
 description: Prepare a Claude Code cloud session so the Spec Kitty CLI, the test package and CodeGraph are ready before you run a Mission or an Op.
 doc_status: active
-updated: '2026-10-09'
+updated: '2026-10-09T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: how-to
+kind: How-To
 ---
 # Set Up a Claude Code Cloud Session
 

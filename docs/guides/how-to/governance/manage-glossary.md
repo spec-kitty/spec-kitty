@@ -2,8 +2,7 @@
 title: How to Manage the Glossary
 description: Curate canonical terminology, resolve conflicts, and configure strictness enforcement.
 doc_status: active
-updated: '2026-10-08'
-type: how-to
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
 - docs/context/charter-overview.md
@@ -11,6 +10,7 @@ related:
 - docs/guides/how-to/installation/install-spec-kitty.md
 - docs/guides/how-to/missions/switch-missions.md
 - docs/guides/how-to/governance/synthesize-doctrine.md
+kind: How-To
 ---
 # How to Manage the Glossary
 

@@ -2,9 +2,9 @@
 title: Agent moment delivery policy
 description: 'Agent moment delivery for #4216: team-scoped default for unfamiliar peer activity, identity-scoped receipts as the novelty policy, bounded catch-up shared by CLI and MCP.'
 doc_status: active
-updated: '2026-09-30'
-type: explanation
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
+kind: Explanation
 ---
 
 # Agent moment delivery policy

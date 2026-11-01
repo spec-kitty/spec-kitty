@@ -2,7 +2,7 @@
 title: Architecture notes
 description: 'Page index for docs/architecture/: the living C4 model, landscape and vision, explanations, models, assessments, templates, and the frozen per-era history.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-08T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
@@ -11,6 +11,7 @@ related:
 - docs/archive/architecture/feature-detection.md
 - docs/archive/architecture/gap-analysis-connector-installation-model.md
 - docs/index.md
+kind: Hub
 ---
 # Architecture notes
 

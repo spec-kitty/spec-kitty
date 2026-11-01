@@ -2,7 +2,8 @@
 title: Identity-Boundary CI Gate
 description: 'Retired record of the former drift-detector required CI check, which ran the canonical-registry recognition test on every PR until the sync transport it policed was deleted.'
 doc_status: deprecated
-updated: '2026-08-26'
+updated: '2026-08-26T00:00:00Z'
+kind: How-To
 ---
 # Identity-Boundary CI Gate
 

@@ -3,6 +3,9 @@ title: 'ADR: Org-aware mission-type loader + `path_conventions` doctrine slot (f
 description: 'Makes the mission-type loader org-aware and adds an additive `path_conventions` charter doctrine slot; full convergence onto charter mission types is deferred to #2652.'
 status: Accepted
 date: '2026-09-20'
+doc_status: active
+kind: ADR
+updated: '2026-09-20T00:00:00Z'
 ---
 
 ## Context and Problem Statement

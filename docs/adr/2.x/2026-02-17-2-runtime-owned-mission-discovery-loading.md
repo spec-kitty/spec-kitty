@@ -3,6 +3,9 @@ title: Runtime-owned Mission Discovery and Loading
 description: Gives the runtime sole ownership of Mission discovery and YAML loading, so the CLI stops keeping a second precedence order that resolved custom packs differently.
 status: Proposed
 date: '2026-02-17'
+doc_status: active
+kind: ADR
+updated: '2026-02-17T00:00:00Z'
 ---
 
 ## Context and Problem Statement

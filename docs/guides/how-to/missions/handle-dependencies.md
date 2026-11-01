@@ -2,14 +2,14 @@
 title: How to handle work package dependencies
 description: Declare, implement, and maintain dependencies between work packages in Spec Kitty.
 doc_status: active
-updated: '2026-06-12'
-type: how-to
+updated: '2026-06-12T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
 related:
 - docs/guides/how-to/missions/generate-tasks.md
 - docs/guides/how-to/missions/implement-work-package.md
 - docs/guides/how-to/collaboration/parallel-development.md
 - docs/guides/how-to/collaboration/sync-workspaces.md
+kind: How-To
 ---
 # How to handle work package dependencies
 

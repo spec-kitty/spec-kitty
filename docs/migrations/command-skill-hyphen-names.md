@@ -2,14 +2,14 @@
 title: 'Migration: Command Skills Renamed for the Agent Skills Specification'
 description: 'Upgrade to the spec-kitty-<command> skill names: new invocations per harness, kept edited copies, doctor skills remedies and the Antigravity workflows archive.'
 doc_status: active
-type: how-to
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-21'
+updated: '2026-10-21T00:00:00Z'
 related:
 - docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md
 - docs/api/supported-agents.md
 - docs/guides/how-to/installation/upgrade-project.md
 - docs/changelog/CHANGELOG.md
+kind: How-To
 ---
 
 # Command skills renamed for the Agent Skills specification

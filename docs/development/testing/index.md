@@ -2,12 +2,13 @@
 title: Testing the Spec Kitty codebase
 description: How to run and write tests against the Spec Kitty codebase — the flakiness policy, parallel runs, local mutation testing, Playwright UI e2e, and time-dependent test discipline.
 doc_status: active
-updated: '2026-10-22'
+updated: '2026-10-22T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/development/index.md
 - docs/development/how-to/index.md
 - docs/development/reference/index.md
+kind: Hub
 ---
 # Testing the Spec Kitty codebase
 

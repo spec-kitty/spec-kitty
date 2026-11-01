@@ -2,7 +2,8 @@
 title: 2.1 Main-Branch Cutover Checklist
 description: Checklist for promoting the 2.x line to main, parking the old line as 1.x-maintenance, and shipping 2.1.0 as the first stable PyPI release on the new main.
 doc_status: deprecated
-updated: '2026-06-03'
+updated: '2026-06-03T00:00:00Z'
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

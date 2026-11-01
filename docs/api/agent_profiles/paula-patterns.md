@@ -2,10 +2,11 @@
 title: Paula Patterns — Agent Profile
 description: Architecture-scout reviewer for recurring boundary leaks, ownership confusion, and whack-a-field fixes
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
+kind: Reference
 ---
 
 # Paula Patterns — Agent Profile

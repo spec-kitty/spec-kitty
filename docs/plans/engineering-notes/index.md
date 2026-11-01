@@ -2,7 +2,7 @@
 title: Engineering notes
 description: 'Internal engineering notes for Spec Kitty: field reports, design notes, architectural reviews, and the historical record of closed investigations and missions.'
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/engineering-notes/architectural-review/README.md
@@ -11,6 +11,7 @@ related:
 - docs/archive/plans/engineering-notes/runtime_and_state_overhaul/README.md
 - docs/archive/plans/engineering-notes/triage/README.md
 - docs/plans/index.md
+kind: Hub
 ---
 # Engineering notes
 

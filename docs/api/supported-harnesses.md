@@ -2,7 +2,8 @@
 title: Supported Harnesses
 description: Support matrix for Spec Kitty 3.2 AI coding harnesses, including first-class, supported, experimental, and unsupported hosts.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-21T00:00:00Z'
+kind: Reference
 ---
 # Supported Harnesses
 

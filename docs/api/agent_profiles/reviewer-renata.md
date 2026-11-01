@@ -2,10 +2,11 @@
 title: Reviewer Renata — Agent Profile
 description: Code and design quality assurance specialist for correctness, security, and standards review
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-07-21T00:00:00Z'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
+kind: Reference
 ---
 
 # Reviewer Renata — Agent Profile

@@ -3,6 +3,9 @@ title: Agent Attribution Tracking for Transparency and Compliance
 description: Line-level attribution joining git blame to agent execution logs, so regulated teams can say which model or which human authored any particular line of code.
 status: Proposed
 date: '2026-02-11'
+doc_status: active
+kind: ADR
+updated: '2026-02-11T00:00:00Z'
 ---
 
 ## Context and Problem Statement

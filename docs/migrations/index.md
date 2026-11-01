@@ -2,7 +2,7 @@
 title: Migrations
 description: 'Migration hub for upgrading Spec Kitty projects to 3.2: current migration paths, historical cutover runbooks, and the migration/shim ruleset with its registry.'
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-21T00:00:00Z'
 related:
 - docs/context/index.md
 - docs/changelog/index.md
@@ -26,6 +26,7 @@ related:
 - docs/migrations/teamspace-mission-state-repair.md
 - docs/migrations/tracker-egress-refusal.md
 - docs/migrations/upgrade-to-0-12-0.md
+kind: Hub
 ---
 > Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../guides/tutorials/getting-started.md).
 

@@ -2,10 +2,11 @@
 title: File Structure Reference
 description: Reference for Spec Kitty file and directory structure. Learn the roles of .kittify/, kitty-specs/, .worktrees/, and agent directories.
 doc_status: active
-updated: '2026-06-09'
+updated: '2026-06-09T00:00:00Z'
 related:
 - docs/api/configuration.md
 - docs/api/supported-agents.md
+kind: Reference
 ---
 # File Structure Reference
 

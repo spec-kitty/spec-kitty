@@ -2,9 +2,10 @@
 title: 'Context: Practices and Principles'
 description: 'Glossary context for practices and principles: the operating principles guiding glossary-semantic-integrity execution, such as the mostly-invisible process.'
 doc_status: active
-updated: '2026-03-10'
+updated: '2026-03-10T00:00:00Z'
 related:
 - docs/context/identity.md
+kind: Explanation
 ---
 ## Context: Practices and Principles
 

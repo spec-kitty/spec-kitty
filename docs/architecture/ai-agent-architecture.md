@@ -2,12 +2,13 @@
 title: AI Agent Architecture Explained
 description: "How Spec Kitty stays agent-agnostic: slash commands and Agent Skills rendered from one shared command-template source, per agent format, driving the same lane workflow."
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-10-21T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/execution-lanes.md
 - docs/architecture/kanban-workflow.md
 - docs/architecture/mission-system.md
+kind: Explanation
 ---
 # AI Agent Architecture Explained
 

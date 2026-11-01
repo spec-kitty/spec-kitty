@@ -2,7 +2,7 @@
 title: Code Quality — Working Collection
 description: 'Standing code-quality surface: the SonarCloud baseline, quality-metric evolution, the smell/vulnerability cluster taxonomy, and how the debt maps onto the degod/unshim waves.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -11,6 +11,7 @@ related:
 - docs/archive/plans/refactor/degod-unshim-roadmap.md
 - docs/plans/code-quality/targeted-cleanup-scoping.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+kind: Hub
 ---
 # Code Quality — Working Collection
 

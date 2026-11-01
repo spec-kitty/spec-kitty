@@ -2,12 +2,12 @@
 title: Batch Event Ingest API Contract
 description: Batch event ingest API contract for Spec Kitty — authentication flow, event envelope fields, request/response format, event schemas, lane vocabulary, and error categorization.
 doc_status: active
-updated: '2026-10-22'
-type: reference
+updated: '2026-10-22T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/api/event-envelope.md
 - docs/api/orchestrator-api.md
+kind: Reference
 ---
 # Contract: Batch Event Ingest API
 

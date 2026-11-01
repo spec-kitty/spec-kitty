@@ -2,13 +2,13 @@
 title: Release notes — 3.2.6rc1 (internal Release Candidate)
 description: 'Internal Release Candidate notes for spec-kitty-cli 3.2.6rc1: an opt-in prerelease build for maintainer validation, not an official 3.2.6 release.'
 doc_status: active
-type: reference
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-09-03'
+updated: '2026-09-03T00:00:00Z'
 related:
 - docs/changelog/CHANGELOG.md
 - docs/changelog/index.md
 - docs/changelog/release-goals.md
+kind: Reference
 ---
 # Release notes — `3.2.6rc1` (internal Release Candidate)
 

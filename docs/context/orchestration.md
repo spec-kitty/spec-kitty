@@ -2,13 +2,14 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-07T00:00:00Z'
 related:
 - docs/context/charter.md
 - docs/context/identity.md
 - docs/context/system-events.md
 - docs/context/technology-foundations.md
 - docs/context/topology.md
+kind: Explanation
 ---
 ## Context: Orchestration
 

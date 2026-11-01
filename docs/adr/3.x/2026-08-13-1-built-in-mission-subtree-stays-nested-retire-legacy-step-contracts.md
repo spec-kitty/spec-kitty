@@ -8,6 +8,9 @@ related:
 - docs/architecture/doctrine-kinds.md
 - docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md
 - docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
+doc_status: active
+kind: ADR
+updated: '2026-08-13T00:00:00Z'
 ---
 # The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface
 

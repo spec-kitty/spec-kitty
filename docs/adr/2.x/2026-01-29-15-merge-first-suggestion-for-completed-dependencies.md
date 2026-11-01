@@ -3,6 +3,9 @@ title: Merge-First Suggestion for Completed Multi-Parent Dependencies
 description: Detected that every declared parent was already finished and advised consolidating them first, instead of walking into predictable add/add conflicts.
 status: Superseded
 date: '2026-01-29'
+doc_status: superseded
+kind: ADR
+updated: '2026-01-29T00:00:00Z'
 ---
 
 > Superseded on 2026-04-05 by

@@ -3,7 +3,9 @@ title: 'ADR: the write-service protocol is loopback HTTP with a bearer token fro
 description: 'The CLI reaches its write service on 127.0.0.1 with a per-clone bearer token; the service is authoritative, refuses with the CLI''s codes, and acks one synced append.'
 status: Accepted
 date: '2026-10-27'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 # The write-service protocol is loopback HTTP with a bearer token from the git common dir

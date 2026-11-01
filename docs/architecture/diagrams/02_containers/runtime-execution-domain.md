@@ -2,11 +2,12 @@
 title: Runtime/Execution Domain (living container detail)
 description: 'Living container detail for the runtime/execution domain: the current view of how mission execution and orchestration are structured in Spec Kitty.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/02_containers/README.md
 - docs/architecture/diagrams/03_components/README.md
+kind: Explanation
 ---
 # Runtime/Execution Domain (living container detail)
 

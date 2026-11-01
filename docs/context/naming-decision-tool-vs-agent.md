@@ -2,10 +2,11 @@
 title: 'Naming Decision: Tool vs Agent'
 description: "The canonical naming decision separating tool (the concrete execution product) from agent (the logical collaborator identity and role) across Spec Kitty."
 doc_status: active
-updated: '2026-07-16'
+updated: '2026-07-16T00:00:00Z'
 related:
 - docs/context/index.md
 - docs/context/historical-terms.md
+kind: Explanation
 ---
 # Naming Decision: Tool vs Agent
 

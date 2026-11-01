@@ -5,6 +5,9 @@ status: Accepted
 date: '2026-08-15'
 related:
 - docs/contracts/handoff-packet-v1.md
+doc_status: active
+kind: ADR
+updated: '2026-08-15T00:00:00Z'
 ---
 
 # Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract

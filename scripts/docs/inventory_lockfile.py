@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
+from scripts.docs.frontmatter_contract import KIND_TO_DIVIO_TYPE
 from scripts.docs._inventory import (
     DivioType,
     LoadError,
@@ -66,8 +67,16 @@ DEFAULT_DOCS_ROOT: Final[str] = "docs/"
 # today on most pages; Mission B backfills it. When absent the generator
 # defaults to ``current`` so the rollup is total over the tree (report-only).
 _FM_VERSION_TAG: Final[str] = "version_tag"
-# The Divio axis lives under the existing ``type:`` frontmatter key.
-_FM_DIVIO_TYPE: Final[str] = "type"
+# The Divio axis is read from the doc-kitty ``kind:`` frontmatter key (#6931).
+#
+# It used to be read from ``type:``, which doc-kitty defines as the *section*
+# (ADR-0009 in doc-kitty: "type names the section; kind names how to read the
+# page"). The corpus's Divio ``type`` values were folded into ``kind``, so the
+# rollup reads ``kind`` now — the Divio quadrant is exactly "how to read the
+# page", which is what ``kind`` carries. A kind with no Divio quadrant (Hub,
+# ADR, Planning, ...) reads as ``none``, which is what those pages recorded
+# before the fold.
+_FM_KIND: Final[str] = "kind"
 _FM_OWNING_WORKSTREAM: Final[str] = "owning_workstream"
 _FM_NOTES: Final[str] = "notes"
 
@@ -126,12 +135,14 @@ def _coerce_version_tag(raw: object) -> VersionTag:
 
 
 def _coerce_divio_type(raw: object) -> DivioType:
-    """Map a frontmatter ``type`` value to :class:`DivioType`."""
+    """Map a frontmatter ``kind`` value to its :class:`DivioType` quadrant.
+
+    One authority for the mapping: :data:`scripts.docs.frontmatter_contract.
+    KIND_TO_DIVIO_TYPE`, imported rather than retyped so the rollup and the
+    contract gate cannot disagree about what a page is.
+    """
     if isinstance(raw, str):
-        try:
-            return DivioType(raw.strip())
-        except ValueError:
-            return DivioType.NONE
+        return KIND_TO_DIVIO_TYPE.get(raw.strip(), DivioType.NONE)
     return DivioType.NONE
 
 
@@ -150,7 +161,7 @@ def entry_for_page(rel_path: str, frontmatter: Mapping[str, Any]) -> PageInvento
     :mod:`scripts.docs._inventory` always hold for a generated row.
     """
     tag = _coerce_version_tag(frontmatter.get(_FM_VERSION_TAG))
-    divio_type = _coerce_divio_type(frontmatter.get(_FM_DIVIO_TYPE))
+    divio_type = _coerce_divio_type(frontmatter.get(_FM_KIND))
 
     owning_raw = frontmatter.get(_FM_OWNING_WORKSTREAM)
     owning_workstream = (

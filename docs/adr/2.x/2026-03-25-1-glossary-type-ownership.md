@@ -3,6 +3,9 @@ title: 'ADR: Glossary Primitive Type Ownership and the Kernel Package'
 description: Relocates stdlib-only glossary value types into the kernel package so doctrine stops importing from specify_cli and the container dependency direction holds.
 status: Accepted
 date: '2026-03-25'
+doc_status: active
+kind: ADR
+updated: '2026-03-25T00:00:00Z'
 ---
 
 ## Context

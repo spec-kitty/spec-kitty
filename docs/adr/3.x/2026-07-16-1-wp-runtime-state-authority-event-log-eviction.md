@@ -3,6 +3,9 @@ title: 'WP runtime-state authority — evict runtime-mutable state from tasks/WP
 description: 'Runtime-mutable work-package state leaves `tasks/WP##.md` for the append-only event log, carried by an annotation event class so the 9-lane machine gains no self-edges.'
 status: Proposed
 date: '2026-07-16'
+doc_status: active
+kind: ADR
+updated: '2026-07-16T00:00:00Z'
 ---
 
 **Status:** Proposed

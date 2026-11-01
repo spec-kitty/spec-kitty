@@ -2,7 +2,8 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-10-10'
+updated: '2026-10-10T00:00:00Z'
+kind: Reference
 ---
 # Agent Subcommand Reference
 

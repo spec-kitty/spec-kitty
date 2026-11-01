@@ -2,13 +2,13 @@
 title: How to Create an Org Charter Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org Charter Pack.
 doc_status: active
-updated: '2026-10-09'
-type: how-to
+updated: '2026-10-09T00:00:00Z'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
 - docs/guides/how-to/governance/setup-governance.md
 - docs/guides/how-to/governance/synthesize-doctrine.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
+kind: How-To
 ---
 # How to Create an Org Charter Pack
 

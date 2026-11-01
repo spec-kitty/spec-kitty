@@ -3,6 +3,9 @@ title: 'ADR 2026-05-28-1: CI Dependency Resolution and Test Surface Consistency'
 description: 'CI installs from the frozen lockfile so the pipeline environment matches local development, closing four failure modes that were invisible outside CI.'
 status: Accepted
 date: '2026-05-28'
+doc_status: active
+kind: ADR
+updated: '2026-05-28T00:00:00Z'
 ---
 
   for `feat/pre-doctrine-stabilization-remediation` (GitHub Actions run 26558837157).

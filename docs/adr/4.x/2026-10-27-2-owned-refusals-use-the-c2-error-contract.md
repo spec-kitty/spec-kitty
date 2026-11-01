@@ -3,7 +3,9 @@ title: 'ADR: owned-checkout refusals use the C2 error contract'
 description: 'Every owned-checkout refusal prints the strict C2 error core in JSON mode, with an optional context object and spec_kitty_version stamp; one shared renderer fixes the shape.'
 status: Accepted
 date: '2026-10-27'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 # Owned-checkout refusals use the C2 error contract

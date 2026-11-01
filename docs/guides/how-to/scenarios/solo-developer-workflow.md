@@ -2,9 +2,9 @@
 title: Solo Developer Workflow
 description: Iterate quickly as a solo developer using Spec Kitty with a single AI agent while keeping systematic tracking and status visibility.
 doc_status: active
-updated: '2026-08-10'
-type: how-to
+updated: '2026-08-10T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
+kind: How-To
 ---
 
 # Solo Developer Workflow

@@ -3,6 +3,9 @@ title: 'ADR: Centralized Auth Transport Boundary'
 description: 'Makes one module the sole owner of authenticated HTTP: bearer injection, 401 refresh-and-retry-once, and deduplicated failure reporting behind singleton clients.'
 status: Accepted
 date: '2026-04-26'
+doc_status: active
+kind: ADR
+updated: '2026-04-26T00:00:00Z'
 ---
 
 - `kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/research.md` (D9, D12)

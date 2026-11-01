@@ -3,6 +3,9 @@ title: 'ADR: mission-state repair inverts non-lane preservation to preserve-by-d
 description: "Inverts mission-state repair's non-lane row preservation from a registry allowlist to preserve-by-default with an empty denylist, closing the #4897 whack-a-field class."
 status: Accepted
 date: '2026-09-23'
+doc_status: active
+kind: ADR
+updated: '2026-09-23T00:00:00Z'
 ---
 
 ## Context and Problem Statement

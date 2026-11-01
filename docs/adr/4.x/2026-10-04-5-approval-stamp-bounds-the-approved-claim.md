@@ -3,7 +3,9 @@ title: 'ADR: the approval stamp bounds what consolidate treats as approved work'
 description: 'Consolidate refuses a code lane holding a commit made after its work package was approved; an approval with no stamp refuses until re-reviewed or attested.'
 status: Accepted
 date: '2026-10-04'
-updated: '2026-10-29'
+updated: '2026-10-29T00:00:00Z'
+doc_status: active
+kind: ADR
 ---
 
 **Status:** Accepted

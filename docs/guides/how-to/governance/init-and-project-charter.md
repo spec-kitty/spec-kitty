@@ -2,11 +2,11 @@
 title: How to Initialize a Project and Author Its Charter
 description: 'How spec-kitty init sets up a project and how you author your project charter afterward with the charter commands; charter.yaml is the authoritative governance file.'
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 audience: docs/context/audience/external/project-owner.md
-type: how-to
 related:
 - docs/guides/how-to/governance/setup-governance.md
+kind: How-To
 ---
 # How to Initialize a Project and Author Its Charter
 

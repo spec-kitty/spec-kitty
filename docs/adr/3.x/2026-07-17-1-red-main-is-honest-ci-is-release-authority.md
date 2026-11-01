@@ -3,6 +3,9 @@ title: 'Red main is honest signal; CI status is the release authority'
 description: 'A red mainline is honest signal and P0 reproductions may land red-first, but mainline CI status is the release authority: nothing ships on red, with no exceptions.'
 status: Accepted
 date: '2026-07-17'
+doc_status: active
+kind: ADR
+updated: '2026-07-17T00:00:00Z'
 ---
 
 # Red main is honest signal; CI status is the release authority

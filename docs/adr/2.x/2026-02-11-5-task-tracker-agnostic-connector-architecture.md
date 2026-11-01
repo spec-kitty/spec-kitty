@@ -3,6 +3,9 @@ title: Task-Tracker-Agnostic Connector Architecture
 description: Treats Jira as one connector behind a shared interface rather than an architectural assumption, keeping Linear, Asana, and GitHub Issues equally first-class.
 status: Proposed
 date: '2026-02-11'
+doc_status: active
+kind: ADR
+updated: '2026-02-11T00:00:00Z'
 ---
 
 ## Context and Problem Statement

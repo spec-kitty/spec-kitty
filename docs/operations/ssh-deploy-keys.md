@@ -2,7 +2,8 @@
 title: SSH Deploy Key Setup for CI/CD
 description: 'One-time setup for the SSH deploy key that lets CI/CD clone the private spec-kitty-events repository during builds: generating the keypair and registering the public key.'
 doc_status: active
-updated: '2026-01-29'
+updated: '2026-01-29T00:00:00Z'
+kind: How-To
 ---
 # SSH Deploy Key Setup for CI/CD
 

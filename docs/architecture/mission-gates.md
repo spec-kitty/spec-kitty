@@ -2,9 +2,8 @@
 title: Mission transition gates — declarative, asset-backed, trust-gated
 description: 'The declarative model for transition gates: a gate artefact whose check ships as an asset, trust-checked before it runs, with severity-typed outcomes.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-09-30T00:00:00Z'
 audience: docs/context/audience/internal/lead-developer.md
-type: explanation
 related:
 - docs/architecture/mission-type-resolution.md
 - docs/architecture/artifact-placement-seam.md
@@ -14,6 +13,7 @@ related:
 - docs/adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md
 - docs/adr/3.x/2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md
 - docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md
+kind: Explanation
 ---
 # Mission transition gates — declarative, asset-backed, trust-gated
 

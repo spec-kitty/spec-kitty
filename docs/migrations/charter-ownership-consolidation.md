@@ -2,7 +2,8 @@
 title: Migration — Charter ownership consolidation
 description: 'Migration for the charter-ownership consolidation whose shim was removed in 3.2.0: what changed and the steps required to move onto the consolidated ownership.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-06-03T00:00:00Z'
+kind: How-To
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

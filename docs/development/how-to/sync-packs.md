@@ -2,13 +2,13 @@
 title: How to sync and bump the built-in and internal packs
 description: Fetch the pinned built-in and internal pack trees into a checkout, work offline from the cache, and bump a pin after changing pack content upstream.
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-10-19T00:00:00Z'
 audience: docs/context/audience/internal/maintainer.md
-type: how-to
 related:
 - docs/development/how-to/enable-the-internal-pack.md
 - docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
 - docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md
+kind: How-To
 ---
 # How to sync and bump the built-in and internal packs
 
