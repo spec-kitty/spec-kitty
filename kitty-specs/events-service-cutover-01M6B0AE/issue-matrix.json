@@ -37,7 +37,7 @@
       "wp": null
     },
     "#6915": {
-      "evidence_ref": "Mission issue; WP01 delivers the read-service pin and fetch tooling (95d2f7c8, 03fa97d3, cf627bcb); remaining WPs pending",
+      "evidence_ref": "Gaps 3 (cut-over) and 11 (release pin check) delivered by WP01-WP08, all approved and accepted; the umbrella issue stays open for its other gaps (write-service pin, charter service, install docs, doctor).",
       "fr": null,
       "nfr": null,
       "repo": null,

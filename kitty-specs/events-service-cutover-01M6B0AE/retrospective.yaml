@@ -1,0 +1,408 @@
+schema_version: 1
+mission_id: 01M6B0AEGV2NN3DZP7S6734GS2
+mission_slug: events-service-cutover-01M6B0AE
+mission_number: 246
+friendly_name: Events service cut-over in core
+mission_type: software-dev
+target_branch: issue-6915-events-service-cutover
+created_at: '2026-11-01T13:42:03.142553+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-01T13:42:03.142553+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-007
+  category: doc
+  summary: analysis-report.md records 4 finding(s)
+  evidence_refs:
+  - e-020
+  details: The analysis-report.md artifact for this mission records 4 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP02 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-015
+  details: WP WP02 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP03 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-016
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-017
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP07 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-018
+  details: WP WP07 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP08 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-019
+  details: WP WP08 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-017
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP02] Golden generators keep `--write`, behind an explicit `--root`.'
+  evidence_refs:
+  - e-022
+  details: "- **[2026-11-01][implement WP02] Golden generators keep `--write`, behind an explicit `--root`.** spec-kitty-events'
+    `service/README.md` regenerates the conformance and artifact goldens with core's generators (`python -m tests.contract._mission_status_*\
+    \  --write`), and the Python oracle stays in core (ADR D-7). So the generators default to reading the pinned `conformance-fixtures`
+    (read-only cache) and write only into a tree named with `--root` (an events checkout). Supersedes WP02's \"drop the rewrite
+    mode\"."
+- id: n-018
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP02] The test reader resolves the cache from `XDG_CACHE_HOME`, else the real home.'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][implement WP02] The test reader resolves the cache from `XDG_CACHE_HOME`, else the real home.**
+    `tests/conftest.py` redirects HOME per worker but records the real home in `SPEC_KITTY_REAL_HOME_FOR_TESTS` and leaves
+    `XDG_CACHE_HOME` alone; `Path.home()` would point at the empty per-worker home.'
+- id: n-024
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP03] Corpus script preflights both extras and exits 2 (cannot) on a missing one'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][implement WP03] Corpus script preflights both extras and exits 2 (cannot) on a missing one**,
+    so a missing fetch never reads as "rows differ" (exit 1).'
+- id: n-023
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP03] Inlined schemas: `bundled_schema` keeps only keys every inlined use agrees
+    on.'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][implement WP03] Inlined schemas: `bundled_schema` keeps only keys every inlined use agrees on.**
+    The bundle inlines a shared schema at each use with its own description/x-source; readers needing a per-use key fail with
+    KeyError rather than pass vacuously.'
+- id: n-021
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP04] Out-of-map edit: `tests/ci/test_contracts_workflows.py`.'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][implement WP04] Out-of-map edit: `tests/ci/test_contracts_workflows.py`.** Its router-group equality
+    now excludes the two retiring workflow paths and lists the pins, the sync script, the action and the test reader as router-only
+    extras (each with a rationale). WP06 deletes the module with the workflows.'
+- id: n-022
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP04] The fleet-verdict inventory change is deferred to the WP that deletes the
+    workflows.'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][implement WP04] The fleet-verdict inventory change is deferred to the WP that deletes the workflows.**
+    `scripts/ci/fleet_verdict.py::applicable_workflows` fails closed ("PR workflow inventory changed") when `PR_WORKFLOWS`
+    differs from the PR-triggered workflow files on disk. `contracts.yml` and `mission-status-api.yml` stay on disk until
+    WP06, so dropping them from `PR_WORKFLOWS` (and `Contracts`, `Mission Status API` from `ci-fleet-verdict.yml`) in WP04
+    would turn every fleet verdict and `tests/ci/test_fleet_*.py` red until then. The fleet edits (T018 fleet half, T019 fleet
+    tests) belong in the same commit as the workflow deletion.'
+- id: n-020
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP04] `pins/'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][implement WP04] `pins/**` joins the `corpus`, `contract_tools` and `glossary` groups.** The reality
+    check and its payload helper (`tests (corpus-blocking)`), the other contract tests (`tests (contract tools)`) and the
+    torn-tail goldens (glossary shard) read the pinned extras, so a pin bump must run all three. `corpus` keeps only `contracts/fixtures/**`.'
+- id: n-019
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP04] `tests (contract tools)` fetches the extras inline, not with the composite
+    action.'
+  evidence_refs:
+  - e-022
+  details: "- **[2026-11-01][implement WP04] `tests (contract tools)` fetches the extras inline, not with the composite action.**
+    `tests/ci/test_contracts_workflows.py` allows only SHA-pinned external actions in that job, and the job already inlines
+    the packs sync for that reason. The inline pair (an `actions/cache` restore keyed `services-${{ runner.os }}-${{ hashFiles('pins/*.source.yaml')
+    }}`, then `scripts/sync_services.py --service all --extras-only`) matches the action exactly. `tests (corpus-blocking)`
+    and `module-tests.yml` use `./.github/actions/sync-services` with `extras-only`, which satisfies the wiring ratchet. When
+    WP06 deletes that test, the job can switch to the action."
+- id: n-025
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP05] The nightly compare runs the pinned native binary'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][implement WP05] The nightly compare runs the pinned native binary** with no JDK/Gradle; it escalates
+    nothing on red, as the retired `nightly-corpus` did (follow-up).'
+- id: n-026
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP08] The frozen architecture page stays in core'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][implement WP08] The frozen architecture page stays in core** (ADR D-1: corrections are made in
+    spec-kitty-events); the ADR gets no confirmation note (no 4.x convention).'
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] Deferred fleet-verdict edit.'
+  evidence_refs:
+  - e-021
+  details: "- **[2026-11-01][implement] Deferred fleet-verdict edit.** WP04 could not drop the retiring workflows from `PR_WORKFLOWS`
+    while their files existed; the edit moved into WP06's deletion commit as an agreed out-of-map change."
+- id: n-028
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] Each `move-task --to for_review` runs the fast tier twice (baseline worktree +
+    tree), several minutes per submission.'
+  evidence_refs:
+  - e-023
+  details: '- **[2026-11-01][implement] Each `move-task --to for_review` runs the fast tier twice (baseline worktree + tree),
+    several minutes per submission.** Workaround: background the call and keep the tree clean meanwhile.'
+- id: n-029
+  category: tooling
+  summary: "Tracer: [2026-11-01][implement] Executing downloaded release code is refused by this session's permission policy."
+  evidence_refs:
+  - e-023
+  details: "- **[2026-11-01][implement] Executing downloaded release code is refused by this session's permission policy.**
+    After the first local runs (binary smoke + corpus compare, WP01/WP03) the classifier denied running pinned binaries/tools
+    and fetching actionlint; WP05/WP07 were verified with planted fakes and CI is the first real run. Workaround: CI."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] Orchestrator implements WP01–WP02, then delegates.'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-01][implement] Orchestrator implements WP01–WP02, then delegates.** WP03–WP08 went to one implementer
+    subagent (`claude:opus:python-pedro`, WP08 as `scribe-sally`) and one reviewer subagent (`claude:opus:reviewer-renata`),
+    sequentially; every WP got an independent review, and WP01/02/03/06/07 took a second cycle on real findings.'
+- id: n-030
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] Pre-existing reds on main found and filed:'
+  evidence_refs:
+  - e-023
+  details: '- **[2026-11-01][implement] Pre-existing reds on main found and filed:** #6997 (terminology guard on `unclog-ci.md:95`;
+    `SAFE_COMMIT_DIRECTORY_ARGUMENT` missing from the orchestrator contract) and #6998 (pinning inventory stale), both reproduced
+    on clean `origin/main` dc9a09d3.'
+- id: n-016
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] Oracle reads the bundle.'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][plan] Oracle reads the bundle.** `resolve(bundle/<module>) == resolve(contracts/<module>)` for
+    both modules, verified.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] Repoint, then remove.'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-01][plan] Repoint, then remove.** Consumers move to the pinned assets while the copies still exist
+    (so each repoint is proven against identical bytes), then the copies are deleted.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] Tool and source-layout tests are deleted, not repointed.'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][plan] Tool and source-layout tests are deleted, not repointed.** They test code spec-kitty-events
+    owns; the released tools differ and lack `tools/fixtures/`. Residual: port them to events.'
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] Topology `single_branch`.'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-01][plan] Topology `single_branch`.** The work is sequential (pin → repoint → wire → remove → release
+    → docs) and deletion-heavy; lane worktrees would add consolidation cost for no parallelism.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: [2026-11-01][plan] Unpack lives in `scripts/sync_services.py`, not `kernel`.'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][plan] Unpack lives in `scripts/sync_services.py`, not `kernel`.** The dead-symbol gate needs
+    `src/` callers for `kernel` exports; only scripts and tests unpack. Digest-keyed directories make stale trees unreachable
+    after a pin bump.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-11-01][specify] Grounding before spec.'
+  evidence_refs:
+  - e-021
+  details: '- **[2026-11-01][specify] Grounding before spec.** Two read-only inventory agents (tests/goldens; CI/packaging)
+    plus own checks; live baseline: the pinned linux-x64 binary vs the Python oracle, 677 Missions, 0 differences.'
+- id: n-027
+  category: tooling
+  summary: 'Tracer: [2026-11-01][specify] `gh release view/download` refused.'
+  evidence_refs:
+  - e-023
+  details: '- **[2026-11-01][specify] `gh release view/download` refused.** The session proxy blocks GitHub GraphQL; `gh api
+    .../releases/tags/<tag>` (REST) and plain `curl` of the release download URLs worked. Workaround.'
+- id: n-013
+  category: tooling
+  summary: 'Tracer: [2026-11-01][specify] dev-setup fetches extras only.'
+  evidence_refs:
+  - e-022
+  details: '- **[2026-11-01][specify] dev-setup fetches extras only.** DM 01M6B0JYP9B0CMBWRQ7TR7GBVN; the 95 MB read-service
+    binary is CI-only (ADR D-6).'
+gaps:
+- id: g-004
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement WP01] A bare `--agent claude` claim cannot prove review independence.'
+  evidence_refs:
+  - e-023
+  details: '- **[2026-11-01][implement WP01] A bare `--agent claude` claim cannot prove review independence.** The approval
+    refused with `SINGLE_BRANCH_REVIEW_NOT_INDEPENDENT` (implementer `claude::` vs reviewer `claude:opus:reviewer-renata`);
+    a rework rewind does not change the implementer of record, so the WP had to be re-planned and re-claimed with `--agent
+    claude:opus:python-pedro:implementer`. Every later WP is claimed with the full identity. Candidate gap: `implement` could
+    warn when a claim records no model/profile.'
+- id: g-005
+  category: tooling
+  summary: 'Tracer: [2026-11-01][implement] The `move-task` pre-review regression gate skipped itself on WP03–WP08'
+  evidence_refs:
+  - e-023
+  details: "- **[2026-11-01][implement] The `move-task` pre-review regression gate skipped itself on WP03–WP08** (\"no_coverage
+    — no changed files detected for this WP\") on this single_branch mission. Candidate gap: the gate's changed-file detection
+    does not see repo-root commits of a single_branch WP."
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-11-01][specify] `gh attestation verify` cannot initialise Sigstore in the sandbox.'
+  evidence_refs:
+  - e-023
+  details: '- **[2026-11-01][specify] `gh attestation verify` cannot initialise Sigstore in the sandbox.** "no valid Sigstore
+    verifiers could be initialized"; REST shows the attestation exists. Recorded as not verified here; candidate gap: `service
+    vendor` does not verify attestations either (its documented follow-up, #6590).'
+- id: g-002
+  category: tooling
+  summary: 'Tracer: [2026-11-01][specify] `spec-kitty spec-commit` writes its own message with no trailer option.'
+  evidence_refs:
+  - e-023
+  details: '- **[2026-11-01][specify] `spec-kitty spec-commit` writes its own message with no trailer option.** The required
+    `Co-Authored-By` attribution had to be added with an amend. Candidate gap: a `--trailer` passthrough.'
+- id: g-003
+  category: tooling
+  summary: 'Tracer: [2026-11-01][tasks] Tool-authored commits carry no attribution trailer.'
+  evidence_refs:
+  - e-023
+  details: '- **[2026-11-01][tasks] Tool-authored commits carry no attribution trailer.** `setup-plan`, `finalize-tasks` and
+    the status-transition commits write their own messages; the required `Co-Authored-By` line is restored when the branch
+    history is compacted at wrap-up. Candidate gap (same as the `spec-commit` one).'
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks/WP01-pin-and-fetch-tooling.md
+- id: e-006
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks/WP02-test-reader-and-goldens.md
+- id: e-007
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks/WP03-oracle-on-bundle.md
+- id: e-008
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks/WP04-router-registry-fleet.md
+- id: e-009
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks/WP05-nightly-and-acceptance-jvm.md
+- id: e-010
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks/WP06-remove-copies.md
+- id: e-011
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks/WP07-release-pin-check.md
+- id: e-012
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/tasks/WP08-governance-and-docs.md
+- id: e-013
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/status.events.jsonl
+- id: e-014
+  kind: event_range
+  path: kitty-specs/events-service-cutover-01M6B0AE/status.events.jsonl
+  range: 01M6B2EPWYD1R7ARYC46BN2MFQ..01M6B2G7XBNT694CJ9V61SZ5X6
+- id: e-015
+  kind: event_range
+  path: kitty-specs/events-service-cutover-01M6B0AE/status.events.jsonl
+  range: 01M6B3MA7YGY7ZY10XCVXHQ947
+- id: e-016
+  kind: event_range
+  path: kitty-specs/events-service-cutover-01M6B0AE/status.events.jsonl
+  range: 01M6B709A08SFX72VT7BVTKC4H
+- id: e-017
+  kind: event_range
+  path: kitty-specs/events-service-cutover-01M6B0AE/status.events.jsonl
+  range: 01M6BFXAEJ5RFNTHSQF751YX6F
+- id: e-018
+  kind: event_range
+  path: kitty-specs/events-service-cutover-01M6B0AE/status.events.jsonl
+  range: 01M6BHZ95V786BHWRB68XZKZ8W
+- id: e-019
+  kind: event_range
+  path: kitty-specs/events-service-cutover-01M6B0AE/status.events.jsonl
+  range: 01M6BKRKM47MX91M63DDD5T3DT
+- id: e-020
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/analysis-report.md
+- id: e-021
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/traces/approach.md
+- id: e-022
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/traces/design-decisions.md
+- id: e-023
+  kind: file
+  path: kitty-specs/events-service-cutover-01M6B0AE/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
