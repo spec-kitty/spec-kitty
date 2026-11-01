@@ -48,7 +48,7 @@ Two habits defuse most of this class:
   `architectural-heavy` legs on code and CI-config PRs.
 
 Since mission `ci-runtime-stabilisation` ([#5510](https://github.com/spec-kitty/spec-kitty/issues/5510)),
-five things about that pipeline are worth knowing before you read a red check:
+these things about that pipeline are worth knowing before you read a red check:
 
 - **The battery has three parts.** `architectural-fast` is always on (docs-only PRs
   included). Its roster of deterministic ratchet and census gates is held in
@@ -61,6 +61,21 @@ five things about that pipeline are worth knowing before you read a red check:
   `ci_config` (workflows, composite actions, `scripts/ci/**`, `pytest.ini`,
   `pyproject.toml`, `Makefile`, the registry and the shard timings file) gates the
   heavy battery and no other job.
+- **A change to a path a gate reads selects that gate ([#6994](https://github.com/spec-kitty/spec-kitty/issues/6994)).**
+  Many heavy gates also read paths outside their code scope. The clock bans, for
+  example, scan `scripts/**` and `tests/**`. Each such gate declares those paths
+  once, under `special_tiers.architectural.scan_scopes` in the registry.
+  `scripts/ci/gate_selection.py` derives the router group `arch_scan_scope` from
+  them, and `ci-router.yml` must list exactly that union. A diff that matches only
+  that group runs, in each heavy leg, only the gates whose scope it touches
+  (`scripts/ci/battery_scope.py` writes the list and the plugin reads it from
+  `SK_BATTERY_GATES_FILE`). A leg that holds none of them skips its run. A code
+  diff still runs every gate, and so does a change to a file the battery
+  imports outside `tests/architectural/` (`tests/conftest.py`, `tests/_support/**`,
+  helper scripts), which is battery code, not a scan scope. When a new gate reads
+  outside its code scope, add its row to `scan_scopes`.
+  `tests/architectural/test_battery_scan_scope_routing.py` proves the property
+  for every declared gate and glob.
 - **Corpus tests have one advisory owner.** `packs.yml` runs the `-m corpus`
   suite as the advisory job `built-in / -m corpus suite (advisory)`. The corpus
   tests that have no other blocking per-PR home run blocking in two router jobs:
@@ -241,7 +256,7 @@ always-on lanes own (`test_no_legacy_terminology.py`, `test_layer_rules.py`,
 | Part | Job (display name) | Selection | When |
 | --- | --- | --- | --- |
 | Fast | `architectural fast gates (ratchet/census, always-on)` | `--battery-part fast`: the registry roster | every PR shape |
-| Heavy leg 1 | `architectural battery (heavy, code-scoped) 1/2` | `--battery-part 1/2` | code, `ci_config` or `architectural` path changes, not prose-only |
+| Heavy leg 1 | `architectural battery (heavy, code-scoped) 1/2` | `--battery-part 1/2` | code, `ci_config` or `architectural` path changes, not prose-only; for a diff that matches only `arch_scan_scope`, the leg's gates whose declared scan scope the diff touches |
 | Heavy leg 2 | `architectural battery (heavy, code-scoped) 2/2` | `--battery-part 2/2` | same as leg 1 |
 | Backstop | `Architectural battery backstop (nightly-only, #5510)` | the base, no partition flag | nightly |
 
