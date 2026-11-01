@@ -1,3 +1,25 @@
+---
+schema_version: 1
+artifact_type: spec-kitty.analysis-report
+command: /spec-kitty.analyze
+mission_slug: frontmatter-contract-completion-6931-01M6BVXW
+mission_id: 01M6BVXWKTRSD7WMYEY3SM65HC
+generated_at: '2026-11-01T15:51:31.008691+00:00'
+analyzer_agent: python-pedro
+input_artifacts:
+  spec.md:
+    path: kitty-specs/frontmatter-contract-completion-6931-01M6BVXW/spec.md
+    sha256: 66263d4c6df5d54d1a8965f88bcfa589c315fbda706c966983b004078c35851d
+  plan.md:
+    path: kitty-specs/frontmatter-contract-completion-6931-01M6BVXW/plan.md
+    sha256: c2a3a6f977a0b9bdec41b922586437bf2525ddc217556f42f366d86e4dd133cf
+  tasks.md:
+    path: kitty-specs/frontmatter-contract-completion-6931-01M6BVXW/tasks.md
+    sha256: b8c69cee31d3225443fec5d5e6b5ba1de584a0448a45e4beab76ac019816fc34
+  charter:
+    path: /home/exedev/work/sk-6931/.kittify/charter/charter.md
+    sha256: 1bf06fd2403c9f4cef7dfc2d36208df2530aeb89910c96368816240f3cbdf87d
+---
 # Analysis Report — frontmatter-contract-completion-6931-01M6BVXW
 
 Cross-artifact check of `spec.md`, `plan.md`, `tasks.md` and the five WP prompts
