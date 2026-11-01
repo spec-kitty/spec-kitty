@@ -150,6 +150,78 @@ class TestResolveBySlug:
         assert {c.mission_slug for c in err.candidates} == {"080-alpha", "081-alpha"}
 
 
+class TestResolveByHumanSlugOfMid8ComposedMission:
+    """#6278: a Mission created today is ``<human-slug>-<mid8>``.
+
+    ``agent tasks status --mission smoke-test`` resolves it through the read-path
+    bare-modern fold; this ladder must answer the same way so ``implement`` does
+    not refuse a Mission the previous command accepted.
+    """
+
+    MISSION_ID = "01M6BTQXBFZMBKVGB8VXBRQW07"
+    SLUG = "smoke-test-01M6BTQX"
+
+    @pytest.fixture()
+    def mid8_repo(self, tmp_path: Path) -> Path:
+        specs = tmp_path / "kitty-specs"
+        _make_mission(specs, self.SLUG, self.MISSION_ID)
+        return tmp_path
+
+    def test_human_slug_resolves_composed_mission(self, mid8_repo: Path) -> None:
+        result = resolve_mission("smoke-test", mid8_repo)
+        assert result.mission_id == self.MISSION_ID
+        assert result.mission_slug == self.SLUG
+        assert result.feature_dir == mid8_repo / "kitty-specs" / self.SLUG
+
+    def test_all_three_handle_forms_agree(self, mid8_repo: Path) -> None:
+        dirs = {
+            resolve_mission(handle, mid8_repo).feature_dir
+            for handle in ("smoke-test", self.SLUG, self.MISSION_ID[:8])
+        }
+        assert dirs == {mid8_repo / "kitty-specs" / self.SLUG}
+
+    def test_coincidental_tail_is_not_stripped(self, tmp_path: Path) -> None:
+        """A tail that is not this Mission's own mid8 is not an identity marker."""
+        specs = tmp_path / "kitty-specs"
+        _make_mission(specs, self.SLUG, "01ZZZZZZBFZMBKVGB8VXBRQW07")
+
+        with pytest.raises(MissionNotFoundError):
+            resolve_mission("smoke-test", tmp_path)
+        # The composed slug still resolves: the tail was kept, not mangled.
+        assert resolve_mission(self.SLUG, tmp_path).mission_slug == self.SLUG
+
+    def test_mid8_tail_not_at_the_end_is_not_stripped(self, tmp_path: Path) -> None:
+        specs = tmp_path / "kitty-specs"
+        _make_mission(specs, "01M6BTQX-smoke", self.MISSION_ID)
+
+        assert resolve_mission("01M6BTQX-smoke", tmp_path).mission_slug == "01M6BTQX-smoke"
+        with pytest.raises(MissionNotFoundError):
+            resolve_mission("smoke", tmp_path)
+
+    def test_shared_human_slug_is_ambiguous(self, tmp_path: Path) -> None:
+        specs = tmp_path / "kitty-specs"
+        _make_mission(specs, "smoke-test-01AAAAAA", "01AAAAAABFZMBKVGB8VXBRQW07")
+        _make_mission(specs, "smoke-test-01BBBBBB", "01BBBBBBBFZMBKVGB8VXBRQW07")
+
+        with pytest.raises(AmbiguousHandleError) as exc_info:
+            resolve_mission("smoke-test", tmp_path)
+        err = exc_info.value
+        assert err.handle == "smoke-test"
+        assert {c.mission_slug for c in err.candidates} == {
+            "smoke-test-01AAAAAA",
+            "smoke-test-01BBBBBB",
+        }
+
+    def test_legacy_numeric_prefix_mission_still_resolves_by_human_slug(
+        self, mid8_repo: Path
+    ) -> None:
+        """The fold must not regress the prefix-only shape it already handled."""
+        specs = mid8_repo / "kitty-specs"
+        _make_mission(specs, "083-foo-bar", MISSION_ID_A)
+
+        assert resolve_mission("foo-bar", mid8_repo).mission_slug == "083-foo-bar"
+
+
 class TestResolveByNumericPrefix:
     def test_unique_numeric_prefix_resolves(self, repo_root: Path) -> None:
         result = resolve_mission("083", repo_root)
