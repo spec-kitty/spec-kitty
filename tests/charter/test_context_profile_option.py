@@ -1,4 +1,4 @@
-"""``spec-kitty charter context --profile <id>`` renders profile-cited doctrine (#6990, FR-003).
+"""``spec-kitty charter context --profile <id>`` renders profile-cited charter artifacts (#6990, FR-003).
 
 ``spec-kitty dispatch`` embeds ``build_charter_context(..., profile=<id>)`` and on
 this repository most of that payload is the profile-cited directive block (188 of
@@ -63,7 +63,7 @@ _CHARTER_MD = textwrap.dedent("""\
 """)
 
 _GOVERNANCE_YAML = textwrap.dedent("""\
-    doctrine:
+    charter:
       template_set: software-dev-default
       selected_paradigms: []
       selected_directives: []
