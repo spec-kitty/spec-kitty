@@ -2,7 +2,7 @@
 title: Profile Invocation Reference
 description: Reference for dispatch, profile-invocation complete, invocation trail fields, and lifecycle states.
 doc_status: active
-updated: '2026-10-26'
+updated: '2026-11-01'
 related:
 - docs/context/charter-overview.md
 ---
@@ -40,6 +40,52 @@ has a specific profile in mind or needs to bypass routing.
 uv run spec-kitty dispatch "Review this implementation approach" --json
 uv run spec-kitty dispatch "Implement token validation" --profile implementer-ivan --json
 ```
+
+### How routing picks a profile
+
+`dispatch` stops at the first signal that matches. `--profile <id>`, when given,
+bypasses the router entirely. Otherwise a canonical verb in the request (`review`,
+`implement`, `plan`, …) selects every profile with that role; failing that, a
+profile's declared domain keywords are consulted.
+
+Documentation-artifact nouns — `adr`, `docs`, `documentation`, `docstring`,
+`readme`, `changelog`, `guide`, `handbook`, `tutorial` — belong to the
+documentation domain, so a docs-maintenance request routes without `--profile`.
+Bare `index` is deliberately not a documentation signal: "index the invoice
+table" is a database request, not a docs request.
+
+A declared keyword or canonical verb containing a space or hyphen
+(`knowledge base`, `transcribe-notes`) matches its own words as a phrase. That
+phrase pass, and the documentation vocabulary above, run only when no literal
+single-word keyword matched, so adding that vocabulary can never move a request
+that already routed.
+
+### When routing refuses
+
+Two refusals are possible, and both exit 1:
+
+- `ROUTER_NO_MATCH` — nothing matched. `candidates` lists up to three profiles
+  sharing at least one word with the request, ordered by overlap, then routing
+  priority, then profile id; each entry carries `profile_id`, `action`,
+  `match_reason` and a `partial` confidence. When nothing overlaps, `candidates`
+  is empty rather than inventing a closest match.
+- `ROUTER_AMBIGUOUS` — several profiles tied. `candidates` lists the tied
+  profiles and the router does not pick a winner.
+
+Both carry a `suggestion` with a runnable remedy. Without `--json` the refusal
+prints the error code, one line per candidate and the remedy as text; with
+`--json` it prints the five-key `routing_failed` envelope (`error`,
+`error_code`, `message`, `candidates`, `suggestion`).
+
+```bash
+uv run spec-kitty dispatch "mark ADR-0068 Accepted and regenerate the ADR index" --dry-run --json
+uv run spec-kitty dispatch "reticulate the splines" --profile curator-carla
+uv run spec-kitty profiles list
+```
+
+`--dry-run` keeps its own contract: a routed request returns the exit-0
+`dry_run` payload including `alternatives`, and a `ROUTER_AMBIGUOUS` request
+keeps that exit-0 payload; only `ROUTER_NO_MATCH` exits 1.
 
 ---
 
