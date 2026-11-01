@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -140,10 +140,12 @@ git fetch upstream main
 git rebase upstream/main
 ```
 
-Changelog conflicts resolve in `docs/changelog/CHANGELOG.md`, which is the
-canonical changelog. The root `CHANGELOG.md` is a symlink to it (since the
-symlink cutover that rode #2338), so both paths reach the same file — resolve
-the conflict once, in the canonical location.
+A PR adds its changelog entry as a fragment in `docs/changelog/unreleased/`
+(`<id>.<section>.md`, see [`docs/changelog/unreleased/README.md`](../../changelog/unreleased/README.md)),
+so the changelog no longer conflicts on rebase. If an older PR still edits
+`docs/changelog/CHANGELOG.md` and conflicts there, move its entry into a fragment
+instead of resolving the conflict by keeping both sides; keeping both sides is how
+duplicate entries and a second `updated:` key landed before.
 
 ## 4. Classify every red check
 
@@ -429,7 +431,8 @@ What the maintainer reads the diff for, beyond the checks:
   user or operator), before architecture or test-strategy detail? See
   [Review gates: PR body style](review-gates.md#pr-body-style-consumer-focused-bluf).
 - **Changelog update** — does a user-facing change carry a consumer-focused
-  entry in `docs/changelog/CHANGELOG.md`? See
+  entry as a fragment in `docs/changelog/unreleased/`, not an edit of
+  `docs/changelog/CHANGELOG.md`? See
   [Review gates: Changelog update and style](review-gates.md#changelog-update-and-style).
 
 ## 8. Adversarial squad for architectural or API-surface PRs
@@ -615,10 +618,10 @@ For the full queue-recovery sequence, see [Pull the safety cord](unclog-ci.md).
 Field notes from the 2026-07-04 landing pass. Where the friction has since
 been fixed, the end-state is stated instead of the trap.
 
-- **The changelog has one canonical home.** `docs/changelog/CHANGELOG.md` is
-  the canonical changelog; the root `CHANGELOG.md` is a symlink to it. Edits
-  and conflict resolutions land in the canonical file either way — there is
-  no longer a generated root mirror to trip docs-freshness.
+- **Changelog entries are fragments.** A PR adds `docs/changelog/unreleased/<id>.<section>.md`
+  and never edits `docs/changelog/CHANGELOG.md` (the canonical file; the root
+  `CHANGELOG.md` and `.github/CHANGELOG.md` are symlinks to it). The release
+  assembles the fragments into `[Unreleased]`.
 - **`--force-with-lease` on never-fetched fork branches.** See
   [step 9](#9-push-discipline): use the explicit `<branch>:<sha>` lease form,
   and take the sha from `git rev-parse` — never retype it from an

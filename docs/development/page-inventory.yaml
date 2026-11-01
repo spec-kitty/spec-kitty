@@ -1400,6 +1400,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation

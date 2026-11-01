@@ -375,7 +375,7 @@ green-wash category 1, and never misattribute categories 2–5 to your own work 
 
 ## Code Style
 
-Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require a version bump in `pyproject.toml` and a `CHANGELOG.md` entry.
+Python 3.11+. Follow standard conventions. Any changes to `__init__.py` require a version bump in `pyproject.toml` and a changelog entry, added as a fragment in `docs/changelog/unreleased/` (`<id>.<section>.md`, see `docs/changelog/unreleased/README.md`), never as an edit of `CHANGELOG.md`.
 
 **New code MUST pass `ruff` and `mypy` with zero issues and zero warnings. Do NOT disable, suppress, or relax checks (no blanket `# noqa`, `# type: ignore`, or per-file ignore additions) to achieve this — fix the code instead.** Narrowly-scoped, individually-justified suppressions are allowed only when the check is genuinely wrong about correct code, and must carry an inline rationale.
 

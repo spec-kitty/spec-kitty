@@ -84,3 +84,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-27 | [owned-checkout refusals use the C2 error contract](2026-10-27-2-owned-refusals-use-the-c2-error-contract.md) |
 | 2026-10-29 | [the events domain and its Java services live in spec-kitty-events; core consumes a released, pinned service](2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md) |
 | 2026-10-31 | [the docsite is built with doc-kitty, consumed as a pinned git dependency, at directory URLs with every legacy URL redirected](2026-10-31-1-the-docsite-is-built-with-doc-kitty.md) |
+| 2026-11-01 | [pull requests touch no shared generated file and land through a merge queue](2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md) |

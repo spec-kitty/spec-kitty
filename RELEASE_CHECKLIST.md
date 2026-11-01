@@ -107,6 +107,9 @@ canary or cross-repo end-to-end suites.
 ### Documentation and Metadata
 
 - [ ] Bump `version` in `pyproject.toml`.
+- [ ] Assemble the per-PR changelog fragments: `python -m scripts.release.changelog_fragments assemble --write`
+  folds every `docs/changelog/unreleased/<id>.<section>.md` into `## [Unreleased]` and deletes it (run it without
+  `--write` first to preview). `validate_release.py --mode tag` refuses while any fragment remains.
 - [ ] Add a populated `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 - [ ] For prereleases, use the exact prerelease heading (`## [X.Y.ZaN] - YYYY-MM-DD`, etc.).
 - [ ] **Keep a populated `## [Unreleased]` heading above the dated section.** A

@@ -2,7 +2,7 @@
 title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
-updated: '2026-10-21'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -359,7 +359,7 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html), and keep your history clean but not over-squashed: compress your own bookkeeping commits (fixups, "wip", formatting-only) into the related work, but keep genuinely separate logical/code changes as separate commits — each commit should be one coherent, reviewable change.
 - If a scoped change also carries incidental formatting-only diffs, call that out explicitly in the PR body so reviewers can distinguish behavior changes from formatting churn.
 - Write a PR body that leads with **impact** — what changes for a user or operator, in plain language, before any architecture or test-strategy detail. See [Review gates: PR body style](how-to/review-gates.md#pr-body-style-consumer-focused-bluf).
-- If your change is user-facing, add a consumer-focused entry to `docs/changelog/CHANGELOG.md` under `[Unreleased]` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](how-to/review-gates.md#changelog-update-and-style).
+- If your change is user-facing, add a consumer-focused changelog fragment, `docs/changelog/unreleased/<id>.<section>.md`, instead of editing `docs/changelog/CHANGELOG.md` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](how-to/review-gates.md#changelog-update-and-style).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
 - Don't request review while your PR title is prefixed `WIP` / `[WIP]`. Keep the PR in draft until it is ready, then drop the prefix. See [Review Gates](how-to/review-gates.md#pr-draft-and-wip-title-conventions).
 
@@ -499,6 +499,8 @@ For larger releases with multiple changes:
      - **Major** (X.0.0): Breaking changes
 
 3. **Update CHANGELOG.md**
+   - Assemble the pending fragments first: `python -m scripts.release.changelog_fragments assemble --write`
+     folds every `docs/changelog/unreleased/` fragment into `## [Unreleased]` and deletes it. A tag is refused while any fragment remains.
    - Add a new version section immediately after `## [Unreleased]`:
      ```markdown
      ## [X.Y.Z] - YYYY-MM-DD
@@ -583,7 +585,7 @@ Before tagging a release, ensure:
 
 - [ ] You are on the `main` branch
 - [ ] Version number follows semantic versioning
-- [ ] CHANGELOG.md is updated under the enforced category headings (see [Changelog update and style](how-to/review-gates.md#changelog-update-and-style))
+- [ ] Every `docs/changelog/unreleased/` fragment is assembled into CHANGELOG.md under the enforced category headings (see [Changelog update and style](how-to/review-gates.md#changelog-update-and-style))
 - [ ] The release-candidate hygiene runs in the [Release Checklist](../../RELEASE_CHECKLIST.md) are recorded
 - [ ] Broad CI, release readiness, and shared-package drift checks are green
 
