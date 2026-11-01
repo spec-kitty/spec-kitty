@@ -88,7 +88,7 @@ def test_r2_clean_tree_is_green_under_strict(tmp_path: Path) -> None:
     _write(root / "docs" / "target.md")
     _write(
         root / "docs" / "a.md",
-        "---\nrelated:\n- docs/target.md\n---\n# A\n",
+        "---\nrelated:\n- target\n---\n# A\n",
     )
     assert related_validator.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"]) == 0
 
@@ -98,7 +98,7 @@ def test_r2_dangling_related_edge_reds(tmp_path: Path) -> None:
     _write(root / "docs" / "index.md")
     _write(
         root / "docs" / "a.md",
-        "---\nrelated:\n- docs/does-not-exist.md\n---\n# A\n",
+        "---\nrelated:\n- does-not-exist\n---\n# A\n",
     )
     assert related_validator.main(["--docs-root", str(root / "docs"), "--repo-root", str(root), "--strict"]) == 1
 
@@ -370,7 +370,7 @@ class TestRelatedValidatorDiffScope:
         base_sha = init_git_repo_with_base(root)
         _write(
             root / "docs" / "a.md",
-            "---\nrelated:\n- docs/does-not-exist.md\n---\n# A\n",
+            "---\nrelated:\n- does-not-exist\n---\n# A\n",
         )
         commit_all_changes(root, "add dangling related edge")
 
@@ -392,7 +392,7 @@ class TestRelatedValidatorDiffScope:
         # Pre-existing dangling edge, part of the base commit.
         _write(
             root / "docs" / "a.md",
-            "---\nrelated:\n- docs/does-not-exist.md\n---\n# A\n",
+            "---\nrelated:\n- does-not-exist\n---\n# A\n",
         )
         base_sha = init_git_repo_with_base(root)
         _write(root / "docs" / "other.md")

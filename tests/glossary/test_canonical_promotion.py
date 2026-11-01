@@ -360,7 +360,9 @@ def test_wp02_owned_referrers_have_zero_dangling_related_edges() -> None:
         f"{edge.from_path} -> {edge.to_path}" for edge in owned_dangling
     )
 
-    still_dangling_doctrine = {edge.from_path for edge in report.dangling_edges if edge.to_path == f"docs/{_OLD_GLOSSARY_PATH}"}
+    still_dangling_doctrine = {
+        edge.from_path for edge in report.dangling_edges if edge.to_path in (f"docs/{_OLD_GLOSSARY_PATH}", _OLD_GLOSSARY_PATH.removesuffix(".md"))
+    }
     known_wp01_gap = {
         "docs/context/configuration-project-structure.md",
         "docs/context/governance.md",
