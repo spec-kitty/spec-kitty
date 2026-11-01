@@ -11,8 +11,10 @@ where the tests run this file:
 * ``endpoint.json`` (ADR 2026-10-27-1 D-2 fields, owner-only) published by
   writing a temporary file and renaming it into place, and deleted at exit only
   while it still names this process's ``instance_id``;
-* ``GET /handshake``, ``GET /health`` and ``POST /shutdown``, each behind
-  ``Authorization: Bearer <token>`` (401 otherwise).
+* ``GET /api/v1/handshake``, ``GET /api/v1/health`` and ``POST /api/v1/shutdown``, each
+  behind ``Authorization: Bearer <token>`` (401 otherwise). The prefix is the one
+  ``contracts/mission-write/openapi.yaml`` declares (``servers: [{url: /api/v1}]``), and
+  every other path is a 404: the double must not answer a route the real service does not.
 
 Standard library only, like a real service binary: it imports nothing from
 spec-kitty. Tests run it as ``[sys.executable, fake_service.py, ...]`` so it is
@@ -21,7 +23,7 @@ portable to Windows. Behaviour switches for tests come from ``FAKE_SERVICE_MODE`
 ``healthy`` (default), ``never_ready`` (health answers 503), ``wrong_repo``,
 ``wrong_protocol``, ``exit_immediately`` (exit 3 before anything),
 ``slow_start:<seconds>`` (sleep before publishing), ``ignore_shutdown``
-(answer 202 to ``/shutdown`` and keep serving), ``hang`` (accept connections,
+(answer 202 to ``/api/v1/shutdown`` and keep serving), ``hang`` (accept connections,
 never answer).
 
 Not a test module (no ``test_`` prefix), so pytest never collects it.
@@ -48,6 +50,7 @@ ENDPOINT_DIRECTORY = "spec-kitty-write-service"
 ENDPOINT_FILE = "endpoint.json"
 LOCK_FILE = "service.lock"
 MODE_ENV = "FAKE_SERVICE_MODE"
+API_PREFIX = "/api/v1"
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 _EXIT_IMMEDIATELY_CODE = 3
 
@@ -139,9 +142,9 @@ def _handler(state: _State) -> type[http.server.BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             if not self._authorized():
                 return
-            if self.path == "/handshake":
+            if self.path == f"{API_PREFIX}/handshake":
                 self._send(200, state.handshake())
-            elif self.path == "/health":
+            elif self.path == f"{API_PREFIX}/health":
                 self._send(*state.health())
             else:
                 self._send(404, {"title": "no such route"})
@@ -149,7 +152,7 @@ def _handler(state: _State) -> type[http.server.BaseHTTPRequestHandler]:
         def do_POST(self) -> None:
             if not self._authorized():
                 return
-            if self.path != "/shutdown":
+            if self.path != f"{API_PREFIX}/shutdown":
                 self._send(404, {"title": "no such route"})
                 return
             if self.headers.get("Spec-Kitty-Write-Protocol") != "1":
