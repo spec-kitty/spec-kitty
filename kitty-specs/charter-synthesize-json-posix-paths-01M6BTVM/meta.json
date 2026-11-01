@@ -1,0 +1,48 @@
+{
+  "accept_commit": "feb600c64bced06f83b5df5dbdd885f627c5ce0b",
+  "acceptance_history": [
+    {
+      "accept_commit": "65d786a48e1fe3ef426878476460802fe0d00bff",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T18:05:26.349262+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "c7e5657952c89ac02594a0ddfe59d0252a826231"
+    },
+    {
+      "accept_commit": "d86e6088eca27c344a91f4206a35d13f9b5f92fc",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T18:05:36.503418+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "0f7197cf6160a22370f4f08bb78878198c9b5eee"
+    },
+    {
+      "accept_commit": "feb600c64bced06f83b5df5dbdd885f627c5ce0b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T18:05:47.268529+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "c5a2e49086528ae922abda7cb8c91a29b6467b4d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T18:05:47.268529+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "c5a2e49086528ae922abda7cb8c91a29b6467b4d",
+  "baseline_merge_commit": "67532dc0bd5d384c273b7e27390ab96b3e3132c7",
+  "created_at": "2026-11-01T15:15:14.131207+00:00",
+  "flattened": true,
+  "friendly_name": "charter synthesize json posix paths",
+  "merged_at": "2026-11-01T18:08:35.232984+00:00",
+  "merged_commit": "774b27edd55df99cb6cda03f2cb891108efeb6bc",
+  "mid8": "01M6BTVM",
+  "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC",
+  "mission_number": 246,
+  "mission_slug": "charter-synthesize-json-posix-paths-01M6BTVM",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter synthesize json posix paths on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter synthesize json posix paths",
+  "slug": "charter-synthesize-json-posix-paths-01M6BTVM",
+  "status_phase": "1",
+  "target_branch": "issue-6277-charter-synthesize-json-posix-paths",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:21:21.979257+00:00"
+}
