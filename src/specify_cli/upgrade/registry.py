@@ -239,6 +239,15 @@ def settled_in_selection_view(project_path: Path, migration_id: str) -> bool:
     migration = MigrationRegistry.get_by_id(migration_id)
     if migration is None:
         return False
+    return migration_settled_in_view(project_path, migration)
+
+
+def migration_settled_in_view(project_path: Path | str, migration: BaseMigration) -> bool:
+    """:func:`settled_in_selection_view` for a migration object, registered or not (#6688).
+
+    The runner's skip gate holds the migration it is about to apply, so it asks by
+    object: an id lookup would answer False for one the registry does not carry.
+    """
     ledger, adopting = _selection_view(project_path)
     return _settled_in_view(ledger, migration, adopting)
 
@@ -285,7 +294,7 @@ def migration_settled(ledger: MigrationLedger, migration: BaseMigration) -> bool
     the selection authority, and for a migration that declares a
     ``predecessor_id`` it also requires the predecessor's outcome to prove the
     repair ran (#6688); the runner's skip gate reaches the same second half
-    through :func:`settled_in_selection_view`. Read this as "the
+    through :func:`migration_settled_in_view`. Read this as "the
     record says applied", never as "the run may skip it".
     """
     migration_id = migration.migration_id

@@ -29,7 +29,7 @@ from .detector import VersionDetector
 from .ledger import SETTLED_RESULT, SKIPPED_RESULT, MigrationLedger, build_record
 from .metadata import _METADATA_HEADER, ProjectMetadata, VersionStamp, canonical_schema_capabilities
 from .migrations.base import BaseMigration, MigrationResult, MigrationStateUnreadableError, legacy_upgrade_scope
-from .registry import MigrationRegistry, migration_settled, settled_in_selection_view
+from .registry import MigrationRegistry, migration_settled, migration_settled_in_view
 
 logger = logging.getLogger(__name__)
 
@@ -227,11 +227,7 @@ def _skip_as_applied(ledger: MigrationLedger, migration: BaseMigration, project_
     (#6613) overrides. The cheap record check runs first so the selection view is
     only built for a recorded migration.
     """
-    return (
-        migration_settled(ledger, migration)
-        and settled_in_selection_view(project_path, migration.migration_id)
-        and not migration.reselect_when_recorded(project_path)
-    )
+    return migration_settled(ledger, migration) and migration_settled_in_view(project_path, migration) and not migration.reselect_when_recorded(project_path)
 
 
 class MigrationRunner:

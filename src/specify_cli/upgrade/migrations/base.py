@@ -326,7 +326,7 @@ class BaseMigration(ABC):
         other recorded migration is skipped as applied. A residue-safe
         successor's predecessor outcome (#6688) is NOT a reason here: it is part
         of the ledger predicate ``registry._settled_in_view``, which the runner's
-        skip gate consults through ``registry.settled_in_selection_view``.
+        skip gate consults through ``registry.migration_settled_in_view``.
 
         Clone-local reselection is no longer a per-migration hook: under the
         two-partition ledger (ADR ``2026-10-17-1``) a clone-local migration's
