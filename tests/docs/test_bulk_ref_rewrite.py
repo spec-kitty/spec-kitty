@@ -445,3 +445,19 @@ def test_teeth_skips_frontmatter_fields(tmp_path: Path) -> None:
         f"---\nrelated: [docs/adr/2.x/{_DEDUPED}]\n---\nbody\n",
     )
     assert find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False) == []
+
+
+def test_load_moves_reads_the_standing_ledger_as_source_pairs(tmp_path: Path) -> None:
+    """The default move source is the standing ledger (#6927, #2358): its routes
+    come back as ``docs/`` source pairs the rewriter can substitute."""
+    ledger = tmp_path / "moves.yaml"
+    ledger.write_text(
+        "kind: docs-moves-ledger\nversion: 1\nmoves:\n"
+        "  - {from: /status-model.html, to: /architecture/status-model.html, ref: '#1'}\n"
+        "  - {from: /plans/x.html, to: /plans/index.html, ref: '#2'}\n",
+        encoding="utf-8",
+    )
+    assert load_moves(ledger) == [
+        ("docs/status-model.md", "docs/architecture/status-model.md"),
+        ("docs/plans/x.md", "docs/plans/index.md"),
+    ]

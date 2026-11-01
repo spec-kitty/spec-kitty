@@ -1,29 +1,24 @@
 """Rename / deletion reconciliation gate (IC-03a / NFR-005, FR-023).
 
-A bulk-move mission must not silently drop or relocate a page outside the
-declared spine. Two set-containment checks enforce that:
+A docs move must not silently drop a published page. Two set-containment checks
+enforce that against the standing moves ledger ``site/moves.yaml`` (#6927; no
+Mission's ``occurrence_map.yaml`` is read, #2358):
 
-* ``rename_reconcile`` (reverse direction) — every rename/deletion the git diff
-  reports under ``docs/`` (and the retired root directories the occurrence map
-  names) MUST be covered by an ``occurrence_map.yaml`` ``moves:`` entry. A
-  rename or deletion with no corresponding ``from:`` prefix is off-spine and
-  reported.
-* ``occurrence_subset_redirect`` (forward cross-check) — every concrete ``.md``
-  file move whose destination is not ``RETIRE`` must have its published old-URL
-  present as a key in ``redirect_map.yaml`` (the derived redirect spine), so a
-  moved page keeps a working redirect.
+* ``rename_reconcile`` (reverse direction) — every rename or deletion the git
+  diff reports of a **published** ``docs/`` page (a page whose route is in
+  ``site/url-baseline.txt``) MUST be a ledger ``from`` route. Non-page files and
+  pages that were never published are out of scope: they have no URL to break.
+* ``occurrence_subset_redirect`` (forward cross-check) — every ledger ``from``
+  route MUST be a key of the committed ``redirect_map.yaml``, so a recorded move
+  keeps a working redirect (a stale map is a finding).
 
-**Path-configurable / spine-not-in-lane safe (C-010).** The occurrence-map spine
-is authored on the planning branch and may not be materialized in an execution
-lane. Both the occurrence-map and redirect-map paths are parameters (defaulting
-to their canonical repo-relative locations); the gate logic is exercised by
-fixtures and never depends on the live spine being checked out. When the
-occurrence map is absent the gate is a no-op with an examined count of ``0``
-(reported), never a crash.
+**Path-configurable.** The ledger, baseline and redirect-map paths are
+parameters (defaulting to their canonical repo-relative locations). When the
+ledger is absent the gate is a no-op with an examined count of ``0`` (reported),
+never a crash.
 
-**Advisory** at this stage (IC-03a): report-only exit ``0`` unless ``--strict``
-is passed, which flips the exit code to ``1`` on any finding. WP13 turns the
-reconcile blocking once the terminal spine is regenerated.
+**Advisory**: report-only exit ``0`` unless ``--strict`` is passed, which flips
+the exit code to ``1`` on any finding.
 """
 
 from __future__ import annotations
@@ -39,9 +34,21 @@ from typing import Any, Final
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+# ``python3 scripts/docs/rename_reconcile.py`` puts ``scripts/docs/`` on
+# ``sys.path``, not the repository root; anchor it so the ledger module resolves.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.docs.moves_ledger import Move  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs.moves_ledger import load_baseline  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs.moves_ledger import load_moves as load_ledger_moves  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs.moves_ledger import source_to_route  # noqa: E402  (sys.path bootstrap above)
+
 __all__ = [
-    "DEFAULT_OCCURRENCE_MAP",
+    "DEFAULT_MOVES_LEDGER",
     "DEFAULT_REDIRECT_MAP",
+    "DEFAULT_URL_BASELINE",
     "ReconcileReport",
     "Violation",
     "build_parser",
@@ -53,13 +60,9 @@ __all__ = [
     "run_reconcile",
 ]
 
-DEFAULT_OCCURRENCE_MAP: Final[str] = (
-    "kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"
-)
+DEFAULT_MOVES_LEDGER: Final[str] = "site/moves.yaml"
+DEFAULT_URL_BASELINE: Final[str] = "site/url-baseline.txt"
 DEFAULT_REDIRECT_MAP: Final[str] = "scripts/docs/redirect_map.yaml"
-
-_RETIRE: Final[str] = "RETIRE"
-_DOCS_PREFIX: Final[str] = "docs/"
 
 
 @dataclass(slots=True, frozen=True)
@@ -73,14 +76,6 @@ class Violation:
     def as_dict(self) -> dict[str, str]:
         """Serialize to the ``{rule_id, path, message}`` shape."""
         return {"rule_id": self.rule_id, "path": self.path, "message": self.message}
-
-
-@dataclass(slots=True, frozen=True)
-class Move:
-    """One occurrence-map ``moves:`` entry: source path(s) -> destination."""
-
-    from_paths: tuple[str, ...]
-    to: str
 
 
 @dataclass(slots=True, frozen=True)
@@ -103,39 +98,18 @@ class ReconcileReport:
 # --- Spine loading ------------------------------------------------------------
 
 
-def load_moves(occurrence_map_path: Path) -> list[Move]:
-    """Load the ``moves:`` list from an occurrence map (``[]`` when absent)."""
-    if not occurrence_map_path.is_file():
+def load_moves(moves_ledger_path: Path) -> list[Move]:
+    """Load the moves ledger (``[]`` when the file is absent)."""
+    if not moves_ledger_path.is_file():
         return []
-    yaml = YAML(typ="safe")
-    try:
-        with occurrence_map_path.open("r", encoding="utf-8") as handle:
-            raw: Any = yaml.load(handle)
-    except (OSError, YAMLError) as exc:  # pragma: no cover - defensive
-        raise ValueError(
-            f"cannot read occurrence map {occurrence_map_path}: {exc}"
-        ) from exc
-    if not isinstance(raw, dict):
-        return []
-    moves_raw = raw.get("moves")
-    if not isinstance(moves_raw, list):
-        return []
-    moves: list[Move] = []
-    for entry in moves_raw:
-        if not isinstance(entry, dict):
-            continue
-        from_raw = entry.get("from")
-        to_raw = entry.get("to")
-        if isinstance(from_raw, str):
-            from_list = [from_raw]
-        elif isinstance(from_raw, list):
-            from_list = [str(item) for item in from_raw if isinstance(item, str)]
-        else:
-            continue
-        if not from_list or not isinstance(to_raw, str):
-            continue
-        moves.append(Move(from_paths=tuple(from_list), to=to_raw))
-    return moves
+    return load_ledger_moves(moves_ledger_path)
+
+
+def _load_published_routes(baseline_path: Path) -> set[str]:
+    """Routes of the URL baseline (``set()`` when absent)."""
+    if not baseline_path.is_file():
+        return set()
+    return set(load_baseline(baseline_path))
 
 
 def _load_redirect_keys(redirect_map_path: Path) -> set[str]:
@@ -180,94 +154,53 @@ def renames_and_deletions(base: str, repo_root: Path) -> list[str]:
     return sorted(sources)
 
 
-# --- Coverage helpers ---------------------------------------------------------
-
-
-def _from_prefixes(moves: list[Move]) -> tuple[str, ...]:
-    prefixes: list[str] = []
-    for move in moves:
-        prefixes.extend(move.from_paths)
-    return tuple(prefixes)
-
-
-def _covers(prefix: str, path: str) -> bool:
-    """True when ``prefix`` (a file path or a trailing-slash dir) covers ``path``."""
-    if prefix.endswith("/"):
-        return path == prefix.rstrip("/") or path.startswith(prefix)
-    return path == prefix
-
-
-def _non_docs_scope_prefixes(prefixes: tuple[str, ...]) -> tuple[str, ...]:
-    """Retired-root scope: the map's own non-``docs/`` source prefixes."""
-    return tuple(p for p in prefixes if not p.startswith(_DOCS_PREFIX))
-
-
-def _in_scope(path: str, non_docs_scope: tuple[str, ...]) -> bool:
-    if path.startswith(_DOCS_PREFIX):
-        return True
-    return any(_covers(prefix, path) for prefix in non_docs_scope)
-
-
 # --- Gate 1: rename/deletion reconciliation (reverse) ------------------------
 
 
-def check_renames_covered(sources: list[str], moves: list[Move]) -> list[Violation]:
-    """Flag in-scope rename/deletion sources with no covering ``moves:`` entry."""
-    prefixes = _from_prefixes(moves)
-    non_docs_scope = _non_docs_scope_prefixes(prefixes)
+def check_renames_covered(
+    sources: list[str], moves: list[Move], published: set[str]
+) -> list[Violation]:
+    """Flag a renamed/deleted published page whose route is not a ledger ``from``."""
+    recorded = {move.from_route for move in moves}
     violations: list[Violation] = []
     for source in sources:
-        if not _in_scope(source, non_docs_scope):
-            continue
-        if any(_covers(prefix, source) for prefix in prefixes):
+        route = source_to_route(source)
+        if route is None or route not in published or route in recorded:
             continue
         violations.append(
             Violation(
                 rule_id="rename_reconcile",
                 path=source,
                 message=(
-                    f"{source} was renamed/deleted but is not covered by any "
-                    "occurrence_map.yaml moves: entry (off-spine)"
+                    f"{source} was renamed/deleted but its published route {route} "
+                    "has no site/moves.yaml entry (append one)"
                 ),
             )
         )
     return violations
 
 
-# --- Gate 2: occurrence-map subset of redirect-map (forward) -----------------
-
-
-def _published_old_url(docs_path: str) -> str | None:
-    """Derive a moved page's published old URL (``docs/x/y.md`` -> ``x/y.html``)."""
-    if not docs_path.startswith(_DOCS_PREFIX) or not docs_path.endswith(".md"):
-        return None
-    return docs_path[len(_DOCS_PREFIX) : -len(".md")] + ".html"
+# --- Gate 2: ledger subset of redirect-map (forward) -------------------------
 
 
 def check_occurrence_subset_redirect(
     moves: list[Move], redirect_keys: set[str]
 ) -> list[Violation]:
-    """Flag concrete file moves whose published old URL has no redirect entry."""
+    """Flag a ledger move whose ``from`` route is not a redirect-map key."""
     violations: list[Violation] = []
     for move in moves:
-        if move.to == _RETIRE:
-            continue
-        for source in move.from_paths:
-            url = _published_old_url(source)
-            if url is None:
-                continue  # directory / non-docs move — covered by the reverse gate
-            if url not in redirect_keys:
-                violations.append(
-                    Violation(
-                        rule_id="occurrence_subset_redirect",
-                        path=source,
-                        message=(
-                            f"{source} moves to '{move.to}' but its published URL "
-                            f"'{url}' is absent from the redirect map (broken "
-                            "redirect)"
-                        ),
-                    )
+        key = move.from_route.lstrip("/")
+        if key not in redirect_keys:
+            violations.append(
+                Violation(
+                    rule_id="occurrence_subset_redirect",
+                    path=move.from_route,
+                    message=(
+                        f"{move.from_route} moves to {move.to_route} but '{key}' is "
+                        "absent from the redirect map (run regenerate-map)"
+                    ),
                 )
+            )
     return violations
 
 
@@ -278,17 +211,18 @@ def run_reconcile(
     *,
     base: str,
     repo_root: Path,
-    occurrence_map_path: Path | None = None,
+    moves_ledger_path: Path | None = None,
+    url_baseline_path: Path | None = None,
     redirect_map_path: Path | None = None,
     cross_check: bool = True,
 ) -> ReconcileReport:
     """Run the rename-reconcile gate and (optionally) the redirect cross-check."""
-    occ_path = occurrence_map_path or repo_root / DEFAULT_OCCURRENCE_MAP
+    moves = load_moves(moves_ledger_path or repo_root / DEFAULT_MOVES_LEDGER)
+    published = _load_published_routes(url_baseline_path or repo_root / DEFAULT_URL_BASELINE)
     red_path = redirect_map_path or repo_root / DEFAULT_REDIRECT_MAP
-    moves = load_moves(occ_path)
     sources = renames_and_deletions(base, repo_root)
 
-    violations = check_renames_covered(sources, moves)
+    violations = check_renames_covered(sources, moves, published)
     if cross_check:
         redirect_keys = _load_redirect_keys(red_path)
         violations.extend(check_occurrence_subset_redirect(moves, redirect_keys))
@@ -305,8 +239,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rename_reconcile",
         description=(
-            "Assert every rename/deletion is accounted for by the "
-            "occurrence_map.yaml spine, and every file move has a redirect. "
+            "Assert every rename/deletion of a published docs page is recorded "
+            "in site/moves.yaml, and every recorded move has a redirect. "
             "Report-only (exit 0) unless --strict is passed."
         ),
     )
@@ -322,10 +256,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Repository root (default: cwd).",
     )
     parser.add_argument(
-        "--occurrence-map",
+        "--moves",
         type=Path,
         default=None,
-        help=f"Occurrence map path (default: <repo-root>/{DEFAULT_OCCURRENCE_MAP}).",
+        help=f"Moves ledger path (default: <repo-root>/{DEFAULT_MOVES_LEDGER}).",
+    )
+    parser.add_argument(
+        "--url-baseline",
+        type=Path,
+        default=None,
+        help=f"URL baseline path (default: <repo-root>/{DEFAULT_URL_BASELINE}).",
     )
     parser.add_argument(
         "--redirect-map",
@@ -336,7 +276,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--no-cross-check",
         action="store_true",
-        help="Skip the occurrence-map ⊆ redirect-map cross-check.",
+        help="Skip the ledger ⊆ redirect-map cross-check.",
     )
     parser.add_argument(
         "--json",
@@ -357,7 +297,8 @@ def main(argv: list[str] | None = None) -> int:
     report = run_reconcile(
         base=args.base,
         repo_root=args.repo_root,
-        occurrence_map_path=args.occurrence_map,
+        moves_ledger_path=args.moves,
+        url_baseline_path=args.url_baseline,
         redirect_map_path=args.redirect_map,
         cross_check=not args.no_cross_check,
     )

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Occurrence-map-driven bulk reference rewriter (Mission B, IC-05b).
+"""Moves-driven bulk reference rewriter (Mission B, IC-05b; standing ledger since #6927).
+
+**Default input: the standing moves ledger** ``site/moves.yaml`` (#2358): its
+route moves are read as ``docs/`` source-path pairs through
+:func:`scripts.docs.moves_ledger.source_pairs`. A Mission's own
+``occurrence_map.yaml`` can still be passed explicitly with ``--occurrence-map``;
+no Mission's map is read by default.
 
 Mission B (*Common Docs Structural Move*, ``01KW3SBK``) folds the top-level
 ``architecture/`` tree into ``docs/`` and re-sections the Divio doc dirs.  This
@@ -48,25 +54,31 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+# ``python3 scripts/docs/bulk_ref_rewrite.py`` puts ``scripts/docs/`` on ``sys.path``,
+# not the repository root; anchor it so the shared ledger module resolves.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.docs.moves_ledger import LEDGER_KIND  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs.moves_ledger import load_moves as load_ledger_moves  # noqa: E402  (sys.path bootstrap above)
+from scripts.docs.moves_ledger import source_pairs  # noqa: E402  (sys.path bootstrap above)
+
 # --------------------------------------------------------------------------- #
 # Defaults                                                                     #
 # --------------------------------------------------------------------------- #
 
-# No longer hard-pinned to one mission: the ``SPEC_KITTY_OCCURRENCE_MAP`` env
-# var overrides, and the literal below is only a last-resort fallback that keeps
-# the symbol defined + resolvable for importing callers (relative_link_fixer).
-# Every mission step passes an explicit ``--occurrence-map``, so this default is
-# consumed only by ad-hoc invocations (FR-010 / C-007 un-pin).
-DEFAULT_OCCURRENCE_MAP = os.environ.get(
-    "SPEC_KITTY_OCCURRENCE_MAP",
-    "kitty-specs/common-docs-structural-move-01KW3SBK/occurrence_map.yaml",
-)
+# The standing moves ledger (#6927, #2358) is the default move source; the
+# ``SPEC_KITTY_OCCURRENCE_MAP`` env var overrides it, and every Mission step that
+# rewrites against its own occurrence map passes ``--occurrence-map`` explicitly.
+DEFAULT_OCCURRENCE_MAP = os.environ.get("SPEC_KITTY_OCCURRENCE_MAP", "site/moves.yaml")
 DEFAULT_ROOTS: tuple[str, ...] = ("src", "tests", "docs")
 TEXT_SUFFIXES = frozenset({".py", ".md", ".txt", ".rst", ".yaml", ".yml"})
 
@@ -139,9 +151,15 @@ def _is_file_path(path: str) -> bool:
 
 
 def load_moves(occurrence_map_path: Path) -> list[tuple[str, str]]:
-    """Flatten the ``moves:`` block into ``(from, to)`` pairs (trailing-/ trimmed)."""
+    """Flatten a move source into ``(from, to)`` path pairs (trailing-/ trimmed).
+
+    The standing ledger (``kind: docs-moves-ledger``) yields ``docs/`` source
+    pairs; a Mission ``occurrence_map.yaml`` yields its ``moves:`` block.
+    """
 
     data = yaml.safe_load(occurrence_map_path.read_text(encoding="utf-8"))
+    if isinstance(data, dict) and data.get("kind") == LEDGER_KIND:
+        return source_pairs(load_ledger_moves(occurrence_map_path))
     pairs: list[tuple[str, str]] = []
     for entry in data.get("moves", []) or []:
         to = str(entry["to"]).rstrip("/")
@@ -473,7 +491,10 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--occurrence-map",
         type=Path,
         default=None,
-        help=f"Occurrence map YAML (default: {DEFAULT_OCCURRENCE_MAP}).",
+        help=(
+            "Move source: the standing ledger or a Mission occurrence map "
+            f"(default: {DEFAULT_OCCURRENCE_MAP})."
+        ),
     )
     parser.add_argument(
         "--root",
