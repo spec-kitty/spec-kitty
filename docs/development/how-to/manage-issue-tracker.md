@@ -457,6 +457,8 @@ These live on pull requests, not issues.
   (`ci-windows.yml`, `check-spec-kitty-events-alignment.yml`,
   `release-readiness.yml`) are skipped until it is removed.
 - `pr:skip-ci` — Intentionally skip CI for this PR (docs / manual review only).
+- `pr:pause-ci` — Pause CI and block merge until the label is removed; see
+  [Pausing a PR's CI](pr-landing.md#pausing-a-prs-ci-prpause-ci).
 
 ### Lifecycle & community labels
 

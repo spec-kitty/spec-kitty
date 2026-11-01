@@ -11679,6 +11679,7 @@ pages:
     - {slug: "10-post-the-remediation-summary", text: "10. Post the remediation summary", level: 2}
     - {slug: "11-hand-off-the-operator-merges", text: "11. Hand-off — the operator merges", level: 2}
     - {slug: "12-follow-up-hygiene", text: "12. Follow-up hygiene", level: 2}
+    - {slug: "pausing-a-pr-s-ci-pr-pause-ci", text: "Pausing a PR's CI (`pr:pause-ci`)", level: 2}
     - {slug: "gotchas", text: "Gotchas", level: 2}
     - {slug: "pr-body-contract", text: "PR-body contract", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
