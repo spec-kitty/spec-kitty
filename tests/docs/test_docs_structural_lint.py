@@ -37,6 +37,8 @@ from types import ModuleType
 from typing import Any
 
 import pytest
+
+from scripts.docs._page_scope import lint_config_without_fragments
 from ruamel.yaml import YAML
 
 pytestmark = pytest.mark.architectural
@@ -640,7 +642,7 @@ def test_live_real_tree_is_zero_violation_post_move() -> None:
     frontmatter, redirect stub) + backfilled the one real gap, the full lint
     over the real ``docs/`` tree is clean.
     """
-    config = load_config(STYLEGUIDE_PATH)
+    config = lint_config_without_fragments(load_config(STYLEGUIDE_PATH))
     docs_root = _REPO_ROOT / "docs"
 
     report = run(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)
@@ -667,7 +669,7 @@ def test_live_real_tree_is_zero_violation_under_extended_run() -> None:
     below for a fixture-backed proof that exercises this fix specifically,
     independent of whether #548 has merged.
     """
-    config = load_config(STYLEGUIDE_PATH)
+    config = lint_config_without_fragments(load_config(STYLEGUIDE_PATH))
     docs_root = _REPO_ROOT / "docs"
 
     report = run_extended(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)

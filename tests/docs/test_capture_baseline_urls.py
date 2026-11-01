@@ -250,3 +250,22 @@ def test_write_manifest_is_deterministic(tmp_path: Path) -> None:
     # Stored URLs are sorted on disk.
     on_disk = json.loads(out1.read_text(encoding="utf-8"))
     assert on_disk["urls"] == sorted(on_disk["urls"])
+
+
+def test_a_directory_exclude_drops_only_that_directory(tmp_path: Path) -> None:
+    """``changelog/unreleased/**`` keeps fragments unpublished without dropping every other page.
+
+    Name-only matching is DocFX's ``**/<leaf>`` form; a directory-scoped pattern must match the
+    whole relative path, or its ``**`` leaf matches every file name.
+    """
+    docs = tmp_path / "docs"
+    _write(docs / "changelog" / "CHANGELOG.md")
+    _write(docs / "changelog" / "unreleased" / "6999.fixed.md")
+    _write(docs / "changelog" / "_partial.md")
+    docfx = docs / "docfx.json"
+    docfx.write_text(
+        json.dumps({"build": {"content": [{"files": ["changelog/**.md"], "exclude": ["**/_*.md", "changelog/unreleased/**"]}]}}),
+        encoding="utf-8",
+    )
+
+    assert derive_urls_from_source(docs, docfx, site_url=_SITE) == [f"{_SITE}changelog/CHANGELOG.html"]
