@@ -21,7 +21,9 @@ step runs ``pytest``; it is imported lazily, so ``--help`` works anywhere.
 
 The oracle validates with the contract tools and bundle that spec-kitty-events releases with the service (#6915): by default the
 pinned ``contract-tools`` extra of ``read-service`` that ``make sync-services`` unpacks into the shared cache; ``--tools-root`` names
-another directory of those tools. A tools extra that is not fetched is exit 2, naming its ``SERVICE_*`` code.
+another directory of those tools. The bundle is always the pinned ``contracts`` extra, which the oracle reads at import, so it is
+checked before the oracle is imported, also when ``--tools-root`` is given. An extra that is not fetched (or does not match its pin)
+is exit 2, naming its ``SERVICE_*`` code and no path.
 """
 
 from __future__ import annotations
@@ -319,16 +321,25 @@ class PythonOracle:
 
 READ_SERVICE = "read-service"
 CONTRACT_TOOLS_EXTRA = "contract_tools"
+CONTRACT_BUNDLE_EXTRA = "contracts"
 _SYNC_SERVICES = _REPO_ROOT / "scripts" / "sync_services.py"
 _SYNC_SERVICES_MODULE = "_sync_services_for_corpus_compare"
 
 
-class ToolsRootUnavailable(RuntimeError):
-    """The pinned contract tools are not in the cache (or do not match their pin); ``code`` is the ``SERVICE_*`` code."""
+class PinnedExtraUnavailable(RuntimeError):
+    """A pinned extra is not in the cache (or does not match its pin); ``code`` is the ``SERVICE_*`` code, ``extra`` the extra's name."""
 
-    def __init__(self, code: str) -> None:
+    def __init__(self, code: str, extra: str) -> None:
         super().__init__(code)
         self.code = code
+        self.extra = extra
+
+
+class ToolsRootUnavailable(PinnedExtraUnavailable):
+    """The pinned ``contract_tools`` extra is not available."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code, CONTRACT_TOOLS_EXTRA)
 
 
 def _sync_services() -> ModuleType:
@@ -352,6 +363,19 @@ def default_tools_root(repo_root: Path, cache_root: Path | None = None) -> Path:
     except module.SyncServicesError as error:
         raise ToolsRootUnavailable(error.code) from error
     return root / "contracts" / "tools"
+
+
+def preflight_contract_bundle(cache_root: Path | None = None) -> None:
+    """Prove the pinned ``contracts`` extra the oracle reads at import is in the cache, unpacking it if needed.
+
+    The pin is this checkout's (the oracle resolves the bundle from its own checkout's pin), whatever ``--repo-root`` names. Without
+    this check a missing bundle would surface as pytest's ``Failed`` while importing the oracle: exit 1, as if rows differed.
+    """
+    module = _sync_services()
+    try:
+        module.extras_root(_REPO_ROOT, READ_SERVICE, CONTRACT_BUNDLE_EXTRA, cache_root=cache_root)
+    except module.SyncServicesError as error:
+        raise PinnedExtraUnavailable(error.code, CONTRACT_BUNDLE_EXTRA) from error
 
 
 @contextmanager
@@ -613,12 +637,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         _say(f"CANNOT {error}")
         return EXIT_CANNOT
     try:
-        count = independent_count(args.repo_root)
+        preflight_contract_bundle()
         tools_root = default_tools_root(args.repo_root) if args.tools_root is None else args.tools_root
+        count = independent_count(args.repo_root)
         with open_oracle(args.repo_root, tools_root) as oracle:
             report = compare_corpus(oracle, service, independent_count=count, floor=FLOOR)
-    except ToolsRootUnavailable as error:
-        _say(f"CANNOT the pinned contract tools are not available ({error.code}); run `make sync-services`")
+    except PinnedExtraUnavailable as error:
+        _say(f"CANNOT the pinned {error.extra} extra is not available ({error.code}); run `make sync-services`")
         return EXIT_CANNOT
     except (ImportError, OSError, subprocess.CalledProcessError) as error:
         _say(f"CANNOT the oracle or the independent count could not be built ({type(error).__name__})")

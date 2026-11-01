@@ -376,7 +376,14 @@ def test_the_refusal_library_function_agrees_on_the_same_class_and_not_on_anothe
 # --- the entry point -----------------------------------------------------------------------------------------------------------
 
 
+def _preflight_on_the_real_cache(cc: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    """In-process ``main`` runs under the per-worker test HOME: point the bundle preflight at the real service cache."""
+    real = cc.preflight_contract_bundle
+    monkeypatch.setattr(cc, "preflight_contract_bundle", lambda: real(cache_root=service_cache_root()))
+
+
 def test_main_writes_the_report_and_returns_the_exit_code(cc: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _preflight_on_the_real_cache(cc, monkeypatch)
     oracle, service = _twin(cc, 2)
     service.items = [dict(item, wpTotal=77) for item in service.items]
     from contextlib import nullcontext
@@ -495,6 +502,7 @@ def test_a_tools_extra_missing_from_the_cache_is_refused_with_its_service_code(c
 def _main_capturing_the_tools_root(cc: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *extra: str) -> list[Path | None]:
     from contextlib import nullcontext
 
+    _preflight_on_the_real_cache(cc, monkeypatch)
     oracle, service = _twin(cc, 2)
     seen: list[Path | None] = []
 
@@ -536,12 +544,48 @@ def test_main_without_the_pinned_tools_cannot_do_its_job_and_names_the_code(
     def missing(root: Path) -> Path:
         raise cc.ToolsRootUnavailable("SERVICE_BINARY_MISSING")
 
+    _preflight_on_the_real_cache(cc, monkeypatch)
     monkeypatch.setattr(cc, "default_tools_root", missing)
     monkeypatch.setattr(cc, "independent_count", lambda root: 2)
     code = cc.main(["--base-url", "http://127.0.0.1:8787", "--repo-root", str(tmp_path), "--report", str(tmp_path / "r.json")])
     assert code == CANNOT
     out = capsys.readouterr().out
     assert "SERVICE_BINARY_MISSING" in out and str(tmp_path) not in out
+
+
+def test_the_bundle_preflight_passes_on_the_pinned_cache_and_refuses_an_empty_one(cc: ModuleType, tmp_path: Path) -> None:
+    cc.preflight_contract_bundle(cache_root=service_cache_root())
+    with pytest.raises(cc.PinnedExtraUnavailable) as refused:
+        cc.preflight_contract_bundle(cache_root=tmp_path / "empty-cache")
+    assert refused.value.code.startswith("SERVICE_") and refused.value.extra == "contracts"
+
+
+def _cache_with_only_the_tools_extra(cache: Path) -> None:
+    """A service cache holding the pinned contract-tools archive and nothing else (no contract bundle)."""
+    import shutil
+
+    tools_archive = next(path for path in (service_cache_root() / "read-service").glob("*/contract-tools-*.tar.gz"))
+    target = cache / "spec-kitty" / "services" / tools_archive.relative_to(service_cache_root())
+    target.parent.mkdir(parents=True)
+    shutil.copy2(tools_archive, target)
+
+
+@pytest.mark.parametrize("given_tools_root", [True, False], ids=["tools-root-given", "tools-only-cache"])
+def test_a_missing_contract_bundle_is_exit_2_naming_its_code_and_no_path(tmp_path: Path, given_tools_root: bool) -> None:
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    arguments = ["--base-url", "http://127.0.0.1:9", "--repo-root", str(REPO_ROOT), "--report", str(tmp_path / "r.json")]
+    if given_tools_root:
+        arguments += ["--tools-root", str(contract_tools_dir())]
+    else:
+        _cache_with_only_the_tools_extra(cache)
+    environment = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    environment["XDG_CACHE_HOME"] = str(cache)
+    result = subprocess.run([sys.executable, str(SCRIPT), *arguments], cwd=tmp_path, env=environment, capture_output=True, text=True, check=False)
+    assert result.returncode == CANNOT, (result.stdout, result.stderr)
+    assert "contracts extra" in result.stdout and "SERVICE_" in result.stdout, result.stdout
+    assert str(tmp_path) not in result.stdout + result.stderr and str(service_cache_root()) not in result.stdout + result.stderr
+    assert "Traceback" not in result.stderr
 
 
 def test_the_oracle_loads_its_tools_from_a_planted_tools_root(cc: ModuleType, tmp_path: Path) -> None:
