@@ -5,6 +5,7 @@ doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
 updated: '2026-10-31'
+updated: '2026-10-30'
 ---
 # Changelog
 
@@ -220,6 +221,7 @@ this section at publish._
 
 ### Internal
 
+- **The charter reconciler names its run scope instead of carrying an `Ellipsis` sentinel, and no user-visible behavior changes** (#6728). `legacy_applies_edges` and `_is_legacy_applies` now take a required keyword-only `run_scope: RunScope` (`FULL` / `TOPIC_SCOPED`) in place of `dead_edge_regenerated_urns: Collection[str] | None | EllipsisType = ...`, so the scope is a named value and `RunScope` owns the dead-edge filter. A full run still strips the dead `PROJECT_* --requires--> mission_type:*` edge wherever it sits, a topic-scoped run still strips it only on a directive it regenerated, and the legacy `applies` rule is unchanged in both scopes. `merge_project_overlay` keeps its `topic_scoped` keyword.
 - **Event logs other than `status.events.jsonl` now have a writes gate, and work package transitions go through the EventBridge port** (#6603). `tests/architectural/test_event_log_writes_gate.py` ledgers every caller of the interim locked append and of the `spec-kitty-events` contract writer, fails a raw write to a named event log or any other `.jsonl`, and pins raw writes whose path reads like a log; it drains as each log moves to the Java write service (#6193). The three transition entry points call `record_work_package_transition`, whose open-core adapter writes the same bytes as before; the port has no transport (#6675).
 - **The Mission Status Read API's domain types and event-log reader are now two Gradle libraries with no framework, `domain-model` and `event-log`** (#6192, step 1 of #6117). No route, response body or SSE frame changes. The service in `services/mission-status-api/` stays the root project (the `query-service` deployable) and depends on both, so the future write service can reuse them instead of copying them. `DomainModelBoundaryTest` and `EventLogBoundaryTest` hold each library to its dependencies (JDK only; JDK, `domain-model` and, in the decoder only, the Jackson streaming parser), `tests/ci/test_mission_status_api_build.py` pins the declared ones, and the root coverage gate covers the moved domain classes exactly as before.
 - **A pack-skill test that seeds activation through the old config surface now fails on its pull request, not only in the nightly** (#6563, #6621). The new gate `tests/architectural/test_pack_skill_fixtures_seed_the_ledger.py` reads every `skill_pack_support.write_config` call and fails when its `extra=` text carries an activation key. Most callers sit in nightly-only test directories, so the helper's runtime check never ran on their pull requests. Three tests that #6474 left stale now assert its narrow agent gitignore rows: Spec Kitty's own folders under `.agents/skills/`, and `.llxprt/commands/spec-kitty.*` with `.llxprt/.env`, never the whole folder.
