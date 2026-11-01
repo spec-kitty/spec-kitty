@@ -2693,7 +2693,7 @@ class TestCreateHarness:
         assert result.exit_code == 1, result.output
         assert result.stdout == ""
         payload = json.loads(result.stderr)
-        assert payload["error"] == "unsupported_generator_record"
+        assert payload["error"] == "proposal_not_selectable"
         assert payload["proposal_ids"] == ["p-001", "p-002"]
         assert payload["statuses"] == {"p-001": "unknown", "p-002": "unknown"}
         assert "generator-shaped record" in payload["detail"]
@@ -2710,7 +2710,7 @@ class TestCreateHarness:
 
         assert result.exit_code == 1, result.output
         error = " ".join(strip_ansi(result.stderr).split())
-        assert error.startswith("Error: --proposal-id only selects accepted proposals.")
+        assert error.startswith("Error: --proposal-id can only select a translatable proposal")
         assert "p-001 (unknown)" in error
         assert "#3947" in error
         assert error.endswith("Nothing was applied.")
@@ -2726,7 +2726,7 @@ class TestCreateHarness:
 
         assert result.exit_code == 1, result.output
         payload = json.loads(result.stderr)
-        assert payload["error"] == "unsupported_generator_record"
+        assert payload["error"] == "proposal_not_selectable"
         assert "p-001 (unknown)" in payload["detail"]
         assert payload["detail"].endswith("The empty retrospective record was written, but no proposal was applied.")
         assert project.record()["provenance"]["kind"] == "synthesize_fabricate"

@@ -204,10 +204,11 @@ def translate_generator_proposals(record: GenRetrospectiveRecord, *, actor: Acto
                 kind=typed_payload.kind,
                 payload=typed_payload,
                 rationale=proposal.summary[:_MAX_RATIONALE_CHARS],
-                # `auto_applicable` is the generator contract's own statement that the proposal may
-                # be applied without a further human decision; anything else stays pending, and
-                # `--apply` is still required for any mutation.
-                state=ProposalState(status="accepted" if proposal.auto_applicable else "pending"),
+                # `auto_applicable` is a hand-editable YAML boolean (generation always writes
+                # False), not a recorded accept decision, so a translated proposal is always
+                # pending: it joins no default batch and is applied only when named with
+                # `--proposal-id` together with `--apply`.
+                state=ProposalState(status="pending"),
                 provenance=ProposalProvenance(
                     source_mission_id=record.mission_id,
                     source_evidence_event_ids=_evidence_event_ids(record, proposal),

@@ -107,11 +107,11 @@ def test_valid_payload_becomes_typed_proposal() -> None:
     assert result.translated_ids == {"p-001": typed.id}
 
 
-def test_auto_applicable_becomes_accepted() -> None:
-    """`auto_applicable` is the record's own statement that no further approval is needed."""
+def test_auto_applicable_never_becomes_accepted() -> None:
+    """`auto_applicable` is a hand-editable boolean, not a recorded accept decision: always pending."""
     result = translate_generator_proposals(_record([_proposal(auto_applicable=True)]), actor=ACTOR)
 
-    assert result.proposals[0].state.status == "accepted"
+    assert result.proposals[0].state.status == "pending"
 
 
 def test_rationale_is_the_summary_capped_at_2000_chars() -> None:
