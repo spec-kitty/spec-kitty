@@ -29,7 +29,7 @@ charter_packs:
   org:
     packs:
       - name: acme            # required, unique, not built-in/project
-        local_path: "..."     # verbatim: never expanded, never frozen to a machine path
+        local_path: "..."     # tokens never expanded/frozen; ./ and trailing / normalised
         subdir: ...           # optional, relative, no '..' component
         source_type: git      # optional; implied by --url
         url: "..."            # optional
