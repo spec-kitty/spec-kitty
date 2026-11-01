@@ -95,7 +95,7 @@ jobs:
   # gate-selection authority.
   # ---------------------------------------------------------------------------
   generate-matrix:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: Generate module-shard matrix
     # Job-level `permissions:` REPLACES the workflow-level grant, so `contents` is restated
     # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize` precedent).
@@ -423,6 +423,12 @@ jobs:
     needs: [generate-matrix, test]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
+      - name: Refuse while CI is paused by label
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
+        shell: bash
+        run: |
+          echo "::error::CI is paused on this PR by the pr:pause-ci label; remove the label to run CI."
+          exit 1
       - name: Evaluate modules-gate decision
         shell: bash
         env:

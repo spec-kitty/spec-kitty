@@ -1,0 +1,83 @@
+# pr:pause-ci -- immediate effect of the label (the `if:` guards in every PR workflow
+# only act on runs that START after the label is applied).
+#
+# SECURITY: `pull_request_target` runs with a write-capable token in the base-repo
+# context, so this workflow NEVER checks out or executes PR code. It uses only the
+# preinstalled `gh` CLI and passes event values through `env:` (never interpolated
+# into the script body).
+#
+#   labeled   -> cancel every queued/in-progress run for the PR head SHA, and post a
+#                failing check run under each required gate name so a PR whose gates
+#                were already green stops being mergeable at once.
+#   unlabeled -> close and reopen the PR. A re-run (`gh run rerun`) would replay the
+#                ORIGINAL event payload, label list included, so a PR pushed while
+#                paused would re-pause itself; `reopened` carries fresh labels.
+name: PR Pause CI
+
+on:
+  pull_request_target:
+    types: [labeled, unlabeled]
+
+concurrency:
+  group: pr-pause-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  pause:
+    if: ${{ github.repository == 'spec-kitty/spec-kitty' && github.event.label.name == 'pr:pause-ci' && github.event.action == 'labeled' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      checks: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      OWN_RUN_ID: ${{ github.run_id }}
+    steps:
+      - name: Cancel queued and in-progress runs for the head commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          for status in queued in_progress waiting pending requested; do
+            gh run list --repo "$REPO" --commit "$HEAD_SHA" --status "$status" \
+              --json databaseId -q '.[].databaseId' --limit 200 | while read -r id; do
+              [ "$id" = "$OWN_RUN_ID" ] && continue
+              gh run cancel "$id" --repo "$REPO" || echo "run $id already finished"
+            done
+          done
+      - name: Fail the required gates for the head commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          for gate in "router gate" "CI Modules gate" "Clean install verification"; do
+            gh api "repos/$REPO/check-runs" -X POST \
+              -f name="$gate" -f head_sha="$HEAD_SHA" \
+              -f status=completed -f conclusion=failure \
+              -f 'output[title]=CI is paused by the pr:pause-ci label' \
+              -f 'output[summary]=CI is paused on this PR by the pr:pause-ci label; remove the label to run CI.'
+          done
+
+  resume:
+    if: ${{ github.repository == 'spec-kitty/spec-kitty' && github.event.label.name == 'pr:pause-ci' && github.event.action == 'unlabeled' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Reopen the PR so CI starts with the current label set
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state -q .state)"
+          if [ "$state" = "OPEN" ]; then
+            gh pr close "$PR_NUMBER" --repo "$REPO"
+            gh pr reopen "$PR_NUMBER" --repo "$REPO"
+          fi
