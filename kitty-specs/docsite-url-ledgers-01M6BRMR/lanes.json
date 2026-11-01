@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "mission_slug": "docsite-url-ledgers-01M6BRMR",
+  "mission_id": "01M6BRMR1VJ9DJZP4R04K1QMJT",
+  "mission_branch": "issue-6927-url-baseline-moves-ledger",
+  "target_branch": "issue-6927-url-baseline-moves-ledger",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/docs-pages.yml",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/adr/1.x/README.md",
+        "docs/adr/2.x/README.md",
+        "docs/adr/3.x/README.md",
+        "docs/architecture/README.md",
+        "docs/architecture/diagrams/README.md",
+        "docs/architecture/index.md",
+        "docs/architecture/vision/README.md",
+        "docs/changelog/unreleased/6927-docsite-url-ledgers.internal.md",
+        "scripts/docs/bulk_ref_rewrite.py",
+        "scripts/docs/moves_ledger.py",
+        "scripts/docs/redirect_map.yaml",
+        "scripts/docs/redirect_stub_generator.py",
+        "scripts/docs/relative_link_fixer.py",
+        "scripts/docs/rename_reconcile.py",
+        "site/moves.yaml",
+        "site/url-baseline.txt",
+        "src/charter/offering/templates/diagrams/README.md",
+        "tests/charter_offering/test_wp_authoring_contract_roundtrip.py",
+        "tests/ci/test_regen_docs_index.py",
+        "tests/docs/test_adr_readme_prose.py",
+        "tests/docs/test_bulk_ref_rewrite.py",
+        "tests/docs/test_docs_tooling_defaults.py",
+        "tests/docs/test_moves_ledger.py",
+        "tests/docs/test_one_index_per_folder.py",
+        "tests/docs/test_redirect_spine.py",
+        "tests/docs/test_redirect_stub_generator.py",
+        "tests/docs/test_relative_link_fixer.py",
+        "tests/docs/test_touched_set_gates.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T14:47:02.338675+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ce582e77b352803abc2c2513b2663e167ff9600e"
+}

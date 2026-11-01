@@ -1,0 +1,55 @@
+# Occurrence map — docsite-url-ledgers-01M6BRMR (DIRECTIVE_035 classification).
+#
+# Classifies this Mission's own bulk edit: repointing references to the removed
+# index files docs/architecture/README.md and docs/adr/{1,2,3}.x/README.md to the
+# surviving index.md. It is NOT a moves ledger: published-route moves live in
+# site/moves.yaml, and no script reads this file (#2358).
+
+target:
+  term: docs/architecture/README.md
+  replacement: docs/architecture/index.md
+  operation: rename
+
+categories:
+  code_symbols:         { action: do_not_change }          # no Python symbol is named after the README
+  import_paths:         { action: do_not_change }          # no import path changes
+  filesystem_paths:     { action: manual_review }          # test constants and template links naming the README path
+  serialized_keys:      { action: rename }                 # frontmatter `related:` entries naming the README (else they dangle)
+  cli_commands:         { action: do_not_change }          # no CLI surface involved
+  user_facing_strings:  { action: rename_if_user_visible } # live doc links and agent guidance (CLAUDE.md / AGENTS.md)
+  tests_fixtures:       { action: manual_review }          # tmp_path fixtures named README.md are NOT this file; only repo-path constants move
+  logs_telemetry:       { action: do_not_change }          # none
+
+exceptions:
+  - path: "docs/adr/**/[0-9][0-9][0-9][0-9]-*.md"
+    action: do_not_change
+    reason: "ADR bodies are immutable history (C-003)"
+  - path: "docs/plans/**"
+    action: do_not_change
+    reason: "Plans are immutable history (C-003)"
+  - path: "docs/reports/**"
+    action: do_not_change
+    reason: "Reports are immutable history (C-003)"
+  - path: "docs/archive/**"
+    action: do_not_change
+    reason: "Archived pages are immutable history (C-003)"
+  - path: "docs/changelog/**"
+    action: do_not_change
+    reason: "The changelog is immutable history (C-003); new entries go in a fragment"
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Mission artifacts are immutable history (C-003)"
+  - path: "docs/development/docs-retrieval-index.yaml"
+    action: do_not_change
+    reason: "Generated surface, regenerated post-merge by the ci/regen-docs-index bot (C-004)"
+  - path: "docs/development/page-inventory.yaml"
+    action: do_not_change
+    reason: "Generated surface, regenerated post-merge by the ci/regen-docs-index bot (C-004)"
+
+moves:
+  - from: ["docs/adr/1.x/README.md", "docs/adr/2.x/README.md", "docs/adr/3.x/README.md"]
+    to: "RETIRE"
+    reason: "Redirect stubs deleted (#6928); README.html routes recorded in site/moves.yaml"
+  - from: ["docs/architecture/README.md"]
+    to: "docs/architecture/index.md"
+    reason: "Landing page folded into the folder's single index (#6928, ADR D-7)"
