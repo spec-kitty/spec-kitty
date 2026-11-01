@@ -36,9 +36,10 @@ resolved empty docs diff and fails closed only when the Git base cannot be
 resolved. Without the flag, the whole-tree behavior and floor are unchanged.
 
 The resolver never mutates the docs tree and depends only on the standard
-library plus ``ruamel.yaml`` (already a project dependency). It is wired
-``--strict`` on PR in ``docs-freshness.yml``; exit ``1`` on any dangling
-reference.
+library plus ``ruamel.yaml`` (already a project dependency). No workflow
+runs it today; ``tests/docs/test_dockitty_frontmatter_shape.py`` holds the
+shape over the whole tree. With ``--strict`` it exits ``1`` on any dangling or
+malformed entry.
 
 Output shape (parallels the ``related_validator`` rulers contract)::
 
@@ -253,7 +254,7 @@ def _entry_problem(entry: Any) -> str | None:
 
 def _is_catalog_profile(profile: str) -> bool:
     """A profile whose first segment is a persona catalog (``internal``/``external``)."""
-    return profile.split("/", 1)[0] in _CATALOG_SEGMENTS
+    return profile.split("/", 1)[0].lower() in _CATALOG_SEGMENTS
 
 
 def _repo_relative(path: Path, repo_root: Path) -> str:

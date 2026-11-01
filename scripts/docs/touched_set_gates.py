@@ -295,7 +295,7 @@ def _placement_homes(config: dict[str, Any]) -> dict[str, str] | None:
 def _audience_orientation(frontmatter: dict[str, Any]) -> str | None:
     """Classify a page's audience as ``internal``/``external`` from its profiles' first segment."""
     for profile in _audience_profiles(frontmatter):
-        head = profile.split("/", 1)[0]
+        head = profile.split("/", 1)[0].lower()
         if head in ("internal", "external"):
             return head
     return None

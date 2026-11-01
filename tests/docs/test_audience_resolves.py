@@ -142,6 +142,15 @@ def test_old_or_incomplete_shape_is_malformed(tmp_path: Path, lines: list[str], 
     assert main(["--repo-root", str(repo), "--docs-root", str(repo / "docs"), "--strict"]) == 1
 
 
+def test_catalog_prefix_matches_in_any_case(tmp_path: Path) -> None:
+    """``Internal/maintainer`` is a catalog profile doc-kitty cannot resolve, so it dangles."""
+    repo = _stage_repo(tmp_path, audience=_aud("Internal/maintainer"), dangling=False)
+
+    report = resolve_audiences(docs_root=repo / "docs", repo_root=repo)
+
+    assert DanglingReference(from_path="docs/page.md", to_path="Internal/maintainer") in report.dangling_references
+
+
 def test_profile_escaping_the_catalog_is_dangling(tmp_path: Path) -> None:
     """A catalog-shaped profile that climbs out of ``docs/context/audience/`` never resolves."""
     repo = _stage_repo(tmp_path, audience=_aud("internal/../../charter"), dangling=False)
