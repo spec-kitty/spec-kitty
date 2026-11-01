@@ -5,6 +5,9 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
+  # Merge queue (landing-merge-queue ADR): the queue tests each PR on main plus
+  # the PRs ahead of it, and this workflow's required check must report there.
+  merge_group:
   workflow_dispatch:
 
 concurrency:
