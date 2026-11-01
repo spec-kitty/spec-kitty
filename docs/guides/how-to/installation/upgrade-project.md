@@ -43,6 +43,10 @@ You will see a summary of pending migrations and be asked to confirm. To preview
 spec-kitty upgrade --dry-run
 ```
 
+The preview heads its migration list `Migrations that would be applied:` and marks each entry
+with `→`, and its closing line repeats that nothing was written. A real run heads the same
+list `Migrations applied:` with `✓`.
+
 To apply without prompting (useful in CI):
 
 ```bash
