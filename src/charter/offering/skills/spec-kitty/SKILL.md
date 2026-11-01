@@ -140,6 +140,10 @@ Rules that keep briefing honest:
 - The reference is emitted only when the text exists and the printed command
   reproduces it; fetching must not change first-load state, hence
   `--no-mark-loaded`.
+- The reference is a command, not a snapshot: it rebuilds the text on fetch, so
+  charter, DRG or profile changes made after dispatch can change it. Compare the
+  first 16 hex characters of the SHA-256 of the fetched `text` with `digest`; on
+  a mismatch, discard it and re-dispatch without `--brief`.
 - The Op record, the close contract and the glossary scan are identical to a
   full dispatch. Close the Op the same way.
 
