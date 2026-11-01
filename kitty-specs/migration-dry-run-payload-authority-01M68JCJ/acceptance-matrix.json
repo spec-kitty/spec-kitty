@@ -1,0 +1,69 @@
+{
+  "mission_slug": "migration-dry-run-payload-authority-01M68JCJ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_wire_payload.py::test_payload_matches_the_contract_key_set_and_null_policy + ::test_force_without_reason_is_rejected_at_construction (10 passed)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:26.715753+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "git grep canonical-producer-exempt src/specify_cli/migration/mission_state.py -> 0 hits; tests/migration/test_mission_state_teamspace_payload_authority.py::test_dry_run_builds_the_payload_through_the_facade_builder (spy proves the facade builder is the only construction path)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:29.229912+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_wire_payload.py::test_payload_matches_the_contract_key_set_and_null_policy + ::test_legacy_event_without_mission_id_omits_the_key_instead_of_nulling_it; tests/migration/...::test_dry_run_payload_is_byte_identical_to_a_real_transition (mission_id carried)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:32.327828+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/migration/test_mission_state_teamspace_payload_authority.py::test_model_rejected_row_is_reported_while_valid_rows_still_map (PAYLOAD_INVALID + model_violations, run completes, valid rows still mapped)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:34.929843+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/migration/...::test_dry_run_payload_is_byte_identical_to_a_real_transition (oracle = durable row, 5/5 red at 85a2a7cdeb)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:37.527569+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/migration/...::test_historical_overrides_are_the_only_divergence_from_the_row (for_review alias + evidence synthesis)",
+      "pass_fail": "pass",
+      "verified_by": "pi:glm-5.3:reviewer-renata:reviewer",
+      "verified_at": "2026-10-31T10:19:40.777248+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

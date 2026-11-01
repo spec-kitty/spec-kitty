@@ -1,0 +1,100 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M68QJQE42B65FBFXY3SZAR8C",
+  "materialized_at": "2026-10-31T10:20:12.612355+00:00",
+  "mission_number": "245",
+  "mission_slug": "migration-dry-run-payload-authority-01M68JCJ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi:glm-5.3:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "python-pedro",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01M68QJQ3BNT8FESVY78EJE7TC",
+      "last_transition_at": "2026-10-31T10:20:12.267361+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T09:10:13Z – unknown – Added status/wire_payload.py (contract-model builder + facade export) with red-first tests: 9 passed; ruff/mypy clean; status-module-boundary, integration-boundary and dead-symbol gates green.",
+        "Builder and tests are already committed (ad2e54281e); the in_progress claim was recorded after the commits, so the claim-base window is empty",
+        "Review round 1 (reviewer-renata): 3 findings raised and fixed in 2792906d4c — (1) builder docstring claimed TypeError for a missing required field, it is ValidationError; (2) evidence normalization (contract model always materializes verification: []) was undocumented, now recorded in contracts/wp-status-changed-payload.md; (3) structured resolved-binding dict actor was untested, now pinned by test_structured_resolved_binding_actor_rides_verbatim. Anti-pattern checklist: dead-code WARN-only (production caller lands in WP02, same lane), synthetic-fixture PASS, silent-return PASS, FR coverage PASS, frozen surface none, locked decisions PASS, shared-file PASS, fragility PASS. 10 red-first tests green; ruff/mypy clean; status-module-boundary + integration-boundary + dead-symbol gates green.",
+        "Re-record the implementer identity for the single-branch independence gate (#6715): the original claim was logged with a generic actor, so accept cannot confirm the reviewer differs. No code change.",
+        "Re-review handoff: no code change since the approved tip; the implementer identity is now recorded for the independence gate.",
+        "Re-review round 3 (identity-correlated, reviewer-renata @ glm-5.3): reviewed the unchanged tip 3b2ba2a8a2 plus the aggregate diff; no new finding. The builder is constructed through StatusTransitionPayload, the dry-run import is facade-only, parity is pinned against a real emitted row, and the rejection path is reported non-raising with model_violations."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2016941,
+      "shell_pid_created_at": "1793441850.78",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#6449"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:glm-5.3:reviewer-renata:reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "assignee": "python-pedro",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01M68QJQE42B65FBFXY3SZAR8C",
+      "last_transition_at": "2026-10-31T10:20:12.612355+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T10:04:17Z – unknown – Call site routed through the facade builder; the payload literal and canonical-producer-exempt marker are gone; a model rejection is reported as PAYLOAD_INVALID (mapped violations) instead of raising. 5 red-first parity/authority tests in tests/migration/test_mission_state_teamspace_payload_authority.py pass; tests/migration 204 passed / 4 pre-existing birth-cutover reds (#6801); doctor CLI 48 passed; integration/migration 40 passed / 1 pre-existing red (#6787); ruff+mypy clean; canonical-producer lint identical to pristine main; docs freshness errors=0.",
+        "Implementation and tests are committed (38d646301c, 85a2a7cdeb); the in_progress claim was recorded after the commits, so the claim-base window is empty",
+        "Review round 2 (reviewer-renata): 1 finding raised and fixed in 46e4a0f — envelope_count incremented before payload construction, so a rejected row inflated the count and broke its 1:1 relation with row_mappings; the increment now happens only for rows that produced an envelope, pinned by an assertion in the rejection test. Anti-pattern checklist: dead code PASS (migration call site is the production caller), synthetic-fixture PASS (tests drive teamspace_dry_run and compare against the durable row), silent-return PASS, FR-002/004/005/006 all asserted, frozen surface none, C-004 PASS (evidence normalization documented in contracts/), shared-file PASS (single lane), fragility PASS (documented non-raising report). tests/migration 204 passed with only the 4 pre-existing #6801 birth-cutover reds; ruff/mypy clean; canonical-producer lint identical to pristine main.",
+        "Re-record the implementer identity for the single-branch independence gate (#6715): the original claim was logged with a generic actor. No code change.",
+        "Re-review handoff: no code change since the approved tip.",
+        "Re-review round 3 (identity-correlated, reviewer-renata @ glm-5.3): reviewed the unchanged tip plus the mission's aggregate diff; no new finding. Pre-existing reds only (tests/migration/test_birth_cutover.py #6801; tests/integration/migration/test_wp03_advance_to_approval.py #6787), both reproduced on pristine origin/main."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2036223,
+      "shell_pid_created_at": "1793441928.16",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      },
+      "tracker_refs": [
+        "#6449"
+      ]
+    }
+  }
+}
