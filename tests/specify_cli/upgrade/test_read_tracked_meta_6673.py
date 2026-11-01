@@ -93,6 +93,7 @@ def test_committed_meta_is_read_back_after_the_working_tree_copy_is_deleted(tmp_
     assert classified.refuse is True
     assert "staged edit" in classified.notice
     assert "git restore --staged" in classified.notice
+    assert classified.code == "TRACKED_META_STAGED_DIFFERS"
 
 
 def test_a_staged_only_meta_is_refused_as_index_only(tmp_path: Path) -> None:
@@ -295,42 +296,35 @@ def test_a_git_that_refuses_to_answer_is_not_read_as_nothing_tracked(tmp_path: P
     assert tracked.unavailable is True, "a refusing git was read as 'nothing tracked' (the fabricating branch)"
 
 
-def test_the_refusal_notice_names_the_index_only_case(tmp_path: Path) -> None:
-    """US2 Scenario 3: the staged-only refusal says so, instead of claiming git holds nothing."""
+@pytest.mark.parametrize(
+    ("shape", "phrase", "remedy"),
+    [
+        ("index-only", "only in the index (not committed)", "git checkout -- kitty-specs/{slug}/meta.json"),
+        ("corrupt", "not a JSON object", "git show HEAD:kitty-specs/{slug}/meta.json"),
+    ],
+)
+def test_the_refusal_notice_names_the_unusable_copy_and_its_repair(tmp_path: Path, shape: str, phrase: str, remedy: str) -> None:
+    """US2 Scenario 3: each refusal says what is wrong with git's copy, carries a stable code, and names a repair.
+
+    A corrupt committed copy is repaired first because `git checkout --` would restore the same unusable bytes.
+    """
     from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
 
     root = _repo(tmp_path)
     mission_dir = root / "kitty-specs" / _SLUG
     mission_dir.mkdir(parents=True)
     (mission_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
-    (mission_dir / "meta.json").write_text(json.dumps(_META) + "\n", encoding="utf-8")
+    (mission_dir / "meta.json").write_text("{not json\n" if shape == "corrupt" else json.dumps(_META) + "\n", encoding="utf-8")
     _git(root, "add", "-A")
+    if shape == "corrupt":
+        _git(root, "commit", "-q", "-m", "corrupt")
     (mission_dir / "meta.json").unlink()
 
     classified = classify_missing_tracked_meta(mission_dir, root)
 
     assert classified is not None
     assert classified.refuse is True
-    assert "only in the index (not committed)" in classified.notice
-    assert f"git checkout -- kitty-specs/{_SLUG}/meta.json" in classified.notice
-
-
-def test_the_refusal_notice_for_a_corrupt_committed_copy_does_not_prescribe_checkout_alone(tmp_path: Path) -> None:
-    """`git checkout --` would restore the same unusable bytes, so the notice must say to repair it."""
-    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
-
-    root = _repo(tmp_path)
-    mission_dir = root / "kitty-specs" / _SLUG
-    mission_dir.mkdir(parents=True)
-    (mission_dir / "meta.json").write_text("{not json\n", encoding="utf-8")
-    (mission_dir / "spec.md").write_text("# spec\n", encoding="utf-8")
-    _git(root, "add", "-A")
-    _git(root, "commit", "-q", "-m", "corrupt")
-    (mission_dir / "meta.json").unlink()
-
-    classified = classify_missing_tracked_meta(mission_dir, root)
-
-    assert classified is not None
-    assert classified.refuse is True
-    assert "not a JSON object" in classified.notice
-    assert f"git show HEAD:kitty-specs/{_SLUG}/meta.json" in classified.notice
+    assert classified.code == "TRACKED_META_UNAVAILABLE"
+    assert classified.notice.endswith("[TRACKED_META_UNAVAILABLE]")
+    assert phrase in classified.notice
+    assert remedy.format(slug=_SLUG) in classified.notice
