@@ -40,10 +40,15 @@ def test_publishing_is_gated_on_the_companion_and_confined_to_environments(jobs:
     cli_publishers = {name: job for name, job in publishers.items() if name != _COMPANION_PUBLISH}
     assert cli_publishers  # positive control: a CLI publish job exists
 
-    # No CLI publish job runs unless the companion publish job precedes it and succeeded.
+    # No CLI publish job runs unless the companion publish job precedes it and succeeded,
+    # except under the explicit skip_companion waiver, which also switches the companion jobs off.
     for name, job in cli_publishers.items():
         assert _COMPANION_PUBLISH in _needs(job), name
-        assert f"needs.{_COMPANION_PUBLISH}.result == 'success'" in str(job["if"]), name
+        condition = str(job["if"])
+        assert f"needs.{_COMPANION_PUBLISH}.result == 'success'" in condition, name
+        assert condition.count("inputs.skip_companion") == 1, name
+    for name in ("build-companion-wheels", _COMPANION_PUBLISH):
+        assert "!(github.event_name == 'workflow_dispatch' && inputs.skip_companion)" in str(jobs[name]["if"]), name
 
     # OIDC publishing rights exist only on environment-gated jobs that publish.
     for name, job in jobs.items():
