@@ -35,7 +35,7 @@ SERVICE_ATTESTATION_FAILED = "SERVICE_ATTESTATION_FAILED"
 #: The release workflow that attests a service release in both service repositories.
 SIGNER_WORKFLOW = ".github/workflows/service-release.yml"
 GH_EXECUTABLE = "gh"
-_PREVIEW_SUFFIX = "refs/tags/"
+_TAG_REF_PREFIX = "refs/tags/"
 _GITHUB_HOSTS = frozenset({"github.com", "www.github.com"})
 _TIMEOUT_SECONDS = 120
 _DETAIL_LIMIT = 200
@@ -100,7 +100,7 @@ def attestation_args(asset: Path, *, repository: str, tag: str) -> tuple[str, ..
         "--signer-workflow",
         signer_workflow(slug),
         "--source-ref",
-        f"{_PREVIEW_SUFFIX}{tag}",
+        f"{_TAG_REF_PREFIX}{tag}",
     )
 
 
