@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6277": {
-      "evidence_ref": "fix commit fc1dbb68 + red-first regression module tests/specify_cli/cli/commands/charter/test_synthesize_reported_paths.py",
+      "evidence_ref": "PR #7045 commits: fix(6277) + tests/specify_cli/cli/commands/charter/test_synthesize_reported_paths.py",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
