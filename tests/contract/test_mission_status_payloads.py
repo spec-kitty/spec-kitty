@@ -1111,9 +1111,7 @@ def _credential() -> str:
 
 @pytest.mark.parametrize("title", READER_SCHEMA_TITLES)
 def test_the_contract_wrapper_validates_each_reader_schema_and_refuses_a_planted_member(title: str, contract: helper.Contract) -> None:
-    examples = helper.bundled_schema(title).get("examples") or []
-    assert examples, f"the contract must carry an example of {title}"
-    valid = examples[0]
+    valid = helper.non_empty_examples(helper.bundled_schema(title), f"the contract's {title}")[0]
     assert contract.errors(title, valid) == [], f"the committed {title} example must validate"
     assert contract.errors(title, {**valid, "unknown_member": 1}), f"a member the schema does not declare must fail {title}"
 
@@ -1243,14 +1241,15 @@ def _local_contract_reads(text: str) -> list[str]:
     """Every read of the checkout's own contract copy in *text*.
 
     A path built from the repository root (the root name, ``repo_root`` or ``parents[N]``, then the contract directory) or a
-    spelled mission-status / mission-write module path. The pinned tools extra keeps its own tools layout below the extra root,
-    which is not a local read. The patterns are assembled at run time so this source does not match itself.
+    spelled mission-status / mission-write module path, or a quoted single-string tools path. The pinned tools extra
+    keeps its own tools layout below the extra root, which is not a local read. The patterns are assembled at run time so this source does not match itself.
     """
     root = "contracts"
     patterns = (
         r"(?:REPO_ROOT|repo_root|parents\[\d+\])\s*/\s*\"" + root + r"\"",
         root + r"/mission-(?:status|write)\b",
         r"\"" + root + r"\"\s*/\s*\"mission-(?:status|write)\"",
+        r"[\"']" + root + r"/tools\b",
     )
     return [match.group(0) for pattern in patterns for match in re.finditer(pattern, text)]
 
@@ -1264,6 +1263,7 @@ def test_the_local_contract_read_detector_sees_each_spelling_and_not_an_extra_ro
         root + "/mission-status/schemas/WpId.yaml",
         root + "/mission-write",
         '"' + root + '" / "mission-status"',
+        "REPO_ROOT.joinpath(" + '"' + root + '/tools")',
     ):
         assert _local_contract_reads(planted), planted
     assert _local_contract_reads('expected_extra_root("contract_tools") / "' + root + '" / "tools"') == []
