@@ -38,9 +38,7 @@ _SCAN = scope.scan()
 
 def test_every_repo_root_read_is_declared() -> None:
     """The property: a read outside the gate's declared scope and the code scope is a defect."""
-    assert not _SCAN.findings, "undeclared repository reads in the architectural battery:\n" + "\n".join(
-        finding.describe() for finding in _SCAN.findings
-    )
+    assert not _SCAN.findings, "undeclared repository reads in the architectural battery:\n" + "\n".join(finding.describe() for finding in _SCAN.findings)
 
 
 def test_the_scan_is_not_vacuous() -> None:
@@ -52,7 +50,7 @@ def test_the_scan_is_not_vacuous() -> None:
 
 def test_every_declared_scan_scope_names_a_live_gate() -> None:
     """A declaration for a deleted gate is dead weight the routing property cannot see."""
-    missing = sorted(gate for gate in scope.gs.battery_scan_scopes() if not (scope._repo_root() / gate).is_file())
+    missing = sorted(gate for gate in scope.declared_scan_scopes() if not (scope._repo_root() / gate).is_file())
     assert not missing, f"scan_scopes declares gates that do not exist: {missing}"
 
 

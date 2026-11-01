@@ -150,10 +150,6 @@ class Scan:
     """Reads whose whole path is computed (``_REPO_ROOT / rel``): they name no repository path,
     so there is nothing to declare; the scan records them instead of pretending to resolve them."""
 
-    def gate_reads(self, gate: str) -> tuple[Read, ...]:
-        closure = imported_battery_modules(gate)
-        return tuple(read for read in self.reads if read.file in closure)
-
 
 # --- read extraction ------------------------------------------------------------------------
 
@@ -280,9 +276,7 @@ def repo_root_names(tree: ast.AST) -> dict[str, str]:
         for name, values in assignments.items():
             if name in roots or name in poisoned:
                 continue
-            if any(isinstance(value, ast.Call) and _is_file_ref(value, file_names) for value in values) and all(
-                isinstance(value, ast.Call) and _is_file_ref(value, file_names) for value in values
-            ):
+            if all(isinstance(value, ast.Call) and _is_file_ref(value, file_names) for value in values):
                 file_names.add(name)
                 continue
             resolved = [_resolve_root_value(value, file_names, roots) for value in values]
@@ -409,6 +403,11 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def declared_scan_scopes(registry_path: Path | None = None) -> dict[str, tuple[str, ...]]:
+    """Gate file -> its declared ``scan_scopes`` globs (the registry is the single source)."""
+    return gs.battery_scan_scopes(registry_path)
+
+
 # --- coverage -------------------------------------------------------------------------------
 
 
@@ -475,7 +474,7 @@ def scan(
     """Extract every gate's reads and report the ones no declaration and no code scope covers."""
     root = root or _repo_root()
     exemptions = EXEMPT_READS if exemptions is None else exemptions
-    declared = gs.battery_scan_scopes(registry_path)
+    declared = declared_scan_scopes(registry_path)
     scope = code_scope(router)
     reads = all_reads(root)
     findings: list[Finding] = []
@@ -506,7 +505,7 @@ def validate_exemptions(
     """Problems with the exemption table: unexplained, too wide, unknown, or no longer needed."""
     root = root or _repo_root()
     exemptions = EXEMPT_READS if exemptions is None else exemptions
-    declared = gs.battery_scan_scopes(registry_path)
+    declared = declared_scan_scopes(registry_path)
     scope = code_scope(router)
     gates = set(gate_files(root))
     problems: list[str] = []

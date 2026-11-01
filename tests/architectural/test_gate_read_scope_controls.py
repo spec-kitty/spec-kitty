@@ -29,15 +29,7 @@ _LIVE_REGISTRY = gs.DEFAULT_REGISTRY_PATH
 
 
 def _gate_source(read: str) -> str:
-    return (
-        "from pathlib import Path\n"
-        "\n"
-        "_REPO_ROOT = Path(__file__).resolve().parents[2]\n"
-        "\n"
-        "\n"
-        "def test_planted() -> None:\n"
-        f"    assert {read}\n"
-    )
+    return f"from pathlib import Path\n\n_REPO_ROOT = Path(__file__).resolve().parents[2]\n\n\ndef test_planted() -> None:\n    assert {read}\n"
 
 
 def _tree(tmp_path: Path, gates: dict[str, str], rows: dict[str, list[str]]) -> Path:
