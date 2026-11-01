@@ -1,0 +1,89 @@
+{
+  "mission_slug": "anchor-lock-path-single-authority-01M66YWP",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "kernel.locks.anchored_lock_path exported in __all__; tests/kernel/test_lock_paths.py 20 passed (uv run pytest tests/kernel/test_lock_paths.py -q).",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:07:32.488275+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/kernel/event_log_append.py:event_log_lock_path calls the helper; golden digest 5d011f83a018c89fa185a10c696c8293 and the sibling fallback stay green in tests/kernel/test_event_log_append.py (zero edits).",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:09:51.520752+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/charter/activation/synthesizer/synthesis_lock.py:synthesis_lock_path calls the helper; subdir/worktree/non-git/refusal cases pass in tests/charter/synthesizer/test_synthesis_lock.py (zero edits).",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:07:42.405852+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_checkout_claim_lock_path calls the helper with sha1/16 + prefix/suffix; literal __checkout-<sha1[:16]>__.status.lock name pinned by tests/status/test_checkout_claim_lock.py (zero edits) and tests/kernel/test_lock_paths.py.",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:07:48.704670+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/kernel/test_lock_paths.py: literal path per shape, cross-family digest parity, required common_dir, no git probe in kernel.locks, ValueError on bad algorithm/length (20 passed).",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:09:59.592131+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_anchor_lock_path_single_owner.py: red on the base naming synthesis_lock.py:34,37,95 / event_log_append.py:63,65,169 / status/locking.py:38,363,364; green after routing (7 passed), with positive and negative controls.",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:07:59.672053+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "manual_inspection",
+      "evidence": "Docstrings of anchored_lock_path, event_log_lock_path, synthesis_lock_path, _checkout_claim_lock_path, feature_status_lock_path and project_event_log_lock name the single owner or say why they do not use it.",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:10:04.951428+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "manual_inspection",
+      "evidence": "docs/architecture/event-ledger-writers-and-readers.md and docs/development/reference/lock-interop-spike.md name kernel.locks.anchored_lock_path as the one implementation; contract text unchanged (commit 5268fb30c4).",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-10-30T19:10:10.218307+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
