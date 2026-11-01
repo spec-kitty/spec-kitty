@@ -1,0 +1,59 @@
+{
+  "mission_slug": "human-slug-handle-parity-01M6BV06",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/context/test_mission_resolver.py::TestResolveByHumanSlugOfMid8ComposedMission::test_human_slug_resolves_composed_mission (commit 840894d10c)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:32:25.431295+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/context/test_mission_resolver.py::test_coincidental_tail_is_not_stripped and ::test_mid8_tail_not_at_the_end_is_not_stripped",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:32:30.247389+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/context/test_mission_resolver.py::test_shared_human_slug_is_ambiguous and tests/specify_cli/cli/commands/test_selector_resolution.py::test_both_resolution_paths_refuse_a_shared_human_slug",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:32:34.997347+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_implement_mission_handle.py (7 rows; 4 red before the fold)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:32:39.750012+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_selector_resolution.py::test_both_resolution_paths_return_the_same_mission (7 handle forms)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:32:44.941723+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
