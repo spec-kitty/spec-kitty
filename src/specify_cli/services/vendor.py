@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import hmac
 import re
+import sys
 import tempfile
 import types
 import urllib.parse
@@ -323,11 +324,23 @@ class _Request:
     version: str
 
 
+def _announce_skipped_provenance(repository: str, *, check_provenance: bool) -> None:
+    """Say on stderr, once per release, when the build attestation is not verified and why."""
+    if not check_provenance:
+        reason = "--no-attestation"
+    elif _scheme(repository) != _HTTPS:
+        reason = "the repository is a file:// mirror"
+    else:
+        return
+    print(f"Provenance not verified: build attestation skipped ({reason}); only the {SUMS_FILE} digest was checked.", file=sys.stderr)
+
+
 def _download_release(request: _Request, scratch: Path, *, check_provenance: bool) -> _Release:
     repository, tag = request.repository, request.tag
     resolved = resolve_commit(repository, tag, request.commit, scratch=scratch)
     sums = _read_sums(repository, tag, scratch)
     mapped, ignored = map_assets(request.service, sums, prefix=request.prefix, version=request.version)
+    _announce_skipped_provenance(repository, check_provenance=check_provenance)
     assets: dict[ServiceTarget, ServiceAsset] = {}
     extras: dict[str, ServiceAsset] = {}
     for field, name in mapped.items():
