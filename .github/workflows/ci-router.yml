@@ -1185,6 +1185,14 @@ jobs:
       # question is not allowed to fail quietly: no `||` and no continue-on-error, so
       # an error fails the job rather than skip the pre-step on a leg that may hold a
       # consumer (tests/ci/test_ci_workflow_prestep_shape.py pins both).
+      # The question is intersected with the leg's own selected-gates file (#7001): a
+      # scoped leg runs only the gates the diff selected (#6994), so it only needs the
+      # universe when one of THOSE gates collects it. Passing the same
+      # `steps.scope.outputs.gates_file` the battery step reads (as
+      # SK_BATTERY_GATES_FILE) keeps the decision and the run on one selection; a
+      # scope-only leg whose gates hold no consumer then skips the whole chain instead
+      # of paying a cold collection. A whole-leg run passes an empty path, which keeps
+      # today's whole-partition answer.
       # Order (contracts/collection-store.md): key -> restore -> collect -> save ->
       # pytest -> check. `key` prints nothing and exits 2 on a dirty checkout; the
       # empty output keeps restore and save off, and `collect` then fails the job with
@@ -1204,7 +1212,7 @@ jobs:
             echo "architectural-heavy ${{ matrix.shard }}: scoped leg with no selected gate; test-universe pre-step selected: false"
             exit 0
           fi
-          universe="$(uv run --frozen python -m scripts.ci.collect_universe_prestep consumers --battery-part ${{ matrix.shard }})"
+          universe="$(uv run --frozen python -m scripts.ci.collect_universe_prestep consumers --battery-part ${{ matrix.shard }} --gates-file "${{ steps.scope.outputs.gates_file }}")"
           case "$universe" in
             true | false) ;;
             *) echo "architectural-heavy: unexpected consumers answer: '$universe'" >&2; exit 1 ;;

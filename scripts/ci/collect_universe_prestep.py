@@ -28,14 +28,18 @@ Commands (``contracts/collection-store.md``):
     collected afresh or was bypassed for any reason other than ``root-override`` (research D-07,
     D-14); also exit 1 on a malformed report line. Fallback mode (exit 0 with a note) applies only
     to a missing or empty report, a report with no pre-step line, or the acceptable platform bypass.
-``consumers --battery-part <part>``
+``consumers --battery-part <part> [--gates-file <path>]``
     Print ``true`` when the battery partition ``<part>`` (``1/2``, ``2/2``) holds a test file that
     requests the universe through ``collect_universe()``, else ``false``; the architectural-heavy
     job runs the key, restore, collect, save and check steps only on a leg that prints ``true``.
     The files are found by scanning ``tests/architectural/test_*.py`` for a call
-    (:func:`universe_consumers`), so the answer follows the tests. Exit 1 and no answer on stdout
-    for an unknown part or any other failure: the workflow step fails the job rather than skip the
-    pre-step on a leg that may hold a consumer.
+    (:func:`universe_consumers`), so the answer follows the tests. ``--gates-file`` (default
+    ``$SK_BATTERY_GATES_FILE``, the variable the battery plug-in reads) intersects the question
+    with the gates the diff selected for this leg (#7001): a scoped leg whose selected gates hold
+    no consumer skips the whole pre-step instead of collecting a universe it never reads. No
+    file named means the whole partition, as before. Exit 1 and no answer on stdout for an
+    unknown part, an unreadable gates file or any other failure: the workflow step fails the job
+    rather than skip the pre-step on a leg that may hold a consumer.
 ``compare``
     Perform one fresh collection with the store bypassed and diff it against the stored record
     (the nightly freshness check). Exit 1 on any difference or when nothing usable is stored.
@@ -317,15 +321,40 @@ def universe_consumers(root: Path | None = None) -> frozenset[str]:
     return frozenset(found)
 
 
-def cmd_consumers(part: str) -> int:
+def selected_gates(gates_file: str | None = None) -> frozenset[str] | None:
+    """The leg's selected gates from *gates_file* (default ``$SK_BATTERY_GATES_FILE``), or ``None``.
+
+    ``None`` means no restriction: the caller asks about the whole partition (#7001 keeps that
+    answer for every unscoped run). An empty value means the same thing, because a whole-leg run
+    writes ``gates_file=`` and that must not narrow anything. The file is parsed by the one parser
+    in :mod:`scripts.ci.battery_scope`, the same one the battery plug-in uses for the running leg,
+    so the pre-step and the leg can never disagree about which gates run. An unreadable file
+    propagates ``OSError``, which ``main`` turns into a failed step with no answer.
+
+    A file that names only another leg's gates answers "no consumer" here (this leg selects
+    nothing), while the plug-in refuses the same input with ``UsageError``: the leg reds on its own
+    step either way, so the pre-step does not duplicate that failure - it only declines to collect.
+    """
+    from scripts.ci.battery_partition_plugin import GATES_FILE_ENV
+    from scripts.ci.battery_scope import read_selected_gates
+
+    named = (gates_file if gates_file is not None else os.environ.get(GATES_FILE_ENV, "")).strip()
+    return read_selected_gates(named) if named else None
+
+
+def cmd_consumers(part: str, gates_file: str | None = None) -> int:
     from tests.architectural import _gate_coverage as coverage
 
     try:
         files = coverage.battery_part_files(part)
+        scope = selected_gates(gates_file)
     except ValueError as failure:
         print(f"consumers failed: {failure}", file=sys.stderr)
         return EXIT_FAILED
-    print("true" if files & universe_consumers() else "false")
+    leg = files if scope is None else files & scope
+    if scope is not None:
+        print(f"scoped leg: {len(leg)} of {len(files)} part file(s) selected by the diff's gates", file=sys.stderr)
+    print("true" if leg & universe_consumers() else "false")
     return EXIT_OK
 
 
@@ -389,17 +418,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("command", choices=sorted([*_COMMANDS, _CONSUMERS]))
     parser.add_argument("--with-commit", action="store_true", help="key only: append the checkout commit, for a cache key that cannot go stale")
     parser.add_argument("--battery-part", help="consumers only: the battery partition to ask about, e.g. 1/2")
+    parser.add_argument(
+        "--gates-file",
+        default=None,
+        help="consumers only: the leg's selected-gates file (#7001); default $SK_BATTERY_GATES_FILE, empty/absent means the whole part",
+    )
     args = parser.parse_args(argv)
     command = args.command
     if args.with_commit and command != "key":
         parser.error("--with-commit applies to the key command only")
     if (args.battery_part is not None) != (command == _CONSUMERS):
         parser.error("--battery-part is required by the consumers command and applies to it only")
+    if args.gates_file is not None and command != _CONSUMERS:
+        parser.error("--gates-file applies to the consumers command only")
     try:
         if command == "key":
             return cmd_key(with_commit=args.with_commit)
         if command == _CONSUMERS:
-            return cmd_consumers(args.battery_part)
+            return cmd_consumers(args.battery_part, args.gates_file)
         return _COMMANDS[command]()
     except (RuntimeError, OSError, subprocess.TimeoutExpired) as failure:
         print(f"{command} failed: {failure}", file=sys.stderr)

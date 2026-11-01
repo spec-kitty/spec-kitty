@@ -401,9 +401,10 @@ CPUs. The list is now collected once per job, in a step before pytest, and store
 disk; the tests read the stored copy.
 
 **What it does and does not do.** A first run of a checkout still collects once
-in each job that consumes the list, so twice per pull-request update (architectural
-battery leg 1/2 and the `ci` module shard; leg 2/2 holds no collecting test and skips
-the step). The change moves that
+in each job that consumes the list: the architectural battery leg whose files hold a
+collecting test (today both legs hold one — `test_fast_tier_marker_completeness.py`
+in 1/2 and `test_same_tier_uniqueness.py` in 2/2 — but a leg only collects when a
+*selected* gate holds one, see below), and the `ci` module shard. The change moves that
 collection out of test setup and out of worker contention. A re-run of the same
 checkout restores the stored list from the CI cache instead of collecting. On one
 developer machine a collection took 62.5 s and reading the stored copy 0.33 s. On CI
@@ -470,7 +471,7 @@ root checkout:
 | `key [--with-commit]` | Prints the collection key. With `--with-commit` it prints `<key>-<commit>`, which is the CI cache key. | 0; 2 when the checkout is dirty or git cannot describe it |
 | `collect` | Calls `collect_universe()` once and prints the report line. | 0 only when the line is `reused`, `collected` with the record stored, or an unsupported-platform bypass without a `detail`; 1 for anything else, including a record that could not be stored |
 | `check` | Reads the report file and writes a table to the job summary. | 1 when the pre-test line is not acceptable, when a later request in the job collected or was bypassed (other than `root-override`) after the pre-test step stored or reused a record, or when a report line is malformed; 0 otherwise |
-| `consumers --battery-part <part>` | Prints `true` when the battery partition holds a test file that calls `collect_universe()` (found by scanning `tests/architectural/test_*.py`), `false` otherwise. | 0 with an answer; 1 and no answer for an unknown part |
+| `consumers --battery-part <part> [--gates-file <path>]` | Prints `true` when the battery partition holds a test file that calls `collect_universe()` (found by scanning `tests/architectural/test_*.py`), `false` otherwise. `--gates-file` (default `$SK_BATTERY_GATES_FILE`, the variable the battery plug-in reads) intersects the question with the gates the diff selected for this leg ([#7001](https://github.com/spec-kitty/spec-kitty/issues/7001)), so a scope-only leg whose selected gates hold no consumer skips the pre-step instead of collecting a universe it never reads; no file means the whole partition. | 0 with an answer; 1 and no answer for an unknown part, an unreadable gates file, or any other failure |
 | `compare` | Collects once with the store bypassed and diffs the result against the stored record. | 1 on any difference or when no usable record exists |
 
 `collect` and `check` fail when the pre-test step could not store a collection.
@@ -485,6 +486,12 @@ itself, `check` prints a fallback note and exits 0.
   a failed answer fails the job). Steps in order: compute the key, restore the store,
   `collect`, save the store, run the battery (the pytest command line is unchanged),
   `check` with `if: always()`.
+  The decision is intersected with the leg's own selected-gates file ([#7001](https://github.com/spec-kitty/spec-kitty/issues/7001)):
+  `consumers` is asked with `--gates-file` bound to the same
+  `steps.scope.outputs.gates_file` the battery step reads as `SK_BATTERY_GATES_FILE`.
+  A scoped leg (#6994) runs a handful of gates, so it needs the universe only when one
+  of *those* gates collects it; when none does, every universe step is skipped. A
+  whole-leg run passes an empty path and keeps the whole-partition answer.
 - **`module-tests.yml`, job `test`.** The same steps, but only in per-PR mode and
   only on the shard whose selected test list contains
   `tests/ci/test_corpus_blocking_home.py::test_every_corpus_test_has_a_blocking_per_pr_home`,
@@ -527,7 +534,49 @@ python -m scripts.ci.collect_universe_prestep check
 
 # Prove the stored copy equals a fresh collection
 python -m scripts.ci.collect_universe_prestep compare
+
+# Ask a leg about its own selected gates instead of its whole partition (#7001)
+printf '%s\n' tests/architectural/test_dead_builtin_doc_paths.py > /tmp/gates.txt
+python -m scripts.ci.collect_universe_prestep consumers --battery-part 1/2 --gates-file /tmp/gates.txt
+# -> false (that gate never collects the universe), so every universe step is skipped
+printf '%s\n' tests/architectural/test_fast_tier_marker_completeness.py > /tmp/gates.txt
+python -m scripts.ci.collect_universe_prestep consumers --battery-part 1/2 --gates-file /tmp/gates.txt
+# -> true (this one does)
 ```
+
+### What a scope-only leg skips
+
+A pull request that touches only a path a few gates declare as their scan scope runs
+only those gates (#6994). Until #7001 its legs still asked their question of the whole
+battery partition, whose only two collecting tests live one per leg, so **both** legs
+answered "collect" for a diff that selected three or four unrelated gates. The
+intersection removes that:
+
+| Diff | Selected gates (1/2 · 2/2) | A collecting one among them? | Universe steps |
+| --- | --- | --- | --- |
+| docs-only (`docs/**`) | 3 · 3 | no | all five skipped |
+| docs/adr-only (`docs/adr/**`) | 3 · 4 | no | all five skipped |
+| tests-only (`tests/**`) | 19 · 23 | yes (both legs) | unchanged |
+| a `src/**` change | — | full leg (`mode=full`) | unchanged |
+
+Measured on the development host (a shared machine with heavy concurrent load, so the
+absolute numbers are pessimistic): a cold collection took **396.7 s** and a warm reuse
+0.55 s, while the decision itself — partition, AST scan and the one file read — costs
+about **1.5 s**. The published CI range for a first collection is 89–233 s, so the
+ordering holds on CI even though this host is slower. A cold collection is the common
+case for a new commit: the cache key is `universe-<key>-<commit>`.
+
+Further cheap wins, noted but **not** taken here:
+
+- A re-run of the same commit restores the store from the Actions cache instead of
+  collecting, because the key does not include the partition. On a first run the two
+  legs still collect in parallel: each job populates the cache only when it finishes,
+  so the second leg cannot see the first one's record in time. Making the two legs
+  share one collection would need a job-level split, not a cache change.
+- A scoped leg still pays checkout and `uv sync --frozen --all-extras` (about 1–2
+  minutes) for a handful of gates; narrowing that sync is a separate change.
+- The decision could reuse the partition it already computed for the plug-in instead of
+  recomputing it, saving well under a second.
 
 A dirty checkout (including an untracked file) is bypassed on purpose; commit or
 stash first to see a `reused` line. To force a fresh collection, run

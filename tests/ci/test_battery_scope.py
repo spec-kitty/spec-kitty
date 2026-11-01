@@ -92,3 +92,35 @@ def test_main_writes_a_scoped_answer(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert bs.main(["select", "--base", "a", "--head", "b", "--battery-part", "1/2", "--out", str(out)]) == 0
     lines = capsys.readouterr().out.splitlines()
     assert lines[0] == "mode=scoped" and lines[2] == f"gates_file={out}"
+
+
+# ---------------------------------------------------------------------------
+# The selected-gates file format (#7001): one writer, one parser, two readers
+# ---------------------------------------------------------------------------
+def test_the_writer_and_the_parser_round_trip_one_file(tmp_path: Path) -> None:
+    out = tmp_path / "gates.txt"
+    bs.output_lines(bs.SCOPED, frozenset({"tests/architectural/test_b.py", "tests/architectural/test_a.py"}), out)
+    assert bs.read_selected_gates(str(out)) == frozenset({"tests/architectural/test_a.py", "tests/architectural/test_b.py"})
+
+
+def test_a_hand_written_file_is_a_de_duplicated_set_of_blank_free_lines(tmp_path: Path) -> None:
+    listed = tmp_path / "gates.txt"
+    listed.write_text("\n  tests/architectural/test_a.py  \ntests/architectural/test_a.py\n\ntests/architectural/test_b.py\n", encoding="utf-8")
+    assert bs.read_selected_gates(str(listed)) == frozenset({"tests/architectural/test_a.py", "tests/architectural/test_b.py"})
+
+
+def test_an_empty_file_parses_to_an_empty_selection_not_to_no_restriction(tmp_path: Path) -> None:
+    listed = tmp_path / "gates.txt"
+    listed.write_text("\n\n", encoding="utf-8")
+    assert bs.read_selected_gates(str(listed)) == frozenset()
+
+
+def test_a_missing_file_raises_so_each_caller_can_fail_its_own_way(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        bs.read_selected_gates(str(tmp_path / "absent.txt"))
+
+
+def test_the_writer_writes_only_the_gates_it_was_given(tmp_path: Path) -> None:
+    out = tmp_path / "gates.txt"
+    bs.write_selected_gates({"tests/architectural/test_b.py", "tests/architectural/test_a.py"}, out)
+    assert out.read_text(encoding="utf-8") == "tests/architectural/test_a.py\ntests/architectural/test_b.py\n"

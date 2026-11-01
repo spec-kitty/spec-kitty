@@ -1,0 +1,79 @@
+{
+  "mission_slug": "scoped-leg-universe-prestep-01M6BV5D",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_collect_universe_prestep.py::test_a_scoped_leg_whose_selected_gates_hold_no_consumer_declines (+ the pair test_a_scoped_leg_that_selects_the_consumer_keeps_collecting)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-01T17:42:11.158762+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_collect_universe_prestep.py::test_a_scoped_leg_that_selects_the_consumer_keeps_collecting",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-01T17:42:19.005118+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_collect_universe_prestep.py::test_no_gates_file_keeps_the_whole_partition_answer and ::test_the_real_legs_answer_true_or_false_consistently_with_their_files",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-01T17:43:04.108944+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_collect_universe_prestep.py::test_a_missing_gates_file_fails_with_no_answer",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-01T17:43:10.510892+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_battery_scope.py::test_the_writer_and_the_parser_round_trip_one_file and tests/ci/test_battery_partition_plugin.py::test_both_readers_resolve_one_file_to_the_same_set",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-01T17:43:17.750880+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_ci_workflow_prestep_shape.py::test_heavy_battery_leg_asks_the_python_authority_and_cannot_swallow_an_error + the three #7001 mutation cases",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-01T17:43:23.173652+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/development/reference/ci-gate-mechanics.md#what-a-scope-only-leg-skips and docs/changelog/CHANGELOG.md [Unreleased] (#7001)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-11-01T17:43:28.378829+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
