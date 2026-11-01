@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 from jsonschema import Draft202012Validator
 
 from specify_cli.invocation.record import OpStartedEvent
@@ -33,11 +32,13 @@ from specify_cli.invocation.writer import InvocationWriter, append_op_closure
 from tests.contract import _mission_status_memo as memo_module
 from tests.contract import _mission_status_ops as ops
 from tests.contract import _mission_status_payloads as helper
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_DIR = REPO_ROOT / "contracts" / "mission-status"
+#: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE
 READER_FILE = Path(__file__).with_name("_mission_status_ops.py")
 NOT_KILLED = "the mutation was not killed"
 FAULT_NOT_FIRED = "the injected fault did not fire"
@@ -53,6 +54,13 @@ SLASH = "/"
 HOME_ROOT = SLASH + "ho" + "me" + SLASH
 AT = "@"
 FIVE_LEFT_OUT = ("request_text", "model_id", "governance_context_hash", "governance_context_available", "router_confidence")
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
 
 
 class UnexpectedWrite(AssertionError):
@@ -1125,7 +1133,7 @@ def row13_problems(env: Env) -> list[str]:
         planted = {**served, name: "value"}
         probe.expect(env.errors("OpsInvocation", planted) != [], f"the closed schema accepts a payload carrying {name}")
     probe.expect(env.errors("OpsInvocation", served) == [], "control: the real item fails its schema")
-    description = yaml.safe_load((MODULE_DIR / "schemas" / "OpsInvocation.yaml").read_text(encoding="utf-8"))["description"]
+    description = helper.bundled_schema("OpsInvocation")["description"]
     probe.expect(description_lacks(description, FIVE_LEFT_OUT) == [], "the real description lacks a name of a left-out field")
     for name in FIVE_LEFT_OUT:
         probe.expect(description_lacks(description.replace(name, "x"), FIVE_LEFT_OUT) == [name], f"a description lacking {name} is not reported")

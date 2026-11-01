@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from specify_cli.status.aggregate import CoordAuthorityUnavailable, MissionMetadataUnavailable, MissionStatus
@@ -25,15 +24,25 @@ from specify_cli.status.lifecycle_events import LIFECYCLE_EVENT_TYPES
 from specify_cli.status.models import ReviewOverride
 from specify_cli.status.tail_reader import EMPTY_DIGEST
 from tests.contract import _mission_status_payloads as helper
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+#: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE
 SLASH = chr(47)
 AT = chr(64)
 BACKSLASH = chr(92)
 MISSION = "alpha-mission"
 LATER = "2026-09-02T10:00:00+00:00"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
 
 
 def _home_path(tail: str = "project") -> str:
@@ -56,7 +65,7 @@ def tools() -> Iterator[helper.ContractTools]:
 
 @pytest.fixture(scope="module")
 def contract(tools: helper.ContractTools) -> helper.Contract:
-    return helper.Contract(tools, REPO_ROOT / "contracts" / "mission-status")
+    return helper.Contract(tools, MODULE_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -855,7 +864,7 @@ def test_only_transitions_and_the_seven_lifecycle_types_are_forwarded(source: he
 
 
 def test_the_projector_work_package_rule_is_the_contracts_wpid_pattern() -> None:
-    document = yaml.safe_load((REPO_ROOT / "contracts" / "mission-status" / "schemas" / "WpId.yaml").read_text(encoding="utf-8"))
+    document = helper.bundled_schema("WpId")
     assert document["pattern"] == helper.WP_ID_PATTERN and document["maxLength"] == helper.WP_ID_MAX_LENGTH
     assert helper.is_wp_id("WP01") and helper.is_wp_id("WP100")
     for bad in ("WP1", "wp01", "WP-01", "01", "WP01 ", "", None, 1, "WP" + "0" * 70):
@@ -1087,7 +1096,6 @@ def test_an_all_whitespace_record_is_not_a_release_marker(tools: helper.Contract
 # ---------------------------------------------------------------------------
 
 READER_SCHEMA_TITLES = ("WorkPackageDetail", "ArtifactListing", "ArtifactContent", "ArtifactRefusal", "WorkPackageDetailRefusal")
-EXAMPLES_DIR = REPO_ROOT / "contracts" / "mission-status" / "examples"
 ARTIFACT_PATH_KEYS = ("path", "artifactPath")
 ARTIFACT_PATH_MALFORMED = "ARTIFACT_PATH_MALFORMED"
 
@@ -1103,11 +1111,44 @@ def _credential() -> str:
 
 @pytest.mark.parametrize("title", READER_SCHEMA_TITLES)
 def test_the_contract_wrapper_validates_each_reader_schema_and_refuses_a_planted_member(title: str, contract: helper.Contract) -> None:
-    examples = sorted(EXAMPLES_DIR.glob(f"{title}.*.yaml"))
-    assert examples, f"the contract must carry an example of {title}"
-    valid = yaml.safe_load(examples[0].read_text(encoding="utf-8"))
+    valid = helper.non_empty_examples(helper.bundled_schema(title), f"the contract's {title}")[0]
     assert contract.errors(title, valid) == [], f"the committed {title} example must validate"
     assert contract.errors(title, {**valid, "unknown_member": 1}), f"a member the schema does not declare must fail {title}"
+
+
+def test_agreed_schema_keeps_only_the_keys_every_use_carries_alike() -> None:
+    shared = {"title": "WpId", "pattern": "^WP[0-9]{2,}$", "maxLength": 64}
+    variants = [{**shared, "description": "first use"}, {**shared, "description": "second use", "x-source": {"path": "a"}}]
+    assert helper.agreed_schema(variants) == shared
+    assert helper.agreed_schema([variants[0]]) == variants[0], "a schema used once comes back whole"
+    assert helper.agreed_schema([]) == {}
+    copied = helper.agreed_schema([{"properties": {"a": {}}}])
+    copied["properties"]["a"]["planted"] = True
+    assert helper.agreed_schema([{"properties": {"a": {}}}]) == {"properties": {"a": {}}}
+
+
+def test_the_bundled_readers_refuse_an_unknown_title_or_path_and_an_example_free_schema() -> None:
+    with pytest.raises(KeyError, match="no schema titled"):
+        helper.bundled_schema("NoSuchSchema")
+    with pytest.raises(KeyError, match="no path"):
+        helper.bundled_path_item("/no-such-path")
+    example_free: tuple[dict[str, Any], ...] = ({}, {"examples": []}, {"examples": "not a list"})
+    for empty in example_free:
+        with pytest.raises(AssertionError, match="at least one example"):
+            helper.non_empty_examples(empty, "planted")
+    assert helper.non_empty_examples({"examples": [1]}, "planted") == [1]
+
+
+def test_the_bundled_readers_return_copies_of_the_pinned_bundle() -> None:
+    schema = helper.bundled_schema("WpId")
+    assert schema["pattern"] == helper.WP_ID_PATTERN and "description" not in schema, "the uses describe WpId differently"
+    schema["pattern"] = "planted"
+    assert helper.bundled_schema("WpId")["pattern"] == helper.WP_ID_PATTERN
+    document = helper.bundled_document()
+    assert set(document) >= {"openapi", "info", "paths"} and "/drift" in document["paths"]
+    document["paths"].clear()
+    assert helper.bundled_path_item("/drift")["get"]["responses"]
+    assert helper.bundled_examples("DriftRefusal"), "the bundle keeps the examples on the schema"
 
 
 def test_the_contract_tools_carry_the_scanner_with_the_one_artifact_path_predicate(tools: helper.ContractTools) -> None:
@@ -1196,22 +1237,40 @@ PINNED_CONTRACT_READERS = (
 )
 
 
-def _local_contract_spellings() -> tuple[str, ...]:
-    """The spellings of a read of the local ``contracts/`` copy, assembled so this source does not match itself."""
+def _local_contract_reads(text: str) -> list[str]:
+    """Every read of the checkout's own contract copy in *text*.
+
+    A path built from the repository root (the root name, ``repo_root`` or ``parents[N]``, then the contract directory) or a
+    spelled mission-status / mission-write module path, or a quoted single-string tools path. The pinned tools extra
+    keeps its own tools layout below the extra root, which is not a local read. The patterns are assembled at run time so this source does not match itself.
+    """
     root = "contracts"
-    quoted = '"' + root + '"'
-    return (
-        root + "/mission-status",
-        root + "/mission-write",
-        root + "/tools",
-        quoted + ' / "mission-status"',
-        quoted + ' / "mission-write"',
-        quoted + ' / "tools"',
+    patterns = (
+        r"(?:REPO_ROOT|repo_root|parents\[\d+\])\s*/\s*\"" + root + r"\"",
+        root + r"/mission-(?:status|write)\b",
+        r"\"" + root + r"\"\s*/\s*\"mission-(?:status|write)\"",
+        r"[\"']" + root + r"/tools\b",
     )
+    return [match.group(0) for pattern in patterns for match in re.finditer(pattern, text)]
+
+
+def test_the_local_contract_read_detector_sees_each_spelling_and_not_an_extra_root() -> None:
+    root = "contracts"
+    for planted in (
+        "REPO_ROOT / " + '"' + root + '"' + ' / "tools"',
+        "repo_root / " + '"' + root + '"',
+        "Path(__file__).resolve().parents[2] / " + '"' + root + '"',
+        root + "/mission-status/schemas/WpId.yaml",
+        root + "/mission-write",
+        '"' + root + '" / "mission-status"',
+        "REPO_ROOT.joinpath(" + '"' + root + '/tools")',
+    ):
+        assert _local_contract_reads(planted), planted
+    assert _local_contract_reads('expected_extra_root("contract_tools") / "' + root + '" / "tools"') == []
 
 
 @pytest.mark.parametrize("relative", PINNED_CONTRACT_READERS)
 def test_no_contract_reader_reads_the_local_contracts_copy(relative: str) -> None:
     text = (REPO_ROOT / relative).read_text(encoding="utf-8")
-    hits = [spelling for spelling in _local_contract_spellings() if spelling in text]
+    hits = _local_contract_reads(text)
     assert hits == [], f"{relative} still reads the local contracts/ copy ({hits}); read the pinned extras (tests/pinned_service_assets.py)"
