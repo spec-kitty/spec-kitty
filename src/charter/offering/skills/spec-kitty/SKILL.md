@@ -92,9 +92,10 @@ Response fields:
 | `invocation_id` | string (ULID) | Unique ID for this Op |
 | `profile_id` | string | Resolved profile identifier |
 | `action` | string | Normalised action string |
-| `governance_context_text` | string | Full governance context assembled from the project DRG |
+| `governance_context_text` | string or null | Full governance context assembled from the project DRG; `null` in `--brief` mode |
 | `governance_context_hash` | string | SHA-256 hash of `governance_context_text` |
 | `governance_context_available` | boolean | `false` when charter has not been synthesised |
+| `governance_context_reference` | object, `--brief` only | Digest, size, line count and fetch command standing in for the omitted text |
 | `router_confidence` | string or null | Routing confidence score |
 | `status` | `"open"` | The Op is open until you close it |
 | `close_contract` | object | Exact close command, accepted outcomes, and flags |
@@ -114,6 +115,33 @@ Steps:
    ("governance context unavailable — run `spec-kitty charter synthesize` to
    build the DRG") but proceed with the task. The Op trail is still recorded.
 4. After completing the work, close the Op.
+
+### Re-dispatching in the same session (`--brief`)
+
+The payload is ~13-26 KB and nearly all of it is unchanged between two
+dispatches of the same profile and action. Once this session has read the full
+text, re-dispatch with `--brief`: the response keeps the routing fields, sets
+`governance_context_text` to `null`, and returns
+`governance_context_reference` — a digest, the size, and the command that
+fetches the text again:
+
+```bash
+spec-kitty dispatch "review the migration" --profile reviewer-renata --brief --json
+# governance_context_reference.fetch_command:
+#   spec-kitty charter context --action review --profile reviewer-renata --json --no-mark-loaded
+```
+
+Rules that keep briefing honest:
+
+- The **first** read for a profile/action in a session must be the full text
+  (or the fetch command's `text` field). `--brief` is for re-reads, not for
+  skipping governance: dispatch still assembles the context on every call, and
+  never suppresses it on its own.
+- The reference is emitted only when the text exists and the printed command
+  reproduces it; fetching must not change first-load state, hence
+  `--no-mark-loaded`.
+- The Op record, the close contract and the glossary scan are identical to a
+  full dispatch. Close the Op the same way.
 
 ### Close the Op
 
@@ -152,6 +180,7 @@ and surfaced at session boundaries.
 - `dispatch` opens the Op and returns. The working agent closes it with the
   real outcome.
 - `governance_context_text` is assembled from the project DRG; no network calls
-  are made if the charter has already been synthesised.
+  are made if the charter has already been synthesised. `--brief` changes only
+  how the text is delivered, never whether it is assembled.
 - If `governance_context_available` is `false`, run
   `spec-kitty charter synthesize` to build the DRG before the next invocation.
