@@ -22,8 +22,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -116,22 +114,18 @@ def _canonical(value: Any) -> str:
     return json.dumps(value, sort_keys=True)
 
 
-@contextmanager
-def _captured_payloads() -> Iterator[list[dict[str, Any]]]:
+@pytest.fixture
+def captured_payloads(monkeypatch: pytest.MonkeyPatch) -> list[dict[str, Any]]:
     """Record the payload the dry-run hands to the envelope builder."""
-    captured: list[dict[str, Any]] = []
+    captured_payloads: list[dict[str, Any]] = []
     real_builder = mission_state._build_teamspace_envelope
 
     def _recording_builder(**kwargs: Any) -> Any:
-        captured.append(kwargs["payload"])
+        captured_payloads.append(kwargs["payload"])
         return real_builder(**kwargs)
 
-    original = mission_state._build_teamspace_envelope
-    mission_state._build_teamspace_envelope = _recording_builder  # type: ignore[assignment]
-    try:
-        yield captured
-    finally:
-        mission_state._build_teamspace_envelope = original  # type: ignore[assignment]
+    monkeypatch.setattr(mission_state, "_build_teamspace_envelope", _recording_builder)
+    return captured_payloads
 
 
 # ---------------------------------------------------------------------------
@@ -139,21 +133,20 @@ def _captured_payloads() -> Iterator[list[dict[str, Any]]]:
 # ---------------------------------------------------------------------------
 
 
-def test_dry_run_payload_is_byte_identical_to_a_real_transition(tmp_path: Path) -> None:
+def test_dry_run_payload_is_byte_identical_to_a_real_transition(tmp_path: Path, captured_payloads: list[dict[str, Any]]) -> None:
     repo = _make_repo(tmp_path)
     mission = _emit_real_transitions(repo)
 
-    with _captured_payloads() as captured:
-        report = teamspace_dry_run(repo)
+    report = teamspace_dry_run(repo)
 
     assert report.valid, report.errors
     rows = _durable_rows(mission)
-    assert report.envelope_count == len(captured) == len(rows)
+    assert report.envelope_count == len(captured_payloads) == len(rows)
     # The fixture really exercises both shapes: a legacy row the reader has to
     # backfill identity for, and rows that carry mission_id in the row itself.
     assert "mission_id" not in rows[0]
     assert all(row["mission_id"] == _MISSION_ID for row in rows[1:])
-    for payload, row in zip(captured, rows, strict=True):
+    for payload, row in zip(captured_payloads, rows, strict=True):
         # The oracle is the durable row itself: project it onto the contract
         # model's field set. No model construction, no builder call -- this is
         # what the row says the transition was.
@@ -165,22 +158,21 @@ def test_dry_run_payload_is_byte_identical_to_a_real_transition(tmp_path: Path) 
         assert _canonical(payload) == _canonical(expected), row["event_id"]
 
 
-def test_dry_run_payload_is_valid_conformance_and_carries_the_mission_id(tmp_path: Path) -> None:
+def test_dry_run_payload_is_valid_conformance_and_carries_the_mission_id(tmp_path: Path, captured_payloads: list[dict[str, Any]]) -> None:
     repo = _make_repo(tmp_path)
     _emit_real_transitions(repo)
 
-    with _captured_payloads() as captured:
-        report = teamspace_dry_run(repo)
+    report = teamspace_dry_run(repo)
 
     assert report.valid, report.errors
-    for payload in captured:
+    for payload in captured_payloads:
         assert payload["mission_id"] == _MISSION_ID
         assert validate_event(payload, "WPStatusChanged").valid
     # positive control on the same fixture: the fixture really does exercise the
     # lane chain, so a payload with no mission_id would be a real drop, not an
     # artifact of a fixture that never sets one.
-    assert captured[-1]["from_lane"] == "claimed"
-    assert captured[-1]["to_lane"] == "in_progress"
+    assert captured_payloads[-1]["from_lane"] == "claimed"
+    assert captured_payloads[-1]["to_lane"] == "in_progress"
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +199,7 @@ def test_dry_run_builds_the_payload_through_the_facade_builder(tmp_path: Path, m
     assert all("from_lane" in call["overrides"] for call in calls)
 
 
-def test_historical_overrides_are_the_only_divergence_from_the_row(tmp_path: Path) -> None:
+def test_historical_overrides_are_the_only_divergence_from_the_row(tmp_path: Path, captured_payloads: list[dict[str, Any]]) -> None:
     repo = _make_repo(tmp_path)
     mission = _emit_real_transitions(repo)
     # A historical row that still records the pre-queue ``in_progress -> in_review``
@@ -228,11 +220,10 @@ def test_historical_overrides_are_the_only_divergence_from_the_row(tmp_path: Pat
     store.append_events_atomic(mission, [legacy])
     materialize(mission)
 
-    with _captured_payloads() as captured:
-        report = teamspace_dry_run(repo)
+    report = teamspace_dry_run(repo)
 
     assert report.valid, report.errors
-    rewritten = next(payload for payload in captured if payload["from_lane"] == "for_review")
+    rewritten = next(payload for payload in captured_payloads if payload["from_lane"] == "for_review")
     assert rewritten["to_lane"] == "in_review"
     row = _durable_rows(mission)[-1]
     # every field outside the two documented overrides still equals the row
