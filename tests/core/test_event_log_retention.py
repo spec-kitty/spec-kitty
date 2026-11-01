@@ -58,6 +58,9 @@ TRACKED_FILES = (
     f"kitty-specs/{DONE_SLUG}/status.events.jsonl",
     f"kitty-specs/{OPEN_SLUG}/meta.json",
     "kitty-ops/01OPS000000000000000000000.jsonl",
+    # #7003: the read-only legacy lifecycle log and a per-record lifecycle file.
+    "kitty-ops/lifecycle.jsonl",
+    "kitty-ops/lifecycle/01M6BNSW5FGX8AEXAR8TZ0J2R2.json",
 )
 
 
@@ -96,6 +99,8 @@ def project(tmp_path: Path) -> Path:
     _mission(tmp_path, OPEN_SLUG, OPEN_ID, merged=False)
     _write(done / "status.events.jsonl", '{"event_id": "01X", "wp_id": "WP01"}\n')
     _write(tmp_path / "kitty-ops" / "01OPS000000000000000000000.jsonl", '{"event": "started"}\n')
+    _write(tmp_path / "kitty-ops" / "lifecycle.jsonl", '{"phase": "started"}\n')
+    _write(tmp_path / "kitty-ops" / "lifecycle" / "01M6BNSW5FGX8AEXAR8TZ0J2R2.json", '{"phase": "completed"}\n')
     subprocess.run(
         ["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@example.invalid", "add", "kitty-specs", "kitty-ops"],
         check=True,
@@ -711,6 +716,9 @@ def test_a_collector_under_the_wrong_rule_is_registry_drift(project: Path, monke
     [
         f"kitty-specs/{DONE_SLUG}/status.events.jsonl",
         "kitty-ops/01OPS000000000000000000000.jsonl",
+        "kitty-ops/lifecycle.jsonl",
+        "kitty-ops/lifecycle/01M6BNSW5FGX8AEXAR8TZ0J2R2.json",
+        "kitty-ops/lifecycle",
         ".kittify/runtime/runs",
         ".kittify/runtime/feature-runs.json",
         ".kittify/events",

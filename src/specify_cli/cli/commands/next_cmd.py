@@ -507,7 +507,7 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     """Durably close the explicit-root advancement changeset.
 
     Runtime advancement writes mission scaffolding/events plus the lifecycle
-    record before returning its decision.  The ordinary path retains its
+    records before returning its decision.  The ordinary path retains its
     historical behavior; the opted-in ownership contract must leave the owned
     checkout clean and therefore commits only those two declared surfaces to
     the fact's own validated target branch (the primary-partition commit target).
@@ -532,7 +532,6 @@ def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> No
     from specify_cli.decisions.service import _ensure_runtime_lock_ignore, _restore_runtime_lock_ignore
     from specify_cli.git.commit_helpers import _run_git_text, preflight_commit, safe_commit
 
-    lifecycle = owned.owned_root / "kitty-ops" / "lifecycle.jsonl"
     # Seam-derived, not a checkout re-derivation: PRIMARY_METADATA is a
     # primary-partition kind, so the owned arm of write_target() resolves
     # deterministically to CommitTarget(ref=owned.write_branch) -- the SAME
@@ -560,7 +559,7 @@ def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> No
             # command owns that refusal). The lock is still never committed.
             ignore_delta = None
     mission_files = tuple(path for path in sorted(owned.mission_dir.rglob("*")) if path.is_file() and path != runtime_lock)
-    paths = mission_files + ((lifecycle,) if lifecycle.is_file() else ())
+    paths = mission_files + _uncommitted_lifecycle_records(owned.owned_root)
     if not paths:
         return
     try:
@@ -584,6 +583,30 @@ def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> No
             if ignore_delta is not None and _run_git_text(owned.owned_root, ["rev-parse", "HEAD"]) == parent:
                 _restore_runtime_lock_ignore(*ignore_delta)
             raise
+
+
+def _uncommitted_lifecycle_records(owned_root: Path) -> tuple[Path, ...]:
+    """The per-record lifecycle files (#7003) the owned checkout has not committed yet.
+
+    Only these are passed to ``safe_commit``: the record directory keeps every
+    record ever written on the branch, and listing all of them would grow the
+    commit argv without bound. A record left uncommitted by an earlier,
+    interrupted run is swept up here, as the single legacy log used to be.
+    """
+    from kernel.git import status_entries
+    from specify_cli.invocation.lifecycle import LIFECYCLE_RECORD_SUFFIX, LIFECYCLE_RECORDS_RELATIVE_DIR
+
+    if not (owned_root / LIFECYCLE_RECORDS_RELATIVE_DIR).is_dir():
+        return ()
+    entries = status_entries(
+        owned_root,
+        pathspecs=(LIFECYCLE_RECORDS_RELATIVE_DIR.as_posix(),),
+        untracked="all",
+        ignored=True,
+        optional_locks=False,
+    )
+    candidates = (owned_root / entry.path.as_posix() for entry in entries)
+    return tuple(sorted(path for path in candidates if path.suffix == LIFECYCLE_RECORD_SUFFIX and path.is_file()))
 
 
 def _pair_previous_lifecycle_record(
