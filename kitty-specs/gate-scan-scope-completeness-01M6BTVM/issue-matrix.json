@@ -37,7 +37,7 @@
       "wp": null
     },
     "#7000": {
-      "evidence_ref": "PR #7016: tests/architectural/test_gate_scan_scope_completeness.py fails on undeclared repo-root reads (41 found over 18 gates, all declared or narrowly exempted); controls in test_gate_read_scope_controls.py; commits a9e56e0/771a8e0/973234a.",
+      "evidence_ref": "spec.md FR-001..FR-007; the gate and its declarations are WP01/WP02",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,7 +45,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "fixed",
+      "verdict": "in-mission",
       "wp": "WP01"
     }
   },

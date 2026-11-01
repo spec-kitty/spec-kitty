@@ -2,10 +2,9 @@
   "event_count": 14,
   "last_event_id": "01M6C34Q2D6R3A4JCF5G5N7QZN",
   "materialized_at": "2026-11-01T17:39:59.693704+00:00",
-  "mission_number": "246",
+  "mission_number": "",
   "mission_slug": "gate-scan-scope-completeness-01M6BTVM",
-  "mission_type": "software-dev",
-  "schema_version": 2,
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,66 +19,27 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M6C34PP65JTGCNGJ1FSE9N1B",
       "last_transition_at": "2026-11-01T17:39:59.302520+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Scanner + gate + the 18 registry rows land on lane-a; the gate is green on the live tree, red on the pre-fix registry (41 reads).",
-        "Review passed on lane-a: gate green on the live tree, red on the pre-fix registry (41 reads over 18 gates); rows are minimal and each new glob matches tracked paths; code scope derived from the router, not copied; exemptions are exact-prefix and stale-red."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20261101",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
-      },
-      "role": "reviewer",
-      "shell_pid": 3952075,
-      "shell_pid_created_at": "1793553539.9",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done"
-      },
-      "tracker_refs": [
-        "#7000"
-      ]
+      }
     },
     "WP02": {
       "actor": "merge",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M6C34Q2D6R3A4JCF5G5N7QZN",
       "last_transition_at": "2026-11-01T17:39:59.693704+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Controls and docs land on lane-b: nine mutation controls over the scanner, one paragraph in the CI gate mechanics reference, changelog fragment 7016.",
-        "Review passed on lane-b: every control reds on its mutation and names it; docs paragraph matches the scanner's actual limits; changelog fragment style-clean and honest about the 41/18 finding."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20261101",
         "reviewer": "Ivan Melck",
         "verdict": "approved"
-      },
-      "role": "reviewer",
-      "shell_pid": 4131934,
-      "shell_pid_created_at": "1793554642.25",
-      "subtasks": {
-        "T004": "done",
-        "T005": "done"
-      },
-      "tracker_refs": [
-        "#7000"
-      ]
+      }
     }
   }
 }
