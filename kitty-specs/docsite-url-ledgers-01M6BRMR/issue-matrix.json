@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2358": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 928e5364c closes it for redirect_stub_generator.py; WP02 covers the remaining scripts",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#3914": {
       "evidence_ref": "928e5364c: 124 #3914 moves in site/moves.yaml section (b)+(c); test_issue_3914_forward_reconcile_clean green",
