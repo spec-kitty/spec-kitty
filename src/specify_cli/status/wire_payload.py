@@ -39,7 +39,7 @@ from specify_cli.core.payload_shaping import apply_keep_none_fields
 
 from .models import StatusEvent
 
-__all__ = ["build_status_event_payload", "build_wp_status_changed_payload"]
+__all__ = ["build_status_event_payload"]
 
 #: Unset optionals whose explicit ``None`` is part of the wire shape.
 _KEEP_NONE_FIELDS: tuple[str, ...] = ("reason", "review_ref", "evidence")
