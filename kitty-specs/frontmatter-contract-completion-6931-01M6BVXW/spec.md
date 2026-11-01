@@ -154,5 +154,5 @@ test that proves bodies did not change.
 - **SC-002**: The validator's required-field set, canonical `kind` set and canonical `doc_status` set are asserted equal to doc-kitty's pinned sets by a test. — [build] · no-op passable: no
 - **SC-003**: The immutability test covers every ADR, plan, report and changelog page (364 files measured) and fails if any body byte changes. — [ratchet] · no-op passable: no
 - **SC-004**: `uv run python -m scripts.docs.frontmatter_contract --strict` exits 0, and a mutated fixture page makes it exit 1 (the gate can fail). — [build] · no-op passable: no
-- **SC-005**: `spec-kitty docs query` answers, and the retrieval index and page inventory regenerate with zero drift after the Divio `type` removal. — [ratchet] · no-op passable: no
+- **SC-005**: `spec-kitty docs query` answers, and the retrieval index and page inventory regenerate with zero drift **after regeneration** (measured: generated=917, committed=917, drift=False, both). The regenerated files themselves are reverted because `scripts/ci/check_generated_docs_untouched.py` refuses a PR that edits them; the bot PR carries them post-merge. — [ratchet] · no-op passable: no
 - **SC-006**: `dockitty-validate-frontmatter` is recorded as **not run** in the PR body with its unlanded dependency, and no claim of a doc-kitty green is made. — [folded] · no-op passable: no

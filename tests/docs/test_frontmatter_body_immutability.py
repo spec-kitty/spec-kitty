@@ -38,6 +38,7 @@ from scripts.docs.frontmatter_contract import (
 from scripts.docs.immutable_bodies import (
     BASELINE_PATH,
     IMMUTABLE_PREFIXES,
+    MUTABLE_PREFIXES,
     collect,
     diff_baseline,
     load_baseline,
@@ -64,6 +65,19 @@ def test_the_baseline_covers_every_immutable_page() -> None:
     observed = set(collect(_REPO_ROOT))
     assert observed - baseline == set(), "immutable pages missing from the baseline"
     assert baseline - observed == set(), "baseline names pages that no longer exist"
+
+
+def test_open_changelog_fragments_are_not_pinned() -> None:
+    """A fragment is authored while its PR is open; freezing it would be churn.
+
+    The rule starts at the released entries (``docs/changelog/*.md`` and the era
+    pages). Without this, every PR that adds a fragment would red the baseline.
+    """
+    baseline = load_baseline(_REPO_ROOT / BASELINE_PATH)
+    for mut in MUTABLE_PREFIXES:
+        assert not any(path.startswith(mut) for path in baseline), mut
+    # The released changelog pages are pinned, so the exclusion is not a loophole.
+    assert any(path.startswith("docs/changelog/") for path in baseline)
 
 
 def test_the_baseline_covers_all_four_immutable_trees() -> None:

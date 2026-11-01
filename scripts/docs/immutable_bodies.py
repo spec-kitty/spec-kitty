@@ -44,6 +44,7 @@ from scripts.docs.frontmatter_contract import body_of
 __all__ = [
     "BASELINE_PATH",
     "IMMUTABLE_PREFIXES",
+    "MUTABLE_PREFIXES",
     "BaselineDrift",
     "collect",
     "load_baseline",
@@ -60,6 +61,13 @@ IMMUTABLE_PREFIXES: Final[tuple[str, ...]] = (
     "docs/reports/",
     "docs/changelog/",
 )
+
+#: Paths inside the immutable trees that are *not* immutable yet. ``unreleased/``
+#: holds changelog fragments: one bullet per pull request, authored and amended while
+#: the PR is open and assembled into the release section later. Pinning them would
+#: make every PR that touches a fragment fail this baseline for no reason, so the
+#: rule starts at the released entries.
+MUTABLE_PREFIXES: Final[tuple[str, ...]] = ("docs/changelog/unreleased/",)
 
 #: Where the recorded baseline lives. Under ``docs/_meta/`` because it describes the
 #: docs tree, and it is data rather than a page (no frontmatter, not published).
@@ -93,13 +101,18 @@ class BaselineDrift:
 
 
 def _iter_markdown(repo_root: Path, prefixes: Iterable[str]) -> list[Path]:
-    """Every Markdown file under ``prefixes``, sorted for determinism."""
+    """Every Markdown file under ``prefixes``, sorted, minus :data:`MUTABLE_PREFIXES`."""
     found: list[Path] = []
     for prefix in prefixes:
         root = repo_root / prefix
         if root.is_dir():
             found.extend(path for path in root.rglob("*.md") if path.is_file())
-    return sorted(set(found))
+    kept = [
+        path
+        for path in set(found)
+        if not any(path.relative_to(repo_root).as_posix().startswith(mutable) for mutable in MUTABLE_PREFIXES)
+    ]
+    return sorted(kept)
 
 
 def body_hash(text: str) -> str:

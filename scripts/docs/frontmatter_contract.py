@@ -80,7 +80,7 @@ import json
 import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Final
 
@@ -448,7 +448,25 @@ def read_instant(raw: object) -> InstantReading:
     upstream's ``NOT_A_DATE_MESSAGE``.
     """
     if isinstance(raw, datetime):
+        # A YAML 1.1 loader hands back a ``datetime`` for an unquoted instant. It may
+        # carry an offset (``2026-10-26T05:00:00+02:00``), and rendering that with
+        # ``strftime`` would keep the wall clock while claiming ``Z`` — an instant two
+        # hours wrong with no warning. Convert first, then advise.
+        if raw.tzinfo is not None and raw.utcoffset() not in (None, timedelta(0)):
+            converted = raw.astimezone(UTC).strftime(_INSTANT_FORMAT)
+            return InstantReading(
+                canonical=converted,
+                advisory=f"not UTC; write the instant with a `Z` offset ({converted})",
+            )
         return InstantReading(canonical=raw.strftime(_INSTANT_FORMAT))
+    if isinstance(raw, date):
+        # ``datetime.date``: a date-only value the loader already parsed. Upstream treats
+        # date-only as an advisory, never an error.
+        canonical = f"{raw.strftime(_DATE_FORMAT)}T00:00:00Z"
+        return InstantReading(
+            canonical=canonical,
+            advisory=f"date-only value; write a UTC instant ({canonical})",
+        )
     if not isinstance(raw, str):
         return InstantReading()
     text = raw.strip()
@@ -683,7 +701,9 @@ def _path_and_kind_violations(
 
     # Upstream's path+kind invariants, mirrored so this gate cannot call a page clean
     # that doc-kitty will reject.
-    if kind == "Presentation" and not rel_path.startswith("presentations/"):
+    # The check is relative to the docs root (upstream's own content root), and every
+    # path here is repo-relative, so the prefix carries ``docs/``.
+    if kind == "Presentation" and not rel_path.startswith("docs/presentations/"):
         errors.append(
             _violation(
                 rel_path,
@@ -983,6 +1003,21 @@ def apply_edit(text: str, edit: PageEdit) -> str:
     body_and_rest = "".join(lines[closing:])  # the closing fence and the body
     head = lines[1:closing]  # frontmatter lines only, without either fence
 
+    # A bare ``---`` inside a block scalar ends the frontmatter for the line-based
+    # parser this migration shares with ``parse_frontmatter``, so appending keys after
+    # a dangling ``key: |`` would fold them into the scalar. No such page exists in the
+    # corpus; refuse rather than corrupt one if it ever appears.
+    block_scalar = next(
+        (line for line in head if _opens_block_scalar(line)),
+        None,
+    )
+    if block_scalar is not None:
+        raise ValueError(
+            f"{edit.path}: frontmatter opens a block scalar (`{block_scalar.strip()}`); the "
+            "migration only rewrites single-line scalars and will not risk folding a body "
+            "line into a value"
+        )
+
     newline = "\r\n" if lines[0].endswith("\r\n") else "\n"
     owned = set(edit.set_values) | set(edit.drop_keys)
     kept: list[str] = []
@@ -1004,7 +1039,8 @@ def apply_edit(text: str, edit: PageEdit) -> str:
                 "single-line scalars and will not collapse an authored block scalar"
             )
         if key in edit.set_values:
-            kept.append(_render_scalar(key, edit.set_values[key]) + newline)
+            comment = _trailing_comment(line)
+            kept.append(_render_scalar(key, edit.set_values[key]) + comment + newline)
         index += span
 
     appended = [
@@ -1026,6 +1062,30 @@ def _frontmatter_key(line: str) -> str | None:
         return None
     key = key.strip()
     return key or None
+
+
+def _opens_block_scalar(line: str) -> bool:
+    """Whether ``line`` is a ``key: |``/``key: >`` scalar opener (block scalar)."""
+    if _frontmatter_key(line) is None:
+        return False
+    _, _, value = line.partition(":")
+    indicator = value.strip().split("#", 1)[0].strip()
+    return indicator in ("|", ">", "|-", ">-", "|+", ">+")
+
+
+def _trailing_comment(line: str) -> str:
+    """The trailing YAML comment on a frontmatter line, with its leading spaces.
+
+    A rewritten value must not silently delete a comment the author wrote. Conservative
+    by construction: only a `` #`` that follows a closed quoted scalar or a plain
+    scalar is kept, and only when it is the last thing on the line.
+    """
+    body = line.rstrip("\r\n")
+    quoted_close = max(body.rfind("'"), body.rfind('"'))
+    marker = body.find(" #", max(quoted_close, 0))
+    if marker == -1:
+        return ""
+    return body[marker:].rstrip()
 
 
 def _is_continuation(line: str) -> bool:
@@ -1131,9 +1191,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.check or args.write:
         try:
             edits = apply_plan(docs_root=args.docs_root, repo_root=args.repo_root, write=args.write)
-        except (CoverageError, ValueError) as exc:
-            sys.stderr.write(f"frontmatter_contract: ERROR: {exc}\n")
+        except CoverageError as exc:
+            sys.stderr.write(f"frontmatter_contract: COVERAGE FAILURE: {exc}\n")
             return EXIT_COVERAGE_FAILURE
+        except ValueError as exc:
+            # A page the migration cannot represent (unclassified, block scalar, prose
+            # date): a real failure, not a gate malfunction, so exit 1 — the same code a
+            # `--strict` violation uses.
+            sys.stderr.write(f"frontmatter_contract: ERROR: {exc}\n")
+            return 1
         if args.json:
             sys.stdout.write(json.dumps([e.as_dict() for e in edits], indent=2, sort_keys=True) + "\n")
         else:

@@ -319,8 +319,21 @@ def _audience_orientation(frontmatter: dict[str, Any]) -> str | None:
 
 
 def _is_how_to(frontmatter: dict[str, Any]) -> bool:
+    """Whether the page reads as a how-to, from doc-kitty's ``kind`` (#6931).
+
+    This read the Divio meaning off ``type``/``divio_type``/``doc_type`` and compared
+    it to the spelled-with-an-underscore ``how_to`` — a value the corpus never carried
+    (``DivioType.HOW_TO`` is ``how-to``), so the predicate was dead before the
+    migration and stayed dead after it. The Divio meaning lives in ``kind`` now, so the
+    comparison is against the canonical ``How-To``, normalised for the hyphen/underscore
+    spelling both vocabularies have used.
+    """
+    raw = str(frontmatter.get("kind", "")).strip().lower().replace("_", "-")
+    if raw == "how-to":
+        return True
+    # Legacy spellings stay readable for a page that has not been migrated yet.
     return any(
-        str(frontmatter.get(key, "")).strip().lower() == "how_to"
+        str(frontmatter.get(key, "")).strip().lower().replace("_", "-") == "how-to"
         for key in ("type", "divio_type", "doc_type")
     )
 

@@ -9,7 +9,7 @@ analyzer_agent: python-pedro
 input_artifacts:
   spec.md:
     path: kitty-specs/frontmatter-contract-completion-6931-01M6BVXW/spec.md
-    sha256: 1fb68ff9feebe7acc5592728e4c246ec3fc14796a898e89e61e0d9c0706f74e2
+    sha256: d2ed7ed64e8664794ae0ff42ce371ae968ca394de7d4fc8fee9e58538c562cb8
   plan.md:
     path: kitty-specs/frontmatter-contract-completion-6931-01M6BVXW/plan.md
     sha256: c2a3a6f977a0b9bdec41b922586437bf2525ddc217556f42f366d86e4dd133cf
@@ -99,12 +99,20 @@ the PR body.
 7. **The two generated docs artifacts may not be committed by a PR.** `scripts/ci/check_generated_docs_untouched.py`
    refuses any PR change to `docs/development/page-inventory.yaml` and
    `docs/development/docs-retrieval-index.yaml`; the `ci/regen-docs-index` bot
-   regenerates them after merge. The reader port (WP03) changes 181 rollup rows, so
-   the regenerated artifacts were produced, verified drift-free, and then **reverted**
-   from the branch. Consequence, exactly as the repo's own docs page describes:
+   regenerates them after merge. The reader port (WP03) makes the committed artifacts
+   stale against their own generators: regenerating on this branch changes **177**
+   inventory rows and **182** retrieval-index rows (index pages that carried
+   `type: explanation` regenerate as `none`; pages the path table now classifies gain
+   their quadrant). The regenerated files were produced, measured drift-free against
+   the tree (generated=917, committed=917, drift=False), and then **reverted** from the
+   branch. Consequence, exactly as the repo's own docs page describes:
    `INVENTORY-LOCKFILE-DRIFT` / `DOCS-INDEX-DRIFT` report warnings until the bot PR
-   lands, and `check_docs_freshness --ci` stays at `errors=0`. Recorded in the PR's
-   `## Deferred`.
+   lands, and `check_docs_freshness --ci` stays at `errors=0`. **Decision recorded:**
+   the quadrant loss on hub pages is accepted — a `Hub` is not a Divio explanation, and
+   `KIND_TO_DIVIO_TYPE` is total the other way (`How-To`/`Reference`/`Explanation`/
+   `Tutorial` keep their quadrants; every structural kind reads `none`). Making it
+   lossless would mean keeping the retired Divio `type`, which is the thing the ADR
+   removes. Recorded in the PR's `## Deferred`.
 8. **One ADR's `date` is prose, not a date.** `docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md`
    carries `date: '2026-06-19 (original) · **Amended**: 2026-06-21 · **Amended**: 2026-10-01'`,
    so D-7's "ADRs take their `updated` from `date`" has nothing to take. The migration
@@ -122,3 +130,33 @@ the PR body.
     would have been unclassified. `docs/guides/how-to/` → `How-To` and
     `docs/guides/tutorials/` → `Tutorial` were added to the path table; 201 remainder
     pages resolved with no unclassified page.
+
+11. **Review round 1 (`reviewer-renata`) findings and their resolution.** Eight findings,
+    two blockers. All eight are addressed in the branch:
+    1. *(blocker)* the baseline was recorded while `CHANGELOG.md` carried an inline
+       entry whose body then changed — fixed by moving the entry to the per-PR fragment
+       `docs/changelog/unreleased/7031.added.md` (the repo's own convention),
+       re-recording the baseline, and scoping the base-commit check to the D-7 immutable
+       classes. The suite is green (13 tests) and `immutable_bodies --check` exits 0.
+    2. *(blocker, scope honesty)* the "verified drift-free, then reverted" claim hid that
+       the committed artifacts are now stale against their generators (177/182 rows):
+       corrected above and in the PR body, with the quadrant-loss decision recorded.
+    3. `scripts/docs/touched_set_gates.py::_is_how_to` now reads `kind` (and accepts the
+       legacy spellings), which makes a rule that was dead since it compared to
+       `how_to` live. It reports **6 pre-existing** placement disagreements on the
+       corpus (`docs/context/contextive-glossaries.md`, two `docs/operations/` pages,
+       three `docs/migrations/` pages); moving those pages is a separate mission, and the
+       rule is not wired into any CI workflow.
+    4. `read_instant` now converts a timezone-aware `datetime` to UTC before rendering
+       (it used to keep the wall clock and label it `Z`) and treats a YAML-parsed `date`
+       as the date-only advisory upstream does. Tests added.
+    5. The `kind: Presentation` invariant is docs-root-relative (`docs/presentations/`),
+       so a legitimate deck can pass it. Test added.
+    6. The vacuous assertion in the adversarial-shape test now asserts the refusal
+       reason. Fixed.
+    7. `apply_edit` refuses a frontmatter that opens a block scalar, because the
+       line-based fence rule shared with `parse_frontmatter` could fold an appended key
+       into it. Test added.
+    8. A trailing YAML comment survives a rewritten line; `--write` returns `1` (a real
+       failure) rather than `2` (a gate malfunction) for a page it cannot represent; the
+       one authored `updated` is named in the changelog.

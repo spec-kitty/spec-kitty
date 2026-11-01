@@ -385,8 +385,8 @@ def test_apply_edit_preserves_crlf_and_a_body_without_trailing_newline() -> None
 
 
 def test_apply_edit_refuses_a_block_scalar_it_would_collapse() -> None:
-    text = "---\ntitle: t\nupdated: >-\n  2026-10-26\n---\nbody\n"
-    with pytest.raises(ValueError, match="spans"):
+    text = "---\ntitle: t\nkind: Reference\nupdated: '2026-01-01'\nnotes: >-\n  something\n---\nbody\n"
+    with pytest.raises(ValueError, match="block scalar"):
         apply_edit(text, plan_page("docs/api/x.md", text))
 
 
@@ -399,3 +399,56 @@ def test_plan_page_refuses_an_unclassifiable_page() -> None:
     text = "---\ntitle: t\nupdated: '2026-10-26'\n---\nbody\n"
     with pytest.raises(ValueError, match="unclassified"):
         plan_page("docs/templates/x.md", text)
+
+
+# --------------------------------------------------------------------------
+# Regressions found in review: YAML-parsed values, comments, block scalars,
+# the docs-root-relative Presentation invariant.
+# --------------------------------------------------------------------------
+
+
+def test_a_timezone_aware_datetime_is_converted_before_it_is_rendered() -> None:
+    """An unquoted `+02:00` instant must not be relabelled `Z` at its wall clock."""
+    from datetime import datetime, timedelta, timezone
+
+    reading = read_instant(datetime(2026, 10, 26, 5, 0, 0, tzinfo=timezone(timedelta(hours=2))))
+    assert reading.canonical == "2026-10-26T03:00:00Z"
+    assert reading.advisory is not None and "not UTC" in reading.advisory
+
+
+def test_a_parsed_date_object_is_a_date_only_advisory_not_an_error() -> None:
+    """A YAML loader turns an unquoted `2026-10-26` into ``date``; upstream advises."""
+    from datetime import date
+
+    reading = read_instant(date(2026, 10, 26))
+    assert reading.canonical == "2026-10-26T00:00:00Z"
+    assert reading.advisory is not None and "date-only" in reading.advisory
+
+
+def test_a_trailing_frontmatter_comment_survives_a_rewrite() -> None:
+    text = "---\ntitle: t\nkind: Reference\nupdated: '2026-01-01'  # reviewed\ntype: reference\n---\nbody\n"
+    result = apply_edit(text, plan_page("docs/api/x.md", text))
+    assert "# reviewed" in result
+    assert "type:" not in result
+
+
+def test_the_migration_refuses_a_frontmatter_block_scalar() -> None:
+    """A `key: |` scalar plus the shared line-based fence rule could swallow a key."""
+    text = "---\ntitle: t\nkind: Reference\nupdated: '2026-01-01'\nnotes: |\n  a\n---\nbody\n"
+    with pytest.raises(ValueError, match="block scalar"):
+        apply_edit(text, plan_page("docs/api/x.md", text))
+
+
+def test_presentation_under_the_docs_root_passes_the_path_invariant() -> None:
+    """The invariant is relative to the docs root, not to the repository root."""
+    verdict = validate_page(
+        "docs/presentations/deck.md",
+        {
+            "title": "t",
+            "description": "d",
+            "doc_status": "active",
+            "updated": "2026-01-01T00:00:00Z",
+            "kind": "Presentation",
+        },
+    )
+    assert verdict.errors == ()

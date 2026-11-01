@@ -262,7 +262,7 @@ def test_audience_placement_flags_misfiled_howto(tmp_path: Path) -> None:
     bad.write_text(
         _page(
             {
-                "type": "how_to",
+                "kind": "How-To",
                 "audience": "../context/audience/internal/maintainer.md",
             }
         ),
@@ -274,7 +274,7 @@ def test_audience_placement_flags_misfiled_howto(tmp_path: Path) -> None:
     ok.write_text(
         _page(
             {
-                "type": "how_to",
+                "kind": "How-To",
                 "audience": "../context/audience/internal/maintainer.md",
             }
         ),
@@ -293,7 +293,7 @@ def test_audience_placement_skips_when_homes_unresolvable(tmp_path: Path) -> Non
     page = docs / "guides" / "howto.md"
     page.parent.mkdir(parents=True, exist_ok=True)
     page.write_text(
-        _page({"type": "how_to", "audience": "../context/audience/internal/m.md"}),
+        _page({"kind": "How-To", "audience": "../context/audience/internal/m.md"}),
         encoding="utf-8",
     )
     # Baseline (pre-WP01) routing has no how_to_internal/how_to_external split.
@@ -490,3 +490,28 @@ def test_run_reconcile_end_to_end_with_fixtures(tmp_path: Path) -> None:
         )
         == 1
     )
+
+
+def test_audience_placement_reads_kind_and_still_accepts_a_legacy_type(tmp_path: Path) -> None:
+    """The rule reads doc-kitty's `kind` (#6931); a legacy Divio `type` stays readable."""
+    repo = tmp_path
+    docs = repo / "docs"
+    config = {
+        "concern_bucket_to_section": {
+            "how_to_internal": "development/",
+            "how_to_external": "guides/",
+        }
+    }
+    for name, frontmatter in (
+        ("from-kind.md", {"kind": "How-To"}),
+        ("from-legacy-type.md", {"type": "how-to"}),
+        ("from-legacy-underscore.md", {"type": "how_to"}),
+    ):
+        page = docs / "guides" / name
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(
+            _page({**frontmatter, "audience": "../context/audience/internal/maintainer.md"}),
+            encoding="utf-8",
+        )
+        violations = tsg.check_audience_placement([page], repo, docs, config)
+        assert [v.path for v in violations] == [f"docs/guides/{name}"], name
