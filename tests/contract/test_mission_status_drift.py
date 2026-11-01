@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 from jsonschema import Draft202012Validator
 
 from kernel.clock import FrozenClock, parse_iso, timedelta
@@ -41,12 +40,14 @@ from specify_cli.status.lifecycle import is_mission_completed
 from tests.contract import _mission_status_drift as drift
 from tests.contract import _mission_status_memo as memo_module
 from tests.contract import _mission_status_payloads as helper
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.corpus, pytest.mark.git_repo]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_DIR = REPO_ROOT / "contracts" / "mission-status"
-SCHEMA_DIR = MODULE_DIR / "schemas"
+#: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE
+DRIFT_PATH = "/drift"
 READER_FILE = Path(__file__).with_name("_mission_status_drift.py")
 NOT_KILLED = "the mutation was not killed"
 FAULT_NOT_FIRED = "the injected fault did not fire"
@@ -77,6 +78,13 @@ SENTENCES: dict[tuple[str, str | None], str] = {
 }
 # A retired term is assembled from fragments, so this module never types it (AC-VERSION, bullet 5).
 RETIRED = "fea" + "ture"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
 
 
 class UnexpectedWrite(AssertionError):
@@ -1299,7 +1307,7 @@ def _stale_derived(repo: Path) -> None:
 
 def row22_problems(env: Env) -> list[str]:
     problems: list[str] = []
-    kinds = yaml.safe_load((SCHEMA_DIR / "DriftKind.yaml").read_text(encoding="utf-8"))["enum"]
+    kinds = helper.bundled_schema("DriftKind")["enum"]
     if kinds != [KIND1, KIND2, KIND3]:
         problems.append(f"DriftKind is {kinds!r}, expected exactly the three kinds")
     for label, mismatching, want in (("a clean Mission", False, []), ("a mismatching Mission", True, [_drift(1, [lane_row("WP01", "planned", "approved")])])):
@@ -1385,7 +1393,7 @@ def row24_table_problems(env: Env) -> list[str]:
     problems: list[str] = []
     if dict(drift.SUMMARIES) != SENTENCES:
         problems.append("the reader's pair table is not the six fixed sentences")
-    description = yaml.safe_load((SCHEMA_DIR / "DriftFinding.yaml").read_text(encoding="utf-8"))["properties"]["summary"]["description"]
+    description = helper.bundled_schema("DriftFinding")["properties"]["summary"]["description"]
     flat = " ".join(str(description).split())
     problems += [f"the schema description lacks {sentence!r}" for sentence in SENTENCES.values() if sentence not in flat]
     for pair in ((KIND1, None), (KIND2, "SNAPSHOT_DRIFT"), (KIND3, "CORRUPT_JSON"), ("derived_view_stale", None)):
@@ -1416,7 +1424,7 @@ def row25_problems(env: Env) -> list[str]:
     stamps = [drift.scan_drift(repo, memo, clock=FrozenClock(instant=instant)).body["scannedAt"] for instant in clock]
     if stamps != [SCANNED_AT, "2026-10-06T09:01:30Z"]:
         problems.append(f"scannedAt follows the injected clock as {stamps!r}")
-    operation = yaml.safe_load((MODULE_DIR / "paths" / "drift.yaml").read_text(encoding="utf-8"))
+    operation = helper.bundled_path_item(DRIFT_PATH)
     problems += no_store_problems(operation)
     plant = json.loads(json.dumps(operation))
     del plant["get"]["responses"]["200"]["headers"]
@@ -1493,7 +1501,7 @@ def row27_problems(env: Env) -> list[str]:
 
 
 def _enum(name: str) -> list[str]:
-    return [str(value) for value in yaml.safe_load((SCHEMA_DIR / f"{name}.yaml").read_text(encoding="utf-8"))["enum"]]
+    return [str(value) for value in helper.bundled_schema(name)["enum"]]
 
 
 def row28_problems(env: Env) -> list[str]:
@@ -2007,13 +2015,24 @@ def test_the_reader_holds_the_retired_term_once_in_the_legacy_shape_function() -
 # ---------------------------------------------------------------------------
 
 
-EXAMPLE_FILES = {"mission_not_found": "DriftRefusal.mission-not-found.yaml", "drift_scan_unreadable": "DriftRefusal.scan-unreadable.yaml"}
+#: The refusal codes the contract carries one ``DriftRefusal`` example of (the bundle keeps the examples on the schema, keyed here by ``code``).
+EXAMPLE_CODES = ("mission_not_found", "drift_scan_unreadable")
+
+
+def _refusal_examples() -> dict[str, Any]:
+    by_code: dict[str, Any] = {}
+    for example in helper.bundled_examples("DriftRefusal"):
+        assert example["code"] not in by_code, f"two DriftRefusal examples carry the code {example['code']!r}"
+        by_code[example["code"]] = example
+    return by_code
 
 
 def test_the_refusals_are_the_contract_examples(env: Env) -> None:
-    for code in EXAMPLE_FILES:
+    examples = _refusal_examples()
+    assert sorted(examples) == sorted(EXAMPLE_CODES), f"the contract's DriftRefusal examples are {sorted(examples)}"
+    for code in EXAMPLE_CODES:
         outcome = drift.refusal(code)
-        example = yaml.safe_load((MODULE_DIR / "examples" / EXAMPLE_FILES[code]).read_text(encoding="utf-8"))
+        example = examples[code]
         assert outcome.body == example
         assert env.errors("DriftRefusal", outcome.body) == []
     assert drift.invalid_identity().status == 400
@@ -2036,9 +2055,9 @@ def _flat(text: str) -> str:
 
 
 def _prose_of_the_unreachable_remote() -> dict[str, str]:
-    report = yaml.safe_load((SCHEMA_DIR / "DriftReport.yaml").read_text(encoding="utf-8"))["description"]
-    operation = yaml.safe_load((MODULE_DIR / "paths" / "drift.yaml").read_text(encoding="utf-8"))["get"]["description"]
-    return {"DriftReport": _flat(report), "drift.yaml": _flat(operation)}
+    report = helper.bundled_schema("DriftReport")["description"]
+    operation = helper.bundled_path_item(DRIFT_PATH)["get"]["description"]
+    return {"DriftReport": _flat(report), "GET /drift": _flat(operation)}
 
 
 def test_the_contract_prose_states_what_an_unreachable_remote_does() -> None:
@@ -2046,5 +2065,3 @@ def test_the_contract_prose_states_what_an_unreachable_remote_does() -> None:
         assert "ends the scan" not in prose, f"{place} still says an unreachable remote ends the scan"
         assert UNREACHABLE_SENTENCE in prose, f"{place} does not state the ruled behaviour of an unreachable remote"
         assert "fallback entry" not in prose and "coordination_branch_deleted" not in prose, f"{place} names reader vocabulary no payload carries"
-    changelog = _flat((MODULE_DIR / "CHANGELOG.md").read_text(encoding="utf-8"))
-    assert "ends the scan in" not in changelog

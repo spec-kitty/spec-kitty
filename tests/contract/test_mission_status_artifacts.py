@@ -19,10 +19,10 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
-import yaml
 
 from tests.contract import _mission_status_artifacts as art
 from tests.contract import _mission_status_payloads as helper
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
@@ -266,7 +266,7 @@ def test_a_tree_nested_without_end_is_listed_without_its_too_deep_paths(tmp_path
         return real.lstat(mission_dir / "shallow") if below(path) else real.lstat(path)
 
     fs = dataclasses.replace(real, scandir=scandir, lstat=lstat)
-    schema = yaml.safe_load((Path(__file__).resolve().parents[2] / "contracts" / "mission-status" / "schemas" / "ArtifactPath.yaml").read_text(encoding="utf-8"))
+    schema = helper.bundled_schema("ArtifactPath")
     assert schema["maxLength"] == art.MAX_PATH_LENGTH
     paths = _listed_paths(_ctx(tmp_path, tools, fs))
     assert {"spec.md", "shallow/notes.md"} <= set(paths)
@@ -287,9 +287,17 @@ def test_the_listing_never_enters_or_lists_a_symlink(tmp_path: Path, tools: help
 # ---------------------------------------------------------------------------
 
 CAP = art.MAX_CONTENT_BYTES
-MODULE_DIR = REPO_ROOT / "contracts" / "mission-status"
+#: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE
 FAULT_NOT_FIRED = "the injected fault did not fire"
 INJECTED_FAULT = "injected fault"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
 
 
 @pytest.fixture(scope="module")
@@ -1102,10 +1110,8 @@ def _security_keys(node: Any, where: str = "") -> list[str]:
 
 def test_the_root_and_the_three_operations_declare_no_security() -> None:
     assert _security_keys({"get": {"security": []}}) == ["/get/security"], "control: a planted security member is found"
-    documents = [MODULE_DIR / "openapi.yaml"] + [
-        MODULE_DIR / "paths" / name
-        for name in ("missions_missionId_artifacts.yaml", "missions_missionId_artifacts_content.yaml", "missions_missionId_work-packages_wpId_detail.yaml")
-    ]
-    for document in documents:
-        assert document.is_file(), document.name
-        assert _security_keys(yaml.safe_load(document.read_text(encoding="utf-8"))) == [], f"{document.name} must carry no security"
+    root = {key: value for key, value in helper.bundled_document().items() if key != "paths"}
+    assert root, "the bundled openapi.yaml has a root"
+    assert _security_keys(root) == [], "the root of openapi.yaml must carry no security"
+    for path_key in ("/missions/{missionId}/artifacts", "/missions/{missionId}/artifacts/content", "/missions/{missionId}/work-packages/{wpId}/detail"):
+        assert _security_keys(helper.bundled_path_item(path_key)) == [], f"{path_key} must carry no security"

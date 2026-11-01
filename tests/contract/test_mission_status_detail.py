@@ -35,16 +35,25 @@ from tests._factories.coord_mission import make_coord_mission
 from tests.contract import _mission_status_artifacts as art
 from tests.contract import _mission_status_detail as det
 from tests.contract import _mission_status_payloads as helper
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.corpus, pytest.mark.git_repo]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_DIR = REPO_ROOT / "contracts" / "mission-status"
+#: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE
 MISSION = "alpha-mission"
 MISSION_ID = helper.fixture_ulid(1)
 BODY_TEXT = "# Body\n"
 FAULT_NOT_FIRED = "the injected fault did not fire"
 INJECTED_FAULT = "injected fault"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
 
 
 @pytest.fixture(scope="module")

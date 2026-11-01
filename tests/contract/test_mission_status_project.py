@@ -22,7 +22,6 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-import yaml
 
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from specify_cli.core.git_ops import get_current_branch
@@ -35,12 +34,13 @@ from specify_cli.upgrade.metadata import ProjectMetadata
 from tests.contract import _mission_status_memo as memo_module
 from tests.contract import _mission_status_payloads as helper
 from tests.contract import _mission_status_project as project
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.corpus, pytest.mark.git_repo]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_DIR = REPO_ROOT / "contracts" / "mission-status"
-SCHEMA_FILE = MODULE_DIR / "schemas" / "Project.yaml"
+#: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE
 SLASH = chr(47)
 PROJECT_NAME = "fixture-project"
 VERSION_OK = "4.0.0"
@@ -49,6 +49,13 @@ NEW_PROPERTIES = PROPERTIES[2:]
 NOT_KILLED = "the mutation was not killed"
 FAULT_NOT_FIRED = "the injected fault did not fire"
 MISSION = "alpha-mission"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
 
 
 class UnexpectedProcess(AssertionError):
@@ -471,7 +478,7 @@ def _undecodable_activity_problems(env: Env) -> list[str]:
 
 def test_the_last_activity_description_and_rule_state_the_unreadable_cases() -> None:
     """FR-006 and FR-024: an unreadable status.json leaves its Mission out, a broken event log fails the read."""
-    member = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8"))["properties"]["lastActivityAt"]
+    member = helper.bundled_schema(helper.SCHEMA_PROJECT)["properties"]["lastActivityAt"]
     for place, text in (("description", member["description"]), ("x-derived rule", member["x-derived"]["rule"])):
         flat = " ".join(text.split())
         assert "status.json" in flat and "cannot be decoded or parsed" in flat and "500" in flat, place
@@ -688,17 +695,19 @@ def schema_problems(document: Mapping[str, Any]) -> list[str]:
     for name, words in PROPERTY_WORDS.items():
         text = str(properties.get(name, {}).get("description", ""))
         problems += [f"{name} description lacks {word!r}" for word in words if word not in text]
+    # The bundle inlines a referenced schema with its own provenance, so a property may carry both keys there; that it carries exactly one
+    # is a rule of the split contract source, which spec-kitty-events owns (#6915). Here every new property must carry provenance.
     for name in NEW_PROPERTIES:
         carried = [key for key in ("x-source", "x-derived") if key in properties.get(name, {})]
-        if len(carried) != 1:
-            problems.append(f"{name} carries {carried!r}, expected exactly one of x-source and x-derived")
+        if not carried:
+            problems.append(f"{name} carries neither x-source nor x-derived")
     if "x-provisional" not in properties.get("health", {}):
         problems.append("health is not provisional")
     return problems
 
 
 def row8_problems(env: Env) -> list[str]:
-    real = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8"))
+    real = helper.bundled_schema(helper.SCHEMA_PROJECT)
     problems = [f"real schema: {problem}" for problem in schema_problems(real)]
     frozen = {
         "title": "Project",
