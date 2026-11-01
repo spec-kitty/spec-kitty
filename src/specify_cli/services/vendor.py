@@ -65,7 +65,7 @@ from kernel.service_pin import (
 from kernel.service_pin import tag_version as _release_version
 from specify_cli.services.attestation import AttestationError, verify_release_attestation
 
-__all__ = ["DEFAULT_REPOSITORIES", "VendorError", "check_pin", "default_repository", "vendor_pin"]
+__all__ = ["VendorError", "check_pin", "vendor_pin"]
 
 VENDOR_USAGE = "SERVICE_VENDOR_USAGE"
 VENDOR_COMMIT_REQUIRED = "SERVICE_VENDOR_COMMIT_REQUIRED"
