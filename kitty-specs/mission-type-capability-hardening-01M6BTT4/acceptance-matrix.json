@@ -1,0 +1,49 @@
+{
+  "mission_slug": "mission-type-capability-hardening-01M6BTT4",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "The wp_driven fact reads the run the caller resolved; feature_dir.name is never a mission handle",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_wp_driven_guard.py (7 passed): renamed-dir composed/CLI/dispatch cases, plus the fact-port precedence case",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (mission review)",
+      "verified_at": "2026-11-01T18:20:00+00:00",
+      "notes": "Non-vacuity proven by reverting each half of the fix and watching the matching test go red."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "A failed requires_substantive_spec resolution logs one WARNING and still returns the built-in default",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_resolved_mission_type_context.py::TestRequiresSubstantiveSpecFailOpenIsObservable (2 passed, positive control included)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (mission review)",
+      "verified_at": "2026-11-01T18:20:00+00:00",
+      "notes": "Non-vacuity proven by reverting each half of the fix and watching the matching test go red."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "ResolvedMissionType.wp_driven is documented advisory and the curated-away divergence keeps the DAG authoritative",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_wp_driven_parity.py (3 passed): curated-away fixture, DAG-negative control, docstring contract",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (mission review)",
+      "verified_at": "2026-11-01T18:20:00+00:00",
+      "notes": "Non-vacuity proven by reverting each half of the fix and watching the matching test go red."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The four built-in mission types keep byte-identical guard results",
+      "proof_type": "automated_test",
+      "evidence": "tests/runtime/test_artifact_presence_placement.py, tests/runtime/test_cli_guard_family.py, tests/runtime/next/test_cli_guard_family.py, tests/runtime/next/test_pertype_presence_gate.py, tests/next/test_runtime_bridge_unit.py (all green)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (mission review)",
+      "verified_at": "2026-11-01T18:20:00+00:00",
+      "notes": "Non-vacuity proven by reverting each half of the fix and watching the matching test go red."
+    }
+  ],
+  "negative_invariants": []
+}
