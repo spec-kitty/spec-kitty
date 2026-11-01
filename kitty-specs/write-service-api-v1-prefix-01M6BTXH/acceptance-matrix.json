@@ -1,0 +1,49 @@
+{
+  "mission_slug": "write-service-api-v1-prefix-01M6BTXH",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/services/client.py:104,117,129 send HANDSHAKE_PATH/HEALTH_PATH/SHUTDOWN_PATH; tests/specify_cli/services/test_client.py 9 passed, 1 skipped against the prefixed stand-in",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:27:20.907091+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "API_PREFIX defined once in src/specify_cli/status/write_service_protocol.py:63 and every client path derived from it; tests/contract/test_mission_write_contract.py::test_the_client_prefix_is_the_contracts_server_url",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:27:26.421969+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/contract/test_mission_write_contract.py::test_the_client_sends_the_pinned_constants_and_no_path_literal fails on a literal path (mutation observed); path_violation + positive control for bare and doubled paths",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:27:32.775419+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/fake_service.py serves only /api/v1/*; red-first run of tests/specify_cli/services/test_client.py against the unchanged client: 5 failed with ServiceUnreachable 'GET /handshake answered 404'",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T17:27:37.345057+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
