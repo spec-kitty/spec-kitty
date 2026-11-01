@@ -166,15 +166,19 @@ jobs:
           # scripts/ci/gate_selection.py). Only a pull_request has a usable base;
           # a missing/zero base or a git error leaves the outcome != success and
           # corpus_select.py fails closed to `selected=true`.
-          files_json="[]"
+          # The list goes to the helper in a FILE (CHANGED_FILES_PATH): one env string over
+          # 128 KiB (MAX_ARG_STRLEN; ~2000 paths) makes exec fail with E2BIG (#6915).
+          files_file="$RUNNER_TEMP/packs-changed-files.json"
+          printf '[]' > "$files_file"
           outcome="failure"
           if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_SHA" ] && [ "$BASE_SHA" != "0000000000000000000000000000000000000000" ]; then
             if diff_output="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null)"; then
-              files_json="$(printf '%s\n' "$diff_output" | python3 -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))')"
-              outcome="success"
+              if printf '%s\n' "$diff_output" | python3 -c 'import json,sys; print(json.dumps([l for l in sys.stdin.read().splitlines() if l]))' > "$files_file"; then
+                outcome="success"
+              fi
             fi
           fi
-          export CHANGED_FILES="$files_json" CHANGED_OUTCOME="$outcome"
+          export CHANGED_FILES_PATH="$files_file" CHANGED_OUTCOME="$outcome"
           python3 scripts/ci/corpus_select.py --mode "$MODE" --event "$EVENT_NAME"
 
       - name: Upload the skip-if-green marker (tested key or matched run)

@@ -211,7 +211,7 @@ def test_packs_changes_diff_inputs_reach_the_helper_through_env() -> None:
     env = step.get("env", {})
     run = step["run"]
     assert {"EVENT_NAME", "BASE_SHA", "HEAD_SHA", "MODE"} <= set(env)
-    assert "CHANGED_FILES" in run + json.dumps(env)
+    assert "CHANGED_FILES_PATH" in run + json.dumps(env)
     assert "CHANGED_OUTCOME" in run + json.dumps(env)
     # Fail closed: an unusable base (empty / all-zero) must never narrow the selection.
     assert "0000000000000000000000000000000000000000" in run

@@ -209,7 +209,9 @@ jobs:
             merge_group) base="$MERGE_GROUP_BASE" ;;
           esac
 
-          files_json="[]"
+          diff_file="$RUNNER_TEMP/ci-modules-diff.txt"
+          files_file="$RUNNER_TEMP/ci-modules-changed-files.json"
+          printf '[]' > "$files_file"
           outcome="failure"
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
             if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
@@ -221,11 +223,14 @@ jobs:
               # with no base blob) is caught by `reduced_paths` and the path is
               # KEPT -- fail-closed, never dropped on uncertainty.
               # select_modules / gate_selection.py are never touched (FR-007).
-              # The raw diff is threaded through an env var, NOT piped to
-              # stdin: `python3 -` reads its OWN script text from stdin (the
-              # heredoc below), so a concurrent stdin pipe would never reach
-              # the script's own input reads.
-              files_json="$(REDUCE_BASE_SHA="$base" REDUCE_HEAD_SHA="$HEAD_SHA" REDUCE_DIFF_PATHS="$diff_output" python3 - <<'PY'
+              # The raw diff is handed over in a FILE, NOT piped to stdin and
+              # NOT in an env var: `python3 -` reads its OWN script text from
+              # stdin (the heredoc below), and one env string over 128 KiB
+              # (MAX_ARG_STRLEN; ~2000 paths) makes exec fail with E2BIG
+              # "Argument list too long" (#6915). The reduced JSON goes to a
+              # file for the same reason; `build` reads it by path.
+              printf '%s\n' "$diff_output" > "$diff_file"
+              if REDUCE_BASE_SHA="$base" REDUCE_HEAD_SHA="$HEAD_SHA" REDUCE_DIFF_FILE="$diff_file" REDUCE_OUT_FILE="$files_file" python3 - <<'PY'
           import json
           import os
           import subprocess
@@ -236,7 +241,8 @@ jobs:
 
           _base_sha = os.environ["REDUCE_BASE_SHA"]
           _head_sha = os.environ["REDUCE_HEAD_SHA"]
-          _raw_paths = os.environ.get("REDUCE_DIFF_PATHS", "")
+          with open(os.environ["REDUCE_DIFF_FILE"], encoding="utf-8") as _fh:
+              _raw_paths = _fh.read()
 
 
           def _show(sha: str, path: str) -> str | None:
@@ -254,13 +260,17 @@ jobs:
 
 
           _paths = [line for line in _raw_paths.splitlines() if line]
-          print(json.dumps(reduced_paths(_paths, _blob_getter)))
+          with open(os.environ["REDUCE_OUT_FILE"], "w", encoding="utf-8") as _fh:
+              _fh.write(json.dumps(reduced_paths(_paths, _blob_getter)))
           PY
-              )"
-              outcome="success"
+              then
+                outcome="success"
+              else
+                printf '[]' > "$files_file"
+              fi
             fi
           fi
-          echo "files=$files_json" >> "$GITHUB_OUTPUT"
+          echo "files-path=$files_file" >> "$GITHUB_OUTPUT"
           echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
 
       - name: Build the matrix from the committed module registry
@@ -269,7 +279,8 @@ jobs:
         env:
           MODE: ${{ steps.resolve-mode.outputs.mode }}
           SELECTION_FORCED_FULL: ${{ steps.resolve-mode.outputs.selection-forced-full }}
-          CHANGED_FILES: ${{ steps.changed-files.outputs.files }}
+          # A PATH, never the list itself: a list over 128 KiB in one env var fails exec (E2BIG).
+          CHANGED_FILES_PATH: ${{ steps.changed-files.outputs.files-path }}
           CHANGED_FILTER_OUTCOME: ${{ steps.changed-files.outputs.outcome || steps.changed-files.outcome }}
           GREEN_SKIP: ${{ steps.green.outputs.skip }}
           PYTHONPATH: ${{ github.workspace }}
@@ -290,7 +301,11 @@ jobs:
           mode = sys.argv[1]
           selection_forced_full = os.environ.get("SELECTION_FORCED_FULL") == "true"
           changed_outcome = os.environ.get("CHANGED_FILTER_OUTCOME", "")
-          changed_files_raw = os.environ.get("CHANGED_FILES", "")
+          changed_files_path = os.environ.get("CHANGED_FILES_PATH", "")
+          changed_files_raw = ""
+          if changed_files_path and os.path.isfile(changed_files_path):
+              with open(changed_files_path, encoding="utf-8") as fh:
+                  changed_files_raw = fh.read()
 
           try:
               changed_files = json.loads(changed_files_raw) if changed_files_raw else []
