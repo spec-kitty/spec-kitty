@@ -1749,6 +1749,10 @@ _GROUP_OUTPUT_RE = re.compile(
     r"^needs\.[A-Za-z0-9_-]+\.outputs\.([A-Za-z0-9_]+)\s*==\s*'true'$",
 )
 _EVENT_NAME_RE = re.compile(r"^github\.event_name\s*(==|!=)\s*'([A-Za-z_]+)'$")
+# The label-event guard (#7019) reads the event's action and label. The events this model
+# reasons about (a push, an ordinary pull_request) carry no label action and no label, so
+# ``github.event.action`` / ``github.event.label.name`` equal no literal there.
+_EVENT_ACTION_OR_LABEL_RE = re.compile(r"^github\.event\.(?:action|label\.name)\s*(==|!=)\s*'[^']*'$")
 # The fork guard (tests/ci/test_fork_guard.py) names the core repository. This
 # model reasons about upstream ``main``, where that term always holds.
 _CORE_REPOSITORY_RE = re.compile(r"^github\.repository\s*==\s*'spec-kitty/spec-kitty'$")
@@ -1826,6 +1830,9 @@ def _atom_runs_under(atom: str, *, event_name: str, active_groups: frozenset[str
         return group_match.group(1) in active_groups
     if _CORE_REPOSITORY_RE.match(atom):
         return True
+    action_or_label = _EVENT_ACTION_OR_LABEL_RE.match(atom)
+    if action_or_label:
+        return action_or_label.group(1) == "!="
     event_match = _EVENT_NAME_RE.match(atom)
     if event_match:
         operator, expected = event_match.groups()

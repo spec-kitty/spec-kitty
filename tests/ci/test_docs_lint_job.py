@@ -22,6 +22,8 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.ci._gh_expr import LABEL_EVENT_GUARD
+
 pytestmark = pytest.mark.fast
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -69,8 +71,8 @@ def check_job_unconditional(job: dict[str, Any]) -> list[str]:
     raw = job.get("if")
     if raw is None:
         return ["job is missing the required fork-guard `if:` (#5454)"]
-    # The `pr:pause-ci` operator switch is the one sanctioned extra conjunct.
-    if str(raw).strip() not in (_FORK_GUARD_IF, f"{_FORK_GUARD_IF} && {_PAUSE_GUARD}"):
+    # The `pr:pause-ci` operator switch and its label-event guard (#7019) are the sanctioned extra conjuncts.
+    if str(raw).strip() not in (_FORK_GUARD_IF, f"{_FORK_GUARD_IF} && {LABEL_EVENT_GUARD} && {_PAUSE_GUARD}"):
         return [f"job carries a non-fork-guard `if:` (would be skippable): {raw!r}"]
     return []
 

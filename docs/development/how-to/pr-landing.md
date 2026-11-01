@@ -616,13 +616,30 @@ PR that is not being landed `pr:pause-ci`:
   in-progress runs and posts a failing check under each required gate name, so a PR that was
   already green stops being mergeable.
 
-To resume, remove the label. The same workflow re-runs the runs the pause cancelled; they started
-before the label, so they run in full. A run that started while the PR was labeled replays that
-label and pauses again, so if the PR was pushed while labeled, push again (or close and reopen the
-PR by hand) after removing the label. The workflow cannot do that itself: events caused by its own
-token start no workflow runs. If the PR's head moved after the label came off (you pushed), the
-re-run is skipped: the new head's runs are current, and re-running the old head's runs would cancel
-them through the shared concurrency group.
+To resume, remove the label. CI Router, CI Modules and CI Quality, the workflows behind the
+required gates, also trigger on `labeled` and `unlabeled`, so removing the label starts their full
+run on the PR's current head, with no push, also when the PR was pushed while labeled. Adding the
+label starts them too: the gates fail again with the pause message, and the new run cancels the
+one in flight. The pause workflow re-runs only the other runs it canceled (Packs, Contracts and so
+on); they started before the label, so they run in full. A run that started while the PR was
+labeled replays that label and pauses again, so an optional workflow pushed under the label stays
+paused until the next push. If the PR's head moved after the label came off (you pushed), the
+re-run is skipped: the new head's runs are current.
+
+Adding or removing any other label also starts those three workflows, because GitHub cannot filter
+a `pull_request` trigger by label name. So does any label change on a closed PR. Such a run is a
+no-op:
+
+- every job skips;
+- the required gate reports under another name (`router gate (label no-op)`), because a skipped
+  job still posts a check run and a skipped required check passes;
+- the run has its own concurrency group, so it never cancels the real run;
+- the CI Aggregate run it triggers skips every job, and the fleet verdict does not read it as
+  evidence.
+
+The skipped jobs still post check runs under their usual names (`ruff (lint + format)`, the module
+shards and so on), so after a label change the PR's checks list can show those rows as skipped over
+a real result. Read the three required gates and the fleet `[ci]` comment; they are not masked.
 
 For the full queue-recovery sequence, see [Pull the safety cord](unclog-ci.md).
 

@@ -58,6 +58,7 @@ import pytest
 import yaml
 
 from scripts.ci.router_gate import ROUTER_GATE_JOB_NAME, classify
+from tests.ci._gh_expr import LABEL_NO_OP_GROUP_SUFFIX, github_context, interpolate
 
 pytestmark = pytest.mark.architectural
 
@@ -299,9 +300,12 @@ def test_router_gate_step_wiring_and_needs_invariant_are_pinned() -> None:
     workflow = _load_workflow(path)
     gate_job = workflow["jobs"]["router-gate"]
 
-    # (a) job-name coupling between the classifier constant and the YAML.
-    assert gate_job.get("name") == ROUTER_GATE_JOB_NAME, (
-        f"ci-router.yml: router-gate `name:` ({gate_job.get('name')!r}) must equal "
+    # (a) job-name coupling between the classifier constant and the YAML. The name is an
+    # expression since #7019 (a no-op label-event run posts it under another name), so compare the
+    # name the gate runs under: on every event where the job runs at all.
+    running_name = interpolate(str(gate_job.get("name")), github_context("pull_request", action="synchronize"))
+    assert running_name == ROUTER_GATE_JOB_NAME, (
+        f"ci-router.yml: router-gate `name:` ({running_name!r}) must equal "
         f"router_gate.ROUTER_GATE_JOB_NAME ({ROUTER_GATE_JOB_NAME!r}); a drift wedges "
         "the gate permanently red (it classifies its own null conclusion as incomplete)"
     )
@@ -397,6 +401,6 @@ def test_ci_router_concurrency_is_per_sha_on_push_and_per_ref_on_pr() -> None:
     re-enables the main cancel-cascade (the exact honesty hole #4347 closes)."""
     workflow = _load_workflow(_WORKFLOWS_DIR / "ci-router.yml")
     assert workflow["concurrency"] == {
-        "group": "ci-router-${{ github.event_name == 'push' && github.sha || github.ref }}",
+        "group": "ci-router-${{ github.event_name == 'push' && github.sha || github.ref }}" + LABEL_NO_OP_GROUP_SUFFIX,
         "cancel-in-progress": "${{ github.event_name != 'push' }}",
     }

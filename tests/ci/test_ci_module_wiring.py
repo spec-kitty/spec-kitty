@@ -45,6 +45,7 @@ import yaml
 from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_gates, select_modules
 from scripts.ci.prose_only import reduced_paths
 from tests.architectural import _gate_coverage as gc
+from tests.ci._gh_expr import LABEL_EVENT_GUARD
 from tests.ci._gh_if import BASE_CONTEXT_ALL_FALSE, eval_gh_if
 from tests.ci.test_xdist_worker_policy import _worker_value
 
@@ -265,7 +266,7 @@ _FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_nam
 # `pr:pause-ci` is the one sanctioned extra conjunct on an always-on job: it is vacuously true off
 # pull_request events and is the operator's pause switch (tests/ci/test_pause_ci_label.py).
 _PAUSE_GUARD = "!contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')"
-_ALWAYS_ON_IF = f"{_FORK_GUARD} && {_PAUSE_GUARD}"
+_ALWAYS_ON_IF = f"{_FORK_GUARD} && {LABEL_EVENT_GUARD} && {_PAUSE_GUARD}"
 
 #: FR-008 (mission ci-runtime-stabilisation-01M3TZH6, WP08): these per-group router
 #: jobs re-ran trees the ci-modules.yml module rows already own. Re-adding ANY one of
@@ -384,7 +385,7 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
         assert jobs[always_on].get("if") == _ALWAYS_ON_IF, f"{always_on} must stay unconditional, unaffected by prose_only"
 
     assert "prose-scan" in jobs["router-gate"]["needs"]
-    assert jobs["router-gate"]["if"] == f"${{{{ {_FORK_GUARD} && always() && !cancelled() }}}}"
+    assert jobs["router-gate"]["if"] == f"${{{{ {_FORK_GUARD} && {LABEL_EVENT_GUARD} && always() && !cancelled() }}}}"
 
     # Explicitly untouched: tests-e2e, and the `changes` job's
     # own outputs (no `prose_only` output was added under `changes` -- FR-007

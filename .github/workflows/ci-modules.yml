@@ -54,7 +54,10 @@ name: CI Modules
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    # labeled/unlabeled (#7019): removing pr:pause-ci starts a full run on the PR head with no push.
+    # Any other label event is a no-op: every self-starting job carries the label guard, the
+    # required gate posts under a different name, and the run gets its own concurrency group.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   push:
     branches: [main]
   # Merge queue (landing-merge-queue ADR): the queue tests each PR on main plus
@@ -78,8 +81,12 @@ on:
           - pr
           - full
 
+# Label events (#7019): a run started by a label other than pr:pause-ci (or by any label on a
+# closed PR) joins its own group
+# (`-label-no-op-<run id>`), so it never cancels the real run; a pr:pause-ci label event joins
+# the PR group and supersedes it (removing the label resumes, adding it re-reports paused).
 concurrency:
-  group: ci-modules-${{ github.ref }}
+  group: ci-modules-${{ github.ref }}${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && (github.event.label.name != 'pr:pause-ci' || github.event.pull_request.state != 'open') && format('-label-no-op-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -98,7 +105,7 @@ jobs:
   # gate-selection authority.
   # ---------------------------------------------------------------------------
   generate-matrix:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: Generate module-shard matrix
     # Job-level `permissions:` REPLACES the workflow-level grant, so `contents` is restated
     # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize` precedent).
@@ -422,11 +429,11 @@ jobs:
   # blocking; a leaf that genuinely failed or was cancelled is.
   # ---------------------------------------------------------------------------
   modules-gate:
-    name: CI Modules gate
+    name: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && (github.event.label.name != 'pr:pause-ci' || github.event.pull_request.state != 'open') && 'CI Modules gate (label no-op)' || 'CI Modules gate' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     needs: [generate-matrix, test]
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always() && !cancelled() }}
     steps:
       - name: Refuse while CI is paused by label
         if: ${{ contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
@@ -477,7 +484,7 @@ jobs:
   summarize:
     name: shard outcome summary
     needs: test
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always() }}
     # Job-level too, not just on the step: this workflow's RUN conclusion is
     # itself consumed as a signal, so a summariser that failed (a checkout
     # blip, an API 5xx) would turn a green run red -- manufacturing exactly
