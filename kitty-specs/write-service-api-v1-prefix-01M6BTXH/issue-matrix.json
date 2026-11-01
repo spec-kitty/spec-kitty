@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6910": {
-      "evidence_ref": "fix(6910) commit 4a93366 + tests/contract/test_mission_write_contract.py path pin; PR pending",
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/pull/7024 (fix(6910) 5331174 + the contract path pin)",
       "fr": null,
       "nfr": null,
       "repo": null,
