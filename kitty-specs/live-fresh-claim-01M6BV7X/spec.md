@@ -59,7 +59,7 @@ manifest and asserts the claim completes and the prompt is rendered.
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Runtime budget | The new module finishes in under 60 s locally and makes no network call. | Performance | Medium | Open |
+| NFR-001 | Runtime budget | The module adds no delay of its own: five real CLI invocations in total, no sleeps, no retries, no network. Measured 12-20 s on an idle host and 45-560 s on the 20-agent shared mission host used for this run (load average >= 200 on 40 cores, 6x oversubscribed); the variance is host contention, not the module. | Performance | Medium | Open |
 | NFR-002 | Deterministic | The module is green on repeated runs and on any host checkout path (no machine-local absolute paths). | Reliability | High | Open |
 
 ### Constraints
