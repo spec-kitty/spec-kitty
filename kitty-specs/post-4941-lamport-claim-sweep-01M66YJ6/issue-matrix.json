@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#4941": {
+      "evidence_ref": "PR #6261 + spec-kitty-events 10.5.1: diary lifts a non-seed departure from approved to sort after its approval",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4990": {
+      "evidence_ref": "closed 2026-09-25 in spec-kitty-events 10.4.0 (from-lane continuity)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#5528": {
+      "evidence_ref": "#6604 scope: coordinate, do not edit the issue body (C-004); the correction is tracked on #5528 itself",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP03"
+    },
+    "#6117": {
+      "evidence_ref": "#6604 scope: coordinate, do not edit the issue body (C-004); decision 1 is held to the #6609 direction",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP03"
+    },
+    "#6213": {
+      "evidence_ref": "consolidation/reconciliation.py:26-34 and :1464-1471 already say the reducer is wall clock; WP02 removes the stale AGENTS.md pointer",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP02"
+    },
+    "#6261": {
+      "evidence_ref": "PR reference, not an issue this mission owes work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6604": {
+      "evidence_ref": "PR https://github.com/spec-kitty/spec-kitty/pull/6819",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6609": {
+      "evidence_ref": "post-GA direction that needs its own ADR; this mission makes no ordering decision (C-001)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
