@@ -27,7 +27,7 @@ history:
   actor: system
   action: Authored via /spec-kitty.tasks
 agent_profile: python-pedro
-authoritative_surface: scripts/docs/
+authoritative_surface: tests/docs/
 create_intent: []
 execution_mode: code_change
 model: ''
