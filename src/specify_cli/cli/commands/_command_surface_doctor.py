@@ -871,7 +871,8 @@ def _print_tool_surface_human(outcome: object) -> None:
 
     assert isinstance(outcome, ToolSurfaceOutcome)
     report = outcome.report
-    if report.ok and not report.findings:
+    repair_failed = outcome.repair is not None and bool(outcome.repair.failed)
+    if report.ok and not report.findings and not repair_failed:
         console.print(
             "[green]Tool Surfaces[/green]: all surfaces healthy "
             f"({report.summary.surfaces} checked)"
@@ -882,10 +883,26 @@ def _print_tool_surface_human(outcome: object) -> None:
     for finding in {(f.code, f.message): f for f in report.findings}.values():
         colour = "red" if finding.severity == "error" else "yellow"
         console.print(f"  [{colour}]![/{colour}] [{finding.code}] {finding.message}")
-    if outcome.repair is not None and outcome.repair.repaired:
+    if outcome.repair is None:
+        return
+    if outcome.repair.repaired:
         console.print(
             f"\n[green]Repaired:[/green] {len(outcome.repair.repaired)} surface(s)"
         )
+    if outcome.repair.failed:
+        # A repair that could not complete is an operator-visible failure, not
+        # routine residue: name the surfaces and the cause (#6273).
+        console.print(
+            f"\n[red]Failed to repair:[/red] {len(outcome.repair.failed)} surface(s)"
+        )
+        for surface_id in outcome.repair.failed:
+            console.print(f"  [red]x[/red] {surface_id}")
+        seen: set[str] = set()
+        for finding in outcome.repair.findings_after:
+            if finding.message in seen:
+                continue
+            seen.add(finding.message)
+            console.print(f"    {finding.message}")
 
 
 _FIX_REFUSED_CODE = "foreign_checkout_write_refused"
@@ -979,8 +996,13 @@ def run_tool_surfaces_audit(
         fix=fix,
     )
 
+    exit_code = 0 if outcome.report.ok else 1
+    if outcome.repair is not None and outcome.repair.failed:
+        # A failed repair is a non-zero outcome even when the remaining
+        # OPTIONAL missing surfaces leave the report itself ``ok`` (#6273).
+        exit_code = 1
     if json_output:
         console.print_json(json.dumps(outcome.to_json(), indent=2))
-        raise typer.Exit(0 if outcome.report.ok else 1)
+        raise typer.Exit(exit_code)
     _print_tool_surface_human(outcome)
-    raise typer.Exit(0 if outcome.report.ok else 1)
+    raise typer.Exit(exit_code)

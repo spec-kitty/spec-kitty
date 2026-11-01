@@ -207,3 +207,65 @@ def test_migration_compat_still_passes(tmp_path: Path) -> None:
     result = run_spec_kitty("doctor", "skills", "--json", cwd=project)
     assert result.returncode in (0, 1), result.stderr
     assert schema_shape(result.json()) == baseline
+
+
+def _failed_outcome(*, failed: tuple[str, ...]) -> object:
+    from specify_cli.tool_surface.findings import BUNDLE_COMPONENT_MISSING, SEVERITY_ERROR, make_finding
+    from specify_cli.tool_surface.repair import RepairResult
+    from specify_cli.tool_surface.service import ToolSurfaceOutcome
+    from specify_cli.tool_surface.status import SurfaceReport, SurfaceSummary
+
+    report = SurfaceReport(
+        ok=True,
+        project_root=".",
+        configured_tools=["claude"],
+        summary=SurfaceSummary(surfaces=0, present=0, missing=0, drifted=0, warnings=0, errors=0),
+        surfaces=(),
+        findings=(),
+    )
+    repair = RepairResult(
+        failed=failed,
+        findings_after=(
+            make_finding(BUNDLE_COMPONENT_MISSING, SEVERITY_ERROR, "Unsafe bundle parent: dist/x"),
+        ),
+    )
+    return ToolSurfaceOutcome(report=report, repair=repair)
+
+
+def test_failed_repair_names_surfaces_and_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed ``--fix`` is visible and non-zero, even though OPTIONAL gaps keep ok=True (#6273)."""
+    from typer.testing import CliRunner
+    from specify_cli import app
+    from specify_cli.tool_surface import service
+
+    project = write_controlled_project(tmp_path, agents=["claude"])
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(service, "run_tool_surfaces", lambda *a, **k: _failed_outcome(failed=("claude_code_plugin.plugin_manifest.plugin.json",)))
+
+    result = CliRunner().invoke(app, ["doctor", "tool-surfaces", "--fix"])
+
+    assert result.exit_code == 1, result.output
+    assert "Failed to repair: 1 surface(s)" in result.output
+    assert "claude_code_plugin.plugin_manifest.plugin.json" in result.output
+    assert "Unsafe bundle parent: dist/x" in result.output
+
+
+def test_failed_repair_is_reported_in_json_and_exits_nonzero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from typer.testing import CliRunner
+    from specify_cli import app
+    from specify_cli.tool_surface import service
+
+    project = write_controlled_project(tmp_path, agents=["claude"])
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(service, "run_tool_surfaces", lambda *a, **k: _failed_outcome(failed=("claude_code_plugin.plugin_manifest.plugin.json",)))
+
+    result = CliRunner().invoke(app, ["doctor", "tool-surfaces", "--fix", "--json"])
+
+    assert result.exit_code == 1, result.output
+    payload = json.loads(result.output)
+    assert payload["repair"]["failed"] == ["claude_code_plugin.plugin_manifest.plugin.json"]
+    assert payload["repair"]["findings_after"][0]["message"] == "Unsafe bundle parent: dist/x"

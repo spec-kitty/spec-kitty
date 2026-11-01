@@ -71,6 +71,7 @@ class _RepairTally:
     repaired: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
     failed: list[str] = field(default_factory=list)
+    findings: list[SurfaceFinding] = field(default_factory=list)
 
 
 class SurfaceRepairService:
@@ -163,6 +164,7 @@ class SurfaceRepairService:
             skipped=tuple(tally.skipped),
             failed=tuple(tally.failed),
             dry_run=dry_run,
+            findings_after=tuple(tally.findings),
         )
 
     @staticmethod
@@ -206,6 +208,7 @@ class SurfaceRepairService:
         tally.repaired.extend(result.repaired)
         tally.skipped.extend(result.skipped)
         tally.failed.extend(result.failed)
+        tally.findings.extend(result.findings_after)
 
 
 # ---------------------------------------------------------------------------
