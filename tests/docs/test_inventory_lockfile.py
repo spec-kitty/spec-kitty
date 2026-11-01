@@ -277,12 +277,14 @@ def test_cli_report_only_exit_zero_and_writes_report(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_orchestrator_lockfile_subcheck_emits_blocking_errors(tmp_path: Path) -> None:
-    """The inverted ruler emits INVENTORY-LOCKFILE-DRIFT *errors* (WP14 flip).
+def test_orchestrator_lockfile_subcheck_emits_non_blocking_warnings(tmp_path: Path) -> None:
+    """The inverted ruler still reports INVENTORY-LOCKFILE-DRIFT, as *warnings*.
 
-    Mission B makes the lockfile gate blocking: every drift finding is now
-    ``error`` severity so the aggregate ``check_docs_freshness`` exit reds on
-    drift (it keys off ``any(f.severity == "error")``).
+    The page inventory is regenerated on ``main`` after merge by the
+    ``ci/regen-docs-index`` bot pull request, so a branch is expected to lag
+    it: drift must not red the aggregate ``check_docs_freshness`` exit (it keys
+    off ``any(f.severity == "error")``). The content check is
+    ``test_docs_index_regenerates_cleanly.py``.
     """
     repo_root, docs_root = _seed_docs_tree(tmp_path)
     committed_path = repo_root / "inventory.yaml"
@@ -298,7 +300,7 @@ def test_orchestrator_lockfile_subcheck_emits_blocking_errors(tmp_path: Path) ->
     findings = orchestrator._check_inventory_lockfile_drift(committed_path, docs_root)
     assert findings, "expected drift findings"
     assert all(f.rule_id == "INVENTORY-LOCKFILE-DRIFT" for f in findings)
-    assert all(f.severity == "error" for f in findings)
+    assert all(f.severity == "warning" for f in findings)
 
 
 def test_orchestrator_lockfile_subcheck_skips_missing_docs_root(
