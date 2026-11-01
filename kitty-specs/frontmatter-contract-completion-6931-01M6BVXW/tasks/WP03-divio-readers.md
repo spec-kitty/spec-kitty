@@ -34,7 +34,6 @@ owned_files:
 - scripts/docs/frontmatter_backfill.py
 - docs/development/page-inventory.yaml
 - docs/development/docs-retrieval-index.yaml
-create_intent:
 role: implementer
 tags: []
 task_type: implement

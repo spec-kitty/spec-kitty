@@ -50,9 +50,6 @@ owned_files:
 - docs/index.md
 - docs/_meta/immutable-body-hashes.json
 - tests/docs/test_frontmatter_body_immutability.py
-create_intent:
-- docs/_meta/immutable-body-hashes.json
-- tests/docs/test_frontmatter_body_immutability.py
 role: implementer
 tags: []
 task_type: implement

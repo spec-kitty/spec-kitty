@@ -34,7 +34,6 @@ owned_files:
 - docs/changelog/CHANGELOG.md
 - docs/development/reference/ci-gate-mechanics.md
 - scripts/docs/description_length_check.py
-create_intent:
 role: implementer
 tags: []
 task_type: implement
