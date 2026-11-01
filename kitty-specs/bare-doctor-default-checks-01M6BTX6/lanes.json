@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "bare-doctor-default-checks-01M6BTX6",
+  "mission_id": "01M6BTX6XSJESHZ7PTAC9H6YG1",
+  "mission_branch": "issue-6969-bare-doctor-default-checks",
+  "target_branch": "issue-6969-bare-doctor-default-checks",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/offering/skills/spec-kitty-setup-doctor/SKILL.md",
+        "src/specify_cli/cli/commands/_default_run_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/architectural/test_cli_placeholder_output.py",
+        "tests/cli/test_doctor_default_run.py",
+        "tests/cli/test_top_level_group_empty_invocation.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T16:55:40.656964+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "bb73d56adc947d0af83f377f412d4bafe1555518"
+}
