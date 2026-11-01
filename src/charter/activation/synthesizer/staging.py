@@ -18,6 +18,11 @@ project charter pack consumers (which scan ``.kittify/charter-packs/``)
 never traverse it. The content subtree carries the same directory name as
 the live project pack root, so promotion is a 1:1 mapping.
 
+Retention: a refused run's directory is preserved as ``<run_id>.failed/`` for
+diagnosis, but only the newest ``DEFAULT_KEEP_FAILED_RUNS`` are kept (#6723).
+Before that bound existed a repeatedly-refused project accumulated one directory
+per attempt (#4226 counted 15, then 16, on one repository).
+
 Context manager protocol:
     ``with StagingDir.create(repo_root, run_id) as stage:``
 
@@ -46,6 +51,7 @@ from ruamel.yaml import YAML
 from kernel.clock import now_utc_iso
 from kernel.charter_pack_paths import PROJECT_PACK_DIRNAME
 
+from .errors import PathGuardViolation
 from .path_guard import PathGuard
 
 
@@ -56,6 +62,95 @@ _KIND_SUBDIR: dict[str, str] = {
     "tactic": "tactic",
     "styleguide": "styleguide",
 }
+
+#: Name suffix that marks a preserved failure (``<run_id>.failed``).
+_FAILED_SUFFIX = ".failed"
+
+#: How many preserved failure directories survive a refused run (#6723).
+#: The latest is the one an operator diagnoses; the two before it exist so a
+#: repeated refusal can be compared against its predecessors. One named
+#: default feeds both the retention pass and the operator-facing hint.
+DEFAULT_KEEP_FAILED_RUNS = 3
+
+
+# ---------------------------------------------------------------------------
+# Failure-directory retention (#6723)
+# ---------------------------------------------------------------------------
+
+
+def _preserved_failure_dirs(
+    staging_root: Path,
+) -> list[tuple[float, str, Path]]:
+    """Return ``(mtime, name, path)`` for every preserved failure directory.
+
+    Only entries whose name ends in :data:`_FAILED_SUFFIX` and that are
+    directories are returned: a live ``<run_id>/`` staging directory of a
+    running synthesis is never a candidate, whatever its age. Entries that
+    cannot be stat'ed are skipped — retention is best-effort and must not fail
+    the refusal.
+    """
+    try:
+        entries = list(staging_root.iterdir())
+    except OSError:
+        return []
+    found: list[tuple[float, str, Path]] = []
+    for entry in entries:
+        if not entry.name.endswith(_FAILED_SUFFIX):
+            continue
+        try:
+            if entry.is_dir():
+                found.append((entry.stat().st_mtime, entry.name, entry))
+        except OSError:
+            continue
+    return found
+
+
+def retention_hint() -> str:
+    """Return the operator-facing sentence that names the retention bound.
+
+    One source for the number: the refusal hint and any error message that
+    mentions the preserved directory read this instead of restating it.
+    """
+    return f"Older failed staging directories are pruned after each refusal; the newest {DEFAULT_KEEP_FAILED_RUNS} are kept."
+
+
+def retain_failed_staging_dirs(
+    guard: PathGuard,
+    staging_root: Path,
+    *,
+    keep: int = DEFAULT_KEEP_FAILED_RUNS,
+    preserve: str | None = None,
+) -> tuple[Path, ...]:
+    """Remove all but the newest ``keep`` preserved failure directories.
+
+    Newest-first ordering uses the directory modification time with the name as
+    a descending tiebreak, so a restored or fixture tree whose directories share
+    an mtime still prunes the same entries every time. ``preserve`` names the
+    run whose failure was just written: it is never removed, even if an odd
+    mtime or a copied tree would otherwise order it past the bound.
+
+    Every removal goes through ``PathGuard.rmtree`` (the synthesizer's single
+    write seam). The pass never raises: an unreadable entry or an unremovable
+    directory simply stays, because retention must not mask the synthesis
+    failure the caller is already reporting.
+
+    Returns the directories it removed, newest-surplus first.
+    """
+    preserve_name = f"{preserve}{_FAILED_SUFFIX}" if preserve is not None else None
+    candidates = _preserved_failure_dirs(staging_root)
+    candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
+
+    removed: list[Path] = []
+    for _mtime, _name, path in candidates[max(keep, 0) :]:
+        if path.name == preserve_name:
+            continue
+        try:
+            guard.rmtree(path, caller="retain_failed_staging_dirs")
+        except (OSError, PathGuardViolation):
+            # Best-effort: the directory stays and the refusal is still reported.
+            continue
+        removed.append(path)
+    return tuple(removed)
 
 
 class StagingDir:
@@ -215,6 +310,16 @@ class StagingDir:
                     caller="StagingDir.commit_to_failed[cause]",
                 )
 
+        # #6723: bound the preserved failures. The run that just failed is
+        # preserved above and excluded here, so what the command reports still
+        # exists; only older surplus directories are removed.
+        retain_failed_staging_dirs(
+            self.guard,
+            self.root.parent,
+            keep=DEFAULT_KEEP_FAILED_RUNS,
+            preserve=self.run_id,
+        )
+
     # -----------------------------------------------------------------------
     # Lifecycle: success path
     # -----------------------------------------------------------------------
@@ -252,4 +357,9 @@ class StagingDir:
         return None
 
 
-__all__ = ["StagingDir"]
+# Only the cross-module exports live here: ``retention_hint`` is read by the
+# refusing error messages. ``DEFAULT_KEEP_FAILED_RUNS`` and
+# ``retain_failed_staging_dirs`` are public so tests can pin the bound and the
+# helper directly, but they are used inside this module (declaring them here
+# would claim a cross-module caller they do not have — the dead-symbol gate).
+__all__ = ["StagingDir", "retention_hint"]
