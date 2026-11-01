@@ -24,7 +24,7 @@ updated: '2026-10-29'
 - #6675 (this protocol), in epic #6117 (Mission Write API).
 - It amends [ADR 2026-10-22-1](2026-10-22-1-the-java-write-service-is-the-canonical-event-writer.md): open question 3 (transport and trust model) and D-7 (which append semantics are authoritative).
 - Coordinated by reference, not changed: #6676 (the fail-closed launcher), #6193 (the lock-interop spike), #6195 (the lane-transition cut-over that binds the client), spec-kitty/spec-kitty-events#92 (the event envelope).
-- The contract: [`contracts/mission-write/openapi.yaml`](../../../contracts/mission-write/openapi.yaml). The client shapes: `src/specify_cli/status/write_service_protocol.py`.
+- The contract: [`contracts/mission-write/openapi.yaml`](https://github.com/spec-kitty/spec-kitty-events/blob/main/contracts/mission-write/openapi.yaml) (in spec-kitty-events since #6915). The client shapes: `src/specify_cli/status/write_service_protocol.py`.
 
 **Reader:** a maintainer building the write-service client behind the EventBridge port, or the Java write service, or its launcher.
 

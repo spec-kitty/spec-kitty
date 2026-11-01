@@ -2,7 +2,7 @@
 title: Containers (living)
 description: 'Living containers view (C4 level 2): current logical containers and the planned charter read-service transition.'
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
@@ -260,8 +260,10 @@ Amendment 2026-10-19, superseding the repository extraction of ADR
 pack source home is `spec-kitty-open-packs`. **Team Kitty ("Multiplayer Mode")** consumes the
 API across its contract boundary and is a single opaque container here.
 
-*Target state, not shipped state:* `services/mission-status-api/` does not exist yet (only
-`contracts/mission-status/` and the Python reducer ship); the diagram shows the ratified target.
+*Where the pieces live (#6915):* the Mission-Status Read API's Java service and the `mission-status`
+contract live in `spec-kitty-events` (`service/`, `contracts/`, released on the `service-v*` line); core
+pins the read service for CI conformance only (`pins/read-service.source.yaml`) and ships the Python
+reducer.
 
 Alt-text: an open-core boundary containing the CLI, the event ledger, the Lamport reducer, the
 Mission-Status Read API (Java, planned, to start in-repo), the extracting charter and the
@@ -283,7 +285,7 @@ flowchart TB
       cli["<b>CLI</b> (Python)<br/>command surface + governance<br/><i>open-core · exists</i>"]
       ledger[("<b>Event ledger</b><br/>status.events.jsonl<br/>append-only · sole lane authority<br/><i>open-core · exists</i>")]
       reducer["<b>Lamport reducer</b><br/>status.reducer.materialize<br/>event → snapshot<br/><i>open-core · exists</i>"]
-      statusapi["<b>Mission-Status Read API</b><br/>Java service · services/mission-status-api/<br/>overview + mission detail<br/><i>open-core · planned · to start in-repo</i>"]
+      statusapi["<b>Mission-Status Read API</b><br/>Java service · spec-kitty-events service/<br/>pinned: pins/read-service.source.yaml<br/>overview + mission detail<br/><i>open-core · released in spec-kitty-events · pinned by core (CI conformance only)</i>"]
       charter["<b>Charter</b><br/>src/charter/offering/<br/>governance / doctrine / DRG<br/><i>open-core · extracting</i>"]
       packsrc["<b>Fetched packs</b><br/>packs/built-in + packs/internal<br/><i>open-core · exists (pinned, fetched from open-packs)</i>"]
     end
@@ -292,7 +294,7 @@ flowchart TB
     openpacks["spec-kitty-open-packs<br/><i>published packs · exists</i>"]
     dockitty["doc-kitty<br/>docs-site toolkit<br/><i>pkg · exists</i>"]
     apiRepoFuture["mission-status-api<br/>own open-core repo<br/><i>planned extraction</i>"]
-    seam(["<b>Mission-Status API contract</b><br/>contracts/mission-status/openapi.yaml<br/>+ conformance fixtures<br/><i>producer → consumer boundary</i>"])
+    seam(["<b>Mission-Status API contract</b><br/>spec-kitty-events contracts/mission-status<br/>+ conformance fixtures (pinned release assets)<br/><i>producer → consumer boundary</i>"])
     teamkitty["<b>Team Kitty</b> consumer (opaque)<br/>mission-ui · pack composer<br/><i>consumer</i>"]
     cli -->|appends events| ledger
     ledger -->|folded by| reducer

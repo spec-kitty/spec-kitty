@@ -4,7 +4,7 @@ description: 'Roadmap for the 4.0.0 cycle: release posture, what still gates GA,
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-10-19'
+updated: '2026-11-01'
 related:
 - docs/changelog/4.0.0.md
 - docs/changelog/index.md
@@ -16,6 +16,8 @@ related:
 - docs/changelog/release-goals.md
 ---
 # 4.0.0 Milestone — Roadmap
+
+> **Status note (2026-11-01, #6915).** The Mission Status Read API's Java service and the `mission-status` / `mission-write` contracts now live in `spec-kitty-events` (`service/`, `contracts/`; ADR [`2026-10-29-1`](../adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md)), which releases them on the `service-v*` line. Core pins the read service (`pins/read-service.source.yaml`, `service-v0.1.0-rc.1`) for CI conformance only, and core's `services/` copy is removed. Where this document says the service is in-repo or is to start in-repo, read it as history.
 
 *Planner synthesis, first written 2026-09-14 against the old `4.0.0` milestone (GitHub
 milestone 8, since renamed **4.x Work**). **Re-synthesized 2026-10-06** against the GA gate,

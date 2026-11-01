@@ -2,7 +2,7 @@
 title: Lock-interop spike (#6193)
 description: 'Verdict and CI evidence of the #6193 spike: which Java lock excludes the CLI''s event-log lock on Linux, macOS and Windows, and whether mixed appends pass both readers.'
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -32,8 +32,8 @@ The harness drives the production code on the Python side, never a copy: `kernel
 | Part | Where |
 |---|---|
 | Python peer | `scripts/ci/lock_interop_peer.py` (unit tests: `tests/ci/test_lock_interop_peer.py`) |
-| Java harness | package `org.speckitty.missionstatus.spike.lockinterop` in the test sources of the `event-log` module of `services/mission-status-api` |
-| CI evidence | the `lock-interop` job of `.github/workflows/mission-status-api.yml` (ubuntu-24.04, macos-15, windows-2025; GraalVM CE 25.0.2) |
+| Java harness | package `org.speckitty.missionstatus.spike.lockinterop` in the test sources of the `event-log` module, now in spec-kitty-events `service/event-log` (core's `services/mission-status-api` copy was removed, #6915) |
+| CI evidence | the `lock-interop` job, now in spec-kitty-events `.github/workflows/service.yml`, which runs core's peer at the core SHA in `service/core-pin.json` (ubuntu-24.04, macos-15, windows-2025; GraalVM CE 25.0.2) |
 
 `LockInteropSpikeTest` runs once per Java lock. `java-filechannel` is `FileChannel.tryLock()` over the whole file, on every OS. `java-ffm-flock` is `flock(fd, LOCK_EX | LOCK_NB)` through FFM, on Linux and macOS. Each run uses a fresh git repository, so the lock file is the real `<git-common-dir>/spec-kitty-locks/event-logs/<digest>.lock`. The harness checks four things:
 

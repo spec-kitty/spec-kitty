@@ -3,7 +3,7 @@
 The shapes carry no transport. These tests pin the wire names, the refusal
 vocabulary, version negotiation and the fail-closed endpoint-file reader; the
 contract tests (``tests/contract/test_mission_write_contract.py``) validate the
-same shapes against ``contracts/mission-write``.
+same shapes against the pinned, bundled ``mission-write`` contract of spec-kitty-events.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 title: Events in core
 description: 'Contributor rules for writing and reading event logs in core today, what not to do, and how to adopt a new spec-kitty-events release without a red nightly.'
 doc_status: active
-updated: '2026-10-28'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -148,7 +148,7 @@ Until the Java write service owns a log (#6193), an append to any event log othe
 - **Streaming:** `status.tail_reader` (and `spec-kitty events tail`) read raw bytes with a
   cursor; use them for a change feed, not for lane state.
 - **Mission Status Read API:** a consumer reads it across its contract
-  (`contracts/mission-status/openapi.yaml`), never this log or CLI internals.
+  (the `mission-status` contract in spec-kitty-events `contracts/`, bundled in the pinned release), never this log or CLI internals.
 
 ## Adopting a new `spec-kitty-events` release
 

@@ -1,4 +1,4 @@
-# Refusal-code parity inventory of contracts/mission-write (#6675, ADR 2026-10-27-1).
+# Refusal-code parity inventory of the mission-write contract (#6675, ADR 2026-10-27-1; spec-kitty-events contracts/).
 #
 # Every code of WriteRefusalCode appears exactly once. origin: cli means the CLI raises this exact
 # string today, in `source` (a tracked file whose text holds the literal); origin: protocol means the

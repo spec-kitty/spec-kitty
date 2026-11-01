@@ -2,7 +2,7 @@
 title: 'API & Dashboard — Domain Plan'
 description: 'Durable domain plan for the mission-data API (#645) and dashboard/UX (#650): the open-core producer API, its consumers, and retiring the Feature-labelled UI drift.'
 doc_status: durable
-updated: '2026-10-12'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -15,6 +15,8 @@ related:
 ---
 
 # API & Dashboard — Domain Plan
+
+> **Status note (2026-11-01, #6915).** The Mission Status Read API's Java service and the `mission-status` / `mission-write` contracts now live in `spec-kitty-events` (`service/`, `contracts/`; ADR [`2026-10-29-1`](../../adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md)), which releases them on the `service-v*` line. Core pins the read service (`pins/read-service.source.yaml`, `service-v0.1.0-rc.1`) for CI conformance only, and core's `services/` copy is removed. Where this document says the service is in-repo or is to start in-repo, read it as history.
 
 **Audience:** the project maintainer — technical, time-pressed, wants signal over ritual.
 

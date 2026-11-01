@@ -119,7 +119,7 @@ categories:
   category_c_write_service_client_6675:
     rationale: 'C. Write-service client surface (#6675, ADR 2026-10-27-1). ``bind_event_bridge`` binds
       both EventBridge port halves at the composition root, and ``specify_cli.status.write_service_protocol``
-      holds the typed shapes of contracts/mission-write that the write-service client adapter sends and
+      holds the typed shapes of the mission-write contract that the write-service client adapter sends and
       reads. Open-core binds no adapter and the shapes carry no transport, so none has a src/ caller until
       the lane-transition cut-over (#6195) binds the client adapter. Burns down at #6195 (operator ruling
       dead_gate_handling, 2026-10-27).'

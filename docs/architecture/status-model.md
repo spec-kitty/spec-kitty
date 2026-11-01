@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-10-27'
+updated: '2026-11-01'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -31,9 +31,11 @@ The status model uses a single canonical append-only event log per mission as th
 > [`2026-10-01-2`](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
 > Accepted) — is conformance-gated against `status.reducer.materialize_snapshot`, the same
 > wall-clock reducer every CLI reader uses, so its answer is meant to match `status.json`.
-> Its Java port does not yet carry the #4941 approved-departure lift (#6268). Its external Java form is to
-> start in-repo and be extracted when its contract freezes; `contracts/mission-status/` and the
-> conformance fixtures stay canonical beside this Python reducer. Consumers (Team Kitty /
+> Its Java port does not yet carry the #4941 approved-departure lift (#6268). Its Java service and the
+> `mission-status` contract live in `spec-kitty-events` (`service/`, `contracts/`, ADR
+> [`2026-10-29-1`](../adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md));
+> core pins a release (`pins/read-service.source.yaml`) and checks this Python reducer against its
+> bundled contract and conformance fixtures. Consumers (Team Kitty /
 > "Multiplayer Mode") read that API across its contract, never this log directly.
 
 **Key principles**:

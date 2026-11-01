@@ -4,7 +4,9 @@ The Java harness (``event-log`` module of the Java service in spec-kitty-events,
 prove, or refute, that the interim event-log lock of :mod:`kernel.event_log_append` and a Java writer exclude each other, and that
 appends from both sides land as whole lines that both readers accept. Every lock and every append here goes through the production
 kernel code, never a reimplementation: :func:`kernel.event_log_append.event_log_lock_path`, :func:`~kernel.event_log_append.event_log_lock`,
-:func:`~kernel.event_log_append.append_event_log_lines` and :func:`kernel.locks.machine_file_lock`.
+:func:`~kernel.event_log_append.append_event_log_lines` and :func:`kernel.locks.machine_file_lock`. Its driver is the
+``lock-interop`` job of spec-kitty-events' ``.github/workflows/service.yml``, which runs this file at the core SHA recorded in
+``service/core-pin.json``.
 
 Commands (each prints one JSON object on stdout):
 

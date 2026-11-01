@@ -4,11 +4,11 @@ description: 'Core-side inventory, pin/fetch/launcher design and cut-over runboo
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-10-31'
+updated: '2026-11-01'
 ---
 # Events domain move: core-side plan
 
-**Status:** Signed off by the operator, 2026-10-29: the go is given and the issue moves are approved. The freeze gate and the governance records land first. The pin, fetch and launcher mechanism follows. The cut-over waits for spec-kitty-events' first `service-v*` release.
+**Status:** Signed off by the operator, 2026-10-29: the go is given and the issue moves are approved. The freeze gate and the governance records landed first, then the pin, fetch and launcher mechanism (#6590). The cut-over (§4 step 5) is done in #6915: core pins the read service from spec-kitty-events `service-v0.1.0-rc.1` (`pins/read-service.source.yaml`) and the copies are removed.
 
 **Decision being executed:** operator and CEO, 2026-10-29. The Java event services (read: Mission Status Read API; write: Mission Write API / event-log write core) leave core for `spec-kitty/spec-kitty-events`, which becomes the canonical owner of the events domain. Binding: Gradle everywhere; history preserved (the spec-kitty-events side imports with filter-repo); a separate `service-vX.Y.Z` tag line in spec-kitty-events; core pins a service tag plus a sha256 per OS binary; `services/` is frozen in core from now on.
 
@@ -135,7 +135,7 @@ tools:           {name: contract-tools-<ver>.tar.gz,              sha256: <64-he
 2. **All in-flight sessions merged** (§2); confirm that no live session holds unpushed `services/` or `contracts/` work.
 3. **spec-kitty-events side:** filter-repo import (`service/` plus `contracts/`), Gradle unification, CI (pinned to the frozen core SHA), and the first `service-v*` pre-release with per-OS assets, the jar, the contract-bundles and conformance-fixtures assets, `SHA256SUMS` and attestation.
 4. **Core PR 1 (pre-cut-over, can merge while `services/` still exists):** the pin mechanism (`kernel.service_artifacts`, `sync-services`, the composite action, `service vendor`), the launcher skeleton with fail-closed codes, and the ADR plus charter/CLAUDE.md amendments. The pins point at A's pre-release. CI fetches and verifies the pin.
-5. **Core PR 2 (cut-over):**
+5. **Core PR 2 (cut-over) — done in #6915.** Drift found against the inventory below, all handled in that PR: the nightly `acceptance-bdd` job, `sonar.yml` and `scripts/dev/cloud-session-setup.sh` ran `contracts/tools/*.py` (now the pinned `contract-tools` extra; the Gradle pin check goes through `scripts/ci/acceptance_jvm_gradle_pin_check.py`, because the released tool's bare run also scans a `contracts/` subproject core no longer has); the fleet verdict also listed `contracts.yml`; `tests/ci/test_sync_services.py`, `tests/ci/test_contracts_routing.py`, `tests/architectural/test_scenario_contract.py` and the duplicate-suite allowlist referenced the removed paths; the binary compare lived only in `mission-status-api.yml` `nightly-corpus` and moved to `ci-nightly.yml` against the pinned binary. Steps as planned:
    - remove `services/` and `mission-status-api.yml`, plus the ci-router, module-registry, fleet-verdict, CODEOWNERS and `.gitattributes` entries;
    - move the build-pin tests (or delete them, since A re-homes them) and repoint the goldens tests at the fixtures asset;
    - repoint the nightly corpus compare at the pinned binary;
