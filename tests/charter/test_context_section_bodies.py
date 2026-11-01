@@ -234,7 +234,10 @@ class TestVerbatimBodies:
         assert "```bash" not in body
         assert "## STEP 1" not in body
         assert "This is the next section" not in body
-        assert result.count("  Run: spec-kitty charter context --include") == 3
+        # The unbalanced fence masks the ``Code Review Checklist`` heading, so
+        # only the two headings above the fence resolve and are advertised.
+        assert result.count("  Run: spec-kitty charter context --include") == 2
+        assert "section:code-review-checklist" not in result
 
     def test_section_include_ignores_fenced_heading_examples(self) -> None:
         result = render_critical_section_include(
@@ -298,20 +301,39 @@ class TestVerbatimBodies:
         assert isinstance(result, str)
 
 
-class TestMissingSectionFetchStanza:
-    """Missing headings degrade to the fetch + when-doing stanza."""
+class TestMissingSectionIsNotAdvertised:
+    """A heading the charter does not carry is not action-critical (#6968)."""
 
-    def test_missing_section_emits_fetch_stanza(self) -> None:
+    def test_missing_section_is_not_advertised(self) -> None:
         result = render_critical_section_bodies(
             _CHARTER_WITHOUT_REGRESSION_VIGILANCE, action="implement"
         )
-        # The selector slug matches the kebab-cased heading.
-        assert "section:regression-vigilance" in result
-        # The when-doing clause is exactly the contract phrase.
-        when_clause = CRITICAL_SECTION_WHEN_CLAUSES["Regression Vigilance"]
-        assert f"When you {when_clause}" in result
-        # No crash means the rest of the block still rendered too.
+        # The heading the fixture omits contributes neither a marker nor a
+        # selector: advertising it would send the agent to a placeholder.
+        assert "section:regression-vigilance" not in result
+        assert "### Regression Vigilance" not in result
+        assert f"When you {CRITICAL_SECTION_WHEN_CLAUSES['Regression Vigilance']}" not in result
+        # No crash means the resolved headings still rendered, with their
+        # contract when-doing clause and their recovery stanza.
         assert critical_section_header("implement") in result
+        assert "section:terminology-canon" in result
+        assert "section:code-review-checklist" in result
+        assert f"When you {CRITICAL_SECTION_WHEN_CLAUSES['Terminology Canon']}" in result
+
+    def test_no_resolving_heading_emits_no_block(self) -> None:
+        result = render_critical_section_bodies(
+            "# Consumer Charter\n\n## Purpose\n\nShip a small CLI.\n",
+            action="implement",
+        )
+        assert result == ""
+
+    def test_empty_bodied_heading_is_not_advertised(self) -> None:
+        result = render_critical_section_bodies(
+            "# Charter\n\n## Terminology Canon\n\n## Code Review Checklist\n\n- check.\n",
+            action="implement",
+        )
+        assert "section:terminology-canon" not in result
+        assert "section:code-review-checklist" in result
 
 
 class TestActionSectionSets:

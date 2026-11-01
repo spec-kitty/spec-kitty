@@ -11,7 +11,9 @@ implicitly on such a project (hole 3).
 
 Every case runs real subprocesses (full CLI startup). The ``charter context``
 golden was captured on the Mission's ``main`` base (``f1663393``) for this exact
-fixture (``tests/acceptance/fixtures/unmigrated_context_golden.json``).
+fixture (``tests/acceptance/fixtures/unmigrated_context_golden.json``); #6968
+removed its action-critical block, which advertised three charter sections this
+fixture's project never authors (only resolving headings are advertised now).
 """
 
 from __future__ import annotations

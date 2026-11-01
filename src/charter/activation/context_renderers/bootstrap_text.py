@@ -294,8 +294,9 @@ def _render_bootstrap_text(
     _append_block(lines, _resolve_authority_block(repo_root, charter_config))
     _append_block(lines, _resolve_reference_block(repo_root, charter_config))
 
-    # WP04 (FR-001) — action-critical charter section bodies; an absent heading
-    # emits a fetch stanza so the agent still has a recovery path.
+    # WP04 (FR-001) — action-critical charter section bodies. Only headings the
+    # charter resolves are advertised (#6968), so an absent heading simply
+    # contributes nothing; a present one carries its body and a fetch stanza.
     section_block = render_critical_section_bodies(charter_content, action)
     _append_block(lines, section_block)
 
