@@ -717,6 +717,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       prose_only: ${{ steps.scan.outputs.prose_only }}
+      scan_scope_match: ${{ steps.scan.outputs.scan_scope_match }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -755,22 +756,33 @@ jobs:
 
           # Degenerate/null base (missing PR base SHA, or a push whose
           # pre-push SHA is the null SHA -- first push / force push) means no
-          # trustworthy diff can be computed: fail-closed to prose_only=false,
-          # mirroring ci-modules.yml's own selection-forced-full handling.
+          # trustworthy diff can be computed: fail-closed to prose_only=false and
+          # scan_scope_match=false, mirroring ci-modules.yml's own
+          # selection-forced-full handling.
+          #
+          # scan_scope_match (#6999) answers whether any changed path matches a
+          # declared architectural scan scope. It is the SAME parsed filter list the
+          # `changes` job's `arch_scan_scope` group transcribes (ci-router.yml is
+          # test-pinned to gate_selection.battery_scope_router_globs), read here so
+          # the battery `if:` can exempt a declared prose match WITHOUT naming
+          # `needs.changes.outputs.arch_scan_scope` a second time: a second reference
+          # would keep that group in the parsed job-gate set even if the group's own
+          # OR term were dropped, making the #6994 planted control vacuous.
           prose_only="false"
+          scan_scope_match="false"
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
             if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
               # The raw diff is threaded through an env var, NOT piped to
               # stdin: `python3 -` reads its OWN script text from stdin (the
               # heredoc below), so a concurrent stdin pipe would never reach
               # the script's own input reads.
-              prose_only="$(SCAN_BASE_SHA="$base" SCAN_HEAD_SHA="$HEAD_SHA" SCAN_DIFF_PATHS="$diff_output" python3 - <<'PY'
+              answers="$(SCAN_BASE_SHA="$base" SCAN_HEAD_SHA="$HEAD_SHA" SCAN_DIFF_PATHS="$diff_output" python3 - <<'PY'
           import os
           import subprocess
           import sys
 
           sys.path.insert(0, os.environ.get("PYTHONPATH", "."))
-          from scripts.ci.gate_selection import load_router
+          from scripts.ci.gate_selection import load_router, matches_declared_scan_scope
           from scripts.ci.prose_only import prose_only_pr_verdict
 
           _base_sha = os.environ["SCAN_BASE_SHA"]
@@ -799,13 +811,18 @@ jobs:
           _doc_globs = tuple(_router.filters.get("docs", ())) + tuple(_router.filters.get("corpus", ()))
 
           _verdict = prose_only_pr_verdict(_paths, _blob_getter, _doc_globs)
+          _scope_match = matches_declared_scan_scope(_paths, router=_router)
 
-          print("true" if _verdict else "false")
+          print("prose_only=" + ("true" if _verdict else "false"))
+          print("scan_scope_match=" + ("true" if _scope_match else "false"))
           PY
               )"
+              prose_only="$(printf '%s\n' "$answers" | sed -n 's/^prose_only=//p')"
+              scan_scope_match="$(printf '%s\n' "$answers" | sed -n 's/^scan_scope_match=//p')"
             fi
           fi
-          echo "prose_only=$prose_only" >> "$GITHUB_OUTPUT"
+          echo "prose_only=${prose_only:-false}" >> "$GITHUB_OUTPUT"
+          echo "scan_scope_match=${scan_scope_match:-false}" >> "$GITHUB_OUTPUT"
 
   # ===========================================================================
   # Shift-left front (FR-005): the cheapest static / lint / regen gates. Every
@@ -1088,6 +1105,14 @@ jobs:
   # count must equal the registry `shards.shard_count`; the plugin also fails closed at
   # runtime (D-23). `label` exists because artifact names cannot contain `/`.
   # ---------------------------------------------------------------------------
+  # The prose-only subtraction (#4842) is EXEMPTED for a declared scan-scope match (#6999, operator
+  # ruling 2026-11-01): a proven prose-only diff still skips the battery as a whole, but the gates
+  # that read comment text in the paths it touches must run. The exemption reads prose-scan's own
+  # `scan_scope_match` companion output -- the same parsed `arch_scan_scope` globs, computed in the
+  # job that already has the diff -- so the battery `if:` names the `changes` group exactly once and
+  # the #6994 planted control (drop the group's OR term) stays meaningful. The scoped-leg step below
+  # then narrows each leg to its declared matches (`battery_scope select --prose-only`, #6999). A
+  # prose-only diff that declares no scan scope keeps the battery skipped, exactly as #4842 ruled.
   architectural-heavy:
     name: architectural battery (heavy, code-scoped) ${{ matrix.shard }}
     runs-on: ubuntu-24.04
@@ -1116,7 +1141,8 @@ jobs:
       needs.changes.outputs.ci_config == 'true' ||
       needs.changes.outputs.arch_scan_scope == 'true' ||
       needs.changes.outputs.architectural == 'true') &&
-      needs.prose-scan.outputs.prose_only != 'true'
+      (needs.prose-scan.outputs.prose_only != 'true' ||
+      needs.prose-scan.outputs.scan_scope_match == 'true')
     strategy:
       fail-fast: false
       matrix:
@@ -1140,9 +1166,11 @@ jobs:
           python-version: '3.12'
       - name: Sync dev environment
         run: uv sync --frozen --all-extras
-      # Scan-scope selection (#6994): a diff that matches only the arch_scan_scope group runs, in this
-      # leg, only the gates whose declared scan scope it touches; a code diff runs the whole leg. The
-      # answer comes from scripts/ci/gate_selection.py (select_battery_gates) through
+      # Scan-scope selection (#6994, #6999): a diff that matches only the arch_scan_scope group runs, in this
+      # leg, only the gates whose declared scan scope it touches; a code diff runs the whole leg. A proven
+      # prose-only diff (#4842) is narrowed the same way, to the gates that read the comment text it edits
+      # (#6999): PROSE_ONLY carries the prose-scan verdict, and the answer is still a scoped leg, never a
+      # whole-battery run. The answer comes from scripts/ci/gate_selection.py (select_battery_gates) through
       # scripts/ci/battery_scope.py, which fails safe to the whole leg on any doubt (no diff base, a git
       # or selection error). `run=false` means this leg holds none of the selected gates.
       - name: Select the battery gates this diff touches (#6994)
@@ -1155,6 +1183,7 @@ jobs:
           PUSH_BEFORE: ${{ github.event.before }}
           MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
           ROUTING_MODE: ${{ inputs.mode || 'pr' }}
+          PROSE_ONLY: ${{ needs.prose-scan.outputs.prose_only }}
         run: |
           set -uo pipefail
           base=""
@@ -1165,6 +1194,7 @@ jobs:
           esac
           if ! answer="$(uv run --frozen --no-sync python -m scripts.ci.battery_scope select \
               --base "$base" --head "$HEAD_SHA" --mode "$ROUTING_MODE" \
+              --prose-only "${PROSE_ONLY:-false}" \
               --battery-part ${{ matrix.shard }} --out "$RUNNER_TEMP/battery-scope-gates.txt")"; then
             echo "::warning::battery scope selection failed; running the whole leg"
             answer="$(printf 'mode=full\nrun=true\ngates_file=\n')"

@@ -1,0 +1,59 @@
+{
+  "mission_slug": "prose-only-scan-scope-exemption-01M6BTRX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_ci_module_wiring.py::test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards half 2; tests/ci/test_battery_scope.py prose-selection pins",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:25:08.218990+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_battery_scope.py::test_a_prose_only_scripts_diff_runs_the_declared_scanners_across_both_legs (union == exactly the declared matches, disjoint legs)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:25:13.546944+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_ci_module_wiring.py::test_golden_non_prose_pr_lane_set_is_byte_identical_to_today; tests/ci/test_battery_scope.py::test_a_prose_only_code_diff_never_widens_to_the_whole_battery",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:25:16.547603+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_ci_config_battery_routing.py::test_dropping_the_prose_only_scan_scope_exemption_reds_the_ruling_truth_table; the #6994 planted control stays red after the change",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:25:19.690827+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "golden docstrings cite the 2026-11-01 ruling; docs/development/reference/ci-gate-mechanics.md prose-only paragraph; docs/changelog/unreleased/6999.changed.md",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:25:22.738220+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

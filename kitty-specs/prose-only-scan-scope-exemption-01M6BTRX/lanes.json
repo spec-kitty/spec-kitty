@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "prose-only-scan-scope-exemption-01M6BTRX",
+  "mission_id": "01M6BTRXVBA9JWKJHANSJ0T2TY",
+  "mission_branch": "kitty/mission-prose-only-scan-scope-exemption-01M6BTRX",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        "docs/changelog/unreleased/6999.changed.md",
+        "docs/development/reference/ci-gate-mechanics.md",
+        "kitty-specs/prose-only-scan-scope-exemption-01M6BTRX/issue-matrix.json",
+        "scripts/ci/battery_scope.py",
+        "scripts/ci/gate_selection.py",
+        "tests/ci/test_battery_scope.py",
+        "tests/ci/test_ci_config_battery_routing.py",
+        "tests/ci/test_ci_module_wiring.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T17:06:52.752272+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "287a226cfe27b32da8fedc8eb598e2c09b5731e8"
+}

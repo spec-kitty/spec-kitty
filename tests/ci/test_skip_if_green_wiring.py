@@ -355,13 +355,16 @@ def test_router_skip_context_turns_every_path_gated_job_off() -> None:
     context = _context_from_outputs("changes", _skip_context_outputs(workflow["jobs"]["changes"]))
 
     # prose-scan is NOT suppressed (it computes prose_only itself): evaluate both ways.
-    still_on_not_prose = {name for name, raw in gated.items() if eval_gh_if(raw, {**context, "prose-scan.prose_only": False})}
+    # `scan_scope_match` (#6999) is the prose exemption's companion output; it is set True here so
+    # the pin proves the exemption ALONE cannot select the battery on a skip run -- only a `changes`
+    # group can, and a skip run leaves every one of them empty.
+    still_on_not_prose = {name for name, raw in gated.items() if eval_gh_if(raw, {**context, "prose-scan.prose_only": False, "prose-scan.scan_scope_match": True})}
     assert still_on_not_prose == set(), f"a path-gated router job survives a skip run: {still_on_not_prose}"
 
     # D-35 residual, pinned EXACTLY: on a prose-only skip run, `tests-docs` (docs || prose_only)
     # still runs because prose-scan is not suppressed. Any new leak reds this test instead of
     # joining a silent allowlist.
-    still_on_prose = {name for name, raw in gated.items() if eval_gh_if(raw, {**context, "prose-scan.prose_only": True})}
+    still_on_prose = {name for name, raw in gated.items() if eval_gh_if(raw, {**context, "prose-scan.prose_only": True, "prose-scan.scan_scope_match": True})}
     assert still_on_prose == {"tests-docs"}
 
 

@@ -42,7 +42,7 @@ from typing import Any
 import pytest
 import yaml
 
-from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_gates, select_modules
+from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_battery_gates, select_gates, select_modules
 from scripts.ci.prose_only import reduced_paths
 from tests.architectural import _gate_coverage as gc
 from tests.ci._gh_if import BASE_CONTEXT_ALL_FALSE, eval_gh_if
@@ -344,10 +344,15 @@ def test_nightly_performance_lane_runs_the_removed_router_trees_performance_test
 def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(router: Router, router_workflow: dict[str, Any]) -> None:
     """SC-001 golden: a PR whose ONLY changed src is a proven prose-only
     `.py` under `merge`/`status`/`cli` down-routes to: module matrix EMPTY,
-    heavy architectural battery SKIPPED, every named code shard SKIPPED,
-    `tests-docs` RUNS, always-on lanes unaffected. Each shard's OWN group is
-    made true so the guard is proven to SUBTRACT an otherwise-selected job,
-    not merely agree with an already-off one.
+    every named code shard SKIPPED, `tests-docs` RUNS, always-on lanes unaffected.
+    Each shard's OWN group is made true so the guard is proven to SUBTRACT an
+    otherwise-selected job, not merely agree with an already-off one.
+
+    #6999 (operator ruling 2026-11-01) splits the battery half in two: a prose-only
+    diff that declares NO scan scope still skips the battery whole (the #4842
+    down-route), and a prose-only diff that touches a declared scan scope runs it,
+    scoped to the gates whose declaration matches. `src/**` declares none, so the
+    first half is this PR shape.
     """
     jobs = router_workflow["jobs"]
 
@@ -368,12 +373,26 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     context["prose-scan.prose_only"] = True
 
     assert jobs["architectural-heavy"]["needs"] == ["changes", "prose-scan"]
+    # Half 1 (#4842 + #6999): no declared scan scope -> the battery stays skipped whole.
+    assert context.get("prose-scan.scan_scope_match", False) is False
     assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
+    assert select_battery_gates([prose_path], router=router, prose_only=True) == frozenset()
+
+    # Half 2 (#6999): the SAME prose verdict with a declared scan scope RUNS the
+    # battery, scoped to the gates that declare the touched path -- never whole.
+    scoped_context = {**context, "prose-scan.scan_scope_match": True}
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], scoped_context) is True
+    declared = select_battery_gates(["scripts/release/some_helper.py"], router=router, prose_only=True)
+    assert declared, "a prose-only scripts/** diff must keep its declared scanners"
+    assert "tests/architectural/test_clock_call_ban.py" in declared
+    assert select_battery_gates(["scripts/release/some_helper.py"], router=router) == declared, (
+        "prose must not change a scope-only path's answer; only the code-group widening is exempted"
+    )
 
     assert router.code_shard_jobs, "non-vacuity: at least the battery is a code shard"
-    for shard in sorted(router.code_shard_jobs):
+    for shard in sorted(router.code_shard_jobs - {"architectural-heavy"}):
         assert jobs[shard]["needs"] == ["changes", "prose-scan"]
-        assert eval_gh_if(jobs[shard]["if"], context) is False
+        assert eval_gh_if(jobs[shard]["if"], context) is False, f"{shard} must stay down-routed for a prose-only PR"
 
     assert jobs["tests-docs"]["needs"] == ["changes", "prose-scan"]
     assert eval_gh_if(jobs["tests-docs"]["if"], context) is True
@@ -433,13 +452,18 @@ def test_golden_ci_config_only_pr_runs_the_heavy_battery_and_no_code_shard(route
 
 
 def test_golden_prose_only_ci_script_still_down_routes_the_battery(router_workflow: dict[str, Any]) -> None:
-    """C-002 golden: the prose-only subtraction still drops the battery for the new group."""
+    """C-002 golden + #6999 (operator ruling 2026-11-01): the prose-only subtraction still drops the
+    battery for a group-selected CI-config path that DECLARES no scan scope, and the declared-scope
+    exemption is what restores it (never the group alone).
+    """
     jobs = router_workflow["jobs"]
     context = dict(BASE_CONTEXT_ALL_FALSE)
     context["changes.ci_config"] = True
     context["prose-scan.prose_only"] = True
 
     assert eval_gh_if(jobs["architectural-heavy"]["if"], context) is False
+    # Same shape, now touching a declared scan scope: the ruling keeps the battery.
+    assert eval_gh_if(jobs["architectural-heavy"]["if"], {**context, "prose-scan.scan_scope_match": True}) is True
 
 
 # --- WP12 (FR-002/003/004, NFR-001/003/005): the router battery reshaping --------
