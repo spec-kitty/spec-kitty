@@ -497,6 +497,16 @@ DISPOSITIONS: dict[str, tuple[str, str]] = {
         "Its docstring contrasts ci-aggregate's skipped-tolerant verdict with ci-quality.yml's "
         "strict-success quality-gate. Both jobs still exist and the contrast still holds.",
     ),
+    "tests/ci/test_pause_ci_label.py::_REQUIRED_GATES": (
+        "none",
+        "Set-equality over the required-gate list of the pr:pause-ci contract, which names "
+        "ci-quality.yml's clean-install-verification job: under the label that job must still RUN "
+        "and fail, because a skipped required check passes. The job SURVIVES the retirement "
+        "untouched -- only the job beside it left the host -- and this file never names the "
+        "retired job, so nothing the rule asserts changes. Recorded rather than left, because "
+        "the rule entered the tree with the pause contract (#6961) and no per-PR gate re-derives "
+        "this artefact (#6998).",
+    ),
     # -- no dependency (derived false positives, recorded per the contract) ---
     "tests/architectural/test_no_duplicate_suite_execution.py::real_suite_step_host": (
         "none",
