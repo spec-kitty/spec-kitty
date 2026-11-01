@@ -1,0 +1,33 @@
+{
+  "accept_commit": "93713948212ae40e148095e7c0a7c7668d379352",
+  "acceptance_history": [
+    {
+      "accept_commit": "93713948212ae40e148095e7c0a7c7668d379352",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T18:25:31.745395+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "d176477ce0c92c6b229b49c387b2a7cefc416337"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T18:25:31.745395+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "d176477ce0c92c6b229b49c387b2a7cefc416337",
+  "baseline_merge_commit": "287a226cfe27b32da8fedc8eb598e2c09b5731e8",
+  "created_at": "2026-11-01T15:13:45.034803+00:00",
+  "flattened": false,
+  "friendly_name": "prose only scan scope exemption",
+  "merged_at": "2026-11-01T18:26:41.738008+00:00",
+  "merged_commit": "8e9533c9935f6809d552d8971d6dadfec4a1c7e4",
+  "mid8": "01M6BTRX",
+  "mission_id": "01M6BTRXVBA9JWKJHANSJ0T2TY",
+  "mission_number": 246,
+  "mission_slug": "prose-only-scan-scope-exemption-01M6BTRX",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances prose only scan scope exemption on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "prose only scan scope exemption",
+  "slug": "prose-only-scan-scope-exemption-01M6BTRX",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

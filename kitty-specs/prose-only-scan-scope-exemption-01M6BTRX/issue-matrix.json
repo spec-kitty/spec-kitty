@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#4842": {
+      "evidence_ref": "context-only: #4842 is the earlier mission that introduced the prose-only down-route this mission refines; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6994": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6996": {
+      "evidence_ref": "context-only: PR #6996 (issue #6994) added the scan_scopes declarations and scoped legs this mission builds on; already merged",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6999": {
+      "evidence_ref": "WP01: prose-only declared scan-scope exemption (battery if: + scan_scope_match companion + select_battery_gates prose narrowing + battery_scope --prose-only), pinned by tests/ci/test_battery_scope.py, test_ci_module_wiring.py, test_ci_config_battery_routing.py and the #6994 property; changelog fragment 6999.changed.md and ci-gate-mechanics.md updated",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#7000": {
+      "evidence_ref": "context-only: #7000 owns the mechanical completeness scan of the declarations; this mission is limited to declared scopes",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
