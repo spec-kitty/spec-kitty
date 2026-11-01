@@ -211,6 +211,19 @@ def test_explicit_agent_with_an_empty_tool_is_refused_before_any_write(tmp_path:
     assert h.events(m) == before
 
 
+def test_explicit_agent_with_more_than_four_segments_is_refused_before_any_write(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#6755: a compact string with more than four segments is not one — move-task refuses it with nothing written, instead of silently truncating."""
+    m = h.build_mission(tmp_path, monkeypatch)
+    before = h.events(m)
+
+    result = h.move(m, h.WP, "claimed", "a:b:c:d:e")
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid --agent value" in result.output
+    assert "Traceback" not in result.output
+    assert h.events(m) == before
+
+
 def test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A recorded ``migration:`` identity (no ``--agent``) is kept whole, so it stays a seed (#6400 review F3)."""
     from spec_kitty_events import diary
@@ -269,13 +282,18 @@ def test_explicit_migration_agent_is_parsed_strictly_and_is_not_a_seed(tmp_path:
 
 
 def test_explicit_agent_with_more_than_four_segments_parses_like_mark_status(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An explicit ``--agent`` goes through the strict builder mark-status uses, whatever its segment count."""
+    """An explicit ``--agent`` goes through the strict builder mark-status uses, whatever its segment count (#6755 re-pin: both paths refuse alike)."""
     from specify_cli.status import build_status_actor
 
     m = h.build_mission(tmp_path, monkeypatch)
+    before = h.events(m)
 
-    appended = _move_ok(m, "claimed", "a:b:c:d:e")
+    with pytest.raises(ValueError, match="Too many segments in --agent value"):
+        build_status_actor(role="implementer", agent="a:b:c:d:e", fallback_tool="user", binding=None)
 
-    expected = build_status_actor(role="implementer", agent="a:b:c:d:e", fallback_tool="user", binding=None)
-    assert expected == {"tool": "a", "role": "implementer", "profile": "c", "model": "b"}
-    assert [e["actor"] for e in _lane(appended)] == [expected]
+    result = h.move(m, h.WP, "claimed", "a:b:c:d:e")
+
+    assert result.exit_code == 1, result.output
+    assert "Invalid --agent value" in result.output
+    assert "Too many segments in --agent value" in result.output
+    assert h.events(m) == before
