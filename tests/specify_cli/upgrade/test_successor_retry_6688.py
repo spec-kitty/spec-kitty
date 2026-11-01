@@ -126,14 +126,16 @@ def test_an_unsettled_predecessor_lets_the_successor_repair_a_pre_ledger_project
     assert records[old] != "success"
 
 
+@pytest.mark.parametrize("earlier_failure", [False, True], ids=["first-repair", "after-failed-attempt"])
 @pytest.mark.parametrize("recorded", ["failed", "skipped"])
 @pytest.mark.parametrize(("old", "new"), PAIRS, ids=PAIR_IDS)
-def test_a_completed_repair_is_never_replayed(tmp_path: Path, old: str, new: str, recorded: str) -> None:
+def test_a_completed_repair_is_never_replayed(tmp_path: Path, old: str, new: str, recorded: str, earlier_failure: bool) -> None:
     """A repeated upgrade re-evaluates the successor and applies nothing: ``detect()`` is the guard.
 
     A re-evaluation that finds nothing to do must not downgrade the ``success`` the repair
     recorded to ``skipped``: the read view keeps the last record per id, so that write would
-    claim the repair never ran. The whole ledger file stays byte-identical.
+    claim the repair never ran. The whole ledger file stays byte-identical, also when the
+    successor's history is ``[failed, success]`` (an earlier attempt failed, a later one repaired).
     """
     project = _plain_project(tmp_path)
     _dirty_mission(project)
@@ -144,6 +146,9 @@ def test_a_completed_repair_is_never_replayed(tmp_path: Path, old: str, new: str
     assert _results(project, new) == ["success"]
     before = _snapshot(project / "kitty-specs")
     tracked_ledger = project / TRACKED_LEDGER_RELPATH
+    if earlier_failure:
+        failed = json.dumps(build_record(_get(new), "failed").to_dict(), ensure_ascii=False)
+        tracked_ledger.write_text(failed + "\n" + tracked_ledger.read_text(encoding="utf-8"), encoding="utf-8")
     ledger_before = tracked_ledger.read_bytes()
 
     for attempt in (2, 3):
@@ -155,6 +160,7 @@ def test_a_completed_repair_is_never_replayed(tmp_path: Path, old: str, new: str
         assert _snapshot(project / "kitty-specs") == before, attempt
         assert _results(project, new) == results_before, attempt
         assert tracked_ledger.read_bytes() == ledger_before, f"run {attempt} wrote to the tracked ledger"
+        assert _results(project, new) == ["success"], attempt
 
 
 @pytest.mark.parametrize(("old", "new"), PAIRS, ids=PAIR_IDS)

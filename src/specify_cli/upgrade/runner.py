@@ -1017,6 +1017,9 @@ class MigrationRunner:
         reporting a failure that is no longer true.
         """
         ledger = MigrationLedger(root)
+        # ``applicable_records_for`` collapses the partition to ONE record per id, the
+        # latest (``ledger._normalize_records``), so ``held`` is the latest result even
+        # for a ``[failed, success]`` history.
         held = next((record.result for record in ledger.applicable_records_for(migration) if record.id == migration.migration_id), None)
         if held == result or (result == SKIPPED_RESULT and held == SETTLED_RESULT):
             return False
