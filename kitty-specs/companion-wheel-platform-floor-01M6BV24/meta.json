@@ -1,0 +1,42 @@
+{
+  "accept_commit": "07b745fb7b5b7c258b8e5a0e8ba15ef859cfc76d",
+  "acceptance_history": [
+    {
+      "accept_commit": "32cd966f745ed5addaeaaedb148d7c2d96b16441",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-01T18:03:44.453694+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "a1ac7a71f08983717e8fd73db2dacf357a486651"
+    },
+    {
+      "accept_commit": "07b745fb7b5b7c258b8e5a0e8ba15ef859cfc76d",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-01T18:03:54.505371+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "9f4a08f84eb6446933ef28ecef0ae7ce7001add7"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-01T18:03:54.505371+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "9f4a08f84eb6446933ef28ecef0ae7ce7001add7",
+  "baseline_merge_commit": "709f4745a19c98ab2d10f0f6d98cbf3c7fe1158c",
+  "created_at": "2026-11-01T15:18:46.208064+00:00",
+  "flattened": false,
+  "friendly_name": "companion wheel platform floor",
+  "merged_at": "2026-11-01T18:05:59.659189+00:00",
+  "merged_commit": "c42fd1bb7641deb9ccb093f5a512ceb4fdaa6dbf",
+  "mid8": "01M6BV24",
+  "mission_id": "01M6BV2418PTM2W673QTQCTWPP",
+  "mission_number": 246,
+  "mission_slug": "companion-wheel-platform-floor-01M6BV24",
+  "mission_type": "software-dev",
+  "purpose_context": "The companion platform wheel tag states an OS minimum, but nothing read it from the binary. This mission measures the floor from each pinned ELF/Mach-O and refuses a wheel whose tag would understate it (#6948).",
+  "purpose_tldr": "Derive the companion wheel's platform floor from the pinned binary at build time",
+  "slug": "companion-wheel-platform-floor-01M6BV24",
+  "status_phase": "1",
+  "target_branch": "issue-6948-companion-wheel-platform-floor",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:24:10.848238+00:00"
+}
