@@ -631,8 +631,10 @@ a `pull_request` trigger by label name. So does any label change on a closed PR.
 no-op:
 
 - every job skips;
-- the required gate reports under another name (`router gate (label no-op)`), because a skipped
-  job still posts a check run and a skipped required check passes;
+- the required gate never posts under its required name, because a skipped job still posts a
+  check run and a skipped required check passes. In a no-op run the gate's `name:` expression
+  differs from the required name, and GitHub posts a skipped job under the raw text of that
+  expression (seen on #7047), so the row reads `(github.event.action == 'labeled' || ...)`;
 - the run has its own concurrency group, so it never cancels the real run;
 - the CI Aggregate run it triggers skips every job, and the fleet verdict does not read it as
   evidence.
