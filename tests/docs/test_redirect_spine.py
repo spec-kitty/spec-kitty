@@ -1,30 +1,22 @@
-"""Regen-reproduces-all guard for the collapsed cumulative redirect spine.
+"""Regen-reproduces-all guard for the redirect history, now held by the moves ledger.
 
-WP03 / IC-02 / OB-1 of the Common Docs Convergence mission
-(``common-docs-convergence-01KZMTR9``). This mission authors its
-``occurrence_map.yaml`` as a **collapsed cumulative spine**: it carries the closed
-``common-docs-structural-move-01KW3SBK`` mission's redirect entries forward so a
-single ``regenerate-map`` run (the tool OVERWRITES the whole map from ONE
-occurrence-map and ``_relocate`` is single-move — no additive merge, no transitive
-closure) reproduces **every** prior baseline redirect PLUS the new ones, with **no
-coverage regression** (NFR-010).
+The closed Common Docs Missions (``common-docs-structural-move-01KW3SBK``, then
+``common-docs-convergence-01KZMTR9``) kept their redirects in Mission-scoped
+``occurrence_map.yaml`` spines, re-collapsed by hand each time. Mission
+``docsite-url-ledgers-01M6BRMR`` (#6927, absorbs #2358) moved that history into
+the standing, append-only ledger ``site/moves.yaml``; ``regenerate-map`` now
+derives ``redirect_map.yaml`` from it and collapses chains itself.
 
-These tests are the "regen reproduces all 149" guard from plan OB-1. They are
-deliberately **non-vacuous**:
+These tests keep the historical guarantees, derived from the ledger:
 
-* :data:`FROZEN_PRIOR_REDIRECT_KEYS` is a frozen snapshot of the closed mission's
-  149 redirect keys — a historical guarantee that does **not** move even after
-  WP13 (IC-11) regenerates the committed ``redirect_map.yaml`` to the collapsed
-  163-entry shape. Every one of those baseline URLs MUST remain covered.
-* :func:`test_empty_moves_regresses_coverage` proves the reproduce-all assertion
-  has teeth: with an empty move spine the frozen keys are **not** reproduced.
-
-The one intentional value shift is the **archive twice-move**: this mission
-relocates ``docs/archive/`` -> ``docs/changelog`` (WP12), and the prior spine had
-redirected the ``1x``/``2x`` shadow URLs *into* ``docs/archive``. Carrying those
-verbatim would point 13 redirects at a now-dead ``archive/`` target, so the spine
-collapses them one hop further to ``changelog/{1x,2x}`` (baseline path -> FINAL
-dest). :func:`test_archive_twice_move_is_composed_to_changelog` locks that in.
+* :data:`FROZEN_PRIOR_REDIRECT_KEYS` is a frozen snapshot of the structural-move
+  Mission's 149 redirect keys. Every one must still be derived.
+* The ``docs/archive`` -> ``docs/changelog`` twice-move stays composed: the
+  ``1x``/``2x`` shadow URLs point at ``changelog/``, never at a dead ``archive/``.
+* :func:`test_empty_ledger_regresses_coverage` proves the reproduce-all assertion
+  has teeth.
+* :func:`test_tool_default_is_the_standing_ledger` pins the closure of #2358: the
+  default input is ``site/moves.yaml``, not a Mission's occurrence map.
 """
 
 from __future__ import annotations
@@ -33,16 +25,18 @@ from pathlib import Path
 
 import pytest
 
+import scripts.docs.redirect_stub_generator as generator
+from scripts.docs.moves_ledger import (
+    DEFAULT_MOVES_LEDGER,
+    Move,
+    derive_redirect_map,
+    load_moves,
+)
 from scripts.docs.redirect_stub_generator import (
     DEFAULT_BASELINE,
-    DEFAULT_OCCURRENCE_MAP,
-    MISSION_SLUG,
-    Move,
     check_coverage,
-    derive_redirect_map,
     generate,
     load_baseline,
-    load_moves,
     load_redirect_map,
 )
 
@@ -52,9 +46,6 @@ pytestmark = pytest.mark.fast
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _COMMITTED_REDIRECT_MAP = _REPO_ROOT / "scripts" / "docs" / "redirect_map.yaml"
 
-# This mission's slug — the tool default must point here (WP03 T009), never at the
-# closed structural-move mission.
-_THIS_MISSION_SLUG = "common-docs-convergence-01KZMTR9"
 
 # The 14 currently-live ``archive/*`` baseline pages the ``docs/archive`` ->
 # ``docs/changelog`` move (WP12) relocates — brand-new redirect keys this mission
@@ -258,13 +249,13 @@ def _baseline() -> list[str]:
     return paths
 
 
-def _mission_moves() -> list[Move]:
-    return load_moves(DEFAULT_OCCURRENCE_MAP)
+def _ledger_moves() -> list[Move]:
+    return load_moves(DEFAULT_MOVES_LEDGER)
 
 
 def _derived() -> dict[str, str]:
-    """Regenerate the redirect map from the immutable baseline + THIS spine."""
-    return derive_redirect_map(_baseline(), _mission_moves())
+    """Regenerate the redirect map from the standing moves ledger."""
+    return derive_redirect_map(_ledger_moves())
 
 
 def _stage_full_site(tmp_path: Path, baseline: list[str], derived: dict[str, str]) -> Path:
@@ -363,18 +354,21 @@ def test_coverage_reports_zero_dead_targets(tmp_path: Path) -> None:
 # --- Teeth: the reproduce-all assertion is not vacuous ---
 
 
-def test_empty_moves_regresses_coverage() -> None:
-    """With no move spine, the frozen prior redirects are NOT reproduced — proving
+def test_empty_ledger_regresses_coverage() -> None:
+    """With no ledger entries, the frozen prior redirects are NOT reproduced — proving
     :func:`test_regen_reproduces_every_prior_baseline_redirect` can actually fail."""
-    empty = derive_redirect_map(_baseline(), [])
+    empty = derive_redirect_map([])
     assert not set(FROZEN_PRIOR_REDIRECT_KEYS) <= set(empty)
 
 
-# --- WP03 T009: the tool default no longer points at the closed mission ---
+# --- #2358: the default input is the standing ledger, not a Mission's map ---
 
 
-def test_tool_default_targets_this_convergence_mission() -> None:
-    assert MISSION_SLUG == _THIS_MISSION_SLUG
-    assert MISSION_SLUG != "common-docs-structural-move-01KW3SBK"
-    assert DEFAULT_OCCURRENCE_MAP.name == "occurrence_map.yaml"
-    assert _THIS_MISSION_SLUG in str(DEFAULT_OCCURRENCE_MAP)
+def test_tool_default_is_the_standing_ledger() -> None:
+    assert DEFAULT_MOVES_LEDGER.parts[-2:] == ("site", "moves.yaml")
+    module_strings = [
+        str(value) for value in vars(generator).values() if isinstance(value, (str, Path))
+    ]
+    assert not [value for value in module_strings if "kitty-specs" in value]
+    assert not hasattr(generator, "MISSION_SLUG")
+    assert not hasattr(generator, "DEFAULT_OCCURRENCE_MAP")

@@ -1,7 +1,19 @@
 {
   "rows": {
+    "#2350": {
+      "evidence_ref": "cited for context only (historical PR/reference); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#2358": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 928e5364c closes it for redirect_stub_generator.py; WP02 covers the remaining scripts",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +21,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP02"
     },
     "#3914": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "928e5364c: 124 #3914 moves in site/moves.yaml section (b)+(c); test_issue_3914_forward_reconcile_clean green",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,11 +33,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#6100": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -33,11 +45,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6926": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,11 +57,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6927": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "WP01 928e5364c delivers the ledgers; remaining WPs in this Mission",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,11 +69,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#6928": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "S-4 scope of this Mission (later WP)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -69,11 +81,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "in-mission",
       "wp": null
     },
     "#6929": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -81,11 +93,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6930": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -93,11 +105,11 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6933": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -105,11 +117,23 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6939": {
+      "evidence_ref": "cited for context only (historical PR/reference); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
       "wp": null
     },
     "#6993": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,7 +141,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     }
   },
