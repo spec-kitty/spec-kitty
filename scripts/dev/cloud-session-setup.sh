@@ -69,9 +69,18 @@ if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
     tools_dir="${XDG_CACHE_HOME:-$HOME/.cache}/spec-kitty/acceptance-jvm-tools"
     gradle_bin="$tools_dir/gradle-$gradle_version/bin"
     if [ ! -x "$gradle_bin/gradle" ]; then
-      uv run --frozen --no-sync python contracts/tools/install_tools.py \
-        --pins acceptance-jvm/tools/pins.json --dest "$tools_dir" --only gradle \
-        || echo "note: the pinned Gradle $gradle_version could not be installed; acceptance-jvm needs it on Java 25."
+      # install_tools.py is the pinned contract-tools extra of spec-kitty-events (#6915).
+      contract_tools=""
+      if PYTHONPATH="$PWD/src" uv run --frozen --no-sync python scripts/sync_services.py --service all --extras-only; then
+        contract_tools="$(PYTHONPATH="$PWD/src" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools" || contract_tools=""
+      fi
+      if [ -n "$contract_tools" ]; then
+        uv run --frozen --no-sync python "$contract_tools/install_tools.py" \
+          --pins acceptance-jvm/tools/pins.json --dest "$tools_dir" --only gradle \
+          || echo "note: the pinned Gradle $gradle_version could not be installed; acceptance-jvm needs it on Java 25."
+      else
+        echo "note: the pinned contract tools could not be fetched (scripts/sync_services.py); the pinned Gradle $gradle_version was not installed."
+      fi
     fi
     if [ -x "$gradle_bin/gradle" ]; then
       lines+=("export PATH=\"$gradle_bin:\$PATH\"")

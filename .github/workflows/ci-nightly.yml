@@ -1464,10 +1464,10 @@ jobs:
   #
   # Gradle is the pinned 8.14.5 distribution (acceptance-jvm/tools/pins.json),
   # downloaded + sha256-checked + $GITHUB_PATH-wired by the shared, reused
-  # contracts/tools/install_tools.py (single canonical installer, not copied --
-  # DM-01M4P2B3). JDK 25 via actions/setup-java (temurin), diverging from
-  # contracts/ (Java 21) on purpose. A pin-guard pre-step runs the generalized
-  # contracts/tools/gradle_pin_check.py once (on the Linux leg). For acceptance-jvm
+  # install_tools.py of the pinned contract-tools extra of spec-kitty-events (#6915;
+  # single canonical installer, not copied -- DM-01M4P2B3). JDK 25 via actions/setup-java
+  # (temurin). A pin-guard pre-step runs the pinned gradle_pin_check.py through
+  # scripts/ci/acceptance_jvm_gradle_pin_check.py once (on the Linux leg). For acceptance-jvm
   # it checks only that the pins.json Gradle url carries the pinned version (and
   # a gradle-version input of this job, which it does not have today); the build
   # declares no Gradle version, so it does not compare the installed Gradle to
@@ -1510,16 +1510,24 @@ jobs:
         shell: bash
         run: uv sync --frozen --no-install-project
 
-      # Pin-guard pre-step (NFR-003), run ONCE on the Linux leg: the generalized
-      # gradle_pin_check.py checks that the acceptance-jvm/tools/pins.json Gradle
-      # url carries the pinned version (and, if this job ever gains one, that its
-      # gradle-version input equals it). It does not compare the build, which
+      # The contract tools (gradle_pin_check.py, install_tools.py) are the pinned contract-tools
+      # extra of spec-kitty-events (#6915), fetched, verified and unpacked here (~230 KB, cached on the pin hash).
+      - name: Sync the pinned service extras (contract tools)
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
+
+      # Pin-guard pre-step (NFR-003), run ONCE on the Linux leg: the pinned gradle_pin_check.py,
+      # through scripts/ci/acceptance_jvm_gradle_pin_check.py (its check_acceptance_jvm only: the
+      # tool's bare run also scans a contracts/ JVM subproject core no longer has), checks that the
+      # acceptance-jvm/tools/pins.json Gradle url carries the pinned version (and, if this job ever
+      # gains one, that its gradle-version input equals it). It does not compare the build, which
       # declares no Gradle version. A mismatch fails this step under the single
       # GRADLE_PIN_MISMATCH authority. Stdlib + PyYAML, so it is cheap.
       - name: Verify the acceptance-jvm Gradle pins equal pins.json
         if: matrix.os == 'ubuntu-24.04'
         shell: bash
-        run: uv run --frozen --no-sync python contracts/tools/gradle_pin_check.py
+        run: uv run --frozen --no-sync python scripts/ci/acceptance_jvm_gradle_pin_check.py
 
       - name: Set up JDK 25 (Temurin)
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
@@ -1529,7 +1537,10 @@ jobs:
 
       - name: Install the pinned Gradle (checksum verified before it runs)
         shell: bash
-        run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+        run: |
+          set -euo pipefail
+          tools="$(PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
+          uv run --frozen --no-sync python "$tools/install_tools.py" --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
 
       # GATING run: the ratified scenarios (`-Pacceptance.pass=gating` selects
       # `not @wip and not @manual` and its own build/acceptance/gating/ folder) with
@@ -1829,13 +1840,87 @@ jobs:
           echo "events-latest suite passed (exit 0)."
 
   # ---------------------------------------------------------------------------
+  # mission-status-corpus (#6915, research D-7): the full-corpus compare of the Python oracle
+  # (tests/contract/_mission_status_*.py) with the read-service build core pins (pins/read-service.source.yaml,
+  # ADR 2026-10-29-1 D-6), no exemptions (scripts/ci/mission_status_corpus_compare.py, E-10). It re-homes
+  # mission-status-api.yml's `nightly-corpus`, which built the jar from services/; spec-kitty-events runs its own
+  # jar-based nightly. The sync-services action fetches the host's native binary (and the extras the oracle reads),
+  # so the job needs no JDK and no Gradle. Measured locally (2026-11-01): 677 Missions compared in a few minutes,
+  # 678 rows equal, 0 rows not equal; the binary answered /api/v1/project in about 1 s. Pinned by
+  # tests/ci/test_nightly_mission_status_corpus.py.
+  # ---------------------------------------------------------------------------
+  mission-status-corpus:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
+    name: Mission status corpus compare (pinned read-service binary vs Python oracle, nightly-only)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # A real .git is required: the oracle reads the worktree registry and the corpus is `git ls-files`.
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the fully synced environment (the oracle module imports the test extras)
+        run: uv sync --frozen --all-extras
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
+      # Not extras-only: the host's native read-service build, plus the contract bundle, tools and fixtures.
+      - name: Sync the pinned service build and extras
+        uses: ./.github/actions/sync-services
+      - name: Locate the pinned native binary in the cache
+        run: |
+          set -euo pipefail
+          PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python - >> "$GITHUB_ENV" <<'PY'
+          from pathlib import Path
+
+          from kernel.service_artifacts import cached_path, default_cache_root
+          from kernel.service_hosts import host_target, select_build
+          from kernel.service_pin import PINS_DIR, ServiceTarget, load_service_pin, pin_file
+
+          pin = load_service_pin(pin_file(Path(PINS_DIR), "read-service"))
+          build = select_build(pin, host_target())
+          if build is None or build.target == ServiceTarget.JVM:
+              raise SystemExit("no native read-service build is pinned for this runner")
+          print(f"SERVICE_BIN={cached_path(pin, build.asset, default_cache_root())}")
+          PY
+      - name: Start the pinned service against this checkout
+        run: |
+          set -eu
+          test -x "$SERVICE_BIN"
+          "$SERVICE_BIN" --mission-status.project-root="$GITHUB_WORKSPACE" --mission-status.port=8787 > "$RUNNER_TEMP/service.log" 2>&1 &
+          echo "SERVICE_PID=$!" >> "$GITHUB_ENV"
+      # The script polls the project route every 2 s for at most 60 s and exits non-zero when the service never answers.
+      - name: Compare every Mission, Python against the service
+        run: uv run --frozen --no-sync python scripts/ci/mission_status_corpus_compare.py --base-url http://127.0.0.1:8787 --repo-root "$GITHUB_WORKSPACE" --report "$RUNNER_TEMP/nightly-report.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: nightly-mission-status-corpus-report
+          path: |
+            ${{ runner.temp }}/nightly-report.json
+            ${{ runner.temp }}/service.log
+          if-no-files-found: warn
+          overwrite: true
+      # Stops the process by the recorded PID, never by a pattern.
+      - name: Stop the service
+        if: always()
+        run: |
+          if [ -n "${SERVICE_PID:-}" ]; then kill "$SERVICE_PID" || true; fi
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, events-latest, acceptance-bdd, acceptance-bdd-escalation]
+    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit, events-latest, acceptance-bdd, acceptance-bdd-escalation, mission-status-corpus]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -1861,3 +1946,4 @@ jobs:
           echo "events-latest: ${{ needs.events-latest.result }}"
           echo "acceptance-bdd: ${{ needs.acceptance-bdd.result }}"
           echo "acceptance-bdd-escalation: ${{ needs.acceptance-bdd-escalation.result }}"
+          echo "mission-status-corpus: ${{ needs.mission-status-corpus.result }}"

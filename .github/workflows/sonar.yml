@@ -249,12 +249,41 @@ jobs:
           distribution: temurin
           java-version: '25'
 
-      - name: Install the pinned Gradle (checksum verified before it runs)
-        id: gradle
+      # install_tools.py is the pinned contract-tools extra of spec-kitty-events (#6915): the locked Python
+      # environment runs scripts/sync_services.py, which fetches, verifies and unpacks it. Soft like the JDK step:
+      # if any of these fails, the Python scan still runs.
+      - name: Install uv for the pinned contract tools
+        id: uv
         if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.jdk.outcome == 'success'
         continue-on-error: true
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+
+      - name: Install the locked Python environment for the pinned contract tools
+        id: pyenv
+        if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.uv.outcome == 'success'
+        continue-on-error: true
         shell: bash
-        run: python3 contracts/tools/install_tools.py --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+        run: uv sync --frozen --no-install-project
+
+      - name: Sync the pinned service extras (contract tools)
+        id: service_extras
+        if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.pyenv.outcome == 'success'
+        continue-on-error: true
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
+
+      - name: Install the pinned Gradle (checksum verified before it runs)
+        id: gradle
+        if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.service_extras.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          tools="$(PYTHONPATH="$GITHUB_WORKSPACE/src" uv run --frozen --no-sync python scripts/sync_services.py --extras-path read-service:contract_tools)/contracts/tools"
+          uv run --frozen --no-sync python "$tools/install_tools.py" --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
 
       - name: Compile the acceptance-jvm Java for analysis
         id: java
