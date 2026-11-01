@@ -7,11 +7,14 @@ every refusal. Refusal-code parity is checked three ways: the contract, the clie
 (``specify_cli.status.write_service_protocol``) and the inventory
 ``tests/contract/fixtures/mission_write_refusal_parity.yaml`` agree, and every code that claims
 a CLI origin is found verbatim in the CLI file the inventory cites. The client shapes' serialized
-requests and the module's examples validate against the resolved schemas.
+requests and the module's examples validate against the resolved schemas. The transport paths the
+launcher's client sends are pinned to the contract's ``servers`` url plus a path it declares
+(#6910), with a positive control that a bare or doubled path is reported.
 """
 
 from __future__ import annotations
 
+import ast
 import subprocess
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
@@ -34,6 +37,7 @@ TOOLS_DIR = REPO_ROOT / "contracts" / "tools"
 MODULE_DIR = REPO_ROOT / "contracts" / "mission-write"
 EXAMPLES_DIR = MODULE_DIR / "examples"
 PARITY_FILE = Path(__file__).resolve().parent / "fixtures" / "mission_write_refusal_parity.yaml"
+CLIENT_SOURCE = REPO_ROOT / "src" / "specify_cli" / "services" / "client.py"
 
 OPERATIONS = {
     ("/handshake", "get"): "handshake",
@@ -108,6 +112,69 @@ def test_every_operation_requires_the_bearer_token(tree: dict[str, Any]) -> None
     assert tree["security"] == [{"writeToken": []}]
     for path, method, operation in _operations(tree):
         assert "security" not in operation, f"{method} {path} overrides the root security requirement"
+
+
+# -- the client's transport paths (#6910) -----------------------------------------
+
+_HTTP_METHODS = frozenset({"get", "post", "put", "patch", "delete"})
+
+
+def path_violation(tree: Mapping[str, Any], path: str) -> str:
+    """Why *path* is not the contract's server url followed by a path it declares ('' when it is)."""
+    prefix = tree["servers"][0]["url"]
+    if any(path == f"{prefix}{declared}" for declared in tree["paths"]):
+        return ""
+    if not path.startswith(f"{prefix}/"):
+        return f"{path!r} is not under the contract's server prefix {prefix!r}"
+    return f"{path!r} is not {prefix!r} followed by a path the contract declares"
+
+
+def _service_paths(tree: Mapping[str, Any]) -> set[str]:
+    """The declared paths tagged ``Service``: the operations the launcher's client sends."""
+    return {
+        path for path, item in tree["paths"].items() if any("Service" in operation.get("tags", ()) for method, operation in item.items() if method in _HTTP_METHODS)
+    }
+
+
+def test_the_client_prefix_is_the_contracts_server_url(tree: dict[str, Any]) -> None:
+    assert tree["servers"][0]["url"] == wsp.API_PREFIX
+
+
+def test_every_path_the_client_sends_is_a_declared_path_under_that_prefix(tree: dict[str, Any]) -> None:
+    sent = (wsp.HANDSHAKE_PATH, wsp.HEALTH_PATH, wsp.SHUTDOWN_PATH)
+
+    assert [path_violation(tree, path) for path in sent] == ["", "", ""]
+    assert {path.removeprefix(wsp.API_PREFIX) for path in sent} == _service_paths(tree)
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/handshake", pytest.param(f"{wsp.API_PREFIX}{wsp.HANDSHAKE_PATH}", id="doubled-prefix")],
+)
+def test_the_path_check_reports_a_path_outside_the_contract(tree: dict[str, Any], path: str) -> None:
+    assert path_violation(tree, path)
+
+
+def _client_transport_arguments() -> tuple[list[ast.expr], list[str]]:
+    """The arguments the client passes to its transport (``_get``/``_request``), and the path constants among them."""
+    module = ast.parse(CLIENT_SOURCE.read_text(encoding="utf-8"))
+    arguments = [
+        argument
+        for node in ast.walk(module)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr in {"_get", "_request"}
+        for argument in node.args
+    ]
+    constants = [argument.id for argument in arguments if isinstance(argument, ast.Name) and argument.id.endswith("_PATH")]
+    return arguments, constants
+
+
+def test_the_client_sends_the_pinned_constants_and_no_path_literal(tree: dict[str, Any]) -> None:
+    """A future operation written with a literal, or with an unpinned constant, fails here (#6910)."""
+    arguments, constants = _client_transport_arguments()
+
+    assert [argument for argument in arguments if isinstance(argument, ast.Constant) and isinstance(argument.value, str)] == []
+    assert sorted(constants) == ["HANDSHAKE_PATH", "HEALTH_PATH", "SHUTDOWN_PATH"]
+    assert [path_violation(tree, getattr(wsp, name)) for name in sorted(constants)] == ["", "", ""]
 
 
 UNVERSIONED_OPERATIONS = frozenset({"handshake", "getHealth"})

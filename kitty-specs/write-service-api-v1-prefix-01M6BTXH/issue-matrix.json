@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6195": {
+      "evidence_ref": "Context citation only: #6195 is the EventBridge lane-transition cut-over that will consume these path constants; out of scope here (spec C-002, the issue allows landing before it).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6910": {
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/pull/7024 (fix(6910) 5331174 + the contract path pin)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
