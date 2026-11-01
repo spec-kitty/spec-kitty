@@ -1173,3 +1173,45 @@ def test_the_fixture_writer_writes_files_lanes_and_tasks_md_and_writes_none_by_d
     assert (full / "blob.bin").read_bytes() == blob, "a bytes value is written as bytes"
     assert json.loads((full / "lanes.json").read_text(encoding="utf-8")) == {"version": 1, "lanes": []}
     assert (full / "tasks.md").read_text(encoding="utf-8") == "# Tasks\n"
+
+
+# ---------------------------------------------------------------------------
+# The oracle reads the pinned spec-kitty-events extras, never a contract copy in this checkout (#6915, FR-007)
+# ---------------------------------------------------------------------------
+
+#: The files that load the mission-status / mission-write contracts or the contract tools (WP03 of #6915).
+PINNED_CONTRACT_READERS = (
+    "tests/contract/_mission_status_payloads.py",
+    "tests/contract/_mission_status_detail.py",
+    "tests/contract/test_mission_status_payloads.py",
+    "tests/contract/test_mission_status_detail.py",
+    "tests/contract/test_mission_status_drift.py",
+    "tests/contract/test_mission_status_ops.py",
+    "tests/contract/test_mission_status_project.py",
+    "tests/contract/test_mission_status_reality.py",
+    "tests/contract/test_mission_status_artifacts.py",
+    "tests/contract/test_mission_write_contract.py",
+    "tests/architectural/test_scenario_contract.py",
+    "scripts/ci/mission_status_corpus_compare.py",
+)
+
+
+def _local_contract_spellings() -> tuple[str, ...]:
+    """The spellings of a read of the local ``contracts/`` copy, assembled so this source does not match itself."""
+    root = "contracts"
+    quoted = '"' + root + '"'
+    return (
+        root + "/mission-status",
+        root + "/mission-write",
+        root + "/tools",
+        quoted + ' / "mission-status"',
+        quoted + ' / "mission-write"',
+        quoted + ' / "tools"',
+    )
+
+
+@pytest.mark.parametrize("relative", PINNED_CONTRACT_READERS)
+def test_no_contract_reader_reads_the_local_contracts_copy(relative: str) -> None:
+    text = (REPO_ROOT / relative).read_text(encoding="utf-8")
+    hits = [spelling for spelling in _local_contract_spellings() if spelling in text]
+    assert hits == [], f"{relative} still reads the local contracts/ copy ({hits}); read the pinned extras (tests/pinned_service_assets.py)"
