@@ -7,7 +7,8 @@ Three docs surfaces are generated from the ``docs/`` tree:
 * the page inventory, ``docs/development/page-inventory.yaml``
   (``scripts/docs/inventory_lockfile.py``);
 * the ADR era tables, the ``| Date | Title |`` rows of ``docs/adr/<era>/index.md``
-  (``scripts/docs/freshen_adr_inventory.py --all``).
+  (``scripts/docs/freshen_adr_inventory.py --all --prune``: a missing row is added, a
+  row whose ADR was renamed or deleted is removed).
 
 Every docs pull request used to regenerate them, so every merge conflicted every other
 docs pull request in flight. They are now regenerated on ``main`` after a merge and
@@ -74,6 +75,9 @@ __all__ = [
 #: The PAT secret NAME (never a value). Shared, for now, with ``ci-shard-recapture.yml``;
 #: a dedicated secret is tracked in spec-kitty/spec-kitty#6986. Never ``GITHUB_TOKEN``.
 SECRET_NAME = "CHARTER_SHARD_RECAPTURE_TOKEN"  # noqa: S105  # env-var name, not a secret value
+
+#: The repository the bot proposes to; a fork skips the publish phase.
+CORE_REPOSITORY = "spec-kitty/spec-kitty"
 
 PHASE_REGENERATE = "regenerate"
 PHASE_PUBLISH = "publish"
@@ -145,6 +149,7 @@ def regenerate(repo_root: Path) -> None:
     from scripts.docs import docs_index, freshen_adr_inventory
 
     docs_root = repo_root / "docs"
+    freshen_adr_inventory.prune_dangling_rows(docs_root)  # renamed/deleted ADRs drop their row
     targets = freshen_adr_inventory.detect_missing_adrs(docs_root)
     freshen_adr_inventory.freshen(targets, docs_root=docs_root, repo_root=repo_root, check=False)
     docs_index.run_generate_and_compare(
@@ -221,6 +226,11 @@ def _push(token: str) -> None:
 
 def run_publish_phase() -> int:
     """Commit the regenerated surfaces, force-push the fixed branch, open a PR if none is."""
+    if not os.environ.get(SECRET_NAME) and os.environ.get("GITHUB_REPOSITORY", "") != CORE_REPOSITORY:
+        # A fork's dispatch has no secret and nowhere to propose to; on the core
+        # repository a missing secret is a misconfiguration and fails loud below.
+        print(f"::notice::{SECRET_NAME} is not available outside {CORE_REPOSITORY}; skipping the proposal")
+        return 0
     token = bot_pr_publish.require_token(SECRET_NAME)  # First action, before any gh/git call.
     no_credential_env = bot_pr_publish.scrubbed_env(_TOKEN_ENV_VARS)
     changes = _changed_paths(no_credential_env)

@@ -49,8 +49,9 @@ __all__ = [
 DEFAULT_INDEX_PATH: Final[str] = "docs/development/docs-retrieval-index.yaml"
 
 _INDEX_HEADER: Final[str] = (
-    "# GENERATED — do not edit by hand; run scripts/docs/docs_index.py --write "
-    "to refresh.\n"
+    "# GENERATED — do not edit by hand, and do not regenerate it in a pull request:\n"
+    "# the ci/regen-docs-index bot pull request regenerates it on main after merge\n"
+    "# (.github/workflows/docs-index-regen.yml).\n"
     "# Common Docs retrieval index: title / heading-anchor / abstract per page.\n"
     "# Sorted alphabetically by `path` for a deterministic, byte-stable diff.\n"
 )
