@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: docsite-frontmatter-migration-01M6BRJK
 mission_id: 01M6BRJK82753H4QXJBGCYVQ12
-generated_at: '2026-11-01T15:50:44.219160+00:00'
+generated_at: '2026-11-01T16:35:31.254757+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: kitty-specs/docsite-frontmatter-migration-01M6BRJK/spec.md
-    sha256: 88af08bfed3b4006e4307d8aaaa88c767fc174e2d7ac52296df7c332229f4ce9
+    sha256: ccf83341d7ea15a9b7b3578217c929297d9130d3b645ddfe3649531d3b88962f
   plan.md:
     path: kitty-specs/docsite-frontmatter-migration-01M6BRJK/plan.md
     sha256: 198ade32b3725a3ed36f6295ed58818a059c92181e43a596439bbb5000765153
@@ -21,39 +21,29 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
-  critical: 0
-  low: 2
+  medium: 1
   high: 0
-  medium: 2
+  low: 1
+  critical: 0
   info: 0
 findings:
 - id: I1
   severity: medium
   category: inconsistency
-  summary: FR-001 says the body hash compares the base and the working tree; research R-5 and WP01 compare before/after the migration in memory, with --verify-against covering the base comparison.
-- id: C1
-  severity: medium
-  category: coverage
-  summary: NFR-002 (docs query unchanged) has no explicit task; fold into WP03 T015 as a before/after query comparison.
-- id: I2
-  severity: low
-  category: inconsistency
-  summary: WP03 T011's shape-test wording predates the FR-006/FR-009 amendment (source-aware related rule); implement the amended FR-009.
+  summary: FR-001 says base vs working tree; implemented as in-memory before/after plus --verify-against (merge-base), per research R-5.
 - id: G1
   severity: low
   category: process
   summary: CLI auto-commits lack the operator-required Co-Authored-By trailer; fix during compaction.
 ---
 
-## Specification Analysis Report (re-run after the FR-006/FR-009 amendment)
+## Specification Analysis Report (re-run after the excluded-folder decision)
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
-| I1 | Inconsistency | MEDIUM | spec.md FR-001; research.md R-5 | Body-hash comparison point | Implemented per R-5; state it in the PR. |
-| C1 | Coverage | MEDIUM | spec.md NFR-002; WP03 T015 | No explicit docs-query comparison | Compare 3 queries before/after in WP03. |
-| I2 | Inconsistency | LOW | tasks/WP03 T011 vs spec FR-009 | Shape-test wording predates the amendment | Follow FR-009 as amended (DM 01M6BW2S981SKQWXKCBNQD8RBW). |
+| I1 | Inconsistency | MEDIUM | spec.md FR-001; research.md R-5 | Body-hash comparison point | State the reading in the PR. |
 | G1 | Process | LOW | git history | Missing co-author trailer on CLI commits | Fix in compaction. |
 
-**Coverage:** all 11 FRs, 4 NFRs mapped (NFR-002 partial, C1). **Charter alignment:** no issues. **Metrics:** 15 requirements, 18 tasks, coverage 100%, critical 0.
+C1 (NFR-002) is closed: the docs retrieval index regenerated from the migrated tree equals the base's. I2 is closed: the shape test implements FR-009 as amended. The excluded-folder decision (DM 01M6BZ0JPAYWD42A3GB4PYSTNA) is reflected in spec Assumptions, FR-006 and data-model.md.
 
-**Next Actions:** proceed with WP02.
+**Coverage:** 11/11 FR, 4/4 NFR. **Charter:** no issues. **Next:** WP04.
