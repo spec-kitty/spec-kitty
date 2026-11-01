@@ -1,0 +1,33 @@
+{
+  "accept_commit": "6e5f6707af605edc5ec1399c2af6c8178ab43eb3",
+  "acceptance_history": [
+    {
+      "accept_commit": "6e5f6707af605edc5ec1399c2af6c8178ab43eb3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:56:03.136795+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "7aa4c95f1fb1142b6a51afbffd138a89bfe999ce"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:56:03.136795+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "7aa4c95f1fb1142b6a51afbffd138a89bfe999ce",
+  "baseline_merge_commit": "360562076d1b0480fecbfb542d340943f12aae8f",
+  "created_at": "2026-11-01T15:19:08.682397+00:00",
+  "flattened": false,
+  "friendly_name": "dispatch brief governance payload",
+  "merged_at": "2026-11-01T17:56:18.587036+00:00",
+  "merged_commit": "360562076d1b0480fecbfb542d340943f12aae8f",
+  "mid8": "01M6BV2S",
+  "mission_id": "01M6BV2SYWQE557DQQTXSMXWXE",
+  "mission_number": 246,
+  "mission_slug": "dispatch-brief-governance-payload-01M6BV2S",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances dispatch brief governance payload on issue-6990-dispatch-brief-governance-payload so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "dispatch brief governance payload",
+  "slug": "dispatch-brief-governance-payload-01M6BV2S",
+  "status_phase": "1",
+  "target_branch": "issue-6990-dispatch-brief-governance-payload",
+  "topology": "single_branch"
+}
