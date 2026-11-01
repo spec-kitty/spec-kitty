@@ -2,7 +2,7 @@
 title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-10-12'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -79,6 +79,17 @@ five things about that pipeline are worth knowing before you read a red check:
   [Skip-if-green on ready-for-review](#skip-if-green-on-ready-for-review) below
   and the amendment to
   [ADR 2026-09-23-1](../../adr/3.x/2026-09-23-1-auto-merge-required-checks-gate.md).
+
+- **The merge queue runs the required checks again.** `ci-router.yml`,
+  `ci-modules.yml` and `ci-quality.yml` also trigger on `merge_group`, so the
+  three required checks report on the queue's temporary
+  `gh-readonly-queue/main/...` ref, which holds `main` plus the PRs ahead in
+  the queue. The changed-files and prose-scan steps diff a queue run against
+  `github.event.merge_group.base_sha`, so it is path-scoped like the PR run.
+  Skip-if-green never applies there, the `pr:*` label guards read no labels, CI
+  Aggregate skips queue runs (diff coverage was judged on the PR), and no
+  optional workflow joins the queue. `tests/ci/test_merge_queue_wiring.py` pins
+  this.
 
 The rest of this page groups gates by the change that trips them.
 

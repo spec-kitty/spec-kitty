@@ -568,10 +568,15 @@ changelog) go in this comment too, addressed to the author.
 
 ## 11. Hand-off — the operator merges
 
-The operator merges. A landing pass asks once at its start whether to arm
-auto-merge (`gh pr merge <N> --rebase --auto`) when the PR is merge-ready; the
+The operator merges. `main` merges through GitHub's merge queue: the queue
+tests each PR on `main` plus the PRs ahead of it and rebase-merges it when the
+required checks pass there, so a PR that went `CONFLICTING` or stale after
+another merge needs no manual rebase and CI re-run. A landing pass asks once at
+its start whether to queue the PR when it is merge-ready
+(`gh pr merge <N> --auto` adds it to the queue once its own checks pass); the
 default is not to, and without an explicit yes for that run nobody but the
-operator runs `gh pr merge`. The hand-off deliverable is:
+operator queues or merges. Do not push to a queued PR: a push removes it from
+the queue and rebuilds every group behind it. The hand-off deliverable is:
 
 - green CI;
 - the PR ready for review (the author flipped it, or the operator told you to land
