@@ -1,7 +1,7 @@
 # Discovery Findings — #6990 dispatch `--brief` governance payload
 
 **Mission**: `dispatch-brief-governance-payload-01M6BV2S`
-**Grounded on**: `main` @ `287a226cfe` (2026-11-01), in `/home/exedev/work/sk-6990`
+**Grounded on**: `main` @ `287a226cfe` (2026-11-01)
 **Issue**: spec-kitty/spec-kitty#6990 (open, unassigned before this mission, claimed by this run)
 
 ## D1 — The issue still reproduces on current `main`
