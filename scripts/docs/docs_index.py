@@ -40,6 +40,7 @@ from specify_cli.docs.index_model import (
     parse_index,
     render_index,
 )
+from scripts.docs._page_scope import iter_docs_pages
 
 __all__ = [
     "DEFAULT_DOCS_ROOT",
@@ -206,7 +207,7 @@ def generate_index(docs_root: Path, *, repo_root: Path | None = None) -> list[Do
     """
     anchor = (repo_root or docs_root.parent).resolve()
     entries: list[DocsQueryEntry] = []
-    for md_path in sorted(docs_root.rglob("*.md")):
+    for md_path in iter_docs_pages(docs_root):
         rel_path = _relative_posix(md_path, anchor)
         try:
             text = md_path.read_text(encoding="utf-8")

@@ -146,10 +146,12 @@ def _expand(base: Path, pattern: str) -> Iterator[Path]:
 
 
 def _is_excluded(rel_posix: str, name: str, exclude: tuple[str, ...]) -> bool:
-    """Honour DocFX exclude globs (e.g. ``**/_*.md``)."""
+    """Honour DocFX exclude globs: ``**/<leaf>`` matches by file name at any depth (``**/_*.md``);
+    any other pattern, such as ``changelog/unreleased/**``, matches the whole relative path."""
     for pattern in exclude:
-        leaf = pattern.split("/")[-1]
-        if fnmatch.fnmatch(name, leaf) or fnmatch.fnmatch(rel_posix, pattern):
+        if pattern.startswith("**/") and fnmatch.fnmatch(name, pattern.removeprefix("**/")):
+            return True
+        if fnmatch.fnmatch(rel_posix, pattern):
             return True
     return False
 

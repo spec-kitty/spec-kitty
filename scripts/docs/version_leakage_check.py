@@ -55,6 +55,7 @@ from scripts.docs._render import (
     render_table_plain,
     render_table_rich,
 )
+from scripts.docs._page_scope import iter_docs_pages
 
 __all__ = [
     "DEFAULT_BANNER_REGEX",
@@ -368,7 +369,7 @@ def _resolve_link_target(link_target: str, source_file: Path) -> str | None:
 
 def _iter_markdown_files(docs_root: Path) -> Iterable[Path]:
     """Yield every ``.md`` file under ``docs_root`` (sorted for determinism)."""
-    yield from sorted(docs_root.rglob("*.md"))
+    yield from iter_docs_pages(docs_root)
 
 
 def _to_repo_relative(path: Path) -> str:

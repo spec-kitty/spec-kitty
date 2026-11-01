@@ -664,6 +664,25 @@ def ensure_tag_matches_version(version: str, tag: str | None) -> ValidationIssue
     return None
 
 
+#: Per-PR changelog fragments live here until the release assembles them (scripts/release/changelog_fragments.py).
+_FRAGMENT_DIR = ("docs", "changelog", "unreleased")
+_NON_FRAGMENTS = frozenset({"README.md", ".gitkeep"})
+
+
+def unassembled_fragments_issue(repo_root: Path) -> ValidationIssue | None:
+    """Refuse a tag while per-PR changelog fragments are still outside the release notes."""
+    directory = repo_root.joinpath(*_FRAGMENT_DIR)
+    if not directory.is_dir():
+        return None
+    stray = sorted(path.name for path in directory.iterdir() if path.name not in _NON_FRAGMENTS)
+    if not stray:
+        return None
+    return ValidationIssue(
+        message=f"{len(stray)} changelog fragment(s) in {'/'.join(_FRAGMENT_DIR)}/ are not in the release notes: {', '.join(stray)}.",
+        hint="Run `python -m scripts.release.changelog_fragments assemble --write`, then finalize the section before tagging.",
+    )
+
+
 def run_validation(args: argparse.Namespace) -> ValidationResult:
     pyproject_path = Path(args.pyproject).resolve()
     changelog_path = Path(args.changelog).resolve() if args.changelog else pyproject_path.parent / "CHANGELOG.md"
@@ -733,6 +752,13 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
                 hint=(f"Finalize the release notes by retitling the heading to '## [{version}]' (with the release date) before tagging."),
             )
         )
+
+    # A tag, or a release-cut branch (the version's section is already finalized), must carry
+    # every fragment in its notes. An open cycle collects fragments, so it is not checked.
+    if args.mode == "tag" or changelog_section_is_finalized(changelog_text, version):
+        stray = unassembled_fragments_issue(repo_root)
+        if stray is not None:
+            issues.append(stray)
 
     if args.mode == "tag":
         tag = args.tag or detect_tag_from_env()

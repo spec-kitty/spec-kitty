@@ -46,6 +46,18 @@ python scripts/release/validate_release.py --mode tag --tag v3.0.1 --tag-pattern
 - Version advances beyond latest existing release tag
 - In tag mode: tag matches version (for example `v3.0.1` <-> `3.0.1`, `v3.1.0a0` <-> `3.1.0a0`)
 
+### `changelog_fragments.py`
+
+Pull requests add their changelog entries as fragments in `docs/changelog/unreleased/<id>.<section>.md`
+instead of editing `CHANGELOG.md`. At release time this folds them into `## [Unreleased]`
+and deletes them. In tag mode `validate_release.py` refuses while any fragment remains.
+
+```bash
+python -m scripts.release.changelog_fragments check             # names and shape
+python -m scripts.release.changelog_fragments assemble          # preview the section
+python -m scripts.release.changelog_fragments assemble --write  # fold in, delete fragments
+```
+
 ### `extract_changelog.py`
 
 Extracts a version section from `CHANGELOG.md` for GitHub Release notes.
