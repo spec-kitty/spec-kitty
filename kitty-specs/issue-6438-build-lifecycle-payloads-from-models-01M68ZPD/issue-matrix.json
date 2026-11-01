@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#1926": {
+      "evidence_ref": "kitty-specs/issue-6438-build-lifecycle-payloads-from-models-01M68ZPD/research.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6438": {
+      "evidence_ref": "src/specify_cli/status/lifecycle_events.py@fd328c715f; tests/specify_cli/status/test_model_built_payloads_6438.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": null
+    },
+    "#6607": {
+      "evidence_ref": "kitty-specs/issue-6438-build-lifecycle-payloads-from-models-01M68ZPD/research.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
