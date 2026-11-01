@@ -1,0 +1,29 @@
+{
+ "rows": {
+  "#6909": {
+   "evidence_ref": "WP01 8f054f3ea7 + WP02 f54b705d66: per-service default repository, recorded charter prefix, gh-attestation verification at vendor time, charter fixture-pin digest proof; docs and changelog fragment. PR follows.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": "spec.md",
+   "title": "Service pins: name spec-kitty-charter's service-v* release line for charter-service",
+   "verdict": "fixed",
+   "wp": "WP01"
+  },
+  "#6915": {
+   "evidence_ref": "Context only: #6915 gap 7 names the same core-side wording change this mission delivers for #6909; #6915 stays open for its own cut-over work, so this mission owes it nothing beyond the citation.",
+   "fr": null,
+   "nfr": null,
+   "repo": null,
+   "sc": null,
+   "scope": null,
+   "source_file": null,
+   "title": null,
+   "verdict": "not-applicable",
+   "wp": null
+  }
+ },
+ "schema_version": 1
+}

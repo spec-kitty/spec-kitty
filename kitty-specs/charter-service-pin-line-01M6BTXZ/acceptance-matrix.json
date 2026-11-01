@@ -1,0 +1,59 @@
+{
+  "mission_slug": "charter-service-pin-line-01M6BTXZ",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_vendor.py::test_the_default_repository_names_each_services_own_release_home + ::test_a_new_charter_service_pin_defaults_to_the_charter_repository (@05dfc215d9)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-01T17:11:41.453230+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/kernel/test_service_pin.py::test_the_asset_prefixes_are_the_names_each_repository_records + ::test_the_charter_prefix_carries_no_provisional_marker (@05dfc215d9)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-01T17:13:06.772066+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_attestation.py (11 cases) + test_vendor.py::test_a_https_bump_verifies_every_pinned_asset + ::test_a_refused_attestation_leaves_the_lockfile_unchanged + test_service_cli.py::test_vendor_cli_refuses_a_release_whose_attestation_fails (@05dfc215d9, @e2452c0337)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-01T17:18:49.365654+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_service_cli.py::test_vendor_help_names_the_owning_release_repository + pins/README.md + docs/development/how-to/service-pins.md + docs/api/cli-commands.md service blocks (docs commit 9e0fa98)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-01T17:20:26.318728+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/services/test_service_cli.py::test_fetch_verifies_a_charter_service_fixture_pin + ::test_fetch_refuses_a_tampered_charter_service_asset (@05dfc215d9)",
+      "pass_fail": "pass",
+      "verified_by": "pi",
+      "verified_at": "2026-11-01T17:20:35.189563+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
