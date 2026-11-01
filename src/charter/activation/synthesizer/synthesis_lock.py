@@ -58,14 +58,15 @@ _DIGEST_PREFIX = "sha256:"
 
 
 class SynthesisLockHeldError(KittyInternalConsistencyError):
-    """Another synthesis run holds the lock past the bounded wait; nothing was written."""
+    """Another writing run holds the lock past the bounded wait; nothing was written."""
 
     def __init__(self, lock_path: Path, timeout_s: float) -> None:
         super().__init__(
             "CHARTER_SYNTHESIS_LOCK_HELD",
-            f"Another `spec-kitty charter synthesize` or `charter resynthesize` run in this worktree holds the "
-            f"synthesis lock {lock_path} (waited {timeout_s:g}s). Nothing was written. "
-            "Retry after the other run finishes.",
+            f"Another `spec-kitty` run in this worktree holds the charter synthesis lock {lock_path} "
+            f"(waited {timeout_s:g}s). Nothing was written. Retry after the other run finishes. "
+            "Its holders are `charter synthesize`, `charter resynthesize`, `charter activate`/`deactivate` "
+            "(including `--preset`), and the activation-ledger migration.",
         )
 
 
