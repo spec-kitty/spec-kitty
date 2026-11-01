@@ -978,3 +978,265 @@ def test_invalid_category_json_surface_carries_diagnosis_and_allow_list(tmp_path
     assert "not_helpful[0].category is invalid" in detail, detail
     assert "Allowed finding categories:" in detail, detail
     assert "extra_forbidden" not in detail, detail
+
+
+# ---------------------------------------------------------------------------
+# #6385 — synthesize consumes generator-shape proposals, and says what it cannot plan
+# ---------------------------------------------------------------------------
+
+_GLOSSARY_PAYLOAD_YAML = """\
+    payload:
+      kind: add_glossary_term
+      term_key: generator-shape-record
+      definition: The dataclass record shape retrospect create writes.
+      definition_hash: sha256:aaaa
+      related_terms: []
+"""
+
+
+def _write_generator_retrospective_with_proposal(
+    root: Path,
+    *,
+    findings_status: str = "has_findings",
+    with_findings: bool = True,
+    proposal_block: str | None = None,
+    auto_applicable: bool = True,
+) -> Path:
+    """Write a generator-shape record carrying one proposal (optionally with a payload).
+
+    ``proposal_block`` is appended inside the proposal mapping, so a caller can supply a
+    ``payload`` block, or nothing at all (the pre-#6385 shape).
+    """
+    retro_dir = root / ".kittify" / "missions" / FAKE_MISSION_ID
+    retro_dir.mkdir(parents=True, exist_ok=True)
+    retro_path = retro_dir / "retrospective.yaml"
+    findings = (
+        """\
+not_helpful:
+  - id: n-001
+    category: process
+    summary: lane bounce before approval
+    evidence_refs: [e-001]
+"""
+        if with_findings
+        else "not_helpful: []\n"
+    )
+    retro_path.write_text(
+        f"""\
+schema_version: 1
+mission_id: {FAKE_MISSION_ID}
+mission_slug: {FAKE_SLUG}
+mission_number: 1
+friendly_name: Test Mission
+mission_type: software-dev
+target_branch: main
+created_at: "2026-05-21T08:09:55+00:00"
+created_by:
+  kind: human
+  id: cli
+provenance:
+  kind: explicit_create
+  invoked_at: "2026-05-21T08:09:55+00:00"
+  policy_resolved_from: {{}}
+  command: spec-kitty retrospect create
+policy_source: {{}}
+findings_status: {findings_status}
+helped: []
+{findings}gaps: []
+proposals:
+  - id: p-001
+    category: glossary
+    risk_class: {"low" if auto_applicable else "structural"}
+    summary: add a glossary term for the generator record shape
+    evidence_refs: [e-001]
+    suggested_action: "add_glossary_term: generator-shape-record"
+    auto_applicable: {"true" if auto_applicable else "false"}
+{proposal_block or ""}evidence_refs:
+  - id: e-001
+    kind: event_range
+    path: kitty-specs/{FAKE_SLUG}/status.events.jsonl
+    range: "event-1"
+generator_version: "1.0"
+provenance_history: []
+""",
+        encoding="utf-8",
+    )
+    return retro_path
+
+
+def _invoke_on_generator_record(root: Path, *extra: str, mission_slug: str = FAKE_SLUG) -> Any:
+    with (
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.locate_project_root",
+            return_value=root,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.resolve_mission_handle",
+            return_value=_make_resolved_mission(tmp_path=root),
+        ),
+    ):
+        return runner.invoke(
+            app,
+            ["retrospect", "synthesize", "--mission", mission_slug, *extra],
+            catch_exceptions=False,
+        )
+
+
+def test_generator_record_payload_proposal_is_planned(tmp_path: Path) -> None:
+    """A payload-bearing generator-shape proposal reaches `planned` (the #6385 application half)."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(root, proposal_block=_GLOSSARY_PAYLOAD_YAML)
+
+    result = _invoke_on_generator_record(root, "--json")
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    planned = envelope["result"]["planned"]
+    assert [entry["kind"] for entry in planned] == ["add_glossary_term"], envelope
+    assert envelope["diagnostics"]["record_schema"] == "generator"
+    assert envelope["diagnostics"]["proposals_translated"] == 1
+    assert envelope["diagnostics"]["proposals_planned"] == 1
+    assert envelope["diagnostics"]["untranslatable"] == []
+
+
+def test_generator_record_payload_proposal_applies(tmp_path: Path) -> None:
+    """`--apply` writes the payload's target through the existing apply path (SC-001)."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(root, proposal_block=_GLOSSARY_PAYLOAD_YAML)
+
+    result = _invoke_on_generator_record(root, "--json", "--apply")
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    applied = envelope["result"]["applied"]
+    assert [entry["target_urn"] for entry in applied] == ["glossary:term:generator-shape-record"]
+    term_file = root / ".kittify" / "glossary" / "generator-shape-record.yaml"
+    assert term_file.is_file()
+    assert "The dataclass record shape" in term_file.read_text(encoding="utf-8")
+
+
+def test_generator_record_with_findings_and_no_proposals_is_diagnosed(tmp_path: Path) -> None:
+    """The issue's reported case: 1 finding, 0 proposals — never a silent empty batch (SC-002)."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(root, proposal_block=None, auto_applicable=False)
+    # Strip the proposal entirely: a real `retrospect create` record has none.
+    retro = root / ".kittify" / "missions" / FAKE_MISSION_ID / "retrospective.yaml"
+    text = retro.read_text(encoding="utf-8")
+    head, _, _tail = text.partition("proposals:\n")
+    retro.write_text(head + "proposals: []\n" + text[text.index("evidence_refs:\n") :], encoding="utf-8")
+
+    result = _invoke_on_generator_record(root, "--json")
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["result"]["planned"] == []
+    diagnostics = envelope["diagnostics"]
+    assert diagnostics["record_schema"] == "generator"
+    assert diagnostics["findings"] == {"helped": 0, "not_helpful": 1, "gaps": 0, "proposals": 0}
+    assert diagnostics["proposals_translated"] == 0
+    assert diagnostics["proposals_planned"] == 0
+    assert diagnostics["untranslatable"] == []
+    assert "#3947" in diagnostics["next_action"]
+
+
+def test_generator_record_empty_batch_warns_on_the_rich_surface(tmp_path: Path) -> None:
+    """The human surface says the same thing as the envelope (no silent empty batch)."""
+    root = tmp_path
+    retro = _write_generator_retrospective(root)  # findings, no proposals
+
+    result = _invoke_on_generator_record(root)
+
+    assert result.exit_code == 0, result.output
+    assert "Warning" in result.output
+    assert "generator record schema" in result.output
+    assert "#3947" in result.output
+    assert retro.is_file()
+
+
+def test_generator_record_untranslatable_proposal_is_named(tmp_path: Path) -> None:
+    """A proposal without a payload is reported by id and reason, next to the translatable one."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(root, proposal_block=None)
+
+    result = _invoke_on_generator_record(root, "--json")
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    diagnostics = envelope["diagnostics"]
+    assert diagnostics["proposals_translated"] == 0
+    assert len(diagnostics["untranslatable"]) == 1
+    entry = diagnostics["untranslatable"][0]
+    assert entry["proposal_id"] == "p-001"
+    assert "payload" in entry["reason"]
+
+
+def test_generator_record_without_findings_is_described_as_empty(tmp_path: Path) -> None:
+    """A genuinely empty record is not described as a broken conversion."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(
+        root,
+        findings_status="ran_no_findings",
+        with_findings=False,
+        proposal_block=None,
+    )
+    retro = root / ".kittify" / "missions" / FAKE_MISSION_ID / "retrospective.yaml"
+    text = retro.read_text(encoding="utf-8")
+    head, _, _ = text.partition("proposals:\n")
+    retro.write_text(head + "proposals: []\n" + text[text.index("evidence_refs:\n") :], encoding="utf-8")
+
+    result = _invoke_on_generator_record(root, "--json")
+
+    assert result.exit_code == 0, result.output
+    diagnostics = json.loads(result.output)["diagnostics"]
+    assert diagnostics["findings"]["not_helpful"] == 0
+    assert "no findings" in diagnostics["next_action"]
+
+
+def test_nested_record_envelope_has_no_diagnostics_block() -> None:
+    """Nested-schema envelopes stay byte-compatible: the diagnostics block is generator-only."""
+    result = _patched_invoke(
+        ["retrospect", "synthesize", "--mission", "01KQ6YEG", "--json"],
+        result=_good_result(dry_run=True),
+    )
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert "diagnostics" not in envelope
+
+
+def test_proposal_id_on_a_pending_translated_proposal_is_refused_as_pending(tmp_path: Path) -> None:
+    """`--proposal-id` still only narrows: a pending translated proposal is refused, with the remedy."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(
+        root, proposal_block=_GLOSSARY_PAYLOAD_YAML, auto_applicable=False
+    )
+
+    result = _invoke_on_generator_record(root, "--json", "--proposal-id", "p-001")
+
+    assert result.exit_code == 1, result.output
+    assert "pending" in result.output
+
+
+def test_proposal_id_on_a_generator_record_reports_the_real_status(tmp_path: Path) -> None:
+    """An id the record does not carry is refused as `unknown`, not as a blanket "unsupported"."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(root, proposal_block=_GLOSSARY_PAYLOAD_YAML)
+
+    result = _invoke_on_generator_record(root, "--json", "--proposal-id", "p-999")
+
+    assert result.exit_code == 1, result.output
+    envelope = json.loads(result.output)
+    assert envelope["error"] == "unsupported_generator_record"
+    assert envelope["statuses"] == {"p-999": "unknown"}
+
+
+def test_proposal_id_on_a_generator_record_accepts_a_translated_id(tmp_path: Path) -> None:
+    """An accepted (auto_applicable) translated proposal is selectable by its generator id."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(root, proposal_block=_GLOSSARY_PAYLOAD_YAML)
+
+    result = _invoke_on_generator_record(root, "--json", "--proposal-id", "p-001")
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert [entry["kind"] for entry in envelope["result"]["planned"]] == ["add_glossary_term"]

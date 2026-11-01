@@ -2481,7 +2481,11 @@ class TestCreateHarness:
             "provenance_kind": "explicit_create",
             "policy_source": {"enabled": "<default>", "timing": "<default>", "failure_policy": "<default>"},
             "next_step": (
-                f"Run `spec-kitty agent retrospect synthesize --mission {MISSION_SLUG_COMPLETED}` to review proposals (dry-run by default; add --apply to mutate)."
+                "This record carries findings but no proposals, so "
+                f"`spec-kitty agent retrospect synthesize --mission {MISSION_SLUG_COMPLETED}` has "
+                "nothing to plan from it yet: `retrospect create` does not generate proposals "
+                "(tracked in #3947). Add a proposal carrying a `payload` block (see #6385) to have "
+                "synthesize plan or apply it."
             ),
         }
         record = project.record()
@@ -2664,7 +2668,11 @@ class TestCreateHarness:
 
     @pytest.mark.parametrize("apply_flag", [["--apply"], []], ids=["apply", "dry-run"])
     def test_synthesize_refuses_proposal_ids_on_the_created_generator_record(self, retrospect_project: RetrospectProject, apply_flag: list[str]) -> None:
-        """A `retrospect create` record is generator-shaped: every id is refused as unsupported, not as unknown."""
+        """A `retrospect create` record carries no proposals, so every id is refused as unknown (#6385).
+
+        The refusal stays actionable: it names the generator shape, the remedy (a `payload` block)
+        and the owner of the generation half (#3947), instead of claiming nothing is supported.
+        """
         project = retrospect_project
         assert _create("--json").exit_code == 0
         before = project.record_path.read_bytes()
@@ -2687,10 +2695,11 @@ class TestCreateHarness:
         payload = json.loads(result.stderr)
         assert payload["error"] == "unsupported_generator_record"
         assert payload["proposal_ids"] == ["p-001", "p-002"]
-        assert payload["statuses"] == {"p-001": "unsupported_generator_record", "p-002": "unsupported_generator_record"}
-        assert "uses the generator record schema" in payload["detail"]
-        assert payload["detail"].endswith("Requested: p-001, p-002. Nothing was applied.")
-        assert "unknown" not in payload["detail"]
+        assert payload["statuses"] == {"p-001": "unknown", "p-002": "unknown"}
+        assert "generator-shaped record" in payload["detail"]
+        assert "p-001 (unknown)" in payload["detail"]
+        assert "#3947" in payload["detail"]
+        assert payload["detail"].endswith("Nothing was applied.")
         assert project.record_path.read_bytes() == before
         assert project.head() == head_before
 
@@ -2701,8 +2710,10 @@ class TestCreateHarness:
 
         assert result.exit_code == 1, result.output
         error = " ".join(strip_ansi(result.stderr).split())
-        assert error.startswith("Error: --proposal-id cannot pick proposals in this retrospective record")
-        assert error.endswith("Requested: p-001. Nothing was applied.")
+        assert error.startswith("Error: --proposal-id only selects accepted proposals.")
+        assert "p-001 (unknown)" in error
+        assert "#3947" in error
+        assert error.endswith("Nothing was applied.")
 
     def test_fabricate_empty_with_proposal_id_says_the_record_was_written(self, retrospect_project: RetrospectProject) -> None:
         """`--fabricate-empty` writes the record, then refuses the id: the message does not claim nothing happened."""
@@ -2716,8 +2727,56 @@ class TestCreateHarness:
         assert result.exit_code == 1, result.output
         payload = json.loads(result.stderr)
         assert payload["error"] == "unsupported_generator_record"
-        assert payload["detail"].endswith("Requested: p-001. The empty retrospective record was written, but no proposal was applied.")
+        assert "p-001 (unknown)" in payload["detail"]
+        assert payload["detail"].endswith("The empty retrospective record was written, but no proposal was applied.")
         assert project.record()["provenance"]["kind"] == "synthesize_fabricate"
+
+    def test_create_then_synthesize_is_never_a_silent_empty_batch(self, retrospect_project: RetrospectProject) -> None:
+        """Round-trip conformance (#6385, SC-005): create -> synthesize is diagnosed, not silent.
+
+        This is the loop the issue reports as a no-op. The run may plan nothing (generation is
+        #3947), but it must say so, still exit 0 as the documented dry-run contract requires, and
+        never surface the nested reader's schema wall for a record `create` itself wrote (#1239 /
+        #3533 class).
+        """
+        project = retrospect_project
+        assert _create("--json").exit_code == 0
+
+        result = RUNNER.invoke(
+            agent_retrospect_app,
+            ["synthesize", "--mission", MISSION_SLUG_COMPLETED, "--json"],
+        )
+
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.stdout)
+        diagnostics = envelope["diagnostics"]
+        assert diagnostics["record_schema"] == "generator"
+        assert diagnostics["findings"]["gaps"] >= 1
+        assert diagnostics["proposals_translated"] == 0
+        assert diagnostics["proposals_planned"] == 0
+        assert "#3947" in diagnostics["next_action"]
+        assert "record_malformed" not in result.stdout
+        assert project.record_path.is_file()
+
+    def test_create_keeps_the_ordinary_next_step_when_the_record_has_proposals(self) -> None:
+        """The honest prompt is conditional: a proposal-bearing record keeps the ordinary text."""
+        from specify_cli.cli.commands.retrospect import _create_next_step
+
+        counts = {"helped": 1, "not_helpful": 0, "gaps": 0, "proposals": 2, "evidence_refs": 3}
+
+        step = _create_next_step(MISSION_SLUG_COMPLETED, counts)
+
+        assert step.startswith(f"Run `spec-kitty agent retrospect synthesize --mission {MISSION_SLUG_COMPLETED}` to review proposals")
+        assert "#3947" not in step
+
+    def test_create_next_step_for_an_empty_record_says_there_is_nothing_to_synthesize(self) -> None:
+        from specify_cli.cli.commands.retrospect import _create_next_step
+
+        counts = {"helped": 0, "not_helpful": 0, "gaps": 0, "proposals": 0, "evidence_refs": 0}
+
+        step = _create_next_step(MISSION_SLUG_COMPLETED, counts)
+
+        assert "no findings and no proposals" in step
 
     def test_fabricate_empty_writes_and_reports_an_empty_record(self, retrospect_project: RetrospectProject) -> None:
         project = retrospect_project

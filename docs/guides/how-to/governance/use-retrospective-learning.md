@@ -172,6 +172,43 @@ retrospective:
 > with a pointer to `retrospect create`. The legacy "fabricate empty record" path is preserved
 > behind `--fabricate-empty` but is no longer the default.
 
+### What `create` → `synthesize` can do today
+
+`retrospect create` writes the **generator record shape**. That shape numbers proposals
+`p-001`, `p-002`, … and describes each with a free-text `suggested_action`. `synthesize` applies
+the **nested** proposal shape, which needs a structured `payload` saying exactly what to change.
+
+A generator-shape proposal is therefore planned only when it carries a `payload` block, validated
+by the same union `synthesize` applies (`synthesize_directive`, `synthesize_tactic`,
+`synthesize_procedure`, `rewire_edge`, `add_edge`, `remove_edge`, `add_glossary_term`,
+`update_glossary_term`, `flag_not_helpful`):
+
+```yaml
+proposals:
+  - id: p-001
+    category: glossary
+    risk_class: low
+    summary: name the record shapes in the glossary
+    evidence_refs: [e-001]
+    suggested_action: "add_glossary_term: generator-shape-record"
+    auto_applicable: true
+    payload:
+      kind: add_glossary_term
+      term_key: generator-shape-record
+      definition: The dataclass record shape `retrospect create` writes.
+      definition_hash: sha256:aaaa
+      related_terms: []
+```
+
+`auto_applicable: true` makes the translated proposal *accepted*, so `--apply` applies it;
+otherwise it stays pending. `retrospect create` still writes **no** proposals of its own — grading
+findings into payloads is tracked in #3947 — so a freshly created record usually carries none.
+
+When there is nothing to plan, `synthesize` says so instead of reporting a bare empty batch: both
+surfaces carry a `diagnostics` block naming the record shape, the finding counts, how many
+proposals were translated and planned, every proposal it could not translate with the reason, and
+the next action. Exit codes do not change: a valid dry-run still exits 0.
+
 ---
 
 ## Migration from env vars (deprecated)

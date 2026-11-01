@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
@@ -89,6 +89,10 @@ _PROPOSAL_KEYS = frozenset({
     "suggested_action",
     "auto_applicable",
     "details",
+    # #6385: the optional structured half of a generator-shape proposal. Its value is
+    # validated against the nested record's ProposalPayload union (see
+    # _validate_gen_proposal_payload), so there is exactly one payload schema.
+    "payload",
 })
 _ACTOR_KINDS = frozenset({"human", "agent", "runtime"})
 _PROVENANCE_KINDS = frozenset({
@@ -211,6 +215,48 @@ def _validate_gen_proposal(raw: object, *, label: str) -> None:
     if not isinstance(proposal.get("auto_applicable"), bool):
         raise ValueError(f"{label}.auto_applicable must be boolean")
     _validate_string_list(proposal.get("evidence_refs", []), label=f"{label}.evidence_refs")
+    _validate_gen_proposal_payload(proposal.get("payload"), label=f"{label}.payload")
+
+
+# One adapter, lazily built: ProposalPayload is the nested record's discriminated union
+# and stays the single authority for what a proposal may apply (#6385, C-002).
+_PROPOSAL_PAYLOAD_ADAPTER: TypeAdapter[Any] | None = None
+
+
+def _proposal_payload_adapter() -> TypeAdapter[Any]:
+    global _PROPOSAL_PAYLOAD_ADAPTER
+    if _PROPOSAL_PAYLOAD_ADAPTER is None:
+        from specify_cli.retrospective.schema import ProposalPayload
+
+        _PROPOSAL_PAYLOAD_ADAPTER = TypeAdapter(ProposalPayload)
+    return _PROPOSAL_PAYLOAD_ADAPTER
+
+
+def _validate_gen_proposal_payload(raw: object, *, label: str) -> None:
+    """Validate an optional generator-shape proposal payload (#6385).
+
+    The payload is the *nested* record's discriminated union, validated through the
+    same adapter ``synthesize`` uses, so a generator-shape proposal cannot express an
+    action the apply path would refuse. A missing payload is legal: it is the shape
+    every record written before #6385 has, and the one generation still produces
+    until #3947 grades findings into payloads.
+
+    Raises:
+        ValueError: when the payload is not a mapping, or fails union validation.
+            The message names the proposal label and the first field error, so the
+            operator sees ``proposals[0].payload ...`` rather than a schema wall.
+    """
+    if raw is None:
+        return
+    payload = _validate_mapping(raw, label=label)
+    try:
+        _proposal_payload_adapter().validate_python(payload)
+    except ValidationError as exc:
+        errors = exc.errors()
+        first = errors[0] if errors else None
+        location = ".".join(str(part) for part in first["loc"]) if first else "payload"
+        reason = first["msg"] if first else "is invalid"
+        raise ValueError(f"{label}.{location or 'payload'}: {reason}") from exc
 
 
 def _validate_gen_header(data: YamlMapping) -> None:
@@ -303,6 +349,8 @@ def _gen_record_from_mapping(data: YamlMapping) -> GenRetrospectiveRecord:
             suggested_action=raw["suggested_action"],
             auto_applicable=raw["auto_applicable"],
             details=raw.get("details"),
+            # #6385: validated by _validate_gen_proposal_payload before hydration.
+            payload=dict(raw["payload"]) if isinstance(raw.get("payload"), dict) else None,
         )
 
     return GenRetrospectiveRecord(

@@ -331,6 +331,35 @@ def _policy_source_dict(policy_source: dict[str, str]) -> dict[str, str]:
     }
 
 
+def _create_next_step(mission_slug: str, counts: dict[str, int]) -> str:
+    """Return the next step ``retrospect create`` reports, honestly (#6385).
+
+    A generated record carries findings, never proposals: ``_build_findings`` has no code path
+    that appends to ``proposals``, and grading findings into payloads is #3947. Telling an
+    operator to "review proposals" on a record that has none is the misleading half of the issue,
+    so the prompt names the limitation and the remedy instead.
+
+    Args:
+        mission_slug: The mission the record was written for.
+        counts: Finding/proposal counts of the record actually persisted.
+
+    Returns:
+        The one-line next step rendered in the panel and in the JSON ``next_step`` field.
+    """
+    synthesize_cmd = f"spec-kitty agent retrospect synthesize --mission {mission_slug}"
+    if counts["proposals"]:
+        return f"Run `{synthesize_cmd}` to review proposals (dry-run by default; add --apply to mutate)."
+    finding_count = counts["helped"] + counts["not_helpful"] + counts["gaps"]
+    if finding_count:
+        return (
+            "This record carries findings but no proposals, so "
+            f"`{synthesize_cmd}` has nothing to plan from it yet: `retrospect create` does not "
+            "generate proposals (tracked in #3947). Add a proposal carrying a `payload` block "
+            "(see #6385) to have synthesize plan or apply it."
+        )
+    return "This record carries no findings and no proposals: nothing to synthesize."
+
+
 def _auto_commit_failure_detail(exc: Exception) -> str:
     """Return the most useful one-line reason for a failed auto-commit.
 
@@ -701,7 +730,7 @@ def create_cmd(
         "proposals": len(persisted.proposals),
         "evidence_refs": len(persisted.evidence_refs),
     }
-    next_step = f"Run `spec-kitty agent retrospect synthesize --mission {resolved.mission_slug}` to review proposals (dry-run by default; add --apply to mutate)."
+    next_step = _create_next_step(resolved.mission_slug, counts)
 
     if json_output:
         _console.print_json(

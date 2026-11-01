@@ -348,6 +348,10 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict[str, Any]:
         }
         if p.details is not None:
             d["details"] = p.details
+        # #6385: emit the optional structured payload ONLY when present, so every
+        # record written before the field existed stays byte-identical (NFR-001).
+        if p.payload is not None:
+            d["payload"] = dict(p.payload)
         return d
 
     return {
@@ -420,6 +424,7 @@ def _dict_to_gen_record(data: dict[str, Any]) -> GenRetrospectiveRecord:
         )
 
     def _dict_to_proposal(d: dict[str, Any]) -> GenProposal:
+        raw_payload = d.get("payload")
         return GenProposal(
             id=d["id"],
             category=d["category"],
@@ -429,6 +434,9 @@ def _dict_to_gen_record(data: dict[str, Any]) -> GenRetrospectiveRecord:
             suggested_action=d["suggested_action"],
             auto_applicable=d["auto_applicable"],
             details=d.get("details"),
+            # #6385: carried through the --update merge path; validation happens at
+            # the read boundary (read_gen_record), which every caller passes through.
+            payload=dict(raw_payload) if isinstance(raw_payload, dict) else None,
         )
 
     return GenRetrospectiveRecord(

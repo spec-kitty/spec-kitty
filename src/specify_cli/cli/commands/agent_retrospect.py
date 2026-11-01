@@ -42,6 +42,10 @@ from specify_cli.retrospective.reader import (
     read_gen_record,
     read_record,
 )
+from specify_cli.retrospective.generator_proposals import (
+    GeneratorProposalTranslation,
+    translate_generator_proposals,
+)
 from specify_cli.retrospective.schema import (
     ActorRef,
     GenActor,
@@ -173,8 +177,14 @@ def _build_json_envelope(
     mission_slug: str | None = None,
     status: str = "ok",
     next_action: str | None = None,
+    diagnostics: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Build the JSON output envelope per cli_surfaces.md / CHK034."""
+    """Build the JSON output envelope per cli_surfaces.md / CHK034.
+
+    ``diagnostics`` (#6385) is emitted only for a generator-shape record, as a sibling of
+    ``status``/``outcome``: ``result`` is ``SynthesisResult.model_dump()``, owned by
+    ``charter_pack_synthesizer``, which this command must not extend.
+    """
     envelope: dict[str, object] = {
         "schema_version": "1",
         "command": "agent.retrospect.synthesize",
@@ -192,7 +202,105 @@ def _build_json_envelope(
         envelope["retrospective_path"] = str(retrospective_path)
     if next_action is not None:
         envelope["next_action"] = next_action
+    if diagnostics is not None:
+        envelope["diagnostics"] = diagnostics
     return envelope
+
+
+def _empty_translation() -> GeneratorProposalTranslation:
+    """The translation of a record with no proposals (``--fabricate-empty``)."""
+    return GeneratorProposalTranslation(proposals=[], untranslatable=[], translated_ids={})
+
+
+def _generator_next_action(
+    generator_record: GenRetrospectiveRecord,
+    translation: GeneratorProposalTranslation,
+    *,
+    proposals_planned: int,
+    dry_run: bool,
+) -> str:
+    """The one action an operator should take after a generator-shape synthesis run (#6385).
+
+    This is the sentence that turns a silent empty batch into an explained one: it names what the
+    record carried, what could not be planned, and who owns the missing half.
+    """
+    finding_count = len(generator_record.helped) + len(generator_record.not_helpful) + len(generator_record.gaps)
+    if proposals_planned:
+        if dry_run:
+            return f"{proposals_planned} proposal(s) planned; pass --apply to mutate project-local state."
+        return f"{proposals_planned} proposal(s) planned and applied."
+    if translation.untranslatable:
+        return (
+            f"{len(translation.untranslatable)} proposal(s) could not be translated (see "
+            "untranslatable); add a `payload` block validated by the nested proposal schema "
+            "(#6385), and see #3947 for generating payloads from findings."
+        )
+    if not generator_record.proposals:
+        if finding_count:
+            return (
+                "This retrospective uses the generator record schema and carries no proposals, so "
+                f"synthesize planned nothing from its {finding_count} finding(s). `retrospect "
+                "create` does not generate proposals yet (tracked in #3947); author a proposal "
+                "with a `payload` block to have synthesize plan or apply it."
+            )
+        return "This retrospective carries no findings and no proposals: there is nothing to synthesize."
+    return "No proposal was planned: every proposal in this generator-shape record was either already applied or not selected for this batch."
+
+
+def _build_generator_diagnostics(
+    generator_record: GenRetrospectiveRecord,
+    translation: GeneratorProposalTranslation,
+    *,
+    proposals_planned: int,
+    dry_run: bool = True,
+) -> dict[str, object]:
+    """Describe what a synthesis run could and could not plan from a generator-shape record.
+
+    Both the JSON envelope and the Rich surface read this one dict, so they cannot disagree about
+    a run: the issue's defect was a *silent* empty batch, and two surfaces computing their own
+    story would reintroduce it.
+    """
+    return {
+        "record_schema": "generator",
+        "findings": {
+            "helped": len(generator_record.helped),
+            "not_helpful": len(generator_record.not_helpful),
+            "gaps": len(generator_record.gaps),
+            "proposals": len(generator_record.proposals),
+        },
+        "proposals_translated": len(translation.proposals),
+        "proposals_planned": proposals_planned,
+        "untranslatable": [{"proposal_id": entry.proposal_id, "reason": entry.reason} for entry in translation.untranslatable],
+        "next_action": _generator_next_action(
+            generator_record,
+            translation,
+            proposals_planned=proposals_planned,
+            dry_run=dry_run,
+        ),
+    }
+
+
+def _render_generator_diagnostics(diagnostics: dict[str, object]) -> None:
+    """Warn on the Rich surface when a generator-shape run planned nothing or dropped something."""
+    untranslatable: list[dict[str, str]] = diagnostics.get("untranslatable") or []  # type: ignore[assignment]
+    planned: int = diagnostics.get("proposals_planned") or 0  # type: ignore[assignment]
+    if not untranslatable and planned:
+        return
+    findings: dict[str, int] = diagnostics.get("findings") or {}  # type: ignore[assignment]
+    counts = (
+        f"helped={findings.get('helped', 0)} not_helpful={findings.get('not_helpful', 0)} gaps={findings.get('gaps', 0)} proposals={findings.get('proposals', 0)}"
+    )
+    lines = [
+        "[yellow]Warning:[/yellow] This retrospective uses the generator record schema.",
+        f"  Findings: {counts}",
+        f"  Translated: {diagnostics.get('proposals_translated', 0)}  Planned: {planned}",
+    ]
+    if untranslatable:
+        lines.append("  Could not translate:")
+        for entry in untranslatable:
+            lines.append(f"    - {entry['proposal_id']}: {entry['reason']}")
+    lines.append(f"  Next: {diagnostics.get('next_action')}")
+    _err_console.print("\n".join(lines), soft_wrap=True)
 
 
 def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path) -> Path:
@@ -358,25 +466,99 @@ def _refuse_non_accepted_proposal_ids(requested: list[str], proposals: list[Any]
 _UNSUPPORTED_GENERATOR_RECORD = "unsupported_generator_record"
 
 
-def _refuse_proposal_ids_on_generator_record(requested: list[str], *, record_written: bool, json_only: bool) -> None:
-    """Refuse (exit 1) every ``--proposal-id`` against a generator-shaped record.
+def _generator_proposal_id_statuses(
+    requested: list[str],
+    translation: GeneratorProposalTranslation,
+    *,
+    record_written: bool,
+) -> tuple[dict[str, str], dict[str, str], list[str]]:
+    """Classify each requested ``--proposal-id`` against a generator-shape record (#6385).
 
-    Proposal application does not read generator-shaped proposals yet (the batch
-    is empty), so no id can be selected. Each id gets the status
-    ``unsupported_generator_record`` rather than ``unknown``: the record may well
-    carry it. ``record_written`` says the command itself just wrote the record
-    (``--fabricate-empty``), so the message does not claim nothing happened.
+    Returns ``(statuses, selectable, offending)`` where ``selectable`` maps a requested generator
+    proposal id to the typed proposal id it selects. Statuses are the truthful ones:
+
+    * ``accepted`` — translated and the record declares ``auto_applicable``, so it may be selected;
+    * ``pending`` — translated but still awaiting a decision (the record says ``auto_applicable:
+      false``); the remedy is named in the refusal;
+    * ``untranslatable`` — the record carries it but it has no usable payload; its reason is
+      carried through;
+    * ``unknown`` — the record does not carry that id at all.
+
+    ``--proposal-id`` still only NARROWS an accepted batch: naming a pending proposal does not
+    promote it, and nothing here applies without ``--apply``.
     """
-    ids = list(dict.fromkeys(requested))
+    typed_by_gen_id = translation.translated_ids
+    typed_state = {proposal.id: proposal.state.status for proposal in translation.proposals}
+    untranslatable_reasons = {entry.proposal_id: entry.reason for entry in translation.untranslatable}
+
+    statuses: dict[str, str] = {}
+    selectable: dict[str, str] = {}
+    for pid in dict.fromkeys(requested):
+        typed_id = typed_by_gen_id.get(pid)
+        if typed_id is not None:
+            status = typed_state.get(typed_id, "pending")
+            statuses[pid] = status
+            if status == "accepted":
+                selectable[pid] = typed_id
+            continue
+        if pid in untranslatable_reasons:
+            statuses[pid] = "untranslatable"
+            continue
+        if pid in typed_state:
+            # A caller may also name the derived (typed) id directly.
+            statuses[pid] = typed_state[pid]
+            if typed_state[pid] == "accepted":
+                selectable[pid] = pid
+            continue
+        statuses[pid] = "unknown"
+
+    del record_written  # the message below covers both the read and the just-written case
+    offending = [pid for pid, status in statuses.items() if status != "accepted"]
+    return statuses, selectable, offending
+
+
+def _refuse_proposal_ids_on_generator_record(
+    requested: list[str],
+    *,
+    translation: GeneratorProposalTranslation,
+    record_written: bool,
+    json_only: bool,
+) -> dict[str, str]:
+    """Refuse (exit 1) ``--proposal-id`` values a generator-shaped record cannot select (#6385).
+
+    A generator-shape record now *can* carry selectable proposals — the ones the translation
+    turned into an accepted typed proposal — so this no longer claims that nothing is supported.
+    Every offending id is named with its real status and, for an untranslatable proposal, the
+    translation's reason, which is the actionable half.
+
+    Returns:
+        The generated-proposal-id → typed-proposal-id map for the selectable ids, so the caller
+        can narrow the batch.
+    """
+    statuses, selectable, offending = _generator_proposal_id_statuses(requested, translation, record_written=record_written)
+    if not offending:
+        return selectable
+
+    reasons = {entry.proposal_id: entry.reason for entry in translation.untranslatable}
+    listing = ", ".join(f"{pid} ({statuses[pid]}{': ' + reasons[pid] if pid in reasons else ''})" for pid in offending)
     written = "The empty retrospective record was written, but no proposal" if record_written else "Nothing"
     detail = (
-        f"--proposal-id cannot pick proposals in this retrospective record: it uses the generator record "
-        f"schema, and proposal application does not support generator-shaped proposals yet. "
-        f"Requested: {', '.join(ids)}. {written} was applied."
+        "--proposal-id only selects accepted proposals. In this generator-shaped record: "
+        f"{listing}. A pending proposal needs the record to declare `auto_applicable: true` (or a "
+        "nested-schema record); an untranslatable one needs a `payload` block (see #6385, and "
+        f"#3947 for generating payloads). {written} was applied."
     )
     if json_only:
-        statuses = dict.fromkeys(ids, _UNSUPPORTED_GENERATOR_RECORD)
-        _err_console.print_json(json.dumps({"error": _UNSUPPORTED_GENERATOR_RECORD, "detail": detail, "proposal_ids": ids, "statuses": statuses}))
+        _err_console.print_json(
+            json.dumps(
+                {
+                    "error": _UNSUPPORTED_GENERATOR_RECORD,
+                    "detail": detail,
+                    "proposal_ids": offending,
+                    "statuses": {pid: statuses[pid] for pid in offending},
+                }
+            )
+        )
     else:
         _err_console.print(f"[red]Error:[/red] {escape(detail)}", soft_wrap=True)
     raise typer.Exit(1)
@@ -492,6 +674,7 @@ def synthesize_cmd(
     outcome = "retrospective_synthesized"
     record: RetrospectiveRecord | None = None
     generator_record: GenRetrospectiveRecord | None = None
+    generator_translation: GeneratorProposalTranslation | None = None
     _fabricated_empty = False
     try:
         record = read_record(retro_file)
@@ -599,12 +782,11 @@ def synthesize_cmd(
             gen_exc = gen_error
         else:
             outcome = "retrospective_synthesized"
-            if generator_record.proposals:
-                _err_console.print(
-                    "[yellow]Warning:[/yellow] This retrospective uses the generator record schema; "
-                    "proposal application is not available for generator-shape proposals yet, "
-                    "so synthesize will run as an empty dry-run batch."
-                )
+            # #6385: the generator shape can now carry typed payloads, so translate every
+            # translatable proposal into the typed proposal `apply_proposals` consumes instead of
+            # dropping the whole batch. Untranslatable proposals are reported, never silently
+            # dropped (see the diagnostics block below).
+            generator_translation = translate_generator_proposals(generator_record, actor=actor)
         if generator_record is None:
             # #3533: report the GENERATOR reader's diagnosis, not the Pydantic one.
             # A record written by `retrospect create` is generator-shaped, so the
@@ -648,7 +830,12 @@ def synthesize_cmd(
     # When --fabricate-empty created the record, _fabricated_empty is True and
     # record is not defined (the gen record format is incompatible with Pydantic
     # read_record). The fabricated record has no proposals by definition.
-    if _fabricated_empty or generator_record is not None:
+    if generator_record is not None:
+        # #6385: translated proposals are typed proposals, so they take the same path as the
+        # nested-schema ones below — no second apply seam.
+        assert generator_translation is not None
+        all_proposals = generator_translation.proposals
+    elif _fabricated_empty:
         all_proposals = []
     else:
         assert record is not None
@@ -657,12 +844,32 @@ def synthesize_cmd(
     if proposal_id:
         # --proposal-id only NARROWS the accepted set: a pending, rejected or
         # unknown id is refused before anything is applied (never a bypass of
-        # the accepted-state gate). A generator-shaped record has no applicable
-        # proposals at all, so every id is refused as unsupported, not unknown.
-        if _fabricated_empty or generator_record is not None:
-            _refuse_proposal_ids_on_generator_record(proposal_id, record_written=_fabricated_empty, json_only=json_only)
-        _refuse_non_accepted_proposal_ids(proposal_id, all_proposals, json_only=json_only)
-        approved_ids: set[str] = set(proposal_id)
+        # the accepted-state gate). For a generator-shaped record the refusal now
+        # carries each id's real status and, for an untranslatable proposal, the
+        # translation's reason (#6385).
+        if generator_record is not None:
+            assert generator_translation is not None
+            selectable_generator_ids = _refuse_proposal_ids_on_generator_record(
+                proposal_id,
+                translation=generator_translation,
+                record_written=False,
+                json_only=json_only,
+            )
+            # Belt and braces: the accepted-state gate runs again on the typed ids the
+            # generator ids select, so a future translation change cannot widen it.
+            _refuse_non_accepted_proposal_ids(list(selectable_generator_ids.values()), all_proposals, json_only=json_only)
+            approved_ids: set[str] = set(selectable_generator_ids.values())
+        elif _fabricated_empty:
+            _refuse_proposal_ids_on_generator_record(
+                proposal_id,
+                translation=_empty_translation(),
+                record_written=True,
+                json_only=json_only,
+            )
+            approved_ids = set()
+        else:
+            _refuse_non_accepted_proposal_ids(proposal_id, all_proposals, json_only=json_only)
+            approved_ids = set(proposal_id)
     else:
         # Default: all accepted proposals
         approved_ids = {p.id for p in all_proposals if p.state.status == "accepted"}
@@ -684,6 +891,16 @@ def synthesize_cmd(
     # ------------------------------------------------------------------
     # Step 6: Render output (Rich + optional JSON)
     # ------------------------------------------------------------------
+    diagnostics = (
+        _build_generator_diagnostics(
+            generator_record,
+            generator_translation,
+            proposals_planned=len(result.planned),
+            dry_run=dry_run,
+        )
+        if generator_record is not None and generator_translation is not None
+        else None
+    )
     envelope = _build_json_envelope(
         result,
         dry_run=dry_run,
@@ -691,12 +908,15 @@ def synthesize_cmd(
         retrospective_path=retro_file,
         mission_id=mission_id,
         mission_slug=resolved.mission_slug,
+        diagnostics=diagnostics,
     )
 
     if json_only:
         _console.print_json(json.dumps(envelope))
     else:
         _render_rich(result, dry_run=dry_run)
+        if diagnostics is not None:
+            _render_generator_diagnostics(diagnostics)
 
     if json_out is not None:
         json_out.parent.mkdir(parents=True, exist_ok=True)

@@ -4969,6 +4969,7 @@ pages:
     anchors:
     - {slug: "retrospective-yaml-schema", text: "retrospective.yaml schema", level: 2}
     - {slug: "finding-shape", text: "Finding shape", level: 3}
+    - {slug: "generator-shape-records-retrospect-create", text: "Generator-shape records (`retrospect create`)", level: 3}
     - {slug: "proposal-kinds", text: "Proposal kinds", level: 2}
     - {slug: "add-glossary-term", text: "add_glossary_term", level: 3}
     - {slug: "update-glossary-term", text: "update_glossary_term", level: 3}
@@ -12513,6 +12514,7 @@ pages:
     - {slug: "authoring-a-retrospective-on-demand", text: "Authoring a retrospective on demand", level: 2}
     - {slug: "backfilling-historical-records", text: "Backfilling historical records", level: 2}
     - {slug: "reviewing-and-applying-proposals", text: "Reviewing and applying proposals", level: 2}
+    - {slug: "what-create-synthesize-can-do-today", text: "What `create` → `synthesize` can do today", level: 3}
     - {slug: "migration-from-env-vars-deprecated", text: "Migration from env vars (deprecated)", level: 2}
     - {slug: "what-the-commands-don-t-do", text: "What the commands DON'T do", level: 2}
     - {slug: "common-errors-and-remediations", text: "Common errors and remediations", level: 2}
