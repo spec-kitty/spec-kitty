@@ -247,7 +247,7 @@ def test_a_version_need_table_without_its_string_table_is_unreadable(platform_fl
     data = bytearray(elf64())
     dynamic = 64 + 2 * 56  # e_phdr size + two program headers; DT_STRTAB is the first dynamic entry
     data[dynamic : dynamic + 8] = (0x6FFFFFF0).to_bytes(8, "little")  # a tag that is not DT_STRTAB
-    with pytest.raises(platform_floor.UnreadableBinary, match="no string table or version-need count"):
+    with pytest.raises(platform_floor.UnreadableBinary, match="no DT_STRTAB"):
         platform_floor.read_floor(bytes(data), "linux-x64")
 
 
@@ -261,3 +261,11 @@ def test_a_mach_o_load_command_past_the_end_is_unreadable(platform_floor: Module
 def test_the_refusal_names_the_asset_with_the_unreadable_floor(platform_floor: ModuleType) -> None:
     with pytest.raises(platform_floor.UnreadableBinary, match=r"write-service: not an ELF file"):
         platform_floor.required_floor("linux-x64", {"write-service": b"#!/bin/sh\n"})
+
+
+def test_an_empty_dynamic_segment_is_unreadable(platform_floor: ModuleType) -> None:
+    data = bytearray(elf64())
+    dynamic_header = 64 + 56  # the second program header: PT_DYNAMIC
+    data[dynamic_header + 32 : dynamic_header + 40] = (0).to_bytes(8, "little")  # p_filesz
+    with pytest.raises(platform_floor.UnreadableBinary, match="PT_DYNAMIC segment is empty"):
+        platform_floor.read_floor(bytes(data), "linux-x64")
