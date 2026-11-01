@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from charter.activation import kind_vocabulary
 from charter.activation.activation_engine import ActivationIdCollisionError
@@ -35,6 +36,7 @@ from charter.activation.catalog import resolve_offering_root
 from charter.activation.layer_roots import resolve_pack_chain
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
+from charter.offering.missions.step_contracts import step_contract_urn
 from kernel.charter_pack_paths import project_pack_root
 
 if TYPE_CHECKING:
@@ -184,6 +186,7 @@ class IdentityIndex:
     _tables: dict[ArtifactKind, _KindTable] = field(default_factory=dict, init=False, repr=False)
     _pass: kind_vocabulary.ResolutionPass = field(default_factory=kind_vocabulary.ResolutionPass, init=False, repr=False)
     _fast_ids: dict[tuple[Path, str], str] = field(default_factory=dict, init=False, repr=False)
+    _step_contract_pairs: dict[Path, tuple[str, str] | None] = field(default_factory=dict, init=False, repr=False)
 
     # ------------------------------------------------------------ builders --
 
@@ -283,6 +286,56 @@ class IdentityIndex:
         """Declared id for a stem or declared-id *token*; ``None`` when unknown."""
         entry = self._lookup(kind, token)
         return entry.declared_id if entry is not None else None
+
+    def urn(self, kind: ArtifactKind, token: str) -> str | None:
+        """Canonical DRG URN *token* names for *kind*; ``None`` when the index does not know it.
+
+        The one forward map from an activation spelling (config stem, declared id, or a
+        ``<kind>:``-prefixed token) to the node identity the DRG carries. Consumers that need a
+        node URN -- the activation filter's per-kind resolution, the config<->graph parity check,
+        the deny sets -- ask this method instead of re-deriving ``"<kind>:<declared id>"``
+        themselves (#6741).
+
+        The tail is the declared id for almost every kind. ``mission_step_contract`` is the one
+        exception: its node identity is the owning ``(mission, action)`` pair
+        (:func:`charter.offering.missions.step_contracts.step_contract_urn`), because the activation
+        filter keeps a step contract by its owning mission type and the pre-review gate join
+        resolves it by that pair. The pair is read from the resolved contract file (one cached read
+        per path per index instance) so a higher-layer contract contributes *its* pair, never a
+        built-in's.
+
+        An unknown token, or a contract file whose ``mission``/``action`` cannot be read, yields
+        ``None``: callers skip such a token and the existing unknown-reference check reports it. This
+        method never raises -- it is consumed by fail-closed-**report** callers.
+        """
+        entry = self._lookup(kind, token)
+        if entry is None:
+            return None
+        if kind is ArtifactKind.MISSION_STEP_CONTRACT:
+            pair = self._step_contract_pair(entry)
+            if pair is None:
+                return None
+            return step_contract_urn(*pair)
+        return f"{kind.value}:{entry.declared_id}"
+
+    def _step_contract_pair(self, entry: IdentityEntry) -> tuple[str, str] | None:
+        """``(mission, action)`` declared by *entry*'s contract file, cached per path (NFR-003)."""
+        if entry.path is None:
+            return None
+        if entry.path in self._step_contract_pairs:
+            return self._step_contract_pairs[entry.path]
+        pair: tuple[str, str] | None = None
+        try:
+            data = YAML(typ="safe").load(entry.path.read_text(encoding="utf-8"))
+        except (OSError, YAMLError):
+            data = None
+        if isinstance(data, dict):
+            mission = data.get("mission")
+            action = data.get("action")
+            if isinstance(mission, str) and isinstance(action, str) and mission and action:
+                pair = (mission, action)
+        self._step_contract_pairs[entry.path] = pair
+        return pair
 
     def declared_id_in_layer(self, kind: ArtifactKind, stem: str, layer: str) -> str | None:
         """Declared id of the file *stem* in exactly *layer*; ``None`` when that layer has no such file.

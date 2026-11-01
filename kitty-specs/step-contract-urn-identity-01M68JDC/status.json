@@ -1,0 +1,109 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M68P7TSV1DMJJTY4N8BQSNHD",
+  "materialized_at": "2026-10-31T09:56:47.035289+00:00",
+  "mission_number": "245",
+  "mission_slug": "step-contract-urn-identity-01M68JDC",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi:tokenfactory/kimi-k3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M68P7RC9V7R4GGS9T5HT9K91",
+      "last_transition_at": "2026-10-31T09:56:44.553310+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T08:58:13Z – claude – T005 written first (collection error: no step_contract_urn). Implemented step_contract_urn + facade re-export + extractor minting through it (minted URN set == shipped fragment, 21/21) + IdentityIndex.urn with cached mission/action pair read. 7 new tests green; extractor projection suite green; ruff clean; mypy errors in identity_index.py are pre-existing (present on origin/main).",
+        "PASS. Reviewer-renata verdict on WP01 (issue #6741): the single URN authority is correctly established — step_contract_urn(mission, action) (src/charter/offering/missions/step_contracts.py:287) is minted from one implementation by both the DRG extractor (extractor.py:1536) and IdentityIndex.urn (identity_index.py:297-319), with the mission_steps facade as a documented forward surface wired by WP02 of this same mission. Shipped graph URN set is byte-verified unchanged (extractor vs packs/built-in/mission_step_contract.graph.yaml: True, 21 nodes), no file under packs/ is touched, the pair read is cached per path per index instance (NFR-001/NFR-003 hold, no per-node I/O in the hot path), the duplicate-id/duplicate-(mission,action) guard fails loud with a documented rationale (extractor.py:1524-1533), and the new tests pin behavior against the real shipped corpus across stem/declared-id/kind-prefixed tokens, unknown-token None semantics, and project-overlay layer precedence — they are RED on origin/main (ImportError) without the implementation. Both target pytest runs green: 7 passed, 10 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:tokenfactory/kimi-k3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M68P7SEMZFBX9NR6D0YC9E45",
+      "last_transition_at": "2026-10-31T09:56:45.652430+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T09:37:32Z – unknown – T006 written first; 6 of 10 cases red on the WP01 head (parity gap, deny inert, missing full_urns kwarg). Implemented T007-T010. 10/10 green; deny-by-declared-id now drops the node; default-ledger surviving set still 21 nodes; parity-guard test updated to the more accurate filtered-out wording (#6741). 73 activation tests + 43 review/gate tests + 15 parity-guard tests + 968 charter-offering selection green.",
+        "PASS. All four re-pointed consumers now derive the URN from IdentityIndex.urn / step_contract_urn with no residual f\"kind:declared\" minting except the documented per-prompt fallback (activation_ledger.py:315); _node_is_activated's decision tree is untouched (WP02 diff to drg_activation.py covers only _resolve_activated_urns_for_kind) and the mission-type-ownership-before-per-id-gate holds with a regression test; the absent-node 'Regenerate graph.yaml / resynthesize' suggestion is byte-identical (consistency_check.py:897-903) while the new arm fires only when urn in full_urns and not in surviving; _check_graph_kind_parity loads full_drg once and derives full_urns from it (consistency_check.py:966-978); deny holds stem+declared+URN spellings for both a declared-id token ('implement' drops mission_step_contract:software-dev/implement) and the mission-scoped unknown-token spelling; the 10 new tests are real regression tests through filter_graph_by_activation, resolve_deny and _check_graph_kind_parity — implementer history records 6/10 red on the WP01 head, consistent with history-read of f39c4d5599^ (missing full_urns kwarg/identity.urn = TypeError, pre-fix parity mint and inert deny = assertion failures); no new except/return-None path swallows a real condition (unreadable-contract None keeps the unknown-reference report contract). Tallies: step-contract-urn-identity 10 passed; deny+parity-guard 33 passed; gate_bindings 15 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "pi:tokenfactory/kimi-k3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M68P7TSV1DMJJTY4N8BQSNHD",
+      "last_transition_at": "2026-10-31T09:56:47.035289+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T09:48:14Z – unknown – Gate written and green (5 tests: corpus both directions, anti-empty-scan, two planted-divergence arms). Documented the URN rule in docs/architecture/doctrine-kinds.md and added the [Unreleased] changelog entry (897 chars). Verification: 5 new gate tests green; docs freshness errors=0 (4 pre-existing HELP-DRIFT warnings from the installed CLI); make test-fast 2610 passed / 5 skipped.",
+        "PASS. The drift gate reads the built-in fragment graph only (load_built_in_graph over packs/built-in; IdentityIndex with org_roots=[] and project_root=None), so no org overlay can leak in; verified mechanically that the same checker reports exactly the 21 pre-fix-spelling nodes (mission_step_contract:documentation-accept … tasks) when fed the #6741 consumer spelling and zero against the shipped corpus, in both directions (from_graph == from_contracts, pinned at 21). Non-vacuity is real: the planted-divergence tests call the identical _drifted_urns with planted DRGNodes (pre-fix step-contract spelling plus an ordinary directive tail), and test_the_gate_actually_checked_every_kind_it_claims_to_guard is a genuine anti-empty-scan assertion over 8 required kinds. Changelog entry: under [Unreleased] Fixed, bold impact-first lead, cites (#6741), before/after, 1054 characters. doctrine-kinds.md paragraph is accurate (checked against step_contract_urn, IdentityIndex.urn and the ownership-rule call sites) and claims nothing the code does not do. Checklist: no packs/ change in origin/main..HEAD, no dead code (_MSC_URN_PREFIX removed), tests run against the real shipped corpus not synthetic fixtures, locked decisions D-1..D-4 respected, WP02/WP03 file ownership disjoint. Minor doc nit (no block): the corpus test docstring says 'RED on the pre-#6741 tree' — precisely, pre-WP01 the module would error at import; the 21-node reporting is proven via the planted arm. Tally: 5 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    }
+  }
+}

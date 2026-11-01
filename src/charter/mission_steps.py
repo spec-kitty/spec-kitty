@@ -36,6 +36,7 @@ from charter.offering.missions.step_contracts import (
     MissionStepInput,
     MissionStepContractRepository,
     MissionStepContractStep,
+    step_contract_urn,
 )
 
 __all__ = [
@@ -44,4 +45,5 @@ __all__ = [
     "MissionStepInput",
     "MissionStepContractRepository",
     "MissionStepContractStep",
+    "step_contract_urn",
 ]

@@ -260,11 +260,13 @@ def _build_ledger(path: Path, source: ActivationSource, exists: bool, data: Mapp
 
 
 class IdentityLookup(Protocol):
-    """The two identity lookups :func:`resolve_deny` needs (``IdentityIndex`` satisfies it)."""
+    """The identity lookups :func:`resolve_deny` needs (``IdentityIndex`` satisfies it)."""
 
     def declared_id(self, kind: ArtifactKind, token: str) -> str | None: ...
 
     def stem(self, kind: ArtifactKind, token: str) -> str | None: ...
+
+    def urn(self, kind: ArtifactKind, token: str) -> str | None: ...
 
 
 @dataclass(frozen=True)
@@ -298,12 +300,20 @@ DenySet.EMPTY = DenySet()
 
 
 def _spell(kind: ArtifactKind, token: str, identity: IdentityLookup) -> DenySet:
-    """*token*'s stem, declared id and URN; an unknown token keeps itself as the stem and mints its own URN."""
+    """*token*'s stem, declared id and URN; an unknown token keeps itself as the stem and mints its own URN.
+
+    The URN comes from the one authority (:meth:`IdentityLookup.urn`), so a deny entry written as a
+    declared id lands in the same identity space as the DRG node it names. That matters for a
+    mission step contract, whose node tail is the owning ``<mission>/<action>`` pair rather than the
+    declared id: before #6741 the deny set held ``mission_step_contract:implement``, matched no node,
+    and silently admitted the contract it meant to deny.
+    """
     declared = identity.declared_id(kind, token)
     if declared is None:
         return DenySet(frozenset({token}), frozenset(), frozenset({artifact_to_urn(kind.value, token)}))
     stem = identity.stem(kind, token) or token
-    return DenySet(frozenset({stem}), frozenset({declared}), frozenset({f"{kind.value}:{declared}"}))
+    urn = identity.urn(kind, token) or f"{kind.value}:{declared}"
+    return DenySet(frozenset({stem}), frozenset({declared}), frozenset({urn}))
 
 
 def _union(parts: Iterable[DenySet]) -> DenySet:
