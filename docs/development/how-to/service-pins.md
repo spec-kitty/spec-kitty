@@ -1,8 +1,8 @@
 ---
 title: How to fetch, verify and bump the pinned service binaries
-description: Fetch and verify the pinned spec-kitty-events service builds in a checkout or in CI, work offline, run an unpinned local build, and bump a pin with spec-kitty service vendor.
+description: Fetch and verify the pinned service builds in a checkout or in CI, work offline, run an unpinned local build, and bump a pin with spec-kitty service vendor.
 doc_status: active
-updated: '2026-10-30'
+updated: '2026-11-01'
 audience:
 - profile: internal/maintainer
   guidance_text: Written for the Maintainer reader.
@@ -14,11 +14,12 @@ related:
 # How to fetch, verify and bump the pinned service binaries
 
 Core runs services it does not build: the write service, the Mission Status read service and the
-charter service. The events services (write and read) have their source and releases in
-`spec-kitty-events`, which publishes each build as a `service-vX.Y.Z` GitHub release; the charter
-service's releases live in `spec-kitty-charter`. Each release carries per-OS native binaries, a portable jar, the contract
-bundles and the conformance fixtures, each with a SHA-256 digest
-([ADR 2026-10-29-1](../../adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md)).
+charter service. Each service releases on its own `service-vX.Y.Z` line in its own repository: the
+events services (write and read) in `spec-kitty-events`
+([ADR 2026-10-29-1](../../adr/4.x/2026-10-29-1-the-events-domain-and-its-java-services-live-in-spec-kitty-events.md)),
+the charter service in `spec-kitty-charter` (its ADR-0046). A release carries per-OS native
+binaries, a portable jar, and - for the events services - the contract bundles and conformance
+fixtures, each with a SHA-256 digest.
 
 A **service pin** is the lockfile `pins/<service>.source.yaml`. It records which released build core
 runs: the tag, the commit it resolves to, the protocol versions, the core version range it needs,
@@ -31,7 +32,7 @@ the checkout's `pyproject.toml` must name `spec-kitty-cli`), and otherwise in th
 resource of the installed wheel. A `pins/` directory in the project you run spec-kitty in is ignored:
 the pin names the build this CLI runs, so a project cannot choose it.
 
-> **No pin exists yet.** `pins/` holds only its `README.md` until `spec-kitty-events` cuts its first
+> **No pin exists yet.** `pins/` holds only its `README.md` until a service repository cuts its first
 > `service-v*` release. Until then `make sync-services` prints `no service pinned` and exits 0, and
 > every command that needs a service refuses with `SERVICE_PIN_INVALID`. The pull request that adds
 > the first pin also wires the `sync-services` action into CI and `sync-services` into `make dev-setup`.
@@ -93,18 +94,39 @@ offline against the shape rules and, online, against the release. Tags follow
 `service-v<major>.<minor>.<patch>[-<pre-release>]`; build metadata (`+...`) is refused. The
 repository must be an `https://` or `file://` URL without credentials.
 
+The release repository defaults per service: `charter-service` to
+`https://github.com/spec-kitty/spec-kitty-charter`, `write-service` and `read-service` to
+`https://github.com/spec-kitty/spec-kitty-events`. An explicit `--repository` wins, and so does the
+repository already recorded in the pin you are bumping.
+
+On a GitHub `https://` release, every downloaded asset is also checked against the release's build
+attestation before the lockfile is written:
+
+```bash
+gh attestation verify <asset> --repo <owner/repo> \
+  --signer-workflow <owner/repo>/.github/workflows/service-release.yml \
+  --source-ref refs/tags/<tag>
+```
+
+A release whose attestation is missing, signed by another workflow, or from another ref is refused
+and the lockfile is left byte-identical. `--no-attestation` skips the check for an offline mirror or
+a rehearsal only - never for a real bump. A `file://` repository is skipped: it has no attestation,
+and the pinned digest is the whole check there.
+
 A bump writes only the `pins/` of the spec-kitty source checkout the CLI runs from, and only when you
 run it inside that checkout (an editable install, for example `uv run spec-kitty service vendor ...`
 in your clone). Anywhere else it is a usage error (exit 2, `SERVICE_VENDOR_USAGE`) and nothing is
 written.
 
-> **Maintainer note: cross-check the digests out of band.** `vendor` trusts the release's own
-> `SHA256SUMS`. Before you commit a bump, compare the vendored digests with a second source: the
-> asset digests GitHub shows on the release page, or the build attestation:
+> **Maintainer note: the provenance check is automatic now.** `vendor` runs the check above for a
+> GitHub release, so a committed pin has already been checked against the release's build
+> attestation. The manual command is still useful as an independent second source: compare the
+> vendored digests with the asset digests GitHub shows on the release page, or run
 >
 > ```bash
-> gh attestation verify <downloaded asset> --repo spec-kitty/spec-kitty-events \
->   --signer-workflow spec-kitty/spec-kitty-events/.github/workflows/service-release.yml \
+> sha256sum --check --ignore-missing SHA256SUMS
+> gh attestation verify <downloaded asset> --repo spec-kitty/spec-kitty-charter \
+>   --signer-workflow spec-kitty/spec-kitty-charter/.github/workflows/service-release.yml \
 >   --source-ref refs/tags/<tag>
 > ```
 
@@ -131,4 +153,7 @@ timeout is `SPEC_KITTY_SERVICE_START_TIMEOUT` (seconds, default 15).
 | `SERVICE_UNSUPPORTED_PLATFORM` | The pin has no build for this host, and either no jar or no Java 25+ runtime to run the pinned jar. | Install a Java 25 runtime (`JAVA_HOME`, or an absolute `PATH` entry) when the pin has a jar, or use a supported host. |
 | `SERVICE_UNHEALTHY` | The service started but did not become healthy, or its directory in the git common dir cannot be created or written (a read-only or full `.git`, a symlinked `service.log`). | Read the service log, run `spec-kitty service stop`, retry; or make the directory the message names writable. |
 | `SERVICE_VERSION_MISMATCH` | The running service speaks no protocol version this CLI accepts. | Upgrade spec-kitty, or stop the running service. |
+| `SERVICE_ATTESTATION_UNSUPPORTED` | A bump's release repository is not a GitHub `https://` URL, so no signer workflow can be derived. | Pin a GitHub repository, or pass `--no-attestation` for an offline mirror (never for a real bump). |
+| `SERVICE_ATTESTATION_UNAVAILABLE` | `gh` is not on `PATH` or could not run. | Install the GitHub CLI and run `gh auth login`, or pass `--no-attestation` for a rehearsal. |
+| `SERVICE_ATTESTATION_FAILED` | `gh attestation verify` rejected an asset: no attestation, another signer workflow, or another source ref. | Do not pin that release; check the release's workflow and tag before retrying. |
 | `SERVICE_VENDOR_*` | `spec-kitty service vendor` refused (usage, an unresolvable tag, an unavailable or invalid release, a digest mismatch, a `requires_core` range this version does not satisfy). | Follow the remedy the command prints. |
