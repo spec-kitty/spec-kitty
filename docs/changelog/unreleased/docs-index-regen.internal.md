@@ -1,1 +1,0 @@
-- **Pull requests no longer regenerate the docs retrieval index, the page inventory or the ADR era tables**: a bot PR on `ci/regen-docs-index` regenerates them on `main` after each docs merge, and the `docs-lint` job refuses a PR that edits them, so docs PRs stop conflicting on those files.
