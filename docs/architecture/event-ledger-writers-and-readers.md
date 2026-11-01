@@ -4,17 +4,15 @@ description: 'Current-state map of every event log and ledger core writes and re
 doc_status: active
 updated: '2026-10-28'
 type: explanation
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 related:
-- architecture/status-model
-- development/reference/events-in-core
-- adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer
-- adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention
-- adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction
-- adr/2.x/2026-02-09-3-event-log-merge-semantics
-- adr/4.x/2026-10-17-1-explicit-migration-ledger
+- docs/architecture/status-model.md
+- docs/development/reference/events-in-core.md
+- docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md
+- docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md
+- docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md
+- docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md
+- docs/adr/4.x/2026-10-17-1-explicit-migration-ledger.md
 ---
 # Event Ledger Writers and Readers
 
