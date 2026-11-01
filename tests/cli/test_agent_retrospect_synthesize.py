@@ -1087,7 +1087,7 @@ def test_generator_record_payload_proposal_is_planned(tmp_path: Path) -> None:
     root = tmp_path
     _write_generator_retrospective_with_proposal(root, proposal_block=_GLOSSARY_PAYLOAD_YAML)
 
-    result = _invoke_on_generator_record(root, "--json")
+    result = _invoke_on_generator_record(root, "--json", "--proposal-id", "p-001")
 
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output)
@@ -1099,12 +1099,28 @@ def test_generator_record_payload_proposal_is_planned(tmp_path: Path) -> None:
     assert envelope["diagnostics"]["untranslatable"] == []
 
 
+@pytest.mark.parametrize("auto_applicable", [True, False], ids=["auto-applicable-true", "auto-applicable-false"])
+def test_generator_record_proposal_is_never_in_the_default_batch(tmp_path: Path, auto_applicable: bool) -> None:
+    """`auto_applicable` is a hand-editable boolean, not an accept decision: no default-batch mutation."""
+    root = tmp_path
+    _write_generator_retrospective_with_proposal(root, proposal_block=_GLOSSARY_PAYLOAD_YAML, auto_applicable=auto_applicable)
+
+    result = _invoke_on_generator_record(root, "--json", "--apply")
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.output)
+    assert envelope["result"]["planned"] == []
+    assert envelope["result"]["applied"] == []
+    assert envelope["diagnostics"]["proposals_translated"] == 1
+    assert not (root / ".kittify" / "glossary" / "generator-shape-record.yaml").exists()
+
+
 def test_generator_record_payload_proposal_applies(tmp_path: Path) -> None:
     """`--apply` writes the payload's target through the existing apply path (SC-001)."""
     root = tmp_path
     _write_generator_retrospective_with_proposal(root, proposal_block=_GLOSSARY_PAYLOAD_YAML)
 
-    result = _invoke_on_generator_record(root, "--json", "--apply")
+    result = _invoke_on_generator_record(root, "--json", "--apply", "--proposal-id", "p-001")
 
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output)
@@ -1204,8 +1220,8 @@ def test_nested_record_envelope_has_no_diagnostics_block() -> None:
     assert "diagnostics" not in envelope
 
 
-def test_proposal_id_on_a_pending_translated_proposal_is_refused_as_pending(tmp_path: Path) -> None:
-    """`--proposal-id` still only narrows: a pending translated proposal is refused, with the remedy."""
+def test_proposal_id_selects_a_pending_translated_proposal_whatever_auto_applicable_says(tmp_path: Path) -> None:
+    """A translated proposal is always pending; an explicit `--proposal-id` is the only way to select it."""
     root = tmp_path
     _write_generator_retrospective_with_proposal(
         root, proposal_block=_GLOSSARY_PAYLOAD_YAML, auto_applicable=False
@@ -1213,8 +1229,8 @@ def test_proposal_id_on_a_pending_translated_proposal_is_refused_as_pending(tmp_
 
     result = _invoke_on_generator_record(root, "--json", "--proposal-id", "p-001")
 
-    assert result.exit_code == 1, result.output
-    assert "pending" in result.output
+    assert result.exit_code == 0, result.output
+    assert [entry["kind"] for entry in json.loads(result.output)["result"]["planned"]] == ["add_glossary_term"]
 
 
 def test_proposal_id_on_a_generator_record_reports_the_real_status(tmp_path: Path) -> None:
@@ -1226,12 +1242,12 @@ def test_proposal_id_on_a_generator_record_reports_the_real_status(tmp_path: Pat
 
     assert result.exit_code == 1, result.output
     envelope = json.loads(result.output)
-    assert envelope["error"] == "unsupported_generator_record"
+    assert envelope["error"] == "proposal_not_selectable"
     assert envelope["statuses"] == {"p-999": "unknown"}
 
 
 def test_proposal_id_on_a_generator_record_accepts_a_translated_id(tmp_path: Path) -> None:
-    """An accepted (auto_applicable) translated proposal is selectable by its generator id."""
+    """A translated proposal is selectable by its generator id."""
     root = tmp_path
     _write_generator_retrospective_with_proposal(root, proposal_block=_GLOSSARY_PAYLOAD_YAML)
 
