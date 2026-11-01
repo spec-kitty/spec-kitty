@@ -4,9 +4,9 @@ description: Recovery procedures for Spec Kitty operational states, such as a co
 doc_status: active
 updated: '2026-10-04'
 related:
-- docs/index.md
+- docs/README.md
 - docs/operations/upgrade-with-live-lanes-recovery.md
-- docs/guides/how-to/recovery/index.md
+- docs/guides/how-to/recovery/README.md
 ---
 # Recovery guides
 
@@ -35,10 +35,10 @@ analysis](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/
 
 ## See also
 
-- [How-to guides](../guides/index.md) — including crash and interrupted-merge recovery.
-- [Recovery & Troubleshooting](../guides/how-to/recovery/index.md) — the agent-facing
+- [How-to guides](../guides/README.md) — including crash and interrupted-merge recovery.
+- [Recovery & Troubleshooting](../guides/how-to/recovery/README.md) — the agent-facing
   sibling home: implementation-crash and interrupted-merge how-tos. This page covers
   operational coord/lane recovery (operator-grant, `doctor --fix`); that page covers
   agent-facing crash/merge recovery. Cross-linked, not merged, because the two serve
   different audiences and different failure classes.
-- [Documentation home](../index.md)
+- [Documentation home](../README.md)

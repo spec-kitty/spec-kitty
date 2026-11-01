@@ -53,21 +53,21 @@ COUNT_TOLERANCE = 150
 
 #: Pages known to be published. A mistranslated ``<dir>/**.md`` drops the ones
 #: that sit directly inside a globbed directory, so the canaries deliberately
-#: mix depths: ``docs/index.md`` (repo root of the tree), ``api/…`` and
+#: mix depths: ``docs/README.md`` (repo root of the tree), ``api/…`` and
 #: ``guides/…`` (one level down, the shape the naive ``**/*.md`` misses), and
 #: ``adr/3.x/…`` (two levels down).
 CANARY_PAGES = (
     Path("docs/api/slash-commands.md"),
     Path("docs/guides/how-to/installation/install-spec-kitty.md"),
     Path("docs/adr/3.x/2026-07-08-1-mission-resolver-port.md"),
-    Path("docs/index.md"),
+    Path("docs/README.md"),
 )
 
 #: The glob list retired from ``tests/docs/test_docs_seo.py``. It predates the
 #: ``how-to/`` → ``guides/`` and ``reference/slash-commands`` → ``api/`` moves
 #: and resolves 16 pages against today's tree.
 RETIRED_PRE_MOVE_GLOBS = [
-    "index.md",
+    "README.md",
     "tutorials/*.md",
     "how-to/*.md",
     "how-to/harnesses/*.md",

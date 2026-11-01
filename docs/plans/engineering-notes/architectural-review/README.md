@@ -25,7 +25,7 @@ It is the third sibling of [`reflections/`](../reflections/) and [`finding/`](..
 
 ## What does NOT belong here
 
-- Per-mission ADRs — those go to the current-era ADR folder (see the [ADR index](../../../adr/index.md)).
+- Per-mission ADRs — those go to the current-era ADR folder (see the [ADR index](../../../adr/README.md)).
 - Operator-side process notes — those go to `finding/`.
 - Orchestrator self-corrections — those go to `reflections/`.
 - Ad-hoc code reviews of a single PR — use `code-review` skill output.

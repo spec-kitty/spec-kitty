@@ -6,9 +6,9 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/4-0-0-milestone-roadmap.md
-- docs/changelog/index.md
-- docs/plans/index.md
-- docs/plans/code-quality/index.md
+- docs/changelog/README.md
+- docs/plans/README.md
+- docs/plans/code-quality/README.md
 - docs/archive/plans/testing/qa-tidy-first-sequencing.md
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
@@ -201,7 +201,7 @@ coverage recovered **47% -> 84.1%** (a project high), reliability bugs cleared
 **34 -> 0** (2026-08-11), duplication holds at **0.5%**, and CI Quality on normal `main`
 pushes is **green**. The dedicated Playwright `ui-e2e` and `ci-windows` workflows are
 green on the head commit. Full measurement and cluster analysis:
-[Code Quality — Working Collection](code-quality/index.md).
+[Code Quality — Working Collection](code-quality/README.md).
 
 **The one red is honest, not a regression.** The `workflow_dispatch` CI Quality run
 fails only on the SonarCloud quality gate, and only on `new_security_rating = C`. All
@@ -214,7 +214,7 @@ change — an honest standing red per
 **The debt is the roadmap's own scoped paydown.** The security backlog (17 `S6350`
 subprocess findings) and the worst complexity files map almost 1:1 onto the
 **QUEUED** Wave 2 (coord-authority) and Wave 4 (sync adapters) degod slices — see the
-[debt -> wave mapping](code-quality/index.md#how-the-debt-maps-onto-the-roadmap). The 3
+[debt -> wave mapping](code-quality/README.md#how-the-debt-maps-onto-the-roadmap). The 3
 `S2083` BLOCKER path-traversal vulns (`merge/bookkeeping_projection.py`,
 `skills/verifier.py`) are **not** on a wave and are a ~90-min targeted fix.
 

@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-07-26'
 related:
 - docs/archive/plans/doctrine/manifesto-tier-primary-drivers.md
-- docs/plans/doctrine/index.md
+- docs/plans/doctrine/README.md
 ---
 # Manifesto tier — verdict, corrections, and handover
 

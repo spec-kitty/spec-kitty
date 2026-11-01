@@ -7,7 +7,7 @@ audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
 - docs/development/how-to/pr-landing.md
-- docs/changelog/index.md
+- docs/changelog/README.md
 ---
 # Debrief house style — executive debriefs ("what happened")
 

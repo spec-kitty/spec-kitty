@@ -312,4 +312,4 @@ are fixed as bundled, efficiency-motivated scope, not epic scope. Full detail:
 
 - [Write-path topology: ambient-location root cause and remediation options](write-path-topology-root-cause.md) — the sibling #3129 investigation this research was asked to connect #3044 to; the write-side member of the same seam-classification style of pre-spec research.
 - [Read-side placement-seam classification ledger](../../../development/reference/read-side-seam-classification.md) — the `PlacementSeam.read_dir(kind)` migration ledger; `MissionArtifactKind.WORK_PACKAGE_TASK` (the kind `_review_cycle_wp_dir` already routes through) is downstream of this program's infrastructure.
-- [Investigations index](../../../plans/investigations/index.md)
+- [Investigations index](../../../plans/investigations/README.md)

@@ -5,14 +5,14 @@ doc_status: durable
 updated: '2026-10-22'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/plans/index.md
+- docs/plans/README.md
 - docs/plans/4-0-0-milestone-roadmap.md
 - docs/archive/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/packs-extraction-domain-plan.md
 - docs/plans/glossary-doctrine-overhaul-program.md
 - docs/changelog/4.0.0.md
 - docs/plans/doctrine/charter-sole-door-deferred-issues.md
-- docs/plans/doctrine/index.md
+- docs/plans/doctrine/README.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
 - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
 ---
@@ -214,7 +214,7 @@ The planning was distributed across four surfaces, none of which is the domain's
    — a four-mission program promoting the glossary to a first-order `GLOSSARY_PACK`
    doctrine kind and building the executable ASSET-kind gate. A program plan scoped to
    one sub-area, not the domain.
-3. **[`docs/plans/doctrine/`](../doctrine/index.md)** — the design/review corpus: the
+3. **[`docs/plans/doctrine/`](../doctrine/README.md)** — the design/review corpus: the
    charter-activation-vs-reachability assessment, the `runtime → charter → doctrine`
    boundary audit, the charter-as-central-path-resolver gap analysis, the layered
    resolution design, the doctrine-inclusion assessment, the FoundationalValues/Creed
@@ -568,7 +568,7 @@ content-QA gap (no owning workstream) stands.*
 - [Charter as Sole Door: Deferred Issues Record](../doctrine/charter-sole-door-deferred-issues.md) —
   the citable residual-door summary for §3.1 (six deferred follow-ons).
 
-**Doctrine design corpus** ([`docs/plans/doctrine/`](../doctrine/index.md)):
+**Doctrine design corpus** ([`docs/plans/doctrine/`](../doctrine/README.md)):
 
 - [Charter as Central Path Resolver — Gap Analysis](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/charter-path-resolution-gaps.md), [Doctrine Inclusion Assessment](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/doctrine-inclusion-assessment.md), [Layered Doctrine Resolution — Design Blueprint](../doctrine/layered-doctrine-resolution-design.md), and the FoundationalValues/Creed AUTHORITY docs — background design for §3.1/§3.2.
 
@@ -589,4 +589,4 @@ These three `docs/plans/doctrine/` investigations have been distilled into the i
 (governance configuration & docs), #2216 (governance tiers), #3259 (meta.json fail-closed
 routing), #645 (stable application API surface).
 
-**Plans index:** [docs/plans/index.md](../index.md).
+**Plans index:** [docs/plans/index.md](../README.md).

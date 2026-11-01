@@ -4,7 +4,7 @@ description: "Reference for the spk-run-next skill: driving the canonical spec-k
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/skills/index.md
+  - docs/api/skills/README.md
 ---
 
 # spk-run-next

@@ -6,7 +6,7 @@ type: reference
 audience: docs/context/audience/internal/maintainer.md
 updated: '2026-06-01'
 related:
-- docs/operations/index.md
+- docs/operations/README.md
 ---
 # Baseline Refresh — P0 Test Failures
 

@@ -25,7 +25,7 @@ pytestmark = pytest.mark.fast
 
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
 _NOTE_PATH: Final[Path] = _REPO_ROOT / "docs" / "migrations" / "tracker-egress-refusal.md"
-_INDEX_PATH: Final[Path] = _REPO_ROOT / "docs" / "migrations" / "index.md"
+_INDEX_PATH: Final[Path] = _REPO_ROOT / "docs" / "migrations" / "README.md"
 
 #: Every stable heading FR-013 pins. A rename of any one of these must be caught -- this is the
 #: "removed or renamed" half of the anchor check; :data:`_SUBSTANCE_PHRASES` below is the other
@@ -163,11 +163,11 @@ def test_note_exists_at_its_pinned_path() -> None:
 def test_index_links_note_in_frontmatter_related_and_in_body() -> None:
     index_text = _INDEX_PATH.read_text(encoding="utf-8")
     parts = index_text.split("---", 2)
-    assert len(parts) == 3, "docs/migrations/index.md must have a frontmatter block"
+    assert len(parts) == 3, "docs/migrations/README.md must have a frontmatter block"
     frontmatter, body = parts[1], parts[2]
 
     assert "docs/migrations/tracker-egress-refusal.md" in frontmatter, (
-        "index.md frontmatter `related:` list must list the upgrade note "
+        "README.md frontmatter `related:` list must list the upgrade note "
         "(docs/migrations/tracker-egress-refusal.md)"
     )
     # Review LOW-7: a bare-filename substring is satisfied by prose that merely
@@ -175,7 +175,7 @@ def test_index_links_note_in_frontmatter_related_and_in_body() -> None:
     # relative-link-fixer gate only catches *dead* links, never *missing* ones.
     # Assert the markdown link form itself, `](tracker-egress-refusal.md)`.
     assert "](tracker-egress-refusal.md)" in body, (
-        "index.md body (Current 3.2 migrations) must link the upgrade note as a "
+        "README.md body (Current 3.2 migrations) must link the upgrade note as a "
         "markdown link, not merely mention its filename"
     )
 

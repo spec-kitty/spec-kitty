@@ -6,7 +6,7 @@ updated: '2026-07-26'
 related:
 - docs/plans/doctrine/foundational-values-and-creed.md
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
-- docs/plans/doctrine/index.md
+- docs/plans/doctrine/README.md
 ---
 # Verification round — three-lens review of the finalized authorities
 

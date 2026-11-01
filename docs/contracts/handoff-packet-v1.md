@@ -5,7 +5,7 @@ doc_status: durable
 updated: '2026-08-13'
 related:
 - docs/api/agent-plan-artifacts.md
-- docs/contracts/index.md
+- docs/contracts/README.md
 ---
 # Handoff Packet v1
 

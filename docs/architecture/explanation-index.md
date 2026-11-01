@@ -37,10 +37,10 @@ here when you want the mental model behind a capability rather than step-by-step
 - [Event ledger writers and readers](event-ledger-writers-and-readers.md) — who writes and reads each event log today, and the gaps against the event ADRs.
 - [Post-merge partition authority](post-merge-partition-authority.md) — which bytes win after consolidation, and which surface readers trust.
 
-The full list is in the [architecture index](index.md).
+The full list is in the [architecture index](README.md).
 
 ## See also
 
-- [Tutorials](../guides/tutorials/index.md) — learning-oriented walkthroughs.
-- [How-to guides](../guides/index.md) — task-oriented instructions.
-- [Reference](../api/index.md) — authoritative specifications.
+- [Tutorials](../guides/tutorials/README.md) — learning-oriented walkthroughs.
+- [How-to guides](../guides/README.md) — task-oriented instructions.
+- [Reference](../api/README.md) — authoritative specifications.

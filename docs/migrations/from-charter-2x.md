@@ -4,8 +4,8 @@ description: What changed when upgrading from Spec Kitty 2.x or early 3.x to cur
 doc_status: active
 updated: '2026-10-08'
 related:
-- docs/context/index.md
-- docs/changelog/2x/index.md
+- docs/context/README.md
+- docs/changelog/2x/README.md
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
@@ -199,5 +199,5 @@ If you encounter issues not covered here, see
 - [How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md)
 - [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md)
 - [Troubleshooting Charter Failures](../guides/how-to/governance/troubleshoot-charter.md)
-- [Spec Kitty 3.x — Charter Era](../context/index.md)
-- [Spec Kitty 2.x Docs (archived)](../changelog/2x/index.md)
+- [Spec Kitty 3.x — Charter Era](../context/README.md)
+- [Spec Kitty 2.x Docs (archived)](../changelog/2x/README.md)

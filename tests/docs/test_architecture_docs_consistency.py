@@ -44,7 +44,7 @@ REQUIRED_ARCH_PATHS: list[Path] = [
     ARCH_DIR / "README.md",
     ARCH_DIR / "adr-template.md",
     ADR_DIR,
-    AUDIENCE_DIR / "index.md",
+    AUDIENCE_DIR / "README.md",
     AUDIENCE_DIR / "internal",
     AUDIENCE_DIR / "external",
     ADR_DIR / "1.x",
@@ -68,7 +68,7 @@ def _collect_adr_files() -> list[tuple[str, Path]]:
     """Return (track_label, path) for every ADR file in both tracks.
 
     ``README.md`` / ``index.md`` era-landing pages are excluded because they are
-    not ADRs (the era index was normalized README.md -> index.md per #2227).
+    not ADRs (``README.md`` is the landing basename since #6939).
     """
     result: list[tuple[str, Path]] = []
     for track, adr_dir in ADR_TRACKS.items():

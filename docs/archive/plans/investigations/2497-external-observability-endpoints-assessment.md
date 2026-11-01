@@ -5,7 +5,7 @@ doc_status: superseded
 updated: '2026-09-30'
 audience: docs/context/audience/internal/system-architect.md
 related:
-- docs/plans/index.md
+- docs/plans/README.md
 - docs/api/cli-commands.md
 ---
 

@@ -288,7 +288,7 @@ into `docs/2165-consolidation-research` before any Mission B work begins (C-001)
   (structural moves, link rewrites, redirect-shim, frontmatter backfill, ADR migration,
   anti-sprawl ratchet). C-001 gates B on this ADR's merge.
 - **Research ground truth (pre-settled values):**
-  [`docs/plans/engineering-notes/651-docs-consolidation/index.md`](../../../docs/plans/engineering-notes/651-docs-consolidation/index.md),
+  [`docs/plans/engineering-notes/651-docs-consolidation/index.md`](../../plans/engineering-notes/651-docs-consolidation/README.md),
   [`02-common-docs-standard.md`](../../../docs/plans/engineering-notes/651-docs-consolidation/02-common-docs-standard.md),
   [`03-target-structure-mapping.md`](../../../docs/plans/engineering-notes/651-docs-consolidation/03-target-structure-mapping.md).
 - **Key code/seams referenced:** `src/glossary/scope.py` (`load_seed_file`),

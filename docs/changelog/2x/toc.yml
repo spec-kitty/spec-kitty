@@ -1,5 +1,5 @@
 - name: 2.x Overview
-  href: index.md
+  href: README.md
 - name: ADR Coverage (2.x)
   href: adr-coverage.md
 - name: Doctrine and Charter (2.x)

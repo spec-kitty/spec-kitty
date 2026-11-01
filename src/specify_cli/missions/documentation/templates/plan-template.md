@@ -46,7 +46,7 @@ kitty-specs/[###-mission]/
 
 ```
 docs/
-├── index.md                    # Landing page with navigation
+├── README.md                   # Landing page with navigation
 ├── tutorials/
 │   ├── getting-started.md     # Step-by-step for beginners
 │   └── [additional-tutorials].md
@@ -130,7 +130,7 @@ Define documentation structure, configure generators, plan content outline for e
 **Directory Layout**:
 ```
 docs/
-├── index.md                    # Landing page
+├── README.md                   # Landing page
 ├── tutorials/                  # Learning-oriented
 ├── how-to/                     # Problem-solving
 ├── reference/                  # Technical specs

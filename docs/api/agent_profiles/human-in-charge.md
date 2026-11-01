@@ -4,7 +4,7 @@ description: Workflow sentinel indicating this work package requires direct huma
 doc_status: active
 updated: '2026-10-08'
 related:
-  - docs/api/agent_profiles/index.md
+  - docs/api/agent_profiles/README.md
   - docs/context/charter.md
 ---
 
@@ -28,5 +28,5 @@ When a work package carries the `human-in-charge` profile-id, that WP requires d
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)
 - [spk-charter-profile-load](../skills/spk-charter-profile-load.md) — how profile loading works for the 16 real personas this sentinel is excluded from

@@ -7,12 +7,12 @@ audience: docs/context/audience/internal/maintainer.md
 updated: '2026-10-19'
 related:
 - docs/changelog/4.0.0.md
-- docs/changelog/index.md
-- docs/plans/index.md
+- docs/changelog/README.md
+- docs/plans/README.md
 - docs/plans/4-x-executive-overview.md
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/code-quality/index.md
+- docs/plans/code-quality/README.md
 - docs/changelog/release-goals.md
 ---
 # 4.0.0 Milestone — Roadmap

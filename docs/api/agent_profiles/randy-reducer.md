@@ -4,7 +4,7 @@ description: Semantic compression specialist for behavior-preserving code reduct
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/agent_profiles/index.md
+  - docs/api/agent_profiles/README.md
   - docs/context/charter.md
 ---
 
@@ -37,4 +37,4 @@ Inside Claude Code, Codex, or another configured harness, you don't run a CLI co
 
 ## See also
 
-- [Agent Profiles reference](index.md)
+- [Agent Profiles reference](README.md)

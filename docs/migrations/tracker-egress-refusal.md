@@ -4,7 +4,7 @@ description: 'Why every existing beads/fp tracker binding now needs a recorded c
 doc_status: active
 updated: '2026-08-04'
 related:
-- docs/migrations/index.md
+- docs/migrations/README.md
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
@@ -220,4 +220,4 @@ your decision back to absence.
 
 ## Related Documentation
 
-- [Migrations index](index.md)
+- [Migrations index](README.md)

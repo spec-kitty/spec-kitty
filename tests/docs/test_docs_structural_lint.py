@@ -552,11 +552,12 @@ def test_live_plans_research_and_investigations_pass_clean() -> None:
 
 
 def test_live_nav_basenames_do_not_trip_shadow_tree() -> None:
-    """The index.md / README.md nav basenames never trip shadow_tree.
+    """The README.md nav basename never trips shadow_tree.
 
-    Non-vacuity floors are keyed on index.md (the README->index standardization
-    target) and the migration-invariant combined cohort, not a draining README
-    floor. See research.md D2 for the original 38/38 baseline.
+    Non-vacuity floors are keyed on ``README.md``, the section landing basename
+    since #6939 (ADR 2026-10-31-1 D-1), and on the migration-invariant combined
+    cohort. The floor sits below today's actual count so it proves the corpus is
+    not empty without pinning a number that every rename would have to edit.
     """
     config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
@@ -565,15 +566,11 @@ def test_live_nav_basenames_do_not_trip_shadow_tree() -> None:
     readme_count = sum(1 for p in md_files if p.name == "README.md")
     # These floors exist only for NON-VACUITY: the substantive guard below
     # (no shadow_tree violations) is meaningless unless the corpus actually
-    # contains nav basenames to check. The original 38/38 split (research.md D2)
-    # is being deliberately drained by the README.md -> index.md landing-file
-    # standardization (#3324 standardized docs/plans), so index.md is now the
-    # dominant, growing nav basename and a README-specific floor is the wrong
-    # ratchet — it would trip on the very migration it is meant to allow.
-    # Key the floor on index.md (the standardization target) and on the
-    # migration-invariant combined cohort, both set below today's actuals
-    # (index_count=57, combined=84 as of #3324).
-    assert index_count >= 40, index_count
+    # contains nav basenames to check. #6939 moved the landing basename from
+    # index.md to README.md, so the floor tracks README.md (today: 88) — never
+    # index.md, which is 0 by construction and guarded by
+    # tests/docs/test_section_index_basename.py.
+    assert readme_count >= 60, readme_count
     assert index_count + readme_count >= 70, (index_count, readme_count)
 
     violations = check_shadow_tree_basename(md_files, docs_root, _REPO_ROOT, config)

@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/archive/plans/engineering-notes/mission-notes/index.md
+- docs/archive/plans/engineering-notes/mission-notes/README.md
 ---
 # runtime_bridge Compat-Delegate Classification (WP02 — FR-003 / #2561)
 

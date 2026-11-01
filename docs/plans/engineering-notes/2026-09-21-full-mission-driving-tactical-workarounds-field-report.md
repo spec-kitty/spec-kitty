@@ -5,7 +5,7 @@ doc_status: draft
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/plans/engineering-notes/index.md
+- docs/plans/engineering-notes/README.md
 - docs/plans/engineering-notes/2026-07-19-migration-contract-step-ownership-field-report.md
 - docs/development/reference/known-friction-points.md
 - docs/development/how-to/pr-landing.md

@@ -6,8 +6,8 @@ updated: '2026-10-22'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/doctrine/foundational-values-and-creed.md
-- docs/archive/plans/doctrine/squad-reports/index.md
-- docs/plans/doctrine/index.md
+- docs/archive/plans/doctrine/squad-reports/README.md
+- docs/plans/doctrine/README.md
 ---
 # FoundationalValues/creed program — delivery sequence
 
@@ -21,7 +21,7 @@ related:
 > landed. Missions B1, B2, C and D never got past specify. Milestone references below are as
 > of 2026-07-26: the 3.2.x line has since closed (last release 3.2.7), #2934 closed on
 > 2026-07-26, and the 3.3.x milestone was retired on 2026-08-23 (#2538 is now in Product
-> backlog). See the [doctrine index](index.md#programme-realization-2026-07-26-operator-ruling).
+> backlog). See the [doctrine index](README.md#programme-realization-2026-07-26-operator-ruling).
 
 **Date:** 2026-07-26 · **Base:** `0fcb4b3d2` + the review-round-2 fix commit, branch `docs/manifesto-tier-analysis`
 **Role:** sequencing only. No architectural decision is taken here; **D-2 is escalated, not

@@ -189,7 +189,7 @@ _CUTOVER_HEADLINE = "Charter pack cutover:"
 _RELEASED_CHANGELOG_FILES: tuple[str, ...] = (
     "docs/changelog/1x/artifacts-and-commands.md",
     "docs/changelog/1x/branches-and-workspaces.md",
-    "docs/changelog/1x/index.md",
+    "docs/changelog/1x/README.md",
     "docs/changelog/1x/orchestration-and-api.md",
     "docs/changelog/1x/toc.yml",
     "docs/changelog/1x/workflow.md",

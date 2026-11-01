@@ -7,7 +7,7 @@ audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/architecture/status-model.md
-- docs/plans/index.md
+- docs/plans/README.md
 ---
 
 # Retrospective-learning surface: disposition and sequencing

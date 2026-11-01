@@ -7,7 +7,7 @@ reintroduces the merge conflicts that move removed, so this guard refuses:
 
 * any change to ``docs/development/docs-retrieval-index.yaml`` or
   ``docs/development/page-inventory.yaml``;
-* a NEW row in an ADR era table (``docs/adr/<era>/index.md``): a ``| date | [title](x.md) |``
+* a NEW row in an ADR era table (``docs/adr/<era>/README.md``): a ``| date | [title](x.md) |``
   line whose linked file no removed line links. Editing an existing row (a title fix)
   and editing the page's prose stay allowed.
 

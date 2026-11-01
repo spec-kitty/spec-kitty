@@ -5,7 +5,7 @@ doc_status: durable
 updated: '2026-10-19'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/plans/index.md
+- docs/plans/README.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
 - docs/plans/domains/api-dashboard-domain-plan.md
 - docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
@@ -203,4 +203,4 @@ All six sit under the parent epic #2466.
 - ADR [2026-08-02-1 charter-wheel-assessment](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md): the wheel-split assessment.
 - ADR [2026-08-16-2 open-packs is source of truth for built-in doctrine](../../adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md): Option B, the re-vendor, amended 2026-10-19 to pin and fetch (#6451).
 - ADR [2026-05-16-1 doctrine-layer merge semantics](../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md): the authoring seam this plan stays out of.
-- [Plans index](../index.md).
+- [Plans index](../README.md).

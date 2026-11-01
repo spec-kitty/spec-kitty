@@ -4,7 +4,7 @@ description: Code and design quality assurance specialist for correctness, secur
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/agent_profiles/index.md
+  - docs/api/agent_profiles/README.md
   - docs/context/charter.md
 ---
 
@@ -42,4 +42,4 @@ Within a running mission, review work packages ordinarily happens through the re
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)

@@ -4,7 +4,7 @@ description: Server-side Node.js implementer for HTTP APIs, event-loop disciplin
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/agent_profiles/index.md
+  - docs/api/agent_profiles/README.md
   - docs/context/charter.md
 ---
 
@@ -40,4 +40,4 @@ Inside Claude Code, Codex, or another configured harness, you don't run a CLI co
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)

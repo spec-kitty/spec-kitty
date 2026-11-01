@@ -42,19 +42,19 @@ The docs are a single 13-section Common Docs structure:
 
 ## Intent Routing
 
-When the question is about X, read Y first (each section has its own `index.md` landing page):
+When the question is about X, read Y first (each section has its own `README.md` landing page):
 
-- Getting started or first project — read `guides/index.md`.
-- Installing or upgrading the CLI or a project — read `guides/index.md`, then the migration notes under `migrations/index.md`.
-- Running a specific task (spec, plan, tasks, implement, review, merge) — read `guides/index.md`.
-- An exact command, flag, file, schema, or environment variable — read `api/index.md`.
-- Configuration files and environment variables — read `configuration/index.md`.
-- AI harness support and external integrations — read `integrations/index.md`.
-- Security, credentials, or secrets handling — read `security/index.md`.
-- Why something works the way it does (mental model, architecture, tradeoffs) — read `architecture/index.md`.
-- A specific architectural decision and its rationale — read `adr/index.md`.
-- Governance, Charter, doctrine, glossary, or agent profiles — read `context/index.md`.
-- Upgrading from 1.x or 2.x, or finding archived behavior — read `migrations/index.md`, then the archived tracks under `changelog/`.
-- Recovering from a failed or interrupted operation — read `operations/index.md`.
-- Roadmap, investigations, or research traces — read `plans/index.md`.
-- Release history — read `changelog/index.md`.
+- Getting started or first project — read `guides/README.md`.
+- Installing or upgrading the CLI or a project — read `guides/README.md`, then the migration notes under `migrations/README.md`.
+- Running a specific task (spec, plan, tasks, implement, review, merge) — read `guides/README.md`.
+- An exact command, flag, file, schema, or environment variable — read `api/README.md`.
+- Configuration files and environment variables — read `configuration/README.md`.
+- AI harness support and external integrations — read `integrations/README.md`.
+- Security, credentials, or secrets handling — read `security/README.md`.
+- Why something works the way it does (mental model, architecture, tradeoffs) — read `architecture/README.md`.
+- A specific architectural decision and its rationale — read `adr/README.md`.
+- Governance, Charter, doctrine, glossary, or agent profiles — read `context/README.md`.
+- Upgrading from 1.x or 2.x, or finding archived behavior — read `migrations/README.md`, then the archived tracks under `changelog/`.
+- Recovering from a failed or interrupted operation — read `operations/README.md`.
+- Roadmap, investigations, or research traces — read `plans/README.md`.
+- Release history — read `changelog/README.md`.

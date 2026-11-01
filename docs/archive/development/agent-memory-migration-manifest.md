@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
-- docs/development/index.md
+- docs/development/README.md
 - docs/development/reference/known-friction-points.md
 - docs/development/how-to/manage-issue-tracker.md
 - docs/development/how-to/create-a-doctrine-artifact.md
@@ -88,9 +88,9 @@ Each row below carries exactly one resolution token:
 
 | Memory entry | Resolution |
 |---|---|
-| `reference_docs_inventory_freshen` | **home:** [`docs/development/index.md`](../../development/index.md) — the page-inventory rollup is refreshed via `scripts/docs/inventory_lockfile.py --write <path>` (a path-valued flag), and the retrieval index via `scripts/docs/docs_index.py --write` (a bare boolean flag) — two **separate** scripts with two different `--write` shapes, which is exactly the confusion the original memory entry was guarding against. Also noted: `inventory_lockfile.py --write`'s own help string ("Optional path to write the regenerated lockfile (never docs/)") is stale — its own `DEFAULT_INVENTORY_PATH` is `docs/development/3-2-page-inventory.yaml`, i.e. under `docs/`. Left as a campsite nit, not fixed in this pass. |
-| `reference_mission_wrapup_pr_doctrine` | **home:** [`docs/development/index.md`](../../development/index.md), which points to [`packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml`](../../../packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml) and [`packs/built-in/directives/046-readable-consistent-prs.directive.yaml`](../../../packs/built-in/directives/046-readable-consistent-prs.directive.yaml). |
-| `reference_prompt_template_regen_and_source_location` (regen half) | **issue:** [#3447](https://github.com/Priivacy-ai/spec-kitty/issues/3447) (deferred, tracked as a follow-up to automate the 12-agent-copy + codex/vibe snapshot regen), plus a pointer from [`docs/development/index.md`](../../development/index.md). |
+| `reference_docs_inventory_freshen` | **home:** [`docs/development/index.md`](../../development/README.md) — the page-inventory rollup is refreshed via `scripts/docs/inventory_lockfile.py --write <path>` (a path-valued flag), and the retrieval index via `scripts/docs/docs_index.py --write` (a bare boolean flag) — two **separate** scripts with two different `--write` shapes, which is exactly the confusion the original memory entry was guarding against. Also noted: `inventory_lockfile.py --write`'s own help string ("Optional path to write the regenerated lockfile (never docs/)") is stale — its own `DEFAULT_INVENTORY_PATH` is `docs/development/3-2-page-inventory.yaml`, i.e. under `docs/`. Left as a campsite nit, not fixed in this pass. |
+| `reference_mission_wrapup_pr_doctrine` | **home:** [`docs/development/index.md`](../../development/README.md), which points to [`packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml`](../../../packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml) and [`packs/built-in/directives/046-readable-consistent-prs.directive.yaml`](../../../packs/built-in/directives/046-readable-consistent-prs.directive.yaml). |
+| `reference_prompt_template_regen_and_source_location` (regen half) | **issue:** [#3447](https://github.com/Priivacy-ai/spec-kitty/issues/3447) (deferred, tracked as a follow-up to automate the 12-agent-copy + codex/vibe snapshot regen), plus a pointer from [`docs/development/index.md`](../../development/README.md). |
 
 ## G5 — Behavior quirks filed as bugs (WP05 / T014)
 

@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/archive/plans/engineering-notes/mission-notes/index.md
+- docs/archive/plans/engineering-notes/mission-notes/README.md
 - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
 - docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
 - docs/archive/plans/engineering-notes/883-mission-type-authority-brief.md

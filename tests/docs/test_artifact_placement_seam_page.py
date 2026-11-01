@@ -27,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 PAGE_PATH = REPO_ROOT / "docs" / "architecture" / "artifact-placement-seam.md"
 BRANCH_TARGET_PATH = REPO_ROOT / "docs" / "architecture" / "branch-target-routing.md"
 ORCHESTRATION_PATH = REPO_ROOT / "docs" / "context" / "orchestration.md"
-INDEX_PATH = REPO_ROOT / "docs" / "architecture" / "index.md"
+INDEX_PATH = REPO_ROOT / "docs" / "architecture" / "README.md"
 
 # The six named sections required by contract C1. Matched as level-2 headings,
 # anchored to line start so a false positive inside a code block can't satisfy it.
@@ -194,7 +194,7 @@ def test_page_filename_is_not_routing_dot_md() -> None:
 def test_page_registered_in_architecture_index() -> None:
     index_text = INDEX_PATH.read_text(encoding="utf-8")
     assert "artifact-placement-seam.md" in index_text, (
-        "artifact-placement-seam.md must be registered in docs/architecture/index.md"
+        "artifact-placement-seam.md must be registered in docs/architecture/README.md"
     )
 
 

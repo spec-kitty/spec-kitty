@@ -5,7 +5,7 @@ doc_status: draft
 updated: '2026-07-26'
 related:
 - docs/plans/doctrine/test_quality/mocking-boundary-and-test-slicing-research.md
-- docs/plans/doctrine/index.md
+- docs/plans/doctrine/README.md
 ---
 # Test-Quality Doctrine — Artefact Series Proposal
 

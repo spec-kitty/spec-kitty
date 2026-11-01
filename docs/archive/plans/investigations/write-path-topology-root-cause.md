@@ -282,4 +282,4 @@ a batch reparent):
 
 - [3.2.x Milestone — Roadmap](../../../plans/3-2-x-milestone-roadmap.md) — § Addendum 2026-08-01
 - [3.2.x — Release Goals](../../../changelog/3.2.x.md) — G2, 2026-08-01 scoping-gap note
-- [Investigations index](../../../plans/investigations/index.md)
+- [Investigations index](../../../plans/investigations/README.md)

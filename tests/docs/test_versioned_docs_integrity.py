@@ -35,13 +35,13 @@ FORBIDDEN_TERMS = (
 
 def test_versioned_docs_required_files_exist() -> None:
     expected = [
-        DOCS_DIR / "index.md",
+        DOCS_DIR / "README.md",
         DOCS_DIR / "toc.yml",
-        ARCHIVE_DIR / "index.md",
+        ARCHIVE_DIR / "README.md",
         ARCHIVE_DIR / "toc.yml",
-        ARCHIVE_DIR / "1x" / "index.md",
+        ARCHIVE_DIR / "1x" / "README.md",
         ARCHIVE_DIR / "1x" / "toc.yml",
-        ARCHIVE_DIR / "2x" / "index.md",
+        ARCHIVE_DIR / "2x" / "README.md",
         ARCHIVE_DIR / "2x" / "toc.yml",
     ]
     missing = [str(path.relative_to(REPO_ROOT)) for path in expected if not path.is_file()]

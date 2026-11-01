@@ -92,4 +92,4 @@ you would for a force-push.
 - [`--start-branch` coordination divergence](start-branch-coord-divergence.md) — the pr-bound sibling of this failure
 - [Coordination branch stranded after a base rebase](coord-branch-base-strand.md)
 - [Coord-branch bookkeeping root-cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md)
-- [Recovery & Troubleshooting (agent-facing)](../guides/how-to/recovery/index.md) — implementation-crash and merge recovery
+- [Recovery & Troubleshooting (agent-facing)](../guides/how-to/recovery/README.md) — implementation-crash and merge recovery

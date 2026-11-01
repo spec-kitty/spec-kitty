@@ -8,7 +8,7 @@ updated: '2026-10-26'
 related:
 - docs/api/cli-commands.md
 - docs/api/agent-subcommands.md
-- docs/development/reference/index.md
+- docs/development/reference/README.md
 ---
 # Issue-Matrix Verdict Reference
 

@@ -6,7 +6,7 @@ updated: '2026-08-16'
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/index.md
+- docs/plans/README.md
 - docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
 ---
 

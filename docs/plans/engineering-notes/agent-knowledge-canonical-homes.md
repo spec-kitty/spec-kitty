@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/plans/engineering-notes/index.md
+- docs/plans/engineering-notes/README.md
 - docs/context/orchestration.md
 - src/charter/offering/skills/spec-kitty-charter-doctrine/references/doctrine-artifact-structure.md
 ---

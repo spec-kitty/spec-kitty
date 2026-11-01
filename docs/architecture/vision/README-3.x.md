@@ -22,7 +22,7 @@ Demoted from the living vision page on 2026-09-30 under the decay rule. It was t
 forward signal written during the 3.x era.
 
 Forward intent, corroborated by the 2026-08-12 code-health measurement (full detail:
-[Code Quality — Working Collection](../../plans/code-quality/index.md)). Not yet an ADR.
+[Code Quality — Working Collection](../../plans/code-quality/README.md)). Not yet an ADR.
 
 The 3.x north-star — a **doctrine-governed, charter-activated runtime with a hardened
 execution model** — is showing up in the measurements, not just the design:

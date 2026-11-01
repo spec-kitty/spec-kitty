@@ -5,7 +5,7 @@ doc_status: durable
 updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/plans/index.md
+- docs/plans/README.md
 - docs/plans/4-0-0-milestone-roadmap.md
 - docs/archive/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
@@ -281,4 +281,4 @@ drift being killed — not a live UI label.*
 doctrine-import facet is doctrine-charter §3.6), #650 (dashboard/UX + `Feature`-drift
 retirement).
 
-**Plans index:** [docs/plans/index.md](../index.md).
+**Plans index:** [docs/plans/index.md](../README.md).

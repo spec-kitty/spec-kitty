@@ -11,7 +11,7 @@ type: reference
 Canonical authoring conventions for Spec Kitty's living glossary. The glossary
 is a living artifact organized by context domain; the per-domain term
 definitions live in this directory (`docs/context/*.md`) and are indexed from
-[the Context landing page](index.md). This page carries the shared conventions
+[the Context landing page](README.md). This page carries the shared conventions
 those context pages follow.
 
 ## Source of Truth
@@ -34,7 +34,7 @@ Use policy docs to answer "what should this mean?" and runtime artifacts to answ
 ## Domain Index
 
 The canonical index of glossary context domains and their files lives on the
-[Context landing page](index.md). Each filename (without `.md`) under
+[Context landing page](README.md). Each filename (without `.md`) under
 `docs/context/` is a valid context slug; see
 [Contextive Glossary Integration](contextive-glossaries.md) for how those slugs
 generate the IDE hover glossaries.

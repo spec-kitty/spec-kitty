@@ -8,9 +8,9 @@ audience: docs/context/audience/external/product-manager-evaluator.md
 related:
 - docs/plans/4-0-0-milestone-roadmap.md
 - docs/changelog/4.0.0.md
-- docs/changelog/index.md
+- docs/changelog/README.md
 - docs/context/team-kitty.md
-- docs/plans/index.md
+- docs/plans/README.md
 ---
 
 # 4.x Executive Overview
@@ -19,7 +19,7 @@ related:
 tracker on 2026-10-06. It replaces the
 [3.2.x Executive Overview](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-executive-overview.md).
 The operator detail is in the [4.0.0 Milestone Roadmap](4-0-0-milestone-roadmap.md). What
-actually shipped is in the [changelog](../changelog/index.md). Counts below are a snapshot:
+actually shipped is in the [changelog](../changelog/README.md). Counts below are a snapshot:
 check the [4.0.0 release scope milestone](https://github.com/spec-kitty/spec-kitty/milestone/11)
 for today's numbers.*
 

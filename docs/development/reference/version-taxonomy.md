@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/development/reference/index.md
+- docs/development/reference/README.md
 - docs/development/page-inventory.yaml
 ---
 # Version taxonomy

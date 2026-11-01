@@ -62,5 +62,5 @@ A managed read-only file (`0o444`, `0o400`) is not flagged: replacing it does no
 
 ## See also
 
-- [Testing index](index.md)
+- [Testing index](README.md)
 - [Test-flakiness handling policy](testing-flakiness.md)

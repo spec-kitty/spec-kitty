@@ -3,7 +3,7 @@
     "content": [
       {
         "files": [
-          "index.md",
+          "README.md",
           "toc.yml",
           "context/**.md",
           "architecture/**.md",

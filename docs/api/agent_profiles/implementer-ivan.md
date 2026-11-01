@@ -4,7 +4,7 @@ description: General-purpose software implementation specialist
 doc_status: active
 updated: '2026-09-28'
 related:
-  - docs/api/agent_profiles/index.md
+  - docs/api/agent_profiles/README.md
   - docs/context/charter.md
 ---
 
@@ -52,4 +52,4 @@ load a profile directly. Two paths work:
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)

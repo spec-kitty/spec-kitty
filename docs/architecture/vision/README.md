@@ -7,7 +7,7 @@ audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/README.md
 - docs/plans/4-0-0-milestone-roadmap.md
-- docs/plans/code-quality/index.md
+- docs/plans/code-quality/README.md
 ---
 # Architecture Vision (living)
 

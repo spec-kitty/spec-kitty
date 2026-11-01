@@ -121,7 +121,7 @@ Once Claude (and any partner agents) finish the mission:
 
 - Mix Claude with Cursor or Gemini by generating commands for multiple agents during `spec-kitty init`.
 - Keep the multi-agent playbook handy: [Multi-Agent Parallel Development](multi-agent-workflow.md).
-- Check progress at any time with `spec-kitty agent tasks status` (see [Status & History](../how-to/monitoring/index.md)).
+- Check progress at any time with `spec-kitty agent tasks status` (see [Status & History](../how-to/monitoring/README.md)).
 
 ## Related How-To Guides
 

@@ -6,8 +6,8 @@ updated: '2026-10-19'
 related:
 - docs/plans/doctrine/manifesto-program-delivery-sequence.md
 - docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
-- docs/archive/plans/doctrine/squad-reports/index.md
-- docs/plans/doctrine/index.md
+- docs/archive/plans/doctrine/squad-reports/README.md
+- docs/plans/doctrine/README.md
 ---
 # FoundationalValues and Creed — canonical design
 

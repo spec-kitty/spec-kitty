@@ -6,13 +6,13 @@ updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
-- docs/guides/index.md
+- docs/guides/README.md
 - docs/development/how-to/review-gates.md
 - docs/development/testing/testing-flakiness.md
 - docs/development/how-to/manage-issue-tracker.md
 - docs/development/reference/red-main-and-release-readiness.md
 - docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
-- docs/changelog/index.md
+- docs/changelog/README.md
 ---
 # Landing Contributor PRs: The Maintainer Runbook
 
@@ -874,4 +874,4 @@ docs SEO tests) as part of any docs blast radius.
   contributor-side hygiene this runbook assumes.
 - [Test-flakiness handling policy](../testing/testing-flakiness.md) — the
   never-retry-to-green rule and budget-gate tuning.
-- [Guides index](../../guides/index.md)
+- [Guides index](../../guides/README.md)

@@ -9,7 +9,7 @@ related:
 - docs/adr/3.x/2026-06-07-3-wp-lane-fsm-genesis-and-finalize-clobber.md
 - docs/architecture/status-model.md
 - docs/api/cli-commands.md
-- docs/migrations/index.md
+- docs/migrations/README.md
 ---
 # How to repair a Mission whose status snapshot misses work packages
 

@@ -6,7 +6,7 @@ updated: '2026-07-26'
 related:
 - docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
 - docs/archive/plans/doctrine/manifesto-tier-verdict-and-handover.md
-- docs/plans/doctrine/index.md
+- docs/plans/doctrine/README.md
 ---
 # Creed and FoundationalValues — hardened design
 
