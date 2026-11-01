@@ -527,9 +527,12 @@ def test_reusable_workflow_ceiling_respected() -> None:
     assert isinstance(ceiling, int) and ceiling > 0, "registry must declare a positive integer reusable_workflow_ceiling"
     assert ceiling <= 20, f"declared ceiling {ceiling} exceeds GitHub's 20-reusable-workflows-per-caller limit"
 
-    actual_workflow_count = len(list(_WORKFLOWS_DIR.glob("*.yml")))
+    # GitHub's limit binds reusable workflows (``on: workflow_call``), not every workflow file:
+    # an event-triggered workflow such as pr-pause-ci.yml (#6961) is never called by another.
+    reusable = [path for path in _WORKFLOWS_DIR.glob("*.yml") if "workflow_call" in path.read_text(encoding="utf-8")]
+    actual_workflow_count = len(reusable)
     assert actual_workflow_count <= ceiling, (
-        f"{actual_workflow_count} workflow files under {_WORKFLOWS_DIR.relative_to(_REPO_ROOT)} exceed the declared ceiling {ceiling}"
+        f"{actual_workflow_count} reusable workflows under {_WORKFLOWS_DIR.relative_to(_REPO_ROOT)} exceed the declared ceiling {ceiling}"
     )
 
     modules = _modules(registry)
