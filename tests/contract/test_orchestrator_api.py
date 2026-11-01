@@ -306,7 +306,12 @@ class TestAllowedErrorCodes:
             cls = pending.pop()
             emitted.add(cls.error_code)
             pending.extend(cls.__subclasses__())
-        for code in ("SAFE_COMMIT_PATH_LOOP", "SAFE_COMMIT_INDEX_DELETION_CONFLICT", "SAFE_COMMIT_INDEX_RESIDUE"):
+        for code in (
+            "SAFE_COMMIT_PATH_LOOP",
+            "SAFE_COMMIT_INDEX_DELETION_CONFLICT",
+            "SAFE_COMMIT_INDEX_RESIDUE",
+            "SAFE_COMMIT_DIRECTORY_ARGUMENT",
+        ):
             assert code in emitted
         allowed = set(orchestrator_api_contract["allowed_error_codes"])
         assert emitted <= allowed

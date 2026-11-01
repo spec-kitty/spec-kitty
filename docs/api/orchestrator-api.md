@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.21.0`
+- `CONTRACT_VERSION`: `1.22.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -207,6 +207,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `PLAN_SETUP_FAILED` with the real code in `data.reason`). The embedded host payload
   in `data` changes shape, so a minor bump; no `error_code` is added, removed or
   renamed.
+- `1.22.0` — the declared `allowed_error_codes` set now admits
+  `SAFE_COMMIT_DIRECTORY_ARGUMENT` (#6997), the `error_code` of
+  `SafeCommitDirectoryArgument`. The safe-commit path has emitted it since the #6750 fix,
+  which refuses a directory pathspec in `preflight_commit` **before** any HEAD, ref or
+  index mutation — so nothing was committed, and `data.offending_path` names the path —
+  but the contract never registered it. This is a completeness fix to the declared set,
+  not a new failure mode: no behaviour changes. The contract-visible error-code set
+  grows, so a minor bump; no field or `error_code` is removed or renamed.
 
 ## Response Envelope
 
@@ -214,7 +222,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.21.0",
+  "contract_version": "1.22.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -1006,6 +1014,7 @@ Current machine-readable error codes (the authoritative list is
 - `SAFE_COMMIT_NOT_A_WORKTREE`
 - `SAFE_COMMIT_PROTECTED_BRANCH`
 - `SAFE_COMMIT_PATH_POLICY`
+- `SAFE_COMMIT_DIRECTORY_ARGUMENT` (a requested path is a directory; `safe_commit` commits an exact file set, so a directory pathspec is refused **before anything is written** — nothing was committed, and `data.offending_path` names the path)
 - `SAFE_COMMIT_PATH_LOOP`
 - `SAFE_COMMIT_INDEX_DELETION_CONFLICT`
 - `SAFE_COMMIT_INDEX_RESIDUE` (the commit DID land; `commit_sha` names it; a `SAFE_COMMIT_RECOVERY_FAILED` refinement)
