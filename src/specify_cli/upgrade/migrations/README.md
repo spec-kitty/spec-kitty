@@ -64,6 +64,11 @@ class MyFollowUpMigration(MergeDriverSeedingMigration):
     sequenced_after = ("3.2.6_gate_artifact_merge_drivers",)
 ```
 
+A migration already shipped in a release must not be edited (DIRECTIVE_044: its `content_hash`
+would drift for every project that recorded it). Declare its predecessors in
+`SEQUENCED_AFTER` in `src/specify_cli/upgrade/runner.py` instead; `declared_predecessors()`
+reads that mapping first, then the class attribute.
+
 Rules:
 
 - **It is not ordering.** `order_manifest.txt` is the single execution-order authority; a
