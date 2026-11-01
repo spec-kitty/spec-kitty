@@ -110,6 +110,16 @@ code):
 - **One selection resolver.** `SelectionResolver` (`selection.py`) turns an interview
   selection into an activation stem through every layer, so the interview and the
   upgrade promotion share one rule (#6686).
+- **One stem↔id authority.** `IdentityIndex` is the only place the rule lives (#6433). Every
+  surface asks it the same question, in both directions: a file stem, a declared id, a
+  `<kind>:<id>` URN or a normalised directive id (`24`) resolves to the same artifact, and a
+  cascade source (`charter activate|deactivate --cascade`) starts from exactly the artifact
+  the operator named. `charter.activation.kind_vocabulary.resolve_artifact_urn`,
+  `resolve_config_id` and `resolve_selected_id_to_stem` remain as named entry points but only
+  turn the index's answer into a URN or a stem. An unknown token keeps each surface's
+  documented policy: the runtime gate warns and keeps it, the consistency check reports it
+  once and keeps the stored list, compile and the resynthesis preflight refuse, and
+  cascade-source resolution yields no source (the activation itself still happens).
 - **A structured cascade result.** `CascadeActivationResult` in `cascade.py`.
 - **A public door.** `charter.activation.api` re-exports the ledger types, `IdentityIndex`,
   `deny_delta` and `EffectiveSet`.

@@ -1,14 +1,11 @@
 """Scan-count + mtime-invalidation coverage for directive resolver memoization (#4239).
 
-`resolve_config_id`'s directive branch performs a per-stem round-trip check
-(`resolve_artifact_urn`) for every candidate path that matches the target
-identity. Pre-memoization, each of those round-trip checks re-invoked
-`_iter_artifact_paths`, which walks every doctrine layer from scratch --
-O(candidates x layers) filesystem scans for a single resolution pass. This
-module pins the fix: a single `resolve_config_id` pass performs at most one
-scan per distinct layer, and a *later*, independent resolution still observes
-on-disk changes (a resolution-pass-scoped memo never survives past its own
-call, so there is nothing to go stale).
+`resolve_config_id` and `resolve_artifact_urn` answer from `IdentityIndex`
+(#6433). The index reads a kind's layer scan once per
+`ResolutionPass` and each artifact file once per pass, and a *later*,
+independent resolution still observes on-disk changes (a
+resolution-pass-scoped memo never survives past its own call, so there is
+nothing to go stale).
 """
 
 from __future__ import annotations
@@ -161,15 +158,31 @@ def test_non_directive_kind_returns_first_matching_stem(tmp_path: Path) -> None:
 
 @pytest.fixture
 def parsed_files(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
-    """Counted-parse seam: record every artifact file whose YAML is parsed."""
+    """Counted-read seam: record every artifact file the index reads.
+
+    The index reads a file once through its fast-id probe
+    (:func:`charter.activation.identity_index._read_artifact_text`) and hands that text
+    to the full YAML parse (:func:`charter.activation.kind_vocabulary._parse_id`) when
+    the probe cannot read it plainly. The probe records every read; the parse records
+    only the reads that did not come with text, so a file is counted once per read.
+    """
+    from charter.activation import identity_index as identity_index_module
+
     calls: list[Path] = []
-    original = kind_vocabulary._parse_id
+    original_read = identity_index_module._read_artifact_text
+    original_parse = kind_vocabulary._parse_id
 
-    def _counted(path: Path, id_field: str, yaml: YAML) -> str | None:
+    def _counted_read(path: Path) -> str:
         calls.append(path)
-        return original(path, id_field, yaml)
+        return original_read(path)
 
-    monkeypatch.setattr(kind_vocabulary, "_parse_id", _counted)
+    def _counted_parse(path: Path, id_field: str, yaml: YAML, *, text: str | None = None) -> str | None:
+        if text is None:
+            calls.append(path)  # a read the probe did not already record
+        return original_parse(path, id_field, yaml, text=text)
+
+    monkeypatch.setattr(identity_index_module, "_read_artifact_text", _counted_read)
+    monkeypatch.setattr(kind_vocabulary, "_parse_id", _counted_parse)
     return calls
 
 
