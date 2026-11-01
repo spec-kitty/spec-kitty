@@ -15,10 +15,10 @@ input_artifacts:
     sha256: f5cf541d75b52cd76d94d058f75b9ccf143dc28f41b15c9c346072bf899f9644
   tasks.md:
     path: kitty-specs/gate-scan-scope-completeness-01M6BTVM/tasks.md
-    sha256: 3b50f1096882d27a24a3e49c84af36cbe8273e82521b97069d2ed529629c0dff
+    sha256: b3810b2f0ee817016a6ca462d39974a91a5542e52e8dea499bba013c363535ad
   charter:
-    path: .kittify/charter/charter.md
-    sha256: 1bf06fd2403c9f4cef7dfc2d36208df2530aeb89910c96368816240f3cbdf87d
+    path: .kittify/charter/charter.yaml
+    sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: consistent
 issue_counts:
   critical: 0
