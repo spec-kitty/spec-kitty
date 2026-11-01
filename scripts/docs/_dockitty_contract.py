@@ -59,6 +59,7 @@ PERSONA_ROOT: Final[str] = "context/audience"
 #: doc-kitty's draft status; an absent ``doc_status`` counts as a draft.
 DRAFT_STATUS: Final[str] = "draft"
 
+_INDEX_BASENAMES_FOLDED: Final[frozenset[str]] = frozenset(name.lower() for name in INDEX_BASENAMES)
 _MD_SUFFIX: Final[str] = ".md"
 _FENCE: Final[str] = "---"
 _DATED_ADR: Final[re.Pattern[str]] = re.compile(r"^adr/\d+\.x/\d{4}-\d{2}-\d{2}-[^/]+\.md$")
@@ -101,7 +102,7 @@ def slug_of(rel_under_docs: str) -> str:
     """
     stem = _strip_md(rel_under_docs)
     head, _, last = stem.rpartition("/")
-    if last in INDEX_BASENAMES:
+    if last.lower() in _INDEX_BASENAMES_FOLDED:
         return head
     return stem
 
@@ -112,16 +113,20 @@ def is_excluded(rel_under_docs: str) -> bool:
 
 
 def page_for_slug(docs_root: Path, slug: str) -> Path | None:
-    """The page a slug names: ``<slug>.md``, else ``<slug>/README.md``, else ``<slug>/index.md``."""
+    """The page a slug names: ``<slug>.md``, else the folder's index (``README``/``index``, any case)."""
     clean = slug.strip("/")
-    candidates = [f"{clean}{_MD_SUFFIX}"] if clean else []
-    prefix = f"{clean}/" if clean else ""
-    candidates += [f"{prefix}{name}{_MD_SUFFIX}" for name in INDEX_BASENAMES]
-    for candidate in candidates:
-        path = docs_root / candidate
-        if path.is_file():
-            return path
-    return None
+    if clean:
+        page = docs_root / f"{clean}{_MD_SUFFIX}"
+        if page.is_file():
+            return page
+    folder = docs_root / clean if clean else docs_root
+    if not folder.is_dir():
+        return None
+    indexes = sorted(
+        (path for path in folder.iterdir() if path.is_file() and path.suffix == _MD_SUFFIX and path.stem.lower() in _INDEX_BASENAMES_FOLDED),
+        key=lambda path: [name.lower() for name in INDEX_BASENAMES].index(path.stem.lower()),
+    )
+    return indexes[0] if indexes else None
 
 
 def is_published(rel_under_docs: str, frontmatter: Mapping[str, Any]) -> bool:
@@ -129,7 +134,7 @@ def is_published(rel_under_docs: str, frontmatter: Mapping[str, Any]) -> bool:
     if is_excluded(rel_under_docs):
         return False
     status = frontmatter.get("doc_status")
-    return isinstance(status, str) and bool(status.strip()) and status.strip() != DRAFT_STATUS
+    return (DRAFT_STATUS if status is None else status) != DRAFT_STATUS
 
 
 def profile_of_persona_path(value: str) -> str | None:

@@ -275,28 +275,52 @@ def _classify_entry(source: _Source, entry: str, corpus: Corpus, out: _RelatedOu
         if page is not None:
             _classify_docs_page(source, page.relative_to(corpus.docs_root).as_posix(), entry, corpus, out)
             return
-    if (corpus.repo_root / entry).exists():
+    if entry and (corpus.repo_root / entry).exists():
         out.external.append(_external(corpus, entry.rstrip("/"), entry.rstrip("/")))
     else:
         out.dropped.append(entry)
 
 
+def _existing_external(value: object) -> list[dict[str, str]]:
+    """The page's current ``external_references``; any shape the migration does not know fails closed."""
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, Mapping) for item in value):
+        raise MigrationError(f"external_references is not a list of mappings: {value!r}")
+    return [dict(item) for item in value]
+
+
+def _classify_ref_entry(source: _Source, entry: Mapping[str, Any], corpus: Corpus, out: _RelatedOutcome) -> None:
+    """A ``{ref, note}`` entry: classified by its ``ref``; kept as a mapping when it stays in ``related``."""
+    ref = entry.get("ref")
+    if not isinstance(ref, str):
+        raise MigrationError(f"related entry has no string ref: {dict(entry)!r}")
+    probe = _RelatedOutcome()
+    _classify_entry(source, ref.strip(), corpus, probe)
+    if probe.related:
+        out.related.append({**dict(entry), "ref": probe.related[0]})
+    note = entry.get("note")
+    out.external.extend({**ext, "note": note} if isinstance(note, str) else ext for ext in probe.external)
+    out.dropped.extend(probe.dropped)
+
+
 def migrate_related(source: _Source, value: object, existing_external: object, corpus: Corpus) -> _RelatedOutcome:
-    """Rule for ``related``: published pages by slug; everything else external or dropped."""
+    """Rule for ``related``: allowed pages by slug; everything else external or dropped.
+
+    The docs root page's slug is the empty string (doc-kitty's ``slugFromEntryId``).
+    """
     if not isinstance(value, list):
         raise MigrationError(f"related is not a list: {value!r}")
-    out = _RelatedOutcome()
-    if isinstance(existing_external, list):
-        out.external.extend(dict(item) for item in existing_external if isinstance(item, Mapping))
+    out = _RelatedOutcome(external=_existing_external(existing_external))
     for entry in value:
         if isinstance(entry, Mapping):
-            out.related.append(dict(entry))
-        elif isinstance(entry, str) and entry.strip():
+            _classify_ref_entry(source, entry, corpus, out)
+        elif isinstance(entry, str):
             _classify_entry(source, entry.strip(), corpus, out)
         else:
             raise MigrationError(f"related entry is not a string or {{ref, note}}: {entry!r}")
     out.related = _dedupe(out.related)
-    out.external = [ref for ref in _dedupe(out.external) if isinstance(ref, dict)]
+    out.external = _dedupe(out.external)
     return out
 
 
@@ -325,11 +349,16 @@ def _emit(key: str, value: object) -> list[str]:
 
 
 def _block_span(lines: Sequence[str], key: str) -> tuple[int, int] | None:
-    """``(start, end)`` of the top-level block for *key* in frontmatter *lines* (fences excluded)."""
+    """``(start, end)`` of the top-level block for *key* in frontmatter *lines* (fences excluded).
+
+    A block holding a comment line is refused: replacing it would drop the comment.
+    """
     for start, line in enumerate(lines):
         if line.startswith(f"{key}:"):
             end = start + 1
             while end < len(lines) and lines[end][:1] in (" ", "\t", "-"):
+                if lines[end].lstrip().startswith("#"):
+                    raise MigrationError(f"the {key!r} block holds a comment line; migrate it by hand")
                 end += 1
             return start, end
     return None
@@ -431,6 +460,8 @@ def migrate_text(rel: str, text: str, corpus: Corpus, report: MigrationReport | 
         return text
     lines = block.splitlines(keepends=True)
     newline = "\r\n" if lines[0].endswith("\r\n") else "\n"
+    if any(not line.endswith(newline) or (newline == "\n" and line.endswith("\r\n")) for line in lines):
+        raise MigrationError(f"{rel}: frontmatter mixes line endings; migrate it by hand")
     editor = _Editor(lines=[line.replace("\r\n", "\n") for line in lines[1:-1]])
     _apply_edits(editor, intended)
     fence_close = lines[-1]
@@ -446,14 +477,17 @@ def migrate_tree(*, docs_root: Path, repo_root: Path, write: bool) -> MigrationR
     """Migrate every page under *docs_root*; write only when *write* is true."""
     corpus = Corpus.load(docs_root=docs_root, repo_root=repo_root)
     report = MigrationReport()
+    pending: list[tuple[Path, str]] = []
     for path in sorted(docs_root.rglob("*.md")):
         rel = path.relative_to(docs_root).as_posix()
         before = path.read_text(encoding="utf-8")
         after = migrate_text(rel, before, corpus, report)
         if after != before:
             report.changed_files.append(f"{_DOCS_PREFIX}{rel}")
-            if write:
-                path.write_bytes(after.encode("utf-8"))
+            pending.append((path, after))
+    if write:  # every page migrated cleanly before the first write, so a failure leaves the tree untouched
+        for path, after in pending:
+            path.write_bytes(after.encode("utf-8"))
     return report
 
 
@@ -473,16 +507,30 @@ def _git(repo_root: Path) -> _GitRunner:
 
 
 def verify_against(*, repo_root: Path, ref: str, docs_dir: str = "docs", git: _GitRunner | None = None) -> list[str]:
-    """Every ``docs/**/*.md`` file changed since *ref* whose body differs from *ref* (added files skipped)."""
+    """Every ``docs/**/*.md`` file changed or renamed since *ref* whose body differs from *ref*.
+
+    Added files have no earlier body and are skipped.
+    """
     run = git or _git(repo_root)
-    changed = run(["diff", "--name-only", "--diff-filter=M", ref, "--", docs_dir]).splitlines()
+    status = run(["diff", "--name-status", "-M", "--diff-filter=MR", ref, "--", docs_dir]).splitlines()
     offenders: list[str] = []
-    for rel in sorted(path for path in changed if path.endswith(".md")):
-        before = run(["show", f"{ref}:{rel}"])
-        after = (repo_root / rel).read_text(encoding="utf-8")
+    for old, new in sorted(_changed_pairs(status)):
+        before = run(["show", f"{ref}:{old}"])
+        after = (repo_root / new).read_text(encoding="utf-8")
         if body_of(before) != body_of(after):
-            offenders.append(rel)
+            offenders.append(new)
     return offenders
+
+
+def _changed_pairs(status_lines: Iterable[str]) -> list[tuple[str, str]]:
+    """``(path at ref, path now)`` for each modified or renamed Markdown file in ``git diff --name-status``."""
+    pairs: list[tuple[str, str]] = []
+    for line in status_lines:
+        fields = line.split("\t")
+        old, new = fields[1], fields[-1]
+        if new.endswith(".md"):
+            pairs.append((old, new))
+    return pairs
 
 
 # ---------------------------------------------------------------------------

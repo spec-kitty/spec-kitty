@@ -111,6 +111,7 @@ def test_related_published_pages_become_slugs_and_the_rest_external(repo: Path) 
     out, report = _migrate(repo, "guides/p.md", text)
     data = parse_frontmatter(out)
     assert data["related"] == ["guides/a", "guides", "adr/4.x/2026-01-01-1-x", {"ref": "guides", "note": "n"}]
+    assert list(data["related"][3]) == ["ref", "note"]
     base = "https://github.com/spec-kitty/spec-kitty"
     assert data["external_references"] == [
         {"url": f"{base}/blob/main/docs/plans/notes.md", "title": "Notes"},
@@ -160,6 +161,47 @@ def test_related_merges_into_existing_external_references_without_duplicates(rep
 def test_related_of_an_unknown_shape_fails_closed(repo: Path, bad: str) -> None:
     with pytest.raises(mig.MigrationError):
         _migrate(repo, "guides/p.md", f"---\ntitle: P\n{bad}\n---\n")
+
+
+def test_root_page_is_the_empty_slug_and_stays_stable(repo: Path) -> None:
+    _write(repo, "docs/index.md", "---\ntitle: Home\ndoc_status: active\n---\n")
+    out, _ = _migrate(repo, "guides/p.md", "---\ntitle: P\ndoc_status: active\nrelated:\n- docs/index.md\n---\n")
+    assert parse_frontmatter(out)["related"] == [""]
+    assert _migrate(repo, "guides/p.md", out)[0] == out
+
+
+def test_empty_slug_without_a_root_page_is_dropped(repo: Path) -> None:
+    out, report = _migrate(repo, "guides/p.md", "---\ntitle: P\ndoc_status: active\nrelated:\n- ''\n---\n")
+    assert "related" not in parse_frontmatter(out)
+    assert report.dropped_references == [{"from": "docs/guides/p.md", "to": ""}]
+
+
+def test_ref_note_entries_are_classified_by_their_ref(repo: Path) -> None:
+    text = "---\ntitle: P\ndoc_status: active\nrelated:\n- ref: docs/guides/a.md\n  note: keep\n- ref: archive/old\n  note: moved\n---\n"
+    data = parse_frontmatter(_migrate(repo, "guides/p.md", text)[0])
+    assert data["related"] == [{"ref": "guides/a", "note": "keep"}]
+    assert data["external_references"][0]["note"] == "moved"
+
+
+def test_ref_note_entry_without_a_string_ref_fails_closed(repo: Path) -> None:
+    with pytest.raises(mig.MigrationError, match="no string ref"):
+        _migrate(repo, "guides/p.md", "---\ntitle: P\nrelated:\n- note: n\n---\n")
+
+
+@pytest.mark.parametrize("bad", ["external_references:\n  url: u", "external_references:\n- u"])
+def test_existing_external_references_of_an_unknown_shape_fail_closed(repo: Path, bad: str) -> None:
+    with pytest.raises(mig.MigrationError, match="external_references"):
+        _migrate(repo, "guides/p.md", f"---\ntitle: P\n{bad}\nrelated:\n- pyproject.toml\n---\n")
+
+
+def test_a_comment_inside_an_edited_block_is_refused(repo: Path) -> None:
+    with pytest.raises(mig.MigrationError, match="comment"):
+        _migrate(repo, "guides/p.md", f"---\ntitle: P\naudience:\n  # keep me\n- {_MAINTAINER}\n---\n")
+
+
+def test_mixed_line_endings_are_refused(repo: Path) -> None:
+    with pytest.raises(mig.MigrationError, match="line endings"):
+        _migrate(repo, "guides/p.md", f"---\r\ntitle: Q\naudience: {_MAINTAINER}\r\n---\r\n")
 
 
 # --- editing, skipping, integrity ------------------------------------------
@@ -216,6 +258,15 @@ def test_migrate_tree_is_idempotent_and_cli_check_reports(repo: Path, capsys: py
     assert second.changed_files == []
 
 
+def test_apply_writes_nothing_when_any_page_fails(repo: Path) -> None:
+    good = _write(repo, "docs/guides/p.md", f"---\ntitle: P\naudience: {_MAINTAINER}\n---\n")
+    _write(repo, "docs/adr/4.x/2026-02-02-1-y.md", "---\ntitle: Y\nstatus: Rejected\n---\n")
+    before = good.read_text(encoding="utf-8")
+    with pytest.raises(mig.MigrationError):
+        mig.migrate_tree(docs_root=repo / "docs", repo_root=repo, write=True)
+    assert good.read_text(encoding="utf-8") == before
+
+
 def test_cli_reports_a_migration_error(repo: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _write(repo, "docs/adr/4.x/2026-02-02-1-y.md", "---\ntitle: Y\nstatus: Rejected\n---\n")
     assert mig.main(["--docs-root", str(repo / "docs"), "--repo-root", str(repo), "--check"]) == 2
@@ -231,6 +282,22 @@ def test_verify_against_flags_a_body_change_only(tmp_path: Path, capsys: pytest.
     _write(repo, "docs/b.md", "---\ntitle: B\n---\nbody changed\n")
     _write(repo, "docs/new.md", "---\ntitle: N\n---\nnew\n")
     commit_all_changes(repo, "change")
-    assert mig.verify_against(repo_root=repo, ref=base) == ["docs/b.md"]
+    (repo / "docs" / "b.md").rename(repo / "docs" / "c.md")
+    commit_all_changes(repo, "rename")
+    assert mig.verify_against(repo_root=repo, ref=base) == ["docs/c.md"]
     assert mig.main(["--repo-root", str(repo), "--verify-against", base]) == 1
-    assert "docs/b.md" in capsys.readouterr().out
+    assert "docs/c.md" in capsys.readouterr().out
+
+
+@pytest.mark.slow
+def test_real_corpus_apply_then_check_is_a_fixed_point(tmp_path: Path) -> None:
+    """Idempotency on the real ``docs/`` tree: after ``--apply``, a second run changes nothing."""
+    import shutil
+
+    repo_root = Path(__file__).resolve().parents[2]
+    docs = tmp_path / "docs"
+    shutil.copytree(repo_root / "docs", docs)
+    first = mig.migrate_tree(docs_root=docs, repo_root=repo_root, write=True)
+    second = mig.migrate_tree(docs_root=docs, repo_root=repo_root, write=False)
+    assert first.changed_files or second.changed_files == []
+    assert second.changed_files == []

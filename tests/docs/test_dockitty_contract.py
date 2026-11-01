@@ -33,6 +33,8 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
         ("README.md", ""),
         ("guides/index-of-things.md", "guides/index-of-things"),
         ("Guides/Mixed.md", "Guides/Mixed"),
+        ("guides/Readme.md", "guides"),
+        ("guides/INDEX.md", "guides"),
     ],
 )
 def test_slug_of(rel: str, slug: str) -> None:
@@ -66,7 +68,7 @@ def test_excluded_folders_name_the_site_exclusions() -> None:
         ("guides/x.md", {"doc_status": "deprecated"}, True),
         ("guides/x.md", {"doc_status": "draft"}, False),
         ("guides/x.md", {}, False),
-        ("guides/x.md", {"doc_status": "  "}, False),
+        ("guides/x.md", {"doc_status": "proposal"}, True),
         ("archive/x.md", {"doc_status": "active"}, False),
     ],
 )
@@ -90,6 +92,14 @@ def test_page_for_slug_prefers_file_then_readme_then_index(tmp_path: Path) -> No
     assert page_for_slug(tmp_path, "c/") == tmp_path / "c/index.md"
     assert page_for_slug(tmp_path, "") == tmp_path / "index.md"
     assert page_for_slug(tmp_path, "missing") is None
+    assert page_for_slug(tmp_path, "a/deeper") is None
+
+
+def test_page_for_slug_finds_an_index_in_any_case(tmp_path: Path) -> None:
+    _touch(tmp_path, "d/Readme.md")
+    _touch(tmp_path, "e/INDEX.md")
+    assert page_for_slug(tmp_path, "d") == tmp_path / "d/Readme.md"
+    assert page_for_slug(tmp_path, "e") == tmp_path / "e/INDEX.md"
 
 
 def test_persona_resolution(tmp_path: Path) -> None:
