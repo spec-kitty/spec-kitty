@@ -63,7 +63,6 @@ Invoked as ``python -m scripts.ci.recapture_shard_timings <detect|capture|publis
 from __future__ import annotations
 
 import argparse
-import base64
 import json
 import os
 import re
@@ -81,7 +80,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.ci import capture_shard_timings  # noqa: E402  (import after the path guard above)
+from scripts.ci import bot_pr_publish, capture_shard_timings  # noqa: E402  (import after the path guard above)
 
 #: The fixed recapture head branch. GitHub permits only one open PR per head branch into
 #: a given base, so a duplicate recapture PR from this workflow is structurally impossible.
@@ -115,9 +114,8 @@ COUNT_PASS_TIMEOUT_SECONDS = 5 * 60
 #: :func:`_scrubbed_env` before the one credential that subprocess needs is added back.
 _TOKEN_ENV_VARS = (SECRET_NAME, "GH_TOKEN", "GITHUB_TOKEN")
 
-#: The git config key the push credential is scoped to (matches the ``origin`` URL
-#: actions/checkout writes: ``https://github.com/<owner>/<repo>``).
-_PUSH_EXTRAHEADER_KEY = "http.https://github.com/.extraheader"
+#: The git config key the push credential is scoped to (``scripts/ci/bot_pr_publish.py``).
+_PUSH_EXTRAHEADER_KEY = bot_pr_publish.PUSH_EXTRAHEADER_KEY
 
 #: Reuse the canonical paths -- single source of truth, never a second literal.
 TIMINGS_PATH = capture_shard_timings.TIMINGS_PATH
@@ -141,8 +139,8 @@ _VALID_EXIT_CODES = (0, 1)
 _NODE_ID_SEPARATOR = "::"
 
 #: Fixed, non-human bot identity for the recapture commit -- never the PAT owner's own.
-COMMIT_AUTHOR_NAME = "spec-kitty-ci-bot"
-COMMIT_AUTHOR_EMAIL = "ci-bot@users.noreply.github.com"
+COMMIT_AUTHOR_NAME = bot_pr_publish.COMMIT_AUTHOR_NAME
+COMMIT_AUTHOR_EMAIL = bot_pr_publish.COMMIT_AUTHOR_EMAIL
 
 #: Fixed commit subject / PR title.
 COMMIT_MESSAGE = "chore(ci): automated shard-timings recapture"
@@ -387,28 +385,14 @@ def find_open_recapture_pr(open_prs: Sequence[Mapping[str, object]]) -> int | No
     A malformed ``number`` field on the matching PR fails loudly -- never silently coerced to
     ``None``, which is indistinguishable from a genuine "no open PR" answer.
     """
-    for pr in open_prs:
-        if pr.get("headRefName") == RECAPTURE_BRANCH:
-            number = pr.get("number")
-            if not isinstance(number, int):
-                print(
-                    f"::error::unexpected `gh pr list` JSON shape: PR number is not an int: {number!r}",
-                    file=sys.stderr,
-                )
-                raise SystemExit(1)
-            return number
-    return None
+    return bot_pr_publish.find_open_pr(open_prs, RECAPTURE_BRANCH)
 
 
 def require_recapture_token() -> str:
     """Truthy check ONLY. Never falls back to GH_TOKEN/GITHUB_TOKEN -- that fallback would
     silently reintroduce the anti-recursion / CI-gate-bypass risk. Fails loud
     (::error:: + non-zero exit) BEFORE any gh/git call."""
-    value = os.environ.get(SECRET_NAME)
-    if not value:  # catches both "unset" and "" (GitHub's injected-empty-string case)
-        print(f"::error::{SECRET_NAME} is not set (or is empty) -- refusing to run", file=sys.stderr)
-        raise SystemExit(1)
-    return value
+    return bot_pr_publish.require_token(SECRET_NAME)
 
 
 _PERMISSION_DENIED = re.compile(r"\b403\b|Permission to .+ denied|Permission denied", re.IGNORECASE)
@@ -452,62 +436,31 @@ def _now_seconds() -> float:
 def _scrubbed_env() -> dict[str, str]:
     """A copy of ``os.environ`` with every token variable (:data:`_TOKEN_ENV_VARS`) removed --
     the base environment for every subprocess, so none inherits the PAT implicitly."""
-    return {key: value for key, value in os.environ.items() if key not in _TOKEN_ENV_VARS}
+    return bot_pr_publish.scrubbed_env(_TOKEN_ENV_VARS)
 
 
 def _push_auth_header(token: str) -> str:
-    """The ``http.extraheader`` value git needs to talk to the remote with no persisted
-    credential (the checkout step uses ``persist-credentials: false``). Handed ONLY to the
-    git subprocesses that talk to the remote, through their own environment
-    (:func:`_push_env`); never argv, never a git config file."""
-    encoded = base64.b64encode(f"x-access-token:{token}".encode("ascii")).decode("ascii")
-    return f"AUTHORIZATION: basic {encoded}"
+    """The ``http.extraheader`` value for a credential-free checkout (``bot_pr_publish``)."""
+    return bot_pr_publish.push_auth_header(token)
 
 
 def _push_env(token: str) -> dict[str, str]:
     """The environment for a git subprocess that talks to the remote: :func:`_scrubbed_env`
-    plus a one-shot, env-scoped git config entry carrying the credential (git >= 2.31
-    ``GIT_CONFIG_COUNT`` protocol), appended after any ambient entries."""
-    env = _scrubbed_env()
-    raw_count = env.get("GIT_CONFIG_COUNT", "").strip()
-    index = int(raw_count) if raw_count.isdigit() else 0
-    env[f"GIT_CONFIG_KEY_{index}"] = _PUSH_EXTRAHEADER_KEY
-    env[f"GIT_CONFIG_VALUE_{index}"] = _push_auth_header(token)
-    env["GIT_CONFIG_COUNT"] = str(index + 1)
-    return env
+    plus a one-shot, env-scoped ``http.extraheader`` entry carrying the credential."""
+    return bot_pr_publish.push_env(token, _TOKEN_ENV_VARS)
 
 
 def _gh_env(token: str) -> dict[str, str]:
     """The ``gh`` subprocess environment -- :func:`_scrubbed_env` plus ``GH_TOKEN``."""
-    env = _scrubbed_env()
-    env["GH_TOKEN"] = token
-    return env
+    return bot_pr_publish.gh_env(token, _TOKEN_ENV_VARS)
 
 
 def _redact(text: str, token: str) -> str:
     """*text* with the token (raw and header-encoded) masked, for anything printed to the log."""
-    header = _push_auth_header(token)
-    encoded = header.removeprefix("AUTHORIZATION: basic ")
-    return text.replace(token, "***").replace(encoded, "***")
+    return bot_pr_publish.redact(text, token)
 
 
-def _run_subprocess_or_die(
-    cmd: list[str],
-    *,
-    step: str,
-    cwd: Path | None = None,
-    env: dict[str, str] | None = None,
-    capture_output: bool = False,
-    text: bool = False,
-) -> subprocess.CompletedProcess[str]:
-    """Run *cmd*, surfacing a genuine gh/git failure via the script's own ``::error::``
-    convention instead of a raw ``CalledProcessError`` traceback. *step* names which command
-    failed (e.g. ``"gh pr list"``) -- never the token, which is passed only via *env*."""
-    try:
-        return subprocess.run(cmd, cwd=cwd, env=env, capture_output=capture_output, text=text, check=True)
-    except subprocess.CalledProcessError as exc:
-        print(f"::error::{step} failed: {exc}", file=sys.stderr)
-        raise SystemExit(1) from exc
+_run_subprocess_or_die = bot_pr_publish.run_or_die
 
 
 def _list_open_recapture_prs(repository: str, token: str) -> list[dict[str, object]]:
@@ -516,70 +469,12 @@ def _list_open_recapture_prs(repository: str, token: str) -> list[dict[str, obje
     Returns the parsed JSON array verbatim; :func:`find_open_recapture_pr` does the actual
     head-branch matching.
     """
-    result = _run_subprocess_or_die(
-        [
-            "gh",
-            "pr",
-            "list",
-            "--repo",
-            repository,
-            "--head",
-            RECAPTURE_BRANCH,
-            "--base",
-            "main",
-            "--state",
-            "open",
-            "--json",
-            "number,headRefName",
-        ],
-        step="gh pr list",
-        env=_gh_env(token),
-        capture_output=True,
-        text=True,
-    )
-    try:
-        parsed = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        # Empty stdout, a proxy error page, or a gh warning is not "no open PR".
-        print(f"::error::`gh pr list` returned non-JSON output: {exc}", file=sys.stderr)
-        raise SystemExit(1) from exc
-    if not isinstance(parsed, list):
-        print(
-            f"::error::unexpected `gh pr list` JSON shape: expected a list, got {type(parsed).__name__}",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
-    return parsed
+    return bot_pr_publish.list_open_prs(repository, RECAPTURE_BRANCH, token, _TOKEN_ENV_VARS)
 
 
-def _write_job_summary(line: str) -> None:
-    """Print *line* and append it to ``$GITHUB_STEP_SUMMARY`` when set."""
-    print(line)
-    summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary_path:
-        with Path(summary_path).open("a", encoding="utf-8") as handle:
-            handle.write(line + "\n")
-
-
-def _run_url() -> str:
-    """Compose the workflow run URL from GitHub Actions' own default env vars."""
-    server = os.environ.get("GITHUB_SERVER_URL", "")
-    repository = os.environ.get("GITHUB_REPOSITORY", "")
-    run_id = os.environ.get("GITHUB_RUN_ID", "")
-    return f"{server}/{repository}/actions/runs/{run_id}"
-
-
-def _write_github_output(**fields: object) -> None:
-    """Record *fields* to ``$GITHUB_OUTPUT`` for the workflow's later steps to read as
-    ``steps.<id>.outputs.<name>``. Falls back to stdout when unset (local/test runs)."""
-    lines = [f"{name}={value}" for name, value in fields.items()]
-    output_path = os.environ.get("GITHUB_OUTPUT")
-    if output_path:
-        with Path(output_path).open("a", encoding="utf-8") as handle:
-            for line in lines:
-                handle.write(line + "\n")
-    for line in lines:
-        print(line)
+_write_job_summary = bot_pr_publish.write_job_summary
+_run_url = bot_pr_publish.run_url
+_write_github_output = bot_pr_publish.write_github_output
 
 
 def _refuse_if_token_present() -> bool:
@@ -908,8 +803,7 @@ def _read_result_env() -> RecaptureResult:
         raise SystemExit(1) from exc
 
 
-def _git_commit_cmd(message: str) -> list[str]:
-    return ["git", "-c", f"user.name={COMMIT_AUTHOR_NAME}", "-c", f"user.email={COMMIT_AUTHOR_EMAIL}", "commit", "-m", message]
+_git_commit_cmd = bot_pr_publish.git_commit_cmd
 
 
 def _push(token: str, *, force: bool) -> None:
