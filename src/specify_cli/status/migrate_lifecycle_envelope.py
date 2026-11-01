@@ -32,10 +32,15 @@ inventing a migration-only identity/clock scheme (F2.md section 3.3):
   reconstruction of the original writer's identity (which was never
   recorded and cannot be recovered) -- documented approximation, not a
   defect (F2.md section 7, residual risk 3).
-* ``lamport_clock``: fixed ``0`` sentinel, never ticked -- the legacy row
-  never recorded a clock value and this local journal has no causal clock
-  at all (F2.md section 3.1 item 8); ``0`` means "no causal order
-  recorded," not a real ordering position.
+* ``lamport_clock``: explicit ``None`` -- the legacy row never recorded a
+  clock value and this local journal has no causal clock at all (F2.md
+  section 3.1 item 8). Since ``spec-kitty-events`` 11.0.0
+  ``Event.lamport_clock`` is optional and an absent value IS the contract's
+  "no causal order recorded" representation (#6414): an unclocked envelope
+  sorts before every clocked one
+  (:func:`spec_kitty_events.ordering.canonical_order_key`), while a fixed
+  ``0`` would claim a real clocked position at zero and sort the row after
+  every never-migrated row in the same log.
 * ``build_id``: :func:`specify_cli.identity.project.derive_build_id`
   applied to ``(project_uuid, node_id)`` -- the exact deterministic UUID5
   derivation ``ProjectIdentity.with_defaults`` already uses when minting a
@@ -196,7 +201,7 @@ def _migrate_row(row: dict[str, Any]) -> tuple[dict[str, Any], MigrationAction]:
     migrated["correlation_id"] = row.get("event_id")
     migrated["data_tier"] = 0
     migrated["node_id"] = node_id
-    migrated["lamport_clock"] = 0
+    migrated["lamport_clock"] = None
     migrated["build_id"] = build_id
 
     return migrated, "migrated"
