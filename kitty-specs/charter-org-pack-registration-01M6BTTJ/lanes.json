@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "mission_slug": "charter-org-pack-registration-01M6BTTJ",
+  "mission_id": "01M6BTTJV4N5J2YFA5Y0ANR6P2",
+  "mission_branch": "kitty/mission-charter-org-pack-registration-01M6BTTJ",
+  "target_branch": "issue-6267-charter-org-pack-registration",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/offering/drg/org_pack_config.py",
+        "tests/charter_offering/drg/test_org_pack_config_write_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/org.py",
+        "tests/cli/test_charter_org_registration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/api/charter-commands.md",
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/governance/create-an-org-doctrine-pack.md",
+        "src/specify_cli/cli/commands/charter/authoring.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-11-01T15:18:53.010634+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "28589efee6a15f3afe91a1bf5d746b41ff78116f"
+}

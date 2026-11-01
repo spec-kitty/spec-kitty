@@ -1,0 +1,119 @@
+{
+  "mission_slug": "charter-org-pack-registration-01M6BTTJ",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_add_registers_local_pack_without_hand_editing_config \u2014 add exits 0 and charter pack list reports the pack",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:26.567615+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/charter/offering/drg/org_pack_config.py::_org_pack_entry writes only OrgPackConfig fields; tests/charter_offering/drg/test_org_pack_config_write_seam.py",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:30.082631+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_add_refuses_invalid_pack_and_writes_nothing (config byte-identical)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:33.802547+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_add_refuses_duplicate_without_force and ::test_add_force_replaces_in_place",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:37.668687+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_add_refuses_reserved_pack_names, ::test_add_refuses_subdir_escape, ::test_add_ref_requires_url, ::test_add_refuses_source_type_outside_the_model_set",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:41.582337+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_add_registers_remote_pack_without_a_local_copy (source_type/url/ref written, fetch --dry-run resolves)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:45.484074+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_remove_deletes_exactly_one_entry and ::test_remove_never_deletes_the_pack_directory",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:49.275193+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_add_fails_closed_on_a_malformed_registry; test_org_pack_config_write_seam.py::test_register_fails_closed_on_unreadable_org_config",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:53.136251+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_add_and_remove_never_touch_the_network (socket patched to raise)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:50:57.287061+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cli/test_charter_org_registration.py::test_add_json_reports_the_written_entry and ::test_remove_json_reports_the_removal",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:51:00.940521+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/specify_cli/cli/commands/charter/authoring.py fetch message names charter org add; docs/guides/how-to/governance/create-an-org-doctrine-pack.md Step 8; docs/api/charter-commands.md org row",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T19:51:04.272031+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
