@@ -1,6 +1,7 @@
 # Contract: `site/moves.yaml`
 
 ```yaml
+# round-trip: skip: illustration of the YAML ledger file shape, not a Pydantic model
 # <provenance header: comments only>
 kind: docs-moves-ledger
 version: 1
