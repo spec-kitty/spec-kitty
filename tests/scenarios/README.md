@@ -78,6 +78,8 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Arrange | `Given the shared governance would silently drop part of a profile` |
 | Arrange | `Given one piece of governance points at another by a name that does not exist` |
 | Arrange | `Given the charter has been left in a broken state` |
+| Arrange | `Given a Mission whose work package "<wp>" has been approved` |
+| Arrange | `Given a reviewer has recorded a rejection of "<wp>" after that approval` |
 | Assume | `Given the folder "<path>" is present` |
 | Assume | `Given the file "<path>" is present` |
 | Assume | `Given the repository has at least one commit` |
@@ -88,6 +90,8 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Act | `When the author sets up the governance` |
 | Act | `When the author asks what governs the work` |
 | Act | `When the author checks the shared governance is sound` |
+| Act | `When a reviewer records a rejection of "<wp>" after that approval` |
+| Act | `When I consolidate the Mission` |
 | Assert | `Then the command succeeds` |
 | Assert | `Then the command fails` |
 | Assert | `Then the command exits with code <n>` |
@@ -149,6 +153,9 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Assert | `Then the governance in force includes the team's required rule` |
 | Assert | `Then the shared governance is not reported healthy` |
 | Assert | `Then the project's own choice is the governance in force` |
+| Assert | `Then the work package "<wp>" is sent back for rework` |
+| Assert | `Then "<wp>" is not reported as approved` |
+| Assert | `Then consolidation is refused because "<wp>" is not approved` |
 
 Paths are relative to the scenario's working directory. "Unchanged" compares against
 the state an Assume step recorded. "The output" is stdout and stderr together, compared with
