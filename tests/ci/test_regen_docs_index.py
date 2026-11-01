@@ -149,6 +149,18 @@ def test_regenerate_reconciles_all_three_surfaces_idempotently(tmp_path: Path) -
     assert {p: p.read_bytes() for p in docs_root.rglob("*") if p.is_file()} == snapshot
 
 
+def test_regenerate_moves_the_era_row_of_a_renamed_adr(tmp_path: Path) -> None:
+    root = _stage_repo(tmp_path)
+    era = root / "docs" / "adr" / "4.x"
+    (era / "2026-10-01-1-first.md").rename(era / "2026-10-01-1-first-renamed.md")
+
+    regen.regenerate(root)
+
+    index = (era / "index.md").read_text(encoding="utf-8")
+    assert "](2026-10-01-1-first.md)" not in index
+    assert "| 2026-10-01 | [First](2026-10-01-1-first-renamed.md) |" in index
+
+
 def test_regenerate_phase_refuses_when_the_pat_is_present(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(regen.SECRET_NAME, FAKE_TOKEN)
     called: list[Path] = []
@@ -277,6 +289,20 @@ def test_publish_refuses_a_path_outside_the_generated_surfaces(repo: Path, monke
     assert recorder.commands() == []
 
 
+def test_publish_skips_with_a_notice_off_the_core_repository_without_a_pat(repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """A fork's dispatch has no secret: skip cleanly instead of going red."""
+    regen.regenerate(repo)
+    monkeypatch.delenv(regen.SECRET_NAME, raising=False)
+    monkeypatch.setenv("GITHUB_REPOSITORY", "someone/fork")
+    recorder = _Recorder()
+    monkeypatch.setattr(subprocess, "run", recorder)
+
+    assert regen.main([regen.PHASE_PUBLISH]) == 0
+
+    assert "::notice::" in capsys.readouterr().out
+    assert recorder.commands() == []
+
+
 def test_publish_requires_the_pat(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(regen.SECRET_NAME, raising=False)
     with pytest.raises(SystemExit):
@@ -343,7 +369,7 @@ def test_workflow_hands_the_pat_to_the_publish_step_only(workflow: dict[Any, Any
     publish = secret_steps[0]
     assert publish["env"] == {regen.SECRET_NAME: "${{ secrets.CHARTER_SHARD_RECAPTURE_TOKEN }}"}
     assert "regen_docs_index publish" in publish["run"]
-    assert publish["if"] == "${{ steps.regen.outputs.changed == 'true' }}"
+    assert publish["if"] == "${{ steps.regen.outputs.changed == 'true' && github.repository == 'spec-kitty/spec-kitty' }}"
     regenerate = next(step for step in steps if step.get("id") == "regen")
     assert "regen_docs_index regenerate" in regenerate["run"]
     assert "env" not in regenerate
