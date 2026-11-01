@@ -575,22 +575,23 @@ def _violation(path: str, field_name: str, reason: str, detail: str, severity: s
     return Violation(path=path, field=field_name, reason=reason, detail=detail, severity=severity)
 
 
-def validate_page(rel_path: str, frontmatter: Mapping[str, Any]) -> PageVerdict:
-    """Validate one page's frontmatter against the contract.
+def _required_field_violations(
+    rel_path: str, frontmatter: Mapping[str, Any]
+) -> list[Violation]:
+    """Every required field (and the immovable floor) must be present."""
+    return [
+        _violation(rel_path, field_name, "required", "contract requires this field", "error")
+        for field_name in (*REQUIRED_FIELDS, *FIELD_FLOOR)
+        if _frontmatter_str(frontmatter, field_name) is None
+    ]
 
-    Pure: no filesystem, no published-set knowledge. The corpus gate
-    (:func:`validate_tree`) decides *which* pages to pass in.
-    """
+
+def _kind_violations(
+    rel_path: str, frontmatter: Mapping[str, Any], kind: str | None
+) -> tuple[list[Violation], list[Violation]]:
+    """An unclassifiable page is an error; an unknown kind is an advisory warning."""
     errors: list[Violation] = []
     warnings: list[Violation] = []
-
-    for field_name in (*REQUIRED_FIELDS, *FIELD_FLOOR):
-        if _frontmatter_str(frontmatter, field_name) is None:
-            errors.append(
-                _violation(rel_path, field_name, "required", "contract requires this field", "error")
-            )
-
-    kind = resolve_kind(rel_path, frontmatter)
     if _frontmatter_str(frontmatter, "kind") is None and kind is None:
         errors.append(
             _violation(
@@ -611,61 +612,58 @@ def validate_page(rel_path: str, frontmatter: Mapping[str, Any]) -> PageVerdict:
                 "warning",
             )
         )
+    return errors, warnings
 
+
+def _doc_status_violations(
+    rel_path: str, frontmatter: Mapping[str, Any]
+) -> list[Violation]:
+    """A value outside the legal lifecycle set warns, matching the pinned gate."""
     doc_status = normalise_doc_status(rel_path, frontmatter)
-    if doc_status is not None and doc_status not in DOC_STATUSES:
-        warnings.append(
-            _violation(
-                rel_path,
-                "doc_status",
-                "outside_canonical_set",
-                f"{doc_status!r} is not in the legal set ({', '.join(DOC_STATUSES)})",
-                "warning",
-            )
+    if doc_status is None or doc_status in DOC_STATUSES:
+        return []
+    return [
+        _violation(
+            rel_path,
+            "doc_status",
+            "outside_canonical_set",
+            f"{doc_status!r} is not in the legal set ({', '.join(DOC_STATUSES)})",
+            "warning",
         )
+    ]
 
+
+def _updated_violations(
+    rel_path: str, frontmatter: Mapping[str, Any]
+) -> tuple[list[Violation], list[Violation], str | None]:
+    """An unparseable instant is an error; a non-canonical spelling is an advisory."""
     raw_updated = frontmatter.get("updated")
+    errors: list[Violation] = []
+    warnings: list[Violation] = []
     if raw_updated is None:
         updated = normalise_updated(rel_path, frontmatter)
         if updated is None:
             errors.append(
-                _violation(
-                    rel_path,
-                    "updated",
-                    "unparseable",
-                    UPDATED_INSTANT_INSTRUCTIONS,
-                    "error",
-                )
+                _violation(rel_path, "updated", "unparseable", UPDATED_INSTANT_INSTRUCTIONS, "error")
             )
-    else:
-        reading = read_instant(raw_updated)
-        updated = reading.canonical
-        if reading.canonical is None:
-            errors.append(
-                _violation(
-                    rel_path,
-                    "updated",
-                    "unparseable",
-                    UPDATED_INSTANT_INSTRUCTIONS,
-                    "error",
-                )
-            )
-        elif reading.advisory is not None:
-            warnings.append(
-                _violation(rel_path, "updated", "not_canonical", reading.advisory, "warning")
-            )
-
-    type_value = _frontmatter_str(frontmatter, "type")
-    if type_value is not None and type_value not in DOC_TYPES:
-        warnings.append(
-            _violation(
-                rel_path,
-                "type",
-                "outside_canonical_set",
-                f"{type_value!r} is not in the canonical set ({', '.join(DOC_TYPES)})",
-                "warning",
-            )
+        return errors, warnings, updated
+    reading = read_instant(raw_updated)
+    if reading.canonical is None:
+        errors.append(
+            _violation(rel_path, "updated", "unparseable", UPDATED_INSTANT_INSTRUCTIONS, "error")
         )
+    elif reading.advisory is not None:
+        warnings.append(
+            _violation(rel_path, "updated", "not_canonical", reading.advisory, "warning")
+        )
+    return errors, warnings, reading.canonical
+
+
+def _path_and_kind_violations(
+    rel_path: str, frontmatter: Mapping[str, Any], kind: str | None
+) -> list[Violation]:
+    """The ADR-status mapping and the two upstream path+kind invariants."""
+    errors: list[Violation] = []
 
     # ADR D-7's ADR row: an ADR's MADR status must map. A new status value is a human
     # decision, not something this gate may guess at.
@@ -696,18 +694,36 @@ def validate_page(rel_path: str, frontmatter: Mapping[str, Any]) -> PageVerdict:
             )
         )
     if kind == "Persona":
-        for field_name in ("role", "goals", "responsibilities"):
-            if frontmatter.get(field_name) in (None, "", []):
-                errors.append(
-                    _violation(
-                        rel_path,
-                        field_name,
-                        "persona_requires_field",
-                        "`kind: Persona` requires this field (doc-kitty ADR-0019)",
-                        "error",
-                    )
-                )
+        errors.extend(
+            _violation(
+                rel_path,
+                field_name,
+                "persona_requires_field",
+                "`kind: Persona` requires this field (doc-kitty ADR-0019)",
+                "error",
+            )
+            for field_name in ("role", "goals", "responsibilities")
+            if frontmatter.get(field_name) in (None, "", [])
+        )
+    return errors
 
+
+def _type_and_description_violations(
+    rel_path: str, frontmatter: Mapping[str, Any]
+) -> list[Violation]:
+    """The two advisory checks: an unknown ``type`` and an over-long description."""
+    warnings: list[Violation] = []
+    type_value = _frontmatter_str(frontmatter, "type")
+    if type_value is not None and type_value not in DOC_TYPES:
+        warnings.append(
+            _violation(
+                rel_path,
+                "type",
+                "outside_canonical_set",
+                f"{type_value!r} is not in the canonical set ({', '.join(DOC_TYPES)})",
+                "warning",
+            )
+        )
     description = _frontmatter_str(frontmatter, "description")
     if description is not None and len(description) > MAX_DESCRIPTION_LENGTH:
         warnings.append(
@@ -719,6 +735,38 @@ def validate_page(rel_path: str, frontmatter: Mapping[str, Any]) -> PageVerdict:
                 "warning",
             )
         )
+    return warnings
+
+
+def validate_page(rel_path: str, frontmatter: Mapping[str, Any]) -> PageVerdict:
+    """Validate one page's frontmatter against the contract.
+
+    Pure: no filesystem, no published-set knowledge. The corpus gate
+    (:func:`validate_tree`) decides *which* pages to pass in. Each rule lives in its
+    own helper so the severity of every rule stays visible: an absent required field,
+    an unclassifiable page, an unparseable instant, an unmapped ADR status and the two
+    path+kind invariants are errors; an unknown ``kind``/``doc_status``/``type`` and a
+    non-canonical instant are advisories, exactly as the pinned doc-kitty gate splits
+    them.
+    """
+    kind = resolve_kind(rel_path, frontmatter)
+    doc_status = normalise_doc_status(rel_path, frontmatter)
+
+    kind_errors, kind_warnings = _kind_violations(rel_path, frontmatter, kind)
+    updated_errors, updated_warnings, updated = _updated_violations(rel_path, frontmatter)
+
+    errors = [
+        *_required_field_violations(rel_path, frontmatter),
+        *kind_errors,
+        *updated_errors,
+        *_path_and_kind_violations(rel_path, frontmatter, kind),
+    ]
+    warnings = [
+        *kind_warnings,
+        *_doc_status_violations(rel_path, frontmatter),
+        *updated_warnings,
+        *_type_and_description_violations(rel_path, frontmatter),
+    ]
 
     return PageVerdict(
         path=rel_path,
@@ -755,6 +803,9 @@ def validate_tree(
         the promise is "every published page was checked", and a vacuous or collapsed
         set makes that promise unfalsifiable.
     """
+    # A relative docs root is resolved against the caller's repo root, so the CLI
+    # default (`docs`) and a test's absolute path behave identically.
+    docs_root = docs_root if docs_root.is_absolute() else repo_root / docs_root
     page_set = _resolve_page_set(docs_root=docs_root, docfx_config=docfx_config)
     observed = len(page_set.pages)
     if observed == 0:
@@ -995,6 +1046,7 @@ def apply_plan(*, docs_root: Path, repo_root: Path, write: bool) -> list[PageEdi
     one thing in both directions. Idempotent: a second pass over an already migrated
     tree produces no non-empty :class:`PageEdit`.
     """
+    docs_root = docs_root if docs_root.is_absolute() else repo_root / docs_root
     page_set = _resolve_page_set(docs_root=docs_root, docfx_config=None)
     tree_root = docs_root.parent
     edits: list[PageEdit] = []
@@ -1007,7 +1059,6 @@ def apply_plan(*, docs_root: Path, repo_root: Path, write: bool) -> list[PageEdi
         edits.append(edit)
         if write:
             absolute.write_text(apply_edit(text, edit), encoding="utf-8")
-    _ = repo_root  # the page set is already repo-relative; kept for call-site symmetry
     return edits
 
 

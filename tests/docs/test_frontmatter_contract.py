@@ -326,7 +326,9 @@ def test_has_divio_type_only_flags_divio_values() -> None:
 # Migration — frontmatter-only, idempotent, refuses what it cannot represent
 # --------------------------------------------------------------------------
 
-_SAMPLE = """---
+_TRAILING = "   "
+
+_SAMPLE = f"""---
 title: 'A page'
 description: 'A description long enough to be plausible for the gate.'
 updated: '2026-10-26'
@@ -337,7 +339,7 @@ type: how-to
 
 # A page
 
-Body **must not move**, including this `---` line and trailing whitespace.   
+Body **must not move**, including this `---` line and trailing whitespace.{_TRAILING}
 """
 
 

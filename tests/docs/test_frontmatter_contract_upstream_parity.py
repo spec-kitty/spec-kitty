@@ -142,13 +142,17 @@ def test_doc_statuses_agree_with_the_repository_enum() -> None:
     Kept as a copy (not an import) so this assertion can exist: importing would make
     the two sources one and remove the check.
     """
-    assert DOC_STATUSES == tuple(status.value for status in DocStatus)
+    assert tuple(status.value for status in DocStatus) == DOC_STATUSES
+
+
+#: The three legacy values ADR D-7 names, exactly as the mapping must carry them.
+LEGACY_ALIASES = {"closeout": "durable", "point_in_time": "durable", "proposal": "draft"}
 
 
 def test_every_alias_target_and_adr_mapping_is_a_canonical_status() -> None:
     """A mapping may only point at a value the corpus is allowed to keep."""
     canonical = set(DOC_STATUSES)
-    for alias, target in {**{k: v for k, v in (("closeout", "durable"), ("point_in_time", "durable"), ("proposal", "draft"))}}.items():
+    for alias, target in LEGACY_ALIASES.items():
         assert target in canonical, f"{alias} -> {target} is not canonical"
     for status, target in ADR_STATUS_TO_DOC_STATUS.items():
         assert target in canonical, f"ADR status {status} -> {target} is not canonical"
