@@ -21,6 +21,7 @@ replaced by ``[path]`` or ``[email]`` when not. Every redaction is recorded with
 
 from __future__ import annotations
 
+import copy
 import functools
 import hashlib
 import json
@@ -53,6 +54,7 @@ from specify_cli.status.tail_reader import EMPTY_DIGEST, TailCursor, _content_in
 from specify_cli.status.wp_metadata import WPMetadata, read_authored_wp_frontmatter
 from specify_cli.status.wp_view import reconstruct_wp_view
 from tests.contract._loader import load_tool
+from tests.pinned_service_assets import contract_tools_dir, expected_extra_root, pinned_extra
 
 # ---------------------------------------------------------------------------
 # Vocabularies and constants
@@ -109,7 +111,99 @@ _REVIEWED_OR_LATER = ("for_review", "in_review", "approved", "done", "canceled")
 _REVIEW_STARTED = ("for_review", "in_review", "approved", "done")
 _HANDLE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _RELATIVE_REFERENCE = re.compile(r"^(?![A-Za-z]:)[^/\\~].{0,255}$")
-_WP_ID_SCHEMA = yaml.safe_load((Path(__file__).resolve().parents[2] / "contracts" / "mission-status" / "schemas" / "WpId.yaml").read_text(encoding="utf-8"))
+MISSION_STATUS_MODULE = "mission-status"
+_BUNDLE_DOCUMENT = "openapi.yaml"
+_LITERAL_KEYS = frozenset({"examples", "example", "default", "enum", "const"})
+
+
+@functools.cache
+def _bundled_document(module: str) -> dict[str, Any]:
+    """The bundled, ``$ref``-free OpenAPI document of *module* from the pinned ``contract-bundles`` extra (#6915).
+
+    The path is computed from the pin alone, so this works at import time. When the document is absent the pinned
+    extra is asked for, which unpacks a verified cached archive or fails closed with its ``SERVICE_*`` code and the
+    remedy ``run `make sync-services```; it never skips.
+    """
+    path = expected_extra_root("contracts") / "bundle" / module / _BUNDLE_DOCUMENT
+    if not path.is_file():
+        pinned_extra("contracts")
+    if not path.is_file():
+        raise RuntimeError(f"the pinned contract-bundles extra carries no {module}/{_BUNDLE_DOCUMENT} ({path})")
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        raise RuntimeError(f"the bundled {module}/{_BUNDLE_DOCUMENT} is not a mapping ({path})")
+    return document
+
+
+def bundled_document(module: str = MISSION_STATUS_MODULE) -> dict[str, Any]:
+    """A copy of the bundled OpenAPI document of *module* (``openapi``, ``info``, ``servers``, ``tags``, ``paths``)."""
+    return copy.deepcopy(_bundled_document(module))
+
+
+def _titled_variants(tree: Any, found: dict[str, list[dict[str, Any]]]) -> None:
+    if isinstance(tree, list):
+        for item in tree:
+            _titled_variants(item, found)
+    elif isinstance(tree, dict):
+        title = tree.get("title")
+        if isinstance(title, str):
+            found.setdefault(title, []).append(tree)
+        for key, value in tree.items():
+            if key not in _LITERAL_KEYS:
+                _titled_variants(value, found)
+
+
+@functools.cache
+def _bundled_titles(module: str) -> dict[str, list[dict[str, Any]]]:
+    found: dict[str, list[dict[str, Any]]] = {}
+    _titled_variants(_bundled_document(module), found)
+    return found
+
+
+def bundled_schema(title: str, module: str = MISSION_STATUS_MODULE) -> dict[str, Any]:
+    """The schema titled *title* in the bundled *module*, as every place that uses it agrees on.
+
+    The bundle inlines a shared schema at each use, and a use may carry its own ``description`` (or provenance).
+    The schema returned keeps every key whose value is the same at each use (``pattern``, ``maxLength``, ``enum``,
+    ``properties``, ``examples`` ...) and drops a key the uses disagree on. A schema used once comes back whole.
+    """
+    variants = _bundled_titles(module).get(title)
+    if not variants:
+        raise KeyError(f"the bundled {module} contract has no schema titled {title!r}")
+    return agreed_schema(variants)
+
+
+def agreed_schema(variants: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """A copy of the keys (and values) every one of *variants* carries alike; empty for no variant."""
+    if not variants:
+        return {}
+    first, rest = variants[0], variants[1:]
+    return copy.deepcopy({key: value for key, value in first.items() if all(key in other and other[key] == value for other in rest)})
+
+
+def bundled_examples(title: str, module: str = MISSION_STATUS_MODULE) -> list[Any]:
+    """The ``examples`` list of the schema titled *title* in the bundled *module*; fails when it carries none."""
+    return non_empty_examples(bundled_schema(title, module), f"the bundled {module} schema {title!r}")
+
+
+def non_empty_examples(schema: Mapping[str, Any], where: str) -> list[Any]:
+    """The ``examples`` list of *schema*; an absent, non-list or empty one fails (a loop over it can never pass vacuously)."""
+    examples = schema.get("examples")
+    if not isinstance(examples, list) or not examples:
+        raise AssertionError(f"{where} must carry at least one example")
+    return examples
+
+
+def bundled_path_item(path_key: str, module: str = MISSION_STATUS_MODULE) -> dict[str, Any]:
+    """The path item (its operations by method) of the server-relative path *path_key* (``/drift``) in the bundled *module*."""
+    paths = _bundled_document(module).get("paths", {})
+    if path_key not in paths:
+        raise KeyError(f"the bundled {module} contract has no path {path_key} (paths: {sorted(paths)})")
+    item: dict[str, Any] = copy.deepcopy(paths[path_key])
+    return item
+
+
+_WP_ID_SCHEMA = bundled_schema("WpId")
 # The one definition of a work package id is the contract's own WpId schema; the projector reads it, it does not copy it.
 WP_ID_PATTERN: str = _WP_ID_SCHEMA["pattern"]
 WP_ID_MAX_LENGTH: int = _WP_ID_SCHEMA["maxLength"]
@@ -551,9 +645,15 @@ class ContractTools:
     scan: ModuleType
 
 
-def load_contract_tools(mp: pytest.MonkeyPatch, repo_root: Path) -> ContractTools:
-    """Load the contract tools by file path through the shared loader (no sys.path or sys.modules edits of our own)."""
-    tools = repo_root / "contracts" / "tools"
+def load_contract_tools(mp: pytest.MonkeyPatch, repo_root: Path, tools_root: Path | None = None) -> ContractTools:
+    """Load the contract tools by file path through the shared loader (no sys.path or sys.modules edits of our own).
+
+    The tools are the pinned ``contract-tools`` extra of spec-kitty-events (``make sync-services``) unless
+    *tools_root* names another directory. *repo_root* is kept for the callers' signature; the tools are no longer
+    read from the checkout.
+    """
+    del repo_root  # the tools come from the pinned extra, not from the checkout (#6915)
+    tools = contract_tools_dir() if tools_root is None else tools_root
     return ContractTools(
         resolver=load_tool(mp, tools / "contract_resolver.py", "contract_resolver_for_status_payloads", syspath=tools),
         leak=load_tool(mp, tools / "leak_patterns.py", "leak_patterns_for_status_payloads"),

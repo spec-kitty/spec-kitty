@@ -28,7 +28,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml
 from pydantic import ValidationError
 
 from kernel.errors import GuardedReadError
@@ -75,29 +74,27 @@ _UNREADABLE = (OSError, ValueError, FrontmatterError, GuardedReadError, MissionS
 # and what the change-set query raises (a timeout or OS error wrapped by the runner, a path git's output cannot parse): each means "not determined".
 _GIT_SEAM_ERRORS = (OSError, subprocess.SubprocessError, ValueError)
 _CHANGE_SET_ERRORS = (GitCommandError, ValueError)
-_SCHEMAS = Path(__file__).resolve().parents[2] / "contracts" / "mission-status" / "schemas"
 
 
-def _schema(name: str) -> dict[str, Any]:
-    loaded = yaml.safe_load((_SCHEMAS / name).read_text(encoding="utf-8"))
-    assert isinstance(loaded, dict), name
-    return loaded
+def _schema(title: str) -> dict[str, Any]:
+    """The schema titled *title* of the pinned, bundled ``mission-status`` contract (#6915)."""
+    return helper.bundled_schema(title)
 
 
-_REF_SCHEMA = _schema("RelativeReference.yaml")
+_REF_SCHEMA = _schema("RelativeReference")
 # The schema's own pattern and length, so the reader and the contract cannot drift (``.`` excludes a line break, ``\Z`` ends the string).
 RELATIVE_REFERENCE = re.compile(rf"(?=.{{1,{_REF_SCHEMA['maxLength']}}}\Z)" + _REF_SCHEMA["pattern"])
 _WP_ID = re.compile(helper.WP_ID_PATTERN)
-_WORKSPACE_PROPERTIES = _schema("Workspace.yaml")["properties"]
+_WORKSPACE_PROPERTIES = _schema("Workspace")["properties"]
 _BRANCH = re.compile(_WORKSPACE_PROPERTIES["laneBranch"]["pattern"])
 _BRANCH_MAX = int(_WORKSPACE_PROPERTIES["laneBranch"]["maxLength"])
 _PLANNING_BRANCH_MAX = int(_WORKSPACE_PROPERTIES["planningBranch"]["maxLength"])
 _LANE_ID = re.compile(_WORKSPACE_PROPERTIES["laneId"]["pattern"])
 _LANE_ID_MAX = int(_WORKSPACE_PROPERTIES["laneId"]["maxLength"])
-_REVIEW_CYCLE_PROPERTIES = _schema("ReviewCycle.yaml")["properties"]
+_REVIEW_CYCLE_PROPERTIES = _schema("ReviewCycle")["properties"]
 _POINTER = re.compile(_REVIEW_CYCLE_PROPERTIES["feedbackReference"]["pattern"])
 _CYCLE_NAME = re.compile(r"^review-cycle-(?P<number>[1-9][0-9]*)\.md$")
-_VERDICTS = frozenset(_schema("ReviewVerdict.yaml")["enum"])
+_VERDICTS = frozenset(_schema("ReviewVerdict")["enum"])
 
 # ---------------------------------------------------------------------------
 # Outcome, host capability, refusals
