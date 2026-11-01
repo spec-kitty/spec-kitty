@@ -50,6 +50,7 @@ doctrine is the canonical dependency direction).
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -1118,6 +1119,13 @@ def code_producing_for(repo_root: Path, mission_type: str) -> bool:
     try:
         return bool(resolve_mission_type_context(repo_root, mission_type=mission_type).code_producing)
     except Exception:  # noqa: BLE001 - gate must not crash; fall back to built-in default
+        # A custom type declaring ``code_producing: true`` would silently become
+        # ungated here, so the fallback must leave a trace.
+        logging.getLogger(__name__).warning(
+            "code_producing resolution failed for mission type %r; using the built-in default",
+            mission_type,
+            exc_info=True,
+        )
         return bool(BUILTIN_CODE_PRODUCING.get(mission_type, False))
 
 
