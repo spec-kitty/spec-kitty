@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import (
     AfterValidator,
@@ -566,6 +566,16 @@ class GenProposal:
     Matches Proposal in contracts/retrospective-record.schema.json.
     id MUST match pattern ^p-[0-9]{3,}$.
     auto_applicable MUST be False when risk_class == "structural".
+
+    ``payload`` (#6385) is the optional structured half of the proposal: a mapping
+    validated against the nested record's discriminated :data:`ProposalPayload`
+    union, so a generator-shape proposal can say *what* it would apply instead of
+    leaving that to free-text ``suggested_action``. It is ``None`` for every
+    record written before #6385 and for generation that has not yet graded a
+    finding into a payload (#3947); the writer emits the key only when present so
+    those records stay byte-identical. Validation lives at the read boundary
+    (:func:`specify_cli.retrospective.reader.read_gen_record`), not here, so this
+    dataclass keeps its plain-data contract.
     """
 
     id: str
@@ -576,6 +586,7 @@ class GenProposal:
     suggested_action: str
     auto_applicable: bool
     details: str | None = None
+    payload: dict[str, Any] | None = None
 
 
 @dataclass

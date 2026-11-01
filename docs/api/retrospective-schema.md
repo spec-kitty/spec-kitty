@@ -2,7 +2,7 @@
 title: Retrospective Schema and Events Reference
 description: retrospective.yaml field schema, proposal kinds, retrospective status events, and synthesizer exit codes.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-10-31'
 ---
 # Retrospective Schema and Events Reference
 
@@ -54,6 +54,48 @@ The file is keyed by canonical mission ULID, not display number. The schema is i
 | `provenance.evidence_event_ids` | list[ULID] | Event IDs that support the finding |
 | `provenance.actor` | object | Actor that captured the finding |
 | `provenance.captured_at` | timestamp | Capture timestamp |
+
+---
+
+### Generator-shape records (`retrospect create`)
+
+`spec-kitty retrospect create` (and `backfill`) write the **generator record shape** read by
+`specify_cli.retrospective.reader.read_gen_record`; its original contract is the archived
+`kitty-specs/retrospective-default-policy-01KS049J/contracts/retrospective-record.schema.json`,
+which is a frozen historical record and is not edited (the `kitty-specs/` archive root is
+byte-preserved). The live machine authority for the optional `payload` added in this release is the
+discriminated `ProposalPayload` union in `src/specify_cli/retrospective/schema.py`. The shape differs
+from the nested schema above in two ways that matter to `synthesize`:
+
+| | Nested record | Generator record |
+|---|---|---|
+| `proposals[].id` | ULID | `p-001`, `p-002`, … |
+| `proposals[].action` | `kind` + discriminated `payload` | free-text `suggested_action` (+ optional `payload`) |
+
+A generator-shape proposal may therefore carry an **optional `payload`** block, validated against
+the same `ProposalPayload` union `synthesize` applies — there is no second payload schema. When it
+does, `synthesize` translates the proposal into a nested proposal (a derived ULID id, `accepted`
+when the record sets `auto_applicable: true`, `pending` otherwise) and plans it exactly like a
+nested-schema proposal. A proposal without a payload is not plannable; `retrospect create` writes
+none of its own, and grading findings into payloads is tracked in
+[#3947](https://github.com/spec-kitty/spec-kitty/issues/3947).
+
+Every `synthesize` run on a generator-shape record adds a top-level `diagnostics` object to the
+JSON envelope (and a matching warning on the Rich surface):
+
+```json
+"diagnostics": {
+  "record_schema": "generator",
+  "findings": {"helped": 0, "not_helpful": 19, "gaps": 2, "proposals": 0},
+  "proposals_translated": 0,
+  "proposals_planned": 0,
+  "untranslatable": [],
+  "next_action": "This retrospective uses the generator record schema and carries no proposals, …"
+}
+```
+
+`untranslatable` names every proposal that could not be translated, with the reason. Nested-schema
+records never carry the block, so their envelopes are unchanged.
 
 ---
 
@@ -181,7 +223,7 @@ both required. Neither alone is sufficient to record a valid skip.
 
 | Exit code | Meaning | Action required |
 |---|---|---|
-| 0 | Success — dry-run complete (no changes) or proposals applied successfully | None |
+| 0 | Success — dry-run complete (no changes, including an empty generator-shape batch, which is reported through `diagnostics`) or proposals applied successfully | None |
 | 1 | Invalid project root, unresolvable mission handle, or other command error | Fix invocation/project state |
 | 2 | I/O error reading retrospective data | Inspect filesystem permissions and paths |
 | 3 | Retrospective record missing or malformed | Create or repair `.kittify/missions/<mission_id>/retrospective.yaml` |
