@@ -1,0 +1,33 @@
+{
+  "accept_commit": "07c9ed046c6b6c3d8f784133fca60fce25ef7757",
+  "acceptance_history": [
+    {
+      "accept_commit": "07c9ed046c6b6c3d8f784133fca60fce25ef7757",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:55:52.869751+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "1b81a7a935ce8f25812c80786bcca2328bd29cf0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:55:52.869751+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "1b81a7a935ce8f25812c80786bcca2328bd29cf0",
+  "baseline_merge_commit": "6e3f8669d84b040260528f37371d4ace6785c8ab",
+  "created_at": "2026-11-01T15:17:58.514622+00:00",
+  "flattened": false,
+  "friendly_name": "plugin bundle native target selection",
+  "merged_at": "2026-11-01T17:56:27.297119+00:00",
+  "merged_commit": "6e3f8669d84b040260528f37371d4ace6785c8ab",
+  "mid8": "01M6BV0N",
+  "mission_id": "01M6BV0NFBAFMNNCEB05VW1TPM",
+  "mission_number": 246,
+  "mission_slug": "plugin-bundle-native-target-selection-01M6BV0N",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances plugin bundle native target selection on issue-6273-plugin-bundle-native-target-selection so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "plugin bundle native target selection",
+  "slug": "plugin-bundle-native-target-selection-01M6BV0N",
+  "status_phase": "1",
+  "target_branch": "issue-6273-plugin-bundle-native-target-selection",
+  "topology": "single_branch"
+}
