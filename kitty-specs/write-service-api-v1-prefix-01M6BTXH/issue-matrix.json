@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6195": {
+      "evidence_ref": "Context citation only: #6195 is the EventBridge lane-transition cut-over that will consume these path constants; out of scope here (spec C-002, the issue allows landing before it).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6910": {
+      "evidence_ref": "fix(6910) commit 4a93366 + tests/contract/test_mission_write_contract.py path pin; PR pending",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
