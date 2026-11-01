@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "charter-service-pin-line-01M6BTXZ",
+  "mission_id": "01M6BTXZ6DX9QAE2T3YNFST650",
+  "mission_branch": "kitty/mission-charter-service-pin-line-01M6BTXZ",
+  "target_branch": "issue-6909-charter-service-pin-line",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/kernel/service_pin.py",
+        "src/specify_cli/cli/commands/service.py",
+        "src/specify_cli/services/attestation.py",
+        "src/specify_cli/services/vendor.py",
+        "tests/kernel/test_service_pin.py",
+        "tests/specify_cli/services/test_attestation.py",
+        "tests/specify_cli/services/test_service_cli.py",
+        "tests/specify_cli/services/test_vendor.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/service-pins.md",
+        "pins/README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-01T15:23:22.305710+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "2a866ba7bfa79fbe43711d3f7c6934420381bd5e"
+}
