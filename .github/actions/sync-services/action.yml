@@ -2,14 +2,14 @@ name: "Sync services"
 description: >-
   Fetches and verifies the pinned service assets (the host's native build, or
   the jar, plus the contract and fixture extras) named by pins/*.source.yaml
-  into ~/.cache/spec-kitty/services (#6590). Fails closed: an invalid pin, an
-  unreachable asset or a digest mismatch exits 1 with a stable SERVICE_* code.
-  The asset cache is restored keyed on the pin files, so only a pin bump pays a
-  cold fetch. Wired into no job yet: no pin exists until spec-kitty-events cuts
-  its first service-v* release, and the cut-over PR that adds the first pin
-  wires this action into every job that runs the service conformance suites.
-  Guarded by tests/ci/test_sync_services.py.
-
+  into ~/.cache/spec-kitty/services, and unpacks each verified extras archive
+  under its digest (#6590, #6915). With extras-only, only the extras (about
+  230 KB): the conformance and golden suites read those, and only the nightly
+  corpus compare and the release need a service build. Fails closed: an
+  invalid pin, an unreachable asset, a digest mismatch or an unsafe archive
+  member exits 1 with a stable SERVICE_* code. The asset cache is restored
+  keyed on the pin files, so only a pin bump pays a cold fetch. Guarded by
+  tests/ci/test_sync_services.py.
 inputs:
   python:
     description: >-
@@ -25,6 +25,12 @@ inputs:
       precedence over `python` when set.
     required: false
     default: ""
+  extras-only:
+    description: >-
+      "true" fetches only the extras (contract bundles, contract tools,
+      conformance fixtures), never a service build.
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -40,14 +46,18 @@ runs:
       env:
         SYNC_PYTHON: ${{ inputs.python }}
         SYNC_PYTHON_EXE: ${{ inputs.python-exe }}
+        EXTRAS_ONLY: ${{ inputs.extras-only }}
       run: |
         set -euo pipefail
+        # A scalar, not an array: an empty array under `set -u` fails on macOS's bash 3.2.
+        flag=""
+        if [ "${EXTRAS_ONLY}" = "true" ]; then flag="--extras-only"; fi
         # PYTHONPATH lets the script import kernel before (or without) an
         # editable project install, e.g. in a no-install-project environment.
         if [ -n "${SYNC_PYTHON_EXE}" ]; then
-          PYTHONPATH="${GITHUB_WORKSPACE}/src" "${SYNC_PYTHON_EXE}" scripts/sync_services.py --service all
+          PYTHONPATH="${GITHUB_WORKSPACE}/src" "${SYNC_PYTHON_EXE}" scripts/sync_services.py --service all ${flag:+"$flag"}
         else
           # $SYNC_PYTHON is deliberately unquoted: it is a command plus arguments.
           # shellcheck disable=SC2086
-          PYTHONPATH="${GITHUB_WORKSPACE}/src" $SYNC_PYTHON scripts/sync_services.py --service all
+          PYTHONPATH="${GITHUB_WORKSPACE}/src" $SYNC_PYTHON scripts/sync_services.py --service all ${flag:+"$flag"}
         fi

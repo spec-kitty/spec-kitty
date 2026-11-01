@@ -77,7 +77,8 @@ def _pinned_repo(tmp_path: Path, **release: Any) -> tuple[Path, ServicePin]:
 
 
 def _extras() -> dict[str, bytes]:
-    return {"contracts": b"contract bundle", "fixtures": b"conformance fixtures"}
+    # Extras are gzip tarballs by contract (fetch unpacks them), so the fixtures are real archives.
+    return {"contracts": _tar_gz({"bundle/mission-status/openapi.yaml": b"openapi: 3.1.0\n"}), "fixtures": _tar_gz({"conformance/manifest.json": b"{}"})}
 
 
 # --------------------------------------------------------------------------- #
@@ -559,3 +560,34 @@ def test_extras_path_cli_refuses_a_malformed_selector(sync: ModuleType, tmp_path
     with pytest.raises(SystemExit) as raised:
         sync.main(["--extras-path", value], repo_root=tmp_path, cache_root=tmp_path / "cache")
     assert raised.value.code == 2
+
+
+@pytest.mark.usefixtures("host_linux_x64")
+def test_extras_only_on_a_pin_without_extras_reports_it_and_succeeds(sync: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo, pin = _pinned_repo(tmp_path)
+
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=tmp_path / "cache") == 0
+
+    assert f"{pin.service} {pin.tag}: {sync.NO_EXTRAS_PINNED}" in capsys.readouterr().out
+    assert not (tmp_path / "cache").exists() or not any((tmp_path / "cache").rglob("*")), "nothing is fetched"
+
+
+def test_extras_path_cli_for_a_known_but_unpinned_service_is_a_pin_error(sync: ModuleType, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    (tmp_path / PINS_DIR).mkdir()
+
+    assert sync.main(["--extras-path", "write-service:fixtures"], repo_root=tmp_path, cache_root=tmp_path / "cache") == 1
+
+    assert "SERVICE_PIN_INVALID" in capsys.readouterr().err
+
+
+def test_unpack_without_the_data_filter_still_unpacks_the_checked_members(sync: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Python < 3.11.4 has no ``filter="data"``: the members, already checked, are extracted one by one."""
+    monkeypatch.setattr(sync, "_has_data_filter", lambda: False)
+    monkeypatch.setattr(sync, "host_target", lambda: ServiceTarget.LINUX_X64)
+    repo, pin = _pinned_repo(tmp_path, extras=_archive_extras())
+    cache = tmp_path / "cache"
+
+    assert sync.main(["--extras-only"], repo_root=repo, cache_root=cache) == 0
+
+    root = sync.extras_root(repo, pin.service, "fixtures", cache_root=cache)
+    assert (root / "conformance" / "manifest.json").read_bytes() == _FIXTURES_TREE["conformance/manifest.json"]

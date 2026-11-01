@@ -9,14 +9,15 @@ help: ## Show available targets
 dev-setup: ## Sync deps and install all slash commands for configured agents
 	uv sync --frozen --all-extras
 	$(MAKE) sync-packs
+	$(MAKE) sync-services ARGS=--extras-only
 	uv run --frozen spec-kitty doctor skills --fix
 
 sync-packs: ## Fetch and verify packs/built-in and packs/internal (test-fast does NOT sync; run once per worktree)
 	uv run --frozen python scripts/sync_packs.py --pack all
 
-# Not in dev-setup yet: no pins/*.source.yaml exists until spec-kitty-events cuts its first
-# service-v* release; the cut-over PR that adds the first pin also adds this to dev-setup.
-sync-services: ## Fetch and verify the pinned service assets for this host (ARGS=--check verifies only, ARGS=--offline uses the cache)
+# dev-setup runs this with ARGS=--extras-only: the conformance and golden tests read the pinned
+# extras; only the nightly corpus compare and the release need the service build (#6915).
+sync-services: ## Fetch and verify the pinned service assets for this host (ARGS=--check verifies only, ARGS=--offline uses the cache, ARGS=--extras-only skips the service build)
 	uv run --frozen python scripts/sync_services.py --service all $(ARGS)
 
 lint: ## Run ruff linter
