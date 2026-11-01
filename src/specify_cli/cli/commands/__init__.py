@@ -205,7 +205,14 @@ def _register_cutover_guard(app: typer.Typer) -> None:
 def _register_doctor(app: typer.Typer) -> None:
     from . import doctor as doctor_module
 
-    app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
+    # #6969: the short help is what `spec-kitty --help` and `spec-kitty doctor --help`
+    # show (Typer's ``add_typer(help=...)`` wins over the sub-app's own ``help=``),
+    # so it carries the one-line statement that a bare invocation runs the checks.
+    app.add_typer(
+        doctor_module.app,
+        name="doctor",
+        help="Project health diagnostics; a bare invocation runs the default check set",
+    )
 
 
 def _register_docs(app: typer.Typer) -> None:
