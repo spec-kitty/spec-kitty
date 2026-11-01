@@ -97,6 +97,13 @@ MIN_READS: Final = 300
 #: Deliberately tiny: a declaration is the right answer for a tracked path, even a small
 #: config file, because routing must run the gate when that file changes.
 EXEMPT_READS: Final[Mapping[str, Mapping[str, str]]] = {
+    "tests/architectural/test_events_cutover_absent.py": {
+        "services": (
+            "The gate asserts ``services/`` no longer exists (it moved to spec-kitty-events). Nothing is "
+            "tracked there, so a ``services/**`` declaration would be a dead router glob and no diff can "
+            "invalidate the gate through it."
+        ),
+    },
     "tests/architectural/test_help_startup_third_party_imports.py": {
         ".nonexistent-home": (
             "The gate runs ``python -c`` with HOME pointed at this path *because* it must not exist "
