@@ -13,7 +13,16 @@ install or marketplace-publish logic is present.
 from __future__ import annotations
 
 from .copilot import CopilotBundleProjector
+from ..enums import ToolSurfaceKind
 from .model import TARGET_VSCODE
+
+# VS Code leads its own bundle; Copilot's identical Markdown rendering is the
+# fallback, and Codex supplies the shared ``.agents/skills`` skill rendering.
+_VSCODE_TOOL_PRECEDENCE: dict[ToolSurfaceKind, tuple[str, ...]] = {
+    ToolSurfaceKind.AGENT_PROFILE: ("vscode", "copilot", "claude"),
+    ToolSurfaceKind.COMMAND_SKILL: ("vscode", "copilot", "claude", "codex"),
+    ToolSurfaceKind.CHARTER_SKILL: ("vscode", "copilot", "claude", "codex"),
+}
 
 
 class VsCodeBundleProjector(CopilotBundleProjector):
@@ -24,3 +33,4 @@ class VsCodeBundleProjector(CopilotBundleProjector):
     """
 
     distribution_target = TARGET_VSCODE
+    tool_precedence = _VSCODE_TOOL_PRECEDENCE
