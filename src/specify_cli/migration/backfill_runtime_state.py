@@ -1006,11 +1006,10 @@ def _build_seed_events(
     happens to be seeded.
     """
     slug = feature_dir.name
-    # Namespace root for every deterministic seed id (declared id, else slug).
-    mission_id = _mission_id(read_dir)
-    # Envelope identity for the claim carrier: exactly what meta.json declares,
-    # so the written row round-trips to itself through read_event_stream (#6689).
-    _namespace, declared_mission_id = _mission_identity(read_dir)
+    # ONE meta.json read: the seed namespace (declared id, else slug) and the
+    # envelope identity the claim carrier writes (exactly what meta.json
+    # declares, so the row round-trips through read_event_stream, #6689).
+    mission_id, declared_mission_id = _mission_identity(read_dir)
     # Recorded lane history the retroactive claim seed must fold BEFORE
     # (:func:`_retro_claim_at`) so it can never regress a WP's reduced lane.
     earliest_ats = _earliest_transition_ats(feature_dir)
