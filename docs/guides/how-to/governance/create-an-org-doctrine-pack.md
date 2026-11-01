@@ -2,7 +2,7 @@
 title: How to Create an Org Charter Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org Charter Pack.
 doc_status: active
-updated: '2026-10-09'
+updated: '2026-11-01'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -487,8 +487,32 @@ fetch.
 
 ## Step 8: Configure consumers
 
-A consumer project enables the org layer by adding a `charter_packs.org` block to its
-`.kittify/config.yaml`:
+A consumer project enables the org layer with one command per pack. Do not hand-edit
+`.kittify/config.yaml` — a mistake in that list silently disables the whole org layer,
+which is why registration has a command:
+
+```bash
+# A pack that is already on disk: validated exactly as `charter org validate` validates it
+uv run spec-kitty charter org add security --local-path "~/.kittify/org/security"
+
+# A published pack repository that `charter fetch` will materialize
+uv run spec-kitty charter org add security \
+  --local-path "~/.kittify/org/security" \
+  --url "git@example.com:acme/security-doctrine.git" --ref "v1.0.0"
+
+# Retire a registration (the pack directory itself is left in place)
+uv run spec-kitty charter org remove security
+```
+
+`org add` validates the pack before it writes anything, refuses a name that is
+already registered (pass `--force` to replace that entry in place, keeping its
+position), refuses the reserved names `built-in` and `project`, and fails closed
+when `.kittify/config.yaml` cannot be read. With `--url` the pack root may not
+exist yet: the entry is registered and the command prints the `charter fetch`
+follow-up. Both commands are purely local (`--json` reports the result) and
+`org remove` edits only the config.
+
+The entry `charter org add` writes — and the shape to compare against — is:
 
 ```yaml
 # .kittify/config.yaml
@@ -559,7 +583,8 @@ export SPEC_KITTY_PACK_HOME=/opt/acme-doctrine
 Expansion happens only when the path is resolved (e.g. `charter fetch`,
 `doctor charter-packs`) — the literal `${SPEC_KITTY_PACK_HOME}/security-doctrine`
 string is what stays written in `.kittify/config.yaml`, so the config remains
-portable across machines/CI. If the referenced variable is unset or empty,
+portable across machines/CI. `charter org add` writes the value exactly as you typed it: it
+never expands the token, and never rewrites the entry into a machine-local path. If the referenced variable is unset or empty,
 resolution fails closed with a named error identifying the variable and the
 pack, rather than silently falling back to a literal-token path or disabling
 the org layer.

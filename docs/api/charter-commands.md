@@ -45,9 +45,11 @@ generated [`spec-kitty charter` section of the CLI Command Reference](cli-comman
 | `list` | List activated charter artifacts by kind; `--all --json` rows in `available` carry `declared_id` beside the stem-keyed `artifact_id` — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-list) |
 | `mission-type` | Mission type commands (activated types only) — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-mission-type) |
 | `pack` | Charter pack management commands — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-pack) |
+| `org` | Org Charter Pack authoring and project registration: `init`, `validate`, and `add`/`remove`, which register a pack with the project without hand-editing `charter_packs.org.packs` in `.kittify/config.yaml` — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-org) |
 
-The six rows below `bundle` were added by the Charter Activation Engine; this
-page does not carry their full flag reference (kept in the canonical,
+The rows from `activate` down to `pack` were added by the Charter Activation Engine;
+`org` covers Charter Pack authoring and registration (`init`, `validate`, `add`,
+`remove`). This page does not carry their full flag reference (kept in the canonical,
 `--help`-generated CLI Command Reference to avoid duplicated, driftable
 copies) — only `interview`/`generate`/`context`/`status`/`synthesize`/
 `resynthesize`/`lint`/`bundle validate` get the narrative treatment below.
