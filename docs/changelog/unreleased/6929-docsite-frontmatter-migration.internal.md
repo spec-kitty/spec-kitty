@@ -1,0 +1,1 @@
+- **The docs tree carries doc-kitty's frontmatter and builds on doc-kitty** (#6929): `audience` is a profile list, `related` names page slugs (the rest moved to `external_references`), every ADR has `doc_status` and `kind: ADR`; frontmatter only, and the `scripts/docs` readers follow.
