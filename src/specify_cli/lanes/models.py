@@ -127,12 +127,17 @@ class LanesManifest:
         lanes: Ordered list of execution lanes.
         computed_at: ISO 8601 timestamp of computation.
         computed_from: Description of inputs used (e.g. "dependency_graph+ownership").
-        planning_artifact_wps: **Derived view** — WP IDs whose ``execution_mode``
-            is ``planning_artifact``.  Populated from the ``lane-planning`` lane's
-            ``wp_ids`` for backward compatibility.  Do NOT use this field as an
-            authoritative source; use ``lane_for_wp()`` instead.  As of 3.1.1
-            planning-artifact WPs are first-class lane-owned entities assigned to
-            the canonical ``"lane-planning"`` lane.
+        planning_artifact_wps: **Derived KIND view** — WP IDs whose
+            ``execution_mode`` is ``planning_artifact``. It is kind-derived in
+            every topology: the lanes/coord arm fills it from the planning-only
+            ``lane-planning`` lane's ``wp_ids``, and the single_branch arm fills
+            it from ``execution_mode`` directly (that topology's one repo-root
+            lane also holds CODE work packages). Use it to ask the KIND question
+            ("is this WP a planning artifact?"). To ask the LANE question ("which
+            lane routes this WP?") use ``lane_for_wp()`` instead: lane membership
+            alone cannot answer the kind question on ``single_branch``. As of
+            3.1.1 planning-artifact WPs are first-class lane-owned entities
+            assigned to the canonical ``"lane-planning"`` lane.
         planning_commit_sha: FR-009 / ADR ``2026-07-29-1``: the recorded
             finalize-tasks planning-artifact commit on ``target_branch``, captured
             ONCE by ``mission_finalize_lanes._compute_and_write_lanes`` and frozen —

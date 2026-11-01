@@ -1182,8 +1182,11 @@ def compute_lanes(
         all_lanes.append(planning_lane)
     all_lanes = sorted(all_lanes, key=lambda lane: (lane.parallel_group, lane.lane_id))
 
-    # planning_artifact_wps is a derived view populated from lane-planning's wp_ids
-    # for backward compatibility — do NOT use it as the authoritative source.
+    # planning_artifact_wps is the KIND-derived view (execution_mode ==
+    # PLANNING_ARTIFACT). It equals lane-planning's wp_ids HERE only because this
+    # lane is planning-only in this topology; in single_branch the one repo-root
+    # lane holds code WPs too, so lane membership cannot stand in for the kind.
+    # Ask it the kind question; ask lane_for_wp() the lane-routing question.
     derived_planning_artifact_wps: list[str] = list(planning_artifact_wp_ids)
 
     # Build the collapse report with independent-WP collapse count.
