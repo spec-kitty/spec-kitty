@@ -1,7 +1,7 @@
 """FR-009 tension-arbiter fields on ``_ActionGovernanceBundle`` (WP02).
 
 ``resolve_context`` (``charter.offering.drg.query``) now annotates co-delivered
-``in_tension_with`` pairs with their reconciler; ``_load_action_governance_bundle``
+``in_tension_with`` pairs with their reconciler; ``load_action_governance_bundle``
 must forward that annotation onto the delivered bundle verbatim -- see
 ``tests/charter_offering/drg/test_tension_arbiters.py`` for the ``resolve_context``-level
 coverage this file assumes and does not re-derive.
@@ -9,7 +9,7 @@ coverage this file assumes and does not re-derive.
 Follows the ``charter.activation._drg_helpers.load_validated_graph`` patch pattern from
 ``tests/charter/test_activation_consumers.py`` so the graph is hermetic (no
 dependency on the shipped corpus's current shape) while exercising the real
-``_load_action_governance_bundle`` -> ``resolve_context`` wiring end to end.
+``load_action_governance_bundle`` -> ``resolve_context`` wiring end to end.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.activation.action_governance_bundle import _load_action_governance_bundle
+from charter.activation.action_governance_bundle import load_action_governance_bundle
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.fast]
@@ -71,7 +71,7 @@ def test_bundle_carries_tension_arbiters_and_unarbitrated_tensions(tmp_path: Pat
         "charter.activation._drg_helpers.load_validated_graph",
         return_value=_tension_graph(),
     ):
-        bundle = _load_action_governance_bundle(
+        bundle = load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,
@@ -91,7 +91,7 @@ def test_bundle_tension_fields_are_hashable_tuples(tmp_path: Path) -> None:
         "charter.activation._drg_helpers.load_validated_graph",
         return_value=_tension_graph(),
     ):
-        bundle = _load_action_governance_bundle(
+        bundle = load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,
@@ -112,7 +112,7 @@ def test_bundle_tension_fields_are_hashable_tuples(tmp_path: Path) -> None:
 def test_typeless_mission_bundle_has_empty_tension_fields(tmp_path: Path) -> None:
     """A typeless mission skips DRG action resolution entirely (FR-003a) --
     the tension fields must default to ``()``, never raise or infer."""
-    bundle = _load_action_governance_bundle(
+    bundle = load_action_governance_bundle(
         repo_root=tmp_path,
         action="implement",
         effective_depth=2,

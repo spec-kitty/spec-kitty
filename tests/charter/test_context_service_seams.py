@@ -22,7 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from charter.activation.action_governance_bundle import (
-    _load_action_governance_bundle,
+    load_action_governance_bundle,
 )
 from charter.activation.context_json import (
     _bundle_root_for_json,
@@ -117,7 +117,7 @@ class TestLoadActionGovernanceBundleTypeless:
         """FR-003a: no mission_type and no feature_dir -> no DRG action node
         is resolved; the bundle is empty rather than defaulting to
         software-dev."""
-        bundle = _load_action_governance_bundle(
+        bundle = load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,

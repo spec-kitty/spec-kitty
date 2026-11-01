@@ -215,7 +215,7 @@ def _classify_artifact_urns(
 
     WP02 (Decision Record 2, FR-014): ``project_directives`` is three-state
     (``None`` / ``frozenset()`` / non-empty) at THIS boundary too, mirroring
-    :func:`~charter.activation.action_governance_bundle._load_action_governance_bundle`'s
+    :func:`~charter.activation.action_governance_bundle.load_action_governance_bundle`'s
     own three-state handling of its caller-facing fields. The production
     caller never passes ``None`` here -- it converts once, at assignment,
     before calling in -- but this function stays correct standing alone
@@ -271,7 +271,7 @@ def _classify_artifact_urns(
     # guard anywhere in this function (only project_directives does, below) --
     # these two lines are therefore defense-in-depth / a documented no-op
     # guard against a caller passing None, not load-bearing after WP02 (the
-    # real caller, _load_action_governance_bundle, converts None to a concrete
+    # real caller, load_action_governance_bundle, converts None to a concrete
     # catalog-default set once, before calling in).
     selected_tactics = selected_tactics or set()
     selected_paradigms = selected_paradigms or set()

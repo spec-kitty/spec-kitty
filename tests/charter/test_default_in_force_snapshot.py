@@ -23,7 +23,7 @@ from typing import Any
 
 import pytest
 
-from charter.activation.action_governance_bundle import _load_action_governance_bundle
+from charter.activation.action_governance_bundle import load_action_governance_bundle
 from charter.activation.pack_context import PackContext
 from charter.activation.resolver import resolve_project_governance
 
@@ -46,7 +46,7 @@ def bare_project(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def _delivered(root: Path, action: str, depth: int) -> dict[str, list[str]]:
-    bundle = _load_action_governance_bundle(
+    bundle = load_action_governance_bundle(
         repo_root=root,
         action=action,
         effective_depth=depth,

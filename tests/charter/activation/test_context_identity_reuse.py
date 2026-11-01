@@ -41,7 +41,7 @@ def probe(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[Counter[ArtifactKin
     """Count every ``IdentityIndex`` construction (``build``, ``from_pack_context`` or direct) and each per-kind scan."""
     scans: Counter[ArtifactKind] = Counter()
     built: list[IdentityIndex] = []
-    original_scan = IdentityIndex._scan
+    original_scan = IdentityIndex.scan
     original_init = IdentityIndex.__init__
 
     def _counted_scan(self: IdentityIndex, kind: ArtifactKind) -> Any:
@@ -52,7 +52,7 @@ def probe(monkeypatch: pytest.MonkeyPatch) -> Iterator[tuple[Counter[ArtifactKin
         original_init(self, *args, **kwargs)
         built.append(self)
 
-    monkeypatch.setattr(IdentityIndex, "_scan", _counted_scan)
+    monkeypatch.setattr(IdentityIndex, "scan", _counted_scan)
     monkeypatch.setattr(IdentityIndex, "__init__", _counted_init)
     yield scans, built
 

@@ -410,7 +410,7 @@ def _config_stem(path: Path) -> str:
     The config stem is the filename with all extension suffixes removed
     (e.g. ``001-architectural-integrity-standard.directive.yaml`` →
     ``001-architectural-integrity-standard``). Mirrors
-    :func:`charter.activation.kind_vocabulary._config_stem`.
+    :func:`charter.activation.kind_vocabulary.artifact_config_stem`.
     """
     return path.name.split(".", 1)[0]
 

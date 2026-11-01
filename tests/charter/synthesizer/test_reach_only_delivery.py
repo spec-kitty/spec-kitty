@@ -18,7 +18,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from charter.activation.action_governance_bundle import _load_action_governance_bundle
+from charter.activation.action_governance_bundle import load_action_governance_bundle
 from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
 from charter.activation.pack_context import PackContext
 from charter.activation.synthesizer.reconcile import synthesized_edge_reason
@@ -149,7 +149,7 @@ def _delivered_tactics(
     _write_overlay(repo_root, with_edge=with_edge)
     merged = _merged_graph(with_edge=with_edge if merged_has_edge is None else merged_has_edge)
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=merged):
-        bundle = _load_action_governance_bundle(
+        bundle = load_action_governance_bundle(
             repo_root=repo_root,
             action=_ACTION,
             effective_depth=2,
@@ -279,13 +279,13 @@ def test_classify_delivers_reach_only_tactic_from_a_seeded_directive() -> None:
 def test_compiler_reference_seeds_exclude_reach_only_tactic(tmp_path: Path) -> None:
     import dataclasses
 
-    from charter.activation.compiler import ConfigActivatedRoots, _direct_root_urns
+    from charter.activation.compiler import ConfigActivatedRoots, direct_root_urns
 
     _write_overlay(tmp_path, with_edge=True)
     empty = {f.name: [] for f in dataclasses.fields(ConfigActivatedRoots)}
     roots = ConfigActivatedRoots(**{**empty, "tactics": [_REACH_ONLY, _EDGELESS_SYNTH, _CONTROL]})
 
-    urns = _direct_root_urns(roots, tmp_path)
+    urns = direct_root_urns(roots, tmp_path)
 
     assert f"tactic:{_REACH_ONLY}" not in urns
     assert {f"tactic:{_EDGELESS_SYNTH}", f"tactic:{_CONTROL}"} <= urns
@@ -389,7 +389,7 @@ def _delivered_with_corrupt_manifest(repo_root: Path, *, directives: frozenset[s
     _write_overlay(repo_root, with_edge=True)
     _corrupt_manifest(repo_root)
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=_merged_graph(with_edge=True)):
-        bundle = _load_action_governance_bundle(
+        bundle = load_action_governance_bundle(
             repo_root=repo_root,
             action=_ACTION,
             effective_depth=2,

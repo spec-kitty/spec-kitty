@@ -17,7 +17,7 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from charter.activation.compiler import _direct_root_urns, resolve_config_activated_roots
+from charter.activation.compiler import direct_root_urns, resolve_config_activated_roots
 from specify_cli.cli.commands.charter import app
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -78,7 +78,7 @@ def _edge_present(root: Path) -> bool:
 
 
 def _is_root(root: Path) -> bool:
-    return _STYLEGUIDE_URN in _direct_root_urns(resolve_config_activated_roots(repo_root=root), root)
+    return _STYLEGUIDE_URN in direct_root_urns(resolve_config_activated_roots(repo_root=root), root)
 
 
 @pytest.fixture

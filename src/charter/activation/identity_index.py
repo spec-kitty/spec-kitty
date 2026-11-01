@@ -134,7 +134,7 @@ def _declared_id_of(
     its value is a conservative plain string (letter first, ``[A-Za-z0-9_.-]``, no comment,
     not a YAML special scalar), and the text has no BOM, CR or extra document markers.
     Everything else (numbers, booleans, null, quoted, commented, multi-document,
-    duplicate keys, CRLF, BOM) falls back to :func:`kind_vocabulary._read_id`.
+    duplicate keys, CRLF, BOM) falls back to :func:`kind_vocabulary.read_artifact_id`.
 
     Fast-path values are kept in the private *fast_ids* cache only; the shared
     *resolution_pass* is seeded exclusively by the canonical reader, so other
@@ -154,7 +154,7 @@ def _declared_id_of(
     except OSError:
         fast = None
     if fast is None:
-        return kind_vocabulary._read_id(path, id_field, yaml, resolution_pass)
+        return kind_vocabulary.read_artifact_id(path, id_field, yaml, resolution_pass)
     if fast_ids is not None:
         fast_ids[key] = fast
     return fast
@@ -243,29 +243,36 @@ class IdentityIndex:
     def _table(self, kind: ArtifactKind) -> _KindTable:
         table = self._tables.get(kind)
         if table is None:
-            table = _KindTable.from_entries(self._scan(kind))
+            table = _KindTable.from_entries(self.scan(kind))
             self._tables[kind] = table
         return table
 
-    def _scan(self, kind: ArtifactKind) -> list[IdentityEntry]:
+    def scan(self, kind: ArtifactKind) -> list[IdentityEntry]:
+        """Scan the layer roots for *kind* once, in precedence order, and return its entries.
+
+        This is the seam a caller wraps to count scans: it walks project, then org
+        packs last-declared-first, then built-in, reading each distinct file once
+        through the shared pass and fast-id caches (NFR-003). A kind with no
+        ``glob_pattern`` contributes no entries and no scan.
+        """
         pattern = kind.glob_pattern
         if not pattern:
             return []
         layer_roots = {_LAYER_PROJECT: self.project_root} if self.project_root is not None else None
         yaml = YAML(typ="safe")
-        id_field = kind_vocabulary._id_field_for(kind)
+        id_field = kind_vocabulary.artifact_id_field(kind)
         entries: list[IdentityEntry] = []
-        for scan_dir, recursive in kind_vocabulary._scan_roots(
+        for scan_dir, recursive in kind_vocabulary.scan_roots(
             kind,
             _offering_root=self.offering_root,
             org_roots=self.org_roots,
             layer_roots=layer_roots,
         ):
             layer = _layer_of(scan_dir, self.project_root, self.org_roots)
-            for path in sorted(kind_vocabulary._scan_dir_matches(scan_dir, pattern, recursive=recursive)):
+            for path in sorted(kind_vocabulary.scan_dir_matches(scan_dir, pattern, recursive=recursive)):
                 declared = _declared_id_of(path, id_field, yaml, self._pass, self._fast_ids)
                 if declared:
-                    entries.append(IdentityEntry(kind, kind_vocabulary._config_stem(path), declared, layer, path))
+                    entries.append(IdentityEntry(kind, kind_vocabulary.artifact_config_stem(path), declared, layer, path))
         return entries
 
     # ------------------------------------------------------------- lookups --

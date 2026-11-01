@@ -132,14 +132,14 @@ def test_populated_activation_resolves_once_per_service_and_new_service_refreshe
         f"charter_packs:\n  org:\n    packs:\n      - name: org\n        local_path: '{pack}'\nactivated_directives: [policy]\n"
     )
     calls = 0
-    original = IdentityIndex._scan
+    original = IdentityIndex.scan
 
     def counted_scan(self: IdentityIndex, kind: ArtifactKind) -> list[IdentityEntry]:
         nonlocal calls
         calls += 1
         return original(self, kind)
 
-    monkeypatch.setattr(IdentityIndex, "_scan", counted_scan)
+    monkeypatch.setattr(IdentityIndex, "scan", counted_scan)
     service = build_active_charter_service(tmp_path)
     assert set(service.directives) == {"FIRST-POLICY"}
     first_calls = calls

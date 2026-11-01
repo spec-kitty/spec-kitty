@@ -19,7 +19,7 @@ site:
   unnameable kinds (``action`` 24, ``anti_pattern`` 6, ``mission_type`` 4,
   ``glossary_pack`` 1), but *carried is not reached*. All three production call
   sites pass ``{REQUIRES, SUGGESTS}`` with seeds limited to
-  directive/tactic/paradigm plus ``_direct_root_urns``; the only edges into those
+  directive/tactic/paradigm plus ``direct_root_urns``; the only edges into those
   kinds are ``mission_type --requires--> action`` (×21, and ``mission_type`` is
   never a seed) and ``paradigm --rejects--> anti_pattern`` (×8, and ``rejects`` is
   never passed). Zero unnamed kinds are reachable today.
