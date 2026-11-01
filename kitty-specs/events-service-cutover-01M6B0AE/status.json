@@ -1,7 +1,7 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M6B13VJ5TA74F50B63YMNACF",
-  "materialized_at": "2026-11-01T07:45:19.941725+00:00",
+  "event_count": 6,
+  "last_event_id": "01M6B13WZ0PXYA2M0RYPRCZC4T",
+  "materialized_at": "2026-11-01T07:45:21.376168+00:00",
   "mission_number": "",
   "mission_slug": "events-service-cutover-01M6B0AE",
   "mission_type": "software-dev",
@@ -15,7 +15,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 5
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -52,6 +52,13 @@
       "lane": "planned",
       "last_event_id": "01M6B13VJ5TA74F50B63YMNACF",
       "last_transition_at": "2026-11-01T07:45:19.941725+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M6B13WZ0PXYA2M0RYPRCZC4T",
+      "last_transition_at": "2026-11-01T07:45:21.376168+00:00"
     }
   }
 }
