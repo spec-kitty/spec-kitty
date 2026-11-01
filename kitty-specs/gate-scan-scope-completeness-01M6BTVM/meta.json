@@ -11,6 +11,6 @@
   "purpose_context": "This mission advances gate scan scope completeness on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "gate scan scope completeness",
   "slug": "gate-scan-scope-completeness-01M6BTVM",
-  "target_branch": "main",
+  "target_branch": "issue-7000-gate-scan-scope-completeness",
   "topology": "coord"
 }
