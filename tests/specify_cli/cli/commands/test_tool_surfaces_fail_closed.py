@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -124,7 +125,11 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path
     fake = _FakeRunToolSurfaces()
     # Stub the config read (avoids depending on config.yaml shape) and the repair
     # engine (we assert on the checkout it targets, not on real provider I/O).
-    monkeypatch.setattr(surface_doctor, "_configured_tool_keys", lambda _project: ["claude"])
+    monkeypatch.setattr(
+        surface_doctor,
+        "_tool_config_or_exit",
+        lambda _project, _json_output: SimpleNamespace(available=["claude"], explicit_agent_list=True),
+    )
     monkeypatch.setattr("specify_cli.tool_surface.service.run_tool_surfaces", fake)
     return primary, lane, fake
 
