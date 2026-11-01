@@ -2,7 +2,7 @@
 title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate'
 description: Review-cycle-artifact and consolidation-gate mechanics, the --skip-review-artifact-check override, and issue-matrix discovery, so review focuses on substance.
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -314,14 +314,19 @@ This is checked again at landing time; see
 
 ## Changelog update and style
 
-Every user-facing change updates `docs/changelog/CHANGELOG.md` (the root
-`CHANGELOG.md` is a symlink to it — there is one canonical file). The entry
+Every user-facing change adds a changelog fragment: one file per section in
+`docs/changelog/unreleased/`, named `<id>.<section>.md` (`<id>` is the PR number, the issue
+number or a short slug; `<section>` is `breaking`, `upgrade-notes`, `added`,
+`changed`, `fixed` or `internal`). Do not edit `docs/changelog/CHANGELOG.md`
+directly: two PRs that edit it conflict on every merge, and the release
+assembles the fragments into its `[Unreleased]` section
+(`python -m scripts.release.changelog_fragments assemble --write`). The entry
 mirrors the PR body's style: consumer-focused, impact-first, one line a user
 understands — e.g. "`spec-kitty research` now finds its templates through
 the same resolver as every other mission template" — not an
-internal-mechanism summary. Add it
-under the relevant `[Unreleased]` category in
-[`docs/changelog/CHANGELOG.md`](../../changelog/CHANGELOG.md).
+internal-mechanism summary. The fragment holds the entry exactly as it will
+read in [`docs/changelog/CHANGELOG.md`](../../changelog/CHANGELOG.md), with no
+heading; see [`docs/changelog/unreleased/README.md`](../../changelog/unreleased/README.md).
 
 Two automated checks keep docs prose and that `[Unreleased]` section in shape:
 a spelling check and a changelog style guard. Both run in CI as the always-on
@@ -381,14 +386,16 @@ never spell-checked, so respell it by hand if you touch it.
 |---|---|---|
 | `typo` | real typos | `docs/`, `packs/built-in/` and `README.md` |
 | `us` | British spellings (`behaviour`, `colour`) | `docs/guides/` and `docs/context/` |
-| `unreleased` | British spellings | the `[Unreleased]` section of the changelog only |
+| `unreleased` | British spellings | the `[Unreleased]` section of the changelog and the fragments in `docs/changelog/unreleased/` |
 
 The two American-spelling passes ignore code spans, fenced blocks and
 `<a id="…"></a>` heading anchors, and accept `dialogue`. The typo pass has no
 such exemption.
 
-The changelog guard reads the `[Unreleased]` section only; released sections are
-never restyled. Both scripts find that section through one shared locator, which
+The changelog guard reads the `[Unreleased]` section and every fragment in
+`docs/changelog/unreleased/` (each checked as if it sat under its section, and reported at its
+own file and line, plus a `[fragment]` finding for a bad name or shape); released
+sections are never restyled. Both scripts find that section through one shared locator, which
 ignores a release-looking heading inside a fenced block (fenced with ` ``` ` or
 `~~~`) and accepts a heading written without a space (`##[Unreleased]`). The
 guard enforces:

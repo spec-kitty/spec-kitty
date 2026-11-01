@@ -4074,6 +4074,17 @@ pages:
     - {slug: "github-packages", text: "GitHub Packages", level: 3}
     - {slug: "vendoring", text: "Vendoring", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md"
+    title: "ADR: pull requests touch no shared generated file and land through a merge queue"
+    divio_type: "none"
+    abstract: "Changelog entries become per-PR fragments, the docs index regenerates on main through a bot PR, and main merges through a GitHub merge queue."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "1-changelog-entries-are-per-pr-fragments", text: "1. Changelog entries are per-PR fragments", level: 3}
+    - {slug: "2-the-docs-retrieval-index-and-its-siblings-regenerate-on-main-through-a-bot-pr", text: "2. The docs retrieval index and its siblings regenerate on `main`, through a bot PR", level: 3}
+    - {slug: "3-main-merges-through-github-s-merge-queue", text: "3. `main` merges through GitHub's merge queue", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"

@@ -2,7 +2,7 @@
 title: Migration and Shim Ownership Rules
 description: The migration and shim ownership rulebook governing bundle/runtime migrations and back-compat shims during package extraction, which every extraction mission must cite.
 doc_status: active
-updated: '2026-08-31'
+updated: '2026-11-01'
 ---
 # Migration and Shim Ownership Rules
 
@@ -147,7 +147,7 @@ When `removal_target_release` is reached, the removal PR must:
 
 1. **Delete** the shim module file (`src/specify_cli/<legacy_name>.py` or `src/specify_cli/<legacy_name>/__init__.py`).
 2. **Update** the registry entry — either remove it entirely or mark it with a `removed_in_release` note (convention TBD by the removing engineer; the entry may be deleted once CI passes).
-3. **Add** a `CHANGELOG.md` entry under `### Removed` with the release version.
+3. **Add** a changelog fragment, `docs/changelog/unreleased/<pr>.breaking.md`, that names the removal and the release version.
 4. **Close** the tracker issue referenced in `tracker_issue`.
 5. **Confirm** CI passes: `spec-kitty doctor shim-registry` must exit 0 after the removal.
 
