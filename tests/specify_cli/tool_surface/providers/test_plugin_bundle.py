@@ -204,18 +204,37 @@ def test_claude_bundle_selection_and_repair_ignore_unsupported_native_config_fro
     assert not _selected(provider, project).effects
 
 
-def test_canonical_multi_harness_profile_conflict_is_read_only(tmp_path: Path, canonical_bundle_tree: Path) -> None:
-    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+def test_canonical_multi_harness_bundles_stage_target_native_members(
+    tmp_path: Path,
+    canonical_bundle_tree: Path,
+) -> None:
+    """Claude+Codex+Vibe stage all three bundles with their own renderings (#6273).
 
+    Before the fix the Claude bundle merged ``.codex/agents/<id>.toml`` into
+    ``agents/<id>.md`` and the shared-member guard refused the whole batch, so
+    every manifest stayed ``missing``.
+    """
     project = tmp_path / "project"
     shutil.copytree(canonical_bundle_tree, project)
-    before = snapshot({"project": project, "home": Path.home()})
     provider = PluginBundleProvider()
+
     assessment = _selected(provider, project)
-    assert not assessment.complete
-    assert any("Conflicting prepared bundle member: agents/" in d.message for d in assessment.diagnostics)
-    assert provider.apply(assessment, assessment.consent).outcome == "precondition_changed"
-    assert_unchanged(before, snapshot({"project": project, "home": Path.home()}))
+    assert assessment.complete, assessment.diagnostics
+    assert assessment.effects
+    assert provider.apply(assessment, assessment.consent).outcome == "applied"
+
+    staged = project / "dist/spec-kitty-plugins"
+    assert (staged / "claude_code_plugin/.claude-plugin/plugin.json").is_file()
+    assert (staged / "copilot_skill_package/plugin.json").is_file()
+    assert (staged / "vscode_extension/plugin.json").is_file()
+    # Claude keeps the Markdown profile rendering; the Codex TOML is never a
+    # bundle member for any target.
+    claude_agent = staged / "claude_code_plugin/agents/analyst-annie.md"
+    assert claude_agent.is_file()
+    assert claude_agent.read_bytes() == (project / ".claude/agents/analyst-annie.md").read_bytes()
+    assert not list(staged.glob("*/agents/*.toml"))
+    # Copilot/VS Code keep one native ``.agent.md`` member, not a doubled suffix.
+    assert (staged / "copilot_skill_package/agents/analyst-annie.agent.md").is_file()
 
 
 def test_equivalent_independent_canonical_copies_have_exact_effects(tmp_path: Path, canonical_bundle_tree: Path) -> None:
@@ -766,7 +785,9 @@ def test_selected_bundle_skill_transitions(
     assert_unchanged(before, snapshot(roots))
     assert bundle.effects and any(e.path.endswith("plugin.json") for e in bundle.effects)
     assert any(e.path.endswith("skills/spec-kitty-plan/SKILL.md") for e in bundle.effects)
-    assert any("agents/" in e.path for e in bundle.effects)
+    # Codex renders agent profiles as TOML; no Markdown target accepts that
+    # rendering, so a codex-only project stages skills but no agent member (#6273).
+    assert not any("agents/" in e.path for e in bundle.effects)
     with provider.recheck(bundle) as errors:
         assert not errors, errors
     with managed.preflight_composition(composition, consent) as errors:

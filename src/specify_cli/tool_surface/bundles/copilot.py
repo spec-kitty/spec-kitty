@@ -51,6 +51,16 @@ _REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
     }
 )
 
+# Ordered accept-lists for per-harness rendered surfaces (index = preference
+# rank). Copilot/VS Code native renderings lead their bundles; the Claude
+# Markdown family is the lower-priority fallback; Codex supplies the shared
+# ``.agents/skills`` skill rendering only.
+_COPILOT_TOOL_PRECEDENCE: dict[ToolSurfaceKind, tuple[str, ...]] = {
+    ToolSurfaceKind.AGENT_PROFILE: ("copilot", "vscode", "claude"),
+    ToolSurfaceKind.COMMAND_SKILL: ("copilot", "vscode", "claude", "codex"),
+    ToolSurfaceKind.CHARTER_SKILL: ("copilot", "vscode", "claude", "codex"),
+}
+
 
 def _agent_filename(profile_id: str) -> str:
     """Copilot / VS Code use the ``<profile-id>.agent.md`` agent file suffix."""
@@ -61,6 +71,7 @@ class CopilotBundleProjector:
     """Project + validate Copilot CLI plugin bundles (staging only)."""
 
     distribution_target = TARGET_COPILOT
+    tool_precedence = _COPILOT_TOOL_PRECEDENCE
     # Copilot / VS Code keep the manifest at the package root.
     manifest_relative_path = _MANIFEST_NAME
     layout: dict[ToolSurfaceKind, str] = _COPILOT_LAYOUT
@@ -70,6 +81,7 @@ class CopilotBundleProjector:
         return bundle_entries_for_plans(
             plan, project_root, layout=self.layout,
             agent_filename=_agent_filename, bundle_kinds=BUNDLE_SURFACE_KINDS,
+            tool_precedence=self.tool_precedence,
         )
 
     def project(

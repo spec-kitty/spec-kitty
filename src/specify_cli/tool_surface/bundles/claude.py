@@ -88,6 +88,18 @@ _REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
 )
 
 
+# Ordered accept-lists for per-harness rendered surfaces (index = preference
+# rank). Claude-native profiles lead the Claude bundle; the Copilot/VS Code
+# Markdown family is a lower-priority fallback because it renders the same body.
+# Codex is accepted only for skills: its ``.agents/skills`` root is the shared
+# specification-conformant skill rendering, never a Markdown agent profile.
+_CLAUDE_TOOL_PRECEDENCE: dict[ToolSurfaceKind, tuple[str, ...]] = {
+    ToolSurfaceKind.AGENT_PROFILE: ("claude", "copilot", "vscode"),
+    ToolSurfaceKind.COMMAND_SKILL: ("claude", "copilot", "vscode", "codex"),
+    ToolSurfaceKind.CHARTER_SKILL: ("claude", "copilot", "vscode", "codex"),
+}
+
+
 def _agent_filename(profile_id: str) -> str:
     """Claude Code uses plain ``<profile-id>.md`` agent files."""
     return f"{profile_id}.md"
@@ -97,6 +109,7 @@ class ClaudeCodeBundleProjector:
     """Project + validate Claude Code plugin bundles (staging only)."""
 
     distribution_target = TARGET_CLAUDE_CODE
+    tool_precedence = _CLAUDE_TOOL_PRECEDENCE
     # Manifest sits under ``.claude-plugin/`` for this target.
     manifest_relative_path = f"{_MANIFEST_DIR}/{_MANIFEST_NAME}"
 
@@ -108,6 +121,7 @@ class ClaudeCodeBundleProjector:
             layout=_CLAUDE_LAYOUT,
             agent_filename=_agent_filename,
             bundle_kinds=BUNDLE_SURFACE_KINDS,
+            tool_precedence=self.tool_precedence,
         )
 
     def project(
