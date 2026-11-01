@@ -1,0 +1,35 @@
+{
+  "accept_commit": "18011536dd655b9d1f3b0fc1bf29cc60131f104d",
+  "acceptance_history": [
+    {
+      "accept_commit": "18011536dd655b9d1f3b0fc1bf29cc60131f104d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T10:15:34.294898+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "38b4e3bc30aa158083ffcdb5121494e2485ef45c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T10:15:34.294898+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "38b4e3bc30aa158083ffcdb5121494e2485ef45c",
+  "baseline_merge_commit": "0c12459bff22327e48467c0fb06ebccb3e44b81a",
+  "created_at": "2026-10-31T08:55:05.083703+00:00",
+  "flattened": false,
+  "friendly_name": "protected target override refusal",
+  "merged_at": "2026-10-31T10:26:54.411774+00:00",
+  "merged_commit": "ac9d45a42e9f65d61c3b54aab3d95f7e101121d2",
+  "mid8": "01M68JPV",
+  "mission_id": "01M68JPVFWRNMMSX8MMRNAFTZ7",
+  "mission_number": 245,
+  "mission_slug": "protected-target-override-refusal-01M68JPV",
+  "mission_type": "software-dev",
+  "purpose_context": "Issue #6464: consolidate --target main writes the branch-integration commit straight onto a protected branch with no guard.",
+  "purpose_tldr": "Refuse a --target override that would land a mission on a protected branch",
+  "slug": "protected-target-override-refusal-01M68JPV",
+  "status_phase": "1",
+  "target_branch": "issue-6464-protected-target-override-refusal",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T08:59:10.370498+00:00"
+}

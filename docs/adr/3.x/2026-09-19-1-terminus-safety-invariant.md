@@ -267,8 +267,8 @@ above is superseded by this follow-up.
   mission whose pending done bookkeeping the workflow mutation policy would refuse (for example
   a LANES mission recorded for protected `main`), with the policy's own code
   `PROTECTED_BRANCH_REFUSED`, message and remedy. It reads the recorded meta target, not
-  `--target`; it applies only while some WP still needs its done write (an all-done resume is not
-  refused); it honours `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`; `--dry-run` reports the same
+  `--target` (the retarget itself is judged separately since 2026-10-31, below); it applies only
+  while some WP still needs its done write (an all-done resume is not refused); it honours `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`; `--dry-run` reports the same
   code. It reuses the transaction's own gate (`BookkeepingTransaction.preflight_refusal`,
   `status_write_refusal`), so there is no second protected-branch list. A
   `BookkeepingPolicyRefused` that reaches the command layer is printed readably, exit 1. When
@@ -575,6 +575,41 @@ with "no post-mutation tip was recorded".
 - **ATDD.** Each defect gets an issue-pinned `@pytest.mark.regression` test that is red
   through the pre-existing CLI entry point before the fix and green after.
 
+### Follow-up 2026-10-31 — the branch-integration target is judged too (#6464)
+
+Issue #6464, mission `kitty-specs/protected-target-override-refusal-01M68JPV/`. The 2026-09-30
+follow-up left one residual above: the protected-target preflight reads the RECORDED target. The
+branch-integration step, however, commits to the EFFECTIVE target (`--target` > persisted record >
+`meta.json` > repo default) — and it does so with a raw `git commit` in an ephemeral worktree
+(`lanes/consolidation.py::_merge_branch_into` → `conclude_in_progress_op`), so the workflow mutation
+policy that gates every status commit never saw it. `spec-kitty consolidate --target main` on a
+mission recorded for `develop` therefore landed the squash on `main` and only unwound because the
+next bookkeeping phase tripped `SafeCommitHeadMismatch` against the recorded target.
+
+- **One refusal for the retarget.** `consolidation/preflight.py::refuse_protected_target_override`
+  returns the policy's `Refused` when the effective target is NOT the recorded target and
+  `ProtectionPolicy.is_protected` says that branch is protected. It reuses the policy's own decision
+  (`resolve_for_mission`, so the operator hatch and a mission-scoped `commit_to_target` apply exactly
+  as everywhere else) and the existing `PROTECTED_BRANCH_REFUSED` code; there is no new code, no
+  second protected-branch list and no GitHub branch-protection call.
+- **Scope is the override, deliberately.** `#5385` keeps the recorded-target decision, including the
+  landings it allows by design (a coordination-topology mission on `main`, an all-done mission, a
+  `single_branch` mission created with `--commit-to-target`). A run that restates the recorded target
+  with `--target` is not a retarget and is not refused. The guard runs AFTER the recorded-target probe
+  so that refusal's pinned text is unchanged.
+- **All three entries.** Pre-lock in the CLI door
+  (`entry_preflight._refuse_protected_target_override_or_continue`, before the merge lock, so nothing
+  is written and the refusal points at `consolidate --abort` when an earlier attempt may have moved a
+  branch), in the `--dry-run --json` payload (`forecast`, same code and remedy) and in
+  `orchestrator-api consolidate-mission`'s failure envelope.
+- **Pin.** `tests/terminus/test_protected_target_preflight.py` (real CLI, real git, plus the
+  in-bounds and operator-hatch controls on the same fixture) and
+  `tests/orchestrator_api/test_consolidate_mission_protected_target.py`.
+- **Residual (named, not closed).** An override onto an UNPROTECTED branch other than the recorded
+  target is not refused: the squash lands there and the run then fails its `done` bookkeeping on the
+  checkout HEAD mismatch, rolling back through the one door. That is a coherence defect, not a
+  protection bypass, and it is out of this follow-up's scope.
+
 ## Alternatives Considered
 
 - **Two independent point-fixes for #4764 and #4765 only.** Rejected (D1): leaves #4474/#2745
@@ -594,6 +629,7 @@ with "no post-mutation tip was recorded".
 - Follow-up 2026-10-04: #5613 (hardening of #5569, #5570, #5571, #5572).
 - Follow-up 2026-10-31: #6770 (PR #6867), a recurrence of #5667.
 - Follow-up 2026-10-05: #5686, #5666, the deadlock part of #5687; mission `kitty-specs/rollback-anchor-authority-01M45VSA/`; out-of-scope follow-ups #5372, #5667, #5638, #5048, #5784.
+- Follow-up 2026-10-31: #6464; mission `kitty-specs/protected-target-override-refusal-01M68JPV/`; residual: an override onto an unprotected non-recorded branch. Context-only: #3132 (PR-required delivery policy, not implemented here), #5100 (mission-scoped `commit_to_target`), #3080 (`merge` → `consolidate`).
 - Mission: `kitty-specs/terminus-safety-invariant-01M2XFT7/spec.md`; Decision Moments
   `01M2XFVSK8JCCXMXCJNTBB0X5V` (scope), `01M2XFW9B71WKJ4XPCDCH8VYCQ` (warn semantics).
 - Related (separate): #3967 (shared integration view, epic #3894), #4161 (`next` FSM),

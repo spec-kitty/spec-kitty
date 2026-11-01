@@ -274,3 +274,106 @@ def test_resume_after_a_crash_points_at_abort_instead_of_claiming_nothing_moved(
     assert "spec-kitty consolidate --abort" in output, f"the refusal must point at --abort to restore the earlier attempt. output={output}"
     assert _PREFLIGHT_LINE not in output, f"a resume must not claim no branch moved. output={output}"
     assert ref_shas(mission) == crashed, f"the refused resume itself moves nothing. output={output}"
+
+
+# --------------------------------------------------------------------------- #
+# #6464: a --target override may not land on a protected branch
+#
+# The recorded-target probe above reads the Mission's RECORDED target, so an
+# operator who retargets the branch-integration step with ``--target main`` used
+# to squash-commit the Mission straight onto the protected branch: that commit is
+# a raw ``git commit`` in an ephemeral worktree (``lanes/consolidation.py::
+# _merge_branch_into``), so the workflow mutation policy never saw it. The guard
+# below refuses before any branch moves.
+#
+# The fixture's checkout sits ON the override target on purpose: the pre-existing
+# ``MERGE_UNSAFE_PRIMARY_OFF_TARGET`` guard refuses a run whose checkout is not on
+# the resolved target, so a fixture left on ``develop`` would pass for the wrong
+# reason and prove nothing about this guard.
+# --------------------------------------------------------------------------- #
+_RECORDED_TARGET = "develop"
+_OVERRIDE_TARGET = "main"
+_OVERRIDE_REMEDY_TARGET = f"'{_RECORDED_TARGET}'"
+
+
+def _build_override_fixture(tmp_path: Path, mid8: str) -> CoordMission:
+    """A Mission recorded for ``develop``, with a protected ``main`` checked out."""
+    mission = build_lanes_mission(tmp_path, wps=("WP01", "WP02"), target_branch=_RECORDED_TARGET, mid8=mid8)
+    git(mission.repo, "branch", _OVERRIDE_TARGET)
+    git(mission.repo, "checkout", "-q", _OVERRIDE_TARGET)
+    return mission
+
+
+def _assert_override_refused_before_any_mutation(
+    mission: CoordMission,
+    result: subprocess.CompletedProcess[str],
+    before: dict[str, str],
+    reflogs_before: dict[str, list[str]],
+    main_before: str,
+) -> None:
+    output = flat(result)
+    assert result.returncode == 1, f"the protected override must be refused. output={output}"
+    assert "→ main" not in output, f"the squash must never reach the protected branch. output={output}"
+    assert _REFUSAL_CODE in output, f"the refusal must carry the policy's error code. output={output}"
+    assert _PREFLIGHT_LINE in output, f"the refusal must come from the up-front preflight. output={output}"
+    assert _OVERRIDE_REMEDY_TARGET in output, f"the remedy must name the Mission's recorded target. output={output}"
+    assert _HATCH in output, f"the remedy must name the operator hatch. output={output}"
+    assert "Traceback" not in result.stderr, f"a policy refusal is not a crash. stderr={result.stderr}"
+    assert ref_shas(mission) == before, f"no branch tip may move. output={output}"
+    assert _reflogs(mission) == reflogs_before, f"no branch may move and come back either. output={output}"
+    assert _merge_records(mission) == [], f"no merge record may be written. output={output}"
+    assert git(mission.repo, "rev-parse", _OVERRIDE_TARGET).stdout.strip() == main_before, "the protected branch must keep its tip"
+    assert not blob_present_at(mission.repo, _OVERRIDE_TARGET, "src/pkg/wp01.py"), "no squashed content on the protected branch"
+
+
+@pytest.mark.regression
+def test_target_override_onto_protected_main_is_refused_before_any_mutation(tmp_path: Path) -> None:
+    """#6464: ``consolidate --target main`` on a Mission recorded for ``develop`` never commits to ``main``."""
+    mission = _build_override_fixture(tmp_path, "01M6464O")
+    main_before = git(mission.repo, "rev-parse", _OVERRIDE_TARGET).stdout.strip()
+    before, reflogs_before = ref_shas(mission), _reflogs(mission)
+
+    result = _consolidate(mission, "--target", _OVERRIDE_TARGET)
+
+    _assert_override_refused_before_any_mutation(mission, result, before, reflogs_before, main_before)
+
+
+def test_control_target_override_within_the_recorded_target_is_not_refused(tmp_path: Path) -> None:
+    """Restating the recorded target with ``--target`` is not a retarget, so nothing is refused."""
+    mission = build_lanes_mission(tmp_path, wps=("WP01", "WP02"), target_branch=_RECORDED_TARGET, mid8="01M6464W")
+
+    result = _consolidate(mission, "--target", _RECORDED_TARGET)
+
+    output = flat(result)
+    assert result.returncode == 0, output
+    assert _REFUSAL_CODE not in output, output
+    assert _PREFLIGHT_LINE not in output, output
+    assert blob_present_at(mission.repo, _RECORDED_TARGET, "src/pkg/wp02.py"), output
+
+
+def test_control_target_override_hatch_stands_the_guard_down(tmp_path: Path) -> None:
+    """The operator hatch unprotects the branch for every decision, this guard included."""
+    mission = _build_override_fixture(tmp_path, "01M6464H")
+
+    result = _consolidate(mission, "--target", _OVERRIDE_TARGET, env={_HATCH: "1"})
+
+    output = flat(result)
+    assert _REFUSAL_CODE not in output, f"the hatch declares main unprotected; the guard must stand down. output={output}"
+    assert _PREFLIGHT_LINE not in output, output
+    assert "→ main" in output, f"with the hatch the landing proceeds; the guard refused it anyway. output={output}"
+
+
+@pytest.mark.regression
+def test_dry_run_reports_the_target_override_refusal(tmp_path: Path) -> None:
+    """``--dry-run`` may not promise a landing the real run refuses."""
+    mission = _build_override_fixture(tmp_path, "01M6464D")
+    before = ref_shas(mission)
+
+    result = run_terminus(mission, ["consolidate", "--dry-run", "--mission", mission.slug, "--json", "--target", _OVERRIDE_TARGET])
+
+    output = flat(result)
+    assert result.returncode == 1, output
+    payload = json.loads(result.stdout.strip().splitlines()[-1])
+    assert payload.get("error_code") == _REFUSAL_CODE, payload
+    assert _OVERRIDE_REMEDY_TARGET in str(payload.get("error")), payload
+    assert ref_shas(mission) == before, "a refused forecast moves nothing"

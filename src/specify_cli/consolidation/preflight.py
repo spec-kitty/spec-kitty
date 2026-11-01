@@ -1241,3 +1241,63 @@ def refuse_protected_status_target(
         repo_root=main_repo,
     )
     return status_write_refusal(request)
+
+
+def refuse_protected_target_override(
+    main_repo: Path,
+    mission_slug: str,
+    *,
+    recorded_target: str,
+    effective_target: str,
+) -> Refused | None:
+    """The refusal for a ``--target`` override that would land the Mission on a protected branch, else ``None``.
+
+    #6464: the branch-integration step commits the squashed Mission onto the
+    EFFECTIVE target, and that commit is a raw ``git commit`` in an ephemeral
+    worktree (:func:`specify_cli.lanes.consolidation._merge_branch_into`), so the
+    workflow mutation policy every status commit passes through never sees it. The
+    RECORDED target is :func:`refuse_protected_status_target`'s business (#5385);
+    this probe owns the RETARGET -- an override naming a branch this project
+    protects that is not the Mission's recorded target.
+
+    ``None`` when the two targets agree (restating the recorded target is not a
+    retarget) or when the effective target is unprotected, so the decisions #5385
+    already makes -- a coordination-topology Mission, an all-done Mission, a
+    ``single_branch`` Mission with ``commit_to_target`` -- keep their outcome.
+
+    The decision is :class:`~specify_cli.git.protection_policy.ProtectionPolicy`'s
+    own (``is_protected`` -- the resolved ``protection.protected_branches`` set, or its
+    ``{main, master} + remote default`` default), which folds the operator hatch and the
+    mission-scoped ``commit_to_target`` bypass. It is the SAME set every status write is
+    judged against, so there is no second protected-branch list and no second rule here
+    (C-002); a repo primary the operator never put on that list is not this guard's call.
+    """
+    if effective_target == recorded_target:
+        return None
+
+    from specify_cli.coordination.types import PROTECTED_BRANCH_REFUSED, Refused
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    if not ProtectionPolicy.resolve_for_mission(main_repo, mission_slug).is_protected(effective_target):
+        return None
+
+    return Refused(
+        error_code=PROTECTED_BRANCH_REFUSED,
+        message=(
+            f"Refusing to land the mission branch on '{effective_target}': "
+            f"'--target {effective_target}' overrides the mission's recorded target "
+            f"'{recorded_target}', and '{effective_target}' is on this project's protected "
+            "branch list. The branch-integration step would commit the squashed mission "
+            "straight onto it, outside the protection gate every status commit goes through."
+        ),
+        destination_ref=effective_target,
+        next_step=(
+            f"Drop '--target {effective_target}' to consolidate into the mission's recorded "
+            f"target '{recorded_target}'; or, if that record is wrong, correct 'target_branch' "
+            f"in the mission's meta.json and re-run so the recorded-target policy decides; or "
+            f"declare '{effective_target}' unprotected for this repo by setting "
+            "SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS to a truthy value. "
+            "If the landing belongs on a protected branch, deliver it as a pull request from a "
+            "topic branch instead."
+        ),
+    )
