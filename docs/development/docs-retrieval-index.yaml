@@ -1,4 +1,6 @@
-# GENERATED — do not edit by hand; run scripts/docs/docs_index.py --write to refresh.
+# GENERATED — do not edit by hand, and do not regenerate it in a pull request:
+# the ci/regen-docs-index bot pull request regenerates it on main after merge
+# (.github/workflows/docs-index-regen.yml).
 # Common Docs retrieval index: title / heading-anchor / abstract per page.
 # Sorted alphabetically by `path` for a deterministic, byte-stable diff.
 pages:
@@ -3908,6 +3910,7 @@ pages:
     - {slug: "residuals", text: "Residuals", level: 3}
     - {slug: "amendment-2026-10-25-6629-an-upgrade-never-writes-an-absent-activation-key", text: "Amendment 2026-10-25 (#6629): an upgrade never writes an absent activation key", level: 2}
     - {slug: "amendment-2026-10-31-6685-no-writer-fills-an-absent-activation-key", text: "Amendment 2026-10-31 (#6685): no writer fills an absent activation key", level: 2}
+    - {slug: "amendment-2026-10-31-6565-the-project-intent-rename-carries-an-exclusion", text: "Amendment 2026-10-31 (#6565): the project-intent rename carries an exclusion", level: 2}
   - path: "docs/adr/4.x/2026-10-20-1-command-skills-use-spec-conformant-names.md"
     title: "ADR: command skills use spec-conformant spec-kitty-<command> names, and Antigravity gets its commands as skills"
     divio_type: "none"
@@ -4046,6 +4049,7 @@ pages:
     - {slug: "move-them-to-a-new-service-repository", text: "Move them to a new service repository", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
     - {slug: "amendment-2026-10-30-accepted-refusal-codes-and-pin-location", text: "Amendment 2026-10-30 (Accepted): refusal codes and pin location", level: 2}
+    - {slug: "amendment-2026-10-31-accepted-the-optional-companion-services-wheel", text: "Amendment 2026-10-31 (Accepted): the optional companion services wheel", level: 2}
   - path: "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md"
     title: "ADR: the docsite is built with doc-kitty, consumed as a pinned git dependency, at directory URLs with every legacy URL redirected"
     divio_type: "none"
@@ -5155,6 +5159,7 @@ pages:
     - {slug: "synopsis", text: "Synopsis", level: 2}
     - {slug: "what-gets-modified", text: "What gets modified", level: 2}
     - {slug: "generated-git-ignored-command-skills-agents-skills", text: "Generated, git-ignored command skills (`.agents/skills/`)", level: 3}
+    - {slug: "project-local-command-files-stay-retired", text: "Project-local command files stay retired", level: 3}
     - {slug: "what-does-not-get-modified", text: "What does **not** get modified", level: 2}
     - {slug: "lazy-compatibility-gate", text: "Lazy compatibility gate", level: 2}
     - {slug: "when-is-a-project-upgrade-required", text: "When is a project upgrade required?", level: 2}
@@ -12971,6 +12976,7 @@ pages:
     - {slug: "what-spec-kitty-upgrade-does", text: "What `spec-kitty upgrade` does", level: 2}
     - {slug: "common-follow-ups", text: "Common follow-ups", level: 2}
     - {slug: "reviewing-the-changes", text: "Reviewing the changes", level: 2}
+    - {slug: "if-a-mission-s-meta-json-is-missing", text: "If a Mission's `meta.json` is missing", level: 3}
     - {slug: "exit-codes", text: "Exit codes", level: 2}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
     - {slug: "rollback", text: "Rollback", level: 2}
@@ -14994,6 +15000,24 @@ pages:
     divio_type: "none"
     abstract: "Redirect stub: the runtime and state overhaul domains-and-splits note moved to the docs archive; kept so old links, including ADR links, resolve."
     anchors: []
+  - path: "docs/plans/events-domain-move/companion-wheel-research.md"
+    title: "Companion services wheel — research note"
+    divio_type: "explanation"
+    abstract: "Read-only research for the optional spec-kitty-services companion platform wheel that fills the spec_kitty.service_binaries slot (#6904)."
+    anchors:
+    - {slug: "1-what-exists-today", text: "1. What exists today", level: 2}
+    - {slug: "the-install-slot-is-built-and-digest-checked", text: "The install slot is built and digest-checked", level: 3}
+    - {slug: "tests-four-gaps", text: "Tests: four gaps", level: 3}
+    - {slug: "pins", text: "Pins", level: 3}
+    - {slug: "the-fetch-owner", text: "The fetch owner", level: 3}
+    - {slug: "the-release-workflow", text: "The release workflow", level: 3}
+    - {slug: "packaging-guards", text: "Packaging guards", level: 3}
+    - {slug: "2-external-facts", text: "2. External facts", level: 2}
+    - {slug: "pypi-limits", text: "PyPI limits", level: 3}
+    - {slug: "wheel-tags-and-glibc", text: "Wheel tags and glibc", level: 3}
+    - {slug: "size", text: "Size", level: 3}
+    - {slug: "install-behaviour", text: "Install behaviour", level: 3}
+    - {slug: "3-decisions-for-the-operator-recommendations", text: "3. Decisions for the operator (recommendations)", level: 2}
   - path: "docs/plans/events-domain-move/plan.md"
     title: "Events domain move — core-side plan"
     divio_type: "explanation"
