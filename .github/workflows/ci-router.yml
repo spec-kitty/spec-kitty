@@ -124,7 +124,7 @@ jobs:
       # above; gates only the heavy battery. Never in the unmatched loop.
       ci_config: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.ci_config }}
       # Contract-tools group (#5558): non-src, like ci_config above; gates only `tests (contract tools)`
-      # (together with `corpus`, which owns contracts/**). Never in the unmatched loop.
+      # (together with `corpus`, which owns contracts/fixtures/**). Never in the unmatched loop.
       contract_tools: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.contract_tools }}
       # Mission-state group (#5864): non-src, like contract_tools above; gates only `mission-state audit`.
       # Never in the unmatched loop.
@@ -350,8 +350,9 @@ jobs:
               - 'src/kernel/**'
             glossary:
               - 'src/glossary/**'
-              # Not a src file: the torn-tail repair goldens the Java port shares with glossary.events (tests/glossary re-checks Python).
-              - 'services/mission-status-api/event-log/src/test/resources/torn-tail/**'
+              # Not a src file: the pins name the torn-tail repair goldens (the pinned conformance-fixtures of spec-kitty-events,
+              # #6915) that tests/glossary re-checks Python against, so a pin bump re-runs them.
+              - 'pins/**'
             execution_context:
               - 'src/mission_runtime/**'
               - 'src/specify_cli/status/**'
@@ -396,7 +397,11 @@ jobs:
               - '.kittify/charter/**'
               - '.kittify/glossaries/**'
               - '.kittify/charter-packs/**'
-              - 'contracts/**'
+              # Only the core-owned fixtures remain under contracts/ (#6915). The contract bundle, tools and conformance
+              # fixtures the reality check and its payload helper read are the pinned spec-kitty-events extras, so a pin
+              # bump runs this group's jobs too (the contract_tools group names pins/** for `tests (contract tools)`).
+              - 'contracts/fixtures/**'
+              - 'pins/**'
               # Intended: an Op-journal commit under kitty-ops/ triggers the corpus job (the Ops read of the reality suite reads it).
               - 'kitty-ops/**'
             # Mission-state group (#5864): NON-src (not in the unmatched loop); gates only `mission-state audit`.
@@ -477,13 +482,9 @@ jobs:
             # tests/architectural/test_no_duplicate_suite_execution.py exists to
             # remove. The group makes the path family's routing visible and
             # asserted (tests/ci/test_ci_module_wiring.py) instead of silent.
-            # services/mission-status-api/** (#5529 landing review B): the build pins of that service live in
-            # tests/ci/test_mission_status_api_build.py, and the service's own workflow runs no pytest, so a
-            # services-only diff must select the `ci` module shard or the pins never run on the PR that breaks them.
             ci:
               - 'scripts/ci/**'
               - '.github/workflows/**'
-              - 'services/mission-status-api/**'
               - 'pins/**'
               - 'scripts/sync_services.py'
               - '.github/actions/sync-services/**'
@@ -507,14 +508,17 @@ jobs:
               - '.github/ci-module-registry.yml'
               - '.github/ci-shard-timings.json'
             # Contract-tools group (#5558): NON-src (not in the unmatched loop); with `corpus`
-            # (which owns contracts/**, pinned by tests/ci/test_contracts_routing.py) it gates
-            # only `tests (contract tools)`. It names what the contract tool tests read or run on
-            # beyond contracts/**: their own tests, the contract workflows, the locked environment, the
+            # (which owns contracts/fixtures/**, pinned by tests/ci/test_contracts_routing.py) it gates
+            # only `tests (contract tools)`. It names what the contract tests read or run on: their own
+            # tests, the pins of the contract bundles, tools and conformance fixtures they read (#6915) with
+            # the script, action and test reader that fetch and resolve them, the locked environment, the
             # pytest configuration and conftest, and the lifecycle source event_mapping_check parses.
             contract_tools:
               - 'tests/contract/**'
-              - '.github/workflows/contracts.yml'
-              - '.github/workflows/contracts-release.yml'
+              - 'pins/**'
+              - 'scripts/sync_services.py'
+              - '.github/actions/sync-services/**'
+              - 'tests/pinned_service_assets.py'
               - 'uv.lock'
               - 'pyproject.toml'
               - 'pytest.ini'
@@ -584,10 +588,6 @@ jobs:
               - '**/specify_cli/status/wp_view.py'
               - '**/specify_cli/upgrade/metadata.py'
               - '**/specify_cli/workspace/context.py'
-              # Not a src file: the Mission Status API conformance goldens and fixtures. A golden-only diff runs `tests (contract tools)`,
-              # the one home of the golden-honesty test (tests/ci/test_mission_status_routing.py).
-              - 'services/mission-status-api/src/test/resources/conformance/**'
-              - 'services/mission-status-api/src/test/resources/artifact-conformance/**'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
             # Never gate a job on `any_src` directly (contract Invariant 1).
@@ -1300,6 +1300,12 @@ jobs:
         run: uv sync --frozen --all-extras
       - name: Sync packs
         uses: ./.github/actions/sync-packs
+      # #6915: the reality check and its payload helper read the pinned contract bundle and tools of
+      # spec-kitty-events (tests/pinned_service_assets.py fails closed without them); ~230 KB, cached on the pin hash.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          extras-only: 'true'
       - name: Run tests
         run: |
           uv run --frozen pytest -rs -m "corpus and not windows_ci" \
@@ -1317,13 +1323,13 @@ jobs:
             tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py \
             "tests/charter_offering/test_shipped_profiles.py::TestShippedProfilesPerformance"
 
-  # The contract tool unit tests (#5558): every corpus-marked module of tests/contract except the three that
-  # `tests-corpus-blocking` owns (the directory minus those three, so a new tool test module is picked up
-  # without an edit here): the example round trip, and the reality check and its payload helper, which read
-  # the committed corpus. The tool tests read no corpus and used to run only in contracts.yml's path-filtered
-  # `contract-tool-tests` job, which is not a required check, so a PR that broke them could auto-merge. As a router
-  # job under `router-gate` they block the merge. Gated on the `corpus` group (contracts/**) or the `contract_tools`
-  # group (tests/contract/** and what the tools run on); mode=full and the unmatched catch-all run it too. Packs'
+  # The contract tests (#5558): every corpus-marked module of tests/contract except the three that
+  # `tests-corpus-blocking` owns (the directory minus those three, so a new module is picked up without an
+  # edit here): the example round trip, and the reality check and its payload helper, which read the committed
+  # corpus. They read the pinned contract bundle, tools and conformance fixtures of spec-kitty-events (#6915; the
+  # tool unit tests left with the tools). As a router job under `router-gate` they block the merge. Gated on the
+  # `corpus` group (contracts/fixtures/**) or the `contract_tools` group (tests/contract/**, the pins and what
+  # the tests run on); mode=full and the unmatched catch-all run it too. Packs'
   # advisory run deselects these modules and the module matrix deselects the corpus marker, so each runs once.
   # Pinned by tests/ci/test_contracts_workflows.py (every tests/contract module has exactly one home).
   tests-contract-tools:
@@ -1354,6 +1360,16 @@ jobs:
           key: open-packs-${{ runner.os }}-${{ hashFiles('packs/*.source.yaml') }}
       - name: Sync packs from the pinned open-packs commits
         run: PYTHONPATH="${GITHUB_WORKSPACE}/src" uv run --frozen --no-sync python scripts/sync_packs.py --pack all
+      # #6915: the contract tests read the pinned extras of spec-kitty-events (contract bundles, contract tools,
+      # conformance fixtures). Inline for the same reason as the packs sync above; same cache key and command as
+      # .github/actions/sync-services with extras-only.
+      - name: Restore the service asset cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/spec-kitty/services
+          key: services-${{ runner.os }}-${{ hashFiles('pins/*.source.yaml') }}
+      - name: Fetch and verify the pinned service extras
+        run: PYTHONPATH="${GITHUB_WORKSPACE}/src" uv run --frozen --no-sync python scripts/sync_services.py --service all --extras-only
       - name: Run the contract tool unit tests
         run: |
           uv run --frozen --no-sync pytest -m "corpus and not windows_ci" tests/contract \

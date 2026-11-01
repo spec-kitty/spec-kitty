@@ -1,8 +1,10 @@
-"""Pin the CI routing of the top-level ``contracts/`` tree (mission mission-status-contract-v1, FR-020).
+"""Pin the CI routing of the top-level ``contracts/`` tree (mission mission-status-contract-v1, FR-020; #6915).
 
-One glob, ``contracts/**``, joins the router's ``corpus`` filter group so an edit
+One glob, ``contracts/fixtures/**``, joins the router's ``corpus`` filter group so an edit
 under ``contracts/`` selects the blocking corpus job (which runs the corpus-marked
-contract tests) and nothing else beyond the always-on jobs. This module pins that
+contract tests) and nothing else beyond the always-on jobs. Since #6915 only the core-owned
+fixtures remain under ``contracts/``; the contract modules and tools are pinned spec-kitty-events
+extras. This module pins that
 effect from the parsed router, the same authority the tests-selection scripts read.
 
 Out of scope here: the preview tag namespace guard (owned by the contracts workflow tests).
@@ -22,11 +24,10 @@ from scripts.ci.prose_only import prose_only_pr_verdict
 pytestmark = pytest.mark.fast
 
 ROOT = Path(__file__).resolve().parents[2]
-CONTRACTS_GLOB = "contracts/**"
+CONTRACTS_GLOB = "contracts/fixtures/**"
 CONTRACTS_ONLY_PATHS = (
-    "contracts/README.md",
-    "contracts/_shared/schemas/Problem.yaml",
-    "contracts/tools/contract_resolver.py",
+    "contracts/fixtures/fixture_01_single_wp_status_changed.json",
+    "contracts/fixtures/fixture_02_mixed_batch.json",
 )
 
 _BASE_SOURCE = 'def f() -> int:\n    """Old words."""\n    return 1\n'
@@ -112,13 +113,13 @@ def _getter(head_by_path: dict[str, str]) -> Callable[[str, str], str | None]:
 
 def test_contracts_files_plus_a_docstring_only_edit_classify_as_prose_only() -> None:
     """R-11: contracts paths count as corpus, so they no longer block the prose-only down-route."""
-    paths = ["contracts/README.md", "contracts/_shared/schemas/Problem.yaml", "src/pkg/mod.py"]
+    paths = ["contracts/fixtures/fixture_01_single_wp_status_changed.json", "contracts/fixtures/fixture_02_mixed_batch.json", "src/pkg/mod.py"]
 
     assert prose_only_pr_verdict(paths, _getter({"src/pkg/mod.py": _DOCSTRING_ONLY_HEAD}), _doc_globs()) is True
 
 
 def test_contracts_files_plus_a_code_edit_do_not_classify_as_prose_only() -> None:
-    paths = ["contracts/README.md", "src/pkg/mod.py"]
+    paths = ["contracts/fixtures/fixture_01_single_wp_status_changed.json", "src/pkg/mod.py"]
 
     assert prose_only_pr_verdict(paths, _getter({"src/pkg/mod.py": _CODE_HEAD}), _doc_globs()) is False
 

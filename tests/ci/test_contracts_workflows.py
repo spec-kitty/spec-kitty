@@ -53,17 +53,16 @@ EXPECTED_PATHS = [
 ]
 # Globs the contract_tools router group names although contracts.yml does not trigger on them, as (glob, one-line rationale)
 # pairs: the rationale is mandatory per entry, so the rule is structural rather than a comment. The
-# mission-status-read-api-overview Mission (WP07) added the first entry, the conformance goldens glob.
+# mission-status-read-api-overview Mission (WP07) added the first entry, the conformance goldens glob; #6915 replaced the goldens
+# globs with the pins and the fetch path of the spec-kitty-events extras the contract tests now read.
 ROUTER_ONLY_EXTRA_GLOBS: tuple[tuple[str, str], ...] = (
-    (
-        "services/mission-status-api/src/test/resources/conformance/**",
-        "the Mission Status API conformance goldens: a golden-only diff must run the golden-honesty test of `tests (contract tools)`",
-    ),
-    (
-        "services/mission-status-api/src/test/resources/artifact-conformance/**",
-        "the artifact-route goldens: a golden-only diff must run their reference-honesty test of `tests (contract tools)`",
-    ),
+    ("pins/**", "the pins of the contract bundles, tools and conformance fixtures the contract tests read (#6915)"),
+    ("scripts/sync_services.py", "the script that fetches, verifies and unpacks those pinned extras"),
+    (".github/actions/sync-services/**", "the action that runs that script in CI"),
+    ("tests/pinned_service_assets.py", "the one test-side reader of the pinned extras"),
 )
+# The retiring contract workflows (#6915): the router no longer names them; the cut-over deletes them and this module.
+ROUTER_DROPPED_TRIGGER_PATHS = (".github/workflows/contracts.yml", ".github/workflows/contracts-release.yml")
 # The contract tool unit tests run in a router job (a required check through router-gate), not in contracts.yml, which runs no
 # pytest at all. The router's corpus job runs only the modules that read committed Missions, to stay within its time budget.
 ROUTER_PATH = WORKFLOWS_DIR / "ci-router.yml"
@@ -1235,7 +1234,7 @@ def test_the_tool_test_job_is_a_required_router_dependency_gated_on_the_contract
 def test_the_contract_tools_filter_group_names_the_paths_the_contracts_workflow_triggers_on_beyond_contracts() -> None:
     filters = yaml.safe_load(next(step for step in steps_of(jobs(load(ROUTER_TEXT))["changes"]) if step.get("id") == "filter")["with"]["filters"])
     group = filters["contract_tools"]
-    beyond_contracts = [path for path in EXPECTED_PATHS if path not in ("contracts/**", ".github/CODEOWNERS")]
+    beyond_contracts = [path for path in EXPECTED_PATHS if path not in ("contracts/**", ".github/CODEOWNERS", *ROUTER_DROPPED_TRIGGER_PATHS)]
     # The lifecycle source is spelled without its src/ prefix so the group stays non-src (a src glob would make it a code-shard gate).
     spelled = ["**/status/lifecycle_events.py" if path == "src/specify_cli/status/lifecycle_events.py" else path for path in beyond_contracts]
     spelled += [glob for glob in group if glob.startswith("**/") and glob != "**/status/lifecycle_events.py"]  # the reader's src imports: their own test pins them
@@ -1246,7 +1245,8 @@ def test_the_contract_tools_filter_group_names_the_paths_the_contracts_workflow_
     spelled += [glob for glob, _why in ROUTER_ONLY_EXTRA_GLOBS]  # router-only extras: documented, each with a rationale
     assert sorted(group) == sorted(spelled), "the router group and the Contracts workflow trigger list must not drift"
     assert not any(glob.startswith("src/") for glob in group), "a src glob would make the group a code-shard gate"
-    assert "contracts/**" in filters["corpus"], "contracts/** stays owned by the corpus group"
+    # #6915: only the core-owned fixtures remain under contracts/ (tests/ci/test_contracts_routing.py pins the glob).
+    assert "contracts/fixtures/**" in filters["corpus"], "contracts/fixtures/** stays owned by the corpus group"
 
 
 _SRC_ROOT = REPO_ROOT / "src"
