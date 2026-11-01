@@ -217,6 +217,17 @@ public final class ArrangeSteps {
         assertThat(result.exitCode()).as("%s failed:%n%s", what, result).isZero();
     }
 
+    @Given("a Mission whose work package {string} has been approved")
+    public void aMissionWhoseWorkPackageHasBeenApproved(String wp) {
+        context.lifecycle().planMission(ScenarioContext.SCENARIO_MISSION, List.of(wp));
+        context.lifecycle().advance(ScenarioContext.SCENARIO_MISSION, wp, "approved");
+    }
+
+    @Given("a reviewer has recorded a rejection of {string} after that approval")
+    public void aReviewerHasRecordedARejectionAfterTheApproval(String wp) {
+        context.rejectAfterApproval(wp);
+    }
+
     @Given("the mission {string} has been accepted")
     public void theMissionHasBeenAccepted(String name) {
         context.lifecycle().accept(name);
