@@ -250,6 +250,19 @@ def test_platform_tags(writer: ModuleType, target: str, floor: str, tag: str) ->
     assert writer.platform_tag(target, floor) == tag
 
 
+def test_the_macos_floor_is_a_parameter_not_a_constant(writer: ModuleType) -> None:
+    """The macOS minimum is a build input like the glibc one, so a newer runner can raise it (#6948)."""
+    assert writer.platform_tag("macos-arm64", macos_floor="12_0") == "py3-none-macosx_12_0_arm64"
+    assert writer.platform_tag("macos-arm64", glibc_floor="2_28", macos_floor="13_1") == "py3-none-macosx_13_1_arm64"
+    assert writer.DEFAULT_MACOS_FLOOR == "11_0"
+
+
+@pytest.mark.parametrize(("target", "kwargs", "match"), [("linux-x64", {"macos_floor": "11"}, "macOS floor"), ("macos-arm64", {"glibc_floor": ""}, "glibc floor")])
+def test_both_floors_are_validated_whether_or_not_the_target_uses_them(writer: ModuleType, target: str, kwargs: dict[str, str], match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        writer.platform_tag(target, **kwargs)
+
+
 def test_native_targets_match_the_kernel_targets(writer: ModuleType) -> None:
     from kernel.service_pin import ServiceTarget
 
