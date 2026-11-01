@@ -423,11 +423,13 @@ def _run_build_step(tmp_path: Path, green_skip: str) -> tuple[str, str]:
     shim.chmod(0o755)
     github_output = tmp_path / "github_output"
     github_output.write_text("", encoding="utf-8")
+    changed_files = tmp_path / "changed-files.json"
+    changed_files.write_text('["src/specify_cli/status/store.py"]', encoding="utf-8")
     env = {
         "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
         "MODE": "pr",
         "SELECTION_FORCED_FULL": "false",
-        "CHANGED_FILES": '["src/specify_cli/status/store.py"]',
+        "CHANGED_FILES_PATH": str(changed_files),
         "CHANGED_FILTER_OUTCOME": "success",
         "GREEN_SKIP": green_skip,
         "PYTHONPATH": str(ROOT),

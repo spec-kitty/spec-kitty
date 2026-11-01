@@ -21,9 +21,11 @@ workflow with the same pinned ``pip install`` ``ci-modules.yml`` uses.
 Contract of :func:`main` (the workflow edge):
 
 * ``--mode`` / ``--event`` -- the run mode (``pr`` / ``full``) and the GitHub event name;
-* ``CHANGED_FILES`` -- a JSON array of changed paths, ``CHANGED_OUTCOME`` -- the diff
-  step's outcome. Anything other than ``success`` (or an unparseable list) means the
-  diff is UNAVAILABLE and the selection fails closed to ``true``;
+* ``CHANGED_FILES_PATH`` -- a file holding a JSON array of changed paths (the workflow
+  uses this: one env string over 128 KiB fails exec with E2BIG), else ``CHANGED_FILES``
+  -- the same array inline; ``CHANGED_OUTCOME`` -- the diff step's outcome. Anything
+  other than ``success`` (or an unreadable or unparseable list) means the diff is
+  UNAVAILABLE and the selection fails closed to ``true``;
 * writes ``selected=true|false`` to ``$GITHUB_OUTPUT`` when set and prints
   ``corpus selection: <bool> (<reason>)``.
 """
@@ -91,12 +93,14 @@ def decide(
 
 
 def _changed_from_env(environ: Mapping[str, str]) -> list[str] | None:
-    """The changed paths from ``CHANGED_FILES`` / ``CHANGED_OUTCOME``; ``None`` when unusable."""
+    """The changed paths from ``CHANGED_FILES_PATH`` (else ``CHANGED_FILES``) / ``CHANGED_OUTCOME``; ``None`` when unusable."""
     if environ.get("CHANGED_OUTCOME", "") != _SUCCESS:
         return None
+    path = environ.get("CHANGED_FILES_PATH", "")
     try:
-        parsed = json.loads(environ.get("CHANGED_FILES", ""))
-    except json.JSONDecodeError:
+        raw = Path(path).read_text(encoding="utf-8") if path else environ.get("CHANGED_FILES", "")
+        parsed = json.loads(raw)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return None
     if not isinstance(parsed, list) or not all(isinstance(item, str) for item in parsed):
         return None
