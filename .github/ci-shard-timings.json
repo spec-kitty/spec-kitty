@@ -37301,7 +37301,7 @@
       "tests/architectural/test_builtin_pack_provenance_ratchet.py": 0.148,
       "tests/architectural/test_charter_sole_door_inner_reacharound.py": 34.076,
       "tests/architectural/test_src_reachability_guard.py": 17.785,
-      "tests/architectural/test_events_import_frozen.py": 0.4,
+      "tests/architectural/test_events_cutover_absent.py": 0.4,
       "tests/architectural/test_charter_sole_door_resolver_imports.py": 5.289,
       "tests/architectural/test_cli_console_single_seam.py": 1.702,
       "tests/architectural/test_compat_shims.py": 0.005,
