@@ -608,6 +608,8 @@ label and pauses again, so if the PR was pushed while labeled, push again (or cl
 PR by hand) after removing the label. The workflow cannot do that itself: events caused by its own
 token start no workflow runs.
 
+For the full queue-recovery sequence, see [Pull the safety cord](unclog-ci.md).
+
 ## Gotchas
 
 Field notes from the 2026-07-04 landing pass. Where the friction has since

@@ -15,6 +15,7 @@ Step-by-step runbooks for the recurring tasks of contributing to and maintaining
 Spec Kitty. Each page is scoped to one job you can pick up and finish.
 
 - [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off maintainer runbook.
+- [Pull the safety cord: unclog a deadlocked Actions queue](unclog-ci.md) — pause CI on every PR you are not landing with `pr:pause-ci`, drain the Actions queue, and re-run the keep-set.
 - [Review gates: pre-PR / pre-review checklist](review-gates.md) — the hygiene steps to run locally before requesting review.
 - [Local overrides for cross-package development](local-overrides.md) — dev-only editable installs across `spec-kitty-cli`/`-events`/`-tracker` that must never be committed.
 - [Set up a Claude Code cloud session](cloud-session-setup.md) — make the `spec-kitty` CLI, test package and CodeGraph available in a cloud session.

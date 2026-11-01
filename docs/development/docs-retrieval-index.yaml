@@ -11729,6 +11729,16 @@ pages:
     - {slug: "change-pack-content", text: "Change pack content", level: 2}
     - {slug: "error-codes", text: "Error codes", level: 2}
     - {slug: "what-does-not-change", text: "What does not change", level: 2}
+  - path: "docs/development/how-to/unclog-ci.md"
+    title: "Pull the safety cord: unclog a deadlocked Actions queue"
+    divio_type: "how-to"
+    abstract: "Pause CI on every PR you are not landing with the pr:pause-ci label, drain the Actions queue, and get the PRs you are landing back to a green signal."
+    anchors:
+    - {slug: "when-to-use-this", text: "When to use this", level: 2}
+    - {slug: "steps", text: "Steps", level: 2}
+    - {slug: "why-each-step-works", text: "Why each step works", level: 2}
+    - {slug: "what-not-to-do", text: "What not to do", level: 2}
+    - {slug: "residuals", text: "Residuals", level: 2}
   - path: "docs/development/index.md"
     title: "Development"
     divio_type: "none"
