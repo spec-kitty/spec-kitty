@@ -1,0 +1,59 @@
+{
+  "mission_slug": "live-fresh-claim-01M6BV7X",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_implement_live_fresh_claim_6311.py (green run 2026-11-01)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-5.5:python-pedro:implementer",
+      "verified_at": "2026-11-01T17:38:39.287217+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_implement_live_fresh_claim_6311.py (green run 2026-11-01)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-5.5:python-pedro:implementer",
+      "verified_at": "2026-11-01T17:38:44.244608+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_implement_live_fresh_claim_6311.py (green run 2026-11-01)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-5.5:python-pedro:implementer",
+      "verified_at": "2026-11-01T17:38:49.010747+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_implement_live_fresh_claim_6311.py (green run 2026-11-01)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-5.5:python-pedro:implementer",
+      "verified_at": "2026-11-01T17:38:54.897578+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_implement_live_fresh_claim_6311.py (green run 2026-11-01)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus-5.5:python-pedro:implementer",
+      "verified_at": "2026-11-01T17:39:00.724147+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

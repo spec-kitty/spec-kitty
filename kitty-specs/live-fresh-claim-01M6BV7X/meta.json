@@ -1,0 +1,35 @@
+{
+  "accept_commit": "961282bd908396ed2e05281b4f33753617476d5b",
+  "acceptance_history": [
+    {
+      "accept_commit": "961282bd908396ed2e05281b4f33753617476d5b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:39:32.729689+00:00",
+      "accepted_by": "claude:opus-5.5:python-pedro:implementer",
+      "accepted_from_commit": "9ed1eb45eca207113a7711f188cd2f9dccc06777"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:39:32.729689+00:00",
+  "accepted_by": "claude:opus-5.5:python-pedro:implementer",
+  "accepted_from_commit": "9ed1eb45eca207113a7711f188cd2f9dccc06777",
+  "baseline_merge_commit": "869ccb6da1100fc596762c0b8de2108a734635ef",
+  "created_at": "2026-11-01T15:21:56.078922+00:00",
+  "flattened": false,
+  "friendly_name": "live fresh claim",
+  "merged_at": "2026-11-01T17:40:32.084113+00:00",
+  "merged_commit": "900eb42e442c65e7c3b306cf2c63be8d6bd8bb51",
+  "mid8": "01M6BV7X",
+  "mission_id": "01M6BV7X29R1XGBQE1QD2CGCGS",
+  "mission_number": 246,
+  "mission_slug": "live-fresh-claim-01M6BV7X",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances live fresh claim on issue-6311-live-fresh-claim so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "live fresh claim",
+  "slug": "live-fresh-claim-01M6BV7X",
+  "status_phase": "1",
+  "target_branch": "issue-6311-live-fresh-claim",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:26:43.353209+00:00"
+}

@@ -1,0 +1,58 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6C35PY6VS1WAJ4MYAGN55KT",
+  "materialized_at": "2026-11-01T17:40:32.326206+00:00",
+  "mission_number": "246",
+  "mission_slug": "live-fresh-claim-01M6BV7X",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude:opus-5.5:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude:opus-5.5:python-pedro:implementer",
+      "lane": "done",
+      "last_event_id": "01M6C35PY6VS1WAJ4MYAGN55KT",
+      "last_transition_at": "2026-11-01T17:40:32.326206+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Live #6311 guard green (3/3 new, 34 passed with neighbours). Pre-review gate skipped after 3 x 300s timeouts on this host; see tracer + open #3046/#6865. Branch changes no src/ file.",
+        "Review passed: live guard is real (real worktree, no monkeypatched git), discriminating (red under the pre-fix comparison layer), non-vacuous (different tool refused). One required finding applied in 46f33afa39."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4043407,
+      "shell_pid_created_at": "1793554293.39",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#6311"
+      ]
+    }
+  }
+}
