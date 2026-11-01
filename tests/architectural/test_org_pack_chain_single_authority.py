@@ -22,8 +22,9 @@ primitives that compose a chain by hand are forbidden to those callers:
 
 **Rule 2 is deliberately roots-only.** The authority owns the ordered, existence-filtered
 ROOT chain (``list[Path]``). Code that needs pack NAMES (a ``(pack.name, root)`` pair, a
-loop that also collects ``pack.name``, a subscript key that names the pack, or a dict
-comprehension keyed by ``pack.name``) or an unfiltered enumeration (the missing-pack
+loop that also collects ``pack.name``, a subscript key that is exactly ``pack.name``, or a dict
+comprehension keyed by exactly ``pack.name``; ``len(p.name)`` or the root's basename
+``p.effective_root(r).name`` is not the pack name and does not count) or an unfiltered enumeration (the missing-pack
 diagnostic) legitimately reads the pack registry, because the Path-only authority cannot
 provide names or unfiltered paths. That is a rule-semantics boundary, not an allowlist entry.
 The name-pairing test is deliberately one-sided where it can be: a ``DictComp`` is exempt
@@ -82,6 +83,9 @@ _COLLECTOR_METHODS: frozenset[str] = frozenset({"append", "add", "extend"})
 # Iterator wrappers that hold the registry's ``packs`` while hiding it from a bare
 # attribute test (``for i, p in enumerate(registry.packs)").
 _ITER_WRAPPERS: frozenset[str] = frozenset({"enumerate", "iter", "list", "reversed", "sorted", "tuple"})
+# Wrappers that take several iterables, so ``packs`` may sit in any argument
+# (``zip(range(n), registry.packs)``).
+_MULTI_ITER_WRAPPERS: frozenset[str] = frozenset({"chain", "zip"})
 
 # ~1320 modules in scope tree-wide (owner and offering tier excluded); leave headroom.
 _SCANNED_FILE_FLOOR = 1200
@@ -129,12 +133,23 @@ def _is_packs_iter(node: ast.expr) -> bool:
         return True
     if isinstance(node, ast.Call) and _called_name(node) in _ITER_WRAPPERS and node.args:
         return _is_packs_iter(node.args[0])
+    if isinstance(node, ast.Call) and _called_name(node) in _MULTI_ITER_WRAPPERS:
+        return any(_is_packs_iter(a) for a in node.args)
     return False
 
 
-def _carries_name(node: ast.AST) -> bool:
-    """True when *node* reads a ``*.name`` attribute anywhere (the name-pairing evidence)."""
-    return any(isinstance(n, ast.Attribute) and n.attr == "name" for n in ast.walk(node))
+def _target_names(target: ast.AST) -> set[str]:
+    """Variable names bound by a loop/comprehension target (``p`` or ``i, p``)."""
+    return {n.id for n in ast.walk(target) if isinstance(n, ast.Name)}
+
+
+def _is_pack_name(node: ast.AST, loop_vars: set[str]) -> bool:
+    """True only for exactly ``<loop variable>.name`` (the name-pairing evidence).
+
+    Not ``p.effective_root(r).name`` (the root's basename) and not ``len(p.name)``:
+    those are derived from, not equal to, the pack name.
+    """
+    return isinstance(node, ast.Attribute) and node.attr == "name" and isinstance(node.value, ast.Name) and node.value.id in loop_vars
 
 
 def _collector_args(loop: ast.For) -> list[ast.expr]:
@@ -148,7 +163,7 @@ def _collector_args(loop: ast.For) -> list[ast.expr]:
 
 
 def _subscript_assignments(loop: ast.For) -> list[tuple[ast.expr, ast.expr]]:
-    """``<x>[<key>] = <value>`` in the loop body, as ``(key, value)`` pairs.
+    """``<x>[<key>] = <value>`` (also annotated) in the loop body, as ``(key, value)`` pairs.
 
     Assigning into a subscript is a collector too: a preallocated ``roots[i] = ...``
     loop assembles the same roots-only chain as ``roots.append(...)``. The subscript
@@ -159,8 +174,8 @@ def _subscript_assignments(loop: ast.For) -> list[tuple[ast.expr, ast.expr]]:
         (target.slice, n.value)
         for stmt in loop.body
         for n in ast.walk(stmt)
-        if isinstance(n, ast.Assign)
-        for target in n.targets
+        if isinstance(n, (ast.Assign, ast.AnnAssign)) and n.value is not None
+        for target in (n.targets if isinstance(n, ast.Assign) else [n.target])
         if isinstance(target, ast.Subscript)
     ]
 
@@ -172,7 +187,8 @@ def _loop_collects_bare_roots(loop: ast.For) -> bool:
     # Pairing evidence: a collected ``*.name`` value (as before), or a subscript key that
     # names the pack. Judged over the loop's collected values and keys, never over the
     # whole body, so a loop that merely reads ``pack.name`` stays a violation.
-    captures_name = any(isinstance(a, ast.Attribute) and a.attr == "name" for a in args) or any(_carries_name(key) for key, _ in subscript_pairs)
+    loop_vars = _target_names(loop.target)
+    captures_name = any(_is_pack_name(a, loop_vars) for a in args) or any(_is_pack_name(key, loop_vars) for key, _ in subscript_pairs)
     return any(_is_bare_root(a) for a in collected) and not captures_name
 
 
@@ -183,7 +199,7 @@ def _comprehension_collects_bare_roots(node: ast.ListComp | ast.SetComp | ast.Ge
         # A dict keyed by a pack name is a name-paired reader (the root-only authority
         # cannot supply names). A dict keyed by the root itself is a roots-only mapping,
         # whatever its values carry.
-        if _carries_name(node.key):
+        if _is_pack_name(node.key, {v for g in node.generators for v in _target_names(g.target)}):
             return False
         return _is_bare_root(node.key) or _is_bare_root(node.value)
     return _is_bare_root(node.elt)
@@ -281,6 +297,26 @@ def test_owner_bypass_control_census_sees_the_owner() -> None:
             "registry.packs comprehension assembling roots",
             "def f(r):\n    return {i: p.effective_root(r) for i, p in enumerate(load_pack_registry(r).packs)}\n",
         ),
+        (
+            "registry.packs comprehension assembling roots",
+            "def f(r):\n    return {p.effective_root(r).name: p.effective_root(r) for p in load_pack_registry(r).packs}\n",
+        ),
+        (
+            "registry.packs iteration assembling roots",
+            "def f(r):\n    roots = {}\n    for p in load_pack_registry(r).packs:\n        roots[len(p.name)] = p.effective_root(r)\n    return roots\n",
+        ),
+        (
+            "registry.packs iteration assembling roots",
+            "def f(r):\n    roots = {}\n    for i, p in enumerate(load_pack_registry(r).packs):\n        roots[i]: Path = p.effective_root(r)\n    return roots\n",
+        ),
+        (
+            "registry.packs iteration assembling roots",
+            "def f(r):\n    roots = []\n    for i, p in zip(range(3), load_pack_registry(r).packs):\n        roots.append(p.effective_root(r))\n    return roots\n",
+        ),
+        (
+            "registry.packs comprehension assembling roots",
+            "def f(r):\n    return [p.effective_root(r) for p in itertools.chain([], load_pack_registry(r).packs)]\n",
+        ),
     ],
     ids=[
         "existing",
@@ -292,6 +328,11 @@ def test_owner_bypass_control_census_sees_the_owner() -> None:
         "packs-subscript-assignment",
         "root-keyed-dict-comprehension",
         "index-keyed-dict-comprehension",
+        "root-basename-keyed-dict-comprehension",
+        "len-of-name-subscript-key",
+        "annotated-subscript-assignment",
+        "zip-hides-packs",
+        "chain-hides-packs",
     ],
 )
 def test_planted_violation_is_reported(tmp_path: Path, kind: str, body: str) -> None:
