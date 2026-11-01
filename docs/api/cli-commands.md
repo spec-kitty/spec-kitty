@@ -1920,12 +1920,12 @@ _Common Docs retrieval commands_
 
 ## spec-kitty doctor
 
-_Project health diagnostics_
+_Project health diagnostics; a bare invocation runs the default check set_
 
 ```
  Usage: spec-kitty doctor [OPTIONS] COMMAND [ARGS]...
 
- Project health diagnostics
+ Project health diagnostics; a bare invocation runs the default check set
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │

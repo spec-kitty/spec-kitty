@@ -95,8 +95,8 @@ UNLOCKED — it is decided WITH the operator in step 2, not asserted here.>
    editable-install your working tree so the `spec-kitty` CLI reflects HEAD:
    `uv pip install -e .` (or `pip install -e .`), then `spec-kitty upgrade` to
    regenerate agent commands/skills, and verify: `spec-kitty --version` +
-   `spec-kitty doctor skills` (a bare `spec-kitty doctor` runs no diagnostic and exits 2 —
-   pick a subcommand). Re-run this after ANY rebase — a stale install produces false
+   `spec-kitty doctor skills` (a bare `spec-kitty doctor` runs the default read-only
+   checks and exits 0 when they are healthy, 1 when one reports a finding). Re-run this after ANY rebase — a stale install produces false
    reds on commands that shell out to `spec-kitty`.
 
 4. **Spec the mission.** Run `/spec-kitty.specify` inside your coding agent session

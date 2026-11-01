@@ -58,7 +58,7 @@ related:
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
 | 1.1.1 | Run `spec-kitty --version` | Displays `2.0.2` or later | | |
-| 1.1.2 | Run `spec-kitty doctor skills` (a bare `spec-kitty doctor` runs no diagnostic and exits 2 by design) | Skills/command-surface diagnostic passes, no critical errors | | |
+| 1.1.2 | Run `spec-kitty doctor skills` (a bare `spec-kitty doctor` runs the default checks — `command-files`, `state-roots`, `ops` — and exits 0 when healthy, 1 on any finding) | Skills/command-surface diagnostic passes, no critical errors | | |
 | 1.1.3 | Run `spec-kitty auth status` | Shows authenticated user, team slug, server URL | | |
 
 ### 1.2 Mission Lifecycle (software-dev)
