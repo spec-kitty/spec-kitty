@@ -25,6 +25,7 @@ from specify_cli.invocation.lifecycle import (
     append_lifecycle_record,
     compute_pairing_rate,
     doctor_orphan_report,
+    find_latest_unpaired_started,
     find_orphans,
     group_by_action,
     lifecycle_log_path,
@@ -64,7 +65,7 @@ def _record(
 
 def _write_legacy(repo_root: Path, records: list[ProfileInvocationRecord]) -> Path:
     """Write a legacy ``lifecycle.jsonl`` the way the old append did."""
-    path = lifecycle_log_path(repo_root)
+    path: Path = lifecycle_log_path(repo_root)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(r.to_json_line() + "\n" for r in records), encoding="utf-8")
     return path
@@ -166,6 +167,26 @@ def test_a_naive_at_sorts_as_utc_beside_an_aware_one(tmp_path: Path) -> None:
 
     ids = [r.canonical_action_id for r in read_lifecycle_records(tmp_path)]
     assert ids == ["aware::x", "naive::x", "aware::y"]
+
+
+def test_the_latest_unpaired_started_compares_a_naive_legacy_at_as_utc(tmp_path: Path) -> None:
+    """A legacy line with no offset beside an aware record must not raise when picking the latest."""
+    naive_legacy = ProfileInvocationRecord(
+        canonical_action_id="legacy::naive",
+        phase="started",
+        at=_dt_datetime(2026, 11, 1, 12, 0, 30),
+        agent="claude",
+        mission_id=_MISSION,
+    )
+    path = lifecycle_log_path(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_text(naive_legacy.to_json_line().replace("+00:00", "") + "\n", encoding="utf-8")
+    append_lifecycle_record(tmp_path, _record("new::aware", "started", 10))
+
+    records = read_lifecycle_records(tmp_path)
+    assert {r.at.tzinfo is None for r in records} == {True, False}
+    latest = find_latest_unpaired_started(records, agent="claude", mission_id=_MISSION)
+    assert latest is not None and latest.canonical_action_id == "legacy::naive"
 
 
 def test_corrupt_record_files_are_skipped_like_corrupt_lines(tmp_path: Path) -> None:

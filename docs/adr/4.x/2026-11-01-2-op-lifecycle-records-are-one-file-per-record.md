@@ -84,6 +84,10 @@ on lifecycle records and no merge driver is needed.
 - A branch cut before this change still appends to the legacy log. Without the union attribute, two
   such branches can still conflict there until they are rebased onto a `main` that has this change;
   after the rebase, their next records are files.
+- Pairing counts, the orphan count and the pairing rate do not depend on the order. Which `started`
+  record of a group the orphan report names can: within the record files it follows `at`, not write
+  order, which differs only when the clock steps back between two records of one group; and legacy
+  lines always read first, even when an older CLI appended one after record files exist.
 - The archive preservation gate keeps admitting a byte-prefix append to the legacy log (an older CLI
   still writes one) and treats every record file like any other `kitty-ops/` file: it may be added,
   never changed.
