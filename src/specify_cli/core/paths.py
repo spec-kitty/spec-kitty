@@ -161,6 +161,21 @@ def safe_mission_slug(slug: str | None, fallback: str) -> str:
     return slug
 
 
+def _git_ceiling_dirs() -> frozenset[Path]:
+    """The resolved ``GIT_CEILING_DIRECTORIES`` entries both root walks stop at.
+
+    One reading of git's discovery ceiling for :func:`locate_project_root` and
+    :func:`resolve_canonical_root`, so the two root authorities agree on where a
+    walk ends (#7022). A listed directory is still examined; the walk never
+    continues above it.
+    """
+    return frozenset(
+        Path(part).resolve()
+        for part in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep)
+        if part
+    )
+
+
 def _is_worktree_gitdir(gitdir: Path) -> bool:
     """Check if a gitdir path has the .git/worktrees/<name> topology.
 
@@ -224,6 +239,9 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
             leave a stray ``.git``/``.kittify`` in a shared ancestor, which
             would otherwise flip this walk's verdict non-deterministically
             (same class of bug as #130/#139's ``_find_project_root``).
+            ``GIT_CEILING_DIRECTORIES`` bounds the walk the same way, with
+            :func:`resolve_canonical_root`'s semantics: a listed directory is
+            examined, nothing above it is (#7022).
 
     Returns:
         Path to MAIN project root (not worktree), or None if not found
@@ -253,6 +271,7 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
     boundary = stop.resolve() if stop is not None else None
+    ceilings = _git_ceiling_dirs()
 
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
@@ -297,6 +316,8 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
             return candidate
 
         if boundary is not None and candidate == boundary:
+            break
+        if candidate in ceilings:
             break
 
     return None
@@ -414,11 +435,7 @@ def resolve_canonical_root(cwd: Path | None = None) -> Path:
         WorkspaceRootNotFound: when ``cwd`` is not inside a git repo.
     """
     start = (cwd or Path.cwd()).resolve()
-    ceilings = {
-        Path(part).resolve()
-        for part in os.environ.get("GIT_CEILING_DIRECTORIES", "").split(os.pathsep)
-        if part
-    }
+    ceilings = _git_ceiling_dirs()
 
     for candidate in [start, *start.parents]:
         git_path = candidate / ".git"
