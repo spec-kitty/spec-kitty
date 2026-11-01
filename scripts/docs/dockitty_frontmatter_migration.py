@@ -65,7 +65,6 @@ __all__ = [
     "MigrationIntegrityError",
     "MigrationReport",
     "build_parser",
-    "FROZEN_PAGES",
     "is_skipped",
     "main",
     "migrate_text",
@@ -96,19 +95,12 @@ _INTENDED_KEYS: Final[frozenset[str]] = frozenset({_AUDIENCE, _RELATED, _EXTERNA
 #:   immutable history, part of it byte-pinned by
 #:   ``tests/architectural/test_archive_root_byte_identical.py``;
 #: * the four files #6928 resolves (the dual-index README stubs and the
-#:   architecture landing page), which leave the tree there;
-#: * :data:`FROZEN_PAGES`.
+#:   architecture landing page), which leave the tree there.
 #:
 #: The ADR era ``index.md`` pages ARE migrated: their table rows are bot-owned,
 #: their frontmatter is not (``check_generated_docs_untouched.py`` refuses only
 #: new table rows).
 _SKIPPED_FILES: Final[frozenset[str]] = frozenset({"adr/1.x/README.md", "adr/2.x/README.md", "adr/3.x/README.md", "architecture/README.md"})
-
-#: Docs pages frozen in core by ADR 2026-10-29-1 D-9: they move to
-#: ``spec-kitty-events`` with their history, and
-#: ``tests/architectural/test_events_import_frozen.py`` pins their bytes, so no
-#: edit (frontmatter included) may land here without an operator-approved re-pin.
-FROZEN_PAGES: Final[frozenset[str]] = frozenset({"architecture/event-ledger-writers-and-readers.md"})
 
 
 class MigrationError(RuntimeError):
@@ -408,7 +400,7 @@ def _check_integrity(rel: str, old: Mapping[str, Any], new: Mapping[str, Any], i
 
 def is_skipped(rel: str) -> bool:
     """True for a page under ``docs/`` the migration never edits (see :data:`_SKIPPED_FILES`)."""
-    return rel in _SKIPPED_FILES or rel in FROZEN_PAGES or is_excluded(rel)
+    return rel in _SKIPPED_FILES or is_excluded(rel)
 
 
 def _intended_changes(rel: str, data: Mapping[str, Any], corpus: Corpus, report: MigrationReport) -> dict[str, Any]:
