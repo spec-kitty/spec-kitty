@@ -1,0 +1,80 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6C4MC46VE2F1DH8S6E8WG9B",
+  "materialized_at": "2026-11-01T18:06:01.350616+00:00",
+  "mission_number": "246",
+  "mission_slug": "companion-wheel-platform-floor-01M6BV24",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi:tokenfactory/glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6C4MAHR4AJG4FEF830AWAZ8",
+      "last_transition_at": "2026-11-01T18:05:59.736700+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Reader plus its tests are green: 48 passed; existing companion-wheel tests 38 passed",
+        "Approved: 48/48 new tests, 38/38 companion-wheel regression, ruff clean; reader verified against real binaries (readelf agreement); all 8 checklist items PASS/N/A; 3 non-blocking hardening notes in review-cycle-2.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3644668,
+      "shell_pid_created_at": "1793550726.56",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:tokenfactory/kimi-k3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6C4MC46VE2F1DH8S6E8WG9B",
+      "last_transition_at": "2026-11-01T18:06:01.350616+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Floor guard wired into build and verify: 214 packaging tests + 277 release tests pass, ruff clean",
+        "Independent re-review of ea66bf9ef0..9d087aa3ff: build() measures each target's pinned binaries and refuses (EXCEEDED/UNREADABLE, naming asset+floors+remedy) while wheels are still in scratch, so no refusal follows a wheel into --out; --verify re-measures against the floor parsed from the wheel's own file name; per-target maximum proven by the charter-asset test; published tags/members unchanged (defaults 2_39/11_0, release.yml passes same values); 214 passed/1 skipped in packaging, 277 passed/6 skipped in release, ruff clean, changelog style+spelling clean (867 chars). Out-of-map WP01-file touches judged acceptable fail-closed fold-ins of WP01 review findings 1-2."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "role": "reviewer",
+      "shell_pid": 3715229,
+      "shell_pid_created_at": "1793551648.24",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    }
+  }
+}
