@@ -66,8 +66,10 @@ on lifecycle records and no merge driver is needed.
   committed yet (`git status` scoped to the record directory), never every record ever written.
 - **Retention.** `doctor event-logs` never scans `kitty-ops/`, and its path guard refuses the record
   directory and the legacy log. Committed lifecycle records are never removed.
-- **Merge attribute.** The interim `kitty-ops/lifecycle.jsonl merge=union` line is removed from
-  `.gitattributes`.
+- **Merge attribute.** The interim `kitty-ops/lifecycle.jsonl merge=union` line stays in
+  `.gitattributes` while open branches still append to the legacy log: `main` no longer writes it,
+  but two such branches would otherwise conflict with each other at the end of the file on a rebase
+  or local merge. It is removed in a later change once no open branch appends to the legacy log.
 
 ### Why not the others
 
