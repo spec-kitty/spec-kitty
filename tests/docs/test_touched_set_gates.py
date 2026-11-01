@@ -375,21 +375,17 @@ def test_load_moves_absent_file_is_empty(tmp_path: Path) -> None:
     assert rr.load_moves(tmp_path / "nope.yaml") == []
 
 
-def test_load_moves_parses_scalar_and_list_from(tmp_path: Path) -> None:
-    occ = tmp_path / "occ.yaml"
-    occ.write_text(
-        "moves:\n"
-        "  - {from: ['docs/reference/'], to: 'docs/api'}\n"
-        "  - {from: 'docs/status-model.md', to: 'docs/architecture'}\n"
-        "  - {from: ['research/'], to: 'RETIRE'}\n",
+_LEDGER_HEAD = "kind: docs-moves-ledger\nversion: 1\nmoves:\n"
+
+
+def test_load_moves_reads_the_standing_ledger(tmp_path: Path) -> None:
+    ledger = tmp_path / "moves.yaml"
+    ledger.write_text(
+        _LEDGER_HEAD + "  - {from: /status-model.html, to: /architecture/status-model.html, ref: '#1'}\n",
         encoding="utf-8",
     )
-    moves = rr.load_moves(occ)
-    assert [(m.from_paths, m.to) for m in moves] == [
-        (("docs/reference/",), "docs/api"),
-        (("docs/status-model.md",), "docs/architecture"),
-        (("research/",), "RETIRE"),
-    ]
+    moves = rr.load_moves(ledger)
+    assert [(m.from_route, m.to_route) for m in moves] == [("/status-model.html", "/architecture/status-model.html")]
 
 
 def test_renames_and_deletions_from_git(tmp_path: Path) -> None:
@@ -408,35 +404,32 @@ def test_renames_and_deletions_from_git(tmp_path: Path) -> None:
     assert "docs/gone.md" in sources  # deletion
 
 
-def test_check_renames_covered_flags_off_spine(tmp_path: Path) -> None:
-    moves = [
-        rr.Move(from_paths=("docs/reference/",), to="docs/api"),
-        rr.Move(from_paths=("research/",), to="RETIRE"),
-    ]
+def test_check_renames_covered_flags_an_unrecorded_published_page() -> None:
+    moves = [rr.Move("/reference/cli.html", "/api/cli.html", "#1")]
+    published = {"/reference/cli.html", "/architecture/rogue.html"}
     sources = [
-        "docs/reference/cli.md",  # covered by prefix
-        "research/agent-x.md",  # covered (retired root dir)
-        "docs/architecture/rogue.md",  # off-spine → flagged
+        "docs/reference/cli.md",  # published and recorded -> covered
+        "docs/architecture/rogue.md",  # published, not recorded -> flagged
+        "docs/plans/draft.md",  # never published -> out of scope
+        "docs/assets/logo.png",  # not a page -> out of scope
     ]
 
-    violations = rr.check_renames_covered(sources, moves)
+    violations = rr.check_renames_covered(sources, moves, published)
 
     assert [v.path for v in violations] == ["docs/architecture/rogue.md"]
     assert violations[0].rule_id == "rename_reconcile"
 
 
-def test_occurrence_subset_redirect_flags_missing_redirect(tmp_path: Path) -> None:
+def test_occurrence_subset_redirect_flags_missing_redirect() -> None:
     moves = [
-        rr.Move(from_paths=("docs/status-model.md",), to="docs/architecture"),
-        rr.Move(from_paths=("docs/trail-model.md",), to="docs/architecture"),
-        rr.Move(from_paths=("docs/reference/",), to="docs/api"),  # dir — skipped
-        rr.Move(from_paths=("research/",), to="RETIRE"),  # retire — skipped
+        rr.Move("/status-model.html", "/architecture/status-model.html", "#1"),
+        rr.Move("/trail-model.html", "/architecture/trail-model.html", "#1"),
     ]
     redirect_keys = {"status-model.html"}  # trail-model missing
 
     violations = rr.check_occurrence_subset_redirect(moves, redirect_keys)
 
-    assert [v.path for v in violations] == ["docs/trail-model.md"]
+    assert [v.path for v in violations] == ["/trail-model.html"]
     assert violations[0].rule_id == "occurrence_subset_redirect"
 
 
@@ -448,12 +441,23 @@ def test_run_reconcile_end_to_end_with_fixtures(tmp_path: Path) -> None:
     _git(repo, "rm", "-q", "docs/architecture/rogue.md")
     _commit_all(repo, "delete off-spine page")
 
-    occ = repo / "occ.yaml"
-    occ.write_text("moves:\n  - {from: ['docs/reference/'], to: 'docs/api'}\n", encoding="utf-8")
+    occ = repo / "moves.yaml"
+    occ.write_text(
+        _LEDGER_HEAD + "  - {from: /reference/cli.html, to: /api/cli.html, ref: '#1'}\n",
+        encoding="utf-8",
+    )
+    baseline = repo / "url-baseline.txt"
+    baseline.write_text("/architecture/rogue.html\n/reference/cli.html\n", encoding="utf-8")
     red = repo / "red.yaml"
-    red.write_text("{}\n", encoding="utf-8")
+    red.write_text("reference/cli.html: api/cli.html\n", encoding="utf-8")
 
-    report = rr.run_reconcile(base=base, repo_root=repo, occurrence_map_path=occ, redirect_map_path=red)
+    report = rr.run_reconcile(
+        base=base,
+        repo_root=repo,
+        moves_ledger_path=occ,
+        url_baseline_path=baseline,
+        redirect_map_path=red,
+    )
 
     assert report.renames_examined == 1  # non-vacuous
     assert report.moves_examined == 1
@@ -466,8 +470,10 @@ def test_run_reconcile_end_to_end_with_fixtures(tmp_path: Path) -> None:
                 base,
                 "--repo-root",
                 str(repo),
-                "--occurrence-map",
+                "--moves",
                 str(occ),
+                "--url-baseline",
+                str(baseline),
                 "--redirect-map",
                 str(red),
             ]
@@ -481,8 +487,10 @@ def test_run_reconcile_end_to_end_with_fixtures(tmp_path: Path) -> None:
                 base,
                 "--repo-root",
                 str(repo),
-                "--occurrence-map",
+                "--moves",
                 str(occ),
+                "--url-baseline",
+                str(baseline),
                 "--redirect-map",
                 str(red),
                 "--strict",

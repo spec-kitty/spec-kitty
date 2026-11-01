@@ -47,7 +47,10 @@ checker (``destination.relative_to(REPO_ROOT)`` raising ``ValueError``).  The
 archived ``docs/archive/`` ``1x``/``2x`` tracks are fully in scope: their bodies
 are re-authored at the new depth (so the spine resolves them as unmoved).
 
-``occurrence_map.yaml`` is **read-only** here (the orchestrator owns it).  The
+The move source is **read-only** here. By default it is the standing moves
+ledger ``site/moves.yaml`` (#6927, #2358), resolved through
+:mod:`scripts.docs.bulk_ref_rewrite`; a Mission's own ``occurrence_map.yaml``
+can be passed with ``--occurrence-map``.  The
 ``--check`` mode is the report-only body-link-resolution gate WP14 can flip
 blocking, so the broken-relative-link class cannot silently recur.
 """
@@ -613,7 +616,12 @@ def check_dead_body_links_diff_scoped(
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
-    parser.add_argument("--occurrence-map", type=Path, default=None)
+    parser.add_argument(
+        "--occurrence-map",
+        type=Path,
+        default=None,
+        help=f"Move source: the standing ledger or a Mission occurrence map (default: {DEFAULT_OCCURRENCE_MAP}).",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Print planned rewrites; write nothing.")
     parser.add_argument(
         "--check",
