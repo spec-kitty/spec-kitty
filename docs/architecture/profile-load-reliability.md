@@ -168,6 +168,35 @@ If pursued, rename WP-template references `/spk-charter-profile-load → /spk-lo
 - Gate on `pytest tests/charter_offering/test_spk_skill_pack.py`.
 - The research/documentation missing-section gap is a **separate additive** item.
 
+### 4.5 A read-only render reads only the profiles it names (#6917)
+
+The work-package board (`spec-kitty agent tasks status`) renders one structural boolean
+per claimed row: `profile.sentinel`, the 👤 human-in-charge marker. Until #6917 that
+boolean cost a whole `ActiveCharterService` build — pack context, activation ledger,
+offering service — and then the complete `AgentProfileRepository`: every shipped profile
+document plus the 358-node lineage graph. Measured on this repository: 1.14 s for the
+service, 0.93 s for the catalogue read inside a ~4 s command.
+
+Two current facts replace that cost:
+
+- **Id-scoped read.** `ActiveCharterService.agent_profile_sentinels(ids)` (and the
+  `build_agent_profile_sentinels(repo_root, ids)` builder the CLI calls) resolves exactly
+  the ids the rows name. It reuses `AgentProfileRepository`'s own loader — built-in → org →
+  project layer order, overlay field merge, schema/skip handling, `applies_to_languages`
+  gate — through an opt-in `only_ids` scope, so answers agree with a full load. It skips
+  `PackContext` because `sentinel` is structural, like `get_provenance()`; a narrowed or
+  denied `activated_agent_profiles` therefore cannot hide the marker.
+  Contract: `kitty-specs/issue-6917-sentinel-scoped-profile-read-01M6BV17/contracts/agent-profile-sentinels.md`.
+- **Lazy lineage.** `AgentProfileRepository` builds the shipped DRG on first lineage use
+  (`_graph()`, restored from #6462 after a later refactor re-froze it in the constructor),
+  so profile-map readers — `get`, `list_all`, provenance, the sentinel read — never parse it.
+
+Guarded by `tests/charter/test_tasks_status_sentinel_scope_6917.py` (a census on the
+production CLI entry point: a two-profile board parses two documents, an empty board
+parses none, a positive control proves the counter sees the whole catalogue) and
+`tests/charter/test_agent_profile_scoped_load.py` (layer/merge/language parity with the
+full repository).
+
 ## 5. Scope boundary
 
 | Near-term (shipped or queued) | Backlog |
