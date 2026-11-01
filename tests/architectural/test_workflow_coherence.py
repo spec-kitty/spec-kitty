@@ -342,6 +342,16 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   each out to the command's test-owning modules, so the module matrix is its per-PR executor. Every
 #   glob is ``**/``-prefixed (non-src), so the group stays out of the ``unmatched`` union. Pinned
 #   against the #6166/#6174 maintainer inventory by tests/architectural/test_cli_commands_routing.py.
+#
+# * ``charter_activation`` (#6336) — the charter activation store
+#   (``.kittify/charter/charter.yaml``, ``.kittify/charter/activation.yaml``) plus the
+#   internal-pack pin lockfile (``packs/internal.source.yaml``). Gates no router job BY
+#   DESIGN: ``select_modules`` fans it out to the ``charter`` module
+#   (``ACTIVATION_STORE_MODULE_FANOUT``, non-census because the consumer census records
+#   only resolved ``src/**`` imports and ``packs/built-in/missions/**`` runtime reads), so
+#   the module matrix is its per-PR executor. Every glob is non-src, so the group stays out
+#   of the ``unmatched`` union. Pinned by tests/ci/test_charter_activation_routing.py and
+#   the fan-out wiring pin in tests/architectural/test_gate_selection_authority.py.
 _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
     {
         "any_src",
@@ -352,6 +362,7 @@ _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
         "mission_pack_content",
         "cli_lifecycle",
         "mission_type_definitions",
+        "charter_activation",
         "cli_cmd_charter",
         "cli_cmd_consolidate",
         "cli_cmd_agent",

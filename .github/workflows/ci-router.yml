@@ -145,6 +145,9 @@ jobs:
       # Lifecycle-command group (#6166): non-src (the glob is **/-prefixed, not src/..., so it is not
       # src-backed), like mission_pack_content above; gates no job BY DESIGN (fanned out to agent + core_misc). Never in the unmatched loop.
       cli_lifecycle: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_lifecycle }}
+      # Activation-store group (#6336): NON-src, like mission_manifest above; gates no job BY DESIGN
+      # (fanned out to the charter module via gate_selection.ACTIVATION_STORE_MODULE_FANOUT). Never in the unmatched loop.
+      charter_activation: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.charter_activation }}
       # Per-command fan-out groups (#6221): non-src, like cli_lifecycle above; each gates no job BY DESIGN
       # (fanned out to its command's test-owning modules via gate_selection.CLI_COMMAND_MODULE_FANOUT). Never in the unmatched loop.
       cli_cmd_charter: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_cmd_charter }}
@@ -230,6 +233,25 @@ jobs:
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
+              # issue #6336: the activation ledger's kernel-side floor. Verbatim from the scrub
+              # `charter` roots; its readers are tests/charter/activation/**, this group's test dirs.
+              - 'src/kernel/activation_ledger_store.py'
+            # issue #6336: activation-store group, NON-src (not in the unmatched loop, so it can
+            # never mask an unmapped src/** change, FR-004). An edit to the charter activation store
+            # (.kittify/charter/charter.yaml -- the charter read authority -- and
+            # .kittify/charter/activation.yaml, ADR 2026-10-19-1) or to the internal-pack pin lockfile
+            # changes what the charter module's config-parity tests assert, but it matches no src
+            # group, so before this group the diff selected ZERO modules and the charter shard never
+            # ran (how #6333 reached main unchecked). packs/internal/** is untracked since #6451, so the
+            # pin lockfile is the only in-repo internal-pack signal. It cannot ride on the `charter`
+            # group above: that group's globs are a verbatim transcription of the scrub's `charter`
+            # roots (the charter SOURCE subsystem), which is why #6334 refused that edit. Not a module:
+            # select_modules fans it out to `charter` (gate_selection.ACTIVATION_STORE_MODULE_FANOUT).
+            # Gates no router job BY DESIGN; the module matrix is its per-PR executor.
+            charter_activation:
+              - '.kittify/charter/charter.yaml'
+              - '.kittify/charter/activation.yaml'
+              - 'packs/internal.source.yaml'
             # issue #6125: dossier is a src-backed module (minted so tests/dossier runs per-PR);
             # globs verbatim the scrub `dossier` roots; src-backed, so it joins the unmatched
             # union and the heavy-battery `if:` below.

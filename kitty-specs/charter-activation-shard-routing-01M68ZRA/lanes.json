@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "charter-activation-shard-routing-01M68ZRA",
+  "mission_id": "01M68ZRAP3P6XS37QF3CY7X7SE",
+  "mission_branch": "issue-6336-charter-activation-shard-routing",
+  "target_branch": "issue-6336-charter-activation-shard-routing",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/ci-module-registry.yml",
+        ".github/workflows/ci-router.yml",
+        "docs/changelog/CHANGELOG.md",
+        "scripts/ci/gate_selection.py",
+        "tests/architectural/test_gate_selection_authority.py",
+        "tests/architectural/test_workflow_coherence.py",
+        "tests/ci/test_charter_activation_routing.py",
+        "tests/release/ci_retirement_scrub.json"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:47:30.868155+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "6ff0eaa23c4ffa34588a970b05625ba800eea78f"
+}
