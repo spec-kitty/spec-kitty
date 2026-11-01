@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Engine + contract + body-hash test; 75 tests, 100% coverage, ruff/format/mypy strict clean. --check on docs/: 715 files (audience 339, ADR 228, related 413, 77 external refs, 2 dropped dangling refs).",
-        "Independent review started"
+        "Independent review started",
+        "Changes requested: 1 blocker, 1 major, 7 minor/nit"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
@@ -40,7 +41,7 @@
         "reviewer": "reviewer-subagent",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": 7623,
       "shell_pid_created_at": "1793544465.28",
       "subtasks": {
