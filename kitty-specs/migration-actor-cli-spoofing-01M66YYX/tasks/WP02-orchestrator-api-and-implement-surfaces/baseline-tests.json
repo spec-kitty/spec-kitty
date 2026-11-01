@@ -1,0 +1,25 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-10-30T19:25:42Z",
+  "base_branch": "7a829c3eb90dd746c1ef52cf4fdfd54a1347e457",
+  "base_commit": "7a829c3eb90dd746c1ef52cf4fdfd54a1347e457",
+  "test_runner": "custom",
+  "total": 2,
+  "passed": 0,
+  "failed": 2,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "tests.status.test_writer_serialization.test_retro_append_waits_for_rollback_and_lands_after_truncate",
+      "error": "AssertionError: [FeatureStatusLockTimeoutError('Timed out acquiring status lock /tmp/spec-kitty-pytest-tmp/run-133733/popen-gw6/test_r...tion-01J6XW9K.status.lock after 10.0s: held by pid 134167 (thre",
+      "file": "unknown:?"
+    },
+    {
+      "test": "tests.status.test_mission_lock_order.test_lifecycle_path_and_implement_claim_path_do_not_deadlock",
+      "error": "AssertionError: assert {'B': Feature...78342+00:00')} == {}",
+      "file": "unknown:?"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml",
+  "test_timeout_seconds": 300
+}

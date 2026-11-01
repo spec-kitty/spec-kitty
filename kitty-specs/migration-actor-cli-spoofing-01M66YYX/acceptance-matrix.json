@@ -1,0 +1,119 @@
+{
+  "mission_slug": "migration-actor-cli-spoofing-01M66YYX",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "One refusal predicate and one canonical message live beside MIGRATION_ACTOR_PREFIX in status/models.py, and every surface calls them.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_the_leaf_refuses_every_seed_shaped_identity",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:37:43.989088+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "agent status emit --actor refuses a seed-shaped identity before any write (exit 1, canonical message, byte-identical event log).",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_status_emit_refuses_a_seed_and_writes_nothing",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:37:49.253743+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The four orchestrator-api lifecycle verbs refuse a seed-shaped --actor with error_code USAGE_ERROR before any state change.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/orchestrator_api/test_caller_seed_refusal_6754.py::test_transition_refuses_a_caller_supplied_seed (+ the 3 sibling verbs)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:37:54.047432+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The hidden implement --actor refuses a seed-shaped identity before workspace allocation and before the claim.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement_caller_seed_refusal_6754.py::test_implement_refuses_a_caller_supplied_seed_before_any_allocation",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:37:58.777145+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "actor_from_option fails closed: a seed-shaped value is refused unless the caller passes recorded=True.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_actor_from_option_refuses_a_caller_supplied_seed",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:03.351115+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "A migration: identity re-recorded from the log (recorded=True) keeps its reconstruction-seed status.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_actor_from_option_replays_a_recorded_seed_unchanged; tests/specify_cli/cli/commands/agent/test_move_task_structured_actor_6400.py::test_recorded_migration_reviewer_identity_stays_a_reconstruction_seed",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:07.642102+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "An explicit --agent migration:x stays tool 'migration' and is never a reconstruction seed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_an_explicit_agent_is_never_a_seed; test_move_task_structured_actor_6400.py::test_explicit_migration_agent_is_parsed_strictly_and_is_not_a_seed",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:11.942240+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "The in-process migration writers still build migration:-actor rows (they bypass the emit shell).",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_the_backfill_writer_still_builds_a_seed_row",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:15.961410+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "The refusal/allowed matrix is pinned per surface family through the real entry points.",
+      "proof_type": "automated_test",
+      "evidence": "the three matrix modules: tests/status/, tests/specify_cli/orchestrator_api/ and tests/specify_cli/cli/commands/ test_caller_seed_refusal_6754.py",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:19.783157+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "The refusal never rewrites the value: nothing is appended, so no log records an identity the caller did not write.",
+      "proof_type": "automated_test",
+      "evidence": "tests/status/test_caller_seed_refusal_6754.py::test_status_emit_refuses_a_seed_and_writes_nothing (event log byte-identical)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:24.049026+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The architecture doc, the recorded --actor help body and the changelog entry state the refusal and its compatibility consequence.",
+      "proof_type": "automated_test",
+      "evidence": "docs/architecture/status-model.md 'Who may write a seed'; docs/api/agent-subcommands.md status emit --actor block; docs/changelog/CHANGELOG.md [Unreleased] Breaking (#6754)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-30T19:38:28.605177+00:00",
+      "notes": ""
+    }
+  ],
+  "negative_invariants": []
+}
