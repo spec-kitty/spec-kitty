@@ -587,6 +587,24 @@ same day**: filed, labeled, and parented under a functional epic (never a meta
 rollup). New issues get processed by a triage pass immediately, so the next
 landing pass starts from a clean queue.
 
+## Pausing a PR's CI (`pr:pause-ci`)
+
+When many PRs are rebased at once, Actions queues far more work than it can run. Label every
+PR that is not being landed `pr:pause-ci`:
+
+- **Heavy jobs skip.** The root job of each PR workflow (`changes`, `generate-matrix`, `lint`
+  and so on) carries `!contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')`, so
+  everything downstream skips too.
+- **The PR cannot merge.** The required gates (`router gate`, `CI Modules gate`,
+  `Clean install verification`) still run, because a skipped required check passes, and fail
+  with "CI is paused on this PR by the pr:pause-ci label; remove the label to run CI."
+- **It takes effect at once.** `.github/workflows/pr-pause-ci.yml` cancels the PR's queued and
+  in-progress runs and posts a failing check under each required gate name, so a PR that was
+  already green stops being mergeable.
+
+To resume, remove the label. The same workflow closes and reopens the PR, which starts CI with
+the current labels (re-running an old run would replay the old label list).
+
 ## Gotchas
 
 Field notes from the 2026-07-04 landing pass. Where the friction has since
