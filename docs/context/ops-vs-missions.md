@@ -2,7 +2,7 @@
 title: Ops vs. Missions
 description: 'What separates a lightweight, governed ad-hoc Op from a full spec-to-consolidate Mission, and a concrete rule for choosing between them.'
 doc_status: active
-updated: '2026-09-28'
+updated: '2026-11-01'
 type: explanation
 related:
 - docs/context/mission-types.md
@@ -103,11 +103,12 @@ differs. `dispatch` opens a standalone **per-invocation Op record** — its own
 file at `kitty-ops/<invocation_id>.jsonl` (`src/specify_cli/invocation/writer.py`
 / `executor.py`) — that stays open until you explicitly close it with
 `profile-invocation complete`. `spec-kitty next` never opens one of those. It
-instead appends paired `started`/`completed` **lifecycle records** — a
+instead writes paired `started`/`completed` **lifecycle records** — a
 different schema, `ProfileInvocationRecord`
-(`src/specify_cli/invocation/lifecycle.py`) — to one shared, append-only
-`kitty-ops/lifecycle.jsonl` log; there is no per-invocation file and no
-explicit "close" command for it.
+(`src/specify_cli/invocation/lifecycle.py`). Each record is its own file,
+`kitty-ops/lifecycle/<ulid>.json`, so two branches never edit the same lifecycle
+file. The older shared `kitty-ops/lifecycle.jsonl` log is still read, never
+written. There is no "close" command for lifecycle records.
 
 ## Examples
 

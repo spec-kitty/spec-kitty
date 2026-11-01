@@ -35,7 +35,3 @@ kitty-specs/**/canary-evidence/** linguist-generated=true
 .kittify/workspaces/** -diff
 .kittify/migrations/** linguist-generated=true
 .kittify/migrations/** -diff
-# The Op lifecycle log is append-only (one JSON line per started/completed record, paired by
-# `doctor`). Two branches that each append conflict at the end of the file; git's built-in
-# `union` driver keeps both sides' lines, so local rebases and merges stop conflicting on it.
-kitty-ops/lifecycle.jsonl merge=union
