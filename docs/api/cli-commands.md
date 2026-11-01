@@ -928,8 +928,10 @@ _Manage org Charter Pack authoring (init, validate) and registration (add, remov
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --local-path           <str>  Pack root: relative to the project root,    │
 │                                  absolute, ~-prefixed, or a ${VAR} template  │
-│                                  (stored verbatim, never expanded or         │
-│                                  frozen). May be absent when --url is given. │
+│                                  (tokens are never expanded or frozen;       │
+│                                  redundant ./ and trailing separators are    │
+│                                  normalised). May be absent when --url is    │
+│                                  given.                                      │
 │                                  [required]                                  │
 │    --url                  <str>  Remote source URL. Registers the pack for   │
 │                                  `charter fetch` instead of requiring a      │

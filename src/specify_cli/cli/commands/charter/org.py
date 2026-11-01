@@ -336,7 +336,8 @@ def org_add(
         "--local-path",
         help=(
             "Pack root: relative to the project root, absolute, ~-prefixed, or a ${VAR} template "
-            "(stored verbatim, never expanded or frozen). May be absent when --url is given."
+            "(tokens are never expanded or frozen; redundant ./ and trailing separators are normalised). "
+            "May be absent when --url is given."
         ),
     ),
     url: str | None = typer.Option(
@@ -448,9 +449,11 @@ def _add_entry(
     All checks here happen before any filesystem write, so a refusal cannot
     leave the config touched.
     """
+    from typing import cast
+
     from pydantic import ValidationError
 
-    from charter.offering.drg.org_pack_config import OrgPackConfig
+    from charter.offering.drg.org_pack_config import OrgPackConfig, SourceType
 
     if not name or not name.strip():
         _refuse(ORG_PACK_INVALID, "a pack name is required (it cannot be blank or whitespace only)", json_output=json_output)
@@ -474,12 +477,16 @@ def _add_entry(
             json_output=json_output,
         )
 
+    # `_SOURCE_TYPES` above proves membership, so the cast adds no new claim;
+    # it just says the checked value is the model's own literal union.
+    resolved_source_type = source_type if source_type is not None else ("git" if url is not None else None)
+
     try:
         return OrgPackConfig(
             name=name,
             local_path=Path(local_path),
             subdir=subdir,
-            source_type=source_type if source_type is not None else ("git" if url is not None else None),
+            source_type=cast("SourceType", resolved_source_type) if resolved_source_type is not None else None,
             url=url,
             ref=ref,
         )
@@ -495,11 +502,13 @@ def _checked_pack_root(pack: OrgPackConfig, *, repo_root: Path, local_path: str,
     materialize it); with ``--url`` it is fine and the caller prints the
     ``charter fetch`` follow-up.
     """
-    from charter.drg import OrgPackEnvVarUnsetError
+    from charter.drg import OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError
 
     try:
         pack_root = pack.effective_root(repo_root)
-    except OrgPackEnvVarUnsetError as exc:
+    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError) as exc:
+        # Both are bad *input* (an unset token, a subdir that escapes through a
+        # symlink), so both are refusals rather than tracebacks (NFR-004).
         _refuse(ORG_PACK_INVALID, str(exc), json_output=json_output)
     if pack_root.is_file():
         _refuse(
@@ -574,7 +583,7 @@ def org_remove(
     An unknown name exits 1 listing the configured names; the config is then
     byte-identical.
     """
-    from charter.drg import OrgPackEnvVarUnsetError, unregister_org_pack
+    from charter.drg import unregister_org_pack
 
     repo_root = _project_root(json_output)
     config_path = repo_root / ".kittify" / "config.yaml"
@@ -591,12 +600,16 @@ def org_remove(
 
     try:
         removed = unregister_org_pack(repo_root, name)
-    except ValueError as exc:
+    except (ValueError, OSError) as exc:
+        # Same refusal surface as add's write: a seam failure is not a traceback,
+        # and the seam's atomic write leaves the config as it found it.
         _refuse(ORG_PACK_UNREADABLE, str(exc), json_output=json_output, payload={"pack": name, "config": str(config_path)})
 
     try:
         pack_root = str(removed.effective_root(repo_root))
-    except OrgPackEnvVarUnsetError:
+    except ValueError:
+        # An unset ${VAR}/~ token (or an escaping subdir) only means the printed
+        # directory cannot be resolved; the raw stored value is what stays.
         pack_root = str(removed.local_path)
     payload = {"removed": removed.name, "config": str(config_path), "pack_root": pack_root}
     if json_output:

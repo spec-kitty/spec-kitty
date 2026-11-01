@@ -655,8 +655,9 @@ def _org_pack_entry(pack: OrgPackConfig) -> CommentedMap:
     The key set is exactly :class:`OrgPackConfig`'s declared fields (minus the
     optional ``pack_id``, which identity backfill owns): a written entry can
     therefore never carry a key the reader would reject (``extra="forbid"``).
-    ``local_path`` is written verbatim -- an env-var/tilde template is never
-    expanded or frozen into a machine-specific path.
+    ``local_path`` keeps its ``${VAR}``/``~`` tokens -- they are never expanded or
+    frozen into a machine-specific path (only redundant ``./`` and trailing
+    separators are already normalised by the path model).
     """
     entry = CommentedMap()
     entry["name"] = pack.name
