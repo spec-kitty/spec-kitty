@@ -1,0 +1,33 @@
+{
+  "accept_commit": "623a0b3a0dc8b0c780436cae6ccf34685e0b030d",
+  "acceptance_history": [
+    {
+      "accept_commit": "623a0b3a0dc8b0c780436cae6ccf34685e0b030d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:08:58.375993+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "a11adb6829d354d58583c7d2e0c1338fbf954403"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:08:58.375993+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "a11adb6829d354d58583c7d2e0c1338fbf954403",
+  "baseline_merge_commit": "10b3633d987ec4d62004026d66d04659334aa3b9",
+  "created_at": "2026-11-01T15:18:26.205491+00:00",
+  "flattened": false,
+  "friendly_name": "upgrade dry run would apply heading",
+  "merged_at": "2026-11-01T17:10:23.027674+00:00",
+  "merged_commit": "10b3633d987ec4d62004026d66d04659334aa3b9",
+  "mid8": "01M6BV1G",
+  "mission_id": "01M6BV1GGRS0JMA284R6GDY60G",
+  "mission_number": 246,
+  "mission_slug": "upgrade-dry-run-would-apply-heading-01M6BV1G",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances upgrade dry run would apply heading on issue-6234-upgrade-dry-run-would-apply-heading so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "upgrade dry run would apply heading",
+  "slug": "upgrade-dry-run-would-apply-heading-01M6BV1G",
+  "status_phase": "1",
+  "target_branch": "issue-6234-upgrade-dry-run-would-apply-heading",
+  "topology": "single_branch"
+}

@@ -1,0 +1,92 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6C1EHGKJXH7N6RG14MR1TFD",
+  "materialized_at": "2026-11-01T17:10:24.531108+00:00",
+  "mission_number": "246",
+  "mission_slug": "upgrade-dry-run-would-apply-heading-01M6BV1G",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C1EG9NSMHAQYXWJP96HJ9G",
+      "last_transition_at": "2026-11-01T17:10:23.285542+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-11-01T16:34:19Z – python-pedro – shell_pid=3669734 – WP01 implemented: dry-run heading/marker chosen once from result.dry_run in _display_upgrade_results; _GOLDEN_APPLIED_DRY_RUN and the sequenced-verdict CLI assertions retargeted, _GOLDEN_APPLIED untouched. Evidence: tests/upgrade/test_upgrade_outcome_rendering.py 49 passed (full module, incl. the SC-004 no-writes rows); tests/upgrade/test_dry_run_sequenced_verdict_cli.py 3 passed; ruff check/format clean; mypy clean. Red-first capture: with only the golden corrected, the module failed on the heading lines (Migrations applied: vs Migrations that would be applied:).",
+        "Pre-review gate skipped with its documented per-invocation opt-out: the derived scope is empty and falls back to the full suite, which times out at the 300s budget, and the frontmatter pre_review_test_scope recovery is rejected by WPMetadata (#6865, #3046). Evidence run instead: tests/upgrade/test_upgrade_outcome_rendering.py (49 passed, full module), tests/upgrade/test_dry_run_sequenced_verdict_cli.py (3 passed), ruff check/format clean, mypy clean.",
+        "Review round 1 — WP01 (reviewer: reviewer-renata lens, executed in-session).\n\nChecklist\n1. Dead code — N/A: no new module, function, class or flag. The change is two local\n   assignments inside an existing renderer.\n2. Synthetic-fixture test — PASS: both dry-run assertions drive the real `upgrade` typer\n   command in-process over a real git-backed fixture; the golden is captured output, not a\n   constructed literal. Deleting the renderer branch fails both (verified red-first: with only\n   the golden retargeted, the module failed on `Migrations applied:` vs `Migrations that would\n   be applied:`).\n3. Silent empty return — PASS: the only early return is the pre-existing, documented\n   `_print_upgrade_section` empty-list guard; the new code adds no swallow.\n4. FR coverage — PASS: FR-001/FR-002 (golden + CLI heading/marker assertions), FR-003 (the\n   unedited `_GOLDEN_APPLIED` real-run golden), FR-005 (single `if/else` decision site,\n   inspected), FR-004 is WP02's.\n5. Frozen surface — PASS: no frozen file touched; `--json` payload keys and\n   `compat-planner.json` are unchanged (`migrations_applied` still emitted at upgrade.py:950).\n6. Locked decision — PASS: C-001/C-002 hold (presentation only; no runner/registry/exit-code\n   behaviour change), C-005 holds (the ADR's closing line is asserted verbatim by the golden).\n7. Shared-file ownership — PASS: single lane; WP02 depends on WP01 and touches only docs.\n8. Production fragility — PASS: no new `raise`; `_display_upgrade_results` still cannot raise.\n\nFindings and dispositions\n- F1 (fixed in this round): `src/specify_cli/upgrade/runner.py:620` still named\n  ``Migrations applied:`` in a comment describing the predicted dry-run verdict, which is now\n  the wrong heading in that mode. Reworded to \"the run's applied list\" (comment only, no\n  behaviour change). This is the one out-of-owned-map edit and is recorded here.\n- F2 (accepted, no change): the dry run keeps `Migrations skipped (already applied or not\n  needed):` unchanged. The heading claims project state, not action taken, so it stays true on\n  the pre-run tree; the issue names only the applied heading (research D5).\n- F3 (accepted, no change): the golden's environment-derived\n  `Would repair N supporting surface paths` line is order-dependent when the file is run as a\n  single node (an isolated runtime home reads 125, a materialized one reads 1). Pre-existing on\n  origin/main (reproduced on a stashed tree), unrelated to this diff, and green in the module's\n  own order and in CI. Filed as an observation in the PR's Deferred note.\n\nVerification run for this round\n- `tests/upgrade/test_upgrade_outcome_rendering.py` — 49 passed (full module)\n- `tests/upgrade/test_dry_run_sequenced_verdict_cli.py` — 3 passed\n- `ruff check` + `ruff format --check` on the four touched Python files — clean\n- `mypy src/specify_cli/cli/commands/upgrade.py` — clean\n\nVerdict: APPROVE."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3733170,
+      "shell_pid_created_at": "1793551690.28",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#6234"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C1EHGKJXH7N6RG14MR1TFD",
+      "last_transition_at": "2026-11-01T17:10:24.531108+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs + changelog fragment for #6234. check_changelog_style 0 errors (fragment 728 chars), check_spelling 0 findings, check_docs_freshness errors=0 (13 pre-existing warnings).",
+        "Review round 1 — WP02 (reviewer: reviewer-renata lens, executed in-session).\n\nChecklist\n1. Dead code — N/A: no code.\n2. Synthetic-fixture test — N/A: documentation work package; its claims are the WP01 goldens.\n3. Silent empty return — N/A.\n4. FR coverage — PASS: FR-004's \"recorded reason\" lives in the two test docstrings (WP01) and\n   the docs sentence plus changelog fragment here.\n5. Frozen surface — PASS: `docs/changelog/CHANGELOG.md` untouched (fragment only), no JSON or\n   contract docs edited.\n6. Locked decision — PASS: C-002 (no contract docs) and the page's existing structure preserved;\n   no sample-output block invented.\n7. Shared-file ownership — PASS: two files, both under docs/, disjoint from WP01.\n8. Production fragility — N/A.\n\nVerification\n- `python -m scripts.docs.check_changelog_style` — 0 errors (fragment is 728 characters; no\n  length warning for 6234.fixed.md)\n- `python -m scripts.docs.check_spelling --pass unreleased` — 0 findings\n- `python -m scripts.docs.check_docs_freshness --ci` — errors=0 (13 pre-existing warnings, none\n  from this diff)\n- `pytest tests/architectural/test_no_legacy_terminology.py` — 98 passed\n\nFindings and dispositions\n- F1 (fixed): the first draft of the how-to sentence ended \"A dry run writes nothing, and its\n  closing line says so.\", which reads as two half-sentences; tightened to one statement about\n  the heading/markers plus the closing line, committed in this round.\n- F2 (accepted): the fragment is named `6234.fixed.md` (issue id). The fragment README allows\n  the issue id before a PR exists and asks for the PR number at hand-off; renamed in the\n  hand-off step if the PR number differs.\n\nVerdict: APPROVE."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3756224,
+      "shell_pid_created_at": "1793551776.47",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#6234"
+      ]
+    }
+  }
+}
