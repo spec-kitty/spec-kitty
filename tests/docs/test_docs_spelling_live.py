@@ -15,7 +15,7 @@ from typing import Final
 import pytest
 
 from scripts.docs import check_spelling as cs
-from scripts.release import validate_release
+from scripts.release import changelog_fragments, validate_release
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -68,11 +68,12 @@ def test_us_pass_clean() -> None:
 
 
 def _assert_unreleased_pass_clean(changelog: Path) -> None:
-    """The live-file contract: zero findings, and the scan covered exactly the section's lines."""
+    """The live-file contract: zero findings, and the scan covered exactly the section's lines plus every fragment's."""
     result = cs.run_pass("unreleased", REPO_ROOT, changelog)
     section = validate_release.unreleased_section(changelog.read_text(encoding="utf-8"))
-    expected = 0 if section is None else len(section.lines)
-    assert result.scanned == expected, f"Unreleased pass scanned {result.scanned} line(s); the section has {expected}"
+    fragments = changelog_fragments.fragment_paths(REPO_ROOT / changelog_fragments.FRAGMENT_DIR_REL)
+    expected = (0 if section is None else len(section.lines)) + sum(len(path.read_text(encoding="utf-8").splitlines()) for path in fragments)
+    assert result.scanned == expected, f"Unreleased pass scanned {result.scanned} line(s); the section and fragments have {expected}"
     assert not result.findings, f"Unreleased US-spelling findings:\n{_report(result)}"
 
 

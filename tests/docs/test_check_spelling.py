@@ -643,3 +643,19 @@ def test_an_unreleased_pass_on_a_normal_config_is_unchanged(tmp_path: Path) -> N
 
     assert code == 1
     assert len(finding_lines(lines)) == 2
+
+
+def test_unreleased_pass_also_checks_changelog_fragments(tmp_path: Path) -> None:
+    """A per-PR fragment in ``docs/changelog/unreleased/`` is part of the Unreleased section, so it gets the US pass."""
+    changelog = "# Changelog\n\n## [Unreleased]\nclean line\n\n## [1.0.0] - 2026-01-01\n"
+    make_repo(
+        tmp_path,
+        {
+            CHANGELOG_REL: changelog,
+            "docs/changelog/unreleased/7.fixed.md": "- **A fix** (#7).\n  - the colour is right now\n",
+            "docs/changelog/unreleased/README.md": "The colour of this readme is not an entry.\n",
+        },
+    )
+    code, lines = run_main(tmp_path, "--pass", "unreleased")
+    assert code == 1
+    assert finding_lines(lines) == ["docs/changelog/unreleased/7.fixed.md:2: [us-spelling] colour — fix: color"]

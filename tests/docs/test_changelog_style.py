@@ -981,3 +981,75 @@ def test_results_are_deterministic_across_three_runs() -> None:
     assert len(runs[0]) > 10
     assert runs[0] == sorted(runs[0], key=lambda finding: finding.sort_key)
     assert [format_finding(f) for f in runs[0]] == [format_finding(f) for f in runs[2]]
+
+
+# ---------------------------------------------------------------------------
+# Per-PR changelog fragments (docs/changelog/unreleased/): the same rules, reported at the fragment's own lines
+# ---------------------------------------------------------------------------
+
+
+def _fragments(tmp_path: Path, files: dict[str, str]) -> Path:
+    directory = tmp_path / "docs" / "changelog" / "unreleased"
+    directory.mkdir(parents=True)
+    for name, text in files.items():
+        (directory / name).write_text(text, encoding="utf-8")
+    return directory
+
+
+def _clean_changelog(tmp_path: Path) -> Path:
+    path = tmp_path / "CHANGELOG.md"
+    path.write_text(doc("### Added", "- **A thing** (#1). It works."), encoding="utf-8")
+    return path
+
+
+def test_a_clean_fragment_passes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    fragments = _fragments(tmp_path, {"6862.fixed.md": "- **A fix** (#6862). **Before:** broken. **After:** works.\n"})
+
+    assert main(["--changelog", str(_clean_changelog(tmp_path)), "--fragments", str(fragments)]) == 0
+    assert "0 error(s), 0 warning(s)" in capsys.readouterr().out
+
+
+def test_a_fragment_finding_names_the_fragment_and_its_own_line(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    body = "- **Fine** (#1). Short.\n- missing its bold headline (#2).\n"
+    fragments = _fragments(tmp_path, {"6862.added.md": body})
+
+    assert main(["--changelog", str(_clean_changelog(tmp_path)), "--fragments", str(fragments)]) == 1
+    out = capsys.readouterr().out
+    assert f"{fragments / '6862.added.md'}:2: [headline-missing] [Added]" in out
+
+
+def test_a_fragment_over_the_length_limit_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    fragments = _fragments(tmp_path, {"7.changed.md": _entry_of_length(1201) + "\n"})
+
+    assert main(["--changelog", str(_clean_changelog(tmp_path)), "--fragments", str(fragments)]) == 1
+    assert "[length]" in capsys.readouterr().out
+
+
+def test_an_internal_fragment_keeps_the_one_line_rule(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    fragments = _fragments(tmp_path, {"7.internal.md": "- Refactor one thing.\n  - with a nested item\n"})
+
+    assert main(["--changelog", str(_clean_changelog(tmp_path)), "--fragments", str(fragments)]) == 1
+    assert "[internal-shape]" in capsys.readouterr().out
+
+
+def test_a_misnamed_fragment_fails_the_guard(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    fragments = _fragments(tmp_path, {"7.fixes.md": "- **A fix** (#7). Short.\n"})
+
+    assert main(["--changelog", str(_clean_changelog(tmp_path)), "--fragments", str(fragments)]) == 1
+    assert "[fragment]" in capsys.readouterr().out
+
+
+def test_an_explicit_changelog_without_fragments_flag_scans_no_fragments(tmp_path: Path) -> None:
+    """A fixture changelog must not pick up the live repository's fragments."""
+    assert main(["--changelog", str(_clean_changelog(tmp_path))]) == 0
+
+
+def test_a_relative_default_changelog_still_checks_the_live_fragments(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts.docs import check_changelog_style as guard
+
+    seen: list[Path] = []
+    monkeypatch.setattr(guard, "check_fragments", lambda directory: seen.append(directory) or [])
+
+    guard.main(["--changelog", "docs/changelog/CHANGELOG.md"])
+
+    assert seen == [guard.DEFAULT_FRAGMENT_DIR]

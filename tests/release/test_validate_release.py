@@ -863,3 +863,53 @@ def test_versionless_unreleased_above_finalized_section_unchanged(tmp_path: Path
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert "All required checks passed." in result.stdout
+
+
+def test_tag_mode_refuses_unassembled_changelog_fragments(tmp_path: Path) -> None:
+    """A tag must not ship while per-PR fragments still sit outside the finalized notes."""
+    init_repo(tmp_path)
+    write_release_files(tmp_path, "3.2.6.1", "## [3.2.6.1] - 2026-09-08\n- Fix first run\n")
+    fragments = tmp_path / "docs" / "changelog" / "unreleased"
+    fragments.mkdir(parents=True)
+    (fragments / "README.md").write_text("How to write a fragment.\n", encoding="utf-8")
+    (fragments / "7001.fixed.md").write_text("- **Left behind** (#7001).\n", encoding="utf-8")
+    stage_and_commit(tmp_path, "Hotfix release with a stray fragment")
+    tag(tmp_path, "v3.2.6")
+    tag(tmp_path, "v3.2.6.1")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v3.2.6.1")
+
+    assert result.returncode == 1
+    assert "7001.fixed.md" in result.stderr
+    assert "changelog_fragments assemble --write" in result.stderr
+
+
+def test_a_release_cut_branch_refuses_unassembled_fragments(tmp_path: Path) -> None:
+    """Branch mode on a finalized section (the release-cut PR) catches a leftover before the tag."""
+    init_repo(tmp_path)
+    write_release_files(tmp_path, "3.2.6.1", "## [3.2.6.1] - 2026-09-08\n- Fix first run\n")
+    fragments = tmp_path / "docs" / "changelog" / "unreleased"
+    fragments.mkdir(parents=True)
+    (fragments / "7001.fixed.md").write_text("- **Left behind** (#7001).\n", encoding="utf-8")
+    stage_and_commit(tmp_path, "Release cut with a stray fragment")
+    tag(tmp_path, "v3.2.6")
+
+    result = run_validator(tmp_path, "--mode", "branch", "--tag-pattern", "v*.*.*")
+
+    assert result.returncode == 1
+    assert "7001.fixed.md" in result.stderr
+
+
+def test_an_open_cycle_branch_accepts_fragments(tmp_path: Path) -> None:
+    """While the section is still [Unreleased], fragments are the normal state."""
+    init_repo(tmp_path)
+    write_release_files(tmp_path, "3.2.6.1", unreleased_changelog("3.2.6.1", "- Fix first run"))
+    fragments = tmp_path / "docs" / "changelog" / "unreleased"
+    fragments.mkdir(parents=True)
+    (fragments / "7001.fixed.md").write_text("- **Pending** (#7001).\n", encoding="utf-8")
+    stage_and_commit(tmp_path, "Open cycle with a fragment")
+    tag(tmp_path, "v3.2.6")
+
+    result = run_validator(tmp_path, "--mode", "branch", "--tag-pattern", "v*.*.*")
+
+    assert result.returncode == 0, result.stderr
