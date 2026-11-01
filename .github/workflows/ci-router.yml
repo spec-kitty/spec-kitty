@@ -1265,9 +1265,9 @@ jobs:
   # kitty-specs/) and tests/contract/test_mission_status_payloads.py (its payload helper).
   # tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py (#5579) is listed as well: its
   # module row deselects the corpus marker, so no other required job runs it.
-  # The contract tool unit tests (tests/contract/test_bundle.py .. test_schema_formats.py) read no
-  # corpus: they run in the separate `tests-contract-tools` job below (with them this job
-  # took 7m20s of its 10 minute timeout), so this job stays well inside its timeout.
+  # The other corpus-marked tests/contract modules read no committed corpus: they run in the
+  # separate `tests-contract-tools` job below (with the former tool unit tests this job took 7m20s
+  # of its 10 minute timeout), so this job stays well inside its timeout.
   # Packs' advisory corpus run deselects exactly these selections, so nothing
   # runs twice. Pinned by tests/ci/test_corpus_blocking_home.py; a tests/contract module that
   # neither this job nor the tool-test job runs fails tests/ci/test_contracts_routing.py.

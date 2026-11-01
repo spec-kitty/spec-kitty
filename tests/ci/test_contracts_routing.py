@@ -293,3 +293,79 @@ def test_the_contract_tools_group_names_every_src_file_the_mission_status_reader
     missing = sorted(path for path in imported | cited if not _group_selects(group, path))
     assert missing == [], f"a change to these src files selects no `tests (contract tools)` run: {missing}"
     assert not _group_selects(group, "src/specify_cli/planted/never_imported.py"), "control: an unnamed file is not selected"
+
+
+# -- the shape of the two router jobs the one-home rule assumes (moved from test_contracts_workflows.py, #6915) -----------------
+
+
+def _normalised(condition: str) -> str:
+    text = " ".join(str(condition).split())
+    return text[3:-2].strip() if text.startswith("${{") and text.endswith("}}") else text
+
+
+def test_both_router_jobs_select_the_marker_the_one_home_rule_probes_with() -> None:
+    jobs = _router_jobs()
+    for job in (ROUTER_CORPUS_JOB, TOOL_TEST_JOB):
+        assert f'-m "{TOOL_TEST_MARKER}"' in _pytest_command_of(jobs[job]), f"{job} must select -m {TOOL_TEST_MARKER!r}"
+
+
+def test_the_contract_tools_job_is_a_router_job_gated_on_the_contract_path_groups() -> None:
+    job = _router_jobs()[TOOL_TEST_JOB]
+    command = _pytest_command_of(job)
+
+    assert job["name"] == "tests (contract tools)"
+    assert "uv run --frozen --no-sync pytest" in command
+    assert re.search(r"\stests/contract/?(?=\s)", command), "the job must select the whole tests/contract directory"
+    needs = job.get("needs", [])
+    assert (needs if isinstance(needs, list) else [needs]) == ["changes"]
+    assert _normalised(job["if"]) == "needs.changes.outputs.corpus == 'true' || needs.changes.outputs.contract_tools == 'true'"
+
+
+def test_the_shape_check_sees_a_planted_marker_change() -> None:
+    planted = {"steps": [{"run": 'uv run --frozen --no-sync pytest -m "corpus" tests/contract'}]}
+    assert f'-m "{TOOL_TEST_MARKER}"' not in _pytest_command_of(planted)
+
+
+def test_a_module_with_an_unmarked_source_and_a_real_corpus_collection_is_still_judged(tmp_path: Path) -> None:
+    """The mark can arrive without the literal text ``pytest.mark.corpus`` in the module: only the real collection sees it."""
+    plugin = tmp_path / "indirect_mark.py"
+    plugin.write_text('import pytest\nMARKS = [getattr(pytest.mark, "cor" + "pus")]\n', encoding="utf-8")
+    planted = tmp_path / "test_indirect.py"
+    planted.write_text("import indirect_mark\nimport pytest\n\npytestmark = indirect_mark.MARKS\n\n\ndef test_x() -> None:\n    pass\n", encoding="utf-8")
+    assert "pytest.mark.corpus" not in planted.read_text(encoding="utf-8")
+    probe = gc.Gate(workflow="probe", job="probe", shard=None, paths=[str(planted)], marker_expr=TOOL_TEST_MARKER)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("PYTHONPATH", str(tmp_path))
+        collected = gc.collect_job_nodeids(probe)
+    assert collected, "the indirectly applied corpus mark must be collected under the jobs' marker"
+    name = "tests/contract/test_indirect.py"
+    modules, corpus = live_contract_modules() | {name}, collected_corpus_modules() | {name}
+    assert home_problems(modules, corpus, router_contract_modules(), tool_job_ignores() | {name}) == [f"{name} is run by nothing"]
+
+
+# -- the Packs advisory corpus lane deselects only live modules (moved from test_mission_status_routing.py, #6915) ---------------
+
+PACKS_WORKFLOW = ROOT / ".github" / "workflows" / "packs.yml"
+PACKS_CORPUS_JOB = "built-in-corpus-suite"
+
+
+def _packs_contract_deselects(path: Path = PACKS_WORKFLOW) -> list[str]:
+    gates = [gate for gate in gc.parse_workflow(path) if gate.job == PACKS_CORPUS_JOB]
+    assert len(gates) == 1, "the Packs corpus job runs exactly one pytest command"
+    return [entry for entry in gates[0].ignores if entry.startswith("tests/contract/")]
+
+
+def test_every_contract_module_the_packs_corpus_lane_deselects_exists() -> None:
+    deselected = _packs_contract_deselects()
+    assert deselected, "non-vacuity: the Packs corpus lane deselects the router-owned contract modules"
+    assert [entry for entry in deselected if not (ROOT / entry.split("::", 1)[0]).is_file()] == []
+
+
+def test_a_planted_stale_deselect_is_seen(tmp_path: Path) -> None:
+    text = PACKS_WORKFLOW.read_text(encoding="utf-8")
+    token = " --deselect tests/contract/test_mission_status_reality.py"
+    assert text.count(token) == 1, "control: the Packs command names the token once"
+    planted = tmp_path / "packs.yml"
+    planted.write_text(text.replace(token, token + " --deselect tests/contract/test_gone_away.py"), encoding="utf-8")
+    assert "tests/contract/test_gone_away.py" in _packs_contract_deselects(planted)
+    assert not (ROOT / "tests/contract/test_gone_away.py").is_file()
