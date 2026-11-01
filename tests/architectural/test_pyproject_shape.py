@@ -38,6 +38,11 @@ def _load_uv_lock() -> dict[str, Any]:
     return tomllib.loads(_UV_LOCK.read_text(encoding="utf-8"))
 
 
+# The one sanctioned local source: the optional companion wheel (#6904), resolved from the workspace.
+_ALLOWED_UV_SOURCES: dict[str, dict[str, Any]] = {"spec-kitty-services": {"workspace": True}}
+_ALLOWED_WORKSPACE_MEMBERS = ["packages/spec-kitty-services"]
+
+
 def _dep_name(entry: str) -> str:
     for index, char in enumerate(entry):
         if char in _DEP_NAME_TERMINATORS:
@@ -68,6 +73,11 @@ def _metadata_violations(data: dict[str, Any]) -> list[str]:
     for package in (*_SHARED_PACKAGES, _RETIRED_PACKAGE):
         if package in sources:
             failures.append(f"committed local source for {package}: {sources[package]!r}")
+    if sources != _ALLOWED_UV_SOURCES:
+        failures.append(f"[tool.uv.sources] must be exactly {_ALLOWED_UV_SOURCES!r}, found {sources!r}")
+    members = data.get("tool", {}).get("uv", {}).get("workspace", {}).get("members")
+    if members != _ALLOWED_WORKSPACE_MEMBERS:
+        failures.append(f"[tool.uv.workspace].members must be exactly {_ALLOWED_WORKSPACE_MEMBERS!r}, found {members!r}")
     return failures
 
 

@@ -40,12 +40,6 @@ def test_the_services_extra_pins_exactly_the_cli_version(root: dict[str, Any]) -
     assert root["project"]["optional-dependencies"]["services"] == [f"{_COMPANION}=={root['project']['version']}"]
 
 
-def test_the_companion_is_the_only_workspace_member_and_source(root: dict[str, Any]) -> None:
-    uv = root["tool"]["uv"]
-    assert uv["workspace"]["members"] == [_COMPANION_DIR]
-    assert uv["sources"] == {_COMPANION: {"workspace": True}}
-
-
 def test_the_cli_sdist_excludes_the_companion_tree(root: dict[str, Any]) -> None:
     assert "packages/**" in root["tool"]["hatch"]["build"]["targets"]["sdist"]["exclude"]
 
