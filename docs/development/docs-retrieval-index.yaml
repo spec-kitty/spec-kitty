@@ -12971,7 +12971,6 @@ pages:
     - {slug: "what-spec-kitty-upgrade-does", text: "What `spec-kitty upgrade` does", level: 2}
     - {slug: "common-follow-ups", text: "Common follow-ups", level: 2}
     - {slug: "reviewing-the-changes", text: "Reviewing the changes", level: 2}
-    - {slug: "if-a-mission-s-meta-json-is-missing", text: "If a Mission's `meta.json` is missing", level: 3}
     - {slug: "exit-codes", text: "Exit codes", level: 2}
     - {slug: "troubleshooting", text: "Troubleshooting", level: 2}
     - {slug: "rollback", text: "Rollback", level: 2}
