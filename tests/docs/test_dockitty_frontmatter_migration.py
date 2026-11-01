@@ -224,11 +224,21 @@ def test_mixed_line_endings_are_refused(repo: Path) -> None:
 
 @pytest.mark.parametrize(
     "rel",
-    ["adr/1.x/README.md", "architecture/README.md", "changelog/unreleased/1.fixed.md"],
+    ["adr/1.x/README.md", "architecture/README.md", "changelog/unreleased/1.fixed.md", "architecture/event-ledger-writers-and-readers.md"],
 )
 def test_skipped_files_are_never_edited(repo: Path, rel: str) -> None:
     text = f"---\ntitle: S\naudience: {_MAINTAINER}\n---\n"
     assert _migrate(repo, rel, text)[0] == text
+
+
+def test_frozen_pages_match_the_events_freeze_gate() -> None:
+    """Every docs page ADR 2026-10-29-1 D-9 freezes is skipped, and nothing else is called frozen."""
+    from tests.architectural.test_events_import_frozen import _FROZEN_OBJECTS
+
+    frozen_docs = {path.removeprefix("docs/") for path in _FROZEN_OBJECTS if path.startswith("docs/")}
+    assert frozen_docs, "non-vacuity: the freeze gate pins no docs page"
+    assert frozen_docs == mig.FROZEN_PAGES
+    assert all(mig.is_skipped(rel) for rel in frozen_docs)
 
 
 def test_adr_era_index_frontmatter_is_migrated(repo: Path) -> None:
