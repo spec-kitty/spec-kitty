@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#5812": {
+      "evidence_ref": "audit-engine residue sense (RESIDUE_DIRECTORY / not is_mission_dir) documented in docs/context/orchestration.md#residue; cited for context, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#5875": {
+      "evidence_ref": "read-side/doctor-identity residue sense + walker FR-008 documented in docs/context/orchestration.md#residue; cited for context, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6627": {
+      "evidence_ref": "write-seam residue provenance cited from is_kitty_specs_residue docstring; context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6668": {
+      "evidence_ref": "fabricated-identity audit context cited from the write-seam sense; context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6669": {
+      "evidence_ref": "write-seam provenance context cited in spec; the entry cites the docstring's own issues (#6627, #6668); no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6680": {
+      "evidence_ref": "issue 6759's own reference for the write-seam seam; context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6759": {
+      "evidence_ref": "The mission delivers this issue: docs/context/orchestration.md#residue entry, docstring links, AGENTS.md canon bullet, regenerated Contextive, changelog, structural test \u2014 WP01 approved after review",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

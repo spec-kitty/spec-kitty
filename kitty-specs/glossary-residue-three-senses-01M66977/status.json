@@ -1,0 +1,57 @@
+{
+  "event_count": 11,
+  "last_event_id": "01M66CZ9PW2WV9FBDSVW88MMY7",
+  "materialized_at": "2026-10-30T12:36:21.340343+00:00",
+  "mission_number": "",
+  "mission_slug": "glossary-residue-three-senses-01M66977",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "kimi-k3",
+      "agent": "kimi-k3",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "pi",
+      "lane": "approved",
+      "last_event_id": "01M66CZ9PW2WV9FBDSVW88MMY7",
+      "last_transition_at": "2026-10-30T12:36:21.340343+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implement WP01 in the root checkout (single_branch)",
+        "Ready for review: entry + links + canon bullet + contextive + changelog + red-first test; docs gates and make test-fast green",
+        "Re-review APPROVE (reviewer-renata profile, kimi-k3): all findings resolved, verified against live code; fix commit 5e57de97",
+        "Re-claim with recorded implementer identity pi (python-pedro); prior claim recorded actor 'user' with no model, so review independence could not be confirmed",
+        "Implementation complete (unchanged since approved state); re-entering review to record a confirmable independent approval",
+        "Re-review APPROVE (reviewer-renata profile, kimi-k3, delegated from the pi orchestrator): all findings resolved and verified against live code; fix commit 5e57de97; red-first test, gates green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "unknown",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    }
+  }
+}

@@ -81,6 +81,8 @@ contexts:
         definition: "The operator-only act of publishing merged mission work to `origin/main`, always through a pull request — never a direct push. Represented in the merge flow by `push_requested`. `spec-kitty consolidate` deliberately does not perform this step; it stops at LOCAL consolidation. This is `merge` Sense 3 — the publish operation, sometimes called \"operator merge\"."
       - name: "Repository"
         definition: "The local git repository that a Project is initialized from and executes within."
+      - name: "Residue"
+        definition: "\"Residue\" names a `kitty-specs/` child directory that is not a Mission — but it has no single rule. Three live code senses each answer \"is this folder a Mission?\" differently for their own surface, and each is justified in its owning docstring. This entry extends, not restates, Mission; naming the senses is disambiguation, silence is not (the same footgun class as Routing above, issue #6759)."
       - name: "Routing"
         definition: "\"Routing\" has no single meaning in this codebase — it is an umbrella word covering at least six live governed decisions, one retired governed sense retained here as a named referent, plus several infrastructural ones that are explicitly out of scope here. This entry extends, not restates, PRIMARY partition / COORD partition / Topology Surface above, which already frame the placement sense; naming an exclusion is disambiguation, silence is not."
       - name: "Runtime Bridge"
