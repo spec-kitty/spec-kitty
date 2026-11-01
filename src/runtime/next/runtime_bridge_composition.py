@@ -431,6 +431,8 @@ def _check_composed_action_guard(
     legacy_step_id: str | None = None,
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
+    run_dir: Path | None = None,
+    mission_slug: str | None = None,
 ) -> list[str]:
     """Evaluate the post-composition guard for a composed action.
 
@@ -484,6 +486,12 @@ def _check_composed_action_guard(
 
     Returns a list of failure descriptions; an empty list means all guards
     pass.
+
+    ``run_dir`` / ``mission_slug`` (#6330) are forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence` for the ``wp_driven``
+    fact. The live dispatch path threads the run it already resolved
+    (``ctx.run_dir``), so the fact never re-resolves a mission handle from
+    ``feature_dir.name``.
     """
     snapshot = _io_seam.gather_artifact_presence(
         feature_dir,
@@ -492,6 +500,8 @@ def _check_composed_action_guard(
         legacy_step_id=legacy_step_id,
         repo_root=repo_root,
         owned=owned,
+        run_dir=run_dir,
+        mission_slug=mission_slug,
     )
     # WP-driven = the built-in software-dev or any family whose runtime DAG declares ``implement``.
     if action in ("implement", "review") and (mission == "software-dev" or snapshot.wp_driven):
@@ -533,6 +543,8 @@ def _dispatch_via_composition(
     legacy_step_id: str | None = None,
     contract: Any | None = None,
     owned: OwnedCheckout | None = None,
+    run_dir: Path | None = None,
+    mission_slug: str | None = None,
 ) -> list[str] | None:
     """Run a composed action via ``StepContractExecutor``; then guard.
 
@@ -557,6 +569,9 @@ def _dispatch_via_composition(
     ``commit_advance``, #2562) so the run records what ``runtime_next_step(...)``
     would. The legacy ``runtime_next_step`` is **not** called for
     composition-backed actions (FR-001).
+
+    ``run_dir`` / ``mission_slug`` (#6330) are forwarded to the post-action guard
+    so its ``wp_driven`` fact reads the run this dispatch already resolved.
     """
     # Local import keeps module load lean and avoids circular import risk.
     from specify_cli.mission_step_contracts.executor import (
@@ -645,7 +660,16 @@ def _dispatch_via_composition(
                 ", ".join(unresolved),
             )
 
-    failures = _check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root, owned=owned)
+    failures = _check_composed_action_guard(
+        action,
+        feature_dir,
+        mission=mission,
+        legacy_step_id=legacy_step_id,
+        repo_root=repo_root,
+        owned=owned,
+        run_dir=run_dir,
+        mission_slug=mission_slug,
+    )
     if failures:
         return failures
     return None

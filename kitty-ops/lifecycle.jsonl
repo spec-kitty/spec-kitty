@@ -456,3 +456,14 @@
 {"agent": "claude", "at": "2026-10-31T00:28:17.864418+00:00", "canonical_action_id": "review::review", "mission_id": "01M67HR86CG32EPCV4K6S9PAMN", "phase": "started", "reason": null, "wp_id": null}
 {"agent": "claude", "at": "2026-10-31T00:28:34.737222+00:00", "canonical_action_id": "review::review", "mission_id": "01M67HR86CG32EPCV4K6S9PAMN", "phase": "completed", "reason": null, "wp_id": null}
 {"agent": "claude", "at": "2026-10-31T00:29:13.054322+00:00", "canonical_action_id": "accept::accept", "mission_id": "01M67HR86CG32EPCV4K6S9PAMN", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:15:58.463414+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:16:22.658772+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:16:30.662788+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:16:35.132798+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:17:05.530855+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:17:08.988577+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:17:39.564943+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:21:33.126628+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:21:54.165438+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:22:22.702200+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-11-01T15:22:31.207622+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6BTT405RH5K0BE6W97FA25K", "phase": "started", "reason": null, "wp_id": "WP01"}
