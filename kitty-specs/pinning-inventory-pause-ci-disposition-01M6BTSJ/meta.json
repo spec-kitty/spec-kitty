@@ -1,0 +1,41 @@
+{
+  "accept_commit": "04e61123e2468f1085bd1799574f953dba310dcf",
+  "acceptance_history": [
+    {
+      "accept_commit": "8807d663047f6fdf9fdf1b6e808ff5aea160a76e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T16:54:49.922848+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "b51a3ead1a8cf156c8d0b5aeeb86cad7b56fbc78"
+    },
+    {
+      "accept_commit": "04e61123e2468f1085bd1799574f953dba310dcf",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T16:55:40.395641+00:00",
+      "accepted_by": "Ivan-Melck",
+      "accepted_from_commit": "f3e573f413ca733ee66b11a36d7abfc093c9c14b"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T16:55:40.395641+00:00",
+  "accepted_by": "Ivan-Melck",
+  "accepted_from_commit": "f3e573f413ca733ee66b11a36d7abfc093c9c14b",
+  "baseline_merge_commit": "8e79a1f39ee26d3e2e6807059013ca5ee31535a9",
+  "created_at": "2026-11-01T15:14:06.662303+00:00",
+  "flattened": true,
+  "friendly_name": "pinning inventory pause ci disposition",
+  "merged_at": "2026-11-01T17:04:32.401675+00:00",
+  "merged_commit": "be8757c43886e6300d7e3e7a43b23ff7c65f9e05",
+  "mid8": "01M6BTSJ",
+  "mission_id": "01M6BTSJSQ1BXYRACJ5YEGTFHF",
+  "mission_number": 246,
+  "mission_slug": "pinning-inventory-pause-ci-disposition-01M6BTSJ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances pinning inventory pause ci disposition on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "pinning inventory pause ci disposition",
+  "slug": "pinning-inventory-pause-ci-disposition-01M6BTSJ",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:22:30.048412+00:00"
+}
