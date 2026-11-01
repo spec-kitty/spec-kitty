@@ -798,6 +798,8 @@ def test_check_composed_action_guard_delegates_to_cores_and_io(monkeypatch: pyte
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
         owned: object | None = None,
+        run_dir: Path | None = None,
+        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -830,6 +832,8 @@ def test_check_composed_action_guard_uses_live_lookup_for_should_advance_wp_step
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
         owned: object | None = None,
+        run_dir: Path | None = None,
+        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -876,6 +880,8 @@ def test_check_composed_action_guard_warns_for_unregistered_mission_family(
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
         owned: object | None = None,
+        run_dir: Path | None = None,
+        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -907,6 +913,8 @@ def test_check_composed_action_guard_does_not_thread_wp_advance_ready_for_non_wp
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
         owned: object | None = None,
+        run_dir: Path | None = None,
+        mission_slug: str | None = None,
     ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
@@ -1058,6 +1066,7 @@ def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(
 
     calls: list[str] = []
     repo_roots_seen: list[Path | None] = []
+    run_dirs_seen: list[Path | None] = []
 
     def _spy_guard(
         action: str,
@@ -1067,9 +1076,12 @@ def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(
         legacy_step_id: str | None = None,
         repo_root: Path | None = None,
         owned: object | None = None,
+        run_dir: Path | None = None,
+        mission_slug: str | None = None,
     ) -> list[str]:
         calls.append(action)
         repo_roots_seen.append(repo_root)
+        run_dirs_seen.append(run_dir)
         return ["patched-failure"]
 
     monkeypatch.setattr(composition, "_check_composed_action_guard", _spy_guard)
@@ -1087,6 +1099,7 @@ def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(
         request_text=None,
         mode_of_work=None,
         feature_dir=tmp_path,
+        run_dir=tmp_path / "run",
     )
 
     assert calls == ["specify"]
@@ -1095,6 +1108,9 @@ def test_dispatch_via_composition_calls_check_composed_action_guard_on_the_seam(
     # ``repo_root`` through to ``_check_composed_action_guard`` unchanged --
     # not merely swallow it, since this is exactly the seam WP03 threaded.
     assert repo_roots_seen == [tmp_path]
+    # #6330: the caller's run directory is the guard's ``wp_driven`` input and
+    # must reach it unchanged -- the fact never re-resolves a mission handle.
+    assert run_dirs_seen == [tmp_path / "run"]
 
 
 def test_dispatch_via_composition_warns_on_unresolved_delegation_candidates(
