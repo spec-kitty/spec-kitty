@@ -162,6 +162,9 @@
       "last_event_id": "01M6BCHFAC81W5KZK1Y9575QXT",
       "last_transition_at": "2026-11-01T11:05:00.492784+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "ci-nightly mission-status-corpus job (pinned native binary via sync-services, SERVICE_BIN resolved from the pin, PID start/stop, compare, report upload, in nightly-summary; 30 min, no JDK); acceptance-bdd + sonar.yml + cloud-session-setup.sh use the pinned contract-tools extra; scripts/ci/acceptance_jvm_gradle_pin_check.py wraps check_acceptance_jvm (fake-tool unit tests). Red tests first (be06f914). 35 grep-found workflow test files + 2 new: 1066 passed, 1 skipped. Not run locally (policy): the real pinned gradle_pin_check/install_tools, the live wrapper run, the live nightly compare; CI runs them. actionlint unavailable: yaml.safe_load + bash -n on every new run block and cloud-session-setup.sh."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 1572,
