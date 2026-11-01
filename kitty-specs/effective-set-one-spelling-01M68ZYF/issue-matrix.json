@@ -37,7 +37,7 @@
       "wp": null
     },
     "#6435": {
-      "evidence_ref": "kitty-specs/effective-set-one-spelling-01M68ZYF/research.md",
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/pull/6920",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,7 +45,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": null
     },
     "#6457": {
