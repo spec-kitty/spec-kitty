@@ -1,0 +1,59 @@
+{
+  "mission_slug": "charter-resynth-project-directive-layer-split-01M690W8",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_project_directive_layer_split_6768.py::test_resynthesize_activated_project_authored_directive_succeeds (red on the un-fixed tree, green with the fix)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T14:39:20.738016+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_project_directive_layer_split_6768.py::test_built_in_urn_still_refuses_and_project_urn_does_not (positive control on the real shipped graph)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T14:39:24.619597+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/synthesizer/test_project_directive_layer_split_6768.py::test_reference_universe_accepts_the_project_urn_and_refuses_an_undeclared_one + ::test_synthesize_promotes_the_companion_tactic",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T14:39:28.429787+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_request_carries_a_built_in_layer_without_project_directives (built-in layer from load_built_in_graph, reference universe keeps the project node)",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T14:39:33.478674+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_built_in_snapshot_falls_back_to_the_reference_universe + test_unloadable_built_in_graph_keeps_the_previous_behaviour",
+      "pass_fail": "pass",
+      "verified_by": "python-pedro",
+      "verified_at": "2026-10-31T14:39:37.504251+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

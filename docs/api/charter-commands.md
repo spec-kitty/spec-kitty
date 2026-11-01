@@ -282,6 +282,11 @@ Selector forms:
 
 Resynthesis follows the `synthesize` rules above: the `suggests` edge, appended tactic and styleguide ids, the synthesis lock (`CHARTER_SYNTHESIS_LOCK_HELD`) and legacy `applies` edges replaced on the artifacts it regenerates.
 
+A project directive the project authored and activated itself can be regenerated the same way,
+for example `--topic directive:PROJECT_002`; the additive-only guard applies to built-in doctrine
+only, so it never refuses a project's own directive, while a target that would shadow a shipped
+built-in node is still refused.
+
 | Flag | Description | Default |
 | --- | --- | --- |
 | `--topic TEXT` | Structured topic selector: `<kind>:<slug>` (project-local), `<drg-urn>` (built-in+project graph), or `<interview-section-label>` | — |

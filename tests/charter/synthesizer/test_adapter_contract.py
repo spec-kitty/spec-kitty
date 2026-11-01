@@ -169,15 +169,32 @@ class TestContractStructuralEquivalence:
         assert contract_fields == impl_fields, f"AdapterOutput field mismatch.\n  contract: {sorted(contract_fields)}\n  impl:     {sorted(impl_fields)}"
 
     def test_synthesis_request_same_fields(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """SynthesisRequest in impl and contract have the same dataclass fields."""
+        """Every contract field exists in the impl; the impl may only ADD optional ones.
+
+        The contract module is archived mission history (``tests/architectural/
+        test_archive_root_byte_identical.py`` refuses edits to it), so a later
+        envelope field cannot be declared there. The contract's promise is that a
+        contract-shaped caller keeps working: every field it names is present, and
+        anything the impl adds carries a default (#6768 added
+        ``built_in_drg_snapshot``). A removed or renamed contract field still fails.
+        """
         contract = self._load_contract_module(monkeypatch)
         import dataclasses
 
         contract_fields = {f.name for f in dataclasses.fields(contract.SynthesisRequest)}
         from charter.activation.synthesizer.request import SynthesisRequest as ImplReq
 
-        impl_fields = {f.name for f in dataclasses.fields(ImplReq)}
-        assert contract_fields == impl_fields, f"SynthesisRequest field mismatch.\n  contract: {sorted(contract_fields)}\n  impl:     {sorted(impl_fields)}"
+        impl_fields = {f.name: f for f in dataclasses.fields(ImplReq)}
+        missing = contract_fields - set(impl_fields)
+        assert not missing, f"SynthesisRequest lost contract fields: {sorted(missing)}"
+
+        added = set(impl_fields) - contract_fields
+        defaultless = sorted(
+            name for name in added if impl_fields[name].default is dataclasses.MISSING and impl_fields[name].default_factory is dataclasses.MISSING
+        )
+        assert not defaultless, (
+            f"SynthesisRequest added required field(s) the archived contract does not declare: {defaultless}. A contract-shaped caller would break."
+        )
 
 
 # ---------------------------------------------------------------------------

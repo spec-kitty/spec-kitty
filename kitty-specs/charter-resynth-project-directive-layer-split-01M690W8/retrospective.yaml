@@ -1,0 +1,86 @@
+schema_version: 1
+mission_id: 01M690W8QR4YHB5P2YFPCZXK4B
+mission_slug: charter-resynth-project-directive-layer-split-01M690W8
+mission_number:
+friendly_name: charter resynthesize project-directive layer split
+mission_type: software-dev
+target_branch: issue-6768-charter-resynth-project-directive
+created_at: '2026-10-31T14:39:52.902077+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-31T14:39:52.902077+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-008
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/charter-resynth-project-directive-layer-split-01M690W8/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/charter-resynth-project-directive-layer-split-01M690W8/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/charter-resynth-project-directive-layer-split-01M690W8/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/charter-resynth-project-directive-layer-split-01M690W8/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/charter-resynth-project-directive-layer-split-01M690W8/tasks/WP01-red-first-regression.md
+- id: e-006
+  kind: file
+  path: kitty-specs/charter-resynth-project-directive-layer-split-01M690W8/tasks/WP02-layer-split.md
+- id: e-007
+  kind: file
+  path: kitty-specs/charter-resynth-project-directive-layer-split-01M690W8/tasks/WP03-changelog-and-docs.md
+- id: e-008
+  kind: file
+  path: kitty-specs/charter-resynth-project-directive-layer-split-01M690W8/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
