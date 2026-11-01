@@ -18,7 +18,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
     outputs:
       windows_critical: ${{ steps.filter.outputs.windows_critical }}
     steps:
@@ -70,7 +70,7 @@ jobs:
     if: >-
       ${{ (needs.changes.outputs.windows_critical == 'true' || github.event_name == 'push')
       && !contains(github.event.pull_request.labels.*.name, 'pr:deferred')
-      && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+      && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
     runs-on: windows-latest
     timeout-minutes: 20
     env:

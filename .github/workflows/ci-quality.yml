@@ -19,7 +19,7 @@ permissions:
 # run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   lint:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: Lint
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -36,7 +36,7 @@ jobs:
           uv run --frozen ruff format --check .
 
   build-wheel:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: Build wheel
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -65,7 +65,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [build-wheel]
+    # Must RUN (not skip) on a paused PR: it is a required check, and a skipped
+    # required check passes. `always()` keeps it alive when build-wheel is skipped.
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
+      - name: Refuse while CI is paused by label
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
+        shell: bash
+        run: |
+          echo "::error::CI is paused on this PR by the pr:pause-ci label; remove the label to run CI."
+          exit 1
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -116,7 +125,7 @@ jobs:
           "
 
   uv-lock-check:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: uv lock --check
     runs-on: ubuntu-24.04
     timeout-minutes: 5

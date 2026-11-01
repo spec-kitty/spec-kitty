@@ -260,6 +260,10 @@ _ALWAYS_ON_JOB_NAMES = (
 )
 
 _FORK_GUARD = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
+# `pr:pause-ci` is the one sanctioned extra conjunct on an always-on job: it is vacuously true off
+# pull_request events and is the operator's pause switch (tests/ci/test_pause_ci_label.py).
+_PAUSE_GUARD = "!contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')"
+_ALWAYS_ON_IF = f"{_FORK_GUARD} && {_PAUSE_GUARD}"
 
 #: FR-008 (mission ci-runtime-stabilisation-01M3TZH6, WP08): these per-group router
 #: jobs re-ran trees the ci-modules.yml module rows already own. Re-adding ANY one of
@@ -375,7 +379,7 @@ def test_golden_prose_only_pr_down_routes_matrix_arch_battery_and_code_shards(ro
     # Always-on lanes carry only the fork guard (tests/ci/test_fork_guard.py),
     # which is a no-op on the core repository: no prose_only term.
     for always_on in _ALWAYS_ON_JOB_NAMES:
-        assert jobs[always_on].get("if") == _FORK_GUARD, f"{always_on} must stay unconditional, unaffected by prose_only"
+        assert jobs[always_on].get("if") == _ALWAYS_ON_IF, f"{always_on} must stay unconditional, unaffected by prose_only"
 
     assert "prose-scan" in jobs["router-gate"]["needs"]
     assert jobs["router-gate"]["if"] == f"${{{{ {_FORK_GUARD} && always() && !cancelled() }}}}"
@@ -598,5 +602,5 @@ def test_golden_docs_only_pr_runs_the_fast_battery_but_not_the_legs(router_workf
     context["prose-scan.prose_only"] = False
 
     assert eval_gh_if(jobs[_HEAVY_JOB]["if"], context) is False
-    assert jobs[_FAST_JOB]["if"] == _FORK_GUARD
+    assert jobs[_FAST_JOB]["if"] == _ALWAYS_ON_IF
     assert "needs" not in jobs[_FAST_JOB], "no needs: the fast job starts at pipeline start (NFR-002)"

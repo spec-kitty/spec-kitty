@@ -32,7 +32,7 @@ jobs:
   prepare-candidate-metadata:
     name: Prepare candidate package metadata
     runs-on: ubuntu-24.04
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
     steps:
       - uses: actions/checkout@v6
 
@@ -49,7 +49,7 @@ jobs:
   verify-drift:
     name: Verify shared package drift
     runs-on: ubuntu-24.04
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
     needs: [prepare-candidate-metadata]
     steps:
       - name: Check out trusted validation scripts

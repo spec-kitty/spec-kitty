@@ -59,11 +59,15 @@ def _run_text(job: dict[str, Any]) -> str:
 _FORK_GUARD_IF = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
 
 
+_PAUSE_GUARD = "!contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')"
+
+
 def check_job_unconditional(job: dict[str, Any]) -> list[str]:
     raw = job.get("if")
     if raw is None:
         return ["job is missing the required fork-guard `if:` (#5454)"]
-    if str(raw).strip() != _FORK_GUARD_IF:
+    # The `pr:pause-ci` operator switch is the one sanctioned extra conjunct.
+    if str(raw).strip() not in (_FORK_GUARD_IF, f"{_FORK_GUARD_IF} && {_PAUSE_GUARD}"):
         return [f"job carries a non-fork-guard `if:` (would be skippable): {raw!r}"]
     return []
 

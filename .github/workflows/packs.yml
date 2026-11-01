@@ -83,7 +83,7 @@ jobs:
   # `changes` job does, so `full` mode / a main push always selects both lanes.
   # ---------------------------------------------------------------------------
   changes:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     # Job-level `permissions:` REPLACES the workflow-level grant, so `contents` is restated
     # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize` precedent).
     permissions:
