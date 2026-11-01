@@ -1,0 +1,20 @@
+{
+  "baseline_merge_commit": "f3115c73398e2657907c02213183d1390edef6dd",
+  "created_at": "2026-10-30T17:44:45.457878+00:00",
+  "flattened": true,
+  "friendly_name": "charter escape report convergence",
+  "merged_at": "2026-10-30T19:36:06.050140+00:00",
+  "merged_commit": "9b84fff63e68dac7cde128575d1ddf46219e9888",
+  "mid8": "01M66YM0",
+  "mission_id": "01M66YM00EGRCMN94MR99DSYE5",
+  "mission_number": 244,
+  "mission_slug": "charter-escape-report-convergence-01M66YM0",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter escape report convergence on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter escape report convergence",
+  "slug": "charter-escape-report-convergence-01M66YM0",
+  "status_phase": "1",
+  "target_branch": "issue-6733-charter-escape-report-convergence",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T17:51:58.153512+00:00"
+}

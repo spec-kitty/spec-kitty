@@ -1,0 +1,57 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M674YYP6QTC2WESZQK01Y55Q",
+  "materialized_at": "2026-10-30T19:35:35.878117+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-escape-report-convergence-01M66YM0",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M674YSH9WXRKTBW4Q69JYR2W",
+      "last_transition_at": "2026-10-30T19:35:30.601857+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M674YW468NP77HXNWJ8WB58Q",
+      "last_transition_at": "2026-10-30T19:35:33.254098+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M674YYP6QTC2WESZQK01Y55Q",
+      "last_transition_at": "2026-10-30T19:35:35.878117+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261030",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
+    }
+  }
+}
