@@ -21,6 +21,7 @@ from scripts.docs.freshen_adr_inventory import (
     DEFAULT_INVENTORY_PATH,
     detect_missing_adrs,
     freshen,
+    indexed_era_adrs,
     main,
 )
 from scripts.docs.inventory_lockfile import (
@@ -532,3 +533,46 @@ def test_check_reports_missing_when_only_prose_links_adr(tmp_path: Path) -> None
         ]
     )
     assert exit_code == 1
+
+
+# --------------------------------------------------------------------------- #
+# 8. Reconcile-all mode (the post-merge regeneration bot runs ``--all``)
+# --------------------------------------------------------------------------- #
+
+
+def test_indexed_era_adrs_lists_every_adr_of_a_table_era(tmp_path: Path) -> None:
+    docs_root = _write_docs_tree(tmp_path)
+    orphan = docs_root / "adr" / "3.x" / "2026-06-29-1-orphan.md"
+    orphan.write_text(_adr("Orphan ADR", "2026-06-29"), encoding="utf-8")
+
+    names = [p.name for p in indexed_era_adrs(docs_root)]
+
+    assert names == [
+        "2026-04-03-1-execution-lanes.md",
+        "2026-05-16-1-doctrine-merge.md",
+        "2026-06-26-1-single-authority-seam.md",
+        "2026-06-29-1-orphan.md",
+    ]
+    assert detect_missing_adrs(docs_root) == [orphan]
+
+
+def test_all_reconciles_several_missing_adrs_idempotently(tmp_path: Path) -> None:
+    """``--all`` adds every missing row date-ordered, and a second run changes nothing."""
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    era = docs_root / "adr" / "3.x"
+    (era / "2026-07-02-1-later.md").write_text(_adr("Later ADR", "2026-07-02"), encoding="utf-8")
+    (era / "2026-05-01-1-middle.md").write_text(_adr("Middle ADR", "2026-05-01"), encoding="utf-8")
+    args = ["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
+
+    assert main(args) == 0
+    first = _read_readme(docs_root)
+    inventory = (repo_root / DEFAULT_INVENTORY_PATH).read_text(encoding="utf-8")
+    assert main(args) == 0
+
+    assert _read_readme(docs_root) == first
+    assert (repo_root / DEFAULT_INVENTORY_PATH).read_text(encoding="utf-8") == inventory
+    dates = [row.split("|")[1].strip() for row in _table_rows(first)]
+    assert dates == sorted(dates)
+    assert len(dates) == 5
+    assert detect_missing_adrs(docs_root) == []

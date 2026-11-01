@@ -32,6 +32,9 @@ _JOB = "docs-lint"
 _SPELLING_CMD = "python -m scripts.docs.check_spelling"
 _CHANGELOG_CMD = "python -m scripts.docs.check_changelog_style"
 _REQUIRED_COMMANDS = (_SPELLING_CMD, _CHANGELOG_CMD)
+# CI-only (it judges a pull request's diff, so `make docs-lint` does not run it): a PR
+# must not edit the generated docs surfaces the post-merge bot regenerates.
+_GENERATED_SURFACE_GUARD_CMD = "python -m scripts.ci.check_generated_docs_untouched"
 # Regexes, not substrings: every whitespace variant of a failure-swallowing idiom must be refused.
 # `\b` keeps lookalikes (`exit 01`, `reset +e`, `|| true_value`) from tripping the guard.
 _FORBIDDEN_IN_RUN = (
@@ -150,6 +153,28 @@ def test_job_is_unconditional(job: dict[str, Any]) -> None:
 
 def test_job_runs_both_module_commands(job: dict[str, Any]) -> None:
     assert check_required_commands(job) == []
+
+
+def check_generated_surface_guard(job: dict[str, Any]) -> list[str]:
+    violations: list[str] = []
+    if _GENERATED_SURFACE_GUARD_CMD not in _run_text(job):
+        violations.append(f"missing command: {_GENERATED_SURFACE_GUARD_CMD}")
+    checkout = next((s for s in job.get("steps", []) if str(s.get("uses", "")).startswith("actions/checkout@")), {})
+    depth = (checkout.get("with") or {}).get("fetch-depth")
+    if not isinstance(depth, int) or not (depth == 0 or depth >= 2):
+        violations.append("checkout must fetch the PR merge commit's base parent (fetch-depth >= 2)")
+    return violations
+
+
+def test_job_runs_the_generated_surface_guard_with_the_base_parent(job: dict[str, Any]) -> None:
+    assert check_generated_surface_guard(job) == []
+
+
+def test_mutant_guard_without_base_parent_is_caught(job: dict[str, Any]) -> None:
+    for step in job["steps"]:
+        if str(step.get("uses", "")).startswith("actions/checkout@"):
+            step.pop("with", None)
+    assert check_generated_surface_guard(job)
 
 
 def test_job_has_no_forbidden_run_text(job: dict[str, Any]) -> None:

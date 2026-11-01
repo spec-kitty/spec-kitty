@@ -784,3 +784,33 @@ def test_probe_url_handles_2xx(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(orchestrator.urllib.request, "urlopen", lambda *a, **k: _Resp())
     assert orchestrator._probe_url("https://example.test/") is None
+
+
+# ---------------------------------------------------------------------------
+# Generated-surface staleness is reported, never blocking (ci/regen-docs-index)
+# ---------------------------------------------------------------------------
+
+
+def test_inventory_completeness_finding_is_a_warning(tmp_path: Path) -> None:
+    """A page not yet in the inventory is expected on a branch: the post-merge bot adds it."""
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    (docs / "orphan.md").write_text("# orphan\n", encoding="utf-8")
+    (tmp_path / "inventory.yaml").write_text("[]\n", encoding="utf-8")
+    with chdir(tmp_path):
+        findings = orchestrator._check_page_inventory_completeness(Path("inventory.yaml"), Path("docs"))
+    assert [(f.rule_id, f.severity) for f in findings] == [("INVENTORY-INCOMPLETE", "warning")]
+    assert "ci/regen-docs-index" in findings[0].suggested_action
+
+
+def test_leak_missing_inventory_is_demoted_and_other_leaks_keep_their_severity() -> None:
+    def _finding(rule_id: str) -> orchestrator.FreshnessFinding:
+        return orchestrator.FreshnessFinding(rule_id=rule_id, severity="error", location="docs/x.md", message="m", suggested_action="a")
+
+    demoted = orchestrator._demote_generated_surface_staleness([_finding("LEAK-MISSING-INVENTORY"), _finding("LEAK-MISSING-BANNER")])
+
+    assert [(f.rule_id, f.severity) for f in demoted] == [
+        ("LEAK-MISSING-INVENTORY", "warning"),
+        ("LEAK-MISSING-BANNER", "error"),
+    ]
+    assert "ci/regen-docs-index" in demoted[0].suggested_action

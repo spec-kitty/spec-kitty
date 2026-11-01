@@ -12,11 +12,12 @@ The non-uniform flip:
   passes it) and reds on its own seeded dangling-edge violation. (The R1
   anti-sprawl structure ratchet was retired — #2851 follow-up — so its
   per-class RED proofs are gone; the structure policy is now curated in bulk.)
-* **R3 lockfile drift** flips via *code*: the ``INVENTORY-LOCKFILE-DRIFT`` finding
-  is now ``error`` severity (was ``warning``) and the check runs default-on, so a
-  drifted inventory reds ``check_docs_freshness`` — the aggregate exit keys off
-  ``any(f.severity == "error")``. The ``severity == "error"`` assertion is the
-  red-first teeth: it fails against the pre-flip ``warning`` code.
+* **R3 lockfile drift** is reported but no longer blocks: the
+  ``INVENTORY-LOCKFILE-DRIFT`` finding runs default-on at ``warning`` severity,
+  because the page inventory is regenerated on ``main`` after merge by the
+  ``ci/regen-docs-index`` bot pull request, so a branch is expected to lag it
+  (the content check is ``test_docs_index_regenerates_cleanly.py``). The
+  ``severity == "warning"`` + ``rc == 0`` assertions pin that demotion.
 * **Description gate** (NFR-003) and the **body-link gate** (WP18) are wired
   blocking too; each reds on its seeded violation.
 
@@ -171,16 +172,15 @@ def test_r3_clean_lockfile_is_green(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert rc == 0
 
 
-def test_r3_lockfile_drift_reds_with_error_severity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_r3_lockfile_drift_is_reported_as_a_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     root = _stage_lockfile_workspace(tmp_path / "repo", drift=True)
     findings = orchestrator._check_inventory_lockfile_drift(root / "inventory.yaml", root / "docs")
-    # The flip teeth: drift is reported AND it is error-severity (red-first —
-    # fails against the pre-flip warning code).
+    # Drift is still reported (the check keeps running), at warning severity.
     assert findings, "expected lockfile drift findings"
     assert all(f.rule_id == "INVENTORY-LOCKFILE-DRIFT" for f in findings)
-    assert all(f.severity == "error" for f in findings)
+    assert all(f.severity == "warning" for f in findings)
 
-    # And it reds the orchestrator the workflow invokes.
+    # And it no longer reds the orchestrator.
     _stub_external_subchecks(monkeypatch)
     monkeypatch.setattr(orchestrator, "_SAAS_SYNC_PRESET", True)
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
@@ -202,7 +202,7 @@ def test_r3_lockfile_drift_reds_with_error_severity(tmp_path: Path, monkeypatch:
             "--ci",
         ]
     )
-    assert rc == 1
+    assert rc == 0
 
 
 # --------------------------------------------------------------------------- #
