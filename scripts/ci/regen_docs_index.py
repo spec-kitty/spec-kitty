@@ -33,7 +33,6 @@ from __future__ import annotations
 
 import argparse
 import os
-import re
 import subprocess
 import sys
 from collections.abc import Iterable, Sequence
@@ -47,10 +46,30 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.ci import bot_pr_publish  # noqa: E402  (import after the path guard above)
+from scripts.ci.generated_docs_surfaces import (  # noqa: E402  (re-exported: one definition)
+    DOCS_INDEX_PATH,
+    ERA_INDEX_RE,
+    GENERATED_FILES,
+    PAGE_INVENTORY_PATH,
+    REGEN_BRANCH,
+    is_generated_surface,
+)
 
-#: The fixed head branch of the regeneration proposal. GitHub permits one open PR per head
-#: branch into a base, so a duplicate proposal is structurally impossible.
-REGEN_BRANCH = "ci/regen-docs-index"
+__all__ = [
+    "DOCS_INDEX_PATH",
+    "ERA_INDEX_RE",
+    "GENERATED_FILES",
+    "PAGE_INVENTORY_PATH",
+    "REGEN_BRANCH",
+    "SECRET_NAME",
+    "ChangedPaths",
+    "classify_changes",
+    "is_generated_surface",
+    "main",
+    "parse_porcelain",
+    "pr_body",
+    "regenerate",
+]
 
 #: The PAT secret NAME (never a value). Shared, for now, with ``ci-shard-recapture.yml``;
 #: a dedicated secret is tracked in spec-kitty/spec-kitty#6986. Never ``GITHUB_TOKEN``.
@@ -59,16 +78,6 @@ SECRET_NAME = "CHARTER_SHARD_RECAPTURE_TOKEN"  # noqa: S105  # env-var name, not
 PHASE_REGENERATE = "regenerate"
 PHASE_PUBLISH = "publish"
 PHASES = (PHASE_REGENERATE, PHASE_PUBLISH)
-
-#: The generated files, repo-relative. Pinned against the generators' own constants by
-#: ``tests/ci/test_regen_docs_index.py`` (kept literal so the per-PR guard imports nothing
-#: beyond the standard library).
-DOCS_INDEX_PATH = "docs/development/docs-retrieval-index.yaml"
-PAGE_INVENTORY_PATH = "docs/development/page-inventory.yaml"
-GENERATED_FILES = (DOCS_INDEX_PATH, PAGE_INVENTORY_PATH)
-
-#: An ADR era landing page whose index table the regeneration maintains.
-ERA_INDEX_RE = re.compile(r"^docs/adr/\d+\.x/(?:index|README)\.md$")
 
 #: Every token variable stripped from a subprocess environment before the one it needs.
 _TOKEN_ENV_VARS = (SECRET_NAME, "GH_TOKEN", "GITHUB_TOKEN")
@@ -83,11 +92,6 @@ PR_BODY_TEMPLATE = (
     "Changed:\n{paths}\n\n"
     "Workflow run: `{run_url}`. Merge it as is; a newer run replaces this branch."
 )
-
-
-def is_generated_surface(path: str) -> bool:
-    """True iff *path* (repo-relative, POSIX) is a surface this bot regenerates."""
-    return path in GENERATED_FILES or bool(ERA_INDEX_RE.match(path))
 
 
 @dataclass(frozen=True)

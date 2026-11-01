@@ -855,7 +855,7 @@ NATIVE_RUNNERS = {"ubuntu-24.04", "ubuntu-24.04-arm", "macos-15", "windows-2025"
 NATIVE_TARGETS = {"linux-x64", "linux-arm64", "macos-arm64", "windows-x64"}
 WRAPPER_VALIDATION = "gradle/actions/wrapper-validation"
 SETUP_GRAALVM = "graalvm/setup-graalvm"
-WORKFLOW_FILE_COUNT = 21  # +1: pr-pause-ci.yml (pr:pause-ci label)
+WORKFLOW_FILE_COUNT = 22  # +1: pr-pause-ci.yml (pr:pause-ci label); +1: docs-index-regen.yml (post-merge docs regeneration)
 # Re-verified with `gh api` on 2026-10-11 (WP04); tag, then the commit the tag dereferences to.
 EXPECTED_PINS = {
     "gradle/actions/wrapper-validation": ("3f5f9adaf7d9fecd50b5935e54106014257a94e6", "v6.4.0"),
