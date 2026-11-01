@@ -133,9 +133,7 @@ class Finding:
 
     def describe(self) -> str:
         where = f"{self.file}:{self.lineno}"
-        what = f"reads {self.prefix!r}" if self.prefix else "reads the repository root"
-        need = f"declare {self.target!r}" if self.target != DYNAMIC else "declare '**' or narrow the read"
-        return f"{self.gate} {what} ({where}), not covered by scan_scopes {list(self.declared)}: {need}"
+        return f"{self.gate} reads {self.prefix!r} ({where}), not covered by scan_scopes {list(self.declared)}: declare {self.target!r}"
 
 
 @dataclass(frozen=True)
