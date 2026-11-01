@@ -74,9 +74,9 @@ from the nested schema above in two ways that matter to `synthesize`:
 
 A generator-shape proposal may therefore carry an **optional `payload`** block, validated against
 the same `ProposalPayload` union `synthesize` applies — there is no second payload schema. When it
-does, `synthesize` translates the proposal into a nested proposal (a derived ULID id, `accepted`
-when the record sets `auto_applicable: true`, `pending` otherwise) and plans it exactly like a
-nested-schema proposal. A proposal without a payload is not plannable; `retrospect create` writes
+does, `synthesize` translates the proposal into a nested proposal (a derived ULID id, always `pending`:
+`auto_applicable` is a hand-editable flag, not an accept decision). Select it with
+`--proposal-id`; it is never part of the default batch. A proposal without a payload is not plannable; `retrospect create` writes
 none of its own, and grading findings into payloads is tracked in
 [#3947](https://github.com/spec-kitty/spec-kitty/issues/3947).
 
