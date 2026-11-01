@@ -54,10 +54,9 @@ def script() -> Iterator[ModuleType]:
         yield module
 
 
-def _assets(
-    service: str, targets: tuple[ServiceTarget, ...] = _NATIVE, *, glibc: str = "2_39", macos: str = "11_0"
-) -> dict[ServiceTarget, bytes]:
+def _assets(service: str, targets: tuple[ServiceTarget, ...] = _NATIVE, *, glibc: str = "2_39", macos: str = "11_0") -> dict[ServiceTarget, bytes]:
     """The pinned assets of *service*: a native binary per target, whose headers state the floor given."""
+
     def _native(target: ServiceTarget) -> bytes:
         if target is ServiceTarget.WINDOWS_X64:
             return pe64()
@@ -505,9 +504,7 @@ def test_a_wheel_exactly_at_the_cap_passes(tmp_path: Path, script: ModuleType) -
 # --------------------------------------------------------------------------- #
 
 
-def test_a_linux_asset_that_needs_more_than_the_declared_floor_refuses(
-    tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_a_linux_asset_that_needs_more_than_the_declared_floor_refuses(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.LINUX_X64,)}, glibc="2_42")
     assert _build(script, fixture, tmp_path / "out") == 1
     err = capsys.readouterr().err
@@ -518,9 +515,7 @@ def test_a_linux_asset_that_needs_more_than_the_declared_floor_refuses(
     assert not list((tmp_path / "out").glob("*.whl"))
 
 
-def test_a_macos_asset_that_needs_more_than_the_declared_floor_refuses(
-    tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_a_macos_asset_that_needs_more_than_the_declared_floor_refuses(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
     fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.MACOS_ARM64,)}, macos="12_0")
     assert _build(script, fixture, tmp_path / "out") == 1
     err = capsys.readouterr().err
