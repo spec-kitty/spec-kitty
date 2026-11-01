@@ -1,0 +1,3 @@
+# Approach
+
+- **[2026-11-01][discovery] Intersect the pre-step's *decision*, never the collection.** A scope-only heavy leg runs a handful of gates (#6994). The universe pre-step still asks its question of the whole battery partition, so both legs collect a full test universe that none of their selected gates reads. The approach is to hand the decision the leg's own selected-gates file (the one `SK_BATTERY_GATES_FILE` names for the running leg) and answer for the intersection; a leg that does collect keeps collecting the whole tree, because the two consuming gates compare across the whole suite.

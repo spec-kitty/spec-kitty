@@ -1,0 +1,41 @@
+{
+  "accept_commit": "5e19a4af7a0a82abcd2f0894e981c26bb2b65e0c",
+  "acceptance_history": [
+    {
+      "accept_commit": "243fcf5afe95edb7f337bb2e2fa988cbd95b1b9c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:44:38.910473+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "d6ab2b2bd0806994a39f5c31e25afe1551f6e2e9"
+    },
+    {
+      "accept_commit": "5e19a4af7a0a82abcd2f0894e981c26bb2b65e0c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:44:51.916297+00:00",
+      "accepted_by": "python-pedro",
+      "accepted_from_commit": "cb180e234925d8513aa62df775966094e5b87e7d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:44:51.916297+00:00",
+  "accepted_by": "python-pedro",
+  "accepted_from_commit": "cb180e234925d8513aa62df775966094e5b87e7d",
+  "baseline_merge_commit": "6752eeb96ffba94aed9aff4341bf53d1737b17b6",
+  "created_at": "2026-11-01T15:20:34.143178+00:00",
+  "flattened": true,
+  "friendly_name": "scoped leg universe prestep",
+  "merged_at": "2026-11-01T17:47:55.455888+00:00",
+  "merged_commit": "0b0ccd615e986a96591eff1d3224ffbdedbf74ab",
+  "mid8": "01M6BV5D",
+  "mission_id": "01M6BV5D4PER07N6SSFC38CCRM",
+  "mission_number": 246,
+  "mission_slug": "scoped-leg-universe-prestep-01M6BV5D",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances scoped leg universe prestep on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "scoped leg universe prestep",
+  "slug": "scoped-leg-universe-prestep-01M6BV5D",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:28:28.108248+00:00"
+}
