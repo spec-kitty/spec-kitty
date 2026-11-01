@@ -1,8 +1,8 @@
-"""The companion's three-place version lock and its uv workspace wiring (#6904, WP04).
+"""The companion's three-place version lock and its lockfile wiring (#6904, WP04).
 
 ADR 2026-10-29-1, Amendment 2026-10-31: the ``spec-kitty-services`` version, the
-``spec-kitty-cli`` version and the ``services`` extra pin are one value, and the
-companion is the only uv workspace member and the only ``[tool.uv.sources]`` entry.
+``spec-kitty-cli`` version and the ``services`` extra pin are one value. The
+workspace/sources allowlist lives in ``tests/architectural/test_pyproject_shape.py``.
 Reads TOML only.
 """
 
