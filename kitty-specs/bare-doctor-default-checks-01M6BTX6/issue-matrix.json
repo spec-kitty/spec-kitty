@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2059": {
+      "evidence_ref": "Context only: #2059 is the doctor de-godding this mission honours by putting the aggregation in a sibling module; no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4678": {
+      "evidence_ref": "Context only: #4678 added the exit-2 guard this mission supersedes; its pinned test is rewritten to the new contract, no work owed to the closed issue.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6969": {
+      "evidence_ref": "Bare doctor now runs command-files/state-roots/ops and exits 0 healthy / 1 on a finding; pinned by tests/cli/test_doctor_default_run.py (11 tests) and the live CLI run in this checkout (2 of 3 healthy, exit 1).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

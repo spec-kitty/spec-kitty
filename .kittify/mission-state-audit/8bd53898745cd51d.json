@@ -1,0 +1,59 @@
+{
+  "cli_version": "4.0.0rc8",
+  "command_args": [
+    "doctor",
+    "mission-state",
+    "--fix",
+    "--mission",
+    "bare-doctor-default-checks-01M6BTX6"
+  ],
+  "generated_ids": [
+    "8bd53898745cd51d"
+  ],
+  "manifest_path": ".kittify/mission-state-audit/8bd53898745cd51d.json",
+  "missions": [
+    {
+      "file_changes": [],
+      "meta_actions": [],
+      "mission_id": "01M6BTX6XSJESHZ7PTAC9H6YG1",
+      "mission_slug": "bare-doctor-default-checks-01M6BTX6",
+      "quarantine_written": false,
+      "quarantined_rows": 0,
+      "row_transformations": [],
+      "status": "unchanged",
+      "validation_errors": []
+    }
+  ],
+  "policy": {
+    "ignored": [
+      "*.pyc",
+      ".git/",
+      ".worktrees/",
+      "__pycache__/"
+    ],
+    "optional": [
+      "kitty-specs/*/status.json"
+    ],
+    "tracked": [
+      ".kittify/mission-state-audit/*.json",
+      "kitty-specs/*/meta.json",
+      "kitty-specs/*/status.events.jsonl",
+      "kitty-specs/*/status.json"
+    ]
+  },
+  "quarantine_root_path": null,
+  "repo_head": "b8c18b29162b2890ecf455bab173dd2411373153",
+  "residue_directories": [],
+  "run_id": "8bd53898745cd51d",
+  "schema_version": "1.0.0",
+  "summary": {
+    "missions_error": 0,
+    "missions_total": 1,
+    "missions_unchanged": 1,
+    "missions_updated": 0,
+    "quarantined_rows": 0
+  },
+  "target_missions": [
+    "bare-doctor-default-checks-01M6BTX6"
+  ]
+}
