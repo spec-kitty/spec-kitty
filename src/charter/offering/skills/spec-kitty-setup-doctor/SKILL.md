@@ -17,6 +17,18 @@ missing, slash commands are unavailable, or the runtime environment appears brok
 
 ---
 
+## Start here: one command
+
+Inside an initialized project, `spec-kitty doctor` with no subcommand already runs the
+fast, read-only, project-level checks (`command-files`, `state-roots`, `ops`), prints one
+line per check naming the subcommand behind it, and exits 0 when every check is healthy
+or 1 when one reports a finding. Run it first and drill into the subcommands below only
+for the surface it flags; `spec-kitty doctor <subcommand> --json` gives machine-readable
+detail. The repair paths (`--fix`, `--repair`, `--close-stale`) are on the subcommands,
+never on the bare command.
+
+---
+
 ## Step 1: Detect Environment
 
 Determine the active agent, repository state, and working directory.
