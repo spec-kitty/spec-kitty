@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: live-fresh-claim-01M6BV7X
 mission_id: 01M6BV7X29R1XGBQE1QD2CGCGS
-generated_at: '2026-11-01T15:25:13.923355+00:00'
+generated_at: '2026-11-01T16:31:32.949630+00:00'
 analyzer_agent: claude
 input_artifacts:
   spec.md:
     path: kitty-specs/live-fresh-claim-01M6BV7X/spec.md
-    sha256: 43a2d34362de018ab8ae5a542a6426e200215b18cae3c4d8c6d781bf5833e5b6
+    sha256: a882eb81290172a73bcc67b71968bb21511b5652b574a0bbf926510cdfd4d971
   plan.md:
     path: kitty-specs/live-fresh-claim-01M6BV7X/plan.md
     sha256: a3e8a967e0fcc4e2ec454fb71bbaeabfc037355f293695182e06bcc7b8c15ae8
@@ -22,12 +22,13 @@ input_artifacts:
 verdict: unknown
 issue_counts:
   low:
-  critical:
+  high:
   medium:
   info:
-  high:
+  critical:
 findings: []
 ---
+
 
 # Analysis Report: Live Fresh-Claim Coverage (#6311)
 

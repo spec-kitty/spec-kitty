@@ -12,6 +12,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#5377": {
+      "evidence_ref": "Cited as the implementer-of-record backstop that also admits the implementer on resume; not in this Mission scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6311": {
       "evidence_ref": "Live retest on spec-kitty-cli 4.0.0rc8 at origin/main 287a226cfe: the documented fresh lanes-mission claim completes in one invocation and renders the prompt; restoring the pre-e455ce26c1 comparison layer in-process reproduces the exact \"already claimed\" refusal. Live guard added in WP01: tests/specify_cli/cli/commands/agent/test_implement_live_fresh_claim_6311.py",
       "fr": null,
