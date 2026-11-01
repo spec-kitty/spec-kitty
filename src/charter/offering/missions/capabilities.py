@@ -17,8 +17,9 @@ silently gains code-rigour or substantive-spec gates.
 The table lives in the offering layer because that is where the mission-type
 *descriptor* lives: the same doctrine tree holds
 ``models.MissionType`` (the field declarations) and the shipped built-in
-descriptors under ``packs/built-in/missions/mission_types/*.yaml``, which carry
-the same two keys for the built-in types. A table kept on the runtime side would
+descriptors under ``packs/built-in/missions/mission_types/*.yaml``. The built-in
+``code_producing`` value comes from this Python table (no shipped descriptor
+declares it); a descriptor that declares the key overrides it. A table kept on the runtime side would
 be a second authority for doctrine data that the descriptor layer already owns.
 """
 
