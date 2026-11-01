@@ -2,7 +2,7 @@
 title: Test-flakiness handling policy
 description: "Spec Kitty's suite-wide flaky-test policy: how to detect a flake, what is and isn't allowed (never retry-to-green), and the disposition of each known flake surface."
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-11-02'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
@@ -188,20 +188,22 @@ Six baseline-red categories that are **not yours to fix**:
    pytest output (#648: a PR's `## Tests run` section excluded a whole
    test file over exactly this `ModuleNotFoundError`, when a clean `uv sync --frozen
    --all-extras` reproduced 1621/1621 passing with no exclusion needed).
-5. **Ambient read-only `.git` above basetemp.** When pytest's basetemp has an ancestor
-   that is itself a git checkout — true of every exe.dev VM, and reproducible with a
-   read-only `/tmp/.git` mount when basetemp lives under `/tmp` — status and lifecycle
-   writers that resolve their lock root by climbing to the nearest `.git`
-   (`resolve_canonical_root`) land the lock inside *that* ancestor checkout. If that
-   `.git` is read-only, `append_lifecycle_event` swallows the resulting `PermissionError`
-   as a best-effort `OSError` and silently persists nothing, reddening every
-   event-recording assertion (130 nodes red in the #142 repro). This is host setup, not
-   your diff. The guard is the autouse `_hermetic_canonical_root` fixture in
-   `tests/status/conftest.py`, exercised end-to-end by
-   `tests/status/test_hermetic_ambient_git.py` (#142); the identity-resolution variant of
-   the same ancestor leak is pinned by the `no_git_ancestry_inside_tmp_path` fixture in
-   `tests/zeitgeist_client/conftest.py` (hoisting tracked at #614). Run inside the sandbox
-   those guards establish rather than "fixing" the read-only ancestor mount.
+5. **A git checkout above basetemp.** When pytest's basetemp has an ancestor that is
+   itself a git work tree (every exe.dev VM, an agent sandbox with `TMPDIR` under a
+   checkout, a `/tmp` someone ran `git init` in), git discovery from a `tmp_path` climbs
+   into that foreign checkout: status and lifecycle writers land their lock inside its
+   `.git` (if it is read-only, `append_lifecycle_event` swallows the `PermissionError` and
+   persists nothing, 130 nodes red in the #142 repro), mission-state repair re-anchors on
+   it and finds no missions, and the non-repository git probe is never reached (18
+   fast-tier nodes red in #7022 and #5356, CI green). This is host setup, not your diff.
+   The guard is run-wide: `tests/conftest.py` appends the run's basetemp and the worker's
+   isolated home to `GIT_CEILING_DIRECTORIES` (`tests/_support/git_ceiling.py`), which git
+   and the root walks in `specify_cli.core.paths` honor. It is pinned end to end by
+   `tests/unit/test_harness_git_ceiling.py` (temp root inside an outer repository) and
+   `tests/status/test_hermetic_ambient_git.py` (read-only ancestor `.git`, non-root
+   hosts). A test that builds its own environment from scratch, or a directory made with
+   `tempfile` outside basetemp, does not inherit the ceiling; set
+   `GIT_CEILING_DIRECTORIES` there yourself.
 
 6. **Harness environment leaks.** Agent containers export `SPEC_KITTY_NO_NAG`,
    `SPEC_KITTY_NO_UPGRADE_CHECK` and `SPEC_KITTY_NON_INTERACTIVE` into the shell that runs

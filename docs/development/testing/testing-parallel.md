@@ -2,7 +2,7 @@
 title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-11-02'
 audience:
 - profile: internal/lead-developer
   guidance_text: Written for the Lead Developer reader.
@@ -112,6 +112,15 @@ choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
 
 - An explicit `--basetemp` still wins untouched — whoever passes one owns its
   lifecycle.
+- The basetemp (and the per-worker home base) is a **git ceiling** (#7022):
+  `pytest_configure` appends both to `GIT_CEILING_DIRECTORIES`
+  (`tests/_support/git_ceiling.py`), so discovery from a `tmp_path` never
+  climbs into a git work tree that happens to enclose the temp root (an agent
+  sandbox with `TMPDIR` under a checkout, a `/tmp` someone ran `git init` in).
+  Git and the root walks in `specify_cli.core.paths` honor it; a repository a
+  test creates inside its own `tmp_path` is still found. It is the floor: a test
+  may still set its own, narrower ceiling with `monkeypatch.setenv`, and a test
+  that builds a child environment from scratch must carry it over itself.
 - Retention is outcome-gated (#76): a healthy run (`ExitCode.OK`) leaves
   nothing behind — it removes the run's dir at interpreter exit. A run with
   failures, errors, or an interruption keeps its private basetemp tree instead,
