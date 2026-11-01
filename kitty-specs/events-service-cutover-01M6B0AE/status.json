@@ -55,7 +55,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -68,6 +68,7 @@
         "Reader tests/pinned_service_assets.py (fail closed, real-env cache); conformance/artifact/torn-tail goldens read the pinned fixtures; generators keep --write behind --root (events regenerates with core's oracle; see design-decisions tracer). pytest test_pinned_service_assets + artifact_goldens + torn_tail + conformance: 82 passed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/events-service-cutover-01M6B0AE/tasks/WP02-test-reader-and-goldens/review-cycle-1.md",
         "reference": "review-cycle://events-service-cutover-01M6B0AE/WP02-test-reader-and-goldens/review-cycle-1.md",
@@ -75,13 +76,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 21889,
-      "shell_pid_created_at": "1793521566.63",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T010": "done"
+        "T007": "planned",
+        "T008": "planned",
+        "T009": "planned",
+        "T010": "planned"
       }
     },
     "WP03": {
