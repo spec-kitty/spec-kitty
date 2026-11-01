@@ -475,13 +475,17 @@ class TrackedMeta:
     content cannot be used -- the refusal signal: a caller must never mint an identity
     over it. ``index_only`` marks the sub-case where the only copy is staged and never
     committed; ``corrupt`` marks a committed copy that is not a JSON object, whose
-    content exists but cannot be parsed. Both only shape the operator message.
+    content exists but cannot be parsed; ``staged_differs`` marks a committed copy whose
+    index blob is different (a staged edit, or a staged deletion): restoring ``HEAD``'s
+    bytes would silently discard it, and ``git checkout --`` would restore another copy.
+    All three only shape the operator message.
     """
 
     meta: dict[str, Any] | None
     unavailable: bool
     index_only: bool = False
     corrupt: bool = False
+    staged_differs: bool = False
 
 
 def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
@@ -496,7 +500,9 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
     The tracked content is ``HEAD``'s blob for the Mission's path -- exactly what
     ``git checkout -- <path>`` restores for a committed file. An index-only copy (a
     staged ``meta.json`` that was never committed) is *not* history's identity, so it
-    is reported as ``unavailable`` with ``index_only=True`` rather than used.
+    is reported as ``unavailable`` with ``index_only=True`` rather than used. A committed
+    copy whose index blob differs (a staged edit) is reported as ``unavailable`` with
+    ``staged_differs=True``: writing ``HEAD``'s bytes would discard the staged edit.
 
     Returns:
         ``TrackedMeta(meta, unavailable=False)`` when git holds a parseable copy;
@@ -524,6 +530,8 @@ def read_tracked_meta(feature_dir: Path) -> TrackedMeta:
             raise
         return TrackedMeta(None, unavailable=True)
     if tracked_bytes is not None:
+        if _index_meta_bytes(feature_dir) != tracked_bytes:
+            return TrackedMeta(None, unavailable=True, staged_differs=True)
         try:
             return TrackedMeta(decode_meta(tracked_bytes, on_malformed="raise"), unavailable=False)
         except MetaDecodeError:
@@ -616,6 +624,12 @@ def _committed_meta_bytes(feature_dir: Path, prefix: str) -> bytes | None:
     if run_git(feature_dir, "rev-parse", "--verify", "--quiet", _HEAD, check=False).returncode != 0:
         return None
     return blob_at(feature_dir, _HEAD, f"{prefix}{META_FILENAME}")
+
+
+def _index_meta_bytes(feature_dir: Path) -> bytes | None:
+    """The index's ``meta.json`` blob in *feature_dir*, or ``None`` when the index holds none (a staged deletion)."""
+    result = run_git(feature_dir, "show", f":./{META_FILENAME}", check=False)
+    return result.stdout if result.returncode == 0 else None
 
 
 def _index_tracks_meta(feature_dir: Path) -> bool:

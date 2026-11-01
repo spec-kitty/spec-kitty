@@ -72,6 +72,12 @@ def _restore_notice(path: str) -> str:
 
 def _refusal_notice(path: str, tracked: TrackedMeta) -> str:
     """The notice for a tracked copy git cannot give back, naming the real reason and the repair."""
+    if tracked.staged_differs:
+        return (
+            f"{path}: meta.json is missing from the working tree and the index copy differs from the committed one (a staged edit); "
+            f"no identity was minted and your staged edit was not discarded — commit it, or unstage it with "
+            f"`git restore --staged {path}`, then restore the file with `{_RESTORE.format(path=path)}`"
+        )
     if tracked.index_only:
         return (
             f"{path}: meta.json is missing from the working tree and git holds it only in the index (not committed); "
