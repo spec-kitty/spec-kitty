@@ -17,6 +17,7 @@ from kernel.git.runner import GitCommandError
 from kernel.service_artifacts import sha256_file
 from kernel.service_pin import ServiceAsset, ServicePin, ServiceTarget, load_service_pin, write_service_pin
 from specify_cli.services import vendor as vendor_module
+from specify_cli.services.attestation import SERVICE_ATTESTATION_FAILED, AttestationError
 from specify_cli.services.vendor import VendorError, check_pin, vendor_pin
 from tests.kernel.service_release_fixture import FIXTURE_COMMIT, SUMS_FILE, build_release, pin_path
 
@@ -62,6 +63,7 @@ def _vendor(
     commit: str | None = FIXTURE_COMMIT,
     protocol_versions: Sequence[int] = (1,),
     asset_prefix: str | None = None,
+    verify_attestation: bool = True,
 ) -> vendor_module.VendorResult:
     return vendor_pin(
         pins_dir=repo / "pins",
@@ -72,6 +74,7 @@ def _vendor(
         protocol_versions=protocol_versions,
         asset_prefix_override=asset_prefix,
         core_version=CORE,
+        verify_attestation=verify_attestation,
     )
 
 
@@ -123,6 +126,43 @@ def test_the_default_repository_is_the_current_pins(repo: Path, release: tuple[S
     _seed_lockfile(repo, pin)
 
     assert _vendor(repo, pin, repository=None).pin.repository == pin.repository
+
+
+# -- default repository per service (#6909) ------------------------------------------------------
+
+
+def test_the_default_repository_names_each_services_own_release_home() -> None:
+    assert vendor_module.DEFAULT_REPOSITORIES == {
+        "write-service": "https://github.com/spec-kitty/spec-kitty-events",
+        "read-service": "https://github.com/spec-kitty/spec-kitty-events",
+        "charter-service": "https://github.com/spec-kitty/spec-kitty-charter",
+    }
+    assert vendor_module.default_repository("charter-service") == "https://github.com/spec-kitty/spec-kitty-charter"
+
+
+def test_default_repositories_cover_exactly_the_known_services() -> None:
+    from kernel.service_pin import KNOWN_SERVICES
+    from specify_cli.services import policies
+
+    assert set(vendor_module.DEFAULT_REPOSITORIES) == set(policies._POLICIES) == set(KNOWN_SERVICES)
+
+
+def test_a_new_charter_service_pin_defaults_to_the_charter_repository(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A first charter-service bump must not need --repository: the default is its own repository."""
+    charter_pin, _ = build_release(tmp_path / "charter", service="charter-service", tag=TAG)
+    asked: list[str] = []
+
+    def fake_download(request: vendor_module._Request, scratch: Path, *, check_provenance: bool) -> vendor_module._Release:
+        asked.append(request.repository)
+        return vendor_module._Release(commit=FIXTURE_COMMIT, assets=dict(charter_pin.assets), extras={}, ignored=())
+
+    monkeypatch.setattr(vendor_module, "_download_release", fake_download)
+
+    result = vendor_pin(pins_dir=repo / "pins", service="charter-service", tag=TAG, commit=FIXTURE_COMMIT, core_version=CORE)
+
+    assert asked == [vendor_module.CHARTER_REPOSITORY]
+    assert result.pin.repository == vendor_module.CHARTER_REPOSITORY
+    assert dict(result.pin.assets) == dict(charter_pin.assets)
 
 
 def test_vendoring_twice_is_byte_stable(repo: Path, release: tuple[ServicePin, Path]) -> None:
@@ -475,6 +515,78 @@ def test_asset_prefixes_policies_and_known_services_name_the_same_services() -> 
     from specify_cli.services import policies
 
     assert set(vendor_module.DEFAULT_ASSET_PREFIXES) == set(policies._POLICIES) == set(KNOWN_SERVICES)
+
+
+# -- build provenance before the pin is written (#6909) --------------------------------------------
+
+
+def _serve_the_fixture_over_https(monkeypatch: pytest.MonkeyPatch, release_dir: Path) -> None:
+    """Make an ``https://`` bump read *release_dir* without the network or git."""
+    monkeypatch.setattr(vendor_module, "remote_tag_commit", lambda cwd, remote, tag: FIXTURE_COMMIT)
+
+    def download(url: str, dest: Path) -> None:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes((release_dir / url.rsplit("/", 1)[1]).read_bytes())
+
+    monkeypatch.setattr(vendor_module, "download", download)
+
+
+def test_a_https_bump_verifies_every_pinned_asset(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    pin, release_dir = release
+    _serve_the_fixture_over_https(monkeypatch, release_dir)
+    verified: list[tuple[str, str, str]] = []
+
+    def verify(asset: Path, *, repository: str, tag: str) -> None:
+        verified.append((asset.name, repository, tag))
+
+    monkeypatch.setattr(vendor_module, "verify_release_attestation", verify)
+
+    result = _vendor(repo, pin, repository=HTTPS_REPO)
+
+    assert sorted(name for name, _, _ in verified) == sorted(asset.name for asset in pin.assets.values())
+    assert {(repository, tag) for _, repository, tag in verified} == {(HTTPS_REPO, TAG)}
+    assert result.pin.repository == HTTPS_REPO
+
+
+def test_a_refused_attestation_leaves_the_lockfile_unchanged(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    pin, release_dir = release
+    _serve_the_fixture_over_https(monkeypatch, release_dir)
+    before = _seed_lockfile(repo, pin)
+
+    def refuse(asset: Path, *, repository: str, tag: str) -> None:
+        raise AttestationError(SERVICE_ATTESTATION_FAILED, f"`gh attestation verify` refused {asset.name}")
+
+    monkeypatch.setattr(vendor_module, "verify_release_attestation", refuse)
+
+    with pytest.raises(VendorError) as excinfo:
+        _vendor(repo, pin, repository=HTTPS_REPO)
+
+    assert excinfo.value.code == SERVICE_ATTESTATION_FAILED
+    assert pin_path(repo, "write-service").read_bytes() == before
+
+
+def test_a_file_repository_never_verifies_attestations(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """A local fixture or mirror has no GitHub attestation: the digest is the whole check."""
+    pin, _ = release
+    monkeypatch.setattr(
+        vendor_module,
+        "verify_release_attestation",
+        lambda *args, **kwargs: pytest.fail("a file:// repository must not call gh"),
+    )
+
+    assert _vendor(repo, pin).pin.repository == pin.repository
+
+
+def test_no_attestation_is_the_explicit_escape(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    pin, release_dir = release
+    _serve_the_fixture_over_https(monkeypatch, release_dir)
+    monkeypatch.setattr(
+        vendor_module,
+        "verify_release_attestation",
+        lambda *args, **kwargs: pytest.fail("verify_attestation=False must skip the check"),
+    )
+
+    assert _vendor(repo, pin, repository=HTTPS_REPO, verify_attestation=False).pin.repository == HTTPS_REPO
 
 
 def test_a_credentialed_repository_is_a_usage_error_without_echoing_it(repo: Path, release: tuple[ServicePin, Path]) -> None:
