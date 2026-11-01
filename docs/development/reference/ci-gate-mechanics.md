@@ -256,10 +256,25 @@ always-on lanes own (`test_no_legacy_terminology.py`, `test_layer_rules.py`,
 | Part | Job (display name) | Selection | When |
 | --- | --- | --- | --- |
 | Fast | `architectural fast gates (ratchet/census, always-on)` | `--battery-part fast`: the registry roster | every PR shape |
-| Heavy leg 1 | `architectural battery (heavy, code-scoped) 1/2` | `--battery-part 1/2` | code, `ci_config` or `architectural` path changes, not prose-only; for a diff that matches only `arch_scan_scope`, the leg's gates whose declared scan scope the diff touches |
+| Heavy leg 1 | `architectural battery (heavy, code-scoped) 1/2` | `--battery-part 1/2` | code, `ci_config` or `architectural` path changes; for a diff that matches only `arch_scan_scope`, the leg's gates whose declared scan scope the diff touches. A **prose-only** diff (#4842) runs the same scoped selection when it touches a declared scan scope, and skips the battery when it declares none (#6999) |
 | Heavy leg 2 | `architectural battery (heavy, code-scoped) 2/2` | `--battery-part 2/2` | same as leg 1 |
 | Backstop | `Architectural battery backstop (nightly-only, #5510)` | the base, no partition flag | nightly |
 
+- **Prose-only diffs and the declared scopes (#6999, operator ruling 2026-11-01).** A
+  PR whose whole Python diff is comments and/or docstrings is down-routed off the
+  module matrix and every code shard (`scripts/ci/prose_only.py`, published as
+  `prose-scan`'s `prose_only` output). The heavy battery is exempted from that
+  subtraction for a **declared** scan-scope match: `prose-scan` also publishes
+  `scan_scope_match` (the `arch_scan_scope` globs, read through
+  `gate_selection.matches_declared_scan_scope`), the battery `if:` runs when
+  `prose_only != 'true'` or `scan_scope_match == 'true'`, and the selection step
+  passes the verdict on (`battery_scope select --prose-only`) so each leg runs
+  **only** the gates whose `scan_scopes` declaration matches. A prose-only diff
+  that matches no declared scope still skips the battery. The companion output,
+  rather than a second reference to `needs.changes.outputs.arch_scan_scope`, keeps
+  the parsed group set honest: deleting the group's own OR term still reds
+  `tests/architectural/test_battery_scan_scope_routing.py`. Declared scopes only;
+  a gate that reads an undeclared path is #7000's completeness question.
 - **The roster is registry-held.** Each entry in
   `special_tiers.architectural.fast_gate.roster` carries a path, a
   `budget_seconds` and a reason. A file earns a roster slot only if it is a
