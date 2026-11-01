@@ -1,5 +1,0 @@
-description: The request failed. The body is a problem details object.
-content:
-  application/problem+json:
-    schema:
-      $ref: ../schemas/Problem.yaml

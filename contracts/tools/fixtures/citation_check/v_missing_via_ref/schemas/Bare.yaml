@@ -1,6 +1,0 @@
-title: Bare
-type: object
-properties:
-  bare:
-    type: string
-    description: No citation.

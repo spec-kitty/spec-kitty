@@ -1,5 +1,0 @@
-title: Problem
-type: object
-properties:
-  title:
-    type: string

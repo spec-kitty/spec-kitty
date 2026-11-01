@@ -1,5 +1,0 @@
-title: Base
-type: object
-properties:
-  id:
-    type: string

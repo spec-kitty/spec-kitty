@@ -1,4 +1,0 @@
-title: Loose
-description: A schema that constrains nothing.
-examples:
-- $ref: ../examples/Loose.any.yaml

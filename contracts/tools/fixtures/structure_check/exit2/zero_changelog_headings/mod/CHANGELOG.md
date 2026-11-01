@@ -1,1 +1,0 @@
-Prose only, no headings.

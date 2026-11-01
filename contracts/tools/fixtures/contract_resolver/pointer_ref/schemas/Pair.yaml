@@ -1,7 +1,0 @@
-type: object
-properties:
-  first:
-    type: string
-    description: The first value.
-  second:
-    $ref: '#/properties/first'
