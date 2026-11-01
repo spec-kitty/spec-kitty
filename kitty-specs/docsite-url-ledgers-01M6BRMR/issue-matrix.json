@@ -13,7 +13,7 @@
       "wp": null
     },
     "#3914": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "928e5364c: 124 #3914 moves in site/moves.yaml section (b)+(c); test_issue_3914_forward_reconcile_clean green",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "fixed",
+      "wp": "WP01"
     },
     "#6100": {
       "evidence_ref": "<link or commit>",
