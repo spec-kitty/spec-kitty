@@ -317,7 +317,9 @@ class BaseMigration(ABC):
     #: already written, so ``detect()`` answers for itself). An id that is not in this
     #: run's selection, or is unknown to the registry, changes nothing. Leave it empty
     #: unless ``detect()`` genuinely reads the predecessor's write; an empty declaration
-    #: keeps the honest ``not needed on the current tree`` dry-run wording.
+    #: keeps the honest ``not needed on the current tree`` dry-run wording. A migration
+    #: already shipped in a release declares its predecessors in ``runner.SEQUENCED_AFTER``
+    #: instead, so its module stays byte-identical (DIRECTIVE_044).
     sequenced_after: ClassVar[tuple[str, ...]] = ()
 
     #: The migration adopts the ledger: it records other migrations as settled
