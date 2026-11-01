@@ -1,0 +1,121 @@
+{
+  "event_count": 33,
+  "last_event_id": "01M6C5NRRDYQZNVW25R57KXT5C",
+  "materialized_at": "2026-11-01T18:24:15.629673+00:00",
+  "mission_number": "246",
+  "mission_slug": "issue-6917-sentinel-scoped-profile-read-01M6BV17",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi:glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C5NR0C8EZYZMDVGXM7VARM",
+      "last_transition_at": "2026-11-01T18:24:14.860704+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Scoped load + lazy lineage + sole-door accessor + light builder; 12 new tests, 4 sole-door gates green, ruff clean.",
+        "Review cycle 1 findings fixed: contract/docstrings now state the total mapping, contract records the filename convention; tests green (20 passed), ruff clean.",
+        "Cycle 2 (reviewer-renata): commit 4ccfd63ddf resolves all three cycle-1 findings. (1) BLOCKING fixed: agent_profile_sentinels documented as a TOTAL mapping on all five surfaces — service.py, resolver.py, active_charter_service_builder.py docstrings, contracts/agent-profile-sentinels.md (new semantics 0) and data-model.md — matching the code (one key per distinct non-empty requested id, False when unknown / sentinel:false / language-scoped out); grep 'absent from the mapping' finds none of them; contract semantics 0/3/4 mutually consistent. (2) Fixed: contract §3 records the <profile-id>.agent.yaml filename convention and stem-mismatch caveat; data-model.md adds a Resolution row. (3) Fixed: test renamed to test_language_scoped_profile_answers_false_like_the_full_repository, still pins {'custom-java-only': False}. No new contradictions in src/charter/** or mission contracts/data-model. Behaviour unchanged: pytest tests/charter/test_agent_profile_scoped_load.py -q -p no:cacheprovider -> 12 passed; ruff check on the 4 changed py files -> All checks passed. Non-blocking: tasks/WP01-scoped-load-and-accessor.md T001 steps 3-4 retain loose 'absent' planning wording (pre-existing, outside cycle-1's five flagged surfaces; pinned contract and code are the authority)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi:glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C5NRC7JT592XKJ3WN9V9HV",
+      "last_transition_at": "2026-11-01T18:24:15.239678+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Board wiring + red-first census (5 cases), marker parity, malformed-config fail-closed; 38 status/marker tests + 60 status suite green.",
+        "Cycle-1 finding fixed (duplicate initialiser); mypy/ruff clean; 39 tests green.",
+        "Review cycle 2: verified commit dfd62313aa removes only the duplicated 'sentinels: SentinelMap | None = None' initialiser in _st_render_human (no behaviour change; remaining occurrence at line 914 is the single valid declaration, line 1034 is _get_hic_marker's keyword parameter). mypy on tasks_status_cmd.py: success, no issues. ruff on tasks_status_cmd.py and test_tasks_status_sentinel_scope_6917.py: all checks passed. pytest (39 tests across the four mission test files incl. sentinel-scope, seam, deny-honour, HIC profile): 39 passed. git status clean apart from mission status bookkeeping (status.events.jsonl, status.json). Blocking finding from cycle 1 resolved; no new defects."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "pi:glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "pi:deepseek-v4.1-flash-1017:curator-carla",
+      "lane": "done",
+      "last_event_id": "01M6C5NRRDYQZNVW25R57KXT5C",
+      "last_transition_at": "2026-11-01T18:24:15.629673+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Changelog (#6917, 1081 chars), architecture 4.5, regenerated docs index (errors=0), tracers + issue verdict.",
+        "Cycle-1 finding fixed: generated docs index reverted to pre-mission state (bot owns it), changelog measurement softened; freshness errors=0.",
+        "Review cycle 2 (reviewer-renata): APPROVED. Verified fix a1f388f163: docs/development/docs-retrieval-index.yaml is byte-identical to pre-mission state (git diff b65b1a1137 -- docs/development/docs-retrieval-index.yaml is empty; all five unrelated hunks from cycle 1 gone, including the header lines the PR had added, so the file is left entirely to the ci/regen-docs-index bot per #6993). The only other content change is the changelog wording: '(0.31 s)' -> 'about 0.3 s warm', hedged and consistent with the measured 0.247-0.25 s warm from cycle 1 and under the NFR-002 <=0.5 s bound; nothing else moved (remaining hunks are mission state bookkeeping; later commits are status-transition chores). Changelog entry re-verified against the contract: under '## [Unreleased] - 4.0.0rc8' -> '### Fixed', bold impact-first lead with (#6917), Before/After + What to do, 1,092 chars (<1,200), claims match delivered code (agent_profile_sentinels/build_agent_profile_sentinels present in service.py:193, resolver.py:394, active_charter_service_builder.py:354). check_docs_freshness --ci: exit=0, errors=0, warnings=13; relative to mission base 287a226cfe exactly one warning is attributable to this PR -- the expected DOCS-INDEX-DRIFT for docs/architecture/profile-load-reliability.md (bot's post-merge job); the other five DOCS-INDEX-DRIFT rows (ADR 2026-10-19, ADR 2026-10-29, upgrade-lifecycle, upgrade-project, companion-wheel-research) and all HELP-DRIFT / events-domain-move inventory warnings are pre-existing from other missions on the branch and #6993's removed rows."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}

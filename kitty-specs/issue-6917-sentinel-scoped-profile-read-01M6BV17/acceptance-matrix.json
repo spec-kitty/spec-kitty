@@ -1,0 +1,79 @@
+{
+  "mission_slug": "issue-6917-sentinel-scoped-profile-read-01M6BV17",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_agent_profile_scoped_load.py::test_light_builder_matches_the_charter_service_accessor (resolver.py:394 accessor, builder:354)",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-01T18:23:19.493262+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_tasks_status_sentinel_scope_6917.py::test_board_render_parses_only_the_profiles_its_rows_name (exactly 2 docs where the parent parses the catalogue)",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-01T18:23:22.629355+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_agent_profile_scoped_load.py overlay/org/language parity cases + parity over the shipped catalogue",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-01T18:23:25.782500+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/charter_runtime/test_cli_readers_honour_deny.py::test_tasks_status_keeps_the_structural_marker_of_a_denied_sentinel; tests/charter_offering/test_human_in_charge_profile.py::test_hic_marker_survives_narrowed_activation",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-01T18:23:28.826568+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_charter_sole_door_{agent_profile_repository,offering_service,inner_reacharound,resolver_imports}.py 22 passed, zero new exclusions",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-01T18:23:32.142097+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_tasks_status_sentinel_scope_6917.py::test_unknown_profile_id_renders_without_a_marker_or_an_error, ::test_empty_board_parses_no_profile_at_all",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-01T18:23:35.281782+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_agent_profile_scoped_load.py::test_scoped_load_returns_only_the_requested_ids + ::test_catalogue_is_much_larger_than_the_board_needs",
+      "pass_fail": "pass",
+      "verified_by": "pi:deepseek-v4.1-flash-1017:python-pedro",
+      "verified_at": "2026-11-01T18:23:38.541509+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
