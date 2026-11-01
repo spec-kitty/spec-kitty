@@ -1,20 +1,20 @@
 {
-  "event_count": 7,
-  "last_event_id": "01M6BTNMBSF7CNWK2E0CN1KHGQ",
-  "materialized_at": "2026-11-01T15:11:56.793791+00:00",
+  "event_count": 8,
+  "last_event_id": "01M6BTVYCWS3HA7CKW7GSPSQ7K",
+  "materialized_at": "2026-11-01T15:15:23.676151+00:00",
   "mission_number": "",
   "mission_slug": "docsite-url-ledgers-01M6BRMR",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 2
   },
   "work_packages": {
@@ -25,14 +25,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M6BTNMBSF7CNWK2E0CN1KHGQ",
-      "last_transition_at": "2026-11-01T15:11:56.793791+00:00",
+      "lane": "approved",
+      "last_event_id": "01M6BTVYCWS3HA7CKW7GSPSQ7K",
+      "last_transition_at": "2026-11-01T15:15:23.676151+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ledgers seeded; map derived from site/moves.yaml; 154 targeted tests green; local DocFX coverage 970/970"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 22127,
       "shell_pid_created_at": "1793545912.07",
