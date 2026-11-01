@@ -18,6 +18,9 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
+from charter.activation.kind_vocabulary import ArtifactKind
+from charter.offering.artifact_kinds import PROJECT_KIND_DIRS
+from kernel.charter_pack_paths import project_pack_root
 from specify_cli.cli.commands.charter import charter_app
 from tests._factories.activation_ledger import read_activation_ledger, seed_activation_ledger
 
@@ -63,6 +66,38 @@ def test_deactivate_cascade_reports_the_shared_artifact_however_it_is_spelled(tm
 
     assert result.exit_code == 0, result.output
     assert _SHARED_SKIP in result.output, result.output
+
+
+@pytest.mark.parametrize(
+    ("shadowed", "kept_shared"),
+    [(False, True), (True, False)],
+    ids=["representable-id-keeps-the-child", "unrepresentable-id-is-no-reference"],
+)
+def test_an_unrepresentable_declared_id_is_not_a_live_reference(tmp_path: Path, shadowed: bool, kept_shared: bool) -> None:
+    """C-005 parity with ``resolve_artifact_urn``: a directive id no filename represents keeps nothing shared.
+
+    ``DIRECTIVE_025`` suggests the reconcile directive. Shadowing the ``025-boy-scout-rule`` file stem with a
+    different id leaves ``DIRECTIVE_025`` declared by no representable file, so listing it as active must not
+    hold the child back. The unshadowed run is the positive control: the same list does hold it.
+    """
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "config.yaml").write_text("{}\n", encoding="utf-8")
+    seed_activation_ledger(
+        tmp_path,
+        mission_type_activations=["software-dev"],
+        activated_directives=[_STEM, "DIRECTIVE_025"],
+        **{f"activated_{plural}": [] for plural in ("agent_profiles", "paradigms", "procedures", "tactics", "styleguides", "toolguides")},
+    )
+    if shadowed:
+        shadow = project_pack_root(tmp_path) / PROJECT_KIND_DIRS[ArtifactKind.DIRECTIVE] / "025-boy-scout-rule.directive.yaml"
+        shadow.parent.mkdir(parents=True)
+        shadow.write_text('schema_version: "1.0"\nid: PROJ_025\ntitle: t\nintent: i\nenforcement: optional\n', encoding="utf-8")
+
+    result = _charter(tmp_path, "deactivate", "directive", _STEM, "--cascade", "all")
+
+    assert result.exit_code == 0, result.output
+    assert ("Skipped (shared artifact): directive:RECONCILE_CHANGE_SCOPE_TENSIONS" in result.output) is kept_shared, result.output
+    assert f"Deactivated: {_STEM}" in result.output, result.output  # the cascade target is deactivated either way
 
 
 def test_the_spellings_write_the_same_activation(tmp_path: Path) -> None:
