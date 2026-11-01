@@ -37,11 +37,7 @@ def stray_section_indexes(docs_root: Path) -> list[str]:
     """
     if not docs_root.is_dir():
         return []
-    return sorted(
-        path.relative_to(docs_root.parent).as_posix()
-        for path in docs_root.rglob(_RETIRED_BASENAME)
-        if path.is_file()
-    )
+    return sorted(path.relative_to(docs_root.parent).as_posix() for path in docs_root.rglob(_RETIRED_BASENAME) if path.is_file())
 
 
 def test_no_index_md_remains_under_docs() -> None:
@@ -52,8 +48,7 @@ def test_no_index_md_remains_under_docs() -> None:
 
     assert stray == [], (
         "section landing pages must be README.md (issue #6939, ADR 2026-10-31-1 D-1); "
-        f"these pages still use the retired {_RETIRED_BASENAME} basename:\n  "
-        + "\n  ".join(stray)
+        f"these pages still use the retired {_RETIRED_BASENAME} basename:\n  " + "\n  ".join(stray)
     )
 
 
@@ -64,9 +59,7 @@ def test_the_guard_catches_a_reintroduced_index_md(tmp_path: Path) -> None:
     (docs / "guides" / "README.md").write_text("# Guides\n", encoding="utf-8")
     (docs / "guides" / "how-to").mkdir()
     (docs / "guides" / "how-to" / "README.md").write_text("# How-to\n", encoding="utf-8")
-    (docs / "guides" / "how-to" / _RETIRED_BASENAME).write_text(
-        "# How-to (retired basename)\n", encoding="utf-8"
-    )
+    (docs / "guides" / "how-to" / _RETIRED_BASENAME).write_text("# How-to (retired basename)\n", encoding="utf-8")
 
     assert stray_section_indexes(docs) == ["docs/guides/how-to/index.md"]
 
