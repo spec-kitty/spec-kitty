@@ -17,6 +17,7 @@ import pytest
 
 from charter.activation.effective_set import resolve_effective_sets
 from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
+from specify_cli.upgrade.migrations._charter_pack_cutover_snapshots import DEFAULT_SNAPSHOTS
 from kernel.charter_pack_paths import project_pack_root
 from tests.charter.org_pack_identity_support import write_identity_org_pack
 from specify_cli.upgrade.ledger import MigrationLedger, build_record, compute_content_hash
@@ -477,6 +478,78 @@ def test_a_seeded_list_gets_a_hint_and_is_left_unchanged(tmp_path: Path) -> None
     hint = module._SEEDED_LIST_HINT.format(key=DIRECTIVES, token="directive", listed=len(seeded), selected=2)
     assert result.warnings == [hint]
     assert "--narrow-activation" in hint and "--only" in hint
+
+
+def _released_preset_directives() -> tuple[str, ...]:
+    """The released ``default`` preset list a 3.2.6rc1-era upgrade wrote (19 directives)."""
+    snapshots = DEFAULT_SNAPSHOTS[DIRECTIVES]
+    preset = tuple(sorted(next(iter(snapshots))))
+    assert len(preset) == 19
+    return preset
+
+
+def test_a_list_a_released_default_preset_wrote_gets_a_hint(tmp_path: Path) -> None:
+    """#6684: a preset a *release* wrote is machine-written even though today's set is larger."""
+    preset = _released_preset_directives()
+    project = _project(tmp_path, LOCALITY_ID, FIDELITY_ID)
+    seed_activation_ledger(project, activated_directives=list(preset))
+    before = _bytes(project)
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    assert _bytes(project) == before
+    hint = module._SEEDED_PRESET_HINT.format(key=DIRECTIVES, token="directive", listed=len(preset), selected=2)
+    assert result.warnings == [hint]
+    assert "released" in hint and "default" in hint
+    assert "--narrow-activation" in hint and "--only" in hint
+
+
+def test_a_released_preset_list_plus_an_interview_id_the_preset_lacks_gets_a_hint(tmp_path: Path) -> None:
+    """The superseded seeding wrote the preset, then appended the interview ids it lacked."""
+    preset = _released_preset_directives()
+    project = _project(tmp_path, LOCALITY_ID)
+    extra = next(stem for stem in _every_directive(project) if stem not in preset)
+    _write(project / ANSWERS, "\n".join(["selected_directives:", f"- {LOCALITY_ID}", f"- {extra}"]) + "\n")
+    listed = [*preset, extra]
+    seed_activation_ledger(project, activated_directives=listed)
+    before = _bytes(project)
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    assert _bytes(project) == before
+    hint = module._SEEDED_PRESET_HINT.format(key=DIRECTIVES, token="directive", listed=len(listed), selected=2)
+    assert result.warnings == [hint]
+
+
+@pytest.mark.parametrize("shape", ["preset_minus_one", "preset_plus_unknown"])
+def test_a_list_the_released_preset_does_not_account_for_gets_no_preset_hint(tmp_path: Path, shape: str) -> None:
+    """A narrowed list below the preset, or one naming an id no longer in force, is left alone."""
+    preset = _released_preset_directives()
+    listed = [*preset[:-1]] if shape == "preset_minus_one" else [*preset, UNKNOWN_ID]
+    project = _project(tmp_path, LOCALITY_ID)
+    seed_activation_ledger(project, activated_directives=listed)
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    assert not any(warning.startswith(DIRECTIVES) for warning in result.warnings)
+
+
+def test_a_released_preset_list_of_another_kind_gets_its_own_hint(tmp_path: Path) -> None:
+    """The rule is per key: a released paradigm preset is reported with the paradigm token."""
+    preset = tuple(sorted(next(iter(DEFAULT_SNAPSHOTS["activated_paradigms"]))))
+    assert len(preset) == 8
+    project = _project(tmp_path, LOCALITY_ID, paradigms=("domain-driven-design",))
+    seed_activation_ledger(project, activated_directives=[LOCALITY_STEM], activated_paradigms=list(preset))
+
+    result = PromoteInterviewSelectionsMigration().apply(project)
+
+    assert result.success, result.errors
+    hint = module._SEEDED_PRESET_HINT.format(key="activated_paradigms", token="paradigm", listed=len(preset), selected=1)
+    assert result.warnings == [hint]
+    assert "paradigms are in force today" in hint
 
 
 def test_an_operator_chosen_list_gets_no_hint(tmp_path: Path) -> None:
