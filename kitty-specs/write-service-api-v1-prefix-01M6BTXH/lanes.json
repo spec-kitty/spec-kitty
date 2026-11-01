@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "write-service-api-v1-prefix-01M6BTXH",
+  "mission_id": "01M6BTXHP9XNXAPJJZTS8GNFH3",
+  "mission_branch": "issue-6910-write-service-api-v1-prefix",
+  "target_branch": "issue-6910-write-service-api-v1-prefix",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/services/client.py",
+        "src/specify_cli/services/launcher.py",
+        "src/specify_cli/status/write_service_protocol.py",
+        "tests/contract/test_mission_write_contract.py",
+        "tests/specify_cli/services/fake_service.py",
+        "tests/specify_cli/services/test_client.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:19:36.064576+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "92e945e073617ade065c08e880fc3c511b95e503"
+}

@@ -1,0 +1,33 @@
+{
+  "accept_commit": "8131dd78b2e1276937394a21f53f2f35404867ae",
+  "acceptance_history": [
+    {
+      "accept_commit": "8131dd78b2e1276937394a21f53f2f35404867ae",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:31:35.437465+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "22e4aef78fce879a653be4275edd96ba03a2aedc"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:31:35.437465+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "22e4aef78fce879a653be4275edd96ba03a2aedc",
+  "baseline_merge_commit": "c9db538f2a14dc5b69a155052ed0b46eb547b21a",
+  "created_at": "2026-11-01T15:16:16.364617+00:00",
+  "flattened": false,
+  "friendly_name": "write service api v1 prefix",
+  "merged_at": "2026-11-01T17:31:51.582536+00:00",
+  "merged_commit": "c9db538f2a14dc5b69a155052ed0b46eb547b21a",
+  "mid8": "01M6BTXH",
+  "mission_id": "01M6BTXHP9XNXAPJJZTS8GNFH3",
+  "mission_number": 246,
+  "mission_slug": "write-service-api-v1-prefix-01M6BTXH",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances write service api v1 prefix on issue-6910-write-service-api-v1-prefix so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "write service api v1 prefix",
+  "slug": "write-service-api-v1-prefix-01M6BTXH",
+  "status_phase": "1",
+  "target_branch": "issue-6910-write-service-api-v1-prefix",
+  "topology": "single_branch"
+}
