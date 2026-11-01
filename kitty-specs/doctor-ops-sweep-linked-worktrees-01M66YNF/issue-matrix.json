@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#4397": {
+      "evidence_ref": "Closure-on-spine design this mission preserves (C-004); no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4424": {
+      "evidence_ref": "Linear-time sweep property preserved by per-checkout executors; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6410": {
+      "evidence_ref": "Auto-commit skip policy reused unchanged by the worktree sweep fixtures; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6564": {
+      "evidence_ref": "Prior custody change this mission follows up; its fix already landed and is not reopened here (see spec.md Context).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6661": {
+      "evidence_ref": "tests/specify_cli/invocation/test_doctor_ops_worktrees.py (red in c2145b67, green after 97fc0b34); commits 97fc0b34, 8b490e4c",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6664": {
+      "evidence_ref": "The mission-step half of the follow-up, fixed already in #6664 (40a1e229cb); out of scope here (spec.md C-003).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

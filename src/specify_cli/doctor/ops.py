@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 from dataclasses import dataclass, field
 from kernel.clock import datetime, UTC, parse_iso
 from pathlib import Path
 
 from specify_cli.invocation.errors import AlreadyClosedError
+from specify_cli.invocation.op_custody import repository_checkouts
 from specify_cli.invocation.writer import EVENTS_DIR, OP_CLOSURES_FILENAME, OP_CLOSURES_RELATIVE_PATH, closed_invocation_ids
 
 #: ``SweepOpEntry.commit`` prefix for a sweep close whose spine commit was
 #: deliberately skipped (#6410): the closure stays on disk, uncommitted.
 SWEEP_COMMIT_SKIPPED_PREFIX = "skipped:"
+
+logger = logging.getLogger(__name__)
 
 _NON_OP_JSONL = {
     "ops-index.jsonl",
@@ -40,8 +45,33 @@ def _has_completed_event(path: Path) -> bool:
     return False
 
 
+def display_path(path: Path, repo_root: Path) -> str:
+    """*path* relative to the project root, with ``/`` separators (#6661).
+
+    A record in a linked worktree has no path under the project root, so it renders
+    as ``../lane/kitty-ops/<id>.jsonl`` rather than raising ``ValueError`` like
+    ``Path.relative_to``. A record in the root checkout keeps the historical
+    ``kitty-ops/<id>.jsonl``. Both sides are normalized first, so a symlinked root
+    does not produce a cosmetically odd route.
+
+    The one case with no relative form is a checkout on a different drive (Windows),
+    where ``os.path.relpath`` raises; there the absolute path is returned, because a
+    correct absolute path beats a wrong or invented relative one.
+    """
+    try:
+        relative = os.path.relpath(Path(path).resolve(), Path(repo_root).resolve())
+    except ValueError:  # a different Windows drive has no relative path
+        return Path(path).as_posix()
+    return Path(relative).as_posix()
+
+
 def list_orphan_ops(repo_root: Path) -> list[Path]:
-    """List open Op records: no ``completed`` event and no spine closure.
+    """List open Op records in ONE checkout: no ``completed`` event, no spine closure.
+
+    A single-directory scan of ``<repo_root>/kitty-ops`` — no git calls — because
+    the session-start/stop reminder calls it on every session boundary under a
+    < 0.5 s budget. It therefore sees the checkout it is handed and nothing else:
+    use :func:`scan_op_records` for the repository-wide sweep.
 
     An Op counts as closed when its per-record file carries a ``completed``
     event OR the append-only closure spine (#4397) carries a closure for its
@@ -55,6 +85,52 @@ def list_orphan_ops(repo_root: Path) -> list[Path]:
     return [
         path for path in sorted(ops_dir.glob("*.jsonl")) if path.name not in _NON_OP_JSONL and path.stem not in closed_on_spine and not _has_completed_event(path)
     ]
+
+
+def _checkouts(repo_root: Path) -> list[Path]:
+    """The project root checkout first, then every linked worktree, de-duplicated."""
+    checkouts: list[Path] = []
+    seen: set[Path] = set()
+    for checkout in [repo_root, *repository_checkouts(repo_root)]:
+        key = checkout.resolve()
+        if key in seen:
+            continue
+        seen.add(key)
+        checkouts.append(checkout)
+    return checkouts
+
+
+def scan_op_records(repo_root: Path) -> tuple[list[tuple[Path, Path]], list[Path]]:
+    """Orphan Op records as ``(owning checkout, record path)`` pairs, and unreadable checkouts.
+
+    Reads every checkout of the repository (#6661): Op records are written in the
+    checkout the command runs in (#6564), so a record can live in a linked worktree.
+    The checkout set is the shared enumeration in
+    :mod:`specify_cli.invocation.op_custody` (one ``git worktree list`` per call); each
+    checkout is read with its own :func:`list_orphan_ops`, so its own closure spine
+    decides what is still open. Ordering is the project root first, then
+    ``git worktree list`` order, and file-name order inside a checkout.
+
+    Without git (not a checkout, or the command fails) the set is the project root
+    alone, which is the behavior before #6661.
+
+    The owning checkout is the one the record was read from, never re-derived from the
+    record's path shape, so a sweep closes a record through the checkout that produced
+    it. A checkout whose Op store cannot be read is returned separately rather than
+    aborting the scan (NFR-002) and rather than disappearing silently: the command
+    reports it on stderr.
+    """
+    found: list[tuple[Path, Path]] = []
+    unreadable: list[Path] = []
+    for checkout in _checkouts(repo_root):
+        try:
+            records = list_orphan_ops(checkout)
+        except (OSError, UnicodeDecodeError) as exc:
+            logger.warning("doctor ops: cannot read Op records in %s: %s", checkout, exc)
+            unreadable.append(checkout)
+            continue
+        found.extend((checkout, record) for record in records)
+    return found, unreadable
 
 
 @dataclass
@@ -95,6 +171,10 @@ class SweepReport:
     swept: int = 0
     skipped_fresh: int = 0
     threshold_hours: float = 24.0
+    #: Checkouts whose Op store could not be read. Deliberately absent from
+    #: :meth:`to_dict`: the sweep JSON is a frozen contract (C-001), so the command
+    #: reports these on stderr instead of inventing a key.
+    unreadable_checkouts: list[Path] = field(default_factory=list, repr=False)
 
     @property
     def has_errors(self) -> bool:
@@ -155,6 +235,11 @@ def close_stale_ops(
     ``already_closed`` and is not a failure. Any other per-op exception is recorded
     as an error entry and the sweep continues.
 
+    Records are swept in every checkout of the repository (#6661), and each one is
+    closed by an executor whose ``record_root`` is the checkout that holds it, so
+    the spine append and its auto-commit land there rather than in the project root.
+    ``repo_root`` still owns governance (profiles, glossary) and the SaaS propagator.
+
     Unparseable ``started_at`` timestamps are treated as stale (the broken-record
     case the sweep exists for) and carry a ``parse_warning``.
     ``threshold_hours == 0`` sweeps all open Ops.
@@ -163,15 +248,26 @@ def close_stale_ops(
     from specify_cli.invocation.propagator import InvocationSaaSPropagator
 
     report = SweepReport(threshold_hours=threshold_hours)
-    orphans = list_orphan_ops(repo_root)
+    orphans, report.unreadable_checkouts = scan_op_records(repo_root)
     if not orphans:
         return report
 
     # Same SaaS propagator the dispatch close path uses (FR-008 parity):
     # sync-gated and best-effort inside the propagator itself, so swept
     # `abandoned` completions reach SaaS instead of leaving the Op open there.
-    executor = ProfileInvocationExecutor(repo_root, propagator=InvocationSaaSPropagator(repo_root))
-    for path in orphans:
+    propagator = InvocationSaaSPropagator(repo_root)
+    executors: dict[Path, ProfileInvocationExecutor] = {}
+
+    def executor_for(checkout: Path) -> ProfileInvocationExecutor:
+        """The executor for *checkout*: one per checkout, reused across its Ops."""
+        key = checkout.resolve()
+        executor = executors.get(key)
+        if executor is None:
+            executor = ProfileInvocationExecutor(repo_root, record_root=checkout, propagator=propagator)
+            executors[key] = executor
+        return executor
+
+    for checkout, path in orphans:
         invocation_id = path.stem
         profile_id, started_at = _read_started_fields(path)
         age = _age_hours(started_at, now)
@@ -190,6 +286,7 @@ def close_stale_ops(
             report.open_ops.append(entry)
             continue
         try:
+            executor = executor_for(checkout)
             executor.complete_invocation(
                 invocation_id,
                 outcome="abandoned",

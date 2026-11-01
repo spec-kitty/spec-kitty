@@ -921,6 +921,22 @@ def _print_sweep_commit_summary(report: SweepReport) -> None:
         )
 
 
+def _warn_unreadable_op_checkouts(checkouts: list[Path], repo_root: Path) -> None:
+    """Name each checkout whose Op store could not be read, on STDERR (#6661).
+
+    A skipped checkout is not silently treated as empty: `--json` stdout stays the
+    frozen payload, so the warning goes to stderr in both modes (same pattern as
+    ``events tail``). The exit codes are unchanged.
+    """
+    from specify_cli.cli.console import err_console
+    from specify_cli.doctor.ops import display_path
+
+    for checkout in checkouts:
+        err_console.print(
+            f"[yellow]Ops[/yellow]: could not read Op records in [cyan]{escape(display_path(checkout, repo_root))}[/cyan]; any Ops it holds are not listed."
+        )
+
+
 def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool) -> None:
     """Run the stale sweep and exit per contracts/doctor-ops-close-stale.md."""
     from kernel.clock import now_utc
@@ -931,6 +947,7 @@ def _run_ops_sweep(repo_root: Path, *, threshold_hours: float, json_output: bool
         threshold_hours=threshold_hours,
         now=now_utc(),
     )
+    _warn_unreadable_op_checkouts(report.unreadable_checkouts, repo_root)
     # Exit 1 on per-op write/IO errors or when open-but-fresh Ops remain after
     # the sweep (consistent with report mode); already_closed is not a failure.
     exit_code = 1 if (report.has_errors or report.skipped_fresh > 0) else 0
@@ -991,7 +1008,7 @@ def ops(
     ] = None,
 ) -> None:
     """List orphan Op records; --close-stale sweeps stale ones closed as abandoned."""
-    from specify_cli.doctor.ops import list_orphan_ops
+    from specify_cli.doctor.ops import display_path, scan_op_records
 
     if threshold is not None and not close_stale:
         raise typer.BadParameter("--threshold requires --close-stale")
@@ -1005,9 +1022,11 @@ def ops(
             json_output=json_output,
         )
 
-    orphans = list_orphan_ops(repo_root)
+    pairs, unreadable = scan_op_records(repo_root)
+    _warn_unreadable_op_checkouts(unreadable, repo_root)
+    orphans = [record for _checkout, record in pairs]
     if json_output:
-        payload = [{"path": str(path.relative_to(repo_root))} for path in orphans]
+        payload = [{"path": display_path(path, repo_root)} for path in orphans]
         console.print_json(json.dumps(payload, indent=2))
         raise typer.Exit(1 if orphans else 0)
 
@@ -1019,7 +1038,7 @@ def ops(
     table = Table(box=None, padding=(0, 2), show_edge=False)
     table.add_column("Path", style="cyan")
     for path in orphans:
-        table.add_row(str(path.relative_to(repo_root)))
+        table.add_row(display_path(path, repo_root))
     console.print(table)
     console.print("\nThese op records were started but never completed. Run spec-kitty doctor ops --json for machine-readable output.")
     console.print()

@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "doctor-ops-sweep-linked-worktrees-01M66YNF",
+  "mission_id": "01M66YNFH7BYJSC3E7WV6QH79F",
+  "mission_branch": "issue-6661-doctor-ops-sweep-linked-worktrees",
+  "target_branch": "issue-6661-doctor-ops-sweep-linked-worktrees",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/doctor/ops.py",
+        "src/specify_cli/invocation/op_custody.py",
+        "src/specify_cli/session_presence/open_ops.py",
+        "tests/specify_cli/invocation/test_doctor_ops.py",
+        "tests/specify_cli/invocation/test_doctor_ops_worktrees.py",
+        "tests/specify_cli/session_presence/test_open_ops.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-30T17:48:51.752105+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1325e5faeebcf541d453a42dac763477f7454f1e"
+}
