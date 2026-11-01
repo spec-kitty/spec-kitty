@@ -1,0 +1,89 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M67PM36X74ZAMSM4HJNA2B6C",
+  "materialized_at": "2026-10-31T00:44:14.429932+00:00",
+  "mission_number": "244",
+  "mission_slug": "opaque-failure-identity-01M67HQA",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67PM1CAE7XNRAKK55Q9QSMQ",
+      "last_transition_at": "2026-10-31T00:44:12.554481+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: opaque identity bound to (exit status, summary)",
+        "Review passed; one should-fix (last-line summary was not an identity) folded in cycle 1"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1362507,
+      "shell_pid_created_at": "1793405354.25",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "6751"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67PM36X74ZAMSM4HJNA2B6C",
+      "last_transition_at": "2026-10-31T00:44:14.429932+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: candidate exit status + baseline-relative reason",
+        "Review passed; docstring + clean-exit caveat folded in cycle 1"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1435376,
+      "shell_pid_created_at": "1793405734.83",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      },
+      "tracker_refs": [
+        "6751"
+      ]
+    }
+  }
+}

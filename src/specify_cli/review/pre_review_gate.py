@@ -616,6 +616,14 @@ class GateVerdict:
     budget_assessment: ScopeBudgetAssessment | None = None
     classification_candidate: bool = False
     observed_elapsed_seconds: float | None = None
+    #: The candidate declared command's OBSERVED exit status, when the classifier
+    #: had one. Recorded on every verdict the injected-``ScopeSource`` path
+    #: classifies — including ``UNVERIFIED_BASELINE`` — so a baseline-relative
+    #: ``NO_NEW_FAILURES`` can never be read as "the candidate exited 0" (issue
+    #: #6751). ``None`` only for verdicts reached before a completed run (no
+    #: coverage, skipped, oversized, source mismatch, timeout/cancel) and for the
+    #: legacy JUnit branch, which never sees a raw ``returncode``.
+    candidate_exit_code: int | None = None
 
 
 def _progress_observer(
@@ -673,11 +681,33 @@ def _finalize_budget_evidence(
     )
 
 
+def _baseline_relative_reason(pre_existing: list[BaselineFailure], candidate_exit_code: int) -> str:
+    """Say what a ``NO_NEW_FAILURES`` verdict does and does not assert (issue #6751).
+
+    The verdict is a BASELINE-RELATIVE statement. Without the observed exit
+    status an operator cannot tell "the suite ran clean" from "the suite failed,
+    but only in ways the baseline already had", and the real incident behind
+    #6751 had a candidate that exited 0 only because that was proved separately.
+    So the reason names the exit status, the counts, and the boundary explicitly.
+    """
+    reason = f"baseline-relative: candidate declared command exited {candidate_exit_code}; {len(pre_existing)} pre-existing failure(s), 0 new"
+    if candidate_exit_code != 0:
+        # Only a NONZERO candidate run needs the boundary spelled out; saying it
+        # next to "exited 0" would read as a contradiction.
+        reason += " — this verdict does not assert a clean candidate exit"
+    opaque = [failure for failure in pre_existing if failure.opaque]
+    if opaque:
+        bound = ", ".join(f"exit {f.exit_code}/digest {f.output_digest}" for f in opaque)
+        reason += f"; the opaque whole-run failure matches the baseline exactly ({bound})"
+    return reason
+
+
 def _classify_current_failures(
     current_failures: tuple[BaselineFailure, ...],
     *,
     scope: ScopeResult,
     baseline: BaselineTestResult | None,
+    candidate_exit_code: int | None = None,
 ) -> GateVerdict:
     """The shared baseline-diff tail: classify a completed run's failures.
 
@@ -686,6 +716,11 @@ def _classify_current_failures(
     injected-``ScopeSource`` path (:func:`_evaluate_via_scope_source`) share
     ONE tested verdict-classification body instead of duplicating the
     ``diff_baseline`` call and its outcome mapping.
+
+    ``candidate_exit_code`` (issue #6751) is the run's observed exit status when
+    the caller has one. It is recorded on every verdict this body returns, and it
+    makes ``NO_NEW_FAILURES`` state its baseline-relative scope instead of
+    reading as a clean exit.
     """
     if baseline is None or baseline.failed == -1:
         return GateVerdict(
@@ -693,6 +728,7 @@ def _classify_current_failures(
             scope=scope,
             reason="baseline uncomputable — surfacing all current failures as unverified",
             new_failures=current_failures,
+            candidate_exit_code=candidate_exit_code,
         )
 
     pre_existing, new_failures, _fixed = diff_baseline(baseline, list(current_failures))
@@ -702,11 +738,14 @@ def _classify_current_failures(
             scope=scope,
             new_failures=tuple(new_failures),
             pre_existing_failures=tuple(pre_existing),
+            candidate_exit_code=candidate_exit_code,
         )
     return GateVerdict(
         outcome=GateOutcome.NO_NEW_FAILURES,
         scope=scope,
+        reason=(_baseline_relative_reason(pre_existing, candidate_exit_code) if candidate_exit_code is not None else None),
         pre_existing_failures=tuple(pre_existing),
+        candidate_exit_code=candidate_exit_code,
     )
 
 
@@ -865,7 +904,12 @@ def _evaluate_via_scope_source(
             scope=scope,
             reason=(f"baseline captured under {baseline.source_identity}; head ran under {head_identity} — failure identities are not comparable"),
         )
-    return _classify_current_failures(failures, scope=scope, baseline=baseline)
+    return _classify_current_failures(
+        failures,
+        scope=scope,
+        baseline=baseline,
+        candidate_exit_code=raw.returncode,
+    )
 
 
 def evaluate_with_scope(
