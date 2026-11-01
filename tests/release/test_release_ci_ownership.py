@@ -117,7 +117,7 @@ def test_shared_package_drift_preserves_candidate_trust_and_skip_policy() -> Non
     prepare, verify = jobs["prepare-candidate-metadata"], jobs["verify-drift"]
     assert prepare["name"] == "Prepare candidate package metadata"
     assert verify["name"] == "Verify shared package drift"
-    skip_policy = "!contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')"
+    skip_policy = " && ".join(f"!contains(github.event.pull_request.labels.*.name, '{label}')" for label in ("pr:deferred", "pr:skip-ci", "pr:pause-ci"))
     # prepare is the root job, so it also carries the fork guard (tests/ci/test_fork_guard.py);
     # verify needs it and skips with it.
     fork_guard = "(github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')"
