@@ -173,7 +173,15 @@ from kernel.clock import now_utc_iso
 # no owned-file change, or approved by its own implementer, now refuses. A behaviour change on
 # previously-``success`` calls plus one additive optional field, so a minor bump; no field or
 # ``error_code`` is removed or renamed.
-CONTRACT_VERSION = "1.21.0"
+# 1.22.0: the declared ``allowed_error_codes`` set now admits ``SAFE_COMMIT_DIRECTORY_ARGUMENT``
+# (#6997), the ``error_code`` of ``SafeCommitDirectoryArgument``: the code has been emitted by
+# the safe-commit path since the #6750 fix, which refuses a directory pathspec in
+# ``preflight_commit`` BEFORE any HEAD, ref or index mutation (so nothing was committed and the
+# refusal carries ``offending_path``), but the contract never registered it. This is a
+# completeness fix to the declared set, not a new failure mode -- no behaviour changes -- but
+# the contract-visible error-code set grows, so a minor bump; no field or ``error_code`` is
+# removed or renamed.
+CONTRACT_VERSION = "1.22.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose
