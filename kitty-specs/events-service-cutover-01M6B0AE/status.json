@@ -55,7 +55,7 @@
     },
     "WP02": {
       "actor": "claude",
-      "agent": null,
+      "agent": "claude:opus:python-pedro:implementer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -65,7 +65,8 @@
       "last_transition_at": "2026-11-01T08:33:39.094691+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Reader tests/pinned_service_assets.py (fail closed, real-env cache); conformance/artifact/torn-tail goldens read the pinned fixtures; generators keep --write behind --root (events regenerates with core's oracle; see design-decisions tracer). pytest test_pinned_service_assets + artifact_goldens + torn_tail + conformance: 82 passed."
+        "Reader tests/pinned_service_assets.py (fail closed, real-env cache); conformance/artifact/torn-tail goldens read the pinned fixtures; generators keep --write behind --root (events regenerates with core's oracle; see design-decisions tracer). pytest test_pinned_service_assets + artifact_goldens + torn_tail + conformance: 82 passed.",
+        "Review cycle 1 folded: conformance docstring no longer names services/; torn-tail failure hint names the events-side regenerate command; artifact --check without --root fails closed via pinned_extra. 29 passed (reader, artifact goldens, torn-tail); conformance file docstring-only."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
