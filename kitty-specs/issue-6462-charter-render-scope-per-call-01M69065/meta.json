@@ -1,0 +1,31 @@
+{
+  "accept_commit": "dc30227f7abeda5bff2309ea28dea39eadc4918a",
+  "acceptance_history": [
+    {
+      "accept_commit": "dc30227f7abeda5bff2309ea28dea39eadc4918a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T14:18:48.146957+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "0801bb0a034c98f91c6c0f5e1eb26985a6b2ba5a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T14:18:48.146957+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "0801bb0a034c98f91c6c0f5e1eb26985a6b2ba5a",
+  "created_at": "2026-10-31T12:50:39.526254+00:00",
+  "flattened": false,
+  "friendly_name": "issue 6462 charter render scope per call",
+  "mid8": "01M69065",
+  "mission_branch": "kitty/mission-issue-6462-charter-render-scope-per-call-01M69065",
+  "mission_id": "01M69065RYZN5J968NHPW8YCPQ",
+  "mission_number": null,
+  "mission_slug": "issue-6462-charter-render-scope-per-call-01M69065",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances issue 6462 charter render scope per call on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "issue 6462 charter render scope per call",
+  "slug": "issue-6462-charter-render-scope-per-call-01M69065",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

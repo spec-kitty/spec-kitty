@@ -306,6 +306,12 @@ class CharterInterview:
         ))
 
 
+#: The catalog domains :func:`default_interview` reads (#6462): it resolves
+#: default paradigms and directives, nothing else. Declaring the scope stops the
+#: interview path from parsing the five domains it never reads.
+INTERVIEW_CATALOG_DOMAINS: tuple[str, ...] | None = ("paradigms", "directives")
+
+
 def default_interview(
     *,
     mission: str,
@@ -313,7 +319,7 @@ def default_interview(
     offering_catalog: OfferingCatalog | None = None,
 ) -> CharterInterview:
     """Return deterministic default interview answers."""
-    catalog = offering_catalog or load_offering_catalog()
+    catalog = offering_catalog or load_offering_catalog(domains=INTERVIEW_CATALOG_DOMAINS)
     defaults = _load_packaged_defaults()
     raw_default_answers = defaults.get("answers", {})
     answers: dict[str, str] = (

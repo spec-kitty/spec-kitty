@@ -37,7 +37,7 @@ _BASE_COUNT = len(_CATALOG.directives)
 
 
 def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(_resolver, "load_offering_catalog", lambda: _CATALOG)
+    monkeypatch.setattr(_resolver, "load_offering_catalog", lambda **_: _CATALOG)
 
 
 def _seed_local_directive(root: Path) -> None:

@@ -34,7 +34,7 @@ _CATALOG = SimpleNamespace(
 
 
 def _patch_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("charter.activation.resolver.load_offering_catalog", lambda: _CATALOG)
+    monkeypatch.setattr("charter.activation.resolver.load_offering_catalog", lambda **_: _CATALOG)
 
 
 def test_single_local_directive_unions_onto_catalog_base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

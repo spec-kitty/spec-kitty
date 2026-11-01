@@ -271,7 +271,7 @@ def test_resolve_governance_uses_registry_local_directives_and_template_fallback
     """
     monkeypatch.setattr(
         "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
+        lambda **_: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
             template_sets=frozenset({"software-dev-default"}),
@@ -317,7 +317,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
     _write_charter_files(tmp_path, governance="charter: {}\n")
     monkeypatch.setattr(
         "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
+        lambda **_: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
             template_sets=frozenset({"software-dev-default"}),
@@ -345,7 +345,7 @@ def test_explicit_selection_and_local_declaration_union(
     diagnostic — never silently dropped."""
     monkeypatch.setattr(
         "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
+        lambda **_: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_A", "DIRECTIVE_C"}),
             template_sets=frozenset({"software-dev-default"}),
@@ -388,7 +388,7 @@ def test_local_declaration_matching_catalog_id_dedups_in_base_position(
     """INV-5: a local id equal to a catalog id appears once, in base position."""
     monkeypatch.setattr(
         "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
+        lambda **_: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
             template_sets=frozenset({"software-dev-default"}),
@@ -429,7 +429,7 @@ def test_activation_base_and_local_declaration_union(
     """
     monkeypatch.setattr(
         "charter.activation.resolver.load_offering_catalog",
-        lambda: SimpleNamespace(
+        lambda **_: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_003", "DIRECTIVE_010"}),
             template_sets=frozenset({"software-dev-default"}),

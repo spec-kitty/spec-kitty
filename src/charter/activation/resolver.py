@@ -955,6 +955,18 @@ def _resolve_template_set_selection(
     return fallback_template_set, "fallback"
 
 
+#: The catalog domains :func:`resolve_project_governance` actually reads (#6462).
+#:
+#: The resolution below consumes exactly three catalog fields -- ``paradigms``
+#: (base + charter selection), ``directives`` (base + project-local union) and
+#: ``template_sets`` (the selected/fallback template set) -- and returns empty
+#: lists for tactics/styleguides/toolguides/procedures by construction. Declaring
+#: that scope here is what stops a persona render from parsing the other five
+#: domains on every CLI call. A future edit that reads another domain must widen
+#: this tuple; ``tests/charter/test_charter_render_scope_6462.py`` pins it.
+GOVERNANCE_CATALOG_DOMAINS: tuple[str, ...] | None = ("paradigms", "directives", "template_sets")
+
+
 def resolve_project_governance(
     repo_root: Path,
     *,
@@ -985,7 +997,7 @@ def resolve_project_governance(
     """
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
-    offering_catalog = load_offering_catalog()
+    offering_catalog = load_offering_catalog(domains=GOVERNANCE_CATALOG_DOMAINS)
     charter_config = governance.charter
     diagnostics: list[GovernanceDiagnostic] = []
 
