@@ -1,0 +1,49 @@
+{
+  "mission_slug": "pack-skill-body-path-containment-01M66FEC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter_offering/pack_skills/test_repository.py::test_body_text_refuses_symlink_swapped_after_load (TOCTOU symlink swap through the public body_text entry point), ::test_body_text_refuses_escaping_body_path[../outside.md|/etc/passwd|nested/../../outside.md] (injected records), ::test_body_text_reads_a_nested_contained_body (positive control); lane-b run 120 passed/1 skipped",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/glm-5.3:python-pedro",
+      "verified_at": "2026-10-30T14:57:12.696477+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "src/charter/offering/pack_skills/validation.py::resolve_body_path delegates to resolve_relative_path_within_root; _read_body rewired (hand-roll deleted); tests/charter_offering/pack_skills/test_validation.py::test_escaping_body_path_kinds_refused (POSIX/Windows/UNC absolute, ..-component, string-level nested/../) + ::test_symlink_escape_refused; suite green",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/glm-5.3:python-pedro",
+      "verified_at": "2026-10-30T14:57:17.056100+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Both read paths assert PackSkillViolation match='escapes' from the one shared resolve_body_path helper (test_validation.py + test_repository.py refusal tests); identical refusal kinds on both paths; reviewer-renata independently reproduced identical reds on base cab1be39f6",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/glm-5.3:python-pedro",
+      "verified_at": "2026-10-30T14:57:21.377686+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02: org_pack_config.py docstring names pack-skill read paths among consumers; pack_validator.py ordinal corrected; create-a-pack-skill.md one-line read-time note; docs/changelog/CHANGELOG.md [Unreleased] Fixed entry (#6734); make docs-lint 0 errors; reviewer verified every claim against code (WP02 review APPROVE)",
+      "pass_fail": "pass",
+      "verified_by": "pi:tokenfactory/glm-5.3:python-pedro",
+      "verified_at": "2026-10-30T14:57:25.410832+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

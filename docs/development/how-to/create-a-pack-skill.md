@@ -99,7 +99,7 @@ skill requires.
 | `id` | yes | Lowercase ASCII kebab-case: it starts with a letter and has at most 64 characters. It is the name you pass to `charter activate`. |
 | `title`, `description` | yes | The heading and the description in the rendered `SKILL.md`. |
 | `form` | yes | `prompt` or `wrapper` (see below). |
-| `body_path` | `prompt` only | The body file, relative to the `.skill.yaml` file. It must stay inside that directory. |
+| `body_path` | `prompt` only | The body file, relative to the `.skill.yaml` file. It must stay inside that directory; Spec Kitty enforces that with the shared containment primitive both when the skill loads and again when the body is read. |
 | `expands_to` | `wrapper` only | `target`, and optional `args`. |
 | `triggers` | no | Phrases that Spec Kitty appends to the rendered description as `Triggers: ...`. |
 | `parameters` | no | A list of `name`, `required`, `description`, `default`. Spec Kitty renders them as a Parameters list. |
