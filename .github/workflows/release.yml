@@ -15,6 +15,11 @@ on:
         required: false
         default: false
         type: boolean
+      skip_companion:
+        description: 'Manual maintainer waiver: publish the CLI without publishing the spec-kitty-services companion. Requires spec-kitty-services==<version> to already exist on PyPI. workflow_dispatch only; ignored on tag-push.'
+        required: false
+        default: false
+        type: boolean
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
@@ -170,6 +175,19 @@ jobs:
 
       - name: Validate release metadata
         run: python scripts/release/validate_release.py --mode tag --tag "${RELEASE_TAG}" --tag-pattern "v*.*.*"
+
+      # skip_companion waiver: the CLI's `services` extra pins spec-kitty-services==<version>
+      # exactly, so shipping without publishing the companion is only sound when that version
+      # is already on PyPI (e.g. an orphan from an earlier failed run). Refuse otherwise.
+      - name: Require the companion version on PyPI (skip_companion waiver)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_companion }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          if ! curl -fsS "https://pypi.org/pypi/spec-kitty-services/${VERSION}/json" > /dev/null; then
+            echo "::error title=Companion missing::skip_companion=true but spec-kitty-services ${VERSION} is not on PyPI; the CLI's services extra would not resolve. Publish the companion or run without the waiver."
+            exit 1
+          fi
+          echo "::warning title=Companion publish waived::Releasing ${RELEASE_TAG} without publishing spec-kitty-services (manual maintainer waiver skip_companion=true)."
 
       - name: Classify release channel
         id: release_channel
@@ -330,7 +348,7 @@ jobs:
   build-companion-wheels:
     name: Build companion wheels
     needs: build-release
-    if: ${{ !cancelled() && needs.build-release.result == 'success' }}
+    if: ${{ !cancelled() && needs.build-release.result == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.skip_companion) }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -384,7 +402,7 @@ jobs:
   publish-companion-pypi:
     name: Publish companion to PyPI
     needs: build-companion-wheels
-    if: ${{ !cancelled() && needs.build-companion-wheels.result == 'success' }}
+    if: ${{ !cancelled() && needs.build-companion-wheels.result == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.skip_companion) }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -419,7 +437,7 @@ jobs:
     # even though build-release succeeded. Override explicitly: publish whenever
     # build-release succeeded and nothing was cancelled. On a normal tag-push the
     # gate runs and succeeds, so this is equivalent to the former implicit success().
-    if: ${{ !cancelled() && needs.build-release.result == 'success' && needs.publish-companion-pypi.result == 'success' }}
+    if: ${{ !cancelled() && needs.build-release.result == 'success' && (needs.publish-companion-pypi.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.skip_companion)) }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
