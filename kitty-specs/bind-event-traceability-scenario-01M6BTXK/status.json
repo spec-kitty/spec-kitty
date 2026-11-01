@@ -1,33 +1,33 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M6C2QQY11XQ54K6AVK7GMP9P",
-  "materialized_at": "2026-11-01T17:32:54.590101+00:00",
-  "mission_number": "",
+  "event_count": 14,
+  "last_event_id": "01M6C3HEWDNHACWW5CJZMM01KP",
+  "materialized_at": "2026-11-01T17:46:57.293215+00:00",
+  "mission_number": "246",
   "mission_slug": "bind-event-traceability-scenario-01M6BTXK",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 1,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 2,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "reviewer-renata",
+      "actor": "merge",
       "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M6C2Q4H3GSFS0PCBPRF9XJKR",
-      "last_transition_at": "2026-11-01T17:32:34.723946+00:00",
+      "lane": "done",
+      "last_event_id": "01M6C3HDK584C8J6FP6JWHDZ17",
+      "last_transition_at": "2026-11-01T17:46:55.973670+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review",
@@ -48,23 +48,46 @@
         "T003": "done",
         "T004": "done",
         "T005": "done"
-      }
+      },
+      "tracker_refs": [
+        "6260"
+      ]
     },
     "WP02": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "merge",
+      "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M6C2QQY11XQ54K6AVK7GMP9P",
-      "last_transition_at": "2026-11-01T17:32:54.590101+00:00",
+      "lane": "done",
+      "last_event_id": "01M6C3HEWDNHACWW5CJZMM01KP",
+      "last_transition_at": "2026-11-01T17:46:57.293215+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: drafted Given/When/Then unchanged, @wip tags gone, same-fixture positive control added, README/docs/changelog fragment accurate; contract check and docs freshness green."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 4064747,
-      "shell_pid_created_at": "1793554369.02"
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4184162,
+      "shell_pid_created_at": "1793555001.16",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      },
+      "tracker_refs": [
+        "6260"
+      ]
     }
   }
 }
