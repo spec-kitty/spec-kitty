@@ -230,8 +230,18 @@ def _shipped_promotion_settled(project_path: Path) -> bool:
     return _adoption_records_shipped_promotion(project_path, ledger)
 
 
-def _unresolved_warning(unresolved: list[str]) -> str:
-    return f"Unresolved interview selections skipped (not promoted): {', '.join(unresolved)}"
+def _unresolved_warning(unresolved: list[str], ambiguous: list[str] | None = None) -> str:
+    """One warning: unknown ids, then ids that match more than one layer's artifact (told apart)."""
+    parts: list[str] = []
+    if unresolved:
+        parts.append(f"Unresolved interview selections skipped (not promoted): {', '.join(unresolved)}")
+    if ambiguous:
+        parts.append(
+            f"Ambiguous interview selections skipped (not promoted): {', '.join(ambiguous)} "
+            "match more than one layer's artifact, and the file name cannot stand for one of them. "
+            "Rename one of the colliding files so each ID has its own file name, then select the ID again."
+        )
+    return " ".join(parts)
 
 
 @MigrationRegistry.register
@@ -289,7 +299,12 @@ class PromoteInterviewSelectionsMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=[nothing], warnings=warnings)
         promotions = _promotions(present, selections, resolver)
         if selections.unresolved:
-            warnings.append(_unresolved_warning([selection.urn for selection in selections.unresolved]))
+            warnings.append(
+                _unresolved_warning(
+                    [item.urn for item in selections.unresolved if not item.ambiguous],
+                    [item.urn for item in selections.unresolved if item.ambiguous],
+                )
+            )
 
         if not promotions:
             nothing = _NOTHING_PREVIEW if dry_run else _NOTHING_TO_PROMOTE
