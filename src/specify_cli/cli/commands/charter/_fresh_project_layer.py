@@ -11,7 +11,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path, project_pack_root
+from kernel.charter_pack_paths import (
+    PROJECT_GRAPH_FILENAME,
+    project_pack_path,
+    project_pack_root,
+    repo_relative_posix,
+)
 
 #: The human-readable provenance note at the project charter pack root.
 _PROVENANCE_FILENAME = "PROVENANCE.md"
@@ -137,8 +142,8 @@ def _materialize_fresh_project_layer(repo_root: Path) -> list[str]:
     unlink_stale_project_graph(project_pack_dir)
 
     return [
-        str(provenance_path.relative_to(repo_root)),
-        str(manifest_path.relative_to(repo_root)),
+        repo_relative_posix(provenance_path, repo_root),
+        repo_relative_posix(manifest_path, repo_root),
     ]
 
 
@@ -152,8 +157,8 @@ def _planned_fresh_project_layer_paths(repo_root: Path) -> list[str]:
     project_pack_dir = project_pack_root(repo_root)
     charter_dir = repo_root / ".kittify" / "charter"
     return [
-        str((project_pack_dir / _PROVENANCE_FILENAME).relative_to(repo_root)),
-        str((charter_dir / "synthesis-manifest.yaml").relative_to(repo_root)),
+        repo_relative_posix(project_pack_dir / _PROVENANCE_FILENAME, repo_root),
+        repo_relative_posix(charter_dir / "synthesis-manifest.yaml", repo_root),
     ]
 
 
@@ -162,7 +167,7 @@ def _planned_fresh_project_layer_deletes(repo_root: Path) -> list[str]:
     graph_path = project_pack_path(repo_root, PROJECT_GRAPH_FILENAME)
     if not graph_path.exists():
         return []
-    return [str(graph_path.relative_to(repo_root))]
+    return [repo_relative_posix(graph_path, repo_root)]
 
 
 def _synthesize_project_layer(repo_root: Path, *, dry_run: bool) -> dict[str, Any] | None:
