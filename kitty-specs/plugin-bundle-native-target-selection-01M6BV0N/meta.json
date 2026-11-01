@@ -5,13 +5,13 @@
       "accept_commit": "07c9ed046c6b6c3d8f784133fca60fce25ef7757",
       "acceptance_mode": "pr",
       "accepted_at": "2026-11-01T17:55:52.869751+00:00",
-      "accepted_by": "exedev",
+      "accepted_by": "python-pedro",
       "accepted_from_commit": "1b81a7a935ce8f25812c80786bcca2328bd29cf0"
     }
   ],
   "acceptance_mode": "pr",
   "accepted_at": "2026-11-01T17:55:52.869751+00:00",
-  "accepted_by": "exedev",
+  "accepted_by": "python-pedro",
   "accepted_from_commit": "1b81a7a935ce8f25812c80786bcca2328bd29cf0",
   "baseline_merge_commit": "6e3f8669d84b040260528f37371d4ace6785c8ab",
   "created_at": "2026-11-01T15:17:58.514622+00:00",
