@@ -1,0 +1,35 @@
+{
+  "accept_commit": "61a4091732b5fc62bed5b910eb4661fd2bcea6e0",
+  "acceptance_history": [
+    {
+      "accept_commit": "61a4091732b5fc62bed5b910eb4661fd2bcea6e0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:45:45.825661+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "a2a9c591b392ae7792173bd0b08bf1ef3e2baee8"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:45:45.825661+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "a2a9c591b392ae7792173bd0b08bf1ef3e2baee8",
+  "baseline_merge_commit": "a9377b2860db02825bb5241b95b96674bc874b89",
+  "created_at": "2026-11-01T15:17:29.552885+00:00",
+  "flattened": false,
+  "friendly_name": "red main guard subjects",
+  "merged_at": "2026-11-01T17:47:45.795219+00:00",
+  "merged_commit": "6e5bb01b8452b79e18b73a1b37b825177a37a648",
+  "mid8": "01M6BTZS",
+  "mission_id": "01M6BTZS6MPFP3B0X8SVPVDX9T",
+  "mission_number": 246,
+  "mission_slug": "red-main-guard-subjects-01M6BTZS",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances red main guard subjects on issue-6997-red-main-guard-subjects so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "red main guard subjects",
+  "slug": "red-main-guard-subjects-01M6BTZS",
+  "status_phase": "1",
+  "target_branch": "issue-6997-red-main-guard-subjects",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:24:03.560358+00:00"
+}
