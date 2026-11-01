@@ -8,7 +8,7 @@ Use EXACTLY these five sections, in this order. An ad-hoc body
 - Lead `## Change` with impact for a user or operator (BLUF), before any
   architecture or test-strategy detail (docs/development/how-to/review-gates.md,
   "PR body style: consumer-focused BLUF").
-- User-facing changes also carry an entry in docs/changelog/CHANGELOG.md
+- User-facing changes also carry a changelog fragment, `docs/changelog/unreleased/<pr>.<section>.md` (never an edit of docs/changelog/CHANGELOG.md)
   under [Unreleased].
 -->
 
