@@ -2284,15 +2284,19 @@ _Project health diagnostics_
  Usage: spec-kitty doctor event-logs [OPTIONS]
 
  Preview, then prune, local run journals, event logs and caches past retention
- (#6610).
+ (#6610, #6739).
 
  Reads ledger.retention (keep_runs, max_age_days) from .kittify/config.yaml;
  an item is removed only when it is outside the newest keep_runs of its kind
  AND older than max_age_days, and its work is over: a run once its Mission
  is merged or the run finished, a glossary log once its Mission is
- completed. Rebuildable caches are candidates whatever their age, unless
- locked. Committed ledgers, the Op index, lock files, items of an open or
- unknown Mission and locked items are never removed.
+ completed, an Op-scoped log (profile-invocation-<id>) once its Op is
+ completed. A run that names no Mission is judged on age alone, and so is an
+ Op-scoped log whose Op has no record here. Rebuildable caches are
+ candidates whatever their age, unless locked. Committed ledgers, Op records
+ and the Op index, lock files, an open Op's log, items of an open Mission, an
+ item whose recorded Mission this checkout cannot find, and locked items are
+ never removed.
 
  Without --apply nothing changes. Exit codes: 0 preview or clean apply,
  1 a deletion failed, 2 config, usage or internal error.
