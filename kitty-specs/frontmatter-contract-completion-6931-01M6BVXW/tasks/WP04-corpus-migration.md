@@ -36,10 +36,23 @@ create_intent: []
 execution_mode: code_change
 model: ''
 owned_files:
-- scripts/docs/frontmatter_contract.py
-- docs/
-- tests/docs/test_frontmatter_body_immutability.py
+- docs/adr/
+- docs/api/
+- docs/architecture/
+- docs/configuration/
+- docs/context/
+- docs/guides/
+- docs/integrations/
+- docs/migrations/
+- docs/operations/
+- docs/plans/
+- docs/security/
+- docs/index.md
 - docs/_meta/immutable-body-hashes.json
+- tests/docs/test_frontmatter_body_immutability.py
+create_intent:
+- docs/_meta/immutable-body-hashes.json
+- tests/docs/test_frontmatter_body_immutability.py
 role: implementer
 tags: []
 task_type: implement

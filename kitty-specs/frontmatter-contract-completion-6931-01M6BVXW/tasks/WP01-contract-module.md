@@ -32,6 +32,10 @@ owned_files:
 - scripts/docs/frontmatter_contract.py
 - tests/docs/test_frontmatter_contract.py
 - tests/docs/test_frontmatter_contract_upstream_parity.py
+create_intent:
+- scripts/docs/frontmatter_contract.py
+- tests/docs/test_frontmatter_contract.py
+- tests/docs/test_frontmatter_contract_upstream_parity.py
 role: implementer
 tags: []
 task_type: implement
