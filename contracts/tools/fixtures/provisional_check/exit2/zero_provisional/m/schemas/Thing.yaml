@@ -1,7 +1,0 @@
-title: Thing
-type: object
-additionalProperties: false
-properties:
-  name:
-    type: string
-    description: A name.

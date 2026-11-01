@@ -1,3 +1,0 @@
-plugins {
-    id 'org.openapi.generator' version '7.1.0'
-}

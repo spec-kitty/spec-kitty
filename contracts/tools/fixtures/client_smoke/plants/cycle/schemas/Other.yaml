@@ -1,3 +1,0 @@
-title: Other
-allOf:
-  - $ref: Thing.yaml

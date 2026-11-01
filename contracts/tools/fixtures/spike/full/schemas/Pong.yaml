@@ -1,7 +1,0 @@
-title: Pong
-type: object
-additionalProperties: false
-required: [ok]
-properties:
-  ok:
-    const: true
