@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-seeded-list-hint-01M6BV1A",
+  "mission_id": "01M6BV1AF5CJVJC7MQAVQN9C0M",
+  "mission_branch": "issue-6684-upgrade-seeded-list-hint",
+  "target_branch": "issue-6684-upgrade-seeded-list-hint",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc8_promote_interview_selections.py",
+        "tests/upgrade/migrations/test_m_4_0_0rc8_promote_interview_selections.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:19:44.825842+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "aefabebd54312398f527b1d0c273d70aebefc9c1"
+}

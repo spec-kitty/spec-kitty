@@ -1,0 +1,40 @@
+{
+  "accept_commit": "c531f84d124fd3060c3c9bfd49bcb1b34f675559",
+  "acceptance_history": [
+    {
+      "accept_commit": "267643d3ae98c9e5b2abdcc09d7a6289ef349e60",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T16:54:13.447621+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "162d8286b6b620b2e525e59de1026153cdb7455e"
+    },
+    {
+      "accept_commit": "c531f84d124fd3060c3c9bfd49bcb1b34f675559",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T16:54:19.314290+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "8aa459b572960b08df6899bb657e87e500b15b65"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T16:54:19.314290+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "8aa459b572960b08df6899bb657e87e500b15b65",
+  "baseline_merge_commit": "578c12645d75411024372408493ab76cfeab32b8",
+  "created_at": "2026-11-01T15:18:20.023665+00:00",
+  "flattened": false,
+  "friendly_name": "upgrade seeded list hint",
+  "merged_at": "2026-11-01T16:58:44.361562+00:00",
+  "merged_commit": "578c12645d75411024372408493ab76cfeab32b8",
+  "mid8": "01M6BV1A",
+  "mission_id": "01M6BV1AF5CJVJC7MQAVQN9C0M",
+  "mission_number": 246,
+  "mission_slug": "upgrade-seeded-list-hint-01M6BV1A",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances upgrade seeded list hint on issue-6684-upgrade-seeded-list-hint so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "upgrade seeded list hint",
+  "slug": "upgrade-seeded-list-hint-01M6BV1A",
+  "status_phase": "1",
+  "target_branch": "issue-6684-upgrade-seeded-list-hint",
+  "topology": "single_branch"
+}

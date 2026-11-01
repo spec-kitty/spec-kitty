@@ -1,0 +1,84 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6C0S7EG318ZZPZ98F0N63P9",
+  "materialized_at": "2026-11-01T16:58:46.096878+00:00",
+  "mission_number": "246",
+  "mission_slug": "upgrade-seeded-list-hint-01M6BV1A",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C0S5Y6YJNKQKJXQA605HN4",
+      "last_transition_at": "2026-11-01T16:58:44.550954+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review gate timed out at its 300s budget twice (host load average ~197 on 20 cores; #6865). Ran the gate's own command (make test-fast) myself to completion: 2678 passed, 18 failed, and every failing family reproduces on pristine origin/main in a clean worktree (shared /tmp/spec-kitty-pytest-tmp pollution + one 240s pytest-timeout). Module scope green: 71 passed.",
+        "Review passed after one round: provenance helper became a bool predicate, the message states what is in force today, and a paradigms case pins the per-key rule."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3671451,
+      "shell_pid_created_at": "1793550834.23",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T008": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "planner-priti",
+      "lane": "done",
+      "last_event_id": "01M6C0S7EG318ZZPZ98F0N63P9",
+      "last_transition_at": "2026-11-01T16:58:46.096878+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review gate skipped for the same environmental timeout as WP01 (#6865); the docs-only diff was checked with check_docs_freshness --ci (errors=0) and test_no_legacy_terminology.py (98 passed).",
+        "Docs review passed: the ADR amendment states the ruling, the refused reset and the residual; the fragment carries the user-facing before/after and passes the changelog style and spelling gates (0 errors)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3766821,
+      "shell_pid_created_at": "1793551796.44",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done"
+      }
+    }
+  }
+}
