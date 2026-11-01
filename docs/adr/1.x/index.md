@@ -4,7 +4,9 @@ description: Index and era history for the archived 1.x decisions — workspace 
 doc_status: active
 updated: '2026-08-10'
 type: explanation
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 
 # 1.x ADRs

@@ -4,7 +4,9 @@ description: 'Index and era history for every Spec Kitty 3.x architectural decis
 doc_status: active
 updated: '2026-11-01'
 type: explanation
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 
 # 3.x ADRs
