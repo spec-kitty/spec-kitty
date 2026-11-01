@@ -3221,6 +3221,9 @@ pages:
     - {slug: "never-suppressed", text: "Never suppressed", level: 3}
     - {slug: "escape-hatch", text: "Escape hatch", level: 3}
     - {slug: "consequences-and-recorded-limits", text: "Consequences and recorded limits", level: 3}
+    - {slug: "amendment-2026-11-01-the-required-checks-gate-a-merge-queue", text: "Amendment (2026-11-01) — the required checks gate a merge queue", level: 2}
+    - {slug: "decision-3", text: "Decision", level: 3}
+    - {slug: "consequences-2", text: "Consequences", level: 3}
   - path: "docs/adr/3.x/2026-09-23-2-mission-state-repair-preserve-by-default.md"
     title: "ADR: mission-state repair inverts non-lane preservation to preserve-by-default"
     divio_type: "none"
