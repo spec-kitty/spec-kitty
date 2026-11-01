@@ -139,11 +139,13 @@ spec-kitty = "specify_cli:main"
 # src/ to verify/fetch the pinned packs/built-in tree. Measured import closure of that
 # import (python -I, src/ on sys.path): ruamel.yaml, pydantic (with its own
 # pydantic-core / annotated-types / typing-extensions / typing-inspection), packaging,
-# python-ulid. These run arbitrary code in the build environment, so the direct
-# requirements below (hatchling, ruamel.yaml, pydantic, packaging, python-ulid) are pinned
-# EXACTLY to the uv.lock versions (supply chain). annotated-types, typing-extensions and
-# typing-inspection are transitive and float. Keep every pin in lockstep with uv.lock.
-requires = ["hatchling==1.31.0", "ruamel.yaml==0.19.1", "pydantic==2.13.3", "packaging==26.2", "python-ulid==3.1.0"]
+# python-ulid, and platformdirs -- the last because pack_fetch resolves the per-user cache
+# through kernel.user_dirs, which delegates to platformdirs (#6488). These run arbitrary
+# code in the build environment, so the direct requirements below (hatchling, ruamel.yaml,
+# pydantic, packaging, python-ulid, platformdirs) are pinned EXACTLY to the uv.lock
+# versions (supply chain). annotated-types, typing-extensions and typing-inspection are
+# transitive and float. Keep every pin in lockstep with uv.lock.
+requires = ["hatchling==1.31.0", "ruamel.yaml==0.19.1", "pydantic==2.13.3", "packaging==26.2", "python-ulid==3.1.0", "platformdirs==4.9.6"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]

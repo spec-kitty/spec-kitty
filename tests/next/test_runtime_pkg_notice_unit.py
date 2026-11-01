@@ -121,19 +121,22 @@ def test_marker_path_uses_xdg_state_home_when_set(
     assert p == tmp_path / "spec-kitty" / ".spec-kitty-runtime-cutover-notice-shown"
 
 
-@pytest.mark.parametrize("platform", ["linux", "darwin", "windows"])
 @pytest.mark.parametrize(
-    ("env", "expected"),
+    ("platform", "env", "expected"),
     [
-        ({"XDG_STATE_HOME": "state", "XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, "state"),
-        ({"XDG_CACHE_HOME": "xdg", "LOCALAPPDATA": "lad"}, "home/.cache"),
-        ({}, "home/.cache"),
+        ("linux", {"XDG_STATE_HOME": "state", "XDG_CACHE_HOME": "xdg"}, "state"),
+        ("linux", {"XDG_CACHE_HOME": "xdg"}, "home/.local/state"),
+        ("linux", {}, "home/.local/state"),
+        ("darwin", {"XDG_STATE_HOME": "state"}, "state"),
+        ("darwin", {}, "home/Library/Application Support"),
+        ("windows", {"LOCALAPPDATA": "lad", "XDG_STATE_HOME": "ignored"}, "lad"),
+        ("windows", {"LOCALAPPDATA": "lad"}, "lad"),
     ],
 )
 def test_marker_path_pinned_per_platform(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str, env: dict[str, str], expected: str
 ) -> None:
-    """#6481: moving onto ``kernel.user_dirs.user_state_dir`` changed no location."""
+    """#6488: the marker follows the one state authority, ``platformdirs`` semantics."""
     from tests.kernel._user_dirs_pins import fake_platform
 
     fake_platform(monkeypatch, tmp_path, platform, env)

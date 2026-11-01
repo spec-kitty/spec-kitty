@@ -1,0 +1,128 @@
+schema_version: 1
+mission_id: 01M68JF2NAWJC6SRCQDK39AZT9
+mission_slug: per-user-locations-single-authority-01M68JF2
+mission_number: 245
+friendly_name: per user locations single authority
+mission_type: software-dev
+target_branch: issue-6488-per-user-locations-single-authority
+created_at: '2026-10-31T10:27:32.611011+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-31T10:27:32.611011+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-009
+- id: h-003
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-009
+not_helpful:
+- id: n-003
+  category: doc
+  summary: analysis-report.md records 1 finding(s)
+  evidence_refs:
+  - e-012
+  details: The analysis-report.md artifact for this mission records 1 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: process
+  summary: WP03 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-010
+  details: WP WP03 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-002
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-011
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/tasks/WP01-resolution-authority.md
+- id: e-006
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/tasks/WP02-caller-convergence.md
+- id: e-007
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/tasks/WP03-legacy-discard.md
+- id: e-008
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/tasks/WP04-proof-docs.md
+- id: e-009
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/status.events.jsonl
+- id: e-010
+  kind: event_range
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/status.events.jsonl
+  range: 01M68QN927TQAQFH9GT116TKF2
+- id: e-011
+  kind: event_range
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/status.events.jsonl
+  range: 01M68QN927TQAQFH9GT116TKF2
+- id: e-012
+  kind: file
+  path: kitty-specs/per-user-locations-single-authority-01M68JF2/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

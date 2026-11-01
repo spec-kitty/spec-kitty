@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-31T08:51:10.236274Z",
+      "decision_id": "01M68JFP8W6YE351QDKGFCRFAW",
+      "final_answer": "Confirm scope as written",
+      "input_key": "intent_summary",
+      "mission_id": "01M68JF2NAWJC6SRCQDK39AZT9",
+      "mission_slug": "per-user-locations-single-authority-01M68JF2",
+      "opened_by": "python-pedro",
+      "options": [
+        "Confirm scope as written",
+        "Narrow to cache only",
+        "Widen to include #2904"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm the Mission intent for #6488: platformdirs semantics win for per-user cache, state and config; kernel.user_dirs is the single authority and every caller routes through it; old locations are discarded; macOS/Windows branches pinned by faked-platform tests.",
+      "rationale": "Operator triage on #6488 (2026-10-19) names the rule, the scope list, the dead fallbacks and the cleanup; the brief's mission boundary is one issue to one PR, so #2904 stays out.",
+      "resolved_at": "2026-10-31T08:51:15.370908Z",
+      "resolved_by": "Ivan-Melck",
+      "slot_key": null,
+      "status": "resolved",
+      "step_id": "specify.intent",
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M68JF2NAWJC6SRCQDK39AZT9",
+  "version": 1
+}

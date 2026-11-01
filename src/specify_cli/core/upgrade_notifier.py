@@ -60,18 +60,17 @@ TTL_UNKNOWN_SECONDS = 60 * 60
 
 
 _CACHE_FILENAME = "upgrade-check.json"
-_CACHE_PARENT = "spec-kitty"
 
 
 def _default_cache_path() -> Path:
-    """Resolve the cache file location per platform conventions.
+    """Resolve the cache file location through the one per-user authority.
 
-    POSIX: ``~/.cache/spec-kitty/upgrade-check.json``
-    Windows: ``%LOCALAPPDATA%\\spec-kitty\\upgrade-check.json``
-
-    POSIX honours ``XDG_CACHE_HOME`` when set (:func:`kernel.user_dirs.user_cache_dir`).
+    ``kernel.user_dirs.user_cache_dir()`` (``platformdirs`` semantics, #6488):
+    ``$XDG_CACHE_HOME/spec-kitty``, else ``~/.cache/spec-kitty`` on Linux;
+    ``~/Library/Caches/spec-kitty`` on macOS;
+    ``%LOCALAPPDATA%\\spec-kitty\\Cache`` on Windows.
     """
-    return user_cache_dir() / _CACHE_PARENT / _CACHE_FILENAME
+    return user_cache_dir() / _CACHE_FILENAME
 
 
 # ---------------------------------------------------------------------------
