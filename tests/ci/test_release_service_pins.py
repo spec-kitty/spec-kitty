@@ -7,8 +7,11 @@ pin and no service binary. ``RELEASE_CHECKLIST.md`` names the same checks for a 
 
 from __future__ import annotations
 
-import fnmatch
 import re
+import subprocess
+import sys
+import textwrap
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -64,22 +67,48 @@ def test_a_wheel_content_check_requires_the_pin_and_refuses_every_binary_pattern
     assert _index(lambda text: PIN_MEMBER in text, "checks the wheel's pins") > build
 
 
+def _wheel_rule_snippet() -> str:
+    """The Python the release's wheel-content step runs (between ``python - <<'PY'`` and ``PY``), exactly as written."""
+    snippets = re.findall(r"python - <<'PY'\n(.*?)\n\s*PY\n", _wheel_check_step(), re.DOTALL)
+    assert len(snippets) == 1, f"expected exactly one embedded Python snippet in the wheel check, found {len(snippets)}"
+    return textwrap.dedent(snippets[0])
+
+
+def _run_on_planted_wheel(tmp_path: Path, members: list[str]) -> subprocess.CompletedProcess[str]:
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    with zipfile.ZipFile(dist / "spec_kitty_cli-0.0.0-py3-none-any.whl", "w") as wheel:
+        for member in members:
+            wheel.writestr(member, "x")
+    return subprocess.run([sys.executable, "-c", _wheel_rule_snippet()], cwd=tmp_path, capture_output=True, text=True, check=False)
+
+
+def test_the_release_wheel_check_passes_a_clean_wheel(tmp_path: Path) -> None:
+    result = _run_on_planted_wheel(tmp_path, [PIN_MEMBER, "specify_cli/__init__.py", "specify_cli/_pins/README.md"])
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_the_release_wheel_check_refuses_a_wheel_without_the_pin(tmp_path: Path) -> None:
+    result = _run_on_planted_wheel(tmp_path, ["specify_cli/__init__.py"])
+    assert result.returncode != 0
+    assert PIN_MEMBER in result.stdout + result.stderr
+
+
 @pytest.mark.parametrize(
-    ("members", "ok"),
+    "binary",
     [
-        ([PIN_MEMBER, "specify_cli/__init__.py"], True),
-        (["specify_cli/__init__.py"], False),
-        ([PIN_MEMBER, "specify_cli/_bin/mission-status-api-0.1.0-linux-x64"], False),
-        ([PIN_MEMBER, "x/command-cli-1.0-darwin-arm64"], False),
-        ([PIN_MEMBER, "x/service.jar"], False),
-        ([PIN_MEMBER, "x/tool.exe"], False),
+        "mission-status-api-0.1.0-linux-x64",
+        "specify_cli/_bin/mission-status-api-0.1.0-darwin-arm64",
+        "command-cli-1.0.0-linux-x64",
+        "specify_cli/services/mission-status-api.jar",
+        "specify_cli/tools/read-service.exe",
     ],
+    ids=["mission-status-api", "nested-mission-status-api", "command-cli", "jar", "exe"],
 )
-def test_the_wheel_rule_the_step_states(members: list[str], ok: bool) -> None:
-    """The rule the release step applies, run on planted member lists (the step's own Python is the same rule)."""
-    names = {Path(member).name for member in members}
-    passes = PIN_MEMBER in members and not any(fnmatch.fnmatch(name, pattern) for name in names for pattern in BINARY_PATTERNS)
-    assert passes is ok
+def test_the_release_wheel_check_refuses_every_binary_pattern_and_names_the_member(tmp_path: Path, binary: str) -> None:
+    result = _run_on_planted_wheel(tmp_path, [PIN_MEMBER, "specify_cli/__init__.py", binary])
+    assert result.returncode != 0
+    assert binary in result.stdout + result.stderr
 
 
 def test_the_checklist_names_the_service_pin_checks() -> None:
