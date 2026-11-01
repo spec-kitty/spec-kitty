@@ -67,7 +67,6 @@ from pathlib import Path
 from typing import Any, cast
 
 # interim-locked-append: this refusal type retires with kernel.event_log_append at #6193.
-from kernel.event_log_append import EventLogAppendError
 from mission_runtime import MissionArtifactKind, OwnedCheckout, mission_context_for
 
 from specify_cli.core.paths import MissionMetaReadError
@@ -223,10 +222,12 @@ def pair_previous_lifecycle_record(
             phase=phase,
             reason=reason,
         )
-    except EventLogAppendError as exc:
+    except OSError as exc:
         # #6606: the lifecycle log is observability. A refused interim append
-        # (a torn last line, a held lock) is reported and `next` carries on,
-        # as the issuance write above already does for any I/O error.
+        # (a torn last line, a held lock, an EventLogAppendError) or any other
+        # I/O error -- since #7003 also an unwritable `kitty-ops/lifecycle/`
+        # directory -- is reported and `next` carries on, as the issuance write
+        # below already does.
         logger.warning("Lifecycle completion not recorded: %s", exc)
 
 

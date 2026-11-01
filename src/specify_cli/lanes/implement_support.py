@@ -115,7 +115,7 @@ def _owned_status_prefixes(mission_slug: str) -> tuple[str, ...]:
 
     ``spec-kitty next`` writes this Mission's runtime event log
     (``mission-events.jsonl``) and its invocation records under ``kitty-ops/``
-    (the shared ``lifecycle.jsonl``) into the write checkout and leaves them
+    (one ``kitty-ops/lifecycle/<ulid>.json`` file per record, #7003) into the write checkout and leaves them
     uncommitted, so without those two entries the claim that follows ``next``
     refuses itself (#5930). ``kitty-ops/`` is a directory prefix because git
     reports a wholly untracked directory as one collapsed entry; it holds only

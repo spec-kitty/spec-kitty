@@ -200,7 +200,7 @@ def _read_record_files(directory: Path) -> list[ProfileInvocationRecord]:
 class LifecycleGroup:
     """All records sharing one ``(mission_id, canonical_action_id)`` key.
 
-    Records are stored in insertion order. The group key includes
+    Records are stored in read order (see :func:`read_lifecycle_records`). The group key includes
     ``mission_id`` so two missions issuing the same ``mission_state::action``
     cannot cross-pair (which would silently mask a real orphan).
     """
@@ -270,8 +270,8 @@ def find_latest_unpaired_started(
     """Return the most recent ``started`` record without a paired completion.
 
     Filters by ``agent`` and ``mission_id`` when provided. The "most recent"
-    is determined by insertion order (the lifecycle log is append-only and
-    monotonic in wall-clock time within a single process).
+    is the latest ``at``, normalised to UTC. Which ``started`` of a group is
+    unpaired follows the read order of :func:`read_lifecycle_records`.
     """
     grouped = group_by_action(records)
     candidates: list[ProfileInvocationRecord] = []
@@ -292,8 +292,9 @@ def find_latest_unpaired_started(
     ]
     if not candidates:
         return None
-    # Return the latest by ``at``; fall back to insertion order on ties.
-    return max(candidates, key=lambda r: (r.at, r.canonical_action_id))
+    # Return the latest by ``at`` as UTC (a naive legacy ``at`` mixed with aware
+    # ones must not raise); break ties on the canonical id.
+    return max(candidates, key=lambda r: (_utc_at(r), r.canonical_action_id))
 
 
 def compute_pairing_rate(records: Iterable[ProfileInvocationRecord]) -> float:

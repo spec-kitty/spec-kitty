@@ -541,6 +541,9 @@ def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> No
     message = f"chore(next): persist {owned.mission_slug} advancement [skip ci]"
     parent = None
     ignore_delta = None
+    # Listed before the ignore provisioning below: a failing git probe here
+    # must not leave the operator's ignore file edited with no restore.
+    lifecycle_records = _uncommitted_lifecycle_records(owned.owned_root)
     if runtime_lock.exists():
         preflight_commit(
             repo_root=owned.owned_root,
@@ -559,7 +562,7 @@ def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> No
             # command owns that refusal). The lock is still never committed.
             ignore_delta = None
     mission_files = tuple(path for path in sorted(owned.mission_dir.rglob("*")) if path.is_file() and path != runtime_lock)
-    paths = mission_files + _uncommitted_lifecycle_records(owned.owned_root)
+    paths = mission_files + lifecycle_records
     if not paths:
         return
     try:
@@ -606,7 +609,8 @@ def _uncommitted_lifecycle_records(owned_root: Path) -> tuple[Path, ...]:
         optional_locks=False,
     )
     candidates = (owned_root / entry.path.as_posix() for entry in entries)
-    return tuple(sorted(path for path in candidates if path.suffix == LIFECYCLE_RECORD_SUFFIX and path.is_file()))
+    # A zero-byte stub left by a failed write is not a record; never commit it.
+    return tuple(sorted(path for path in candidates if path.suffix == LIFECYCLE_RECORD_SUFFIX and path.is_file() and path.stat().st_size))
 
 
 def _pair_previous_lifecycle_record(
