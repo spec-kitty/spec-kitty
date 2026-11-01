@@ -1,0 +1,127 @@
+{
+  "event_count": 25,
+  "last_event_id": "01M698N5ZAP6D227PYRK5P0D9K",
+  "materialized_at": "2026-10-31T15:18:38.826900+00:00",
+  "mission_number": "245",
+  "mission_slug": "plugin-bundle-directory-conformance-01M68ZVP",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M698N38A4K5SRM37W2RGM5MQ",
+      "last_transition_at": "2026-10-31T15:18:36.042149+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "SemVer projection + Agent Plugins 1.0.0 shared manifest; 1168 tool-surface tests green; ruff clean",
+        "Review (reviewer-renata): anti-pattern checklist all PASS (dead code, synthetic fixture, silent-empty-return, FR coverage, frozen surface, locked decisions, production fragility); shared-file ownership NOTE: one-line call-site edits in claude.py/copilot.py/providers/plugin_bundle.py, WP02 rebases onto this lane. 1168 tool-surface tests green; ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 204167,
+      "shell_pid_created_at": "1793450905.63",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "#6479"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M698N4JHJP4EYX48CKNM2GPA",
+      "last_transition_at": "2026-10-31T15:18:37.394004+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Claude bin/ removal + hooks pointer removal + links/license; Codex SemVer, ./skills/, 30-char guard, listing fields, desktop-only flag, bundled square logo (wheel artifact); 1140 tool-surface tests green, ruff+mypy clean, wheel carries the asset",
+        "Review (reviewer-renata): anti-pattern checklist PASS — dead code PASS (dropped the now-unused _SHORT_DESCRIPTION_MAX_LEN; _brand_asset/_validate_* all called from prepare/_validate_manifest), synthetic fixture PASS (conformance suite drives both build() entry points), silent-empty-return PASS (none added), FR coverage PASS (FR-001..005, FR-008 each asserted with a positive control), frozen surface PASS, locked decisions PASS, production fragility PASS (one new fail-loud BuildError: a missing packaged asset, chosen over emitting a manifest that points at an unshipped file), shared-file ownership NOTE (projection.py/model.py shared with WP01, claude.py call site from WP01; lane-b rebased onto lane-a so both sides present). 1140 tool-surface tests green; ruff+mypy clean; wheel carries assets/logo.png.",
+        "Review-round fixes landed after approval: 5f7f7a0 drops the Agent Plugins $schema from the Claude reduction, ed4b501 stabilizes an unrelated mtime-granularity flake in the agent-profile snapshot assertion. Re-review before merge.",
+        "Two review-round fix commits ready for re-review",
+        "Re-review (reviewer-renata) of the two post-approval commits. 5f7f7a0: verified against spec-kitty-internal-plugins#2 §4.1 that the Claude reduction drops $schema while Copilot/VS Code keep the const; the provider selects by manifest path, so the plan-level Claude bundle now writes the schema-less variant — tests updated to pin both sides (no $schema for Claude, schema const for Copilot/VS Code). ed4b501: an unrelated pre-existing flake, mechanism proven at filesystem level (482/500 immediate identical-byte rewrites kept the same st_mtime_ns, so the oracle's assertion could not fire); the fix adds one 20 ms tick and weakens no assertion. Re-ran tests/specify_cli/tool_surface/{bundles,providers} plus the four plugin conformance/build modules: 678 passed; tool-surface suite 1140 passed before the fix commits; ruff+mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1018978,
+      "shell_pid_created_at": "1793455053.55",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#6479"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "scribe-sally",
+      "lane": "done",
+      "last_event_id": "01M698N5ZAP6D227PYRK5P0D9K",
+      "last_transition_at": "2026-10-31T15:18:38.826900+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Changelog [Unreleased] entry with before/after (#6479); install guide rewritten (no wrapper, CLI prerequisite, marketplace caveat); docs freshness errors=0; terminology suite green",
+        "Review (reviewer-renata): docs-only WP — PASS. Changelog entry follows the section's style, leads with impact, carries (#6479), before/after, 1174 characters (<1200), and is under [Unreleased]/### Fixed. The install guide no longer claims a bundled wrapper, states the CLI prerequisite, and states the marketplace caveat honestly instead of promising an install path that cannot resolve. docs index regenerated for the edited page only (913 pages, no unrelated churn); check_docs_freshness errors=0; tests/architectural/test_no_legacy_terminology.py 98 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1555344,
+      "shell_pid_created_at": "1793457443.21",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      },
+      "tracker_refs": [
+        "#6479"
+      ]
+    }
+  }
+}

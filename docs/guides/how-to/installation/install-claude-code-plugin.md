@@ -2,7 +2,7 @@
 title: How to Install the Spec Kitty Claude Code Plugin
 description: How to install Spec Kitty as a native Claude Code plugin that surfaces canonical mission commands and built-in agent profiles.
 doc_status: active
-updated: '2026-06-20'
+updated: '2026-10-31'
 audience: docs/context/audience/external/project-owner.md
 type: how-to
 ---
@@ -15,28 +15,14 @@ agent profiles directly inside Claude Code.
 ## Prerequisites
 
 - Claude Code CLI v2.0.12 or later (`claude --version` to check).
-- One of the following for runtime execution:
-  - `spec-kitty` on PATH (fastest), or
-  - `uv` installed (the wrapper falls back to `uvx spec-kitty-cli==<version>`).
+- `spec-kitty` on PATH: the bundled skills invoke the `spec-kitty` console
+  script directly, so install the CLI before you use the plugin
+  (`uv tool install spec-kitty-cli`, `pipx install spec-kitty-cli` or
+  `pip install spec-kitty-cli`).
 
 ---
 
-## Option 1: Marketplace install (recommended)
-
-```bash
-# Add the Spec Kitty plugin from the git-based marketplace:
-claude plugin marketplace add https://github.com/spec-kitty/spec-kitty
-
-# Verify the plugin is listed:
-claude plugin list
-```
-
-The marketplace entry points Claude Code at `dist/spec-kitty-plugins/claude-code/`
-inside the repository, which contains the pre-built bundle.
-
----
-
-## Option 2: Dev install (contributors and local builds)
+## Install the bundle
 
 ```bash
 # From the spec-kitty repository root, build the bundle:
@@ -49,7 +35,18 @@ claude --plugin-dir dist/spec-kitty-plugins/claude-code "<your prompt>"
 claude plugin install dist/spec-kitty-plugins/claude-code
 ```
 
+The bundle contains command skills under `skills/`, agent profiles under
+`agents/`, `hooks/hooks.json` and the manifest at
+`.claude-plugin/plugin.json`. It deliberately ships **no** top-level `bin/`:
+Claude.ai and Cowork refuse to install a plugin that has one, and no bundled
+skill needs it.
+
 For build system details, see [CONTRIBUTING.md](../../../development/contributing.md).
+
+> **Marketplace install is not available yet.** `dist/` is a build output and is
+> not committed, so `claude plugin marketplace add spec-kitty/spec-kitty` cannot
+> resolve the bundle until the catalog points at a hosted location. Use the
+> build-and-install path above.
 
 ---
 
@@ -64,39 +61,8 @@ For build system details, see [CONTRIBUTING.md](../../../development/contributin
    claude plugin install dist/spec-kitty-plugins/claude-code
    ```
 
-**"wrapper: uvx not found" error**
+**A skill fails with "spec-kitty: command not found"**
 
-The runtime wrapper falls back to `uvx` when `spec-kitty` is not on PATH.
-Install `uv` to enable the fallback:
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-Or install `spec-kitty` directly to skip the fallback altogether:
-
-```bash
-pip install spec-kitty-cli
-```
-
-**Windows: argument forwarding with quoted strings**
-
-The Windows CMD wrapper (`bin/spec-kitty-wrapper.cmd`) uses `%*` for argument
-forwarding, which may mishandle complex quoted arguments. If you encounter
-quoting issues on Windows, invoke `spec-kitty` directly instead of going through
-the wrapper.
-
----
-
-## How the runtime wrapper works
-
-When Claude Code executes a Spec Kitty skill, it calls
-`bin/spec-kitty-wrapper` (bash) or `bin/spec-kitty-wrapper.cmd` (Windows).
-The wrapper:
-
-1. Checks if `spec-kitty` is on PATH and `spec-kitty --version` succeeds →
-   delegates directly.
-2. Falls back to `uvx spec-kitty-cli==<version>` if `uvx` is available.
-3. Exits with an error message if neither is found.
-
-The version string is substituted at build time by `spec-kitty plugin build`.
+The skills call the `spec-kitty` console script; the plugin does not bundle a
+runtime. Install the CLI and confirm `spec-kitty --version` works in the same
+shell Claude Code uses.

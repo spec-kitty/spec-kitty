@@ -80,7 +80,7 @@ class CopilotBundleProjector:
     ) -> PluginBundle:
         """Project all bundleable surfaces into the Copilot/VS Code layout."""
         entries = self.entries(plan, project_root)
-        manifest = plugin_manifest_payload(self.distribution_target)
+        manifest = plugin_manifest_payload()
         write_bundle(output_dir, entries, _MANIFEST_NAME, manifest)
         return PluginBundle(
             distribution_target=self.distribution_target,

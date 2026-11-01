@@ -60,7 +60,6 @@ class StagedFile:
     surface_ids: tuple[str, ...] = ()
     manifest: bool = False
     managed: bool = True
-    wrapper: bool = False
 
 
 @dataclass(frozen=True)

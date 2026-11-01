@@ -207,9 +207,21 @@ BUNDLE_SURFACE_KINDS: frozenset[ToolSurfaceKind] = frozenset(
 )
 _NON_FILE_SENTINELS = frozenset({Path("<unsupported>"), Path("<not-applicable>")})
 
-# Inert placeholder manifest version. The manifest is a declarative descriptor;
-# its presence never triggers install/publish behaviour.
-_MANIFEST_VERSION = "0.0.0"
+# The pinned Agent Plugins 1.0.0 manifest schema (spec-kitty-internal-plugins#2
+# §2.2). Clients select the portable format by this exact const and never fetch
+# it at load time; the manifest below is a closed schema over the keys emitted.
+AGENT_PLUGINS_SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
+
+# Identity and links every directory needs to resolve the plugin.
+_PLUGIN_NAME = "spec-kitty"
+_PLUGIN_DESCRIPTION = "Spec-Driven Development toolkit: turn agreed intent into a specified, planned, implemented and reviewed result, under a charter you control."
+_PLUGIN_HOMEPAGE = "https://spec-kitty.ai/"
+_PLUGIN_REPOSITORY = "https://github.com/spec-kitty/spec-kitty"
+_PLUGIN_LICENSE = "MIT"
+_PLUGIN_AUTHOR: dict[str, str] = {
+    "name": "Spec Kitty",
+    "url": _PLUGIN_REPOSITORY,
+}
 
 
 def _bundle_relative_path(
@@ -308,18 +320,35 @@ def _project_source_path(path: Path, project_root: Path) -> Path:
     raise ValueError(f"Bundle member is outside its selected project: {path}")
 
 
-def plugin_manifest_payload(distribution_target: str) -> dict[str, object]:
+def plugin_manifest_payload(*, agent_plugins: bool = True) -> dict[str, object]:
     """Build the declarative ``plugin.json`` payload for a target.
 
-    The payload is informational only; it carries no install/marketplace
-    directives.
+    With ``agent_plugins`` the payload is the pinned Agent Plugins 1.0.0
+    document: every key is defined by that closed schema, so an extra key such
+    as the retired ``distribution_target`` would be a directory rejection. The
+    Claude Code reduction drops ``$schema`` (the host reads its own manifest
+    format; ``spec-kitty-internal-plugins#2`` §4.1), which the caller asks for
+    with ``agent_plugins=False``.
+
+    The payload carries no install/marketplace directives, and the version is the
+    real package version projected onto SemVer by the single :func:`to_semver`
+    authority.
     """
-    return {
-        "name": "spec-kitty",
-        "version": _MANIFEST_VERSION,
-        "description": "Spec Kitty tool surfaces (staging bundle).",
-        "distribution_target": distribution_target,
+    from ._builder import get_cli_version, to_semver  # deferred: _builder imports this module
+
+    payload: dict[str, object] = {
+        "name": _PLUGIN_NAME,
+        "version": to_semver(get_cli_version()),
+        "description": _PLUGIN_DESCRIPTION,
+        "author": dict(_PLUGIN_AUTHOR),
+        "homepage": _PLUGIN_HOMEPAGE,
+        "repository": _PLUGIN_REPOSITORY,
+        "license": _PLUGIN_LICENSE,
+        "keywords": ["spec-driven-development", "sdd", "governance", "cli"],
     }
+    if agent_plugins:
+        return {"$schema": AGENT_PLUGINS_SCHEMA, **payload}
+    return payload
 
 
 def write_bundle(
@@ -939,11 +968,7 @@ def _apply_staged_effects(assessment: OwnerAssessment) -> OwnerApplyResult:
                     continue
             else:
                 member = members[effect.path]
-                if member.wrapper:
-                    from .claude_wrapper import write_wrappers
-
-                    write_wrappers(effect.destination.parent.parent, prepared=(effect.destination, member.content, member.mode))
-                elif member.manifest:
+                if member.manifest:
                     from ._builder import write_json
 
                     write_json(effect.destination, member.content, mode=member.mode)

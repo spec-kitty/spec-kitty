@@ -1,0 +1,35 @@
+{
+  "accept_commit": "22309e11bbeb43f0a4328147caa7c03061d70723",
+  "acceptance_history": [
+    {
+      "accept_commit": "22309e11bbeb43f0a4328147caa7c03061d70723",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T14:48:24.238755+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "84736baac6043e3a86e1f408f77559e6645cfae0"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T14:48:24.238755+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "84736baac6043e3a86e1f408f77559e6645cfae0",
+  "baseline_merge_commit": "14783f1b7427d3c8e9342485c69ef960fbbe560a",
+  "created_at": "2026-10-31T12:44:55.417703+00:00",
+  "flattened": false,
+  "friendly_name": "plugin bundle directory conformance",
+  "merged_at": "2026-10-31T15:18:35.953453+00:00",
+  "merged_commit": "1d299c2f1e06b151ac70a132989ad0fc4d62fc8e",
+  "mid8": "01M68ZVP",
+  "mission_id": "01M68ZVPN0WE7D6R2E8A001E67",
+  "mission_number": 245,
+  "mission_slug": "plugin-bundle-directory-conformance-01M68ZVP",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances plugin bundle directory conformance on issue-6479-plugin-bundle-directory-conformance so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "plugin bundle directory conformance",
+  "slug": "plugin-bundle-directory-conformance-01M68ZVP",
+  "status_phase": "1",
+  "target_branch": "issue-6479-plugin-bundle-directory-conformance",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T12:48:30.186774+00:00"
+}

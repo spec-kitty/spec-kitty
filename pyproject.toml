@@ -172,6 +172,10 @@ artifacts = [
     "src/specify_cli/**/*.yml",
     "src/specify_cli/**/*.json",
     "src/specify_cli/**/*.jsonl",
+    # Plugin bundle brand asset (#6479): the Codex/OpenAI manifest declares
+    # ``./assets/logo.png``, so the wheel must carry it or an installed CLI builds
+    # a manifest pointing at a file it never shipped.
+    "src/specify_cli/**/*.png",
     "src/runtime/**/*.md",
     "src/runtime/**/*.yaml",
     "src/runtime/**/*.yml",
@@ -2124,7 +2128,6 @@ exclude = [
     "tests/specify_cli/test_worktrees_index.py",
     "tests/specify_cli/tool_surface/bundles/_support.py",
     "tests/specify_cli/tool_surface/bundles/test_claude.py",
-    "tests/specify_cli/tool_surface/bundles/test_claude_wrapper.py",
     "tests/specify_cli/tool_surface/bundles/test_model.py",
     "tests/specify_cli/tool_surface/integration/test_compat_support.py",
     "tests/specify_cli/tool_surface/integration/test_doctor_tool_surfaces_cli.py",

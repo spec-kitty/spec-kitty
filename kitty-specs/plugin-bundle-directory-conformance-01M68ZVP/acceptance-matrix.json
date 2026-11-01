@@ -1,0 +1,89 @@
+{
+  "mission_slug": "plugin-bundle-directory-conformance-01M68ZVP",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_plugin_bundle_directory_conformance.py::test_claude_bundle_has_no_top_level_bin_directory",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:47:49.610734+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_plugin_bundle_directory_conformance.py::test_claude_manifest_does_not_redeclare_the_default_hooks_file",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:47:55.370382+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_plugin_bundle_directory_conformance.py::test_claude_manifest_carries_identity_links_and_semver + tests/specify_cli/tool_surface/bundles/test_plugin_manifest_agent_plugins.py::test_manifest_identity_and_links",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:47:59.507342+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_plugin_bundle_directory_conformance.py::test_codex_manifest_meets_the_pinned_directory_limits + test_codex_manifest_keeps_the_forbidden_key_guard",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:48:03.353329+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_plugin_bundle_directory_conformance.py::test_codex_declared_images_exist_inside_the_bundle (square PNG 1024x1024, shipped via the *.png wheel artifact)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:48:06.992419+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/bundles/test_plugin_manifest_agent_plugins.py::test_manifest_declares_the_pinned_agent_plugins_schema + test_manifest_carries_only_schema_defined_keys",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:48:10.974999+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/bundles/test_plugin_manifest_agent_plugins.py::test_to_semver_projects_pep440 (9 mappings), test_to_semver_never_raises_on_an_unparseable_version, test_to_semver_is_idempotent",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:48:14.743256+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tool_surface/test_plugin_bundle_directory_conformance.py (both build() entry points) + tests/specify_cli/tool_surface/bundles/test_plugin_manifest_agent_plugins.py (both project() entry points): 1140 tool-surface tests green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-31T14:48:18.571982+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

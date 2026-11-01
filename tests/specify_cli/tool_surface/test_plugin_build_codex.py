@@ -47,7 +47,9 @@ def test_explicit_build_assessment_exact_full_delta(tmp_path: Path, target: str)
         (e.root, e.path, e.action, e.after.kind, e.after.sha256, e.after.mode) for e in actual}
     assert any(e.path.endswith("marketplace.json") for e in assessment.effects)
     if target == "claude":
-        assert any(e.path.endswith("bin/spec-kitty-wrapper") and e.after.mode == 0o700 for e in assessment.effects)
+        # The Claude bundle deliberately stages no top-level bin/ (#6479); the
+        # positive control is the sibling marketplace catalog it does stage.
+        assert not any("spec-kitty-wrapper" in e.path for e in assessment.effects)
         assert any(e.path == "dist/marketplace.json" for e in assessment.effects)
     settled = snapshot({"staging": tmp_path, "home": Path.home()})
     repeated = projector.prepare(ApplyConsent(automatic=True))
@@ -339,6 +341,35 @@ def test_codex_hook_copy_preserves_unknown_descendant(tmp_path: Path, monkeypatc
 # ---------------------------------------------------------------------------
 
 
+def _valid_manifest() -> dict[str, object]:
+    """A complete, limit-respecting Codex manifest for validation tests."""
+    return {
+        "name": "spec-kitty",
+        "version": "3.2.0",
+        "description": "Spec-Driven Development toolkit.",
+        "author": {"name": "Spec Kitty"},
+        "homepage": "https://spec-kitty.ai/",
+        "repository": "https://github.com/spec-kitty/spec-kitty",
+        "license": "MIT",
+        "requires_local_executor": True,
+        "interface": {
+            "displayName": "Spec Kitty",
+            "shortDescription": "Spec-Driven Development",
+            "longDescription": "Spec Kitty turns agreed intent into a verified result.",
+            "developerName": "Spec Kitty, Inc.",
+            "category": "Developer Tools",
+            "capabilities": ["Specification-first mission workflow"],
+            "websiteURL": "https://docs.spec-kitty.ai/",
+            "supportURL": "https://github.com/spec-kitty/spec-kitty/issues",
+            "privacyPolicyURL": "https://spec-kitty.ai/privacy",
+            "defaultPrompt": ["Turn this idea into a spec, plan and tasks with Spec Kitty."],
+            "logo": "./assets/logo.png",
+            "composerIcon": "./assets/logo.png",
+        },
+        "skills": "./skills/",
+    }
+
+
 def _run_build(tmp_path: Path, *, skip_validate: bool = True) -> Path:
     """Build a Codex bundle and return the bundle directory."""
     result = CodexBundleProjector(tmp_path / "dist").build(skip_validate=skip_validate)
@@ -385,7 +416,8 @@ class TestPluginJson:
     def test_plugin_json_skills_pointer(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)
         payload = _read_manifest(bundle_dir)
-        assert payload["skills"] == "skills/"
+        # Host-relative component paths carry the ``./`` prefix (#6479).
+        assert payload["skills"] == "./skills/"
 
     def test_plugin_json_description_present(self, tmp_path: Path) -> None:
         bundle_dir = _run_build(tmp_path)
@@ -543,35 +575,72 @@ class TestForbiddenKeys:
     def test_validate_manifest_raises_on_short_description_too_long(
         self, tmp_path: Path
     ) -> None:
+        """The pinned limit is 30 characters, not the old internal 120."""
         projector = CodexBundleProjector(tmp_path / "dist")
-        bad_manifest: dict[str, object] = {
-            "name": "spec-kitty",
-            "version": "1.0.0",
-            "description": "test",
-            "author": {"name": "Spec Kitty"},
-            "interface": {
-                "displayName": "Spec Kitty",
-                "shortDescription": "x" * 121,  # exceeds 120-char limit
-            },
+        bad_manifest = _valid_manifest()
+        bad_manifest["interface"] = {
+            **bad_manifest["interface"],  # type: ignore[dict-item]
+            "shortDescription": "x" * 31,
         }
         with pytest.raises(BuildError, match="shortDescription"):
             projector._validate_manifest(bad_manifest)
+
+    @pytest.mark.parametrize(
+        ("mutate", "expected"),
+        [
+            (lambda m: m.pop("author"), "author.name"),
+            (lambda m: m["author"].pop("name"), "author.name"),
+            (lambda m: m.pop("interface"), "'interface'"),
+            (lambda m: m["interface"].pop("longDescription"), "interface.longDescription"),
+            (lambda m: m["interface"].update(longDescription="x" * 4001), "interface.longDescription"),
+            (lambda m: m["interface"].update(developerName="x" * 81), "interface.developerName"),
+            (lambda m: m["interface"].update(displayName="x" * 31), "interface.displayName"),
+            (lambda m: m["interface"].update(capabilities="none"), "capabilities"),
+            (lambda m: m["interface"].update(capabilities=[f"c{i}" for i in range(21)]), "capabilities"),
+            (lambda m: m["interface"].update(capabilities=["x" * 121]), "capabilities"),
+            (lambda m: m["interface"].update(defaultPrompt=[]), "defaultPrompt"),
+            (lambda m: m["interface"].update(defaultPrompt=["p"] * 4), "defaultPrompt"),
+            (lambda m: m["interface"].update(defaultPrompt=["x" * 129]), "defaultPrompt"),
+            (lambda m: m.update(skills="skills/"), "skills"),
+            (lambda m: m.update(mcpServers=".mcp.json"), "mcpServers"),
+        ],
+    )
+    def test_validate_manifest_refuses_each_pinned_violation(
+        self, tmp_path: Path, mutate: Callable[[dict], None], expected: str
+    ) -> None:
+        """Every pinned limit and required field has a refusal that names it."""
+        projector = CodexBundleProjector(tmp_path / "dist")
+        manifest = _valid_manifest()
+        mutate(manifest)
+        with pytest.raises(BuildError, match=expected):
+            projector._validate_manifest(manifest)
+
+    def test_validate_manifest_accepts_the_pinned_component_pointer_form(
+        self, tmp_path: Path
+    ) -> None:
+        """``./``-prefixed pointers pass, so the refusal above is not vacuous."""
+        projector = CodexBundleProjector(tmp_path / "dist")
+        manifest = _valid_manifest()
+        manifest["mcpServers"] = "./.mcp.json"
+        projector._validate_manifest(manifest)
+
+    def test_validate_manifest_accepts_a_30_character_short_description(
+        self, tmp_path: Path
+    ) -> None:
+        """Boundary positive control: exactly at the limit is accepted."""
+        projector = CodexBundleProjector(tmp_path / "dist")
+        at_limit = _valid_manifest()
+        at_limit["interface"] = {
+            **at_limit["interface"],  # type: ignore[dict-item]
+            "shortDescription": "x" * 30,
+        }
+        projector._validate_manifest(at_limit)
 
     def test_validate_manifest_passes_on_valid_manifest(
         self, tmp_path: Path
     ) -> None:
         projector = CodexBundleProjector(tmp_path / "dist")
-        valid_manifest: dict[str, object] = {
-            "name": "spec-kitty",
-            "version": "3.2.0",
-            "description": "Spec-Driven Development toolkit.",
-            "author": {"name": "Spec Kitty"},
-            "interface": {
-                "displayName": "Spec Kitty",
-                "shortDescription": "Spec-Driven Development for teams.",
-            },
-            "skills": "skills/",
-        }
+        valid_manifest = _valid_manifest()
         # Must not raise.
         projector._validate_manifest(valid_manifest)
 
