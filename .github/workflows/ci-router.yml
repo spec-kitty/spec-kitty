@@ -126,6 +126,9 @@ jobs:
       # CI-configuration group (FR-007, amendment A1): non-src, like architectural
       # above; gates only the heavy battery. Never in the unmatched loop.
       ci_config: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.ci_config }}
+      # Architectural scan-scope group (#6994): non-src, like ci_config above; gates only the heavy battery,
+      # which then runs only the gates whose declared scan scope the diff touches. Never in the unmatched loop.
+      arch_scan_scope: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.arch_scan_scope }}
       # Contract-tools group (#5558): non-src, like ci_config above; gates only `tests (contract tools)`
       # (together with `corpus`, which owns contracts/**). Never in the unmatched loop.
       contract_tools: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.contract_tools }}
@@ -509,6 +512,34 @@ jobs:
               - 'Makefile'
               - '.github/ci-module-registry.yml'
               - '.github/ci-shard-timings.json'
+            # Architectural scan-scope group (#6994): NON-src (not in the unmatched loop); gates ONLY the heavy
+            # battery. The paths battery gates READ beyond their code scope (src/**, tests/architectural/**,
+            # ci_config): #6988 added a raw date.today() under scripts/release/, which the clock bans scan, and
+            # no group selected the battery. The list is a TRANSCRIPTION of
+            # gate_selection.battery_scope_router_globs(), derived from the registry's
+            # special_tiers.architectural.scan_scopes; do not edit it by hand (pinned by
+            # tests/architectural/test_battery_scan_scope_routing.py). A diff that matches only this group runs,
+            # in each heavy leg, only the gates whose scope it touches (scripts/ci/battery_scope.py).
+            arch_scan_scope:
+              - '.gitattributes'
+              - '.gitignore'
+              - '.kittify/agent_profiles_manifest.json'
+              - '.kittify/charter/charter.yaml'
+              - '.kittify/glossaries/**'
+              - '.kittify/missions/**'
+              - '.python-version'
+              - 'AGENTS.md'
+              - 'CLAUDE.md'
+              - 'README.md'
+              - 'docs/**'
+              - 'kitty-ops/**'
+              - 'kitty-specs/**'
+              - 'packs/**'
+              - 'research/**'
+              - 'ruff.toml'
+              - 'scripts/**'
+              - 'tests/**'
+            # end arch_scan_scope
             # Contract-tools group (#5558): NON-src (not in the unmatched loop); with `corpus`
             # (which owns contracts/**, pinned by tests/ci/test_contracts_routing.py) it gates
             # only `tests (contract tools)`. It names what the contract tool tests read or run on
@@ -1083,6 +1114,7 @@ jobs:
       needs.changes.outputs.unit == 'true' ||
       needs.changes.outputs.specify_cli_runtime == 'true' ||
       needs.changes.outputs.ci_config == 'true' ||
+      needs.changes.outputs.arch_scan_scope == 'true' ||
       needs.changes.outputs.architectural == 'true') &&
       needs.prose-scan.outputs.prose_only != 'true'
     strategy:
@@ -1108,7 +1140,39 @@ jobs:
           python-version: '3.12'
       - name: Sync dev environment
         run: uv sync --frozen --all-extras
+      # Scan-scope selection (#6994): a diff that matches only the arch_scan_scope group runs, in this
+      # leg, only the gates whose declared scan scope it touches; a code diff runs the whole leg. The
+      # answer comes from scripts/ci/gate_selection.py (select_battery_gates) through
+      # scripts/ci/battery_scope.py, which fails safe to the whole leg on any doubt (no diff base, a git
+      # or selection error). `run=false` means this leg holds none of the selected gates.
+      - name: Select the battery gates this diff touches (#6994)
+        id: scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}
+          ROUTING_MODE: ${{ inputs.mode || 'pr' }}
+        run: |
+          set -uo pipefail
+          base=""
+          case "$EVENT_NAME" in
+            pull_request) base="$BASE_SHA" ;;
+            push) base="$PUSH_BEFORE" ;;
+            merge_group) base="$MERGE_GROUP_BASE" ;;
+          esac
+          if ! answer="$(uv run --frozen --no-sync python -m scripts.ci.battery_scope select \
+              --base "$base" --head "$HEAD_SHA" --mode "$ROUTING_MODE" \
+              --battery-part ${{ matrix.shard }} --out "$RUNNER_TEMP/battery-scope-gates.txt")"; then
+            echo "::warning::battery scope selection failed; running the whole leg"
+            answer="$(printf 'mode=full\nrun=true\ngates_file=\n')"
+          fi
+          echo "$answer"
+          echo "$answer" >> "$GITHUB_OUTPUT"
       - name: Sync packs
+        if: steps.scope.outputs.run != 'false'
         uses: ./.github/actions/sync-packs
       # Shared test-universe collection (mission shared-collection-and-shard-recapture,
       # FR-008/FR-009). A leg that holds a test requesting the universe, and the `ci`
@@ -1134,6 +1198,12 @@ jobs:
         id: select
         shell: bash
         run: |
+          # A scoped leg with nothing to run (#6994) collects nothing; every universe step stays off.
+          if [ "${{ steps.scope.outputs.run }}" = "false" ]; then
+            echo "universe=false" >> "$GITHUB_OUTPUT"
+            echo "architectural-heavy ${{ matrix.shard }}: scoped leg with no selected gate; test-universe pre-step selected: false"
+            exit 0
+          fi
           universe="$(uv run --frozen python -m scripts.ci.collect_universe_prestep consumers --battery-part ${{ matrix.shard }})"
           case "$universe" in
             true | false) ;;
@@ -1169,8 +1239,11 @@ jobs:
           path: .pytest_cache/universe-store
           key: ${{ steps.universe-key.outputs.key }}
       - name: Run the architectural battery leg
+        if: steps.scope.outputs.run != 'false'
         env:
           SK_GATE_REUSE_REPORT: ${{ runner.temp }}/universe-reuse.jsonl
+          # Empty for a whole-leg run; for a scoped run, the file of selected gates the plugin restricts the leg to.
+          SK_BATTERY_GATES_FILE: ${{ steps.scope.outputs.gates_file }}
         run: |
           # Run the battery in parallel (per-worker HOME isolation via conftest,
           # --dist loadfile) — the full serial run overran the timeout. Deselect

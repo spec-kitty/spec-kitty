@@ -930,3 +930,69 @@ def test_runtime_outside_files_compares_against_the_part() -> None:
     runtime.pytest_runtest_logreport(_FakeReport("b.py::t"))
     runtime.pytest_runtest_logreport(_FakeReport("extra.py::t"))
     assert runtime.outside_files() == ["b.py", "extra.py"]
+
+
+# ---------------------------------------------------------------------------
+# Scoped legs (#6994): SK_BATTERY_GATES_FILE restricts a part to the diff's selected gates
+# ---------------------------------------------------------------------------
+def _gates_file(tree: _Tree, name: str, gates: Sequence[str]) -> Path:
+    path = tree.root / name
+    path.write_text("".join(f"{gate}\n" for gate in gates), encoding="utf-8")
+    return path
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("n", [0, 2])
+def test_a_scoped_leg_runs_only_its_selected_files(tree: _Tree, n: int) -> None:
+    part_files = sorted(tree.expected_part("1/2"))
+    chosen = part_files[:1]
+    other_part = sorted(tree.expected_part("2/2"))[:1]
+    gates = _gates_file(tree, f"scoped-{n}.txt", [*chosen, *other_part])
+    run = _run(tree, "1/2", n=n, env={plugin.GATES_FILE_ENV: str(gates)}, tag=f"scoped-n{n}")
+    assert run.proc.returncode == 0, run.output
+    assert run.executed(tree.base_files) == frozenset(chosen), "a scoped leg runs its selected files, never another part's"
+    assert "scoped run (#6994)" in run.output
+
+
+@pytest.mark.slow
+def test_an_empty_gates_variable_runs_the_whole_part(tree: _Tree) -> None:
+    run = _run(tree, "1/2", env={plugin.GATES_FILE_ENV: ""}, tag="scoped-empty-var")
+    assert run.proc.returncode == 0, run.output
+    assert run.executed(tree.base_files) == tree.expected_part("1/2")
+
+
+@pytest.mark.slow
+def test_a_missing_gates_file_is_a_usage_error(tree: _Tree) -> None:
+    run = _run(tree, "1/2", env={plugin.GATES_FILE_ENV: str(tree.root / "absent.txt")}, tag="scoped-missing")
+    assert run.proc.returncode == int(pytest.ExitCode.USAGE_ERROR), run.output
+    assert "names a missing file" in run.output
+
+
+@pytest.mark.slow
+def test_a_gates_file_selecting_nothing_of_the_part_is_a_usage_error(tree: _Tree) -> None:
+    gates = _gates_file(tree, "scoped-foreign.txt", sorted(tree.expected_part("2/2")))
+    run = _run(tree, "1/2", env={plugin.GATES_FILE_ENV: str(gates)}, tag="scoped-foreign")
+    assert run.proc.returncode == int(pytest.ExitCode.USAGE_ERROR), run.output
+    assert "selects none of part 1/2" in run.output
+
+
+def test_read_gates_file_is_none_when_unset_and_reads_lines(tmp_path: Path) -> None:
+    assert plugin.read_gates_file({}) is None
+    assert plugin.read_gates_file({plugin.GATES_FILE_ENV: "  "}) is None
+    listed = tmp_path / "gates.txt"
+    listed.write_text("tests/architectural/test_a.py\n\n  tests/architectural/test_b.py  \n", encoding="utf-8")
+    assert plugin.read_gates_file({plugin.GATES_FILE_ENV: str(listed)}) == {"tests/architectural/test_a.py", "tests/architectural/test_b.py"}
+
+
+@pytest.mark.parametrize(
+    ("current", "outside", "scoped", "expected"),
+    [
+        (pytest.ExitCode.NO_TESTS_COLLECTED, [], True, pytest.ExitCode.OK),
+        (pytest.ExitCode.NO_TESTS_COLLECTED, [], False, pytest.ExitCode.NO_TESTS_COLLECTED),
+        (pytest.ExitCode.NO_TESTS_COLLECTED, ["x.py"], True, pytest.ExitCode.NO_TESTS_COLLECTED),
+        (pytest.ExitCode.OK, ["x.py"], True, pytest.ExitCode.TESTS_FAILED),
+        (pytest.ExitCode.TESTS_FAILED, [], True, pytest.ExitCode.TESTS_FAILED),
+    ],
+)
+def test_a_scoped_leg_with_nothing_collected_passes(current: int, outside: list[str], scoped: bool, expected: int) -> None:
+    assert plugin.escalated_exitstatus(int(current), outside, scoped=scoped) == int(expected)

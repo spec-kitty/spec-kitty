@@ -44,8 +44,17 @@ __all__ = [
     "PACK_CONTENT_SCOPES",
     "PACK_PIN_GLOB",
     "PROBE_GROUPS",
+    "BATTERY_SCOPE_GROUP",
+    "HEAVY_BATTERY_JOB",
+    "UNTRACKED_PACK_PINS",
     "GateSelection",
     "Router",
+    "always_on_battery_files",
+    "battery_code_helpers",
+    "battery_scan_scopes",
+    "battery_scope_router_globs",
+    "scope_trigger_globs",
+    "select_battery_gates",
     "derive_group_module_fanout",
     "fanout_group_globs",
     "load_router",
@@ -429,6 +438,173 @@ def select_gates(
         selected_jobs=router.always_on_jobs | gated_selected,
         selected_code_shards=gated_selected & router.code_shard_jobs,
     )
+
+
+# --- Architectural gate scan scopes (#6994) ----------------------------------------------------
+# The heavy battery runs on any code change (the src-backed groups), any tests/architectural change
+# and any CI-configuration change. Many of its gates also READ other paths (the clock bans scan
+# scripts/** and tests/**; others read docs/**, kitty-specs/**, the packs, root files), so a diff
+# confined to those paths used to run no battery leg and could break a gate unseen (#6988 -> #6994).
+# The registry's special_tiers.architectural.scan_scopes declares each gate's extra scope ONCE. From
+# it this module derives (1) the router's `arch_scan_scope` filter group -- ci-router.yml must list
+# exactly ``battery_scope_router_globs()`` (GitHub Actions needs literal YAML) -- and (2) the
+# per-gate selection a scope-only diff gets (``select_battery_gates``), so such a diff runs a few
+# gates instead of the whole battery.
+
+#: The heavy architectural battery's router job key.
+HEAVY_BATTERY_JOB = "architectural-heavy"
+#: The non-src router group that carries the union of the declared scan scopes.
+BATTERY_SCOPE_GROUP = "arch_scan_scope"
+#: Untracked, fetched pack trees and the pin lockfile that is their only in-repo trigger (#6451).
+UNTRACKED_PACK_PINS: dict[str, str] = {
+    "packs/built-in/": PACK_PIN_GLOB,
+    "packs/internal/": "packs/internal.source.yaml",
+}
+
+
+@functools.lru_cache(maxsize=8)
+def _parsed_tier(path: Path, _stamp: tuple[int, int]) -> dict[str, Any]:
+    registry = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return dict(registry["special_tiers"]["architectural"])
+
+
+def _architectural_tier(registry_path: Path | None) -> dict[str, Any]:
+    """``special_tiers.architectural``, parsed once per file content stamp (size, mtime)."""
+    path = registry_path or DEFAULT_REGISTRY_PATH
+    stat = path.stat()
+    return _parsed_tier(path, (stat.st_size, stat.st_mtime_ns))
+
+
+def battery_scan_scopes(registry_path: Path | None = None) -> dict[str, tuple[str, ...]]:
+    """Gate file -> the globs it reads beyond its code scope (``scan_scopes`` in the registry)."""
+    rows = _architectural_tier(registry_path).get("scan_scopes") or ()
+    return {str(row["gate"]): tuple(str(glob) for glob in row["globs"]) for row in rows}
+
+
+def always_on_battery_files(registry_path: Path | None = None) -> frozenset[str]:
+    """Battery files that run on every PR: the fast roster and the always-on lanes (``base.deselect``)."""
+    tier = _architectural_tier(registry_path)
+    roster = {str(entry["path"]) for entry in tier["fast_gate"]["roster"]}
+    return frozenset(roster | {str(path) for path in tier["base"].get("deselect") or ()})
+
+
+def scope_trigger_globs(glob: str) -> tuple[str, ...]:
+    """The diff globs that can change what ``glob`` matches.
+
+    A glob inside an untracked pack tree is triggered by that tree's pin lockfile only; a glob that
+    covers such a tree (``packs/**``, ``**``) is triggered by itself and by the pins of every tree
+    it covers. Any other glob is its own trigger.
+    """
+    prefix = glob.split("*", 1)[0]
+    pins = [pin for tree, pin in UNTRACKED_PACK_PINS.items() if prefix.startswith(tree)]
+    if pins:
+        return tuple(pins)
+    covered = [pin for tree, pin in UNTRACKED_PACK_PINS.items() if fnmatch.fnmatch(f"{tree}x", glob) and not fnmatch.fnmatch(pin, glob)]
+    return (glob, *covered)
+
+
+def _gate_triggers(scopes: dict[str, tuple[str, ...]]) -> dict[str, tuple[str, ...]]:
+    return {gate: tuple(dict.fromkeys(trigger for glob in globs for trigger in scope_trigger_globs(glob))) for gate, globs in scopes.items()}
+
+
+def battery_scope_router_globs(registry_path: Path | None = None) -> tuple[str, ...]:
+    """The ``arch_scan_scope`` router group, sorted: the triggers of every heavy-leg gate's scope.
+
+    Always-on gates are left out: they run on every PR, so their scope needs no trigger (and a
+    ``**`` scope there would otherwise select the heavy legs on every PR).
+    """
+    always_on = always_on_battery_files(registry_path)
+    triggers = _gate_triggers({gate: globs for gate, globs in battery_scan_scopes(registry_path).items() if gate not in always_on})
+    union = {trigger for globs in triggers.values() for trigger in globs}
+    # A glob inside a wider ``<dir>/**`` of the union adds no match; leave it out of the router copy.
+    return tuple(sorted(glob for glob in union if not any(other != glob and other.endswith("/**") and glob.startswith(other[:-2]) for other in union)))
+
+
+#: The battery's own tree; every file in it is code scope (the ``architectural`` group).
+_BATTERY_TREE = "tests/architectural"
+#: The conftest pytest loads for every battery file besides the tree's own.
+_BATTERY_ROOT_CONFTEST = "tests/conftest.py"
+
+
+def _module_file(module: str, root: Path) -> str | None:
+    """The repo-relative file of a ``tests.*`` / ``scripts.*`` module, if it exists."""
+    base = root.joinpath(*module.split("."))
+    for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+        if candidate.is_file():
+            return candidate.relative_to(root).as_posix()
+    return None
+
+
+def _helper_imports(path: Path, root: Path) -> set[str]:
+    """The ``tests.*`` / ``scripts.*`` files ``path`` imports (a ``from pkg import name`` may name a submodule)."""
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+        raise ValueError(f"cannot parse {path} for the battery helper scan: {exc!r}") from exc
+    modules: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            modules.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            modules.add(node.module)
+            modules.update(f"{node.module}.{alias.name}" for alias in node.names)
+    found = {_module_file(module, root) for module in modules if module.split(".")[0] in {"tests", "scripts"}}
+    return {file for file in found if file}
+
+
+@functools.cache
+def _live_battery_code_helpers() -> frozenset[str]:
+    return battery_code_helpers(_REPO_ROOT)
+
+
+def battery_code_helpers(root: Path | None = None) -> frozenset[str]:
+    """Files outside ``tests/architectural`` that battery code runs: the root conftest and every
+    ``tests.*`` / ``scripts.*`` module a battery file imports, transitively (#6994).
+
+    They are battery CODE, not a gate's scan scope: a change to one can change any gate that uses it,
+    so it runs the whole battery. ``root=None`` is the live checkout, scanned once per process.
+    """
+    if root is None:
+        return _live_battery_code_helpers()
+    pending = [path.relative_to(root).as_posix() for path in sorted((root / _BATTERY_TREE).rglob("*.py"))]
+    if (root / _BATTERY_ROOT_CONFTEST).is_file():
+        pending.append(_BATTERY_ROOT_CONFTEST)
+    seen: set[str] = set()
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        pending.extend(_helper_imports(root / current, root) - seen)
+    return frozenset(file for file in seen if not _within(file, _BATTERY_TREE))
+
+
+def select_battery_gates(
+    changed_paths: Iterable[str | Path],
+    *,
+    router: Router | None = None,
+    registry_path: Path | None = None,
+    mode: str = "pr",
+) -> frozenset[str] | None:
+    """Which heavy-battery gates a diff needs: ``None`` means the whole battery.
+
+    A diff that matches a code group of the battery (any group its ``if:`` names except
+    ``arch_scan_scope``), touches battery code outside the battery tree (``battery_code_helpers``),
+    forces run-all (an unmatched ``src/**`` change, FR-004) or runs in full mode gets ``None``.
+    Otherwise the answer is the heavy-leg gates whose declared scan scope the diff touches --
+    possibly none (always-on gates run on every PR and are never listed).
+    """
+    router = router or load_router()
+    paths = [str(path) for path in changed_paths]
+    selection = select_gates(paths, router=router, mode=mode)
+    code_groups = router.job_gates.get(HEAVY_BATTERY_JOB, frozenset()) - {BATTERY_SCOPE_GROUP}
+    if mode == "full" or selection.unmatched_src or selection.matched_groups & code_groups:
+        return None
+    if set(paths) & battery_code_helpers():
+        return None
+    always_on = always_on_battery_files(registry_path)
+    triggers = _gate_triggers({gate: globs for gate, globs in battery_scan_scopes(registry_path).items() if gate not in always_on})
+    return frozenset(gate for gate, globs in triggers.items() if any(fnmatch.fnmatch(path, glob) for glob in globs for path in paths))
 
 
 def _registry_rows(path: Path | None = None) -> list[dict[str, Any]]:

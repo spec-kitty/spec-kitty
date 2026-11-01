@@ -150,7 +150,9 @@ def test_ci_infra_only_diffs_route_to_the_named_group(router: Router) -> None:
         [".github/workflows/sonar.yml", "scripts/ci/sonarcloud_branch_review.sh"],
     ):
         selection = select_gates(paths, router=router)
-        assert selection.matched_groups == frozenset({_MODULE, "ci_config"}), (
+        # scripts/** is also an architectural scan scope (#6994: the clock bans read it); ci_config already runs the whole battery.
+        scan_scope = {"arch_scan_scope"} if any(path.startswith("scripts/") for path in paths) else set()
+        assert selection.matched_groups == frozenset({_MODULE, "ci_config", *scan_scope}), (
             f"a CI-infrastructure diff {paths} must route to the named {_MODULE!r} group, got {sorted(selection.matched_groups)}"
         )
         assert not selection.unmatched_src, "CI-infrastructure paths are not src and must never trip the src catch-all"
@@ -184,7 +186,7 @@ def test_ci_group_gates_no_router_job_and_stays_out_of_the_catch_all(router: Rou
 def test_ci_infra_diff_alongside_src_change_keeps_the_src_routing(router: Router) -> None:
     """A mixed CI-infra + src diff selects both families' routing unchanged."""
     selection = select_gates(["scripts/ci/gate_selection.py", "src/specify_cli/consolidation/executor.py"], router=router)
-    assert selection.matched_groups == frozenset({"ci", "ci_config", "consolidation"})
+    assert selection.matched_groups == frozenset({"ci", "ci_config", "consolidation", "arch_scan_scope"})
     assert "architectural-heavy" in selection.selected_code_shards
     assert not selection.unmatched_src
 

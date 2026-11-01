@@ -99,11 +99,13 @@ HEAVY_BATTERY_GATE = "architectural-heavy"
 #: Non-src routing groups the heavy battery ALSO gates on:
 #: ``architectural`` (spec-kitty#5168) -- tests/architectural has no module row, so
 #: the battery is its only per-PR home; ``ci_config`` (FR-007, contract amendment
-#: A1) -- the CI configuration the battery's gates guard. (``ci`` still
-#: deliberately gates no router job, #4386.)
+#: A1) -- the CI configuration the battery's gates guard; ``arch_scan_scope`` (#6994)
+#: -- the paths the battery's gates read beyond their code scope, derived from the
+#: registry's ``scan_scopes`` (a diff matching only it runs a scoped battery). (``ci``
+#: still deliberately gates no router job, #4386.)
 #: Enumerated here so the wiring stays an exact-equality assertion rather than a
 #: ``>=`` that would let a group drift in.
-HEAVY_BATTERY_NON_SRC_GROUPS: frozenset[str] = frozenset({"architectural", "ci_config"})
+HEAVY_BATTERY_NON_SRC_GROUPS: frozenset[str] = frozenset({"architectural", "ci_config", "arch_scan_scope"})
 
 
 class OracleVacuousError(AssertionError):

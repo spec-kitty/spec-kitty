@@ -22,16 +22,19 @@ from pathlib import Path
 import pytest
 
 from scripts.ci.gate_selection import (
+    BATTERY_SCOPE_GROUP,
     CLI_COMMAND_MODULE_FANOUT,
     DEFAULT_ROUTER_PATH,
     DEPENDENCY_MODULE_FANOUT,
     GROUP_MODULE_FANOUT,
+    HEAVY_BATTERY_JOB,
     PACK_PIN_GLOB,
     GateSelection,
     Router,
     _registry_module_names,
     load_router,
     pack_content_groups,
+    select_battery_gates,
     select_gates,
     select_modules,
 )
@@ -62,10 +65,20 @@ def router() -> Router:
     return load_router()
 
 
+def _scoped_only(selection: GateSelection, router: Router, paths: list[str]) -> None:
+    """The only code shard a non-code diff selects is the heavy battery, as a scoped run (#6994)."""
+    assert selection.selected_code_shards <= {HEAVY_BATTERY_JOB}
+    if selection.selected_code_shards:
+        assert BATTERY_SCOPE_GROUP in selection.matched_groups
+        gates = select_battery_gates(paths, router=router)
+        assert gates is not None, "a non-code diff must never run the whole battery"
+
+
 def test_docs_only_diff_selects_zero_code_shards(router: Router) -> None:
-    """NFR-002: a docs-only diff selects no code shards."""
-    selection = select_gates(["docs/architecture/status-model.md"], router=router)
-    assert selection.selected_code_shards == frozenset()
+    """NFR-002: a docs-only diff selects no code shard beyond a scoped battery run of the gates that read docs (#6994)."""
+    paths = ["docs/architecture/status-model.md"]
+    selection = select_gates(paths, router=router)
+    _scoped_only(selection, router, paths)
     assert not selection.unmatched_src
 
 
@@ -93,7 +106,7 @@ def test_architectural_only_diff_selects_the_heavy_battery(router: Router, path:
 def test_corpus_only_diff_selects_zero_code_shards(router: Router) -> None:
     """Non-src corpus data selects no code shards and does not trip unmatched."""
     selection = select_gates(["packs/built-in/missions/foo.md"], router=router)
-    assert selection.selected_code_shards == frozenset()
+    _scoped_only(selection, router, ["packs/built-in/missions/foo.md"])
     assert not selection.unmatched_src
     # File-specific manifest routing (#6125) must not broaden to the whole missions tree.
     assert select_modules(["packs/built-in/missions/foo.md"], router=router) == frozenset()

@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_gates, select_modules
+from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_battery_gates, select_gates, select_modules
 from scripts.ci.prose_only import prose_only_pr_verdict
 from tests.architectural import _ci_integrity_oracle as oracle
 from tests.ci._gh_if import eval_gh_value
@@ -96,20 +96,26 @@ def test_ci_config_leaves_the_module_selection_unchanged(router: Router, path: s
 
 
 @pytest.mark.parametrize(
-    "path",
+    ("path", "battery"),
     [
-        pytest.param("docs/x.md", id="docs-only"),
-        pytest.param("uv.lock", id="uv.lock"),
-        pytest.param("tests/conftest.py", id="tests/conftest.py"),
-        pytest.param("packs/built-in/missions/foo.md", id="packs-prose"),
+        pytest.param("docs/x.md", "scoped", id="docs-only"),
+        pytest.param("uv.lock", "none", id="uv.lock"),
+        pytest.param("tests/conftest.py", "whole", id="tests/conftest.py"),
+        pytest.param("packs/built-in/missions/foo.md", "scoped", id="packs-prose"),
     ],
 )
-def test_out_of_scope_paths_still_skip_the_battery(router: Router, path: str) -> None:
-    """``uv.lock`` and ``tests/conftest.py`` are deliberately outside ``ci_config`` (D-09)."""
+def test_out_of_scope_paths_stay_outside_ci_config(router: Router, path: str, battery: str) -> None:
+    """``uv.lock`` and ``tests/conftest.py`` are deliberately outside ``ci_config`` (D-09).
+
+    Since #6994 a path some battery gate reads selects the battery through ``arch_scan_scope``: a
+    scoped run of those gates, or the whole battery for battery code such as ``tests/conftest.py``.
+    """
     selection = select_gates([path], router=router)
 
-    assert _HEAVY not in selection.selected_jobs
     assert _GROUP not in selection.matched_groups
+    assert (_HEAVY in selection.selected_jobs) is (battery != "none")
+    if battery != "none":
+        assert (select_battery_gates([path], router=router) is None) is (battery == "whole")
 
 
 def test_ci_config_is_non_src_and_outside_the_catch_all(router: Router) -> None:
@@ -263,8 +269,8 @@ def test_dropping_the_ci_config_filter_group_matches_nothing_and_selects_no_batt
 
 def test_dropping_ci_config_from_the_oracle_constant_reds_the_live_router(router: Router, monkeypatch: pytest.MonkeyPatch) -> None:
     """The exact-equality oracle must reject the live router once the constant forgets ``ci_config``."""
-    assert frozenset({"architectural", _GROUP}) == oracle.HEAVY_BATTERY_NON_SRC_GROUPS
-    monkeypatch.setattr(oracle, "HEAVY_BATTERY_NON_SRC_GROUPS", frozenset({"architectural"}))
+    assert frozenset({"architectural", _GROUP, "arch_scan_scope"}) == oracle.HEAVY_BATTERY_NON_SRC_GROUPS
+    monkeypatch.setattr(oracle, "HEAVY_BATTERY_NON_SRC_GROUPS", frozenset({"architectural", "arch_scan_scope"}))
 
     with pytest.raises(oracle.MustRunGateUnwiredError, match=_GROUP):
         oracle.assert_must_run_gates_wired(router)

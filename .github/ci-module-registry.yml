@@ -985,6 +985,9 @@ special_tiers:
       - {path: tests/architectural/test_scenario_contract.py, budget_seconds: 10, reason: "per-PR scenario contract: .feature parse, tag vocabulary, step binding against the Java step definitions (no JDK), the absorption ledger and the CODEOWNERS ownership rules (ADR 2026-10-15-1); static, measured well under 5 s"}
       - {path: tests/architectural/test_dead_symbol_allowlist_loader.py, budget_seconds: 10, reason: "schema gate over the committed dead_symbol_allowlist.yaml (L1-L10 + real-file invariants); post-census file, measured 0.7 s / 47 tests single-file on 2026-10-01; never walks src/"}
       - {path: tests/architectural/test_battery_partition_proof.py, budget_seconds: 10, reason: "static three-way partition proof (FR-004); no collection, must gate every battery change"}
+      - {path: tests/architectural/test_no_invalid_windows_filenames.py, budget_seconds: 10, reason: "#6994: its scan scope is every tracked path name, so it must run on every PR; measured 0.06 s"}
+      - {path: tests/architectural/test_transition_guard_shrink_only.py, budget_seconds: 10, reason: "#6994: git-greps every tracked file, so it must run on every PR; measured 6.2 s"}
+      - {path: tests/architectural/test_ruff_format_enforcement.py, budget_seconds: 10, reason: "#6994: runs ruff format --check over the whole tree and checks the exclude list names live files, so it must run on every PR; measured 1.4 s"}
     shards:
       job: architectural-heavy
       shard_count: 2
