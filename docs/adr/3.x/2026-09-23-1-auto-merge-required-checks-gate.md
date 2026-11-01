@@ -3,7 +3,7 @@ title: 'ADR: Auto-Merge Gates on the Terminal CI Aggregators — main Required S
 description: 'main now requires the router and CI Modules terminal gates as status checks, plus repo auto-merge, so GitHub auto-merge waits for real green instead of merging on one fast check.'
 status: Accepted
 date: '2026-09-23'
-updated: '2026-10-01'
+updated: '2026-11-01'
 ---
 
 ## Context and Problem Statement
@@ -183,3 +183,36 @@ Re-run the workflow. Attempt 2 always executes in full and Aggregate does not re
 - **Evidence caveat.** The Aggregate half was verified offline against recorded API fixtures
   inside the mission, and live verification follows the merge, because `workflow_run` executes
   `main`'s copy of the workflow file.
+
+## Amendment (2026-11-01) — the required checks gate a merge queue
+
+Recorded in [ADR 2026-11-01-1](../4.x/2026-11-01-1-pull-requests-touch-no-shared-generated-files-and-land-through-a-merge-queue.md)
+(operator ruling of 2026-11-01).
+
+### Decision
+
+`main` now merges through GitHub's merge queue. The queue tests each PR on `main` plus the PRs
+ahead of it, on a temporary `gh-readonly-queue/main/...` ref, and rebase-merges it only when the
+same three required checks pass there.
+
+- **The three required checks are unchanged.** `ci-router.yml`, `ci-modules.yml` and
+  `ci-quality.yml` also trigger on `merge_group`, so `router gate`, `CI Modules gate` and
+  `Clean install verification` report on every queue run. No other workflow joins the queue.
+- **`strict: false` stands.** The queue makes "up to date with `main`" unnecessary: it tests
+  the combination itself.
+- **Auto-merge queues instead of merging.** With the queue required, `gh pr merge <N> --auto`
+  adds a PR to the queue once its own checks pass. The immediate-merge degradation this ADR
+  guarded against cannot happen.
+- **Skip-if-green never applies to a queue run.** Its steps are `pull_request`-only, so the queue
+  always runs the selected jobs on the combined commit.
+- **Settings:** rebase merge, only non-failing PRs, build concurrency 3, group size 1 to 3,
+  wait time 5 minutes, status-check timeout 90 minutes.
+
+### Consequences
+
+- Every PR runs the required checks twice: on the PR and in the queue. The queue run diffs
+  against `merge_group.base_sha`, so it stays path-scoped.
+- A push to a queued PR evicts it and rebuilds every group behind it.
+- `pr:pause-ci` reads PR labels, which a queue run does not carry. A paused PR cannot enter the
+  queue (its required gates read `fail`), and an already queued PR is stopped by removing it from
+  the queue.
