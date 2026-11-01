@@ -31,6 +31,11 @@ Rules the plugin keeps
   when ``i/n`` disagrees with ``shard_count``, and -- only under ``GITHUB_ACTIONS`` and
   never under ``--collect-only`` -- when the xdist worker count differs from the registry
   ``workers``.
+* **A scoped leg runs a subset of its part (#6994).** When ``SK_BATTERY_GATES_FILE`` names a
+  file (written by ``scripts/ci/battery_scope.py`` for a diff that matched only declared scan
+  scopes), the leg runs only the part's files listed there; every other file of the part is
+  ignored like a foreign one. An unset or empty variable runs the whole part; a named file that
+  is missing or lists nothing of the part fails closed (:class:`pytest.UsageError`).
 * **It never hides a timing mismatch.** The controller (once) reports files without a
   timing through ``shard_select.report_mismatch`` (annotation + step-summary line), and
   prints a per-part summary (files, predicted load, workers seen, slowest test, per-file
@@ -65,6 +70,7 @@ from scripts.ci.shard_select import (
 )
 
 __all__ = [
+    "GATES_FILE_ENV",
     "PARTITION_STATE_KEY",
     "WORKERINPUT_DIGEST_KEY",
     "BaseSelection",
@@ -92,6 +98,7 @@ __all__ = [
     "pytest_configure",
     "pytest_ignore_collect",
     "relativize_arg",
+    "read_gates_file",
     "running_on_github_actions",
     "summary_lines",
     "verify_worker_digest",
@@ -116,6 +123,8 @@ _TOP_FILES: Final = 10
 _SINGLE_PROCESS: Final = "main"
 _PREFIX: Final = "battery partition"
 _OPTION_DEST: Final = "battery_part"
+#: Names the file of selected gates for a scoped leg (#6994); unset or empty runs the whole part.
+GATES_FILE_ENV: Final = "SK_BATTERY_GATES_FILE"
 
 
 # ---------------------------------------------------------------------------
@@ -380,22 +389,40 @@ class PartitionState:
     digest: str
     predicted_load: float | None
     budgets: Mapping[str, int]
+    scope: frozenset[str] | None = None
 
     @cached_property
     def foreign(self) -> frozenset[str]:
-        """Enumerated base files that belong to another part -- the only files ever ignored."""
-        return self.enumerated - self.part_files
+        """Enumerated base files this run does not execute -- the only files ever ignored.
+
+        Those of another part, and for a scoped leg (#6994) also the part's unselected files.
+        """
+        selected = self.part_files if self.scope is None else self.part_files & self.scope
+        return self.enumerated - selected
 
 
 PARTITION_STATE_KEY: Final = pytest.StashKey[PartitionState]()
 
 
-def build_state(part: PartSpec, spec: BatterySpec, partition: BatteryPartition) -> PartitionState:
-    """The per-process state for *part* from a computed *partition*."""
+def build_state(part: PartSpec, spec: BatterySpec, partition: BatteryPartition, scope: frozenset[str] | None = None) -> PartitionState:
+    """The per-process state for *part* from a computed *partition*, restricted to *scope* when given."""
     part_files = partition.parts[part.key]
     enumerated = frozenset().union(*partition.parts.values())
     budgets = {entry.path: entry.budget_seconds for entry in spec.roster} if part.is_fast else {}
-    return PartitionState(part, part_files, enumerated, part_digest(part_files), partition.loads.get(part.key), budgets)
+    if scope is not None and not part_files & scope:
+        raise pytest.UsageError(f"{_PREFIX}: {GATES_FILE_ENV} selects none of part {part.key}'s files; a leg with nothing to run must be skipped")
+    return PartitionState(part, part_files, enumerated, part_digest(part_files), partition.loads.get(part.key), budgets, scope)
+
+
+def read_gates_file(env: Mapping[str, str]) -> frozenset[str] | None:
+    """The scoped leg's selected gates from the file ``SK_BATTERY_GATES_FILE`` names, or ``None`` (whole part)."""
+    named = env.get(GATES_FILE_ENV, "").strip()
+    if not named:
+        return None
+    path = Path(named)
+    if not path.is_file():
+        raise pytest.UsageError(f"{_PREFIX}: {GATES_FILE_ENV} names a missing file: {named}")
+    return frozenset(line.strip() for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
 
 
 def verify_worker_digest(state: PartitionState, workerinput: Mapping[str, Any]) -> None:
@@ -435,10 +462,16 @@ class RunStats:
         return max(self.test_seconds.items(), key=lambda item: item[1])
 
 
-def escalated_exitstatus(current: int, outside: Sequence[str]) -> int:
-    """``TESTS_FAILED`` when files ran outside the part and the run would otherwise pass; else *current*."""
+def escalated_exitstatus(current: int, outside: Sequence[str], *, scoped: bool = False) -> int:
+    """``TESTS_FAILED`` when files ran outside the part and the run would otherwise pass; else *current*.
+
+    A scoped leg (#6994) whose selected files hold no test the base marker keeps (``NO_TESTS_COLLECTED``)
+    passes: nothing the diff touches runs in this leg.
+    """
     if outside and int(current) == int(pytest.ExitCode.OK):
         return int(pytest.ExitCode.TESTS_FAILED)
+    if scoped and not outside and int(current) == int(pytest.ExitCode.NO_TESTS_COLLECTED):
+        return int(pytest.ExitCode.OK)
     return current
 
 
@@ -504,10 +537,14 @@ class BatteryRuntime:
         return files_outside_part(self.stats.executed_files, self.state.part_files)
 
     def pytest_sessionfinish(self, session: pytest.Session) -> None:
-        session.exitstatus = escalated_exitstatus(session.exitstatus, self.outside_files())
+        session.exitstatus = escalated_exitstatus(session.exitstatus, self.outside_files(), scoped=self.state.scope is not None)
 
     def pytest_terminal_summary(self, terminalreporter: pytest.TerminalReporter) -> None:
         lines = summary_lines(self.state.part, file_count=len(self.state.part_files), predicted_load=self.state.predicted_load, stats=self.stats)
+        if self.state.scope is not None:
+            lines.insert(
+                1, f"scoped run (#6994): {len(self.state.part_files & self.state.scope)} of {len(self.state.part_files)} files selected by the diff's scan scopes"
+            )
         warnings = overrun_warnings(self.stats, self.state.budgets)
         outside = self.outside_files()
         errors = []
@@ -610,7 +647,7 @@ def pytest_configure(config: pytest.Config) -> None:
     if workerinput is None:
         _validate_invocation(config, spec)
     partition = compute_partition(spec, config.rootpath, timings)
-    state = build_state(part, spec, partition)
+    state = build_state(part, spec, partition, read_gates_file(os.environ))
     config.stash[PARTITION_STATE_KEY] = state
     if workerinput is not None:
         verify_worker_digest(state, workerinput)

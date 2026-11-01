@@ -130,10 +130,16 @@ def _match_groups(paths: list[str], filters: dict[str, list[str]]) -> set[str]:
     return hit
 
 
+#: The heavy battery's scan-scope group (#6994): a diff matching only it runs a SCOPED battery leg (the
+#: few gates whose declared scan scope it touches), never the whole battery, so it is not a code-shard
+#: selection for NFR-002. Its per-gate selection is proven in test_battery_scan_scope_routing.py.
+_SCOPED_ONLY_GROUPS = frozenset({"arch_scan_scope"})
+
+
 def _selected_code_shards(paths: list[str], workflow: dict[str, Any]) -> set[str]:
-    """Code-shard jobs a changed-path set selects, derived from the two authorities."""
+    """Code-shard jobs a changed-path set selects in full, derived from the two authorities."""
     filters = _changes_filters(workflow)
-    matched = _match_groups(paths, filters)
+    matched = _match_groups(paths, filters) - _SCOPED_ONLY_GROUPS
     src = _src_backed_groups(filters)
     return {job for job, groups in _job_group_gates(workflow).items() if groups and (groups & src) and (groups & matched)}
 

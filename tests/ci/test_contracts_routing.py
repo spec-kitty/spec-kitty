@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.ci.gate_selection import load_router, select_gates, select_modules
+from scripts.ci.gate_selection import HEAVY_BATTERY_JOB, load_router, select_battery_gates, select_gates, select_modules
 from scripts.ci.prose_only import prose_only_pr_verdict
 
 pytestmark = pytest.mark.fast
@@ -76,8 +76,10 @@ def test_an_ops_data_only_diff_selects_the_corpus_job(path: str) -> None:
 
     selection = select_gates([path], router=router)
 
-    assert selection.matched_groups == {"corpus"}
-    assert selection.selected_jobs == router.always_on_jobs | _corpus_gated_jobs()
+    # #6994: kitty-ops/** is a scan scope of the archive-freeze gates, so it also selects a SCOPED heavy battery run.
+    assert selection.matched_groups == {"corpus", "arch_scan_scope"}
+    assert selection.selected_jobs == router.always_on_jobs | _corpus_gated_jobs() | {HEAVY_BATTERY_JOB}
+    assert select_battery_gates([path], router=router) is not None
 
 
 def test_codeowners_alone_selects_nothing_in_the_router() -> None:

@@ -34,7 +34,7 @@ from typing import Any, NamedTuple
 import pytest
 import yaml
 
-from scripts.ci.gate_selection import load_router, select_gates, select_modules
+from scripts.ci.gate_selection import HEAVY_BATTERY_JOB, load_router, select_battery_gates, select_gates, select_modules
 from tests.ci._gh_if import eval_gh_if
 
 pytestmark = pytest.mark.fast
@@ -94,7 +94,10 @@ def test_a_mission_diff_selects_the_audit_job(path: str) -> None:
 
     assert GROUP in selection.matched_groups
     assert JOB in selection.selected_jobs
-    assert selection.selected_code_shards == frozenset(), "Mission data selects no code shard"
+    # #6994: kitty-specs/** is a scan scope of a few battery gates, so Mission data may select the heavy
+    # battery, but only as a scoped run of those gates, never the whole battery or another code shard.
+    assert selection.selected_code_shards <= {HEAVY_BATTERY_JOB}, "Mission data selects no code shard beyond a scoped battery run"
+    assert select_battery_gates([path], router=router) is not None
     assert not selection.unmatched_src
     assert select_modules([path], router=router) == frozenset()
     assert GROUP not in router.src_backed_groups, "a src glob would make the audit a code shard"

@@ -371,7 +371,8 @@ def test_retired_integration_tier_is_rehomed_in_the_nightly_workflow() -> None:
 # (WP06's partition proof pins `shard_count` against the legs; WP12's worker-policy
 # test pins `-n 4`). A tolerant "if the job exists" branch would be a green-wash.
 # ---------------------------------------------------------------------------
-_ARCHITECTURAL_KEYS = {"trigger", "deserialized", "workers", "base", "fast_gate", "shards"}
+# scan_scopes (#6994): each gate's scan scope beyond its code scope -- a fact with no other home.
+_ARCHITECTURAL_KEYS = {"trigger", "deserialized", "workers", "base", "fast_gate", "shards", "scan_scopes"}
 _ARCHITECTURAL_BASE_KEYS = {"paths", "marker", "deselect"}
 _ARCHITECTURAL_FAST_GATE_KEYS = {"job", "max_file_budget_seconds", "max_total_measured_seconds", "roster"}
 _ARCHITECTURAL_SHARDS_KEYS = {"job", "shard_count", "granularity", "timings_key"}
