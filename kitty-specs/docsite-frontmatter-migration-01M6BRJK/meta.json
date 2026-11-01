@@ -1,0 +1,36 @@
+{
+  "accept_commit": "a19f61eaf1e6c73b08a7ef6a4bb7a3e5a3072a46",
+  "acceptance_history": [
+    {
+      "accept_commit": "a19f61eaf1e6c73b08a7ef6a4bb7a3e5a3072a46",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-01T16:41:12.591656+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "081c5d9681163c87ed3695a11eca57704b5f868f"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-01T16:41:12.591656+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "081c5d9681163c87ed3695a11eca57704b5f868f",
+  "baseline_merge_commit": "89f0619ee66df70b961c27baa8a6f625768a1ffd",
+  "contracts": "none",
+  "contracts_rationale": "The Mission defines no service or API interface: it migrates Markdown frontmatter and ports internal scripts. The frontmatter shapes are doc-kitty's published contract, recorded in data-model.md.",
+  "created_at": "2026-11-01T14:35:21.561307+00:00",
+  "flattened": false,
+  "friendly_name": "Docsite build-blocking frontmatter migration",
+  "merged_at": "2026-11-01T16:41:51.450671+00:00",
+  "merged_commit": "89f0619ee66df70b961c27baa8a6f625768a1ffd",
+  "mid8": "01M6BRJK",
+  "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+  "mission_number": 246,
+  "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The docsite moves from DocFX to doc-kitty (epic #6100, ADR 2026-10-31-1). Four frontmatter classes in docs/ stop doc-kitty from building the real tree: audience path strings, related repository paths, ADRs without doc_status/kind, and related entries naming unpublished pages. This mission migrates them mechanically, ports the core scripts that read those fields in the same change, and proves the immutable ADR/plan/report/changelog bodies did not change.",
+  "purpose_tldr": "Make the real docs/ tree build on doc-kitty by migrating the build-blocking frontmatter, keeping DocFX and docs query working.",
+  "slug": "docsite-frontmatter-migration-01M6BRJK",
+  "status_phase": "1",
+  "target_branch": "issue-6929-docsite-frontmatter-migration",
+  "topology": "single_branch"
+}

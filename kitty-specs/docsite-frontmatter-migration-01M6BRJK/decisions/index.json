@@ -1,0 +1,104 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-01T14:38:42.819609Z",
+      "decision_id": "01M6BRRS43THXH8SZ861AFG8M3",
+      "final_answer": "Persona-derived sentence: 'Written for the <persona page title> reader.' (free-text values keep their text as the profile with 'Written for <value>.'). Mechanical and honest; page-specific guidance is authoring work for #6931. Autonomous run default, flagged for the operator in the PR.",
+      "input_key": "audience_guidance_text",
+      "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+      "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+      "opened_by": "cli",
+      "options": [
+        "Persona-derived sentence: Written for the <persona title> reader.",
+        "Copy the page description",
+        "Leave for #6931 with an empty string",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "doc-kitty requires a guidance_text on every audience entry, and the current path-string audience carries none. What should the mechanical migration write?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T14:39:16.587833Z",
+      "resolved_by": null,
+      "slot_key": "specify.audience.guidance-text",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-01T14:38:47.296504Z",
+      "decision_id": "01M6BRRXG0MVX09DH92W1NTEWP",
+      "final_answer": "external_references with a GitHub repository URL and the target's title, for every related entry that is not a published page (outside docs/, non-Markdown, draft, excluded). Frontmatter-only, so immutable bodies stay byte-identical, and no dead site link is added. A related entry whose target file no longer exists is dropped. Deviates from the issue's literal 'body link or drop'; flagged for the operator in the PR.",
+      "input_key": "related_unpublished_targets",
+      "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+      "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+      "opened_by": "cli",
+      "options": [
+        "external_references with a GitHub repository URL (frontmatter-only)",
+        "Body link",
+        "Drop",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "A published page's related entry that names a draft or excluded page is build-fatal. Move it into the body as a link, drop it, or move it to external_references as a repository URL?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T14:39:20.449927Z",
+      "resolved_by": null,
+      "slot_key": "specify.related.unpublished-targets",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-01T15:36:36.392742Z",
+      "decision_id": "01M6BW2S981SKQWXKCBNQD8RBW",
+      "final_answer": "Source-aware, mirroring the build: a published page's related names published pages only; a draft page's related may name drafts but no excluded page; an excluded page (never built, immutable history) keeps its related slugs to any existing page. Avoids rewriting 127 entries (105 in excluded history, 22 on drafts) into GitHub URLs for no build benefit. The corpus-shape test enforces the published rule, so when #6932 or an author publishes a draft, any related entry into a draft is named by the test. Autonomous-run default after review finding; flagged for the operator.",
+      "input_key": "related_source_aware",
+      "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+      "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+      "opened_by": "cli",
+      "options": [
+        "Source-aware: published source -> published targets only; draft source -> any non-excluded page; excluded source -> any page",
+        "Uniform: every unpublished target leaves related",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Which related targets must leave related? The spec said every unpublished target; doc-kitty only resolves related for pages it builds (an excluded page is never built; a draft is built only in a drafts-on preview, where drafts exist but excluded pages never do).",
+      "rationale": null,
+      "resolved_at": "2026-11-01T15:36:39.513818Z",
+      "resolved_by": null,
+      "slot_key": "plan.related.source-aware-publication",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-01T16:27:49.834333Z",
+      "decision_id": "01M6BZ0JPAYWD42A3GB4PYSTNA",
+      "final_answer": "Leave untouched. A reviewed evidence bundle under docs/archive is byte-pinned by tests/architectural/test_archive_root_byte_identical.py; doc-kitty never reads excluded folders and its own gates skip them (ADR D-8). Readers and the shape test skip them too, so each still carries one shape for the pages they judge. Reverses the earlier assumption 'excluded trees are migrated too'.",
+      "input_key": "excluded_folders_migrated",
+      "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+      "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+      "opened_by": "cli",
+      "options": [
+        "Leave untouched; readers skip excluded folders as doc-kitty gates do",
+        "Migrate them too",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should pages in the excluded folders (archive, reports, convergence) be migrated to the new shapes so readers carry one shape, or left untouched?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T16:27:52.694079Z",
+      "resolved_by": null,
+      "slot_key": "plan.excluded.not-migrated",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+  "version": 1
+}

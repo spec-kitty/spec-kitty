@@ -1,0 +1,119 @@
+{
+  "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_immutable_bodies.py (red first 3829a8f7b; green; negative control on a mutated body)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:05.619913+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_dockitty_frontmatter_shape.py::test_every_audience_is_a_profile_list (red 33a135815, green after cutover)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:11.494399+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_audience_resolves.py + test_touched_set_gates.py (red f8174eeff, green 78b186cd6)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:16.835367+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "build-evidence.md: native exclude control build (excluded-only tree exit 0 with exclude, schema failure without); test_archive_root_byte_identical.py green; 0 files changed under archive/reports/convergence",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:22.343050+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_dockitty_frontmatter_shape.py::test_every_related_entry_is_a_slug_doc_kitty_resolves",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:28.161298+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_dockitty_frontmatter_migration.py related cases; shape test; 2 missing targets dropped and reported",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:34.186464+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_related_validator.py + test_rulers_blocking.py (red then green); related_validator --strict on docs/ names only the #6928 residual",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:39.985027+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_dockitty_frontmatter_shape.py::test_every_adr_carries_doc_status_and_kind (228 ADRs)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:45.136754+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/docs/test_dockitty_frontmatter_shape.py (red first, per-rule negative controls)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:50.084449+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_real_corpus_apply_then_check_is_a_fixed_point; --check after --apply reports 0; --verify-against origin/main 0 body changes",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:40:55.784307+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "kitty-specs/docsite-frontmatter-migration-01M6BRJK/build-evidence.md: doc-kitty build exit 0, 640 pages; reproduced independently by the WP04 reviewer",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T16:41:01.171351+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
