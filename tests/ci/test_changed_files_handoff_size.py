@@ -185,3 +185,28 @@ def test_corpus_select_fails_closed_when_the_file_is_missing(monkeypatch: pytest
     monkeypatch.setenv("CHANGED_OUTCOME", "success")
     assert corpus_main(["--mode", "pr", "--event", "pull_request"]) == 0
     assert out.read_text(encoding="utf-8") == "selected=true\n"
+
+
+def test_ci_router_prose_scan_survives_a_huge_diff(tmp_path: Path, big_diff_repo: tuple[Path, str, str]) -> None:
+    repo, base, head = big_diff_repo
+    step = _steps("ci-router.yml", "prose-scan")["scan"]
+    bin_dir = _python_shim(tmp_path / "bin")
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    github_output = tmp_path / "github-output"
+    github_output.write_text("", encoding="utf-8")
+    env = {
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "HOME": str(tmp_path),
+        "EVENT_NAME": "pull_request",
+        "BASE_SHA": base,
+        "HEAD_SHA": head,
+        "PUSH_BEFORE": "",
+        "MERGE_GROUP_BASE": "",
+        "PYTHONPATH": str(ROOT),
+        "RUNNER_TEMP": str(runner_temp),
+        "GITHUB_OUTPUT": str(github_output),
+    }
+    # `-eo pipefail`, as GitHub Actions runs a `shell: bash` step: a failed exec fails the step.
+    subprocess.run(["bash", "-eo", "pipefail", "-c", step["run"]], cwd=repo, env=env, check=True, capture_output=True, text=True)
+    assert _outputs(github_output)["prose_only"] in {"true", "false"}
