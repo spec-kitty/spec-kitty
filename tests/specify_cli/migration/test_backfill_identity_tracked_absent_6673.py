@@ -78,7 +78,9 @@ def test_a_tracked_absent_meta_is_restored_with_its_identity(tmp_path: Path) -> 
     assert restored["mission_id"] == _MISSION_ID, "backfill_mission minted over a tracked identity"
 
 
-def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path) -> None:
+@pytest.mark.parametrize("tracked_state", ["usable", "corrupt", "staged-edit"])
+def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: Path, tracked_state: str) -> None:
+    """A usable tracked copy gives its id back; a copy git cannot supply one from is a coded refusal, never a mint."""
     root = _repo(tmp_path)
     mission_dir = _mission(root)
     without_id = {
@@ -89,14 +91,30 @@ def test_a_present_copy_that_lost_its_identity_takes_the_tracked_one(tmp_path: P
         "target_branch": "main",
         "created_at": "2026-01-01T00:00:00+00:00",
     }
-    (mission_dir / "meta.json").write_text(json.dumps(without_id, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    lost = json.dumps(without_id, sort_keys=True, indent=2) + "\n"
+    if tracked_state == "corrupt":
+        (mission_dir / "meta.json").write_text("{not json\n", encoding="utf-8")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "corrupt the committed copy")
+    elif tracked_state == "staged-edit":
+        (mission_dir / "meta.json").write_text(json.dumps({**without_id, "mission_id": _MISSION_ID}) + "\n", encoding="utf-8")
+        _git(root, "add", "-A")
+    (mission_dir / "meta.json").write_text(lost, encoding="utf-8")
 
     result = backfill_mission(mission_dir)
 
-    assert result.action == "wrote"
-    assert result.mission_id == _MISSION_ID
     written = json.loads((mission_dir / "meta.json").read_text(encoding="utf-8"))
-    assert written["mission_id"] == _MISSION_ID
+    if tracked_state == "usable":
+        assert result.action == "wrote"
+        assert result.mission_id == _MISSION_ID
+        assert written["mission_id"] == _MISSION_ID
+        return
+    expected_code = "TRACKED_META_STAGED_DIFFERS" if tracked_state == "staged-edit" else "TRACKED_META_UNAVAILABLE"
+    assert result.action == "skip"
+    assert result.mission_id is None
+    assert result.reason is not None
+    assert f"[{expected_code}]" in result.reason
+    assert "mission_id" not in written, "backfill_mission minted over an identity git holds"
 
 
 def test_an_untracked_copy_without_identity_is_still_minted(tmp_path: Path) -> None:

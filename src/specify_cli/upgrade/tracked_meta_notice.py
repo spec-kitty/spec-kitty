@@ -21,6 +21,13 @@ from specify_cli.mission_metadata import TrackedMeta, read_tracked_meta
 #: The one repair command every variant ends with.
 _RESTORE = "git checkout -- {path}"
 
+#: Stable codes of a refusal, printed in its notice and carried in ``BackfillResult.reason``.
+CODE_UNAVAILABLE = "TRACKED_META_UNAVAILABLE"
+CODE_STAGED_DIFFERS = "TRACKED_META_STAGED_DIFFERS"
+
+_LEAD_ABSENT = "is missing from the working tree"
+_LEAD_NO_IDENTITY = "has lost its mission_id"
+
 
 @dataclass(frozen=True)
 class MissingTrackedMeta:
@@ -28,11 +35,13 @@ class MissingTrackedMeta:
 
     ``refuse`` is True when the seam must not repair the folder: git knows the path but
     the content cannot be used, so any ``meta.json`` written for it would be a fabricated
-    identity (#6673). ``notice`` is the single operator-facing line for both cases.
+    identity (#6673). ``notice`` is the single operator-facing line for both cases. ``code`` is
+    the refusal's stable code (``None`` for a usable copy), also printed at the end of the notice.
     """
 
     notice: str
     refuse: bool
+    code: str | None = None
 
 
 def classify_missing_tracked_meta(feature_dir: Path, repo_root: Path) -> MissingTrackedMeta | None:
@@ -56,10 +65,27 @@ def classify_missing_tracked_meta(feature_dir: Path, repo_root: Path) -> Missing
         return None
     tracked: TrackedMeta = read_tracked_meta(feature_dir)
     if tracked.unavailable:
-        return MissingTrackedMeta(_refusal_notice(_display_path(feature_dir, repo_root), tracked), refuse=True)
+        return _refusal(_display_path(feature_dir, repo_root), tracked, _LEAD_ABSENT)
     if tracked.meta is None:
         return None
     return MissingTrackedMeta(_restore_notice(_display_path(feature_dir, repo_root)), refuse=False)
+
+
+def tracked_meta_refusal(feature_dir: Path, repo_root: Path, tracked: TrackedMeta) -> MissingTrackedMeta | None:
+    """The refusal for a present ``meta.json`` that lost its ``mission_id`` while git's copy cannot supply one (#6673).
+
+    *tracked* is the caller's own :func:`~specify_cli.mission_metadata.read_tracked_meta` answer.
+    ``None`` when git can supply the identity or holds nothing for the path (a pre-identity Mission).
+    """
+    if not tracked.unavailable:
+        return None
+    return _refusal(_display_path(feature_dir, repo_root), tracked, _LEAD_NO_IDENTITY)
+
+
+def _refusal(path: str, tracked: TrackedMeta, lead: str) -> MissingTrackedMeta:
+    """The coded refusal for a tracked copy git cannot give back."""
+    code = CODE_STAGED_DIFFERS if tracked.staged_differs else CODE_UNAVAILABLE
+    return MissingTrackedMeta(f"{_refusal_notice(path, tracked, lead)} [{code}]", refuse=True, code=code)
 
 
 def _restore_notice(path: str) -> str:
@@ -70,30 +96,27 @@ def _restore_notice(path: str) -> str:
     )
 
 
-def _refusal_notice(path: str, tracked: TrackedMeta) -> str:
+def _refusal_notice(path: str, tracked: TrackedMeta, lead: str) -> str:
     """The notice for a tracked copy git cannot give back, naming the real reason and the repair."""
     if tracked.staged_differs:
         return (
-            f"{path}: meta.json is missing from the working tree and the index copy differs from the committed one (a staged edit); "
+            f"{path}: meta.json {lead} and the index copy differs from the committed one (a staged edit); "
             f"no identity was minted and your staged edit was not discarded — commit it, or unstage it with "
             f"`git restore --staged {path}`, then restore the file with `{_RESTORE.format(path=path)}`"
         )
     if tracked.index_only:
         return (
-            f"{path}: meta.json is missing from the working tree and git holds it only in the index (not committed); "
+            f"{path}: meta.json {lead} and git holds it only in the index (not committed); "
             f"no identity was minted — restore it with `{_RESTORE.format(path=path)}` and commit it"
         )
     if tracked.corrupt:
         # `git checkout -- <path>` would restore the same unusable bytes, so it is not the repair here.
         return (
-            f"{path}: tracked meta.json is missing from the working tree and the committed copy is not a JSON object; "
+            f"{path}: tracked meta.json {lead} and the committed copy is not a JSON object; "
             f"no identity was minted — repair the committed copy (`git show HEAD:{path}` shows it), commit the fix, "
             f"then restore it with `{_RESTORE.format(path=path)}`"
         )
-    return (
-        f"{path}: tracked meta.json is missing from the working tree and git could not produce its content; "
-        f"no identity was minted — restore it with `{_RESTORE.format(path=path)}`"
-    )
+    return f"{path}: tracked meta.json {lead} and git could not produce its content; no identity was minted — restore it with `{_RESTORE.format(path=path)}`"
 
 
 def _display_path(feature_dir: Path, repo_root: Path) -> str:

@@ -112,17 +112,28 @@ def _restore_tracked_meta(feature_dir: Path, *, dry_run: bool) -> bool:
 
     if dry_run:
         return False
-    return restore_tracked_meta(feature_dir)
+    return bool(restore_tracked_meta(feature_dir))
 
 
-def _tracked_mission_id(feature_dir: Path) -> str | None:
-    """The non-empty ``mission_id`` git holds for *feature_dir*, or ``None`` (#6673)."""
+def _tracked_mission_id(feature_dir: Path) -> tuple[str | None, str | None]:
+    """``(mission_id, refusal)`` git gives for *feature_dir*: the non-empty tracked id, a refusal notice, or neither (#6673).
+
+    The refusal is set when git knows the path but its content cannot supply an identity (corrupt,
+    index-only, a staged edit, unreadable): minting a fresh ULID then would fork the Mission, as
+    ``feature_meta._seed_tracked_meta`` refuses the same case.
+    """
+    from specify_cli.core.paths import locate_project_root
     from specify_cli.mission_metadata import read_tracked_meta
+    from specify_cli.upgrade.tracked_meta_notice import tracked_meta_refusal
 
-    tracked_id = (read_tracked_meta(feature_dir).meta or {}).get("mission_id")
+    tracked = read_tracked_meta(feature_dir)
+    if tracked.unavailable:
+        refusal = tracked_meta_refusal(feature_dir, locate_project_root(feature_dir) or feature_dir, tracked)
+        return None, None if refusal is None else refusal.notice
+    tracked_id = (tracked.meta or {}).get("mission_id")
     if isinstance(tracked_id, str) and tracked_id.strip():
-        return tracked_id
-    return None
+        return tracked_id, None
+    return None, None
 
 
 def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillResult:
@@ -198,7 +209,10 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
         if existing_id is None:
             # A copy that lost its mission_id takes the tracked one back instead of a fresh ULID
             # (#6673): FR-002 covers "including when the working-tree copy has lost it".
-            tracked_id = _tracked_mission_id(feature_dir)
+            tracked_id, refusal = _tracked_mission_id(feature_dir)
+            if refusal is not None:
+                logger.debug("Skipping %s (%s)", slug, refusal)
+                return BackfillResult(feature_dir=feature_dir, slug=slug, action="skip", reason=refusal)
             if tracked_id is not None:
                 existing_id = tracked_id
                 meta[MISSION_ID_KEY] = tracked_id
