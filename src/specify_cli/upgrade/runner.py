@@ -9,7 +9,7 @@ import sys
 from dataclasses import dataclass, field
 from kernel.clock import datetime, now_utc
 from pathlib import Path
-from collections.abc import Container
+from collections.abc import Container, Mapping
 from typing import Any, cast
 
 from packaging.version import InvalidVersion, Version
@@ -35,6 +35,23 @@ from .registry import MigrationRegistry, migration_settled, migration_settled_in
 logger = logging.getLogger(__name__)
 
 
+#: Detect-input predecessors of SHIPPED migrations, declared without editing them
+#: (DIRECTIVE_044: a shipped module's bytes are its ``content_hash``; mirrors
+#: ``supersession.SUPERSEDED_MIGRATIONS``). Maps a migration id to the ids whose
+#: writes its ``detect()`` reads. New migrations use the ``sequenced_after`` ClassVar.
+#:
+#: ``3.2.6_gate_artifact_merge_drivers`` declares the same config key with its own
+#: (filled-side) name, rewriting the row-aware name the repoint's ``detect()`` reads.
+SEQUENCED_AFTER: Mapping[str, tuple[str, ...]] = {
+    "3.2.6_issue_matrix_driver_repoint": ("3.2.6_gate_artifact_merge_drivers",),
+}
+
+
+def declared_predecessors(migration: BaseMigration) -> tuple[str, ...]:
+    """Every predecessor *migration* declares: the shipped-migration mapping, then its ClassVar."""
+    return (*SEQUENCED_AFTER.get(migration.migration_id, ()), *migration.sequenced_after)
+
+
 def sequenced_predecessors(migration: BaseMigration, applied: Container[str]) -> list[str]:
     """The declared detect-input predecessors of *migration* present in *applied* (#6552).
 
@@ -48,7 +65,7 @@ def sequenced_predecessors(migration: BaseMigration, applied: Container[str]) ->
     nothing: it wrote nothing here. The declaration is detect-input metadata only; execution
     order stays with ``order_manifest.txt`` (ADR ``2026-10-17-1`` §2).
     """
-    return [predecessor for predecessor in migration.sequenced_after if predecessor in applied]
+    return [predecessor for predecessor in declared_predecessors(migration) if predecessor in applied]
 
 
 @dataclass
