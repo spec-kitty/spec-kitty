@@ -37,7 +37,10 @@ Usage examples::
     spec-kitty migrate backfill-identity --mission 083-foo-bar
     spec-kitty migrate charter-encoding --dry-run
     spec-kitty migrate charter-encoding --yes --json
+    spec-kitty migrate charter-encoding --mission 083-foo-bar --yes
     spec-kitty migrate backfill-provenance --dry-run --json
+    spec-kitty migrate backfill-provenance --mission 083-foo-bar
+    spec-kitty migrate rebaseline-dossier-hashes --mission 083-foo-bar
     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
     spec-kitty migrate backfill-mission-type --dry-run --json
     spec-kitty migrate repin-hooks --json
@@ -188,6 +191,28 @@ def _given_on_command_line(ctx: Any, name: str) -> bool:
 #: #5294: scope-neutral on purpose -- accurate for corpus-walk, pack-scoped
 #: (``rewrite-opposed-by``) and repo-repair (``repin-hooks``) commands alike.
 _NOT_MISSION_SCOPED_MSG = "`--mission` is not supported by this command: it is not mission-scoped. Drop `--mission` and re-run."
+
+
+def _scoped_mission_slug(mission: str | None, repo_root: Path, *, json_output: bool) -> str | None:
+    """Resolve ``--mission`` to a canonical Mission slug, or ``None`` when absent (#6347).
+
+    The three corpus-walking ``migrate`` commands (``backfill-provenance``,
+    ``charter-encoding``, ``rebaseline-dossier-hashes``) resolve the handle ONCE
+    here, in the CLI, through the same canonical selector resolver
+    ``backfill-merge-commit`` uses -- so ``mission_id``, ``mid8`` and
+    ``mission_slug`` all work and an unknown or ambiguous handle fails closed
+    (exit 2 human / exit 1 with ``--json``) instead of degrading into an
+    unscoped walk. The backends only ever receive a resolved directory slug.
+    """
+    if mission is None:
+        return None
+    from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: PLC0415
+
+    resolved = resolve_mission_handle(mission, repo_root, json_mode=json_output)
+    # The port's structural return type reads as ``Any`` to mypy; the canonical
+    # slug is always a plain string once the handle has resolved.
+    slug: str = resolved.mission_slug
+    return slug
 
 
 class CorpusWideCommand(TyperCommand):
@@ -1040,7 +1065,7 @@ def backfill_mission_type_cmd(
         raise typer.Exit(1)
 
 
-@app.command(name="charter-encoding", cls=CorpusWideCommand)
+@app.command(name="charter-encoding")
 def charter_encoding(
     dry_run: Annotated[
         bool,
@@ -1066,6 +1091,14 @@ def charter_encoding(
         bool,
         typer.Option("--json", help="Emit a JSON-stable summary report on stdout."),
     ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            _MISSION_FLAG,
+            help=_MISSION_HELP,
+            metavar=_MISSION_METAVAR,
+        ),
+    ] = None,
     project_root: Annotated[
         Path,
         typer.Option(
@@ -1093,11 +1126,19 @@ def charter_encoding(
 
     Implements FR-026, FR-027, NFR-006.
 
+    ``--mission`` (#6347) narrows the walk to one Mission's charter content and
+    **excludes the global charter store**, which is reported in both the human
+    summary and the ``--json`` payload (``global_store_excluded``) and left
+    byte-for-byte untouched. Omitting ``--mission`` keeps the corpus-wide walk,
+    global store included, exactly as before.
+
     Exit codes:
 
-    - ``0`` — corpus is fully UTF-8 compliant (all files already-UTF-8 or
-      successfully normalized)
-    - ``1`` — one or more files are ambiguous (manual repair required)
+    - ``0`` — the walked corpus (the scoped Mission, or the whole corpus when
+      ``--mission`` is omitted) is fully UTF-8 compliant (all files
+      already-UTF-8 or successfully normalized)
+    - ``1`` — one or more walked files are ambiguous (manual repair required),
+      or the ``--mission`` handle does not resolve
 
     Examples:
 
@@ -1105,23 +1146,28 @@ def charter_encoding(
 
         spec-kitty migrate charter-encoding --yes --json
 
+        spec-kitty migrate charter-encoding --mission 042-my-mission --yes
+
         spec-kitty migrate charter-encoding
     """
     from specify_cli.cli.commands.migrate.charter_encoding import (  # noqa: PLC0415
         run_charter_encoding_migration,
     )
 
+    resolved_root = project_root.resolve()
+    mission_slug = _scoped_mission_slug(mission, resolved_root, json_output=json_output)
     exit_code = run_charter_encoding_migration(
-        project_root=project_root.resolve(),
+        project_root=resolved_root,
         dry_run=dry_run,
         yes=yes,
         json_output=json_output,
+        mission_slug=mission_slug,
     )
     if exit_code != 0:
         raise typer.Exit(exit_code)
 
 
-@app.command(name="backfill-provenance", cls=CorpusWideCommand)
+@app.command(name="backfill-provenance")
 def backfill_provenance(
     dry_run: Annotated[
         bool,
@@ -1134,6 +1180,14 @@ def backfill_provenance(
         bool,
         typer.Option("--json", help="Emit a JSON-stable summary report on stdout."),
     ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            _MISSION_FLAG,
+            help=_MISSION_HELP,
+            metavar=_MISSION_METAVAR,
+        ),
+    ] = None,
     project_root: Annotated[
         Path,
         typer.Option(
@@ -1167,10 +1221,14 @@ def backfill_provenance(
     reported as an error and skipped; it never routes into an archive
     operation.
 
+    ``--mission`` (#6347) narrows the walk to that one Mission's acceptance
+    matrix; omitting it keeps the whole-corpus walk exactly as before.
+
     Exit codes:
 
     - ``0`` — every matrix migrated cleanly (or needed no change)
-    - ``1`` — one or more matrices could not be parsed (see the reported errors)
+    - ``1`` — one or more matrices could not be parsed (see the reported errors),
+      or the ``--mission`` handle does not resolve
 
     Examples:
 
@@ -1178,18 +1236,23 @@ def backfill_provenance(
 
         spec-kitty migrate backfill-provenance --json
 
+        spec-kitty migrate backfill-provenance --mission 042-my-mission --dry-run
+
         spec-kitty migrate backfill-provenance
     """
     from specify_cli.cli.commands.migrate.backfill_provenance import (  # noqa: PLC0415
         run_backfill_provenance_migration,
     )
 
-    summary = run_backfill_provenance_migration(project_root.resolve(), dry_run=dry_run)
+    resolved_root = project_root.resolve()
+    mission_slug = _scoped_mission_slug(mission, resolved_root, json_output=json_output)
+    summary = run_backfill_provenance_migration(resolved_root, dry_run=dry_run, mission_slug=mission_slug)
 
     if json_output:
         payload = {
             "dry_run": summary.dry_run,
             "result": summary.result,
+            "mission": summary.mission_slug,
             "summary": {
                 "files_inspected": summary.files_inspected,
                 "migrated": len(summary.migrated),
@@ -1204,6 +1267,7 @@ def backfill_provenance(
     else:
         prefix = "[dim](dry-run)[/dim] " if dry_run else ""
         console.print(f"\n{prefix}[bold]backfill-provenance summary[/bold]")
+        console.print(f"  Scope              : {summary.mission_slug or 'whole corpus'}")
         console.print(f"  Matrices scanned   : {summary.files_inspected}")
         console.print(f"  Migrated (files)   : {len(summary.migrated)}")
         console.print(f"  Invariants stamped : {summary.stamped_total}")
@@ -1219,8 +1283,14 @@ def backfill_provenance(
             console.print("\n[dim]Dry run — no files were modified.[/dim]")
         elif summary.migrated:
             console.print(f"\n[green]Done.[/green] {len(summary.migrated)} matrix file(s) received the legacy_unrecorded sentinel.")
+        elif summary.mission_slug is not None and summary.files_inspected == 0:
+            # #6347 review r2 (F4): "corpus"/"already carries" both lie about a
+            # scoped run that found no matrix at all -- say exactly that instead.
+            console.print(f"\n[yellow]No acceptance matrix found for Mission {summary.mission_slug}.[/yellow] Nothing to migrate.")
         else:
-            console.print("\n[green]Done.[/green] Corpus already carries provenance.")
+            # A scoped no-op must not claim "the corpus" was inspected (#6347 review F1).
+            target = f"Mission {summary.mission_slug}" if summary.mission_slug else "Corpus"
+            console.print(f"\n[green]Done.[/green] {target} already carries provenance.")
 
     if summary.errors:
         raise typer.Exit(1)
@@ -1559,7 +1629,7 @@ def backfill_wp_status_cmd(
         raise typer.Exit(exit_code)
 
 
-@app.command(name="rebaseline-dossier-hashes", cls=CorpusWideCommand)
+@app.command(name="rebaseline-dossier-hashes")
 def rebaseline_dossier_hashes(
     json_output: Annotated[
         bool,
@@ -1572,6 +1642,14 @@ def rebaseline_dossier_hashes(
             help="Preview which recorded snapshot hashes would be re-baselined, without writing",
         ),
     ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            _MISSION_FLAG,
+            help=_MISSION_HELP,
+            metavar=_MISSION_METAVAR,
+        ),
+    ] = None,
 ) -> None:
     """One-time re-baseline of recorded dossier snapshot hashes (FR-009, WP05).
 
@@ -1581,10 +1659,20 @@ def rebaseline_dossier_hashes(
     already in canonical ``sha256:`` form are skipped) and read-only over source
     artifacts — only the recorded snapshot cache files are written (#2263).
 
+    ``--mission`` (#6347) narrows the sweep to that one Mission's recorded
+    snapshot(s); omitting it keeps the whole-backlog sweep exactly as before.
+
     Exit codes:
 
     - ``0`` — completed (some snapshots may be reported as errors and skipped)
-    - ``1`` — project root could not be located
+    - ``1`` — project root could not be located, or the ``--mission`` handle
+      does not resolve
+
+    Examples:
+
+        spec-kitty migrate rebaseline-dossier-hashes --dry-run
+
+        spec-kitty migrate rebaseline-dossier-hashes --mission 042-my-mission
     """
     from specify_cli.dossier.rebaseline import rebaseline_recorded_snapshots
 
@@ -1593,13 +1681,15 @@ def rebaseline_dossier_hashes(
         _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
-    outcomes = rebaseline_recorded_snapshots(repo_root, dry_run=dry_run)
+    mission_slug = _scoped_mission_slug(mission, repo_root, json_output=json_output)
+    outcomes = rebaseline_recorded_snapshots(repo_root, dry_run=dry_run, mission_slug=mission_slug)
     changed = [o for o in outcomes if o.changed]
     errored = [o for o in outcomes if o.error]
 
     if json_output:
         payload = {
             "dry_run": dry_run,
+            "mission": mission_slug,
             "summary": {
                 "total": len(outcomes),
                 "rebaselined": len(changed),
@@ -1621,7 +1711,8 @@ def rebaseline_dossier_hashes(
         print(json.dumps(payload, indent=2))
     else:
         prefix = "(dry-run) " if dry_run else ""
-        console.print(f"{prefix}Re-baselined {len(changed)} / {len(outcomes)} recorded snapshot(s); {len(errored)} error(s).")
+        scope = f"mission {mission_slug}" if mission_slug else "whole backlog"
+        console.print(f"{prefix}Re-baselined {len(changed)} / {len(outcomes)} recorded snapshot(s) in scope ({scope}); {len(errored)} error(s).")
         for o in errored:
             err_console.print(f"[yellow]skip[/yellow] {o.mission_slug}: {o.error}")
 

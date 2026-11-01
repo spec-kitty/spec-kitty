@@ -1,0 +1,60 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M693PYW8NGMWWN0Y7A9Z4ZTC",
+  "materialized_at": "2026-10-31T13:52:14.216712+00:00",
+  "mission_number": "245",
+  "mission_slug": "migrate-mission-scoping-01M68ZMH",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M693PYW8NGMWWN0Y7A9Z4ZTC",
+      "last_transition_at": "2026-10-31T13:52:14.216712+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implementation committed at 3858fc9328 (before the claim marker); nothing left to commit for WP01 — --force used as documented for that case.",
+        "- 2026-10-31T13:49:42Z – python-pedro – shell_pid=679664 – Review rounds 1-2 complete. r1: scoped no-op wording, missing --mission usage examples, scope-payload symmetry test. r2: no-matrix scoped message, charter-encoding scoped success line, corpus-claim assertions. Targeted suites green; see PR body for the command/result log.",
+        "Review passed: scoping narrows at each discovery seam (no post-hoc corpus filter), one resolver call in the CLI, charter-encoding cannot reach .kittify/charter and reports the exclusion in both renderings, reject set is exactly the two non-Mission commands, unscoped branch is the previous code path, no handle parsing in a backend, no gate skipped/xfailed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 679664,
+      "shell_pid_created_at": "1793452860.72",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      },
+      "tracker_refs": [
+        "6347"
+      ]
+    }
+  }
+}

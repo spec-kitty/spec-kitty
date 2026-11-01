@@ -191,20 +191,61 @@ def is_canonical_snapshot_hash(value: str | None) -> bool:
     return value is not None and value.startswith(_CANONICAL_PREFIX)
 
 
-def iter_recorded_snapshot_files(root: Path) -> Iterator[Path]:
+def iter_recorded_snapshot_files(root: Path, *, mission_slug: str | None = None) -> Iterator[Path]:
     """Yield every recorded ``snapshot-latest.json`` under *root*, sorted.
 
     Discovers the ``.kittify/dossiers/<slug>/snapshot-latest.json`` cache files
     written by the live dossier sync, whether *root* is a single mission tree,
     a repository root, or a directory of many missions (the local backlog).
 
+    ``mission_slug`` (#6347) narrows the yield to one Mission's recorded
+    snapshot(s); ``None`` keeps the whole-backlog sweep. The scope is decided
+    from the PATH (:func:`_snapshot_belongs_to_mission`), never by opening each
+    candidate: a scoped run must read at most the target Mission's files, so it
+    may not pay for a corpus-wide read to decide what to skip.
+
     Args:
         root: Directory to search recursively.
+        mission_slug: Optional canonical Mission slug to scope the sweep to.
 
     Yields:
         Paths to recorded snapshot files, in sorted (deterministic) order.
     """
-    yield from sorted(root.glob(f"**/.kittify/dossiers/*/{SNAPSHOT_FILENAME}"))
+    candidates = sorted(root.glob(f"**/.kittify/dossiers/*/{SNAPSHOT_FILENAME}"))
+    if mission_slug is None:
+        yield from candidates
+        return
+    yield from (path for path in candidates if _snapshot_belongs_to_mission(path, mission_slug))
+
+
+def _snapshot_belongs_to_mission(snapshot_path: Path, mission_slug: str) -> bool:
+    """True when *snapshot_path* is *mission_slug*'s recorded snapshot.
+
+    Identity comes from the layout alone, in either of its two real shapes:
+
+    - ``<project>/.kittify/dossiers/<slug>/snapshot-latest.json`` — the dossier
+      directory is named for the Mission; and
+    - ``kitty-specs/<slug>/.kittify/dossiers/<dossier-slug>/snapshot-latest.json``
+      — the owning source directory is named for the Mission. This second
+      signal is what keeps a snapshot whose DOSSIER directory slug differs from
+      the Mission slug (``rebaseline_snapshot_file`` documents that case) in
+      scope.
+
+    The recorded ``mission_slug`` field inside the JSON is deliberately NOT
+    consulted: it is only knowable by reading each candidate, and a scoped run
+    must read at most the target Mission's files (#6347, NFR-001). A snapshot
+    that matches neither path signal is left out of a scoped run — and is still
+    picked up by an unscoped one.
+    """
+    if snapshot_path.parent.name == mission_slug:
+        return True
+    try:
+        feature_dir = _resolve_feature_dir(snapshot_path)
+    except IndexError:
+        # A hand-built path shallower than <src>/.kittify/dossiers/<slug>/<file>
+        # carries no source-directory signal; treat it as out of scope.
+        return False
+    return feature_dir.name == mission_slug
 
 
 def _resolve_feature_dir(snapshot_path: Path) -> Path:
@@ -302,18 +343,22 @@ def rebaseline_snapshot_file(snapshot_path: Path, *, dry_run: bool = False) -> R
     return RebaselineOutcome(snapshot_path, mission_slug, old_hash, new_hash, changed=True)
 
 
-def rebaseline_recorded_snapshots(root: Path, *, dry_run: bool = False) -> list[RebaselineOutcome]:
+def rebaseline_recorded_snapshots(root: Path, *, dry_run: bool = False, mission_slug: str | None = None) -> list[RebaselineOutcome]:
     """Re-baseline every recorded snapshot under *root* (NFR-003 backlog sweep).
 
     Discovers all recorded ``snapshot-latest.json`` files and re-baselines each.
     A failure on one mission is captured in its :class:`RebaselineOutcome`
     (``error`` set, ``changed=False``) and never aborts the sweep.
 
+    ``mission_slug`` (#6347) scopes the sweep to one Mission's recorded
+    snapshot(s); ``None`` keeps the whole-backlog sweep.
+
     Args:
         root: Directory to search recursively (repo root or backlog directory).
         dry_run: When True, report changes without writing.
+        mission_slug: Optional canonical Mission slug to scope the sweep to.
 
     Returns:
-        One :class:`RebaselineOutcome` per discovered recorded snapshot.
+        One :class:`RebaselineOutcome` per in-scope recorded snapshot.
     """
-    return [rebaseline_snapshot_file(path, dry_run=dry_run) for path in iter_recorded_snapshot_files(root)]
+    return [rebaseline_snapshot_file(path, dry_run=dry_run) for path in iter_recorded_snapshot_files(root, mission_slug=mission_slug)]
