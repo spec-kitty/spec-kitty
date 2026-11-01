@@ -41,6 +41,17 @@ def test_generated_paths_match_the_generators_own_constants() -> None:
     assert regen.PAGE_INVENTORY_PATH == inventory_lockfile.DEFAULT_INVENTORY_PATH
 
 
+def test_the_surface_definition_is_stdlib_only() -> None:
+    """The per-PR guard imports it in docs-lint, which neither installs extras nor syncs packs."""
+    import ast
+
+    source = (regen.REPO_ROOT / "scripts" / "ci" / "generated_docs_surfaces.py").read_text(encoding="utf-8")
+    imported = {alias.name.split(".")[0] for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Import) for alias in node.names} | {
+        node.module.split(".")[0] for node in ast.walk(ast.parse(source)) if isinstance(node, ast.ImportFrom) and node.module
+    }
+    assert imported <= {"__future__", "re"}
+
+
 def test_secret_is_the_shared_recapture_pat_never_github_token() -> None:
     assert regen.SECRET_NAME == "CHARTER_SHARD_RECAPTURE_TOKEN"
     assert regen.REGEN_BRANCH == "ci/regen-docs-index"

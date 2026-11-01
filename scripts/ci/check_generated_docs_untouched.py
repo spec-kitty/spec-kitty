@@ -36,7 +36,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from scripts.ci.regen_docs_index import ERA_INDEX_RE, GENERATED_FILES, REGEN_BRANCH  # noqa: E402
+from scripts.ci.generated_docs_surfaces import ERA_INDEX_RE, GENERATED_FILES, REGEN_BRANCH  # noqa: E402
 
 #: An ADR era table data row, capturing the linked file name.
 _ADR_ROW_RE = re.compile(r"^\s*\|\s*\d{4}-\d{2}-\d{2}\s*\|.*\]\(([^)\s]+\.md)\)")

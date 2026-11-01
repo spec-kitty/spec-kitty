@@ -73,6 +73,10 @@ jobs:
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       - name: Set up environment
         run: uv sync --frozen
+      # The generators import specify_cli, which reads packs/built-in (gitignored, so
+      # the regenerate step's changed-path check never sees it).
+      - name: Sync packs
+        uses: ./.github/actions/sync-packs
       - name: Regenerate the generated docs surfaces (no credentials)
         id: regen
         run: |
