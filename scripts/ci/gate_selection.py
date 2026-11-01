@@ -58,6 +58,7 @@ __all__ = [
     "derive_group_module_fanout",
     "fanout_group_globs",
     "load_router",
+    "matches_declared_scan_scope",
     "pack_content_groups",
     "select_gates",
     "select_modules",
@@ -520,6 +521,21 @@ def battery_scope_router_globs(registry_path: Path | None = None) -> tuple[str, 
     return tuple(sorted(glob for glob in union if not any(other != glob and other.endswith("/**") and glob.startswith(other[:-2]) for other in union)))
 
 
+def matches_declared_scan_scope(paths: Iterable[str | Path], *, router: Router | None = None) -> bool:
+    """True when any changed path matches the ``arch_scan_scope`` router group (#6999).
+
+    This is the ``prose-scan`` job's ``scan_scope_match`` companion to the #4842 verdict: the same
+    parsed group the ``changes`` job transcribes (test-pinned to ``battery_scope_router_globs``),
+    read from the job that already holds the diff so the battery ``if:`` can exempt a declared
+    prose match without naming ``needs.changes.outputs.arch_scan_scope`` twice. ``fnmatch`` is the
+    matcher ``prose_only_pr_verdict`` already uses for the doc globs, under the same equivalence
+    assumption against ``dorny/paths-filter``'s picomatch (plain ``*``/``**``/literal segments).
+    """
+    router = router or load_router()
+    globs = router.filters.get(BATTERY_SCOPE_GROUP, ())
+    return any(fnmatch.fnmatch(str(path), glob) for path in paths for glob in globs)
+
+
 #: The battery's own tree; every file in it is code scope (the ``architectural`` group).
 _BATTERY_TREE = "tests/architectural"
 #: The conftest pytest loads for every battery file besides the tree's own.
@@ -585,6 +601,7 @@ def select_battery_gates(
     router: Router | None = None,
     registry_path: Path | None = None,
     mode: str = "pr",
+    prose_only: bool = False,
 ) -> frozenset[str] | None:
     """Which heavy-battery gates a diff needs: ``None`` means the whole battery.
 
@@ -593,15 +610,27 @@ def select_battery_gates(
     forces run-all (an unmatched ``src/**`` change, FR-004) or runs in full mode gets ``None``.
     Otherwise the answer is the heavy-leg gates whose declared scan scope the diff touches --
     possibly none (always-on gates run on every PR and are never listed).
+
+    ``prose_only`` (#6999) is the PR-level, fail-closed #4842 verdict for a diff proven to change
+    only comments and/or docstrings. Such a diff still skips the battery as a whole, but the gates
+    that read comment text in the paths it touches must run (operator ruling 2026-11-01). Prose is
+    content, so it enters as an explicit input; this module never classifies it. Under a prose
+    verdict the answer is ONLY the declared scan-scope matches: a code-group match, an unmatched
+    ``src/**`` path or a battery code helper does not widen it to the whole battery, because
+    prose-only proves no executable code changed. Full mode and an unusable diff still answer
+    ``None`` -- the fail-safe direction never narrows.
     """
     router = router or load_router()
     paths = [str(path) for path in changed_paths]
     selection = select_gates(paths, router=router, mode=mode)
-    code_groups = router.job_gates.get(HEAVY_BATTERY_JOB, frozenset()) - {BATTERY_SCOPE_GROUP}
-    if mode == "full" or selection.unmatched_src or selection.matched_groups & code_groups:
+    if mode == "full":
         return None
-    if set(paths) & battery_code_helpers():
-        return None
+    if not prose_only:
+        code_groups = router.job_gates.get(HEAVY_BATTERY_JOB, frozenset()) - {BATTERY_SCOPE_GROUP}
+        if selection.unmatched_src or selection.matched_groups & code_groups:
+            return None
+        if set(paths) & battery_code_helpers():
+            return None
     always_on = always_on_battery_files(registry_path)
     triggers = _gate_triggers({gate: globs for gate, globs in battery_scan_scopes(registry_path).items() if gate not in always_on})
     return frozenset(gate for gate, globs in triggers.items() if any(fnmatch.fnmatch(path, glob) for glob in globs for path in paths))
