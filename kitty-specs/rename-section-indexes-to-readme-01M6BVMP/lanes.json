@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "mission_slug": "rename-section-indexes-to-readme-01M6BVMP",
+  "mission_id": "01M6BVMP0WAWX55EP1136GQ4HT",
+  "mission_branch": "kitty/mission-rename-section-indexes-to-readme-01M6BVMP",
+  "target_branch": "issue-6939-rename-section-indexes-to-readme",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/",
+        "docs/changelog/CHANGELOG.md",
+        "scripts/ci/check_generated_docs_untouched.py",
+        "scripts/ci/generated_docs_surfaces.py",
+        "scripts/ci/regen_docs_index.py",
+        "scripts/docs/capture_baseline_urls.py",
+        "scripts/docs/docs_index.py",
+        "scripts/docs/freshen_adr_inventory.py",
+        "scripts/docs/inventory_lockfile.py",
+        "scripts/docs/touched_set_gates.py",
+        "tests/ci/test_regen_docs_index.py",
+        "tests/docs/",
+        "tests/docs/test_freshen_adr_inventory.py",
+        "tests/docs/test_section_index_basename.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:35:24.174755+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "202c84692c715bf6a9bf1202d2e829a8b0bb7c87",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'docs/' vs 'docs/changelog/CHANGELOG.md', 'tests/docs/test_section_index_basename.py' vs 'tests/docs/'; WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/docs/test_freshen_adr_inventory.py' vs 'tests/docs/'; WP03 depends on WP02"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
+}

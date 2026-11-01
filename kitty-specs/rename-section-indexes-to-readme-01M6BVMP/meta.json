@@ -11,6 +11,6 @@
   "purpose_context": "This mission advances rename section indexes to readme on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "rename section indexes to readme",
   "slug": "rename-section-indexes-to-readme-01M6BVMP",
-  "target_branch": "main",
+  "target_branch": "issue-6939-rename-section-indexes-to-readme",
   "topology": "coord"
 }
