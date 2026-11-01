@@ -109,7 +109,7 @@
       "wp": null
     },
     "#6993": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -117,7 +117,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
     }
   },
