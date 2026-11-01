@@ -131,6 +131,9 @@
       "last_event_id": "01M6BAQ5BN4QG1VN80PCP7WK6A",
       "last_transition_at": "2026-11-01T10:33:09.749865+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Router (tests-corpus-blocking + module-tests.yml use ./.github/actions/sync-services extras-only; tests-contract-tools inline cache+sync_services.py --extras-only), path groups (services/ globs and contracts workflows dropped; pins/** in glossary/corpus/contract_tools; corpus contracts/fixtures/**), registry + scrub mirror, pins-only gate-selection case (red-first), test_mission_status_routing.py deleted. Wiring ratchet green. 54 router/module-tests-parsing test files: 2017 passed, 1 skipped, 1 failed (test_archive_root_byte_identical, red on base too: history read of 8e2d40bc). DEFERRED: fleet_verdict PR_WORKFLOWS + ci-fleet-verdict.yml + fleet tests must change in the same commit that deletes contracts.yml/mission-status-api.yml (applicable_workflows fails closed on inventory drift) -> WP06. Out of map: test_contracts_workflows.py group assertion. actionlint unavailable (YAML parse only)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 5613,
