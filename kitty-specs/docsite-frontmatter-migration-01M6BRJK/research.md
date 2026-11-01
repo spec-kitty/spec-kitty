@@ -31,6 +31,16 @@ decisions that follow from it.
 - **Alternatives**: body link (impossible on immutable `plans/` pages, dead link on living ones);
   drop (loses the pointer). Decision Moment `01M6BRRXG0MVX09DH92W1NTEWP`.
 
+## R-3a: Source-aware rule (amended after WP01 review)
+
+- **Decision**: which entries leave `related` depends on the source page, mirroring doc-kitty: a
+  published page may name only published pages; a draft page (built only in a drafts-on preview)
+  may name drafts but not excluded pages; an excluded page is never built and keeps every slug to an
+  existing page. Decision Moment `01M6BW2S981SKQWXKCBNQD8RBW`.
+- **Rationale**: the uniform rule would rewrite 127 entries (105 in excluded history, 22 on drafts)
+  into GitHub URLs with no build benefit. The shape test still names any published page that links
+  a draft, so publishing a draft later surfaces its entries.
+
 ## R-4: What "published" means in core
 
 - **Decision**: a page is published when it is not under an excluded folder and its `doc_status`,

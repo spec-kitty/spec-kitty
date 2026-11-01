@@ -11,3 +11,9 @@ Tooling touched: `spec-kitty` 4.0.0rc8 from this checkout, `scripts/docs/*`, pyt
 
 ## 2026-11-01 — baseline
 `pytest tests/docs/ tests/specify_cli/docs/ -n 4 --dist loadfile` on `7e2ca9fd`: 1853 passed, 8 skipped (6 min 16 s).
+
+## 2026-11-01 — intermittent 2-minute pytest start
+Some single-file pytest runs take ~2 minutes before the first test (cold import of `charter.offering` under `-X importtime`); the same run is 3 s when warm. Environmental; not chased.
+
+## 2026-11-01 — `move-task --to for_review` ran > 5 minutes
+It captures baseline tests for the WP before the transition; no progress output while it runs.

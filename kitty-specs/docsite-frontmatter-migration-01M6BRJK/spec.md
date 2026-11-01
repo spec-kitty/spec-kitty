@@ -113,7 +113,7 @@ entry gets a failing test, not a broken site build months later.
 | --- | --- | --- |
 | Published page | A page doc-kitty builds with drafts off: not in an excluded folder and `doc_status` other than `draft` (absent counts as `draft`). | "public page" |
 | Excluded folder | A `docs/` folder left out of the build: `archive`, `reports`, `convergence`, `changelog/unreleased`. | "ignored", "hidden" |
-| Slug | A page's path under `docs/` without `.md`, a trailing `README`/`index` removed. | "route", "URL" (different things) |
+| Slug | A page's path under `docs/` without `.md`, a trailing `README`/`index` (any case) removed; the docs root page is the empty slug. | "route", "URL" (different things) |
 | Immutable body | Everything after the closing frontmatter fence of an ADR, plan, report or changelog file. | — |
 | Mission | Canonical term; never "feature". | "feature" |
 
@@ -128,10 +128,10 @@ entry gets a failing test, not a broken site build months later.
 | FR-003 | Audience readers ported | As a maintainer, I want `audience_resolver.py` and `touched_set_gates.py` to read the profile list (resolving a profile to `docs/context/audience/<profile>.md` or `<profile>/index.md`), so that the checks keep working on the new shape. | High | Open | [build] | no — a dangling-profile fixture must be reported |
 | FR-004 | Excluded folders need no frontmatter edit | As a maintainer, I want archive, reports, convergence and the changelog fragment folder left out of the build by doc-kitty's native folder exclusion, with no title/description backfill, so that immutable reports are not touched for the build's sake. | High | Open | [build] | no — the control build without exclusion fails |
 | FR-005 | `related` becomes slugs | As a maintainer, I want every `related` entry that names a published Markdown page rewritten to that page's slug, so that doc-kitty resolves it. | High | Open | [build] | no — the shape test fails on the base tree |
-| FR-006 | Non-page references move to `external_references` | As a maintainer, I want every `related` entry that is not a published page (outside `docs/`, a non-Markdown file, a draft or an excluded page) moved to `external_references` as `{url, title}` with a repository URL, and every entry whose target no longer exists dropped, so that `related` names only published pages. | High | Open | [build] | no — the shape test fails on the base tree |
+| FR-006 | Unresolvable references move to `external_references` | As a maintainer, I want every `related` entry that doc-kitty would not resolve for its page moved to `external_references` as `{url, title}` with a repository URL — on a published page: anything that is not a published page; on a draft page: anything outside `docs/`, non-Markdown, or in an excluded folder; on an excluded page (never built): only paths that are not docs pages — and every entry whose target no longer exists dropped, so that no build of any page fails on `related`. | High | Open | [build] | no — the shape test fails on the base tree |
 | FR-007 | Related reader ported | As a maintainer, I want `related_validator.py` to read slugs (string or `{ref, note}`), resolve them as doc-kitty does, and report an entry naming an unpublished page, so that the check keeps working on the new shape. | High | Open | [build] | no — dangling and unpublished fixtures must be reported |
 | FR-008 | ADRs gain `doc_status` and `kind` | As a maintainer, I want every dated ADR to carry `doc_status` (`Accepted`/`Proposed` → `active`, `Superseded` → `superseded`) and `kind: ADR`, keeping `status`, `date` and `superseded_by` unchanged, so that no ADR vanishes from the site as a draft. | High | Open | [build] | no — the shape test fails on the base tree |
-| FR-009 | Corpus-shape invariant | As a contributor, I want a test over `docs/` that fails on a path-string `audience`, a non-slug or unpublished `related` entry, or an ADR missing `doc_status`/`kind` or carrying a mismatched `doc_status`, so that the new shape cannot regress unnoticed. | High | Open | [build] | no — red on the base tree, green after |
+| FR-009 | Corpus-shape invariant | As a contributor, I want a test over `docs/` that fails on a path-string `audience`, a `related` entry that is not a slug of an existing page, a published page whose `related` names an unpublished page, a draft page whose `related` names an excluded page, or an ADR missing `doc_status`/`kind` or carrying a mismatched `doc_status`, so that the new shape cannot regress unnoticed. | High | Open | [build] | no — red on the base tree, green after |
 | FR-010 | Re-runnable migration | As a maintainer, I want the migration to be a committed script that is idempotent and touches frontmatter only, so that a later conflict with another docs PR is resolved by re-running it. | Medium | Open | [build] | no — a second run must report zero changes |
 | FR-011 | One-off doc-kitty build passes | As a maintainer, I want the spike's one-off build of `docs/` (`indexBasename: ['README', 'index']`, native exclusion, drafts off) to pass, with the commands and page count recorded, so that #6930 can start. | High | Open | [build] | no — control build on the base fails |
 
@@ -175,6 +175,8 @@ entry gets a failing test, not a broken site build months later.
 
 - **`guidance_text` (Decision Moment `01M6BRRS43THXH8SZ861AFG8M3`)**: the mechanical migration writes
   `Written for the <persona title> reader.`; page-specific guidance is authoring work for #6931.
+- **Which `related` entries leave `related` (Decision Moment `01M6BW2S981SKQWXKCBNQD8RBW`, after WP01 review)**:
+  source-aware, mirroring what doc-kitty resolves — see FR-006. Excluded history keeps its slugs.
 - **Unpublished `related` targets (Decision Moment `01M6BRRXG0MVX09DH92W1NTEWP`)**: moved to
   `external_references` with a repository URL rather than into the body. The issue's literal options
   were "body link or drop"; most sources are `plans/` pages whose bodies are immutable, and a body
