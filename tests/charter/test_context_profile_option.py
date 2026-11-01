@@ -83,9 +83,7 @@ def _write_project(tmp_path: Path) -> Path:
     (charter_dir / "charter.md").write_text(_CHARTER_MD, encoding="utf-8")
     (charter_dir / "governance.yaml").write_text(_GOVERNANCE_YAML, encoding="utf-8")
     (charter_dir / "references.yaml").write_text(_REFERENCES_YAML, encoding="utf-8")
-    (repo_root / ".kittify" / "config.yaml").write_text(
-        "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
-    )
+    (repo_root / ".kittify" / "config.yaml").write_text("mission_type_activations:\n  - software-dev\n", encoding="utf-8")
     return repo_root
 
 
@@ -134,9 +132,7 @@ def test_without_profile_option_omits_profile_cited_directives(tmp_path: Path) -
 
 
 def test_json_text_carries_profile_sections_and_structured_blocks_unchanged(tmp_path: Path) -> None:
-    with_profile = _json_payload(
-        _invoke(tmp_path, "context", "--action", "implement", "--profile", _PROFILE, "--json")
-    )
+    with_profile = _json_payload(_invoke(tmp_path, "context", "--action", "implement", "--profile", _PROFILE, "--json"))
     without_profile = _json_payload(_invoke(tmp_path, "context", "--action", "implement", "--json"))
 
     assert _PROFILE_HEADER in with_profile["text"]
