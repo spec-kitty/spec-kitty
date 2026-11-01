@@ -3,11 +3,13 @@ title: Charter Backend Service (Future — Backlog)
 description: 'Preliminary backlog design for a separate charter/doctrine resolution process behind a stable API/MCP endpoint: remote compute, shared caching, out-of-cycle precompute. Backlog.'
 doc_status: draft
 updated: '2026-10-19'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/architecture/profile-load-reliability.md
-- docs/architecture/governed-profile-invocation.md
-- docs/architecture/multi-agent-orchestration.md
+- architecture/profile-load-reliability
+- architecture/governed-profile-invocation
+- architecture/multi-agent-orchestration
 ---
 # Charter Backend Service (Future — Backlog)
 

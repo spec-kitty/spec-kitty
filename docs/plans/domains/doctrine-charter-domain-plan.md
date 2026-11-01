@@ -3,18 +3,24 @@ title: 'Doctrine & Charter — Domain Plan'
 description: 'Durable plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
 doc_status: durable
 updated: '2026-10-22'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/index.md
-- docs/plans/4-0-0-milestone-roadmap.md
-- docs/archive/plans/3-2-x-open-core-delivery-plan.md
-- docs/plans/domains/packs-extraction-domain-plan.md
-- docs/plans/glossary-doctrine-overhaul-program.md
-- docs/changelog/4.0.0.md
-- docs/plans/doctrine/charter-sole-door-deferred-issues.md
-- docs/plans/doctrine/index.md
-- docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
-- docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+- plans
+- plans/4-0-0-milestone-roadmap
+- plans/domains/packs-extraction-domain-plan
+- changelog/4.0.0
+- plans/doctrine/charter-sole-door-deferred-issues
+- adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics
+- adr/3.x/2026-08-02-1-charter-wheel-assessment
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md
+  title: 3.2.x Open-Core Delivery Plan
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/glossary-doctrine-overhaul-program.md
+  title: Glossary Doctrine Overhaul — Program Plan
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/doctrine/index.md
+  title: Doctrine
 ---
 
 # Doctrine & Charter — Domain Plan

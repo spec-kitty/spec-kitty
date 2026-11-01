@@ -2,6 +2,8 @@
 title: Living Glossary Context and Curation Model
 description: Puts term ownership in domain contexts, curation rules in doctrine, and enforcement in a runtime hook, so terminology drift is caught while the work happens.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-02-23'
 ---
 

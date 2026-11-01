@@ -4,7 +4,7 @@ description: Planning and audit trail for the 3.2 documentation publication effo
 doc_status: deprecated
 updated: '2026-09-30'
 related:
-- docs/plans/index.md
+- plans
 ---
 
 > ⚠ **Retired effort 2026-08-12 (`doc_status: deprecated`).** Audit-trail index for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21; docs now published at 3.2.6). Entries preserved below; no page here is deleted. Note: [`3-2-version-taxonomy.md`](../../../development/reference/version-taxonomy.md) was made version-neutral and moved to the development reference on 2026-09-30.

@@ -3,7 +3,9 @@ title: 'Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over'
 description: What `spec-kitty cutover-guard` checks, how it is wired into CI so it cannot be silently skipped, and how to register it as a required status check.
 doc_status: active
 updated: '2026-10-07'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 type: how-to
 ---
 # Cut-over guard: fail-closed pre-merge gate for runtime-state cut-over

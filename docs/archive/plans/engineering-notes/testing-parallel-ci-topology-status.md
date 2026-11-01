@@ -3,9 +3,11 @@ title: Test-suite parallelization — CI shard topology status
 description: 'Point-in-time mission-status snapshot of the CI shard-topology re-flip and stability-ratchet confirmation state, carved out of the durable parallel-run how-to.'
 doc_status: superseded
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/development/testing/testing-parallel.md
+- development/testing/testing-parallel
 ---
 # Test-suite parallelization — CI shard topology status
 

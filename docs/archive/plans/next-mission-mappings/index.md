@@ -3,7 +3,9 @@ title: '`next` Mission Mapping Tracker'
 description: 'Closed tracker for the plan and documentation mission spec-kitty next mapping gaps; both are now guarded by hard regression tests.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 # `next` Mission Mapping Tracker
 

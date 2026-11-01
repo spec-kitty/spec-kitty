@@ -5,9 +5,9 @@ doc_status: deprecated
 type: explanation
 updated: '2026-07-14'
 related:
-- docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
-- docs/architecture/mission-type-resolution.md
-- docs/architecture/mission-system.md
+- adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification
+- architecture/mission-type-resolution
+- architecture/mission-system
 ---
 
 # Mission #883 Brief: Doctrine as Mission-Type Authority

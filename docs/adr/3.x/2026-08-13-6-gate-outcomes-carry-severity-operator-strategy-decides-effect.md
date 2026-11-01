@@ -2,11 +2,13 @@
 title: 'ADR: Gate outcomes carry a typed severity; an operator-configured error-handling strategy decides the CLI effect'
 description: 'Gate outcomes carry a typed severity; an operator strategy maps it to the CLI effect. The default blocks at BLOCKING only; trust failures are always BLOCKING.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-13'
 related:
-- docs/architecture/mission-gates.md
-- docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
-- docs/adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md
+- architecture/mission-gates
+- adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts
+- adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers
 ---
 # Gate outcomes carry a typed severity; an operator-configured strategy decides the CLI effect
 

@@ -4,14 +4,13 @@ description: 'The publication checklist for the Spec Kitty 3.2 documentation ref
 doc_status: deprecated
 updated: '2026-08-12'
 related:
-- docs/context/index.md
-- docs/archive/plans/3-2-doc-publication/3-2-archive-migration-plan.md
-- docs/archive/plans/3-2-doc-publication/3-2-cli-reference-audit-meta-issues.md
-- docs/archive/plans/3-2-doc-publication/3-2-cli-reference-methodology.md
-- docs/archive/plans/3-2-doc-publication/3-2-harness-research-method.md
-- docs/archive/plans/3-2-doc-publication/3-2-information-architecture.md
-- docs/archive/plans/3-2-doc-publication/3-2-navigation-plan.md
-- docs/plans/3-2-doc-publication/3-2-version-taxonomy.md
+- context
+- archive/plans/3-2-doc-publication/3-2-archive-migration-plan
+- archive/plans/3-2-doc-publication/3-2-cli-reference-audit-meta-issues
+- archive/plans/3-2-doc-publication/3-2-cli-reference-methodology
+- archive/plans/3-2-doc-publication/3-2-harness-research-method
+- archive/plans/3-2-doc-publication/3-2-information-architecture
+- archive/plans/3-2-doc-publication/3-2-navigation-plan
 ---
 
 > ⚠ **Retired 2026-08-12 (`doc_status: deprecated`).** Working note for the 3.2 documentation mission `spec-kitty-3-2-docs-01KS4KSZ` (14/14 WPs done 2026-05-21); the docs are published (now 3.2.6). Content preserved as an audit-trail record.

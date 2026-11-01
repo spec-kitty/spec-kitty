@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-08-15'
 type: explanation
 related:
-- docs/operations/recovery-index.md
+- operations/recovery-index
 ---
 
 # Recovery & Troubleshooting

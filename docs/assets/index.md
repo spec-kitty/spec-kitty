@@ -4,7 +4,7 @@ description: 'Static assets for the Spec Kitty documentation site: stylesheets, 
 doc_status: active
 updated: '2026-06-27'
 related:
-- docs/index.md
+- ''
 ---
 # Documentation assets
 

@@ -2,6 +2,8 @@
 title: Doctrine Artifact Governance Model
 description: Stores directives, tactics, styleguides, and mission assets as typed schema-validated repository artifacts, and compiles charter bundles from them, not from prose.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-02-23'
 ---
 

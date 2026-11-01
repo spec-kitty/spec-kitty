@@ -3,7 +3,9 @@ title: Test-Suite Friction Audit — "Tests as scaffold, not friction"
 description: 'The test-suite friction audit (2026-06-22, epic #2071) under the tests-as-scaffold-not-friction lens: the four-lens findings and remediation candidates.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 # Test-Suite Friction Audit — "Tests as scaffold, not friction"
 

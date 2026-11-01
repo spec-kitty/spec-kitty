@@ -4,8 +4,8 @@ description: Static templates and front-end assets used to render the Spec Kitty
 doc_status: active
 updated: '2026-06-27'
 related:
-- docs/assets/index.md
-- docs/index.md
+- assets
+- ''
 ---
 # Documentation templates
 

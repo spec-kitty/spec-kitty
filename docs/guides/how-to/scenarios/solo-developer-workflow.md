@@ -4,7 +4,9 @@ description: Iterate quickly as a solo developer using Spec Kitty with a single 
 doc_status: active
 updated: '2026-08-10'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 ---
 
 # Solo Developer Workflow

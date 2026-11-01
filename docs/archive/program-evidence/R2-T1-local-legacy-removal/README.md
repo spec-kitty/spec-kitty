@@ -2,7 +2,9 @@
 title: R2-T1 historical program evidence
 type: reference
 updated: 2026-09-06
-audience: agentic-framework-core-team
+audience:
+- profile: agentic-framework-core-team
+  guidance_text: Written for agentic-framework-core-team.
 ---
 
 # R2-T1 Historical Program Evidence

@@ -2,6 +2,8 @@
 title: 'ADR: Convergence Retirement and Client-Repo Inversion'
 description: 'The Convergence (#3881) retired the CLI→SaaS sync/daemon/delivery stack; this repo now inverts ownership as a client of upstream spec-kitty/zeitgeist and spec-kitty/saas.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-09-06'
 supersedes:
 - docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md

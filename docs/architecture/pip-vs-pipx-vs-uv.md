@@ -4,7 +4,9 @@ description: "Choosing a Python installer for the Spec Kitty CLI: pipx by defaul
 doc_status: active
 updated: '2026-09-30'
 type: explanation
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 ---
 # Pip vs pipx vs uv — which installer should you use?
 

@@ -4,7 +4,9 @@ description: Develop three or more Spec Kitty missions at once using git worktre
 doc_status: active
 updated: '2026-08-10'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 ---
 
 # Parallel Mission Development with Worktrees

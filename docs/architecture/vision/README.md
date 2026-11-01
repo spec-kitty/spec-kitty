@@ -3,11 +3,13 @@ title: Architecture Vision (living)
 description: 'Landing page for the living architecture vision: the current and future, still-changeable forward intent for Spec Kitty, above the per-era history slots.'
 doc_status: active
 updated: '2026-10-03'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/architecture/README.md
-- docs/plans/4-0-0-milestone-roadmap.md
-- docs/plans/code-quality/index.md
+- architecture
+- plans/4-0-0-milestone-roadmap
+- plans/code-quality
 ---
 # Architecture Vision (living)
 

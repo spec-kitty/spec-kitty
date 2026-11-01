@@ -2,6 +2,8 @@
 title: Mission Audit Primitive Hardening and 2.x-Only Policy
 description: Implements auditing as a declarable Mission primitive behind compatibility gates, keeping built-in and custom Missions portable across local and hosted projections.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-02-25'
 ---
 

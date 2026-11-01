@@ -3,7 +3,8 @@ title: "spk-charter-profile-load"
 description: "Load a Spec Kitty agent profile on demand for interactive sessions, outside the mission runtime loop."
 doc_status: active
 updated: '2026-10-08'
-related: [docs/api/skills/index.md]
+related:
+- api/skills
 ---
 
 # spk-charter-profile-load

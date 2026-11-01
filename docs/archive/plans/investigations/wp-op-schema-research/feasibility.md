@@ -3,10 +3,12 @@ title: 'WP & Op Schema Research — Feasibility & Whack-a-Field (paula-patterns)
 description: 'Verbatim research report: architectural feasibility, ownership/boundary patterns, and smallest de-risking slice for the WP & Op schema-model idea.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/archive/plans/investigations/wp-op-schema-research/README.md
-- docs/plans/investigations/wp-op-schema-model.md
+- archive/plans/investigations/wp-op-schema-research
+- plans/investigations/wp-op-schema-model
 ---
 # Paula Patterns — Feasibility & Whack-a-Field Review: WP/Op Schema Model
 

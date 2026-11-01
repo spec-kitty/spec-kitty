@@ -4,9 +4,9 @@ description: "Meta-analysis: doctrine implements only the middle tier of a three
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- docs/plans/doctrine/index.md
-- docs/plans/doctrine/org-doctrine-layer-architecture-review.md
-- docs/plans/doctrine/layered-doctrine-resolution-design.md
+- plans/doctrine
+- plans/doctrine/org-doctrine-layer-architecture-review
+- plans/doctrine/layered-doctrine-resolution-design
 ---
 # The Manifesto Tier — doctrine's missing primary-driver layer
 

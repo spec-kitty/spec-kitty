@@ -4,9 +4,11 @@ description: Run spec-kitty next with Charter context injection, read JSON outpu
 doc_status: active
 updated: '2026-10-08'
 type: how-to
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- docs/context/charter-overview.md
+- context/charter-overview
 ---
 # How to Run a Governed Mission
 

@@ -3,7 +3,9 @@ title: CI Quality Workflow Structure
 description: Visual overview of the CI Quality workflow structure, showing how linting checks were converted from blocking to informational, with a solution summary.
 doc_status: superseded
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 # CI Quality Workflow Structure
 

@@ -4,9 +4,9 @@ description: 'Pre-spec scope for the doctrine public-API mission (#3179): reach-
 doc_status: deprecated
 updated: '2026-08-10'
 related:
-- docs/plans/doctrine/index.md
-- docs/archive/plans/doctrine/next-slice-wheel-mission-types-public-api-research.md
-- docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
+- plans/doctrine
+- archive/plans/doctrine/next-slice-wheel-mission-types-public-api-research
+- adr/3.x/2026-08-02-1-charter-wheel-assessment
 ---
 
 # #3179 — Doctrine public API surface — scoping brief

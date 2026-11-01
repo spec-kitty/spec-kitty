@@ -3,13 +3,15 @@ title: Git Worktrees Explained
 description: "What git worktrees are and why Spec Kitty gives each execution lane its own: what worktrees share and keep separate, plus lifecycle commands and crash recovery."
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/architecture/branch-target-routing.md
-- docs/architecture/execution-lanes.md
-- docs/architecture/kanban-workflow.md
-- docs/architecture/spec-driven-development.md
-- docs/migrations/mission-id-canonical-identity.md
+- architecture/branch-target-routing
+- architecture/execution-lanes
+- architecture/kanban-workflow
+- architecture/spec-driven-development
+- migrations/mission-id-canonical-identity
 ---
 # Git Worktrees Explained
 

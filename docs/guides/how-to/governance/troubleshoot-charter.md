@@ -3,12 +3,14 @@ title: Troubleshooting Charter Failures
 description: Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures.
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 type: how-to
 related:
-- docs/context/charter-overview.md
-- docs/guides/how-to/governance/setup-governance.md
-- docs/guides/how-to/governance/extend-charter-for-unsupported-language.md
+- context/charter-overview
+- guides/how-to/governance/setup-governance
+- guides/how-to/governance/extend-charter-for-unsupported-language
 ---
 # Troubleshooting Charter Failures
 

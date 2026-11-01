@@ -4,7 +4,7 @@ description: Requirements capture (Phase 2, intuition pass) of what each context
 doc_status: deprecated
 updated: '2026-06-15'
 related:
-- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims.md
+- archive/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims
 ---
 # 10 — Context Needs: Requirements Capture (idea → working code)
 

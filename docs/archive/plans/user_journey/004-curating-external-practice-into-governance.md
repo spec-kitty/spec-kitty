@@ -3,7 +3,9 @@ title: 'User Journey: Curating External Practice into Governance'
 description: 'User journey for curating external practice into governance: how external concepts are imported into doctrine, in a field-table record.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 # User Journey: Curating External Practice into Governance
 

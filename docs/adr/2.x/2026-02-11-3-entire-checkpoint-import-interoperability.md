@@ -2,6 +2,8 @@
 title: Entire.io Checkpoint Import for Session History Interoperability
 description: Argues for a read-only importer for Entire.io session checkpoints, so their capture tooling can coexist with Spec Kitty's own event log rather than displace it.
 status: Proposed
+doc_status: active
+kind: ADR
 date: '2026-02-11'
 ---
 

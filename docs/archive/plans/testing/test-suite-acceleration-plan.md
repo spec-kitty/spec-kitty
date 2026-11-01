@@ -3,11 +3,13 @@ title: Test Suite Acceleration — Final Remediation Plan
 description: Final remediation plan for accelerating the test suite, including the HOME-isolation hazard (Path.home()/.spec-kitty in an autouse conftest) and its fixes.
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/development/testing/testing-parallel.md
-- docs/archive/plans/testing/ci-job-timings.md
-- docs/archive/plans/testing/ci-coverage-union-audit.md
+- development/testing/testing-parallel
+- archive/plans/testing/ci-job-timings
+- archive/plans/testing/ci-coverage-union-audit
 ---
 
 ## Status update (`ci-test-topology-performance-01KXBJRT`, 2026-07-12)

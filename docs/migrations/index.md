@@ -4,28 +4,28 @@ description: 'Migration hub for upgrading Spec Kitty projects to 3.2: current mi
 doc_status: active
 updated: '2026-10-21'
 related:
-- docs/context/index.md
-- docs/changelog/index.md
-- docs/migrations/migration-and-shim-rules.md
-- docs/migrations/2-1-main-cutover-checklist.md
-- docs/migrations/charter-ownership-consolidation.md
-- docs/migrations/charter-pack-cutover.md
-- docs/migrations/command-skill-hyphen-names.md
-- docs/migrations/backfill-wp-status.md
-- docs/migrations/cross-repo-e2e-gate.md
-- docs/migrations/doctrine-local-overlay-to-org-layer.md
-- docs/migrations/feature-flag-deprecation.md
-- docs/migrations/from-charter-2x.md
-- docs/migrations/legacy-to-coordination.md
-- docs/migrations/mission-id-canonical-identity.md
-- docs/migrations/mission-type-flag-deprecation.md
-- docs/migrations/relocate-builtin-doctrine-packs.md
-- docs/migrations/retrospective-events-upstream.md
-- docs/migrations/shared-package-boundary-cutover.md
-- docs/migrations/teamspace-mission-state-920-closeout.md
-- docs/migrations/teamspace-mission-state-repair.md
-- docs/migrations/tracker-egress-refusal.md
-- docs/migrations/upgrade-to-0-12-0.md
+- context
+- changelog
+- migrations/migration-and-shim-rules
+- migrations/2-1-main-cutover-checklist
+- migrations/charter-ownership-consolidation
+- migrations/charter-pack-cutover
+- migrations/command-skill-hyphen-names
+- migrations/backfill-wp-status
+- migrations/cross-repo-e2e-gate
+- migrations/doctrine-local-overlay-to-org-layer
+- migrations/feature-flag-deprecation
+- migrations/from-charter-2x
+- migrations/legacy-to-coordination
+- migrations/mission-id-canonical-identity
+- migrations/mission-type-flag-deprecation
+- migrations/relocate-builtin-doctrine-packs
+- migrations/retrospective-events-upstream
+- migrations/shared-package-boundary-cutover
+- migrations/teamspace-mission-state-920-closeout
+- migrations/teamspace-mission-state-repair
+- migrations/tracker-egress-refusal
+- migrations/upgrade-to-0-12-0
 ---
 > Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../guides/tutorials/getting-started.md).
 

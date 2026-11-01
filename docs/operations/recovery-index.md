@@ -4,9 +4,9 @@ description: Recovery procedures for Spec Kitty operational states, such as a co
 doc_status: active
 updated: '2026-10-04'
 related:
-- docs/index.md
-- docs/operations/upgrade-with-live-lanes-recovery.md
-- docs/guides/how-to/recovery/index.md
+- ''
+- operations/upgrade-with-live-lanes-recovery
+- guides/how-to/recovery
 ---
 # Recovery guides
 

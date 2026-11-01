@@ -4,14 +4,14 @@ description: Historical Spec Kitty 2.x archive page for 2.x Documentation (Archi
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/context/index.md
-- docs/changelog/2x/adr-coverage.md
-- docs/changelog/2x/doctrine-and-charter.md
-- docs/changelog/2x/glossary-system.md
-- docs/changelog/2x/orchestration-and-api.md
-- docs/changelog/2x/runtime-and-missions.md
-- docs/index.md
-- docs/migrations/index.md
+- context
+- changelog/2x/adr-coverage
+- changelog/2x/doctrine-and-charter
+- changelog/2x/glossary-system
+- changelog/2x/orchestration-and-api
+- changelog/2x/runtime-and-missions
+- ''
+- migrations
 ---
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 

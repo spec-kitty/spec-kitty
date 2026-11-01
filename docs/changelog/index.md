@@ -3,16 +3,18 @@ title: Changelog
 description: 'Changelog landing page: the canonical CHANGELOG.md, the forward-looking release goals, and the historical 1.x/2.x archive folded into this section.'
 doc_status: active
 type: reference
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 updated: '2026-08-10'
 related:
-- docs/changelog/CHANGELOG.md
-- docs/changelog/release-goals.md
-- docs/changelog/3.2.x.md
-- docs/changelog/3.3.x.md
-- docs/changelog/1x/index.md
-- docs/changelog/2x/index.md
-- docs/plans/3-2-x-milestone-roadmap.md
+- changelog/CHANGELOG
+- changelog/release-goals
+- changelog/3.2.x
+- changelog/3.3.x
+- changelog/1x
+- changelog/2x
+- plans/3-2-x-milestone-roadmap
 ---
 # Changelog
 

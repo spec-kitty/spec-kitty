@@ -4,9 +4,9 @@ description: "Verbatim record of the operator's creed/FoundationalValues design 
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- docs/archive/plans/doctrine/manifesto-tier-verdict-and-handover.md
-- docs/archive/plans/doctrine/manifesto-tier-primary-drivers.md
-- docs/plans/doctrine/index.md
+- archive/plans/doctrine/manifesto-tier-verdict-and-handover
+- archive/plans/doctrine/manifesto-tier-primary-drivers
+- plans/doctrine
 ---
 # Creed and FoundationalValues — design as proposed
 

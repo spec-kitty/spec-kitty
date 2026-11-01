@@ -4,9 +4,11 @@ description: 'Operator reference for the Spec Kitty status model: the append-onl
 doc_status: active
 updated: '2026-10-27'
 type: explanation
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/migrations/mission-id-canonical-identity.md
+- migrations/mission-id-canonical-identity
 ---
 # Status Model: Operator Documentation
 

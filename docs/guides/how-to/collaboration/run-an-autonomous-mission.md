@@ -4,12 +4,14 @@ description: Run specify, plan, tasks, implementation review, mission review, an
 doc_status: active
 updated: '2026-11-01'
 type: how-to
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- docs/guides/how-to/missions/accept-and-merge.md
-- docs/guides/how-to/missions/merge-mission.md
-- docs/guides/how-to/collaboration/run-external-orchestrator.md
-- docs/guides/how-to/recovery/troubleshoot-merge.md
+- guides/how-to/missions/accept-and-merge
+- guides/how-to/missions/merge-mission
+- guides/how-to/collaboration/run-external-orchestrator
+- guides/how-to/recovery/troubleshoot-merge
 ---
 # Run an Autonomous Mission
 

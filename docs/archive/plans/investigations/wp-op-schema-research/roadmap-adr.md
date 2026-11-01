@@ -3,10 +3,12 @@ title: 'WP & Op Schema Research — Roadmap / Vision / ADR (researcher-robbie)'
 description: 'Verbatim research report: roadmap/vision alignment and ADR binding for the WP & Op schema-model idea.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/archive/plans/investigations/wp-op-schema-research/README.md
-- docs/plans/investigations/wp-op-schema-model.md
+- archive/plans/investigations/wp-op-schema-research
+- plans/investigations/wp-op-schema-model
 ---
 # Roadmap / Vision / ADR Grounding — WP & Op Schema Model
 

@@ -3,12 +3,14 @@ title: 'Review-artifact integrity (#3044): the topology-seam connection is histo
 description: 'Pre-spec research testing whether #3044''s review-artifact-integrity cluster (#2275, #2996, #990) is a topology-seam defect; code-verified answer plus a scoped remediation seed.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/archive/plans/investigations/write-path-topology-root-cause.md
-- docs/development/reference/read-side-seam-classification.md
-- docs/plans/3-2-x-milestone-roadmap.md
-- docs/changelog/3.2.x.md
+- archive/plans/investigations/write-path-topology-root-cause
+- development/reference/read-side-seam-classification
+- plans/3-2-x-milestone-roadmap
+- changelog/3.2.x
 ---
 
 # Review-artifact integrity (#3044): the topology-seam connection is historical, the open gap is a missing writer

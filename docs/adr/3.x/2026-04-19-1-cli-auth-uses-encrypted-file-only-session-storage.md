@@ -3,6 +3,8 @@ title: CLI Auth Uses Browser-Mediated OAuth With Encrypted File-Only Session
   Storage
 description: 'Keeps browser-mediated OAuth but drops OS keyring persistence: CLI sessions live in an encrypted file, giving one cross-platform recovery and test surface.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-19'
 ---
 

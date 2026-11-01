@@ -3,16 +3,21 @@ title: 3.2.x Milestone — Roadmap (prior cycle)
 description: 'Prior-cycle record: the operator roadmap for the 3.2.x milestone, with its epic spine, degod/unshim waves, census and exit criteria.'
 doc_status: superseded
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/4-0-0-milestone-roadmap.md
-- docs/changelog/index.md
-- docs/plans/index.md
-- docs/plans/code-quality/index.md
-- docs/archive/plans/testing/qa-tidy-first-sequencing.md
-- docs/plans/doctrine/manifesto-program-delivery-sequence.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/changelog/release-goals.md
+- plans/4-0-0-milestone-roadmap
+- changelog
+- plans
+- plans/code-quality
+- plans/domains/doctrine-charter-domain-plan
+- changelog/release-goals
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/qa-tidy-first-sequencing.md
+  title: QA Mission — Tidy-First Sequencing (does degod-before-test-QA pay off?)
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/doctrine/manifesto-program-delivery-sequence.md
+  title: FoundationalValues/creed program — delivery sequence
 ---
 # 3.2.x Milestone — Roadmap (prior cycle)
 

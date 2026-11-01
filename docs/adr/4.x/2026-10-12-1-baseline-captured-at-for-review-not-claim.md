@@ -2,9 +2,11 @@
 title: 'ADR: the test baseline is captured at for_review, at the lane fork point, not at the claim'
 description: 'Test-baseline capture runs capture-if-missing on the in_progress to for_review edge, at the lane merge-base, lock-free and fail-open; the claim never runs the suite.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-12'
 related:
-- docs/adr/4.x/2026-10-07-3-review-lane-exit-requires-verdict-or-forced-note.md
+- adr/4.x/2026-10-07-3-review-lane-exit-requires-verdict-or-forced-note
 ---
 
 **Status:** Accepted

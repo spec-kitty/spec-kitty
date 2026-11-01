@@ -2,6 +2,8 @@
 title: 'ADR: Mission-Type Roster Layering Is the Availability Slice, Not the Kind-Promotion Slice'
 description: 'Adds a layered, pack-aware mission-type lookup and a flat org/project roster layout. Availability slice only: mission-type is not promoted to an ArtifactKind.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-13'
 ---
 

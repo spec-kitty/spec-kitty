@@ -5,11 +5,11 @@ doc_status: active
 updated: '2026-08-10'
 type: explanation
 related:
-- docs/guides/tutorials/index.md
-- docs/guides/how-to/index.md
-- docs/context/index.md
-- docs/development/index.md
-- docs/api/index.md
+- guides/tutorials
+- guides/how-to
+- context
+- development
+- api
 ---
 
 # Guides

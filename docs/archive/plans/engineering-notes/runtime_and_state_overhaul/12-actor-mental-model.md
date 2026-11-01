@@ -4,7 +4,7 @@ description: 'Actor mental model (abstraction level-up) for the runtime and stat
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/13-dialectic-mission-vs-missionrun.md
+- archive/plans/engineering-notes/runtime_and_state_overhaul/13-dialectic-mission-vs-missionrun
 ---
 # 12 — Actor Mental Model: Self · Purpose · Environment
 

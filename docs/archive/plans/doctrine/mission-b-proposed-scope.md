@@ -4,8 +4,8 @@ description: "Architect Alphonso's proposed scope (2026-05-17) for Mission B: ch
 doc_status: deprecated
 updated: '2026-05-19'
 related:
-- docs/archive/plans/doctrine/doctrine-artifact-selection-preflight.md
-- docs/archive/plans/doctrine/runtime-charter-doctrine-boundary.md
+- archive/plans/doctrine/doctrine-artifact-selection-preflight
+- archive/plans/doctrine/runtime-charter-doctrine-boundary
 ---
 # Mission B (proposed scope) — Charter-mediated doctrine selection
 

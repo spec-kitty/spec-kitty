@@ -3,7 +3,9 @@ title: 1.x — research (history slot)
 description: Per-era research (spike/exploration) record for the 1.x architecture track, part of the versioned history beneath the living architecture.
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 # 1.x — research (history slot)
 

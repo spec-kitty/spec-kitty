@@ -3,13 +3,15 @@ title: 'Activation Preset Usage Journey: Activate, Generate, and the Dispatch Sa
 description: Why `charter activate --preset` alone does not deliver governance on a fresh project, the `generate` follow-up, and how the dispatch fallback behaves around compilation.
 doc_status: active
 updated: '2026-10-21'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/context/charter-overview.md
-- docs/context/governance-files.md
-- docs/guides/how-to/governance/setup-governance.md
-- docs/api/charter-commands.md
-- docs/api/agent_profiles/generic-agent.md
+- context/charter-overview
+- context/governance-files
+- guides/how-to/governance/setup-governance
+- api/charter-commands
+- api/agent_profiles/generic-agent
 ---
 # Activation Preset Usage Journey: Activate, Generate, and the Dispatch Safety Net
 

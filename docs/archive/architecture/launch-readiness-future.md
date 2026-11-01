@@ -4,7 +4,9 @@ description: "Pre-launch design intent for Teamspace: how hosted-readiness defau
 doc_status: superseded
 updated: '2026-09-30'
 type: explanation
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 # Launch-Readiness Behavior (Coming Soon)
 

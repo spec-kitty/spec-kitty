@@ -4,7 +4,7 @@ description: Record of the GitHub sub-issues filed per DIR-013 (Pre-existing Fai
 doc_status: deprecated
 updated: '2026-06-27'
 related:
-- docs/archive/plans/engineering-notes/triage/2026-05-25-01KSF9HJ-test-failure-triage.md
+- archive/plans/engineering-notes/triage/2026-05-25-01KSF9HJ-test-failure-triage
 ---
 # DIR-013 Sub-Issues Filed for Mission 01KSF9HJ
 

@@ -3,18 +3,20 @@ title: Explanation
 description: 'Understanding-oriented background on Spec Kitty: spec-driven development, the mission system, execution lanes, git workflow, and multi-agent orchestration.'
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/architecture/ai-agent-architecture.md
-- docs/architecture/execution-lanes.md
-- docs/architecture/git-workflow.md
-- docs/architecture/git-worktrees.md
-- docs/architecture/kanban-workflow.md
-- docs/architecture/mission-system.md
-- docs/architecture/mission-type-resolution.md
-- docs/architecture/multi-agent-orchestration.md
-- docs/architecture/runtime-loop.md
-- docs/architecture/spec-driven-development.md
+- architecture/ai-agent-architecture
+- architecture/execution-lanes
+- architecture/git-workflow
+- architecture/git-worktrees
+- architecture/kanban-workflow
+- architecture/mission-system
+- architecture/mission-type-resolution
+- architecture/multi-agent-orchestration
+- architecture/runtime-loop
+- architecture/spec-driven-development
 ---
 # Explanation
 

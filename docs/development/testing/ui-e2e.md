@@ -3,12 +3,14 @@ title: UI End-to-End Tests (Playwright)
 description: Lessons for browser-driven UI regression tests; the in-repo dashboard Playwright suite was removed with the dashboard (#5530).
 doc_status: active
 updated: '2026-10-01'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: how-to
 related:
-- docs/development/index.md
-- docs/development/how-to/review-gates.md
-- docs/development/testing/testing-parallel.md
+- development
+- development/how-to/review-gates
+- development/testing/testing-parallel
 ---
 
 # UI End-to-End Tests (Playwright)

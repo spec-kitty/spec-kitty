@@ -4,7 +4,9 @@ description: 'Agent moment delivery for #4216: team-scoped default for unfamilia
 doc_status: active
 updated: '2026-09-30'
 type: explanation
-audience: docs/context/audience/internal/ai-collaboration-agent.md
+audience:
+- profile: internal/ai-collaboration-agent
+  guidance_text: Written for the AI Collaboration Agent reader.
 ---
 
 # Agent moment delivery policy

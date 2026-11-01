@@ -354,5 +354,14 @@ def test_json_report_lists_unpublished_edges(tmp_path: Path, capsys: pytest.Capt
     assert '"unpublished_edges"' in capsys.readouterr().out
 
 
+def test_unreadable_page_is_skipped(tmp_path: Path) -> None:
+    """A ``*.md`` path that cannot be read (here a directory) contributes no edges."""
+    repo = _publication_repo(tmp_path, "active", ["guides"])
+    (repo / "docs" / "folder.md").mkdir()
+    report = validate_related(docs_root=repo / "docs", repo_root=repo)
+    assert report.checked_count == 1
+    assert not report.failed
+
+
 def related_main_strict(repo: Path) -> int:
     return main(["--docs-root", str(repo / "docs"), "--repo-root", str(repo), "--strict"])

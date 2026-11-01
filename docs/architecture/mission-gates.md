@@ -3,17 +3,19 @@ title: Mission transition gates — declarative, asset-backed, trust-gated
 description: 'The declarative model for transition gates: a gate artefact whose check ships as an asset, trust-checked before it runs, with severity-typed outcomes.'
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: explanation
 related:
-- docs/architecture/mission-type-resolution.md
-- docs/architecture/artifact-placement-seam.md
-- docs/architecture/doctrine-kinds.md
-- docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
-- docs/adr/3.x/2026-08-13-3-gate-execution-targets-through-kernel-surface-selector.md
-- docs/adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers.md
-- docs/adr/3.x/2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts.md
-- docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md
+- architecture/mission-type-resolution
+- architecture/artifact-placement-seam
+- architecture/doctrine-kinds
+- adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts
+- adr/3.x/2026-08-13-3-gate-execution-targets-through-kernel-surface-selector
+- adr/3.x/2026-08-13-4-executable-doctrine-runs-only-from-trusted-publishers
+- adr/3.x/2026-08-13-5-local-daemon-amortizes-doctrine-parse-and-caches-gate-verdicts
+- adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect
 ---
 # Mission transition gates — declarative, asset-backed, trust-gated
 

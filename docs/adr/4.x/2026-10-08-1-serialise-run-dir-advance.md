@@ -2,6 +2,8 @@
 title: 'ADR: advancing a mission run is serialised by a per-run-dir lock and a caller-step compare-and-swap'
 description: 'Concurrent `spec-kitty next` on one run is serialised: a stale advance is refused with a named `blocked` reason, and at most one writer mutates a run cursor at a time.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-08'
 ---
 

@@ -4,7 +4,9 @@ description: Combine Anthropic Claude for planning with Cursor for implementatio
 doc_status: active
 updated: '2026-08-10'
 type: how-to
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 ---
 
 # Claude & Cursor Collaboration

@@ -2,6 +2,8 @@
 title: Auto-Discover Migrations from Filesystem
 description: Discovers upgrade migrations by scanning the package at import time, eliminating the forgotten registration line that repeatedly blocked releases at the CI gate.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-01-30'
 ---
 

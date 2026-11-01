@@ -3,9 +3,11 @@ title: 'User Journey: System Design & Shared Understanding'
 description: 'User journey for system design and shared understanding: how a team builds shared design context through Spec Kitty, in a field-table record.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/archive/plans/user_journey/001-project-onboarding-bootstrap.md
+- archive/plans/user_journey/001-project-onboarding-bootstrap
 ---
 # User Journey: System Design & Shared Understanding
 

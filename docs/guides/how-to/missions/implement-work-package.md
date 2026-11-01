@@ -3,13 +3,15 @@ title: How to implement a work package
 description: 'How to implement a work package with Spec Kitty 3.2: Use this guide to implement a single work package (WP) in its execution workspace.'
 doc_status: active
 updated: '2026-06-14'
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 type: how-to
 related:
-- docs/guides/how-to/missions/generate-tasks.md
-- docs/guides/how-to/missions/handle-dependencies.md
-- docs/guides/how-to/missions/review-work-package.md
-- docs/guides/how-to/collaboration/worktrees-with-mcp-agents.md
+- guides/how-to/missions/generate-tasks
+- guides/how-to/missions/handle-dependencies
+- guides/how-to/missions/review-work-package
+- guides/how-to/collaboration/worktrees-with-mcp-agents
 ---
 # How to implement a work package
 

@@ -3,16 +3,18 @@ title: Contributing to Spec Kitty
 description: The full contributor guide for Spec Kitty — developer setup, running tests, submitting pull requests, AI-assistance disclosure, and the release process.
 doc_status: active
 updated: '2026-11-01'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: how-to
 related:
-- docs/guides/index.md
-- docs/development/how-to/review-gates.md
-- docs/development/how-to/pr-landing.md
-- docs/development/how-to/manage-issue-tracker.md
-- docs/development/how-to/create-a-doctrine-artifact.md
-- docs/development/testing/testing-parallel.md
-- docs/guides/how-to/installation/diagnose-installation.md
+- guides
+- development/how-to/review-gates
+- development/how-to/pr-landing
+- development/how-to/manage-issue-tracker
+- development/how-to/create-a-doctrine-artifact
+- development/testing/testing-parallel
+- guides/how-to/installation/diagnose-installation
 ---
 
 # Contributing to Spec Kitty

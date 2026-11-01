@@ -3,6 +3,8 @@ title: Charter Synthesizer — Atomicity via Stage + Ordered Promote +
   Manifest-Last Commit
 description: 'Synthesis writes into a staging tree, validates, then promotes files in a fixed order with the manifest last, so a crash cannot leave a half-promoted doctrine tree.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-17'
 ---
 

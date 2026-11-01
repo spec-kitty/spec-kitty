@@ -4,28 +4,30 @@ description: Catalog of the 18 built-in agent profiles Spec Kitty ships, with id
 doc_status: active
 updated: '2026-10-08'
 type: reference
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/api/agent_profiles/architect-alphonso.md
-- docs/api/agent_profiles/curator-carla.md
-- docs/api/agent_profiles/debugger-debbie.md
-- docs/api/agent_profiles/designer-dagmar.md
-- docs/api/agent_profiles/doctrine-daphne.md
-- docs/api/agent_profiles/frontend-freddy.md
-- docs/api/agent_profiles/generic-agent.md
-- docs/api/agent_profiles/human-in-charge.md
-- docs/api/agent_profiles/implementer-ivan.md
-- docs/api/agent_profiles/java-jenny.md
-- docs/api/agent_profiles/node-norris.md
-- docs/api/agent_profiles/paula-patterns.md
-- docs/api/agent_profiles/planner-priti.md
-- docs/api/agent_profiles/python-pedro.md
-- docs/api/agent_profiles/randy-reducer.md
-- docs/api/agent_profiles/researcher-robbie.md
-- docs/api/agent_profiles/retrospective-facilitator.md
-- docs/api/agent_profiles/reviewer-renata.md
-- docs/api/index.md
-- docs/context/identity.md
+- api/agent_profiles/architect-alphonso
+- api/agent_profiles/curator-carla
+- api/agent_profiles/debugger-debbie
+- api/agent_profiles/designer-dagmar
+- api/agent_profiles/doctrine-daphne
+- api/agent_profiles/frontend-freddy
+- api/agent_profiles/generic-agent
+- api/agent_profiles/human-in-charge
+- api/agent_profiles/implementer-ivan
+- api/agent_profiles/java-jenny
+- api/agent_profiles/node-norris
+- api/agent_profiles/paula-patterns
+- api/agent_profiles/planner-priti
+- api/agent_profiles/python-pedro
+- api/agent_profiles/randy-reducer
+- api/agent_profiles/researcher-robbie
+- api/agent_profiles/retrospective-facilitator
+- api/agent_profiles/reviewer-renata
+- api
+- context/identity
 ---
 # Agent Profiles
 

@@ -3,17 +3,25 @@ title: Coverage signals — reconciling the three "coverage" numbers
 description: 'Why SonarCloud coverage, new_coverage, and the internal diff-coverage CI gate disagree — and how to tell an expected scope difference from a real coverage regression.'
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: explanation
 related:
-- docs/development/testing/testing-flakiness.md
-- docs/development/testing/testing-parallel.md
-- docs/development/how-to/review-gates.md
-- .github/workflows/ci-aggregate.yml
-- .github/workflows/sonar.yml
-- .github/workflows/module-tests.yml
-- sonar-project.properties
-- scripts/ci/sonarcloud_branch_review.sh
+- development/testing/testing-flakiness
+- development/testing/testing-parallel
+- development/how-to/review-gates
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/.github/workflows/ci-aggregate.yml
+  title: .github/workflows/ci-aggregate.yml
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/.github/workflows/sonar.yml
+  title: .github/workflows/sonar.yml
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/.github/workflows/module-tests.yml
+  title: .github/workflows/module-tests.yml
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/sonar-project.properties
+  title: sonar-project.properties
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/scripts/ci/sonarcloud_branch_review.sh
+  title: scripts/ci/sonarcloud_branch_review.sh
 ---
 # Coverage signals — reconciling the three "coverage" numbers
 

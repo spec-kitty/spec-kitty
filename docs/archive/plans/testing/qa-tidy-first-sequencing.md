@@ -3,12 +3,14 @@ title: QA Mission — Tidy-First Sequencing (does degod-before-test-QA pay off?)
 description: 'Which degod/deshim/dead-code cleanup makes the #2071 test-QA mission cheaper, driven by the CaaCS co-change data — and which does not.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/archive/plans/testing/test-suite-friction-audit.md
-- docs/archive/plans/testing/test-change-coupling-caacs.md
-- docs/archive/plans/refactor/degod-unshim-roadmap.md
-- docs/plans/3-2-x-milestone-roadmap.md
+- archive/plans/testing/test-suite-friction-audit
+- archive/plans/testing/test-change-coupling-caacs
+- archive/plans/refactor/degod-unshim-roadmap
+- plans/3-2-x-milestone-roadmap
 ---
 # QA Mission — Tidy-First Sequencing
 

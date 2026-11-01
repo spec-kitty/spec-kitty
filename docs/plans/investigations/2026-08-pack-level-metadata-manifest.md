@@ -4,10 +4,10 @@ description: 'Corroborates one pack-level manifest recording each pack''s enumer
 doc_status: deprecated
 updated: '2026-08-16'
 related:
-- docs/plans/3-2-x-milestone-roadmap.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/index.md
-- docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
+- plans/3-2-x-milestone-roadmap
+- plans/domains/doctrine-charter-domain-plan
+- plans
+- adr/3.x/2026-08-16-1-pack-metadata-manifest-unification
 ---
 
 > **RETIRED (shipped)** — this investigation's unify-vs-bridge proposal was ratified in ADR

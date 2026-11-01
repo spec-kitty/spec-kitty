@@ -4,9 +4,11 @@ description: Implement your own external orchestration runtime against spec-kitt
 doc_status: active
 updated: '2026-06-03'
 type: how-to
-audience: docs/context/audience/external/architect-evaluator.md
+audience:
+- profile: external/architect-evaluator
+  guidance_text: Written for the External Architect Evaluator reader.
 related:
-- docs/guides/how-to/collaboration/run-external-orchestrator.md
+- guides/how-to/collaboration/run-external-orchestrator
 ---
 # Build a Custom Orchestrator
 

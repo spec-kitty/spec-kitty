@@ -2,6 +2,8 @@
 title: 'ADR 2026-06-11-1: Op as a First-Class Execution Artifact (Mission ⟷ Op ⟷ ad-hoc)'
 description: 'Names the Op — a bounded, doctrine-governed, immediately dispatched action with a durable record — as the one primitive shared by ad-hoc dispatch and lifecycle flows.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-06-11'
 ---
 

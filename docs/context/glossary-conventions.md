@@ -3,7 +3,9 @@ title: Glossary Conventions
 description: Authoring conventions for Spec Kitty's living glossary — source-of-truth precedence, policy/runtime layering, term status lifecycle, per-term entry schema, and runtime anchors.
 doc_status: active
 updated: '2026-09-08'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 type: reference
 ---
 # Glossary Conventions

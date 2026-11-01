@@ -5,8 +5,10 @@ doc_status: deprecated
 updated: '2026-10-14'
 type: how-to
 related:
-- docs/context/team-kitty.md
-audience: internal / pre-launch operators
+- context/team-kitty
+audience:
+- profile: internal / pre-launch operators
+  guidance_text: Written for internal / pre-launch operators.
 ---
 
 # Internal Hosted-Readiness Mode (Removed)

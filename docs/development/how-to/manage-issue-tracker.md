@@ -3,15 +3,17 @@ title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 type: how-to
 related:
-- docs/development/agent-fleet.md
-- docs/development/contributing.md
-- docs/guides/how-to/missions/keep-main-clean.md
-- docs/development/how-to/pr-landing.md
-- docs/development/reference/red-main-and-release-readiness.md
-- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+- development/agent-fleet
+- development/contributing
+- guides/how-to/missions/keep-main-clean
+- development/how-to/pr-landing
+- development/reference/red-main-and-release-readiness
+- adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority
 ---
 
 # Managing the Issue Tracker

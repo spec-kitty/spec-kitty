@@ -5,9 +5,9 @@ doc_status: active
 updated: '2026-10-08'
 type: explanation
 related:
-- docs/context/governance-files.md
-- docs/guides/how-to/governance/setup-governance.md
-- docs/architecture/charter-pack-usage-journey.md
+- context/governance-files
+- guides/how-to/governance/setup-governance
+- architecture/charter-pack-usage-journey
 ---
 # How Charter Works
 

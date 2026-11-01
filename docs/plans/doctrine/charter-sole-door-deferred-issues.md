@@ -4,8 +4,10 @@ description: Citable record of the six GitHub issues confirmed adjacent-but-sepa
 doc_status: active
 updated: '2026-08-03'
 related:
-- docs/plans/index.md
-- docs/archive/plans/3-2-x-open-core-delivery-plan.md
+- plans
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md
+  title: 3.2.x Open-Core Delivery Plan
 ---
 
 # Charter as Sole Door: Deferred Issues Record

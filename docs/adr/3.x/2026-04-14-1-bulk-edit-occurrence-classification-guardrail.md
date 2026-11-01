@@ -2,6 +2,8 @@
 title: 'ADR 1 (2026-04-14): Bulk-Edit Occurrence Classification Guardrail'
 description: 'Bulk-edit missions must classify every occurrence into eight categories; review blocks when a changed file lands in a do-not-change category with no exception.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-14'
 ---
 

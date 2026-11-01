@@ -4,8 +4,8 @@ description: "Upgrade-time backfill (FR-012/SC-008) reducing each mission's term
 doc_status: active
 updated: '2026-08-06'
 related:
-- docs/architecture/status-model.md
-- docs/migrations/mission-id-canonical-identity.md
+- architecture/status-model
+- migrations/mission-id-canonical-identity
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

@@ -4,8 +4,8 @@ description: 'Architecture audience catalog: the canonical internal and external
 doc_status: active
 updated: '2026-03-10'
 related:
-- docs/context/audience/external/index.md
-- docs/context/audience/internal/index.md
+- context/audience/external
+- context/audience/internal
 ---
 # Architecture Audience
 

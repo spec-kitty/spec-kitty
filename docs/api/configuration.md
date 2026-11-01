@@ -4,14 +4,14 @@ description: Reference for Spec Kitty configurations. Explore parameters for met
 doc_status: active
 updated: '2026-10-21'
 related:
-- docs/api/agent-subcommands.md
-- docs/api/cli-commands.md
-- docs/api/environment-variables.md
-- docs/api/file-structure.md
-- docs/api/missions.md
-- docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
-- docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
-- docs/context/team-kitty.md
+- api/agent-subcommands
+- api/cli-commands
+- api/environment-variables
+- api/file-structure
+- api/missions
+- adr/3.x/2026-08-16-5-operator-config-env-expansion-seam
+- adr/3.x/2026-09-26-3-hosted-interaction-opt-in
+- context/team-kitty
 ---
 # Configuration Reference
 

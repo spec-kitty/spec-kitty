@@ -3,10 +3,14 @@ title: Targeted Cleanup Scoping — sync.py and walker.py
 description: 'Line-level scoping of the two highest-signal code-quality cleanup targets: the calibration/walker.py duplicated-literal cluster and the cli/commands/sync.py complexity god-module.'
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/code-quality/index.md
-- docs/archive/plans/refactor/degod-unshim-roadmap.md
+- plans/code-quality
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/degod-unshim-roadmap.md
+  title: Degod / Unshim Program — Roadmap
 ---
 # Targeted Cleanup Scoping — `sync.py` and `walker.py`
 

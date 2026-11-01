@@ -3,7 +3,9 @@ title: 'Doctrine relationships: lineage, delegation, augmentation, and action re
 description: "How Spec Kitty models each DRG relation type — lineage, delegation, augmentation, obligation, scope, and the tension edges — as a typed graph edge, not as artifact fields."
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 # Doctrine relationships: lineage, delegation, augmentation, and action resolution
 

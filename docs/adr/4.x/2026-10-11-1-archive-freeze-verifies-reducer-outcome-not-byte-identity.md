@@ -2,6 +2,8 @@
 title: 'ADR: the archive-freeze gate verifies reducer OUTCOME reproduction, not byte-identity'
 description: 'Archived status.json is a frozen derived snapshot; a correct reducer improvement may re-assign a WP terminal-transition id without it counting as archive drift.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-11'
 ---
 

@@ -2,6 +2,8 @@
 title: Auto-Merge Multi-Parent Dependencies
 description: Resolves the diamond-dependency ambiguity by combining every declared parent into one temporary commit, so a work package always starts from a deterministic tree.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-01-23'
 ---
 

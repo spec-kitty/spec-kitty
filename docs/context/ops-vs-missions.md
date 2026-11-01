@@ -5,9 +5,9 @@ doc_status: active
 updated: '2026-09-28'
 type: explanation
 related:
-- docs/context/mission-types.md
-- docs/api/profile-invocation.md
-- docs/architecture/governed-profile-invocation.md
+- context/mission-types
+- api/profile-invocation
+- architecture/governed-profile-invocation
 ---
 # Ops vs. Missions
 

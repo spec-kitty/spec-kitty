@@ -3,13 +3,15 @@ title: '3.2.x Executive Overview'
 description: 'Executive/stakeholder synthesis of 3.2.x goals and progress since the 3.2.4 release — from a PO, C-suite, and customer point of view.'
 doc_status: superseded
 updated: '2026-09-30'
-audience: docs/context/audience/external/product-manager-evaluator.md
+audience:
+- profile: external/product-manager-evaluator
+  guidance_text: Written for the External Product Manager Evaluator reader.
 related:
-- docs/changelog/3.2.x.md
-- docs/plans/3-2-x-milestone-roadmap.md
-- docs/archive/plans/3-2-x-open-core-delivery-plan.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/changelog/index.md
+- changelog/3.2.x
+- plans/3-2-x-milestone-roadmap
+- archive/plans/3-2-x-open-core-delivery-plan
+- plans/domains/doctrine-charter-domain-plan
+- changelog
 ---
 
 # 3.2.x Executive Overview

@@ -4,8 +4,8 @@ description: Knowledge base and doctrine maintenance specialist
 doc_status: active
 updated: '2026-10-08'
 related:
-  - docs/api/agent_profiles/index.md
-  - docs/context/charter.md
+- api/agent_profiles
+- context/charter
 ---
 
 # Curator Carla — Agent Profile

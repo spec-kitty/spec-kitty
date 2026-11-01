@@ -3,13 +3,15 @@ title: 'Field report: tactical workarounds for driving a full governed mission e
 description: 'Six maintainer workarounds surfaced driving a governed mission (mission-type-canonical-source, PR #4821) end-to-end; lane-bound, several superseded by epic #1619 or already fixed.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/engineering-notes/index.md
-- docs/plans/engineering-notes/2026-07-19-migration-contract-step-ownership-field-report.md
-- docs/development/reference/known-friction-points.md
-- docs/development/how-to/pr-landing.md
-- docs/architecture/execution-lanes.md
+- plans/engineering-notes
+- plans/engineering-notes/2026-07-19-migration-contract-step-ownership-field-report
+- development/reference/known-friction-points
+- development/how-to/pr-landing
+- architecture/execution-lanes
 ---
 
 # Field report: tactical workarounds for driving a full governed mission end-to-end

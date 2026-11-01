@@ -2,6 +2,8 @@
 title: Event-Log Merge Semantics for Concurrent Agents
 description: Reconciles divergent status logs by concatenating, deduplicating, and replaying events with rollback-aware precedence, so a reviewer's rejection is never overwritten.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-02-09'
 updated: '2026-10-22'
 ---

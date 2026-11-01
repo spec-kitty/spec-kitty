@@ -4,11 +4,13 @@ description: Author, validate, assemble, publish, and consume a spec-kitty org C
 doc_status: active
 updated: '2026-10-09'
 type: how-to
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- docs/guides/how-to/governance/setup-governance.md
-- docs/guides/how-to/governance/synthesize-doctrine.md
-- docs/migrations/doctrine-local-overlay-to-org-layer.md
+- guides/how-to/governance/setup-governance
+- guides/how-to/governance/synthesize-doctrine
+- migrations/doctrine-local-overlay-to-org-layer
 ---
 # How to Create an Org Charter Pack
 

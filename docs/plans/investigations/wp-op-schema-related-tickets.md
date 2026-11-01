@@ -3,10 +3,14 @@ title: WP & Op Schema Model — Related Open Tracker Tickets
 description: 'Deduped map of open tracker issues covering WP-metadata rework, ops/WP-template moves, model-first formalization, and WP prompt/template friction, from a three-lens sweep.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/plans/investigations/wp-op-schema-model.md
-- docs/archive/plans/investigations/wp-op-schema-research/README.md
+- plans/investigations/wp-op-schema-model
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/investigations/wp-op-schema-research/README.md
+  title: WP & Op Schema Model — Research Squad Reports
 ---
 # WP & Op Schema Model — Related Open Tracker Tickets
 

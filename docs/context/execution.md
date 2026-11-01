@@ -4,10 +4,10 @@ description: 'Glossary context for execution semantics: tool invocation and the 
 doc_status: active
 updated: '2026-10-21'
 related:
-- docs/context/governance.md
-- docs/context/identity.md
-- docs/context/lexical.md
-- docs/context/system-events.md
+- context/governance
+- context/identity
+- context/lexical
+- context/system-events
 ---
 ## Context: Execution
 

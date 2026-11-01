@@ -4,8 +4,8 @@ description: Recurring-bug structural-root-cause investigator using five-paradig
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/agent_profiles/index.md
-  - docs/context/charter.md
+- api/agent_profiles
+- context/charter
 ---
 
 # Debugger Debbie — Agent Profile

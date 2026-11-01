@@ -3,10 +3,12 @@ title: Test-flakiness handling policy
 description: "Spec Kitty's suite-wide flaky-test policy: how to detect a flake, what is and isn't allowed (never retry-to-green), and the disposition of each known flake surface."
 doc_status: active
 updated: '2026-10-05'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: explanation
 related:
-- docs/development/testing/testing-parallel.md
+- development/testing/testing-parallel
 ---
 # Test-flakiness handling policy
 

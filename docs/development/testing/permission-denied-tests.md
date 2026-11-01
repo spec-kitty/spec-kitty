@@ -3,7 +3,9 @@ title: Write Permission-Denied Tests
 description: Inject PermissionError at the filesystem seam so a denied-access test gives the same verdict as root and as a regular user.
 doc_status: active
 updated: '2026-10-22'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: how-to
 ---
 # Write Permission-Denied Tests

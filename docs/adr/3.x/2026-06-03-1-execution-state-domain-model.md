@@ -2,6 +2,8 @@
 title: 'ADR 2026-06-03-1: Execution-State Domain Model'
 description: 'Splits the CLI into four bounded modules — Governance, Mission Management, Execution/Runtime, Shared Kernel — giving execution state one domain owner.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-06-03'
 ---
 

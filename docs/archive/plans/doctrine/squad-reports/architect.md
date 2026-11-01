@@ -4,8 +4,8 @@ description: "Structural hardening of the creed/FoundationalValues design: where
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- docs/archive/plans/doctrine/creed-and-values-design-hardened.md
-- docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
+- archive/plans/doctrine/creed-and-values-design-hardened
+- archive/plans/doctrine/creed-and-values-design-as-proposed
 ---
 # Architect lens — seams, types, and concrete shapes
 

@@ -3,14 +3,16 @@ title: '3.2.x Open-Core Delivery Plan'
 description: 'PO-facing 3.2.x synthesis: a verified status re-read, the open-core breaking-change delivery strategy, and the bounded remaining-work sequence.'
 doc_status: superseded
 updated: '2026-09-30'
-audience: docs/context/audience/external/product-manager-evaluator.md
+audience:
+- profile: external/product-manager-evaluator
+  guidance_text: Written for the External Product Manager Evaluator reader.
 related:
-- docs/archive/plans/3-2-x-approach.md
-- docs/plans/3-2-x-milestone-roadmap.md
-- docs/changelog/3.2.x.md
-- docs/development/how-to/manage-issue-tracker.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+- archive/plans/3-2-x-approach
+- plans/3-2-x-milestone-roadmap
+- changelog/3.2.x
+- development/how-to/manage-issue-tracker
+- plans/domains/doctrine-charter-domain-plan
+- adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority
 ---
 
 > **Superseded (2026-09-06, Convergence #3881).** This plan describes the pre-convergence

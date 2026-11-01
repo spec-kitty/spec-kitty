@@ -3,7 +3,9 @@ title: 2.x Runtime/Execution Domain (Container Detail)
 description: '2.x container detail for the runtime/execution domain: the historical view of how mission execution and orchestration were structured, kept as decayed history.'
 doc_status: superseded
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 # 2.x Runtime/Execution Domain (Container Detail)
 

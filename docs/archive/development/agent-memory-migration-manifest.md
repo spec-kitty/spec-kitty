@@ -3,14 +3,16 @@ title: Agent-Memory Migration Manifest
 description: Audit manifest mapping every migrated agent-memory entry to its repo-native home, tracker issue, or retirement, with the completeness test that enforces it.
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 type: reference
 related:
-- docs/development/index.md
-- docs/development/reference/known-friction-points.md
-- docs/development/how-to/manage-issue-tracker.md
-- docs/development/how-to/create-a-doctrine-artifact.md
-- docs/operations/coord-off-main-addadd.md
+- development
+- development/reference/known-friction-points
+- development/how-to/manage-issue-tracker
+- development/how-to/create-a-doctrine-artifact
+- operations/coord-off-main-addadd
 ---
 
 # Agent-Memory Migration Manifest

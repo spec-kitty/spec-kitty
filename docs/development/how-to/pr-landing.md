@@ -3,16 +3,18 @@ title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
 updated: '2026-11-01'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 type: how-to
 related:
-- docs/guides/index.md
-- docs/development/how-to/review-gates.md
-- docs/development/testing/testing-flakiness.md
-- docs/development/how-to/manage-issue-tracker.md
-- docs/development/reference/red-main-and-release-readiness.md
-- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
-- docs/changelog/index.md
+- guides
+- development/how-to/review-gates
+- development/testing/testing-flakiness
+- development/how-to/manage-issue-tracker
+- development/reference/red-main-and-release-readiness
+- adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority
+- changelog
 ---
 # Landing Contributor PRs: The Maintainer Runbook
 

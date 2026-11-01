@@ -3,14 +3,19 @@ title: Architecture notes
 description: 'Page index for docs/architecture/: the living C4 model, landscape and vision, explanations, models, assessments, templates, and the frozen per-era history.'
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
-- docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
-- docs/architecture/README.md
-- docs/archive/architecture/feature-detection.md
-- docs/archive/architecture/gap-analysis-connector-installation-model.md
-- docs/index.md
+- adr/3.x/2026-04-06-2-connector-auth-binding-separation
+- adr/3.x/2026-04-06-3-github-app-installation-authority
+- architecture
+- ''
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/feature-detection.md
+  title: 'Architecture: Centralized Feature Detection'
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/gap-analysis-connector-installation-model.md
+  title: 'Gap Analysis: Migrating Spec-Kitty to the Installation-Link-Mapping-Override Connector Model'
 ---
 # Architecture notes
 

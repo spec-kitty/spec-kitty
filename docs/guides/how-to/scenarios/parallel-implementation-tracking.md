@@ -4,7 +4,9 @@ description: Track several agents implementing a roadmap in parallel and give le
 doc_status: active
 updated: '2026-10-10'
 type: how-to
-audience: docs/context/audience/external/architect-evaluator.md
+audience:
+- profile: external/architect-evaluator
+  guidance_text: Written for the External Architect Evaluator reader.
 ---
 
 # Parallel Implementation Tracking

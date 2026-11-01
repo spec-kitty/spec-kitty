@@ -2,6 +2,8 @@
 title: 'Session Presence: Multi-Harness Architecture for Orientation and Upgrade Checking'
 description: 'Orientation text and upgrade checks reach all 19 harnesses through four pattern-grouped writers, with recorded NullWriter stubs where no instruction surface exists.'
 status: Proposed
+doc_status: active
+kind: ADR
 date: '2026-06-07'
 ---
 

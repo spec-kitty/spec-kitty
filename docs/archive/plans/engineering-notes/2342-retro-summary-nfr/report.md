@@ -3,7 +3,9 @@ title: "Retro-summary NFR investigation (#2342) — verdict + disposition"
 description: "Verdict for spec-kitty #2342: the retrospective-summary 200-mission NFR breach on CI is runner-class hardware variance, not a code regression."
 doc_status: closeout
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 
 # Retro-summary NFR investigation — verdict + disposition (#2342)

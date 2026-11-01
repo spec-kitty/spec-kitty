@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 
+from scripts.docs.dockitty_frontmatter_migration import Corpus, migrate_text
 from scripts.docs.related_validator import validate_related
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -235,6 +236,23 @@ def _flip_path_token(line: str, *, allow_source_topology: bool) -> str:
     return allowed
 
 
+@functools.lru_cache(maxsize=1)
+def _docs_corpus() -> Corpus:
+    return Corpus.load(docs_root=REPO_ROOT / "docs", repo_root=REPO_ROOT)
+
+
+def _with_6929_frontmatter_migration(rel_path: str, lines: list[str]) -> list[str]:
+    """Sanctioned post-WP02 change: the recorded, frontmatter-only doc-kitty migration (#6929).
+
+    Runs ``scripts/docs/dockitty_frontmatter_migration.py`` over the expected text, so
+    any change to a referrer beyond that migration (and the substitutions above) still reds.
+    """
+    if not rel_path.startswith("docs/"):
+        return lines
+    migrated = migrate_text(rel_path.removeprefix("docs/"), "\n".join(lines) + "\n", _docs_corpus())
+    return migrated.splitlines()
+
+
 #: Sanctioned post-WP02 doc edits (later waves, each recorded here so the
 #: diff-shape ratchet below stays green without loosening its shape check):
 #: the post-convergence doc-alignment wave 2 (#3964) repointed the dead
@@ -390,27 +408,27 @@ def test_wp02_referrer_diffs_are_exactly_the_path_token() -> None:
         old_lines = _git_show(rel_path, base_commit).splitlines()
         new_lines = _strip_retirement_additions(rel_path, (REPO_ROOT / rel_path).read_text(encoding="utf-8").splitlines())
         if rel_path in WP02_CONTEXT_SOURCES_CONSOLIDATION_REFERRERS:
-            expected_lines = _context_sources_consolidation_expected(rel_path, old_lines)
+            expected_lines = _with_6929_frontmatter_migration(rel_path, _context_sources_consolidation_expected(rel_path, old_lines))
             if _mask_updated_dates(new_lines) == _mask_updated_dates(expected_lines):
                 continue
             violations.append(f"{rel_path}: diff is not the sanctioned context-sources consolidation")
             continue
-        if len(old_lines) != len(new_lines):
-            violations.append(f"{rel_path}: line count changed ({len(old_lines)} -> {len(new_lines)})")
+        allow_source_topology = rel_path.startswith("src/charter/offering/") or rel_path == ("tests/architectural/test_no_dead_doctrine_paths.py")
+        expected_lines = _with_6929_frontmatter_migration(
+            rel_path,
+            [_apply_later_wave_replacements(rel_path, _flip_path_token(old, allow_source_topology=allow_source_topology)) for old in old_lines],
+        )
+        if len(expected_lines) != len(new_lines):
+            violations.append(f"{rel_path}: line count changed ({len(expected_lines)} expected -> {len(new_lines)})")
             continue
-        for lineno, (old, new) in enumerate(zip(old_lines, new_lines, strict=True), start=1):
-            if old == new:
-                continue
+        for lineno, (expected, new) in enumerate(zip(expected_lines, new_lines, strict=True), start=1):
             # The frontmatter refresh date legitimately churns on every edit
             # of a page; it carries no doctrine-bearing content, so a pure
             # date change never counts as a non-token diff (a removed or
             # malformed updated: line still falls through and reds).
-            if old.startswith("updated:") and new.startswith("updated:"):
+            if expected == new or (expected.startswith("updated:") and new.startswith("updated:")):
                 continue
-            allow_source_topology = rel_path.startswith("src/charter/offering/") or rel_path == ("tests/architectural/test_no_dead_doctrine_paths.py")
-            expected = _apply_later_wave_replacements(rel_path, _flip_path_token(old, allow_source_topology=allow_source_topology))
-            if expected != new:
-                violations.append(f"{rel_path}:{lineno}: diff is not a pure path-token flip\n    old: {old!r}\n    new: {new!r}")
+            violations.append(f"{rel_path}:{lineno}: diff is not a pure path-token flip\n    expected: {expected!r}\n    new: {new!r}")
     assert not violations, "Non-path-token referrer diffs (T007b):\n" + "\n".join(violations)
 
 

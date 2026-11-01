@@ -4,14 +4,19 @@ description: 'Impact assessment of the proposed charter activation contract on c
 doc_status: draft
 updated: '2026-10-20'
 type: explanation
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation.md
-- docs/adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md
-- docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md
-- docs/architecture/charter-backend-service-future.md
-- kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md
-- kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md
+- adr/4.x/2026-10-19-1-activation-ledger-persists-deactivation
+- adr/4.x/2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga
+- adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository
+- architecture/charter-backend-service-future
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md
+  title: kitty-specs/persistent-deactivation-ledger-01M59YAA/spec.md
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md
+  title: kitty-specs/persistent-deactivation-ledger-01M59YAA/plan.md
 ---
 # Activation Ledger and the Charter Contract
 

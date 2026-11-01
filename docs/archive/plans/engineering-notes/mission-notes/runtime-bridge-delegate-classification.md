@@ -3,9 +3,11 @@ title: 'runtime_bridge compat-delegate classification'
 description: 'Forwarding-vs-real-seam classification of the 45 runtime_bridge compat-delegate candidates driving the Lane-0 deshim chain (classify → repoint → delete).'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/archive/plans/engineering-notes/mission-notes/index.md
+- archive/plans/engineering-notes/mission-notes
 ---
 # runtime_bridge Compat-Delegate Classification (WP02 — FR-003 / #2561)
 

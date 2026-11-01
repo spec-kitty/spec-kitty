@@ -4,15 +4,17 @@ description: Step-by-step guide to install Spec Kitty on macOS, Linux, and Windo
 doc_status: active
 updated: '2026-08-11'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/api/slash-commands.md
-- docs/guides/how-to/installation/install-and-upgrade.md
-- docs/guides/how-to/collaboration/manage-agents.md
-- docs/guides/how-to/installation/install-linux.md
-- docs/guides/how-to/installation/install-macos.md
-- docs/guides/how-to/installation/install-windows.md
-- docs/guides/how-to/installation/non-interactive-init.md
+- api/slash-commands
+- guides/how-to/installation/install-and-upgrade
+- guides/how-to/collaboration/manage-agents
+- guides/how-to/installation/install-linux
+- guides/how-to/installation/install-macos
+- guides/how-to/installation/install-windows
+- guides/how-to/installation/non-interactive-init
 ---
 # Installation Guide
 

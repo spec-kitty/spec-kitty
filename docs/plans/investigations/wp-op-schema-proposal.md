@@ -3,10 +3,12 @@ title: WP Prompt & Ops Debrief — Model / Schema Proposal
 description: 'Model+schema proposal for a YAML-authoritative WP prompt (markdown derived) and a required-on-close structured Ops debrief, including the adversarial squad pressure-test (REWORK).'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/plans/investigations/wp-op-schema-model.md
-- docs/plans/investigations/wp-op-schema-related-tickets.md
+- plans/investigations/wp-op-schema-model
+- plans/investigations/wp-op-schema-related-tickets
 ---
 # WP Prompt & Ops Debrief — Model / Schema Proposal
 

@@ -4,9 +4,9 @@ description: 'Glossary context for governance: rule ownership, precedence, and p
 doc_status: active
 updated: '2026-10-21'
 related:
-- docs/context/configuration-project-structure.md
-- docs/context/charter.md
-- docs/context/identity.md
+- context/configuration-project-structure
+- context/charter
+- context/identity
 ---
 ## Context: Governance
 

@@ -5,10 +5,12 @@ doc_status: active
 updated: '2026-06-03'
 type: how-to
 related:
-- docs/guides/how-to/installation/install-and-upgrade.md
-- docs/guides/how-to/installation/upgrade-project.md
-- docs/guides/how-to/installation/fork-packaging-hooks.md
-audience: docs/context/audience/external/project-owner.md
+- guides/how-to/installation/install-and-upgrade
+- guides/how-to/installation/upgrade-project
+- guides/how-to/installation/fork-packaging-hooks
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 ---
 # Upgrade the Spec Kitty CLI
 

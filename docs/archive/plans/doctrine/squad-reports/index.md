@@ -4,7 +4,7 @@ description: "Raw four-lens squad reports behind the hardened creed/Foundational
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- docs/archive/plans/doctrine/creed-and-values-design-hardened.md
+- archive/plans/doctrine/creed-and-values-design-hardened
 ---
 # Squad reports — creed and FoundationalValues hardening
 

@@ -3,6 +3,8 @@ title: 'ADR: Write-Branch Resolution Anchors `meta.json` on the PRIMARY Surface 
   Twin)'
 description: 'Write-branch resolvers read `meta.json` from the repository-root checkout under every topology, so commits land on the mission Target Ref, not the protected Primary Branch.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-06-24'
 ---
 

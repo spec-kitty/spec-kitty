@@ -2,6 +2,8 @@
 title: Private Teamspace and Repository Sharing Boundary
 description: 'New checkouts belong to a Private Teamspace by default, and a repository is the unit a user explicitly and non-destructively shares into a team.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-21'
 ---
 

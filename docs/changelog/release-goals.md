@@ -3,12 +3,14 @@ title: Release Goals — Declarations of Intent
 description: 'Explains the release-goals convention: one durable declaration of intent per emergent minor release milestone, scoped by minor cycle rather than by individual patch.'
 doc_status: active
 type: explanation
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 updated: '2026-08-10'
 related:
-- docs/changelog/index.md
-- docs/changelog/3.2.x.md
-- docs/changelog/3.3.x.md
+- changelog
+- changelog/3.2.x
+- changelog/3.3.x
 ---
 # Release Goals — Declarations of Intent
 

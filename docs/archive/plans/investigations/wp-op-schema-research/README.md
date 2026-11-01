@@ -3,9 +3,11 @@ title: WP & Op Schema Model — Research Squad Reports
 description: 'Verbatim archived reports from the three-lens research squad that grounded the WP & Op schema-model idea note on 2026-07-16.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/plans/investigations/wp-op-schema-model.md
+- plans/investigations/wp-op-schema-model
 ---
 # WP & Op Schema Model — Research Squad Reports
 

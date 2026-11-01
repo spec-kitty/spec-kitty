@@ -4,7 +4,7 @@ description: "Reference for the spk-meta-skill-map skill: discovering the spk-* 
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/skills/index.md
+- api/skills
 ---
 
 # spk-meta-skill-map

@@ -2,6 +2,8 @@
 title: SaaS Rollout Gate and Hosted Readiness Split
 description: 'Separates hosted rollout visibility from per-prerequisite readiness diagnostics into one saas package, leaving the old flag modules as thin re-export shims.'
 status: Superseded
+doc_status: superseded
+kind: ADR
 date: '2026-04-11'
 superseded_by: docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 ---

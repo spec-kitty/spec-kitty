@@ -4,7 +4,9 @@ description: 'Preview, then remove, the local run journals, event logs and cache
 doc_status: active
 updated: '2026-10-28'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 ---
 # Clean Up Local Event Logs
 

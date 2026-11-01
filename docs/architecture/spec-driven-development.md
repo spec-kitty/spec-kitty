@@ -3,11 +3,13 @@ title: Spec-Driven Development Explained
 description: "Why Spec Kitty writes a full specification before any code: the spec becomes the executable contract that drives specify, plan, and tasks and enables parallel work packages."
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- docs/architecture/execution-lanes.md
-- docs/architecture/kanban-workflow.md
-- docs/architecture/mission-system.md
+- architecture/execution-lanes
+- architecture/kanban-workflow
+- architecture/mission-system
 ---
 # Spec-Driven Development Explained
 

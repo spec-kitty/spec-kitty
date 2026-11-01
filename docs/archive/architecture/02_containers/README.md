@@ -3,10 +3,12 @@ title: 2.x Containers
 description: '2.x containers view (C4 level 2): the historical decomposition of Spec Kitty into deployable and runnable containers, preserved beneath the current living model.'
 doc_status: superseded
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/archive/architecture/02_containers/runtime-execution-domain-2x.md
-- docs/architecture/README.md
+- archive/architecture/02_containers/runtime-execution-domain-2x
+- architecture
 ---
 # 2.x Containers
 

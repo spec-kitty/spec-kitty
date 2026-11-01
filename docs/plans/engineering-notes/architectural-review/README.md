@@ -3,10 +3,12 @@ title: Engineering notes — Architectural reviews
 description: 'Landing page for the architectural-reviews engineering notes: on-demand deep-dive reviews of the spec-kitty codebase by architect-profile agents.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md
-- docs/plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment.md
+- plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review
+- plans/engineering-notes/architectural-review/2026-09-27-kitty-shared-architecture-alignment
 ---
 # Engineering notes — Architectural reviews
 

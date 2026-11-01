@@ -2,6 +2,8 @@
 title: Versioned 1.x/2.x Documentation Site Without Hosted-Platform Scope
 description: Splits the documentation site into explicit 1.x and 2.x tracks behind a versioned landing page, while deliberately holding hosted-platform guidance out of scope.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-02-23'
 ---
 

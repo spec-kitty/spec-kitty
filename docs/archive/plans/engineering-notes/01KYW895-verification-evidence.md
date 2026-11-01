@@ -5,9 +5,9 @@ doc_status: closeout
 type: explanation
 updated: '2026-08-04'
 related:
-- docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
-- docs/context/identity.md
-- docs/development/testing/testing-flakiness.md
+- adr/3.x/2026-08-04-1-egress-consent-boundary
+- context/identity
+- development/testing/testing-flakiness
 ---
 ## Verification evidence — `egress-refusal-consolidation-3110-01KYW895`
 

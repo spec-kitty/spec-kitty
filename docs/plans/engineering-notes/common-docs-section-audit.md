@@ -3,11 +3,13 @@ title: Common-Docs section audit (docs-wide structural concern baseline)
 description: 'Post-#2851 concern-bucket audit of every docs/ section: misfiled files, redistribution tally, follow-up proposals, and the durable ratchet-replacement recommendation (#2302).'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
-- docs/development/index.md
-- docs/plans/engineering-notes/index.md
+- adr/3.x/2026-06-27-1-common-docs-reconciliation
+- development
+- plans/engineering-notes
 ---
 # Common-Docs section audit — docs-wide structural concern baseline
 

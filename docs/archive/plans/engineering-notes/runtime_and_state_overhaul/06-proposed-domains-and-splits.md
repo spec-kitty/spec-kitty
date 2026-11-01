@@ -4,8 +4,8 @@ description: 'Technical concretization of the consolidated domain model for the 
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md
-- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
+- archive/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout
+- archive/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model
 ---
 # 06 — Domains & Splits: Technical Concretization
 

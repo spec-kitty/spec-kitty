@@ -4,8 +4,8 @@ description: "Adversarial review of the creed design: the sign channel is measur
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- docs/archive/plans/doctrine/creed-and-values-design-hardened.md
-- docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
+- archive/plans/doctrine/creed-and-values-design-hardened
+- archive/plans/doctrine/creed-and-values-design-as-proposed
 ---
 # Reviewer lens — adversarial pass and the 39% verdict
 

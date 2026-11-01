@@ -3,15 +3,19 @@ title: 'API & Dashboard — Domain Plan'
 description: 'Durable domain plan for the mission-data API (#645) and dashboard/UX (#650): the open-core producer API, its consumers, and retiring the Feature-labelled UI drift.'
 doc_status: durable
 updated: '2026-10-12'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/index.md
-- docs/plans/4-0-0-milestone-roadmap.md
-- docs/archive/plans/3-2-x-open-core-delivery-plan.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/domains/packs-extraction-domain-plan.md
-- docs/architecture/status-model.md
-- docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md
+- plans
+- plans/4-0-0-milestone-roadmap
+- plans/domains/doctrine-charter-domain-plan
+- plans/domains/packs-extraction-domain-plan
+- architecture/status-model
+- adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md
+  title: 3.2.x Open-Core Delivery Plan
 ---
 
 # API & Dashboard — Domain Plan

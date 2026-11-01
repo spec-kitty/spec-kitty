@@ -2,6 +2,8 @@
 title: WP Lifecycle State Machine
 description: Introduced a guarded lane transition matrix with claimed, blocked, and canceled states so concurrent agents could not jump straight from planned to done.
 status: Superseded
+doc_status: superseded
+kind: ADR
 date: '2026-02-09'
 ---
 

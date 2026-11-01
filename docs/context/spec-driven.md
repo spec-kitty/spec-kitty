@@ -3,7 +3,9 @@ title: Specification-Driven Development (SDD)
 description: Specification-Driven Development methodology behind Spec Kitty — how executable specifications and implementation plans generate code, inverting the code-first power structure.
 doc_status: active
 updated: '2026-10-10'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 type: explanation
 ---
 # Specification-Driven Development (SDD)

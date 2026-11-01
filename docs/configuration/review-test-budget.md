@@ -4,7 +4,7 @@ description: Configure a bounded per-run budget for complete baseline and candid
 doc_status: active
 updated: '2026-10-28'
 related:
-- docs/configuration/index.md
+- configuration
 ---
 # Review test execution budget
 

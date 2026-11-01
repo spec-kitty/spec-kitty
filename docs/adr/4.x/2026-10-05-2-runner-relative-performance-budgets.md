@@ -2,6 +2,8 @@
 title: 'ADR: owned-checkout and start-up performance tests assert runner-relative ratios'
 description: 'Start-up tests assert the ratio of a command median to a start-up floor or fixed workload sampled in the same run, not an absolute 2.5 s; limits are provisional.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-05'
 updated: '2026-10-05'
 ---

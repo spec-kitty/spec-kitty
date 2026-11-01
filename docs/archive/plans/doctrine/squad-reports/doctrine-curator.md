@@ -4,8 +4,8 @@ description: "Doctrine integrity review of the creed design: the per-kind exempt
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- docs/archive/plans/doctrine/creed-and-values-design-hardened.md
-- docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
+- archive/plans/doctrine/creed-and-values-design-hardened
+- archive/plans/doctrine/creed-and-values-design-as-proposed
 ---
 # Doctrine-curator lens — exemptions, accreditation, provenance
 

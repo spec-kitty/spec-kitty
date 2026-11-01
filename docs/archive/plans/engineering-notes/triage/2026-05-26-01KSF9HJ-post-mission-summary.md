@@ -4,8 +4,8 @@ description: 'Post-mission summary (WP04 closeout, 2026-05-26) for the test-stab
 doc_status: deprecated
 updated: '2026-06-27'
 related:
-- docs/archive/plans/engineering-notes/triage/2026-05-25-01KSF9HJ-dir013-sub-issues.md
-- docs/archive/plans/engineering-notes/triage/2026-05-25-01KSF9HJ-test-failure-triage.md
+- archive/plans/engineering-notes/triage/2026-05-25-01KSF9HJ-dir013-sub-issues
+- archive/plans/engineering-notes/triage/2026-05-25-01KSF9HJ-test-failure-triage
 ---
 # Mission 01KSF9HJ — Post-Mission Summary (WP04 closeout)
 

@@ -4,7 +4,9 @@ description: Spec Kitty's authoritative matrix of how each supported host surfac
 doc_status: active
 updated: '2026-10-21'
 type: explanation
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 # Host-Surface Parity Matrix
 

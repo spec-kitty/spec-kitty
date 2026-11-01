@@ -4,7 +4,7 @@ description: Architect Alphonso's audit (2026-05-17) of the runtime to charter t
 doc_status: deprecated
 updated: '2026-05-19'
 related:
-- docs/archive/plans/doctrine/doctrine-artifact-selection-preflight.md
+- archive/plans/doctrine/doctrine-artifact-selection-preflight
 ---
 # Runtime → Charter → Doctrine — boundary audit and recommendations
 

@@ -4,13 +4,15 @@ description: 'Summary of the 4.x cycle for decision owners: where 4.0.0 stands, 
 doc_status: active
 type: explanation
 updated: '2026-10-12'
-audience: docs/context/audience/external/product-manager-evaluator.md
+audience:
+- profile: external/product-manager-evaluator
+  guidance_text: Written for the External Product Manager Evaluator reader.
 related:
-- docs/plans/4-0-0-milestone-roadmap.md
-- docs/changelog/4.0.0.md
-- docs/changelog/index.md
-- docs/context/team-kitty.md
-- docs/plans/index.md
+- plans/4-0-0-milestone-roadmap
+- changelog/4.0.0
+- changelog
+- context/team-kitty
+- plans
 ---
 
 # 4.x Executive Overview

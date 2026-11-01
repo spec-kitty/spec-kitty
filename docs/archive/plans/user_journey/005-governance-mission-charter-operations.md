@@ -3,7 +3,9 @@ title: 'User Journey: Governance Mission Creation and Charter Operations'
 description: 'User journey for governance mission creation and charter operations: how charters are interviewed, compiled, and operated, in a field-table record.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 # User Journey: Governance Mission Creation and Charter Operations
 

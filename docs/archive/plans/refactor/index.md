@@ -3,9 +3,11 @@ title: Refactor
 description: 'Degod/unshim program and slice-landing planning: inventories, roadmaps and mission debriefs. All retired; kept as the record of the 3.2.x refactor work.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/index.md
+- plans
 ---
 # Refactor
 

@@ -4,9 +4,9 @@ description: 'Mission closeout artifacts for the 01KSMG8Y Pre-Doctrine Test Stab
 doc_status: deprecated
 updated: '2026-06-27'
 related:
-- docs/archive/plans/engineering-notes/01KSMG8Y-closeout/baseline.md
-- docs/archive/plans/engineering-notes/01KSMG8Y-closeout/retro.md
-- docs/plans/engineering-notes/index.md
+- archive/plans/engineering-notes/01KSMG8Y-closeout/baseline
+- archive/plans/engineering-notes/01KSMG8Y-closeout/retro
+- plans/engineering-notes
 ---
 # Mission Closeout: 01KSMG8Y
 

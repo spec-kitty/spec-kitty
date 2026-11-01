@@ -4,9 +4,11 @@ description: 'How to sync workspaces with Spec Kitty 3.2: Keep your workspace up
 doc_status: deprecated
 updated: '2026-08-31'
 type: how-to
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- docs/guides/how-to/missions/handle-dependencies.md
+- guides/how-to/missions/handle-dependencies
 ---
 # How to Sync Workspaces
 

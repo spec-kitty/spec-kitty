@@ -4,7 +4,7 @@ description: "Measured analysis of the AMMERSE first- and second-order impact ma
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- docs/plans/doctrine/foundational-values-and-creed.md
+- plans/doctrine/foundational-values-and-creed
 ---
 # Connascence-matrix analysis — measured 2026-07-26
 

@@ -3,11 +3,15 @@ title: Docs IA & Onboarding Overhaul — Terminology Sweep & Closing Report
 description: 'Closing terminology/glossary check status and Divio frontmatter coverage record for the docs IA overhaul mission.'
 doc_status: closeout
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 type: explanation
 related:
-- kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md
-- docs/architecture/doctrine-kinds.md
+- architecture/doctrine-kinds
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md
+  title: kitty-specs/docs-ia-onboarding-overhaul-01KY02JB/docs-audit.md
 ---
 
 # Docs IA & Onboarding Overhaul — Terminology Sweep & Closing Report

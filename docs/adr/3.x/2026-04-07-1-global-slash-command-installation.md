@@ -2,6 +2,8 @@
 title: Global Slash Command Installation
 description: 'Slash command files install once into machine-level agent directories at CLI startup; init stops writing them and a migration deletes the per-project copies.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-07'
 ---
 

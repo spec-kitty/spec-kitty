@@ -3,12 +3,14 @@ title: 'Mission-type completion arc — pre-spec research (#2652 / S0–S4)'
 description: 'Pre-spec research for the mission-type completion arc (#2677 DRG edges, #2657 default-charter, #2659 enumeration): ADR slice mapping, DRG-edge design, 3-track decomposition.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/archive/plans/engineering-notes/mission-notes/index.md
-- docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
-- docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
-- docs/archive/plans/engineering-notes/883-mission-type-authority-brief.md
+- archive/plans/engineering-notes/mission-notes
+- adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes
+- adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification
+- archive/plans/engineering-notes/883-mission-type-authority-brief
 ---
 
 # Mission-Type Completion Arc — Pre-Spec Research
