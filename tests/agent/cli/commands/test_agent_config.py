@@ -94,8 +94,8 @@ class TestListCommand:
             assert "(global)" in result.stdout
             assert not (tmp_path / ".opencode").exists()
 
-    def test_list_no_agents_configured(self, tmp_path):
-        """Test listing when no agents are configured."""
+    def test_list_stated_empty_list_names_no_cli_managed_agents(self, tmp_path):
+        """#6493: a stated-empty list means the CLI manages no surfaces; it is set up."""
         kittify = tmp_path / ".kittify"
         kittify.mkdir()
         (kittify / "config.yaml").write_text("agents:\n  available: []\n")
@@ -103,8 +103,28 @@ class TestListCommand:
         with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
             result = runner.invoke(app, ["list"])
 
+            unwrapped = " ".join(result.stdout.split())
             assert result.exit_code == 0
-            assert "No agents configured" in result.stdout
+            assert "No CLI-managed agents" in unwrapped
+            # FR-006 (#6493): neither command may be presented as the repair.
+            assert "Run 'spec-kitty init'" not in unwrapped
+            assert "agent config add" not in unwrapped
+            assert "No agents configured" not in unwrapped
+
+    def test_list_no_agent_list_names_the_legacy_fallback(self, tmp_path):
+        """#6501/#6493: no list means every agent is available, so say that."""
+        kittify = tmp_path / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text("agents:\n  auto_commit: true\n")
+
+        with patch("specify_cli.cli.commands.agent.config.find_repo_root", return_value=tmp_path):
+            result = runner.invoke(app, ["list"])
+
+            unwrapped = " ".join(result.stdout.split())
+            assert result.exit_code == 0
+            assert "No stated agent list" in unwrapped
+            assert "every supported agent" in unwrapped
+            assert "No agents configured" not in unwrapped
 
     def test_list_shows_available_agents(self, mock_project):
         """Test that list shows available but not configured agents."""

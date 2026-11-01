@@ -1,0 +1,2 @@
+Command Skills: all manifest entries healthy (0 file(s))
+--- exit=0
