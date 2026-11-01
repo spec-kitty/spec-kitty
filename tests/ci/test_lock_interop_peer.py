@@ -1,7 +1,7 @@
 """Unit tests for ``scripts/ci/lock_interop_peer.py``, the Python side of the #6193 lock-interop spike.
 
-The cross-language scenarios run in ``LockInteropSpikeTest`` (``services/mission-status-api/event-log``) on the ``lock-interop`` job of
-``mission-status-api.yml``. These tests pin the peer's own contract, Python against Python: the rows it writes are today's status
+The cross-language scenarios run in ``LockInteropSpikeTest`` (spec-kitty-events ``service/event-log``) on the ``lock-interop`` job of
+spec-kitty-events' ``service.yml``. These tests pin the peer's own contract, Python against Python: the rows it writes are today's status
 row shape and pass the status reader, its lock commands exclude a second holder of the same lock, and an append refusal is reported
 rather than raised. The module is loaded by file path (``scripts/ci`` is not an importable package).
 """

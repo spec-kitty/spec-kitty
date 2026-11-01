@@ -2,7 +2,7 @@
 title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -369,7 +369,7 @@ below.
 | `domain:git` | `src/specify_cli/git/` + `src/kernel/git/` — git operations, worktree / topology helpers |
 | `domain:agent-profiles` | `src/charter/offering/agent_profiles/` + profile loading in `specify_cli` |
 | `domain:schema-versioning` | `src/specify_cli/schemas/` — event / payload schema versioning and `spec-kitty-events` consumption |
-| `domain:status-api` | `services/mission-status-api/` — the Mission Status Read/Write API service, its contract and its consumers (successor of the removed dashboard, #5530; formerly `domain:dashboard`) |
+| `domain:status-api` | the Mission Status Read/Write API service (in spec-kitty-events `service/` since #6915; core pins it in `pins/read-service.source.yaml`), its contract and its consumers (successor of the removed dashboard, #5530; formerly `domain:dashboard`) |
 
 > `domain:ci`, `domain:docs`, `domain:onboarding` and `domain:status-api` name a
 > *workflow surface* or service outside the Python Modularity SSOT rather than a

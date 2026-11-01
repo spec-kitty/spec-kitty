@@ -2,7 +2,7 @@
 title: System Context (living)
 description: 'Living system context (C4 level 1): current and planned external actors and system boundaries of Spec Kitty, including the charter read-service transition.'
 doc_status: active
-updated: '2026-10-19'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/02_containers/README.md
@@ -113,8 +113,10 @@ Amendment 2026-10-19; ADR
 [2026-10-12-2](../../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md), the
 earlier extraction direction, is superseded).
 
-*Target state, not shipped state:* `services/mission-status-api/` does not exist yet (only
-`contracts/mission-status/` and the Python reducer ship); the diagram shows the ratified target.
+*Where the pieces live (#6915):* the Mission-Status Read API's Java service and the `mission-status`
+contract live in `spec-kitty-events` (`service/`, `contracts/`, released on the `service-v*` line); core
+pins the read service for CI conformance only (`pins/read-service.source.yaml`) and ships the Python
+reducer.
 
 Alt-text: the open-core CLI at the centre; actors Maintainer/Operator, AI coding-agent
 harnesses and an external API consumer; the CLI consumes `spec-kitty-events` and
@@ -137,7 +139,7 @@ flowchart LR
     events["spec-kitty-events<br/><i>contract package (wheel) · exists</i>"]
     tracker["spec-kitty-tracker<br/><i>contract package (wheel) · exists</i>"]
     core["<b>Spec Kitty Core</b><br/>open-core CLI (Python)<br/>local-first state machine + governance<br/>owns event ledger + Lamport reducer<br/><i>open-core · producer · exists</i>"]
-    seam(["<b>Mission-Status Read API</b><br/>contract: contracts/mission-status/openapi.yaml<br/><i>producer → consumer boundary</i>"])
+    seam(["<b>Mission-Status Read API</b><br/>contract: spec-kitty-events contracts/mission-status<br/><i>producer → consumer boundary</i>"])
     teamkitty["<b>Team Kitty</b> — consumer / 'Multiplayer Mode'<br/>mission-ui · pack composer<br/><i>opaque external · consumer</i>"]
     operator -->|runs commands, approves| core
     harness -->|invoke CLI, skills, Ops| core

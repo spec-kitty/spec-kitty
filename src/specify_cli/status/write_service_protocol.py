@@ -1,7 +1,8 @@
 """Client-side shapes of the CLI to write-service protocol (#6675, ADR 2026-10-27-1).
 
 The resident Java write service (ADR 2026-10-22-1) is reached over loopback
-HTTP. Its contract is ``contracts/mission-write/openapi.yaml``; this module is
+HTTP. Its contract is the ``mission-write`` module of spec-kitty-events
+``contracts/``, bundled in the pinned ``contract-bundles`` release asset; this module is
 the CLI's typed view of it: the protocol constants, the refusal vocabulary,
 the request shapes the EventBridge client sends, the response shapes it reads,
 version negotiation and the endpoint file that names the running service.

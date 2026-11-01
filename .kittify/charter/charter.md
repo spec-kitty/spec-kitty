@@ -2,6 +2,10 @@
 
 > Created: 2026-01-27
 > Version: 1.7.0
+> Updated: 2026-11-01 — the events cut-over is done (#6915): core pins the read service from
+> `spec-kitty-events` `service-v0.1.0-rc.1` (`pins/read-service.source.yaml`, CI conformance only);
+> `services/`, the moving `contracts/` modules and tools, and the three workflows that built and
+> released them are removed, and the ADR D-9 freeze gate with them (ADR `2026-10-29-1`).
 > Updated: 2026-10-29 — the events domain's Java services (the Mission Status
 > Read API and the Mission Write API / event-log write core) and the events contracts move to
 > `spec-kitty-events`, which becomes the canonical owner of the events domain; core will consume a
@@ -388,20 +392,26 @@ native binaries, a JVM jar, contract bundles and conformance fixtures, each with
 consumes `spec-kitty-events` as two artifact kinds:
 
 - **the PyPI package**, a SemVer range plus `uv.lock`, unchanged;
-- **the pinned service build**, which core will pin with one lockfile per service
+- **the pinned service build**, which core pins with one lockfile per service
   (`pins/<service>.source.yaml`: tag, commit and per-asset sha256), bumped only through
-  `spec-kitty service vendor`. This mechanism is the target state: decided, not yet built (plan
-  `docs/plans/events-domain-move/plan.md` §4 step 4, "Core PR 1").
+  `spec-kitty service vendor`. The mechanism is built (#6590). The first pin is vendored:
+  `pins/read-service.source.yaml`, `spec-kitty-events` `service-v0.1.0-rc.1` (#6915).
 
-The wheel will stay pure: the CLI will fetch the host binary on first need, execute it only when
-its digest matches the pin, and fail closed with a named code and remedy when it cannot. There is
-no Python fallback writer. The read service is pinned for CI conformance only, and the CLI
-never launches it. The client side stays in core: the EventBridge port,
-`write_service_protocol`, the launcher, `kernel.locks`, and the Python oracle tests. No new
-change lands in core under the frozen set: `services/`, the moving `contracts/` modules and
-files, and `docs/architecture/event-ledger-writers-and-readers.md` (the exact list is ADR
-`2026-10-29-1` D-9, enforced by `tests/architectural/test_events_import_frozen.py`); Java work on
-these modules is done in `spec-kitty-events`.
+The wheel stays pure: it ships the pins, never a service binary. The CLI fetches the host binary on
+first need, executes it only when its digest matches the pin, and fails closed with a named code
+and remedy when it cannot. There is no Python fallback writer. The read service is pinned for CI
+conformance only, and the CLI never launches it. `make dev-setup` fetches the pinned extras only,
+CI jobs fetch through the `sync-services` action, and `release.yml` verifies the service pins
+before it builds. The client side stays in core: the EventBridge port,
+`write_service_protocol`, the launcher, `kernel.locks`, and the Python oracle tests. Core's copies
+are removed (#6915): `services/`, the `contracts/` modules and tools (the five handoff fixtures
+`contracts/fixtures/fixture_0*.json` remain), and the `mission-status-api.yml`, `contracts.yml`
+and `contracts-release.yml` workflows. The ADR D-9 freeze gate went with them;
+`tests/architectural/test_events_cutover_absent.py` keeps them absent. Java work on these modules
+is done in `spec-kitty-events`. `docs/architecture/event-ledger-writers-and-readers.md` stays frozen
+in core; corrections to it are made in `spec-kitty-events` (ADR `2026-10-29-1` D-1). Still pending: the write-service pin (it waits for a
+`spec-kitty-events` release carrying `command-cli`), the charter-service pin, and binding the
+EventBridge to the launcher (#6195).
 
 `spec-kitty-tracker` owns tracker provider abstractions, hosted discovery/sync primitives, normalized tracker models, and tracker authority policy behavior.
 
@@ -691,7 +701,7 @@ Exceptions discussed case-by-case. Strong justification required.
 
 **Spec Kitty** derives from GitHub's [Spec Kit](https://github.com/github/spec-kit). As the Spec Kit MIT license requires, `LICENSE` keeps GitHub's original copyright notice (`Copyright GitHub, Inc.`) next to Spec Kitty, Inc.'s, and both notices ship with every copy, including the wheel.
 
-**License:** MIT for Spec Kitty's own code. See [`LICENSE`](../../LICENSE). Third-party components bundled in this repository (the Gradle wrapper under `services/mission-status-api/`, Apache-2.0; HumanLayer's `show-me` skill, MIT) keep their own terms; see [`NOTICE`](../../NOTICE).
+**License:** MIT for Spec Kitty's own code. See [`LICENSE`](../../LICENSE). Third-party components bundled in this repository (HumanLayer's `show-me` skill, MIT) keep their own terms; see [`NOTICE`](../../NOTICE).
 
 ---
 

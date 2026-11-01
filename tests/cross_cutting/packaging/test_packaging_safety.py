@@ -239,8 +239,9 @@ def test_sdist_excludes_acceptance_runner_and_scenarios(build_artifacts: dict[st
 def test_sdist_excludes_the_mission_status_service_and_the_contract_tree(build_artifacts: dict[str, Path]) -> None:
     """The standalone Mission Status API service and its contract tree must not ship in the sdist (C-009).
 
-    ``services/`` and ``contracts/`` sit at the repository root and are CI-only trees. The config-level guard in
-    ``tests/ci/test_mission_status_api_build.py`` reads ``pyproject.toml``; this test reads the BUILT archive, so a future
+    ``contracts/`` (the handoff fixtures) sits at the repository root and is a CI-only tree; ``services/`` was removed
+    from core (#6915), and the absence assertion keeps it out if it ever returns. ``pyproject.toml`` excludes ``contracts/**``
+    from the sdist; this test reads the BUILT archive, so a future
     ``only-include``, ``shared-data`` or ``artifacts`` entry that pulls them in turns it red. The same-fixture positive control
     (a known ``src/`` package IS present, and the root has a project file) keeps the absence assertions non-vacuous.
     """
@@ -297,9 +298,9 @@ def _sdist_rooted_members(build_artifacts: dict[str, Path]) -> list[str]:
 def service_binary_leaks(members: list[str]) -> list[str]:
     """Members that look like a service build or service-cache content.
 
-    ``services/`` under ``src/`` (none today) or at the archive root is the frozen Mission Status
-    service tree, which the existing sdist test owns; this helper looks only at asset names and
-    cache paths so it stays meaningful after the cut-over removes that tree.
+    ``services/`` under ``src/`` (none today) or at the archive root would be the Mission Status
+    service tree removed at the cut-over (#6915), which the sdist test keeps out; this helper looks
+    only at asset names and cache paths.
     """
     leaks: list[str] = []
     for member in members:
