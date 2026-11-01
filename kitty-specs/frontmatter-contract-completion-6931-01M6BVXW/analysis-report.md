@@ -9,7 +9,7 @@ analyzer_agent: python-pedro
 input_artifacts:
   spec.md:
     path: kitty-specs/frontmatter-contract-completion-6931-01M6BVXW/spec.md
-    sha256: 66263d4c6df5d54d1a8965f88bcfa589c315fbda706c966983b004078c35851d
+    sha256: 1fb68ff9feebe7acc5592728e4c246ec3fc14796a898e89e61e0d9c0706f74e2
   plan.md:
     path: kitty-specs/frontmatter-contract-completion-6931-01M6BVXW/plan.md
     sha256: c2a3a6f977a0b9bdec41b922586437bf2525ddc217556f42f366d86e4dd133cf
