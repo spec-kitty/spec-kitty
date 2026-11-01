@@ -78,14 +78,15 @@ class SelectionResolver:
         self._identity = identity
 
     @classmethod
-    def build(cls, repo_root: Path, *, offering_root: Path | None = None) -> SelectionResolver:
+    def build(cls, repo_root: Path, *, offering_root: Path | None = None, quiet: bool = True) -> SelectionResolver:
         """Index *repo_root*'s layers -- the same authority ``charter context`` reads.
 
         *offering_root* is the built-in layer; a caller that already resolved it
         (and reports its failure its own way) passes it, the index resolves it
-        otherwise.
+        otherwise. *quiet=False* keeps the unparseable-config warning loud for an
+        operator-facing writer (``charter interview``).
         """
-        return cls(IdentityIndex.build(repo_root, offering_root=offering_root))
+        return cls(IdentityIndex.build(repo_root, offering_root=offering_root, quiet=quiet))
 
     def knows(self, kind: ArtifactKind, raw_id: str) -> bool:
         """Whether *raw_id* names an artifact of *kind* in any layer."""
