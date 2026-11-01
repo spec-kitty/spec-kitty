@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#4665": {
+      "evidence_ref": "test",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6311": {
+      "evidence_ref": "Live retest on spec-kitty-cli 4.0.0rc8 at origin/main 287a226cfe: the documented fresh lanes-mission claim completes in one invocation and renders the prompt; restoring the pre-e455ce26c1 comparison layer in-process reproduces the exact \"already claimed\" refusal. Live guard added in WP01: tests/specify_cli/cli/commands/agent/test_implement_live_fresh_claim_6311.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#6400": {
+      "evidence_ref": "Fix provenance only: the structured claim-actor shape that removes the two-representation split. Not in this Mission scope.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "live-fresh-claim-01M6BV7X",
+  "mission_id": "01M6BV7X29R1XGBQE1QD2CGCGS",
+  "mission_branch": "kitty/mission-live-fresh-claim-01M6BV7X",
+  "target_branch": "issue-6311-live-fresh-claim",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/test_implement_live_fresh_claim_6311.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:25:27.187581+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "97863d64f4a9fa08eb5c96b5103030a5dbb674ce"
+}
