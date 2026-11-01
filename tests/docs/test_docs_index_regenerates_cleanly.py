@@ -29,7 +29,7 @@ from pathlib import Path
 import pytest
 
 from scripts.docs import inventory_lockfile
-from scripts.docs._inventory import load_inventory
+from scripts.docs._inventory import PageInventoryEntry, load_inventory
 from scripts.docs.docs_index import generate_index
 from scripts.docs.freshen_adr_inventory import indexed_era_adrs, read_adr_meta
 from specify_cli.docs.index_model import (
@@ -47,14 +47,33 @@ _DOCS_ROOT = _REPO_ROOT / "docs"
 pytestmark = pytest.mark.unit
 
 
-def _live_pages() -> list[str]:
-    """Every ``docs/**/*.md`` page, repo-relative, sorted -- what the generators walk."""
-    return sorted(path.relative_to(_REPO_ROOT).as_posix() for path in _DOCS_ROOT.rglob("*.md"))
+#: Pages that must be in any generation of the live tree: a floor that keeps the
+#: coverage checks below non-vacuous without re-deciding which files are pages.
+_KNOWN_PAGES = (
+    "docs/index.md",
+    "docs/adr/index.md",
+    "docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md",
+)
 
 
 @pytest.fixture(scope="module")
 def index_entries() -> list[DocsQueryEntry]:
     return generate_index(_DOCS_ROOT, repo_root=_REPO_ROOT)
+
+
+@pytest.fixture(scope="module")
+def inventory_rows() -> list[PageInventoryEntry]:
+    return inventory_lockfile.generate_inventory(_DOCS_ROOT, repo_root=_REPO_ROOT)
+
+
+def _page_set(inventory_rows: list[PageInventoryEntry]) -> set[str]:
+    """The page set, as the inventory generator decides it.
+
+    Never re-walk ``docs/`` here: which Markdown files are pages is the generators'
+    decision (for example, changelog fragments are not pages), and a second walk would
+    drift from it. The index must cover exactly the inventory's pages.
+    """
+    return {row.path for row in inventory_rows}
 
 
 def _assert_sorted_unique(paths: Sequence[str]) -> None:
@@ -67,10 +86,11 @@ def _assert_sorted_unique(paths: Sequence[str]) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_index_has_one_entry_per_live_page(index_entries: list[DocsQueryEntry]) -> None:
-    pages = _live_pages()
-    assert pages, "the live docs tree has no pages (vacuous)"
-    assert [entry.path for entry in index_entries] == pages
+def test_index_covers_exactly_the_inventory_pages(index_entries: list[DocsQueryEntry], inventory_rows: list[PageInventoryEntry]) -> None:
+    pages = _page_set(inventory_rows)
+    missing = [page for page in _KNOWN_PAGES if page not in pages]
+    assert not missing, f"known pages absent from the generation (vacuous?): {missing}"
+    assert [entry.path for entry in index_entries] == sorted(pages)
 
 
 def test_index_paths_are_sorted_and_unique(index_entries: list[DocsQueryEntry]) -> None:
@@ -119,10 +139,11 @@ def test_committed_index_exists_and_parses() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_inventory_regenerates_and_validates(tmp_path: Path) -> None:
-    rows = inventory_lockfile.generate_inventory(_DOCS_ROOT, repo_root=_REPO_ROOT)
+def test_inventory_regenerates_and_validates(tmp_path: Path, inventory_rows: list[PageInventoryEntry]) -> None:
+    rows = inventory_rows
     paths = [row.path for row in rows]
-    assert paths == _live_pages()
+    assert set(_KNOWN_PAGES) <= set(paths), "known pages absent from the inventory (vacuous?)"
+    assert len(paths) > len(_KNOWN_PAGES)
     _assert_sorted_unique(paths)
 
     rendered = tmp_path / "page-inventory.yaml"
