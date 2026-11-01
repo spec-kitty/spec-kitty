@@ -38,6 +38,7 @@ pruned as a Cat-7 dead module (#6009), leaving this module the sole door.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -390,6 +391,40 @@ class ActiveCharterService:
     # same "filtered dict can't do repository ops" problem
     # :attr:`agent_profile_repository` solves for ``agent_profiles``.
     # ------------------------------------------------------------------
+
+    def agent_profile_sentinels(self, profile_ids: Iterable[str]) -> dict[str, bool]:
+        """Answer the structural ``sentinel`` flag for *profile_ids* only (#6917).
+
+        Pinned as part of the sole-door surface (see
+        ``kitty-specs/issue-6917-sentinel-scoped-profile-read-*/contracts/agent-profile-sentinels.md``):
+        ``specify_cli`` must not read profiles outside this door, and the door is
+        already where the two ungated reads live
+        (:attr:`agent_profile_repository` and :meth:`raw_repository`).
+
+        Semantics:
+
+        * Structural, never activation-gated. ``profile.sentinel`` says a work
+          package is human-in-charge; no ``activated_agent_profiles`` key or deny
+          entry may change the answer — the same reason
+          :attr:`agent_profile_repository` exists (a narrowed or denied profile
+          silently lost the 👤 marker when the gated dict was read).
+        * Same layers, same loader. Ids resolve through built-in → org packs →
+          project overlay inside
+          :class:`~charter.offering.agent_profiles.repository.AgentProfileRepository`,
+          so the field merge, ``applies_to_languages`` gate and skip diagnostics
+          match a full load.
+        * Id-scoped and cheap. Only the documents that can supply a requested id
+          are parsed; the catalogue, the activation ledger and the lineage graph
+          are not materialised. ``specify_cli`` callers should use
+          :func:`~charter.activation.active_charter_service_builder.build_agent_profile_sentinels`,
+          which skips ``PackContext`` for the same reason.
+
+        Returns a total mapping over the request: one entry per distinct non-empty
+        id, ``False`` for an id no layer ships or the language scope excludes —
+        never an error.
+        """
+        sentinels: dict[str, bool] = self._inner.agent_profile_sentinels(profile_ids)
+        return sentinels
 
     def raw_repository(self, kind: str) -> Any:
         """Return the raw, unfiltered repository object for artifact *kind*.
