@@ -1,0 +1,59 @@
+{
+  "mission_slug": "pinning-inventory-pause-ci-disposition-01M6BTSJ",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/pinning_rule_inventory.json row tests/ci/test_pause_ci_label.py::_REQUIRED_GATES carries disposition 'none' from DISPOSITIONS in scripts/ci/derive_pinning_inventory.py; zero null dispositions remain across derived+executed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T16:53:53.847603+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Recorded reason (118 chars, above the gate's 60-char floor) names the surviving ci-quality.yml clean-install-verification job and states the file never names the retired job; verified against the tree (ci-quality.yml jobs and grep -c sonarcloud tests/ci/test_pause_ci_label.py == 0)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T16:53:59.315244+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "PYTHONPATH=src python scripts/ci/derive_pinning_inventory.py --check exits 0; artefact sha256 d1630675618e02e4a077611393abf1cb56435fa67a3e2a5fd07b9b7c77390902 equals the derivation --stdout sha256; one added row, zero removed, executed ledger and subjects byte-identical",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T16:54:04.545774+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "SPEC_KITTY_STRICT_PINNING_INVENTORY=1 pytest tests/release/test_pinning_inventory_fresh.py -> 8 passed; tests/release/test_pinning_inventory_fresh.py never modified in the WP range (git log over it is empty), so the freshness byte-identity assertion and the fail-closed completeness gate keep their teeth. Half-by-half proof: dropping the DISPOSITIONS entry reds the completeness gate; hand-editing an artefact line reds the freshness gate under strict mode",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T16:54:11.269275+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs/changelog/unreleased/6998.fixed.md: 806 characters, bold impact-first lead with (#6998) after the bold, Before/After contrast; check_changelog_style 0 errors, check_spelling 0 findings, changelog_fragments check 14 fragments well formed, test_changelog_fragments 22 passed, test_validate_changelog_entry 10 passed",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T16:54:16.113650+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
