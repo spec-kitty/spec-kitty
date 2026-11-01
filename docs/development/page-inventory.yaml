@@ -5216,12 +5216,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/events-domain-move/companion-wheel-research.md
-  tag: current
-  divio_type: explanation
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/events-domain-move/plan.md
   tag: current
   divio_type: explanation
