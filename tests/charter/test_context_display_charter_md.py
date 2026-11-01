@@ -232,15 +232,15 @@ class TestGovernanceResolutionIndependentOfProse:
         )
 
         # Display content genuinely differs (proves the assertions above
-        # are not vacuous): the second charter.md carries no critical
-        # sections, so the verbatim body is absent and only the
-        # fetch-stanza degrade path renders (the ``### <heading>`` marker
-        # itself is emitted unconditionally by
-        # ``render_critical_section_bodies`` -- it is the BODY that is
-        # conditional, per section_bodies.py's two-arm contract).
+        # are not vacuous): the second charter.md carries none of the
+        # action-critical headings, so nothing is advertised for them --
+        # neither the verbatim body nor a ``section:<slug>`` fetch stanza
+        # (#6968: only headings the charter resolves are action-critical).
         assert "The canonical term is **Mission**." in with_prose.text
         assert "The canonical term is **Mission**." not in without_sections.text
-        assert "section:terminology-canon" in without_sections.text
+        assert "section:terminology-canon" in with_prose.text
+        assert "section:terminology-canon" not in without_sections.text
+        assert "Action-Critical Charter Sections (implement):" not in without_sections.text
 
         # ...yet the governance decision (directive resolution) is
         # unaffected by that difference.
@@ -305,14 +305,12 @@ class TestCompactDisplayGracefulAbsence:
 
     def test_render_critical_section_bodies_pure_on_empty_string(self) -> None:
         # render_critical_section_bodies is a pure text transform: an
-        # absent charter.md degrades to "" content upstream, and the
-        # renderer still produces the fetch-stanza degrade path per
-        # section instead of crashing (NFR-005).
+        # absent charter.md degrades to "" content upstream. No heading
+        # resolves, so nothing is advertised and the renderer returns the
+        # empty block instead of crashing (NFR-001) or claiming absent
+        # governance is action-critical (#6968).
         result = render_critical_section_bodies("", "implement")
-        assert "Action-Critical Charter Sections (implement):" in result
-        assert "section:terminology-canon" in result
-        assert "section:code-review-checklist" in result
-        assert "section:regression-vigilance" in result
+        assert result == ""
 
 
 # ---------------------------------------------------------------------------

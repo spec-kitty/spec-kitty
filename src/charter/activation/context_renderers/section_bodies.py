@@ -1,13 +1,23 @@
 """Render the ``Action-Critical Charter Sections (<action>):`` block (FR-001).
 
-For each action-critical charter heading, the renderer either:
+Only the action-critical charter headings the active ``charter.md`` actually
+carries are advertised (#6968). For each *resolving* heading — one whose body
+can be sliced from ``charter.md`` and is non-empty — the renderer emits both
+the **verbatim body** and the **fetch + when-doing stanza** (selector
+``section:<slug>``) that recovers it. A configured heading the charter does
+not carry (absent, empty, or masked by a malformed code fence) is not
+advertised at all, and when no heading resolves the whole block is empty: a
+consumer charter must never be told that loading a section it never authored
+is action-critical.
 
-* emits the **verbatim body** of the heading sliced from ``charter.md``
-  (when the charter carries that section), or
-* emits a **fetch + when-doing stanza** (selector ``section:<slug>``)
-  when the charter is missing that section.
+The advertised set stays a filter over :data:`ACTION_CRITICAL_SECTIONS`; the
+configured set remains the single list (no second source of truth, no
+project-config override). The direct ``--include section:<slug>`` surface is a
+different path: it still degrades to an honest placeholder for a heading the
+charter lacks instead of dead-ending.
 
-The two-arm contract pins the prompt-governance ATDD anchors in
+The two-arm contract for *present* headings pins the prompt-governance ATDD
+anchors in
 ``tests/specify_cli/next/test_wp_prompt_governance_contract.py``:
 
 * ``test_implement_prompt_regression_vigilance_body_or_fetch_with_when_doing_rule``
@@ -272,8 +282,27 @@ def _extract_section_body(charter_content: str, heading: str) -> str | None:
     return body.strip("\n").rstrip()
 
 
+def _resolved_body(charter_content: str, heading: str) -> str | None:
+    """Return the body of *heading* when it resolves, else ``None``.
+
+    A heading resolves when :func:`_extract_section_body` can slice a non-empty
+    body for it. Three cases therefore do **not** resolve and are not
+    advertised:
+
+    * the heading is absent from ``charter.md``;
+    * the heading has no body text under it (nothing to govern by);
+    * a malformed code fence masks the heading so the extractor cannot see it.
+
+    Returning the body (rather than a separate boolean) keeps one parse per
+    heading and one parser for slicing and advertising, so the advertised set
+    and the fetchable bodies cannot drift apart.
+    """
+
+    return _extract_section_body(charter_content, heading) or None
+
+
 def _render_fetch_stanza(heading: str) -> list[str]:
-    """Return the fetch + when-doing stanza for a missing section.
+    """Return the fetch + when-doing stanza for a resolved section header.
 
     The shape is the one pinned by the ATDD helper
     ``_contains_either_body_or_fetch_with_conditional`` in
@@ -317,26 +346,33 @@ def render_critical_section_bodies(
 
     Notes
     -----
-    Missing sections never crash the renderer (NFR-005): they emit the
-    fetch stanza instead so the executing agent has a recovery path.
+    A heading the charter does not carry is silently omitted (#6968): the
+    renderer never advertises a ``section:<slug>`` selector that would resolve
+    to the placeholder, and it never crashes on a missing section (NFR-001).
     """
 
     headings = ACTION_CRITICAL_SECTIONS.get(action)
     if not headings:
         return ""
 
+    resolved = [
+        (heading, body)
+        for heading in headings
+        if (body := _resolved_body(charter_content, heading)) is not None
+    ]
+    if not resolved:
+        # #6968: no resolving heading means no advertised block at all — an
+        # empty header would still claim action-critical governance exists.
+        return ""
+
     blocks: list[str] = [critical_section_header(action)]
-    for heading in headings:
-        body = _extract_section_body(charter_content, heading)
+    for heading, body in resolved:
         blocks.append("")
         blocks.append(f"### {heading}")
-        if body:
-            blocks.append(body)
-        # The fetch stanza is appended unconditionally:
-        # * when the body is present it provides a recovery path for an
-        #   agent that needs the full, unwrapped rule text;
-        # * when the body is absent it is the only available rail.
-        # Emitting both halves keeps the ATDD anchor
+        blocks.append(body)
+        # The fetch stanza is appended for a resolving heading so an agent
+        # that needs the full, unwrapped rule text has a recovery path. It
+        # also keeps the ATDD anchor
         # ``_contains_either_body_or_fetch_with_conditional`` happy for
         # bodies whose verbatim sentence is broken across wrapped lines.
         blocks.extend(_render_fetch_stanza(heading))
@@ -371,12 +407,16 @@ def render_critical_section_include(
     For a *recognized* critical-section slug (one of the headings
     registered in :data:`ACTION_CRITICAL_SECTIONS`) this never returns
     ``None``: when ``charter.md`` does not carry that heading at all, an
-    honest placeholder is returned instead of dead-ending the advertised
-    selector (FR-010, #3095/#3094/#2552). ``None`` is reserved for
+    honest placeholder is returned instead of dead-ending an explicit
+    fetch (FR-010, #3095/#3094/#2552). This is the *explicit* fetch
+    surface, not an advertised one: the bootstrap block only emits
+    ``section:<slug>`` for a heading that resolves (#6968), so a caller
+    reaching a placeholder here asked for that selector directly.
+    ``None`` is reserved for
     selectors that do not address a known critical-section slug in the
     first place (empty selector, action-mismatched ``critical-*``
     selector, or an unrecognized slug) — those are a different failure
-    mode (unknown selector) than "advertised selector, absent content".
+    mode (unknown selector) than "recognized selector, absent content".
     """
 
     cleaned = selector_id.strip()
