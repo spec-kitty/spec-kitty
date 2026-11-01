@@ -36,6 +36,11 @@ row in one idempotent, date-ordered pass and regenerates the inventory and the
 docs retrieval index. A PR that adds an era row fails the `docs-lint` guard.
 Use `--check` locally to see what the bot will add.
 
+To rename or delete an ADR, rename or delete the file only and leave its row
+alone. The bot runs `--all --prune`, which also removes every row whose ADR file
+no longer exists, so a renamed ADR's old row is dropped and its new row is added
+in the same bot pull request. Use `--check --prune` locally to see dangling rows.
+
 ## See also
 
 - [Documentation home](../index.md)

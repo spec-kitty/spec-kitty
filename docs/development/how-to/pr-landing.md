@@ -93,7 +93,10 @@ ready now. After the rebase:
   (`scripts/ci/check_generated_docs_untouched.py`); revert such an edit with
   `git checkout origin/main -- <path>`. Their staleness findings in
   `check_docs_freshness --ci` are warnings, and `spec-kitty docs query` on a branch
-  lags by the pages that have not merged yet. Merge the open bot PR when you see one.
+  lags by the pages that have not merged yet. The `ci/regen-docs-index` branch is
+  bot-owned and rebuilt from `main` on every docs merge: approve and merge its PR
+  promptly, and never push to that branch by hand (the next run force-pushes over
+  any manual commit).
 - **Fix the fleet's follow-up issues.** The fleet files its smaller findings as
   separate issues that reference the PR. Search for them
   (`gh issue list --repo spec-kitty/spec-kitty --search "#<N>"`, plus the PR's own
