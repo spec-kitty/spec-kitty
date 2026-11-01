@@ -200,8 +200,9 @@ proposals:
       related_terms: []
 ```
 
-`auto_applicable: true` makes the translated proposal *accepted*, so `--apply` applies it;
-otherwise it stays pending. `retrospect create` still writes **no** proposals of its own — grading
+A translated proposal is always *pending*, whatever `auto_applicable` says: it joins no default
+batch, so name it with `--proposal-id p-001` (plus `--apply` to mutate). An unknown or
+untranslatable id is refused with the JSON error `proposal_not_selectable`. `retrospect create` still writes **no** proposals of its own — grading
 findings into payloads is tracked in #3947 — so a freshly created record usually carries none.
 
 When there is nothing to plan, `synthesize` says so instead of reporting a bare empty batch: both
