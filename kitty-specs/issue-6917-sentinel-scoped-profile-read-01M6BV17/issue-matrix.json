@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#5526": {
+      "evidence_ref": "context only: #5526 is a separate open issue; this mission restores/relies on behaviour it already shipped but owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6462": {
+      "evidence_ref": "context only: #6462 is a separate open issue; this mission restores/relies on behaviour it already shipped but owes it no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6917": {
+      "evidence_ref": "commits d7e289ae99 (scoped load + sole-door accessor + lazy lineage), a74fa90a9c (board wiring), dfd62313aa (mypy fix); guards tests/charter/test_tasks_status_sentinel_scope_6917.py + tests/charter/test_agent_profile_scoped_load.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}

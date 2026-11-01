@@ -1,0 +1,33 @@
+{
+  "accept_commit": "95af71917089e66ba88328e5dc7311088117d472",
+  "acceptance_history": [
+    {
+      "accept_commit": "95af71917089e66ba88328e5dc7311088117d472",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T18:23:43.741357+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "21eae0e1ace162ade5a1aaa7aaabb130d981e157"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T18:23:43.741357+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "21eae0e1ace162ade5a1aaa7aaabb130d981e157",
+  "baseline_merge_commit": "1e46a52fab51c5261b4037e220520fba2a72d55c",
+  "created_at": "2026-11-01T15:18:16.793156+00:00",
+  "flattened": false,
+  "friendly_name": "issue 6917 sentinel scoped profile read",
+  "merged_at": "2026-11-01T18:24:14.763018+00:00",
+  "merged_commit": "1e46a52fab51c5261b4037e220520fba2a72d55c",
+  "mid8": "01M6BV17",
+  "mission_id": "01M6BV17AX1BV04ZMDHAHDT5A0",
+  "mission_number": 246,
+  "mission_slug": "issue-6917-sentinel-scoped-profile-read-01M6BV17",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances issue 6917 sentinel scoped profile read on issue-6917-sentinel-scoped-profile-read so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "issue 6917 sentinel scoped profile read",
+  "slug": "issue-6917-sentinel-scoped-profile-read-01M6BV17",
+  "status_phase": "1",
+  "target_branch": "issue-6917-sentinel-scoped-profile-read",
+  "topology": "single_branch"
+}
