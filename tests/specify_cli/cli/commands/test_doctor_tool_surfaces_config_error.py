@@ -1,7 +1,7 @@
 """``doctor tool-surfaces`` must honour the doctor family's 0/1/2 JSON-envelope
 contract on a non-mapping ``.kittify/config.yaml`` (OP-FRESH-001).
 
-``_configured_tool_keys`` calls ``load_agent_config``, which raises
+``_tool_config_or_exit`` calls ``load_agent_config``, which raises
 ``AgentConfigError`` for a non-mapping top-level YAML document (a bare scalar
 or a list). Before this fix that call site was unguarded, so the error
 propagated uncaught past ``run_tool_surfaces_audit`` as a raw exception
