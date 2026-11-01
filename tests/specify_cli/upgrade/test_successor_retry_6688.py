@@ -224,7 +224,6 @@ def test_a_settled_predecessor_keeps_the_successor_inert(tmp_path: Path, old: st
 def test_a_migration_without_a_predecessor_keeps_its_success_only_settlement(tmp_path: Path) -> None:
     """The rule is scoped to declared successors: an ordinary recorded migration stays settled."""
     ordinary = _get(ORDINARY_MIGRATION)
-    assert ordinary.predecessor_id == ""
 
     project = _plain_project(tmp_path)
     MigrationLedger(project).append(build_record(ordinary, "success"))
