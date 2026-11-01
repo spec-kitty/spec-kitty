@@ -989,3 +989,187 @@ def test_doctor_and_repair_accept_identical_duplicate_openings(tmp_path: Path) -
     rebuilt = next(e for e in _store.load_index(mission_dir).entries if e.decision_id == resp.decision_id)
     assert rebuilt == original
     assert events_path.read_bytes() == log_before, "doctor --repair must never rewrite the event log"
+
+
+# ---------------------------------------------------------------------------
+# #6763 -- a decisions-lock wait that times out is the doctor's structured C2
+# refusal (code, exit 1, what to do next), never a raw LockAcquireTimeout
+# traceback. Both doctor acquisitions -- the `--repair` rebuild and the
+# coordination-only ledger copy -- share the ONE translation in
+# ``decisions/service.py::_decisions_lock``.
+# ---------------------------------------------------------------------------
+
+
+def _invoke_doctor_decisions(cwd: Path, mission: str, *, repair: bool, json_output: bool = True) -> tuple[int, str, BaseException | None]:
+    """Invoke the REAL ``doctor decisions`` CLI, keeping an escaping exception."""
+    args = ["doctor", "decisions", "--mission", mission]
+    if json_output:
+        args.append("--json")
+    if repair:
+        args.append("--repair")
+    with contextlib.chdir(cwd):
+        result = _runner.invoke(root_app, args, catch_exceptions=True)
+    return result.exit_code, result.output, result.exception
+
+
+def _diverged_mission(tmp_path: Path) -> tuple[Path, str]:
+    """A mission whose index is missing a decision the log still carries.
+
+    ``--repair`` takes the decisions sidecar lock only when the report is not
+    clean, so the fixture must produce a real divergence.
+    """
+    _setup_meta(tmp_path)
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    resp = open_decision(
+        tmp_path,
+        MISSION_SLUG,
+        origin_flow=OriginFlow.CHARTER,
+        step_id="lock-timeout-step",
+        input_key="lock_timeout_key",
+        question="Hold the lock?",
+        options=("yes", "no"),
+        actor="alice",
+    )
+    index = _store.load_index(_mission_dir(tmp_path))
+    _store.save_index(
+        _mission_dir(tmp_path),
+        index.model_copy(update={"entries": tuple(e for e in index.entries if e.decision_id != resp.decision_id)}),
+    )
+    return _mission_dir(tmp_path), resp.decision_id
+
+
+def _tree_bytes(directory: Path) -> dict[str, bytes]:
+    return {str(path.relative_to(directory)): path.read_bytes() for path in sorted(directory.rglob("*")) if path.is_file()}
+
+
+def _hold_decisions_lock(lock_path: Path):
+    from kernel.locks import machine_file_lock
+
+    return machine_file_lock(lock_path, blocking=True, timeout_s=5.0)
+
+
+def test_repair_lock_timeout_is_a_structured_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Red on the pre-fix tree: the timeout escaped as ``LockAcquireTimeout``.
+
+    After the fix the operator gets ONE C2 document (``ok: false``, code
+    ``DECISION_LOCK_TIMEOUT``, the lock path and a retry), exit 1, and the
+    decisions directory is byte-identical -- nothing was rebuilt.
+    """
+    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
+
+    mission_dir, decision_id = _diverged_mission(tmp_path)
+    lock_path = _doctor_mod._decisions_lock_path(mission_dir)
+    before = _tree_bytes(mission_dir / "decisions")
+    monkeypatch.setattr(_doctor_mod, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+
+    with _hold_decisions_lock(lock_path):
+        exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True)
+
+    assert exception is None or isinstance(exception, SystemExit), repr(exception)
+    assert exit_code == 1, output
+    payload = json.loads(output)
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "DECISION_LOCK_TIMEOUT"
+    assert str(lock_path) in payload["error"]["message"]
+    assert "retry" in payload["error"]["message"].lower()
+    assert _tree_bytes(mission_dir / "decisions") == before, "a timed-out repair must not write"
+    assert decision_id not in {entry.decision_id for entry in _store.load_index(mission_dir).entries}
+
+
+def test_repair_with_a_free_lock_still_rebuilds_the_index(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Positive control on the SAME fixture: a free lock repairs and exits 0."""
+    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
+
+    mission_dir, decision_id = _diverged_mission(tmp_path)
+    monkeypatch.setattr(_doctor_mod, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+
+    exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True)
+
+    assert exception is None or isinstance(exception, SystemExit), repr(exception)
+    assert exit_code == 0, output
+    payload = json.loads(output)
+    assert payload["repaired"] is True
+    assert decision_id in {entry.decision_id for entry in _store.load_index(mission_dir).entries}
+
+
+def test_repair_lock_timeout_refusal_human_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """SC-002 in the OTHER output mode: one error line, exit 1, nothing written.
+
+    The human renderer must carry the machine-matchable code too, so an
+    operator grepping the line finds the same term the ``--json`` document
+    carries, and no partial report (or JSON) may precede it.
+    """
+    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
+
+    mission_dir, decision_id = _diverged_mission(tmp_path)
+    lock_path = _doctor_mod._decisions_lock_path(mission_dir)
+    before = _tree_bytes(mission_dir / "decisions")
+    monkeypatch.setattr(_doctor_mod, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+
+    with _hold_decisions_lock(lock_path):
+        exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True, json_output=False)
+
+    assert exception is None or isinstance(exception, SystemExit), repr(exception)
+    assert exit_code == 1, output
+    # Rich wraps long lines at the terminal width, so compare the collapsed text.
+    flat = " ".join(output.split())
+    assert output.count("DECISION_LOCK_TIMEOUT") == 1, output
+    assert "Error:" in flat
+    assert str(lock_path) in flat
+    assert "Nothing was written" in flat
+    assert "retry" in flat.lower()
+    # A refusal is the ONLY document: no partial report was printed first.
+    assert "repaired" not in flat
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(output)
+    assert _tree_bytes(mission_dir / "decisions") == before, "a timed-out repair must not write"
+    assert decision_id not in {entry.decision_id for entry in _store.load_index(mission_dir).entries}
+
+
+def test_coordination_only_ledger_copy_lock_timeout_is_the_seam_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The second doctor acquisition refuses through the SAME seam.
+
+    Red on the pre-fix tree: the copy raised ``LockAcquireTimeout`` before it
+    copied a single ``DM-*.md``. After the fix it is ``DecisionError`` with
+    ``DECISION_LOCK_TIMEOUT``.
+    """
+    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    mission_dir, _ = _diverged_mission(tmp_path)
+    lock_path = _doctor_mod._decisions_lock_path(mission_dir)
+    before = _tree_bytes(mission_dir / "decisions")
+    monkeypatch.setattr(_doctor_mod, "_LOCK_ACQUIRE_TIMEOUT_S", 0.2)
+
+    with (
+        patch.object(_doctor_mod._fork, "read_coordination_ledger_raw", return_value=({"decisions": []}, {})),
+        _hold_decisions_lock(lock_path),
+        pytest.raises(DecisionError) as excinfo,
+    ):
+        _doctor_mod._copy_coordination_only_ledger(tmp_path, MISSION_SLUG, mission_dir)
+
+    assert excinfo.value.code is DecisionErrorCode.LOCK_TIMEOUT
+    assert str(lock_path) in str(excinfo.value)
+    assert "retry" in str(excinfo.value).lower()
+    assert _tree_bytes(mission_dir / "decisions") == before, "a timed-out copy must not write"
+
+
+def test_repair_lets_a_non_lock_decision_error_propagate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The C2 refusal is scoped to the lock timeout, not to every DecisionError."""
+    from specify_cli.cli.commands import _decisions_doctor as _doctor_mod
+    from specify_cli.decisions.models import DecisionErrorCode
+    from specify_cli.decisions.service import DecisionError
+
+    _diverged_mission(tmp_path)
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise DecisionError(DecisionErrorCode.MISSION_NOT_FOUND, message="not ours to reinterpret")
+
+    monkeypatch.setattr(_doctor_mod, "_repair", boom)
+
+    exit_code, output, exception = _invoke_doctor_decisions(tmp_path, MISSION_SLUG, repair=True)
+
+    assert isinstance(exception, DecisionError), repr(exception)
+    assert str(exception) == "not ours to reinterpret"
+    assert "DECISION_LOCK_TIMEOUT" not in output
