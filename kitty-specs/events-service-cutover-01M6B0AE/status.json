@@ -184,7 +184,7 @@
     },
     "WP06": {
       "actor": "claude",
-      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -197,6 +197,7 @@
         "Absence gate (red first, db8170e3) replaces the D-9 freeze gate on the fast_gate roster; services/ (743), contracts copies (1159: tools 903, mission-status 191, mission-write 52, _shared 9, lint/gradle/README/build.gradle/settings.gradle), 3 workflows, freeze gate, gate-checks script+test, build pins test, test_contracts_workflows (one-home rule + src-import routing moved to test_contracts_routing), 26 tool tests, 2 contract-copy tests, pre_slice fixtures deleted; fleet inventory changed atomically with the workflow deletion; tests-contract-tools uses the sync-services action; coupling (CODEOWNERS, .gitattributes, NOTICE, pyproject sdist). Gate files + packaging + timing/roster tests: 608 passed; tests/cross_cutting/packaging + tests/ci + tests/contract: 4456 passed, 2 failed (test_terminology_guards unclog-ci.md and test_orchestrator_api SAFE_COMMIT_DIRECTORY_ARGUMENT, both red on the WP06 base); make test-fast: 2686 passed."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/events-service-cutover-01M6B0AE/tasks/WP06-remove-copies/review-cycle-1.md",
         "reference": "review-cycle://events-service-cutover-01M6B0AE/WP06-remove-copies/review-cycle-1.md",
@@ -204,13 +205,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 21935,
-      "shell_pid_created_at": "1793534291.71",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T024": "done",
-        "T025": "done",
-        "T026": "done",
-        "T027": "done"
+        "T024": "planned",
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned"
       }
     },
     "WP07": {
