@@ -292,9 +292,9 @@ def test_index_resolves_every_token_the_filesystem_resolver_resolves(tmp_path: P
     # Both directions: tokens the index scanned, and tokens drawn from the filesystem resolver's own scan.
     tokens = {token for entry in index._table(kind).entries for token in (entry.stem, entry.declared_id)}
     yaml = YAML(typ="safe")
-    for path in kind_vocabulary._iter_artifact_paths(kind, offering_root=resolve_offering_root(), org_roots=org_roots, layer_roots=layer_roots):
-        tokens.add(kind_vocabulary._config_stem(path))
-        declared = kind_vocabulary._read_id(path, kind_vocabulary._id_field_for(kind), yaml)
+    for path in kind_vocabulary.iter_artifact_paths(kind, offering_root=resolve_offering_root(), org_roots=org_roots, layer_roots=layer_roots):
+        tokens.add(kind_vocabulary.artifact_config_stem(path))
+        declared = kind_vocabulary.read_artifact_id(path, kind_vocabulary.artifact_id_field(kind), yaml)
         if declared:
             tokens.add(declared)
     for token in sorted(tokens):

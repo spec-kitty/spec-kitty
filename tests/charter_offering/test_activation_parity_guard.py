@@ -156,7 +156,7 @@ def _write_org_directive(org_pack_root: Path, *, stem: str, canonical_id: str) -
     """Write a minimal org-pack-only directive artefact for #2529 org resolution.
 
     ``resolve_artifact_urn``'s ``org_roots`` scan
-    (``charter.activation.kind_vocabulary._scan_roots``) treats every org root the same
+    (``charter.activation.kind_vocabulary.scan_roots``) treats every org root the same
     way it treats the built-in doctrine root: it looks for
     ``<root>/<plural>/built-in/*.yaml``. This mirrors that exact shape so the
     fixture is reachable through the precise code path Fix A repairs -- not

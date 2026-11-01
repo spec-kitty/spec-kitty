@@ -163,13 +163,13 @@ def test_unconfigured_project_has_only_built_ins(tmp_path: Path) -> None:
 @pytest.fixture
 def scan_calls(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[Path]]:
     calls: list[Path] = []
-    original = kind_vocabulary._scan_dir_matches
+    original = kind_vocabulary.scan_dir_matches
 
     def _counted(scan_dir: Path, pattern: str, *, recursive: bool) -> list[Path]:
         calls.append(scan_dir)
         return original(scan_dir, pattern, recursive=recursive)
 
-    monkeypatch.setattr(kind_vocabulary, "_scan_dir_matches", _counted)
+    monkeypatch.setattr(kind_vocabulary, "scan_dir_matches", _counted)
     yield calls
 
 
@@ -246,7 +246,7 @@ def test_declared_id_fast_path_equals_full_parse(tmp_path: Path, name: str) -> N
     path = tmp_path / "thing.tactic.yaml"
     path.write_bytes(_EDGE_BODIES[name])
     yaml = YAML(typ="safe")
-    expected = kind_vocabulary._parse_id(path, "id", yaml)
+    expected = kind_vocabulary.parse_artifact_id(path, "id", yaml)
     assert _declared_id_of(path, "id", yaml, kind_vocabulary.ResolutionPass()) == expected
 
 
@@ -258,7 +258,7 @@ def test_declared_id_fast_path_accepts_broken_yaml_elsewhere(tmp_path: Path) -> 
     yaml = YAML(typ="safe")
     for name, expected in (("broken-later-accepted", "ok-id"), ("sequence-after", "seq-after")):
         path.write_bytes(_EDGE_BODIES[name])
-        assert kind_vocabulary._parse_id(path, "id", yaml) is None
+        assert kind_vocabulary.parse_artifact_id(path, "id", yaml) is None
         assert _declared_id_of(path, "id", yaml, kind_vocabulary.ResolutionPass()) == expected
 
 
@@ -283,8 +283,8 @@ def test_declared_id_fast_path_equals_full_parse_on_built_in_packs(kind: Artifac
     from charter.activation.identity_index import _declared_id_of
 
     yaml = YAML(typ="safe")
-    for id_field in {"id", kind_vocabulary._id_field_for(kind)}:
-        expected = kind_vocabulary._parse_id(path, id_field, yaml)
+    for id_field in {"id", kind_vocabulary.artifact_id_field(kind)}:
+        expected = kind_vocabulary.parse_artifact_id(path, id_field, yaml)
         assert _declared_id_of(path, id_field, yaml, kind_vocabulary.ResolutionPass()) == expected
 
 
@@ -294,7 +294,7 @@ def test_index_returns_full_parse_identity(tmp_path: Path, name: str) -> None:
     (root / "tactics").mkdir(parents=True)
     path = root / "tactics" / "edge.tactic.yaml"
     path.write_bytes(_EDGE_BODIES[name])
-    expected = kind_vocabulary._parse_id(path, "id", YAML(typ="safe"))
+    expected = kind_vocabulary.parse_artifact_id(path, "id", YAML(typ="safe"))
     index = IdentityIndex(org_roots=[root], offering_root=tmp_path / "none")
     assert index.declared_id(T, "edge") == expected
 
@@ -392,9 +392,9 @@ def test_directive_urn_uses_the_id_first_rule(project: Path) -> None:
 def test_built_in_step_contracts_are_indexed() -> None:
     """FR-015: the one identity authority covers the built-in ``missions/built_in_step_contracts`` files."""
     kind = ArtifactKind.MISSION_STEP_CONTRACT
-    directory = kind_vocabulary._built_in_scan_dir(kind)
+    directory = kind_vocabulary.built_in_scan_dir(kind)
     assert directory is not None and directory[1] is False
-    stems = sorted(kind_vocabulary._config_stem(path) for path in directory[0].glob(kind.glob_pattern))
+    stems = sorted(kind_vocabulary.artifact_config_stem(path) for path in directory[0].glob(kind.glob_pattern))
     assert stems, "fixture invalid: the built-in pack ships step contracts"
     index = IdentityIndex.build(Path("/nonexistent-project-root"))
     for stem in stems:
@@ -411,14 +411,14 @@ def test_step_contract_scan_dir_is_none_when_the_missions_root_is_missing(monkey
         raise MissionsRootNotFound("gone")
 
     monkeypatch.setattr(MissionStepContractRepository, "built_in_dir", staticmethod(_missing))
-    assert kind_vocabulary._built_in_scan_dir(ArtifactKind.MISSION_STEP_CONTRACT) is None
+    assert kind_vocabulary.built_in_scan_dir(ArtifactKind.MISSION_STEP_CONTRACT) is None
 
 
 def test_step_contract_scan_dir_is_none_when_the_directory_is_absent(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from charter.offering.missions.step_contracts import MissionStepContractRepository
 
     monkeypatch.setattr(MissionStepContractRepository, "built_in_dir", staticmethod(lambda: tmp_path / "absent"))
-    assert kind_vocabulary._built_in_scan_dir(ArtifactKind.MISSION_STEP_CONTRACT) is None
+    assert kind_vocabulary.built_in_scan_dir(ArtifactKind.MISSION_STEP_CONTRACT) is None
 
 
 def test_stored_spelling_is_the_stem_for_every_known_spelling(project: Path) -> None:
@@ -435,7 +435,7 @@ def test_stored_spelling_refuses_a_declared_id_whose_file_name_another_layer_use
     _write(org_file.parent, D, "024-locality-of-change", "ACME_024")
     index = IdentityIndex.build(project)
     assert index.knows(D, "DIRECTIVE_024") and index.stem(D, "DIRECTIVE_024") is None
-    built_in_scan = kind_vocabulary._built_in_scan_dir(D)
+    built_in_scan = kind_vocabulary.built_in_scan_dir(D)
     assert built_in_scan is not None
     built_in_file = next(built_in_scan[0].rglob("024-locality-of-change.directive.yaml"))
 

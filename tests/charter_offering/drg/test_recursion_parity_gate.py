@@ -22,7 +22,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.activation import kind_vocabulary
-from charter.activation.kind_vocabulary import _iter_artifact_paths
+from charter.activation.kind_vocabulary import iter_artifact_paths
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.discovery_recursion import overlay_scan_is_recursive
 
@@ -49,7 +49,7 @@ def _nested_probe(pack: Path, kind: ArtifactKind, artifact_id: str) -> Path:
 
 
 def _resolver_paths(pack: Path, kind: ArtifactKind, tmp: Path) -> list[Path]:
-    return _iter_artifact_paths(
+    return iter_artifact_paths(
         kind,
         offering_root=tmp / "offering_root",
         org_roots=[pack],
@@ -90,7 +90,7 @@ def test_loader_and_resolver_agree_for_nested_tactic(tmp_path: Path) -> None:
     loader_found = TacticRepository(built_in_dir=built_in, org_dirs=[pack / "tactics"]).get("agree-tactic") is not None
     resolver_found = any(
         p.name == "agree.tactic.yaml"
-        for p in _iter_artifact_paths(
+        for p in iter_artifact_paths(
             ArtifactKind.TACTIC,
             offering_root=tmp_path / "dr",
             org_roots=[pack],
@@ -124,7 +124,7 @@ def test_loader_and_resolver_agree_for_nested_agent_profile(tmp_path: Path) -> N
     loader_found = AgentProfileRepository(org_dirs=[pack / "agent_profiles"]).get("agree-profile") is not None
     resolver_found = any(
         p.name == "agree.agent.yaml"
-        for p in _iter_artifact_paths(
+        for p in iter_artifact_paths(
             ArtifactKind.AGENT_PROFILE,
             offering_root=tmp_path / "dr",
             org_roots=[pack],
@@ -188,7 +188,7 @@ def test_nested_builtin_component_stays_in_parity(tmp_path: Path) -> None:
     loader_found = TacticRepository(built_in_dir=built_in, org_dirs=[pack / "tactics"]).get("deep-builtin-tactic") is not None
     resolver_found = any(
         p.name == "deep.tactic.yaml"
-        for p in _iter_artifact_paths(
+        for p in iter_artifact_paths(
             ArtifactKind.TACTIC,
             offering_root=tmp_path / "dr",
             org_roots=[pack],

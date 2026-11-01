@@ -1,7 +1,7 @@
-"""Coverage for ``kind_vocabulary._scan_roots``' fail-soft built-in branch.
+"""Coverage for ``kind_vocabulary.scan_roots``' fail-soft built-in branch.
 
 The built-in doctrine relocation (mission
-doctrine-built-in-seam-consolidation-01KYW3TX) routed ``_scan_roots`` through the
+doctrine-built-in-seam-consolidation-01KYW3TX) routed ``scan_roots`` through the
 shared :func:`charter.offering.pack_paths.built_in_dir` seam and wrapped it in a
 best-effort ``try/except``: if the built-in root cannot be resolved
 (:class:`~charter.offering.pack_paths.PackRootNotFound`) or the kind has no shipped
@@ -23,11 +23,11 @@ import pytest
 
 from charter.activation import kind_vocabulary
 from charter.activation.kind_vocabulary import (
-    _built_in_scan_dir,
+    built_in_scan_dir,
     _layer_candidate_dir,
     _layer_scan_dirs,
     _org_scan_dirs,
-    _scan_roots,
+    scan_roots,
     resolve_artifact_urn,
 )
 from charter.offering.artifact_kinds import ArtifactKind
@@ -58,7 +58,7 @@ def test_scan_roots_degrades_when_built_in_dir_unresolvable(
 
     monkeypatch.setattr(kind_vocabulary, "built_in_dir", _raise)
 
-    result = _scan_roots(
+    result = scan_roots(
         ArtifactKind.TACTIC,
         _offering_root=Path("/nonexistent"),
         org_roots=None,
@@ -81,7 +81,7 @@ def test_scan_roots_still_returns_org_root_when_built_in_unresolvable(
     org_built_in = tmp_path / ArtifactKind.TACTIC.plural / "built-in"
     org_built_in.mkdir(parents=True)
 
-    result = _scan_roots(
+    result = scan_roots(
         ArtifactKind.TACTIC,
         _offering_root=Path("/nonexistent"),
         org_roots=[tmp_path],
@@ -92,7 +92,7 @@ def test_scan_roots_still_returns_org_root_when_built_in_unresolvable(
 
 
 # ---------------------------------------------------------------------------
-# Direct coverage for the helpers extracted from ``_scan_roots`` during Sonar
+# Direct coverage for the helpers extracted from ``scan_roots`` during Sonar
 # S3776 cognitive-complexity remediation (WP03).
 # ---------------------------------------------------------------------------
 
@@ -105,14 +105,14 @@ class TestBuiltInScanDirHelper:
             raise PackRootNotFound("built-in")
 
         monkeypatch.setattr(kind_vocabulary, "built_in_dir", _raise)
-        assert _built_in_scan_dir(ArtifactKind.TACTIC) is None
+        assert built_in_scan_dir(ArtifactKind.TACTIC) is None
 
     def test_returns_none_when_resolved_dir_does_not_exist(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         missing = tmp_path / "does-not-exist"
         monkeypatch.setattr(kind_vocabulary, "built_in_dir", lambda _kind: missing)
-        assert _built_in_scan_dir(ArtifactKind.TACTIC) is None
+        assert built_in_scan_dir(ArtifactKind.TACTIC) is None
 
     def test_returns_recursive_pair_when_dir_exists(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -120,7 +120,7 @@ class TestBuiltInScanDirHelper:
         present = tmp_path / "built-in"
         present.mkdir()
         monkeypatch.setattr(kind_vocabulary, "built_in_dir", lambda _kind: present)
-        assert _built_in_scan_dir(ArtifactKind.TACTIC) == (present, True)
+        assert built_in_scan_dir(ArtifactKind.TACTIC) == (present, True)
 
 
 class TestOrgScanDirsHelper:

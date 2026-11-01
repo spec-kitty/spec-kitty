@@ -7,7 +7,7 @@ only while the directive is in force. An operator's removal sticks.
 
 Every test runs the production path at the narrowest seam: interview mapping ->
 ``build_targets`` -> ``emit_project_layer`` for the edge; the real overlay on disk for
-``_direct_root_urns`` and the action bundle; the real append helper for removal-sticks.
+``direct_root_urns`` and the action bundle; the real append helper for removal-sticks.
 Each absence assertion is paired with a positive control on the same fixture.
 """
 
@@ -20,8 +20,8 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from charter.activation.action_governance_bundle import _load_action_governance_bundle
-from charter.activation.compiler import ConfigActivatedRoots, _direct_root_urns
+from charter.activation.action_governance_bundle import load_action_governance_bundle
+from charter.activation.compiler import ConfigActivatedRoots, direct_root_urns
 from charter.activation.pack_context import PackContext
 from charter.activation.synthesizer.interview_mapping import resolve_sections
 from charter.activation.synthesizer.project_drg import emit_project_layer
@@ -228,7 +228,7 @@ def test_explicit_list_styleguide_is_not_a_compiled_reference_root(tmp_path: Pat
     _install_overlay(tmp_path, _overlay())
     roots = _roots(styleguides=[_TESTING_STYLEGUIDE, _LANGUAGE_STYLEGUIDE, _CONTROL], directives=[])
 
-    urns = _direct_root_urns(roots, tmp_path)
+    urns = direct_root_urns(roots, tmp_path)
 
     assert f"styleguide:{_TESTING_STYLEGUIDE}" not in urns
     assert f"styleguide:{_LANGUAGE_STYLEGUIDE}" in urns  # unsourced language styleguide is still rooted
@@ -240,8 +240,8 @@ def test_org_required_synthesized_styleguide_stays_a_root(tmp_path: Path) -> Non
     roots = _roots(styleguides=[_TESTING_STYLEGUIDE])
 
     with patch("charter.activation.synthesizer.reach_only.read_org_required_ids", return_value=[_TESTING_STYLEGUIDE]):
-        assert f"styleguide:{_TESTING_STYLEGUIDE}" in _direct_root_urns(roots, tmp_path)
-    assert f"styleguide:{_TESTING_STYLEGUIDE}" not in _direct_root_urns(roots, tmp_path)  # control: not org-required
+        assert f"styleguide:{_TESTING_STYLEGUIDE}" in direct_root_urns(roots, tmp_path)
+    assert f"styleguide:{_TESTING_STYLEGUIDE}" not in direct_root_urns(roots, tmp_path)  # control: not org-required
 
 
 # --------------------------------------------------------------------------
@@ -276,7 +276,7 @@ def _delivered_styleguides(repo_root: Path, *, directives: frozenset[str], style
         activated_styleguides=styleguides,
     )
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=_merged_with_overlay_edges(overlay)):
-        bundle = _load_action_governance_bundle(
+        bundle = load_action_governance_bundle(
             repo_root=repo_root,
             action=_ACTION,
             effective_depth=2,

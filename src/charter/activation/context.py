@@ -25,7 +25,7 @@ from ruamel.yaml import YAML as YAML
 
 from charter.activation.action_governance_bundle import (
     _ActionGovernanceBundle as _ActionGovernanceBundle,
-    _load_action_governance_bundle as _load_action_governance_bundle,
+    load_action_governance_bundle as load_action_governance_bundle,
     _resolve_action_bundle as _resolve_action_bundle,
 )
 from charter.bundle import CHARTER_MD, CHARTER_YAML
@@ -134,7 +134,7 @@ def _action_node_declared(bundle: _ActionGovernanceBundle, action: str) -> bool:
     type was unresolved (typeless), which must always yield ``False``
     (``compact``, FR-003).  ``bundle.mission`` mirrors the type used to
     resolve the bundle (``resolved_type or ""`` -- see
-    ``_load_action_governance_bundle`` in
+    ``load_action_governance_bundle`` in
     ``charter.activation.action_governance_bundle``),
     so reusing it here keeps the membership test on the exact node the
     bundle was resolved against.
@@ -618,11 +618,11 @@ def build_charter_context_json(
 
     # SPEC-ARCH-002 (T018): route through the self-resolving wrapper, the
     # same one ``build_charter_context`` (plain-text) already uses above —
-    # NOT the private ``_load_action_governance_bundle`` directly. When
+    # NOT the raw ``load_action_governance_bundle`` loader directly. When
     # ``org_root`` is None, ``_resolve_action_bundle`` widens to the FULL
     # declaration-ordered org-pack chain via ``resolve_existing_org_roots``
     # (see ``charter.activation.action_governance_bundle``); calling
-    # ``_load_action_governance_bundle`` directly here bypassed that widening
+    # ``load_action_governance_bundle`` directly here bypassed that widening
     # entirely and always resolved at most one org pack.
     #
     # FR-001/FR-004 (rc3-charter-gate-predicate-inversion WP02, #3596): the

@@ -277,7 +277,7 @@ def _resolve_config_activated_roots(
         raise UnknownArtifactIdError(f"{exc} Activation store: {source}.") from exc
 
 
-def _direct_root_urns(config_roots: ConfigActivatedRoots, repo_root: Path | None) -> frozenset[str]:
+def direct_root_urns(config_roots: ConfigActivatedRoots, repo_root: Path | None) -> frozenset[str]:
     """Direct-activation root URNs (WP02 T026).
 
     These are the kinds that may be activated directly in
@@ -1664,7 +1664,7 @@ def _build_references_from_service(
     graph = _resolve_transitive_reference_graph(
         offering_root=offering_root,
         directives=config_roots.directives,
-        direct_root_urns=_direct_root_urns(config_roots, repo_root),
+        direct_root_urns=direct_root_urns(config_roots, repo_root),
         repo_root=repo_root,
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,

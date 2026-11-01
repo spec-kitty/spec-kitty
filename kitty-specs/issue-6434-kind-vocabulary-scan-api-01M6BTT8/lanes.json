@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "issue-6434-kind-vocabulary-scan-api-01M6BTT8",
+  "mission_id": "01M6BTT85ZDKQ7QAGJ5DGB13G5",
+  "mission_branch": "issue-6434-kind-vocabulary-scan-api",
+  "target_branch": "issue-6434-kind-vocabulary-scan-api",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/action_governance_bundle.py",
+        "src/charter/activation/compiler.py",
+        "src/charter/activation/context.py",
+        "src/charter/activation/identity_index.py",
+        "src/charter/activation/kind_vocabulary.py",
+        "src/charter/activation/pack_manager.py",
+        "tests/architectural/test_charter_kind_vocabulary_public_scan_api.py",
+        "tests/charter/activation/test_compile_check_identity_6433.py",
+        "tests/charter/activation/test_context_identity_reuse.py",
+        "tests/charter/activation/test_identity_index.py",
+        "tests/charter/synthesizer/test_reach_only_delivery.py",
+        "tests/charter/synthesizer/test_styleguide_reach_only.py",
+        "tests/charter/test_action_governance_bundle_activation.py",
+        "tests/charter/test_context_display_charter_md.py",
+        "tests/charter/test_context_service_seams.py",
+        "tests/charter/test_directive_resolution_memoization.py",
+        "tests/charter/test_kind_vocabulary_scan_roots.py",
+        "tests/charter/test_org_scan_dirs_activation_regression.py",
+        "tests/charter/test_resolver_directive_activation_keying.py",
+        "tests/charter/test_synthesized_in_force_snapshot.py",
+        "tests/charter_offering/drg/test_org_pack_node_inference.py",
+        "tests/charter_offering/drg/test_recursion_parity_gate.py",
+        "tests/charter_offering/drg/test_unknown_kind_fails_loudly.py",
+        "tests/charter_offering/test_activation_parity_guard.py",
+        "tests/charter_offering/test_owner_delivery.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:19:13.498060+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "bd0f02755be474d9c137b7a1c06f51ac21ebdce9"
+}

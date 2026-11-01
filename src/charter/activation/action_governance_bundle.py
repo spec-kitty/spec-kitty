@@ -41,7 +41,7 @@ from charter.offering.drg.models import NodeKind
 
 __all__ = [
     "_ActionGovernanceBundle",
-    "_load_action_governance_bundle",
+    "load_action_governance_bundle",
     "_resolve_action_bundle",
     "resolve_action_governance_bundle",
 ]
@@ -262,7 +262,7 @@ def _resolve_action_bundle(
 
     from charter.activation.pack_context import PackContext as _PackContext  # noqa: PLC0415
 
-    return _load_action_governance_bundle(
+    return load_action_governance_bundle(
         repo_root=repo_root,
         action=action,
         effective_depth=effective_depth,
@@ -299,7 +299,7 @@ def resolve_action_governance_bundle(
     )
 
 
-def _load_action_governance_bundle(
+def load_action_governance_bundle(
     *,
     repo_root: Path,
     action: str,

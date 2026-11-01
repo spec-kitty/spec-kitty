@@ -39,13 +39,13 @@ def scan_calls(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[Path]]:
     call corresponds to exactly one layer scan.
     """
     calls: list[Path] = []
-    original = kind_vocabulary._scan_dir_matches
+    original = kind_vocabulary.scan_dir_matches
 
     def _counted(scan_dir: Path, pattern: str, *, recursive: bool) -> list[Path]:
         calls.append(scan_dir)
         return original(scan_dir, pattern, recursive=recursive)
 
-    monkeypatch.setattr(kind_vocabulary, "_scan_dir_matches", _counted)
+    monkeypatch.setattr(kind_vocabulary, "scan_dir_matches", _counted)
     yield calls
 
 
@@ -163,13 +163,13 @@ def test_non_directive_kind_returns_first_matching_stem(tmp_path: Path) -> None:
 def parsed_files(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
     """Counted-parse seam: record every artifact file whose YAML is parsed."""
     calls: list[Path] = []
-    original = kind_vocabulary._parse_id
+    original = kind_vocabulary.parse_artifact_id
 
     def _counted(path: Path, id_field: str, yaml: YAML) -> str | None:
         calls.append(path)
         return original(path, id_field, yaml)
 
-    monkeypatch.setattr(kind_vocabulary, "_parse_id", _counted)
+    monkeypatch.setattr(kind_vocabulary, "parse_artifact_id", _counted)
     return calls
 
 

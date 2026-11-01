@@ -84,9 +84,17 @@ __all__ = [
     "ResolutionPass",
     "UnknownArtifactIdError",
     "UnrepresentableDirectiveIdError",
+    "artifact_config_stem",
+    "artifact_id_field",
+    "built_in_scan_dir",
+    "iter_artifact_paths",
+    "parse_artifact_id",
+    "read_artifact_id",
     "resolve_artifact_urn",
     "resolve_config_id",
     "resolve_selected_id_to_stem",
+    "scan_dir_matches",
+    "scan_roots",
     "unknown_artifact_id_error",
 ]
 
@@ -116,11 +124,16 @@ _DEFAULT_ID_FIELD = "id"
 #: authority. No mapping is re-declared here (WP03 T014).
 
 
-def _id_field_for(kind: ArtifactKind) -> str:
+def artifact_id_field(kind: ArtifactKind) -> str:
+    """Return the YAML key holding the declared id for *kind*.
+
+    ``profile-id`` for agent profiles (matching ``catalog._load_yaml_id_catalog``),
+    ``id`` for every other kind.
+    """
     return _ID_FIELD_BY_KIND.get(kind, _DEFAULT_ID_FIELD)
 
 
-def _read_id(path: Path, id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None = None) -> str | None:
+def read_artifact_id(path: Path, id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None = None) -> str | None:
     """Return the artifact ID from a YAML file, falling back to the file stem.
 
     Mirrors the logic behind :func:`charter.activation.catalog._extract_artifact_id`
@@ -128,14 +141,14 @@ def _read_id(path: Path, id_field: str, yaml: YAML, resolution_pass: ResolutionP
     With a *resolution_pass*, each file is parsed at most once per pass.
     """
     if resolution_pass is None:
-        return _parse_id(path, id_field, yaml)
+        return parse_artifact_id(path, id_field, yaml)
     key = (path, id_field)
     if key not in resolution_pass.ids:
-        resolution_pass.ids[key] = _parse_id(path, id_field, yaml)
+        resolution_pass.ids[key] = parse_artifact_id(path, id_field, yaml)
     return resolution_pass.ids[key]
 
 
-def _parse_id(path: Path, id_field: str, yaml: YAML) -> str | None:
+def parse_artifact_id(path: Path, id_field: str, yaml: YAML) -> str | None:
     """Parse *path* and return its declared ID, falling back to the file stem."""
     try:
         data = yaml.load(path.read_text(encoding="utf-8")) or {}
@@ -149,7 +162,7 @@ def _parse_id(path: Path, id_field: str, yaml: YAML) -> str | None:
     return fallback or None
 
 
-def _config_stem(path: Path) -> str:
+def artifact_config_stem(path: Path) -> str:
     """Return the config/file-stem ID for an artifact path.
 
     The config stem is the filename with all extension suffixes removed
@@ -159,7 +172,7 @@ def _config_stem(path: Path) -> str:
     return path.name.split(".", 1)[0]
 
 
-def _scan_roots(
+def scan_roots(
     kind: ArtifactKind,
     *,
     _offering_root: Path,
@@ -170,7 +183,7 @@ def _scan_roots(
 
     Roots are supplied as data (C-008). ``_offering_root`` is the resolved
     ``charter.offering`` package root -- retained in the signature for call-site symmetry
-    with :func:`_iter_artifact_paths` (and its callers' diagnostics) but no
+    with :func:`iter_artifact_paths` (and its callers' diagnostics) but no
     longer used as a scan root itself: built-in content was flattened out of
     ``<offering_root>/<kind>/built-in`` into ``packs/built-in/<kind>``
     (relocation mission doctrine-built-in-seam-consolidation-01KYW3TX, WP02),
@@ -212,17 +225,17 @@ def _scan_roots(
     ordered_layers = dict(sorted(layers.items(), key=lambda item: item[0] != "project"))
     dirs = _layer_scan_dirs(kind, ordered_layers)
     dirs.extend(_org_scan_dirs(kind, list(reversed(org_roots or []))))
-    built_in = _built_in_scan_dir(kind)
+    built_in = built_in_scan_dir(kind)
     if built_in is not None:
         dirs.append(built_in)
     return dirs
 
 
-def _built_in_scan_dir(kind: ArtifactKind) -> tuple[Path, bool] | None:
+def built_in_scan_dir(kind: ArtifactKind) -> tuple[Path, bool] | None:
     """Return the flattened built-in scan dir for *kind*, or ``None``.
 
     ``None`` covers both the fail-soft ``built_in_dir`` errors (see the
-    ``_scan_roots`` docstring) and the case where the resolved directory does
+    ``scan_roots`` docstring) and the case where the resolved directory does
     not exist on disk.
 
     ``mission_step_contract`` has no ``packs/built-in/<plural>/`` content dir;
@@ -315,7 +328,7 @@ def _layer_candidate_dir(kind: ArtifactKind, layer: str, root: Path) -> Path | N
     Only the project layer is resolved here: its *root* is the project pack
     root (``.kittify/charter-packs/``), so kind directories join straight onto
     it. Org packs are scanned flat through ``org_roots`` (:func:`_org_scan_dirs`)
-    and the built-in pack through :func:`_built_in_scan_dir`; the retired nested
+    and the built-in pack through :func:`built_in_scan_dir`; the retired nested
     ``<pack>/doctrine/<plural>/<layer>`` layout is not read (FR-011).
     """
     if layer != "project":
@@ -362,13 +375,13 @@ def _scan_cache_key(
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
 ) -> tuple[object, ...]:
-    """Return a hashable key identifying one `_iter_artifact_paths` input set."""
+    """Return a hashable key identifying one `iter_artifact_paths` input set."""
     org_key = tuple(org_roots) if org_roots else ()
     layer_key = tuple(sorted((layer_roots or {}).items()))
     return (kind, offering_root, org_key, layer_key)
 
 
-def _iter_artifact_paths(
+def iter_artifact_paths(
     kind: ArtifactKind,
     *,
     offering_root: Path,
@@ -376,6 +389,14 @@ def _iter_artifact_paths(
     layer_roots: dict[str, Path] | None,
     resolution_pass: ResolutionPass | None = None,
 ) -> list[Path]:
+    """Return every artifact path for *kind* across the supplied layers.
+
+    The paths come from :func:`scan_roots` in layer-precedence order (project, then
+    org packs last-declared-first, then built-in), each root matching the kind's
+    ``glob_pattern`` via :func:`scan_dir_matches`. A kind with no pattern yields no
+    paths. With a *resolution_pass*, the result is memoised per input set, so one
+    pass walks each distinct layer set at most once (FR-001).
+    """
     cache_key = None
     if resolution_pass is not None:
         cache_key = _scan_cache_key(kind, offering_root, org_roots, layer_roots)
@@ -387,19 +408,19 @@ def _iter_artifact_paths(
         paths: list[Path] = []
     else:
         paths = []
-        for scan_dir, recursive in _scan_roots(
+        for scan_dir, recursive in scan_roots(
             kind,
             _offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
         ):
-            paths.extend(sorted(_scan_dir_matches(scan_dir, pattern, recursive=recursive)))
+            paths.extend(sorted(scan_dir_matches(scan_dir, pattern, recursive=recursive)))
     if resolution_pass is not None and cache_key is not None:
         resolution_pass.scans[cache_key] = paths
     return paths
 
 
-def _scan_dir_matches(scan_dir: Path, pattern: str, *, recursive: bool) -> list[Path]:
+def scan_dir_matches(scan_dir: Path, pattern: str, *, recursive: bool) -> list[Path]:
     """Return the artifact files under *scan_dir* matching *pattern*.
 
     A recursive scan excludes the reserved ``built-in/`` subtree (handled by its
@@ -472,8 +493,8 @@ def resolve_artifact_urn(
             *kind*.
     """
     yaml = YAML(typ="safe")
-    id_field = _id_field_for(kind)
-    paths = _iter_artifact_paths(
+    id_field = artifact_id_field(kind)
+    paths = iter_artifact_paths(
         kind,
         offering_root=offering_root,
         org_roots=org_roots,
@@ -481,8 +502,8 @@ def resolve_artifact_urn(
         resolution_pass=resolution_pass,
     )
     for path in paths:
-        if _config_stem(path) == config_id:
-            artifact_id = _read_id(path, id_field, yaml, resolution_pass)
+        if artifact_config_stem(path) == config_id:
+            artifact_id = read_artifact_id(path, id_field, yaml, resolution_pass)
             if artifact_id:
                 return f"{kind.value}:{artifact_id}"
     # A stem miss falls back to an exact declared id (every kind; a stem match
@@ -529,7 +550,7 @@ def unknown_artifact_id_error(
 
 def _declares_id(paths: list[Path], artifact_id: str, id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None) -> bool:
     """Return whether any artifact in *paths* declares exactly *artifact_id*."""
-    return any(_read_id(path, id_field, yaml, resolution_pass) == artifact_id for path in paths)
+    return any(read_artifact_id(path, id_field, yaml, resolution_pass) == artifact_id for path in paths)
 
 
 def _searched_layers(
@@ -540,7 +561,7 @@ def _searched_layers(
     """Include candidate directories even when a missing layer does not exist."""
     roots = [f"{layer}: {_layer_candidate_dir(kind, layer, root)}" for layer, root in (layer_roots or {}).items()]
     roots.extend(f"org: {root / kind.plural}" for root in org_roots or [])
-    builtin = _built_in_scan_dir(kind)
+    builtin = built_in_scan_dir(kind)
     roots.append(f"built-in: {builtin[0]}" if builtin is not None else "built-in: unavailable")
     return "; ".join(roots)
 
@@ -569,10 +590,10 @@ def _directive_ids_by_stem(paths: list[Path], id_field: str, yaml: YAML, resolut
     """
     ids_by_stem: dict[str, set[str]] = {}
     for path in paths:
-        artifact_id = _read_id(path, id_field, yaml, resolution_pass)
+        artifact_id = read_artifact_id(path, id_field, yaml, resolution_pass)
         if artifact_id is None:
             continue
-        ids_by_stem.setdefault(_config_stem(path), set()).add(artifact_id)
+        ids_by_stem.setdefault(artifact_config_stem(path), set()).add(artifact_id)
     return ids_by_stem
 
 
@@ -656,9 +677,9 @@ def resolve_config_id(
         raise ValueError(f"Malformed URN {urn!r}; unknown kind {kind_value!r}.") from exc
 
     yaml = YAML(typ="safe")
-    id_field = _id_field_for(kind)
+    id_field = artifact_id_field(kind)
     # A fresh, pass-scoped memo (unless the caller is itself part of a larger
-    # pass and threaded one in): every `_iter_artifact_paths` call and every
+    # pass and threaded one in): every `iter_artifact_paths` call and every
     # ID read this resolution makes -- the initial scan below and each
     # per-stem round-trip check further down -- shares it, so each distinct
     # layer set is walked, and each file parsed, at most once for the whole
@@ -666,14 +687,14 @@ def resolve_config_id(
     # so it can never make a *later*, independent resolution observe stale
     # content (FR-002).
     active_pass = resolution_pass if resolution_pass is not None else ResolutionPass()
-    paths = _iter_artifact_paths(
+    paths = iter_artifact_paths(
         kind,
         offering_root=offering_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
         resolution_pass=active_pass,
     )
-    # `_iter_artifact_paths` already returns the authoritative highest-to-lowest
+    # `iter_artifact_paths` already returns the authoritative highest-to-lowest
     # layer precedence order (project, then org packs last-declared-first, then
     # built-in) -- the same order `resolve_artifact_urn`'s first-match scan
     # consumes. Directive resolution walks that order directly; no local
@@ -681,9 +702,9 @@ def resolve_config_id(
     ids_by_stem = _directive_ids_by_stem(paths, id_field, yaml, active_pass) if kind is ArtifactKind.DIRECTIVE else {}
     matched_identity = False
     for path in paths:
-        if _read_id(path, id_field, yaml, active_pass) != artifact_id:
+        if read_artifact_id(path, id_field, yaml, active_pass) != artifact_id:
             continue
-        stem = _config_stem(path)
+        stem = artifact_config_stem(path)
         if kind is not ArtifactKind.DIRECTIVE:
             return stem
         matched_identity = True
@@ -749,8 +770,8 @@ def resolve_selected_id_to_stem(
     # kind (#2529): a declared id maps back to its stem, it is never returned verbatim.
     shared_pass = ResolutionPass()
     stems = {
-        _config_stem(path)
-        for path in _iter_artifact_paths(kind, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots, resolution_pass=shared_pass)
+        artifact_config_stem(path)
+        for path in iter_artifact_paths(kind, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots, resolution_pass=shared_pass)
     }
     if raw_id in stems:
         return raw_id
