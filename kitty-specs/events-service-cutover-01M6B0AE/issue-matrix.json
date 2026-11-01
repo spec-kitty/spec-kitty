@@ -13,7 +13,7 @@
       "wp": null
     },
     "#6195": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Out of scope per spec C-006 (EventBridge binding); tracked in its own issue",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,32 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "not-applicable",
       "wp": null
+    },
+    "#6590": {
+      "evidence_ref": "Closed issue cited for context: it built scripts/sync_services.py, which WP01 extends; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6915": {
+      "evidence_ref": "Mission issue; WP01 delivers the read-service pin and fetch tooling (95d2f7c8, 03fa97d3, cf627bcb); remaining WPs pending",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
     },
     "#6949": {
       "evidence_ref": "<auto-classified: no action required>",
