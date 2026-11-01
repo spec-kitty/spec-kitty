@@ -15,7 +15,9 @@
 #                ORIGINAL payload: runs the pause cancelled started before the label and
 #                resume cleanly; a run that started while labelled pauses again, so after
 #                a push made under the label, push again (or close and reopen the PR by
-#                hand) once the label is off.
+#                hand) once the label is off. When the head moved after the label came off
+#                (a push), the re-run is skipped: the new head's runs are current, and an old
+#                head's re-run would cancel them through the shared concurrency group.
 name: PR Pause CI
 
 on:
@@ -75,11 +77,20 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: Re-run the runs the pause cancelled for the head commit
         shell: bash
         run: |
           set -euo pipefail
+          # A push after the label came off already started fresh runs on the new head. Re-running the
+          # old head's runs would join the same concurrency group and cancel those, so skip when the
+          # head moved.
+          live="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid -q .headRefOid)"
+          if [ "$live" != "$HEAD_SHA" ]; then
+            echo "head moved to $live since the label was removed; its own runs are current, nothing to re-run"
+            exit 0
+          fi
           gh run list --repo "$REPO" --commit "$HEAD_SHA" --status cancelled \
             --json databaseId,event -q '.[] | select(.event == "pull_request") | .databaseId' --limit 200 \
             | while read -r id; do
