@@ -44,7 +44,7 @@ Returns `CharterContextResult` (frozen dataclass, shape unchanged). The
 | 1 | `Charter Context (Bootstrap):` | always | Source path + first-load guidance. |
 | 2 | `Policy Summary:` | charter has `## Policy Summary` OR resolver falls back to bullets | Up to 8 bullets. |
 | 3 | `Project authority paths:` | bootstrap action | At minimum `glossary/contexts/` and `architecture/2.x/adr/` (when those directories exist on disk); additionally every path in `governance.doctrine.authority_paths`. Each entry carries a one-sentence "When you …, …" conditional. |
-| 4 | `Action-Critical Charter Sections (<action>):` | bootstrap action AND charter has at least one action-critical section | For each section in the action-critical set, either the verbatim body OR the fetch + when-doing stanza. The action-critical set for `software-dev` defaults to `Terminology Canon`, `Code Review Checklist`, `Regression Vigilance`; missions MAY extend the set. |
+| 4 | `Action-Critical Charter Sections (<action>):` | bootstrap action AND at least one configured action-critical heading **resolves in the active `charter.md`** | For each **resolving** heading, the verbatim body **and** the fetch + when-doing stanza. The configured set for `software-dev` defaults to `Terminology Canon`, `Code Review Checklist`, `Regression Vigilance`; missions MAY extend it. A heading the charter does not carry (absent, empty body, or masked by a malformed fence) is **not advertised** and contributes no stanza — omitted when nothing resolves (#6968). |
 | 5 | `Profile-Cited Directives (<profile-id>):` | bootstrap action AND `profile=<id>` resolvable AND profile has at least one `directive_references` entry | For each `DIRECTIVE_NNN` in `profile.directive_references`, an entry `- DIRECTIVE_NNN: <title> — <rationale>`. Verbatim body inlined when under budget; otherwise replaced with the fetch + when-doing stanza. |
 | 6 | `Profile-Cited Tactics (<profile-id>):` | same conditions, for `tactic_references` | Same shape as section 5. |
 | 7 | `Action Doctrine (<action>):` | bootstrap action | Existing resolver-driven `Directives:` and `Tactics:` lists (today's behaviour). |
@@ -64,6 +64,13 @@ The selector is one of:
 - `directive:DIRECTIVE_NNN`
 - `tactic:<tactic-id>`
 - `section:<kebab-cased-heading>`
+
+A `section:<kebab-cased-heading>` selector is emitted only for a heading the
+active `charter.md` resolves (#6968); the renderer never advertises a selector
+whose fetch would return the "has not yet authored" placeholder. An explicit
+`--include section:<slug>` for a heading the charter lacks still returns that
+honest placeholder rather than dead-ending — that is the direct fetch surface,
+not an advertised one.
 
 The conditional matches the regex pinned by the ATDD test helper
 `_WHEN_DOING_RE`:
