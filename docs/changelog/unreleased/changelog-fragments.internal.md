@@ -1,1 +1,0 @@
-- **Changelog entries are per-PR fragments** in `docs/changelog/unreleased/<id>.<section>.md`, checked by the style and spelling gates and assembled into `[Unreleased]` at release time, so pull requests no longer conflict on `CHANGELOG.md`.
