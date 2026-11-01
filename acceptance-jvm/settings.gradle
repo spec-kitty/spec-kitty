@@ -4,7 +4,7 @@
 // acceptance-jvm/src/**.
 //
 // Invoked with a pinned Gradle distribution; there is no committed wrapper jar (see
-// contracts/tools/install_tools.py and acceptance-jvm/tools/pins.json). CI installs the
+// install_tools.py of the pinned contract-tools extra and acceptance-jvm/tools/pins.json). CI installs the
 // sha256-checked Gradle zip and calls the installed `gradle` binary directly, never
 // ./gradlew.
 pluginManagement {
