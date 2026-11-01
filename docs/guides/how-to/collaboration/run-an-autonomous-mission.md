@@ -2,7 +2,7 @@
 title: Run an Autonomous Mission
 description: Run specify, plan, tasks, implementation review, mission review, and retrospective steps without manual merge workarounds.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-11-01'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -156,7 +156,7 @@ gh pr create --base main --head kitty/pr/<mission-slug>-to-main --fill
 Prefer squash-merge for autonomous runs with large orchestration commit piles:
 
 ```bash
-gh pr merge --squash --delete-branch
+gh pr merge --auto   # queues it; the merge queue rebase-merges once the required checks pass
 ```
 
 ## 8. Run Mission Review

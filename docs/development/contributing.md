@@ -464,7 +464,7 @@ git add pyproject.toml CHANGELOG.md
 git commit -m "chore(release): prepare X.Y.Z"
 git push origin release/X.Y.Z
 gh pr create --base main --title "Release X.Y.Z" --fill
-gh pr merge --squash --delete-branch
+gh pr merge --auto   # queues it; the merge queue rebase-merges once the required checks pass
 
 # 3. Tag and push
 git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
