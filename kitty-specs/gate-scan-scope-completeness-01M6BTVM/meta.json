@@ -1,6 +1,8 @@
 {
+  "accept_commit": "f8ed245b9ac880b2d742b5e7ab4f66970f94c7bd",
   "acceptance_history": [
     {
+      "accept_commit": "f8ed245b9ac880b2d742b5e7ab4f66970f94c7bd",
       "acceptance_mode": "local",
       "accepted_at": "2026-11-01T17:39:10.832510+00:00",
       "accepted_by": "reviewer-renata",
