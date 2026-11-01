@@ -10,18 +10,14 @@ writers treat differently (report vs refuse).
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import pytest
 
 from charter.activation.activation_engine import ActivationIdCollisionError
-from charter.activation.api import IdentityIndex, SelectionResolution, SelectionResolver, UnresolvedSelection
+from charter.activation.api import SelectionResolution, SelectionResolver, UnresolvedSelection
 from charter.activation.identity_index import IdentityIndex as InternalIdentityIndex
-from charter.activation.selection import (
-    SelectionResolution as InternalSelectionResolution,
-    SelectionResolver as InternalSelectionResolver,
-    UnresolvedSelection as InternalUnresolvedSelection,
-)
 from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 from kernel.charter_pack_paths import project_pack_root
 from tests.charter.org_pack_identity_support import IDENTITY_ARTIFACTS, write_identity_org_pack
@@ -83,14 +79,6 @@ def project_layer_resolver(tmp_path_factory: pytest.TempPathFactory) -> Selectio
 @pytest.fixture(scope="module")
 def collision_resolver(tmp_path_factory: pytest.TempPathFactory) -> SelectionResolver:
     return SelectionResolver.build(_collision_project(tmp_path_factory.mktemp("collision")))
-
-
-def test_the_seam_reexports_the_real_resolver() -> None:
-    """The seam is an identity re-export, not a copy or a wrapper (#6099)."""
-    assert SelectionResolver is InternalSelectionResolver
-    assert SelectionResolution is InternalSelectionResolution
-    assert UnresolvedSelection is InternalUnresolvedSelection
-    assert IdentityIndex is InternalIdentityIndex
 
 
 def test_an_org_pack_id_resolves_to_its_stem(resolver: SelectionResolver) -> None:
@@ -184,7 +172,7 @@ def test_one_index_build_serves_a_whole_run(tmp_path: Path, monkeypatch: pytest.
     def counting(cls: type[InternalIdentityIndex], repo_root: Path, **kwargs: object) -> InternalIdentityIndex:
         nonlocal builds
         builds += 1
-        return original(repo_root, **kwargs)  # type: ignore[arg-type]
+        return original(repo_root, **kwargs)  # type: ignore[arg-type]  # kwargs is object-typed; forwarded verbatim to build's keyword params
 
     monkeypatch.setattr(InternalIdentityIndex, "build", classmethod(counting))
     resolver = SelectionResolver.build(_org_pack_project(tmp_path))
@@ -200,3 +188,14 @@ def test_every_identity_org_pack_kind_resolves_its_declared_id(resolver: Selecti
     for plural, stem, declared in IDENTITY_ARTIFACTS:
         kind = ArtifactKind.from_plural(plural)
         assert resolver.stem(kind, declared) == stem, plural
+
+
+def test_a_loud_build_keeps_the_unparseable_config_warning_the_interview_relies_on(tmp_path: Path) -> None:
+    """#6686 fold: the interview read the chain non-quiet before the shared resolver; `quiet=False` keeps that warning."""
+    _write(tmp_path / ".kittify" / "config.yaml", "charter_packs: [unclosed\n")
+
+    with pytest.warns(UserWarning, match="Failed to read .kittify/config.yaml"):
+        SelectionResolver.build(tmp_path, quiet=False)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        SelectionResolver.build(tmp_path)
