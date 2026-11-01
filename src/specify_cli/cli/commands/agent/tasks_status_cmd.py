@@ -38,6 +38,7 @@ the parity contract).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TypeAlias
@@ -57,33 +58,8 @@ from specify_cli.cli.commands.agent.tasks_status_view import (
 from specify_cli.lanes.persistence import MissingLanesError
 
 if TYPE_CHECKING:
-    from charter.profiles import AgentProfileRepository
-
     from specify_cli.core.stale_detection import StaleCheckResult
 
-    # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001), narrowed by
-    # the landing-fold regression fix (defect 1): this alias previously
-    # admitted EITHER the activation-*gated* ``dict`` from
-    # ``charter.activation.resolver.ActiveCharterService.agent_profiles`` OR the raw
-    # ``AgentProfileRepository`` from ``.agent_profile_repository``, on the
-    # theory that both shapes only ever see ``.get(profile_id)`` calls here.
-    # That theory was wrong: ``profile.sentinel`` (read inside
-    # ``_get_hic_marker``) is a *structural* property, not an
-    # activation-gated one -- exactly like ``get_provenance()``, which is why
-    # ``charter.activation.resolver.ActiveCharterService`` gives callers
-    # ``agent_profile_repository`` / ``raw_repository()`` in the first place.
-    # A project that narrows ``activated_agent_profiles`` to exclude
-    # ``human-in-charge`` silently lost the 👤 marker when a gated dict was
-    # read here (measured: ``gated_dict.get('human-in-charge') -> None``).
-    # Every production call site now builds the lookup via
-    # ``.agent_profile_repository`` (never ``.agent_profiles``), so the type
-    # is narrowed to the single shape that is actually correct -- a reader
-    # can no longer mistake this for "either shape is fine."
-    # Explicit TypeAlias: charter.profiles is mypy-quarantined
-    # (follow_imports=skip), so AgentProfileRepository resolves to ``Any``; the
-    # annotation makes ProfileLookup a valid type alias rather than an Any-valued
-    # variable.
-    ProfileLookup: TypeAlias = AgentProfileRepository
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
 )
@@ -97,6 +73,13 @@ from specify_cli.status import (
 from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 from specify_cli.workspace.context import get_normalized_wp
+
+#: The 👤 sentinel map one render builds for the profile ids its rows name
+#: (#6917): ``{profile_id: profile.sentinel}``, produced once per render by
+#: ``charter.activation.active_charter_service_builder.build_agent_profile_sentinels``
+#: and read by ``_get_hic_marker``. Keyed exactly on the ids the board names, so a
+#: render never materialises the profile catalogue.
+SentinelMap: TypeAlias = "Mapping[str, bool]"
 
 
 def _default_status_ports() -> TasksPorts:
@@ -631,12 +614,12 @@ def _st_emit_json(st: _StatusState, ports: TasksPorts) -> None:
     print(ports.render.json_envelope(result))
 
 
-def _st_board_cell(wp: Any, lane: Lane, main_repo_root: Path, profile_repo: ProfileLookup | None) -> str:
+def _st_board_cell(wp: Any, lane: Lane, main_repo_root: Path, sentinels: SentinelMap | None) -> str:
     """Build one kanban cell string (marker + stale/claimed/review decoration)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     title_truncated = wp["title"][:22] + "..." if len(wp["title"]) > 22 else wp["title"]
-    marker = _tasks._get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+    marker = _tasks._get_hic_marker(wp.get("agent_profile"), main_repo_root, sentinels=sentinels)
     display_id = f"{marker}{wp['id']}"
     if wp.get("_stale_verdict"):
         return f"[yellow]⚠ {display_id}[/yellow]\n{title_truncated}"
@@ -679,7 +662,7 @@ def _st_render_overview(ports: TasksPorts, st: _StatusState, view: StatusView) -
     ports.render.human("")
 
 
-def _st_render_board(ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None) -> None:
+def _st_render_board(ports: TasksPorts, st: _StatusState, view: StatusView, sentinels: SentinelMap | None) -> None:
     """Render the kanban board table via the Render port.
 
     Folds claimed + in_review WPs into the "Doing" column with markers; the row
@@ -719,7 +702,7 @@ def _st_render_board(ports: TasksPorts, st: _StatusState, view: StatusView, prof
         row = []
         for lane, lane_list in display_columns:
             if i < len(lane_list):
-                row.append(_st_board_cell(lane_list[i], lane, st.main_repo_root, profile_repo))
+                row.append(_st_board_cell(lane_list[i], lane, st.main_repo_root, sentinels))
             else:
                 row.append("")
         table.add_row(*row)
@@ -762,7 +745,7 @@ def _st_render_arbiter(ports: TasksPorts, st: _StatusState) -> None:
         pass  # review package not yet available
 
 
-def _st_render_review_queues(ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None) -> None:
+def _st_render_review_queues(ports: TasksPorts, st: _StatusState, view: StatusView, sentinels: SentinelMap | None) -> None:
     """Render the for_review / approved / done-with-stale-verdict sections."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
@@ -770,14 +753,14 @@ def _st_render_review_queues(ports: TasksPorts, st: _StatusState, view: StatusVi
     if by_lane[Lane.FOR_REVIEW]:
         ports.render.human("[bold cyan]👀 Ready for Review:[/bold cyan]")
         for wp in by_lane[Lane.FOR_REVIEW]:
-            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, repo=profile_repo)
+            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, sentinels=sentinels)
             ports.render.human(f"  • {marker}{wp['id']} - {wp['title']}")
         ports.render.human("")
 
     if by_lane[Lane.APPROVED]:
         ports.render.human("[bold magenta]👍 Approved (merge when all WPs approved):[/bold magenta]")
         for wp in by_lane[Lane.APPROVED]:
-            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, repo=profile_repo)
+            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, sentinels=sentinels)
             line = f"  • {marker}{wp['id']} - {wp['title']}"
             if wp.get("_stale_verdict"):
                 line += "  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]"
@@ -789,7 +772,7 @@ def _st_render_review_queues(ports: TasksPorts, st: _StatusState, view: StatusVi
     if done_stale:
         ports.render.human("[bold green]✅ Done (with stale verdict warnings):[/bold green]")
         for wp in done_stale:
-            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, repo=profile_repo)
+            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, sentinels=sentinels)
             ports.render.human(f"  • {marker}{wp['id']} - {wp['title']}  [bold yellow]⚠ review artifact: verdict=rejected[/bold yellow]")
         ports.render.human("")
 
@@ -799,7 +782,7 @@ def _st_render_active(
     st: _StatusState,
     view: StatusView,
     stale_results: Any,
-    profile_repo: ProfileLookup | None,
+    sentinels: SentinelMap | None,
 ) -> None:
     """Render the claimed / in_progress / in_review sections via the Render port."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -808,7 +791,7 @@ def _st_render_active(
     if by_lane[Lane.CLAIMED]:
         ports.render.human("[bold blue]🔄 Claimed (shown in Doing column):[/bold blue]")
         for wp in by_lane[Lane.CLAIMED]:
-            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, repo=profile_repo)
+            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, sentinels=sentinels)
             agent = wp.get("agent", "unknown")
             ports.render.human(f"  • {marker}{wp['id']} - {wp['title']} [dim](agent: {agent})[/dim]")
         ports.render.human("")
@@ -817,7 +800,7 @@ def _st_render_active(
         ports.render.human("[bold blue]🔄 In Progress:[/bold blue]")
         stale_wps = []
         for wp in by_lane[Lane.IN_PROGRESS]:
-            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, repo=profile_repo)
+            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, sentinels=sentinels)
             stale_label = _tasks._render_stale_status(stale_results.get(wp["id"]))
             agent = wp.get("agent", "unknown")
             if wp.get("is_stale"):
@@ -837,7 +820,7 @@ def _st_render_active(
     if by_lane.get(Lane.IN_REVIEW):
         ports.render.human("[bold bright_cyan]🔍 In Review (shown in Doing column):[/bold bright_cyan]")
         for wp in by_lane[Lane.IN_REVIEW]:
-            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, repo=profile_repo)
+            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, sentinels=sentinels)
             line = f"  • {marker}{wp['id']} - {wp['title']}"
             if wp.get("_stall_label"):
                 line += f"  [bold yellow]⚠ {wp['_stall_label']}[/bold yellow]"
@@ -845,7 +828,7 @@ def _st_render_active(
         ports.render.human("")
 
 
-def _st_render_planned(ports: TasksPorts, st: _StatusState, view: StatusView, profile_repo: ProfileLookup | None) -> None:
+def _st_render_planned(ports: TasksPorts, st: _StatusState, view: StatusView, sentinels: SentinelMap | None) -> None:
     """Render the "Next Up (Planned)" section via the Render port."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
@@ -853,7 +836,7 @@ def _st_render_planned(ports: TasksPorts, st: _StatusState, view: StatusView, pr
     if by_lane[Lane.PLANNED]:
         ports.render.human("[bold yellow]📋 Next Up (Planned):[/bold yellow]")
         for wp in by_lane[Lane.PLANNED][:3]:
-            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, repo=profile_repo)
+            marker = _tasks._get_hic_marker(wp.get("agent_profile"), st.main_repo_root, sentinels=sentinels)
             ports.render.human(f"  • {marker}{wp['id']} - {wp['title']}")
         if len(by_lane[Lane.PLANNED]) > 3:
             ports.render.human(f"  [dim]... and {len(by_lane[Lane.PLANNED]) - 3} more[/dim]")
@@ -925,56 +908,46 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
     except MissingLanesError as exc:
         stale_results = build_stale_fallback_results(by_lane[Lane.IN_PROGRESS], exc)
 
-    profile_repo: ProfileLookup | None = None
-    # Lazy construction (NFR-005): skip the factory build entirely when no
-    # rendered WP carries an ``agent_profile`` -- e.g. a freshly-tasked
-    # mission where nothing has been claimed yet. This does not change the
-    # populated-board cost (measured in
-    # kitty-specs/charter-sole-door-bypass-closure-01KZ3WAA/traces/
-    # tooling-friction.md), but it is a genuine, free win for the empty/
-    # not-yet-started case that the removed bare ``AgentProfileRepository()``
-    # construction paid unconditionally.
-    _needs_profile_lookup = any(row.get("agent_profile") for rows in by_lane.values() for row in rows)
-    if _needs_profile_lookup:
+    # Lazy read (#6917): skip the lookup entirely when no rendered WP carries an
+    # ``agent_profile`` -- e.g. a freshly-tasked mission where nothing has been
+    # claimed yet.
+    sentinels: SentinelMap | None = None
+    _profile_ids = sorted(
+        {row["agent_profile"] for rows in by_lane.values() for row in rows if isinstance(row.get("agent_profile"), str) and row.get("agent_profile")}
+    )
+    if _profile_ids:
         try:
-            # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
-            # through ``charter.activation.resolver.ActiveCharterService`` instead of
-            # constructing ``AgentProfileRepository`` directly. The comment
-            # this replaces named a "runtime -> charter -> doctrine boundary
-            # ratchet" concern; R3 (research.md) confirms that ratchet only
-            # scans MODULE-LEVEL ``from charter.offering.*`` imports, and both the old
-            # direct-construction import and this factory import are
-            # function-local, so the gate does not trip either way -- the
-            # concern does not reappear.
-            #
-            # Landing-fold regression fix (defect 1): this site reads
-            # ``.agent_profile_repository`` (the raw, unfiltered
-            # ``AgentProfileRepository``), NOT the gated ``.agent_profiles``
-            # dict it used before. ``_get_hic_marker`` only ever calls
-            # ``.get(profile_id)`` here, but that call reads
-            # ``profile.sentinel`` -- a *structural* property, not an
-            # activation-gated one, exactly like ``get_provenance()``
-            # (``charter/resolver.py``'s documented rationale for exposing
-            # this same raw accessor). Reading the gated dict silently lost
-            # the 👤 human-in-charge marker on any project that narrows
-            # ``activated_agent_profiles`` to a set excluding
-            # ``human-in-charge``.
+            # ISSUE #6917: one id-scoped structural read replaces the whole
+            # ``ActiveCharterService`` build plus the complete
+            # ``AgentProfileRepository`` (26 shipped profile documents and the
+            # lineage graph) this site used to pay for one boolean per row.
+            # ``build_agent_profile_sentinels`` resolves only the ids below,
+            # through the same built-in → org → project layers and the same
+            # loader, and consults no activation *state* because ``sentinel`` is
+            # a *structural* property, not an activation-gated one (the
+            # charter-sole-door-bypass-closure-01KZ3WAA rationale for
+            # ``agent_profile_repository``); it does build a ``PackContext`` for
+            # its side effect of validating the config. The marker therefore
+            # still survives a narrowed or denied ``activated_agent_profiles``.
             from charter.activation.active_charter_service_builder import (  # noqa: PLC0415
-                build_active_charter_service,
+                build_agent_profile_sentinels,
             )
 
-            profile_repo = build_active_charter_service(_st_config_root(st)).agent_profile_repository
+            sentinels = build_agent_profile_sentinels(_st_config_root(st), _profile_ids)
         except ImportError:
             # Genuinely-absent-module case only: ``charter`` is first-party
             # and ships in the same wheel, so this can only fire under a
             # broken/partial install. Any other failure here -- most
-            # notably ``charter.activation.pack_context.ActiveCharterConfigError`` raised
-            # by ``PackContext.from_config()`` for a malformed
-            # ``.kittify/config.yaml`` -- MUST propagate to ``_do_status``'s
-            # outer ``except Exception as e`` handler and surface as a
-            # structured error (FR-002's fail-closed contract), not degrade
-            # this dashboard to an unfiltered/markerless render silently.
-            profile_repo = None
+            # notably the charter configuration error the builder raises for a
+            # malformed or invalid ``.kittify/config.yaml`` --
+            # MUST propagate to ``_do_status``'s outer ``except Exception``
+            # handler and surface as a structured error (FR-002's fail-closed
+            # contract), not degrade this dashboard to a markerless render.
+            # The builder validates ``.kittify/config.yaml`` through the charter
+            # configuration authority before it reads any layer, so an unreadable
+            # or invalid config raises here exactly as the activation-aware
+            # service build did.
+            sentinels = None
 
     for wp in by_lane[Lane.IN_PROGRESS]:
         wp_id = wp["id"]
@@ -984,11 +957,11 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             wp["is_stale"] = False
 
     _st_render_overview(ports, st, view)
-    _st_render_board(ports, st, view, profile_repo)
+    _st_render_board(ports, st, view, sentinels)
     _st_render_arbiter(ports, st)
-    _st_render_review_queues(ports, st, view, profile_repo)
-    _st_render_active(ports, st, view, stale_results, profile_repo)
-    _st_render_planned(ports, st, view, profile_repo)
+    _st_render_review_queues(ports, st, view, sentinels)
+    _st_render_active(ports, st, view, stale_results, sentinels)
+    _st_render_planned(ports, st, view, sentinels)
     _st_render_summary(ports, st, view)
 
 
@@ -1063,68 +1036,45 @@ def _get_hic_marker(
     agent_profile: object,
     repo_root: Path,
     *,
-    repo: ProfileLookup | None = None,
+    sentinels: SentinelMap | None = None,
 ) -> str:
-    """Return a marker when the work package profile is a human-run sentinel.
+    """Return the 👤 marker when the work package profile is a human-run sentinel.
 
     Accepts ``object`` because the callers read ``agent_profile`` out of the
     heterogeneous ``dict[str, object]`` status rows; a non-``str`` (or falsy)
     value yields no marker, exactly as the historical ``if not agent_profile``
     guard did for ``None``/empty strings.
 
-    ``repo_root`` is read again as of WP02 (charter-sole-door-bypass-closure-
-    01KZ3WAA): the self-resolving fallback (``repo=None``) now builds the
-    charter-mediated, activation-aware profile map for this repo root rather
-    than a bare built-in-only ``AgentProfileRepository()`` (FR-001). All 8
-    production call sites always pass ``repo=`` explicitly, so this fallback
-    only matters for direct/external callers.
-
-    Landing-fold regression fix (defect 1): both this fallback and the
-    ``repo=`` value built by the sibling call site (``_st_render_human``)
-    now read ``.agent_profile_repository`` -- the raw, unfiltered
-    ``AgentProfileRepository`` -- rather than ``.agent_profiles``, the
-    activation-*gated* dict. ``profile.sentinel`` below is a structural
-    property, not an activation-gated one (exactly like
-    ``get_provenance()``, which is why ``charter.activation.resolver.ActiveCharterService``
-    exposes ``agent_profile_repository`` in the first place); reading the
-    gated dict silently dropped the 👤 marker on any project that narrows
-    ``activated_agent_profiles`` to a set excluding ``human-in-charge``.
+    ``sentinels`` is the per-render map built by ``_st_render_human`` from the
+    ids the board's rows name (issue #6917). All production call sites pass it,
+    so a render parses only those profile documents instead of the whole
+    catalogue. ``sentinels=None`` is the self-resolving fallback for
+    direct/external callers: it resolves this one id through
+    ``build_agent_profile_sentinels``, which stays inside the charter sole door,
+    answers ``profile.sentinel`` (a *structural* property, never
+    activation-gated), and consults no activation state.
     """
     if not isinstance(agent_profile, str) or not agent_profile:
         return ""
 
     try:
-        profile_repo = repo
-        if profile_repo is None:
-            # WP02 (charter-sole-door-bypass-closure-01KZ3WAA, FR-001): routed
-            # through ``charter.activation.resolver.ActiveCharterService`` rather than
-            # constructing ``AgentProfileRepository`` directly. As with the
-            # sibling call site (``_st_render_human``), the removed comment's
-            # "boundary ratchet" concern is confirmed a red herring (R3,
-            # research.md): the existing gate only scans module-level
-            # ``from charter.offering.*`` imports, and this import is function-local,
-            # same as the construction it replaces. All 8 production callers
-            # in this module always pass ``repo=`` explicitly (built once per
-            # render in ``_st_render_human``), so this self-resolving fallback
-            # only fires for direct/external callers (e.g. unit tests).
+        if sentinels is None:
             from charter.activation.active_charter_service_builder import (  # noqa: PLC0415
-                build_active_charter_service,
+                build_agent_profile_sentinels,
             )
 
-            profile_repo = build_active_charter_service(repo_root).agent_profile_repository
+            sentinels = build_agent_profile_sentinels(repo_root, [agent_profile])
 
-        profile = profile_repo.get(agent_profile)
-        if profile and profile.sentinel:
+        if sentinels.get(agent_profile, False):
             return "👤 "
     except ImportError:
         # Genuinely-absent-module case only, matching the sibling call site
         # (``_st_render_human``): ``charter`` is first-party and ships in the
         # same wheel, so this can only fire under a broken/partial install.
-        # Any other failure -- most notably
-        # ``charter.activation.pack_context.ActiveCharterConfigError`` for a malformed
-        # ``.kittify/config.yaml`` -- MUST propagate to the caller rather
-        # than degrade this marker to a silent "" (FR-002's fail-closed
-        # contract).
+        # Any other failure -- most notably the charter configuration error the
+        # builder's layer resolution raises for a malformed
+        # ``.kittify/config.yaml`` -- MUST propagate to the caller rather than
+        # degrade this marker to a silent "" (FR-002's fail-closed contract).
         return ""
 
     return ""

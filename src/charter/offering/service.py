@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 from typing import cast
 
@@ -170,10 +171,56 @@ class CharterOfferingService:
     @property
     def agent_profiles(self) -> AgentProfileRepository:
         if "agent_profiles" not in self._cache:
-            project_dir = self._agent_profile_overlay_dir if self._agent_profile_overlay_dir is not None else self._project_dir("agent_profiles")
             self._cache["agent_profiles"] = AgentProfileRepository(
                 org_dirs=self._org_dirs("agent_profiles"),
-                project_dir=project_dir,
+                project_dir=self._agent_profile_project_dir(),
                 active_languages=self._active_languages,
             )
         return cast(AgentProfileRepository, self._cache["agent_profiles"])
+
+    def _agent_profile_project_dir(self) -> Path | None:
+        """Return the project-layer directory for agent profiles.
+
+        One derivation for both the catalogue (:attr:`agent_profiles`) and the
+        scoped sentinel read, so the two cannot disagree about the project layer
+        (#6917): an explicit overlay directory wins, otherwise the project pack
+        root's ``agent_profiles`` directory applies.
+        """
+        if self._agent_profile_overlay_dir is not None:
+            return self._agent_profile_overlay_dir
+        return self._project_dir("agent_profiles")
+
+    def agent_profile_sentinels(self, profile_ids: Iterable[str]) -> dict[str, bool]:
+        """Answer the structural ``sentinel`` flag for *profile_ids* only (#6917).
+
+        The read-only work-package board asks one boolean per claimed row (the 👤
+        human-in-charge marker). Answering it through :attr:`agent_profiles`
+        parsed the whole shipped catalogue plus the lineage graph; this method
+        parses only the documents that can supply the requested ids, through the
+        repository's own loader (same layers, same field merge, same
+        ``applies_to_languages`` gate, same skip diagnostics), so the answers are
+        identical.
+
+        ``sentinel`` is a *structural* profile property, not an activation-gated
+        one: the answer must not depend on ``PackContext`` activation state (the
+        same rationale :attr:`~charter.activation.resolver.ActiveCharterService.agent_profile_repository`
+        records for ``get_provenance()``).
+
+        Returns a total mapping over the request: one entry per distinct non-empty
+        id, ``False`` when no layer ships that id or the ``applies_to_languages``
+        gate excludes it. Nothing is cached: the id set varies per caller.
+        """
+        requested = tuple(dict.fromkeys(item for item in profile_ids if isinstance(item, str) and item))
+        if not requested:
+            return {}
+        scoped = AgentProfileRepository(
+            org_dirs=self._org_dirs("agent_profiles"),
+            project_dir=self._agent_profile_project_dir(),
+            active_languages=self._active_languages,
+            only_ids=requested,
+        )
+        sentinels: dict[str, bool] = {}
+        for profile_id in requested:
+            profile = scoped.get(profile_id)
+            sentinels[profile_id] = bool(profile is not None and profile.sentinel)
+        return sentinels
