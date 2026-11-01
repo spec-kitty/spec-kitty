@@ -1,0 +1,53 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M66JSX4GXX3GEBE2Q8RVTJTC",
+  "materialized_at": "2026-10-30T14:18:16.080192+00:00",
+  "mission_number": "",
+  "mission_slug": "agent-action-lane-context-refresh-01M66FF3",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "pi",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M66JSVSHKQ838FM4MB2ZQTW8",
+      "last_transition_at": "2026-10-30T14:18:14.706030+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "shell_pid": 374209,
+      "shell_pid_created_at": "1793366824.81"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "pi",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M66JSX4GXX3GEBE2Q8RVTJTC",
+      "last_transition_at": "2026-10-30T14:18:16.080192+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261030",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "shell_pid": 563737,
+      "shell_pid_created_at": "1793368943.53"
+    }
+  }
+}
