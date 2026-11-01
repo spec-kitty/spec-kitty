@@ -8,9 +8,9 @@
       "sc": null,
       "scope": null,
       "source_file": null,
-      "title": null,
+      "title": "The pre-review regression gate cannot run in this repo: empty derived scope falls back to full make test-fast, and the frontmatter pre_review_test_scope recovery is rejected by WPMetadata",
       "verdict": "not-applicable",
-      "wp": null
+      "wp": "WP01"
     },
     "#6994": {
       "evidence_ref": "#6994 shipped the scoped-leg gate selection (PR #6996); this mission only narrows the universe pre-step that #6994 left whole-part, so #6994 itself owes no further work.",
@@ -20,9 +20,9 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "Route every architectural gate whose scan scope a diff touches (PR #6996)",
       "verdict": "not-applicable",
-      "wp": null
+      "wp": "WP02"
     },
     "#6996": {
       "evidence_ref": "<auto-classified: no action required>",
@@ -32,21 +32,21 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<auto-classified: pr_or_commit_ref>",
+      "title": "PR: CI routing selects every architectural gate whose scan scope a PR touches",
       "verdict": "not-applicable",
-      "wp": null
+      "wp": "WP02"
     },
     "#7001": {
-      "evidence_ref": "<link or commit>",
-      "fr": null,
+      "evidence_ref": "PR #7037 (branch issue-7001-universe-prestep-scope): consumers --gates-file intersects the decision with the leg's selected gates; ci-router.yml passes the same step output the battery step reads; docs/development/reference/ci-gate-mechanics.md#what-a-scope-only-leg-skip",
+      "fr": "FR-001,FR-002,FR-003,FR-004,FR-006",
       "nfr": null,
       "repo": null,
-      "sc": null,
+      "sc": "SC-001,SC-002,SC-003",
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
-      "verdict": "in-mission",
-      "wp": null
+      "title": "Scoped heavy legs: intersect the universe pre-step with the selected gates file",
+      "verdict": "fixed",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
