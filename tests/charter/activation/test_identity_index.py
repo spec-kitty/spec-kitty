@@ -450,3 +450,139 @@ def test_stored_spelling_refuses_a_declared_id_whose_file_name_another_layer_use
         )
         assert excinfo.value.kind == "directive" and excinfo.value.artifact_id == "DIRECTIVE_024"
     assert index.stored_spelling(D, "024-locality-of-change") == "024-locality-of-change"  # the file name itself is a stem
+
+
+def test_file_name_collisions_reports_the_org_file_that_takes_a_built_in_file_name(project: Path) -> None:
+    """#6743: one file name, two layers, different declared ids is one collision record."""
+    org_file = project / "acme" / "directives" / "024-locality-of-change.directive.yaml"
+    _write(org_file.parent, D, "024-locality-of-change", "ACME_024")
+    built_in_scan = kind_vocabulary._built_in_scan_dir(D)
+    assert built_in_scan is not None
+    built_in_file = next(built_in_scan[0].rglob("024-locality-of-change.directive.yaml"))
+
+    index = IdentityIndex.build(project)
+    collisions = index.file_name_collisions(kinds=[D])
+
+    assert [c.file_name for c in collisions] == ["024-locality-of-change"]
+    collision = collisions[0]
+    assert collision.kind is D
+    assert [(layer, declared) for layer, declared, _path in collision.declarations] == [("org", "ACME_024"), ("built-in", "DIRECTIVE_024")]
+    assert [path for _layer, _declared, path in collision.declarations] == [org_file, built_in_file]
+    assert collision.sort_key == ("directive", "024-locality-of-change")
+
+
+def test_file_name_collisions_are_ordered_by_kind_then_file_name(project: Path) -> None:
+    """NFR-002: the record order is stable, so two runs on one tree are byte-identical."""
+    _write(project / "acme" / "directives", D, "024-locality-of-change", "ACME_024")
+    _write(project / "acme" / "tactics", T, "acceptance-test-first", "acme-atf")
+
+    collisions = IdentityIndex.build(project).file_name_collisions()
+
+    keys = [c.sort_key for c in collisions]
+    assert keys == sorted(keys)
+    assert ("directive", "024-locality-of-change") in keys
+    assert ("tactic", "acceptance-test-first") in keys
+
+
+def test_file_name_collisions_ignores_a_same_id_override_and_a_disjoint_pack(project: Path) -> None:
+    """FR-006 positive/negative control: only a *different* declared id is a collision."""
+    org_file = project / "acme" / "directives" / "024-locality-of-change.directive.yaml"
+    _write(org_file.parent, D, "024-locality-of-change", "DIRECTIVE_024")  # deliberate same-id override
+    assert IdentityIndex.build(project).file_name_collisions(kinds=[D]) == ()
+
+    _write(org_file.parent, D, "acme-024-local", "ACME_024")  # its own file name
+    assert IdentityIndex.build(project).file_name_collisions(kinds=[D]) == ()
+
+
+def test_file_name_collisions_does_not_rescan_the_index_it_reuses(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-001: the query reads the memoised tables; a second call re-walks nothing."""
+    _write(project / "acme" / "directives", D, "024-locality-of-change", "ACME_024")
+    index = IdentityIndex.build(project)
+    index.file_name_collisions(kinds=[D])  # first call builds the table (one scan)
+
+    def _fail(_kind: ArtifactKind) -> list:  # pragma: no cover - only runs on a regression
+        raise AssertionError("file_name_collisions re-scanned an already-built table")
+
+    monkeypatch.setattr(IdentityIndex, "_scan", _fail)
+    assert index.file_name_collisions(kinds=[D])[0].file_name == "024-locality-of-change"
+
+
+# --------------------------------------------------------------------------------------
+# The diagnostic and the writer refusal are one computation (#6743, FR-005)
+#
+# Decision ``file_name_collision``: a file name that files in more than one layer bind to
+# different declared ids is a pack-content error. The runtime refuses such an id in every
+# writer (#6527) and the authoring diagnostics report it before anyone hits that refusal.
+# Both read ``IdentityIndex``, so these tests pin that they name the same file, the same
+# layers and the same declared ids for one fixture.
+# --------------------------------------------------------------------------------------
+
+FILE_NAME = "024-locality-of-change"
+ORG_ID, BUILT_IN_ID = "ACME_024", "DIRECTIVE_024"
+_DIRECTIVE = 'schema_version: "1.0"\nid: {id}\ntitle: t\nintent: i\nenforcement: required\n'
+
+
+def _write_org_directive(project: Path, stem: str, declared: str) -> Path:
+    """Write one org-layer directive file and register the pack; return the file."""
+    path = project / "acme" / "directives" / f"{stem}.directive.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_DIRECTIVE.format(id=declared), encoding="utf-8")
+    config = {"charter_packs": {"org": {"packs": [{"name": "acme", "local_path": str(project / "acme")}]}}}
+    with (project / ".kittify" / "config.yaml").open("w") as stream:
+        YAML().dump(config, stream)
+    return path
+
+
+def _collision_project(tmp_path: Path) -> Path:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / ".kittify").mkdir()
+    return tmp_path
+
+
+def _built_in_directive_file() -> Path:
+    scan_dir = kind_vocabulary._built_in_scan_dir(D)
+    assert scan_dir is not None
+    return next(scan_dir[0].rglob(f"{FILE_NAME}.directive.yaml"))
+
+
+def test_diagnostic_declarations_equal_the_writer_refusal_declarations(tmp_path: Path) -> None:
+    """One fixture: the collision record and ``ActivationIdCollisionError`` describe the same files."""
+    project = _collision_project(tmp_path)
+    org_file = _write_org_directive(project, FILE_NAME, ORG_ID)
+    built_in_file = _built_in_directive_file()
+
+    index = IdentityIndex.build(project)
+    (collision,) = index.file_name_collisions(kinds=[D])
+
+    with pytest.raises(ActivationIdCollisionError) as excinfo:
+        index.stored_spelling(D, BUILT_IN_ID)
+
+    assert collision.file_name == excinfo.value.file_name == FILE_NAME
+    assert [(layer, declared) for layer, declared, _path in collision.declarations] == [("org", ORG_ID), ("built-in", BUILT_IN_ID)]
+    assert list(excinfo.value.declarations) == [(f"{layer} file {path}", declared) for layer, declared, path in collision.declarations]
+    assert [org_file, built_in_file] == [path for _layer, _declared, path in collision.declarations]
+
+
+def test_the_diagnostic_message_offers_the_renamable_file_and_names_both_ids(tmp_path: Path) -> None:
+    """FR-004: the message names the file name, the layers, both ids and what to rename."""
+    project = _collision_project(tmp_path)
+    org_file = _write_org_directive(project, FILE_NAME, ORG_ID)
+
+    (collision,) = IdentityIndex.build(project).file_name_collisions(kinds=[D])
+    message = collision.message()
+
+    assert FILE_NAME in message
+    assert ORG_ID in message and BUILT_IN_ID in message
+    assert "org file" in message and "built-in file" in message
+    assert f"Rename the org file {org_file}" in message, "a built-in file cannot be renamed, so the org file is named"
+
+
+def test_a_same_id_override_is_not_a_collision_and_is_not_refused(tmp_path: Path) -> None:
+    """The control: reusing a built-in file name *for the built-in id* stays legal (FR-006)."""
+    project = _collision_project(tmp_path)
+    _write_org_directive(project, FILE_NAME, BUILT_IN_ID)
+
+    index = IdentityIndex.build(project)
+
+    assert index.file_name_collisions(kinds=[D]) == ()
+    assert index.stored_spelling(D, BUILT_IN_ID) == FILE_NAME
