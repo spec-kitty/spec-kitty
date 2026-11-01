@@ -1,7 +1,7 @@
 # Discovery Research — #6234 `upgrade --dry-run` migration heading
 
 Mission: `upgrade-dry-run-would-apply-heading-01M6BV1G`
-Grounded on `main` @ `287a226cfe` (2026-11-01). Clone: `/home/exedev/work/sk-6234`.
+Grounded on `main` @ `287a226cfe` (2026-11-01).
 
 ## D1 — The issue still reproduces on current `main`, through the CLI
 
