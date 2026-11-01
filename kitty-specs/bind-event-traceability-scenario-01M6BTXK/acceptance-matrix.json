@@ -1,0 +1,99 @@
+{
+  "mission_slug": "bind-event-traceability-scenario-01M6BTXK",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/status/event-traceability.feature + acceptance-jvm steps; review-rounds.md",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:20.351631+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/status/event-traceability.feature + acceptance-jvm steps; review-rounds.md",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:24.642343+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/status/event-traceability.feature + acceptance-jvm steps; review-rounds.md",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:29.031098+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/status/event-traceability.feature + acceptance-jvm steps; review-rounds.md",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:32.686627+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/status/event-traceability.feature + acceptance-jvm steps; review-rounds.md",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:35.861817+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/status/event-traceability.feature + acceptance-jvm steps; review-rounds.md",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:39.182304+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/status/event-traceability.feature + acceptance-jvm steps; review-rounds.md",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:43.504048+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/status/event-traceability.feature + acceptance-jvm steps; review-rounds.md",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:46.917128+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "docs",
+      "pass_fail": "pass",
+      "verified_by": "operator",
+      "verified_at": "2026-11-01T17:45:55.081514+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
