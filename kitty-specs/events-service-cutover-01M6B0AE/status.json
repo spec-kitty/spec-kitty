@@ -1,7 +1,7 @@
 {
-  "event_count": 49,
-  "last_event_id": "01M6BCQ4P8HK20E67R7NDBE5DZ",
-  "materialized_at": "2026-11-01T11:08:06.216982+00:00",
+  "event_count": 51,
+  "last_event_id": "01M6BCRNWQGZN97JHQ4FETBCTC",
+  "materialized_at": "2026-11-01T11:08:56.596109+00:00",
   "mission_number": "",
   "mission_slug": "events-service-cutover-01M6B0AE",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -183,11 +183,20 @@
       }
     },
     "WP06": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude:opus:python-pedro:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M6B13WZ0PXYA2M0RYPRCZC4T",
-      "last_transition_at": "2026-11-01T07:45:21.376168+00:00"
+      "implementer_of_record": "claude:opus:python-pedro:implementer",
+      "lane": "in_progress",
+      "last_event_id": "01M6BCRNWQGZN97JHQ4FETBCTC",
+      "last_transition_at": "2026-11-01T11:08:56.596109+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 14960,
+      "shell_pid_created_at": "1793531331.05"
     },
     "WP07": {
       "actor": "finalize-tasks",
