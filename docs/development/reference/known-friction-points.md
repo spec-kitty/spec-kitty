@@ -2,7 +2,7 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-10-22'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -84,7 +84,9 @@ closed — so the "known reds" below are already a different set than a month ag
   [`NO_FULL_HEAVY_SUITES_IN_MISSION`](../../../packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml);
   CI owns the full sweep), and
   `PYTHONPATH=. python scripts/docs/check_docs_freshness.py --ci` for docs
-  changes before declaring a branch green.
+  changes before declaring a branch green (`errors=0`; its inventory and
+  index staleness findings are warnings, because the `ci/regen-docs-index` bot
+  regenerates those files after merge).
 - **An always-on `tests/architectural/test_lifted_*.py` gate re-runs an
   out-of-matrix suite's invariant, so share its code; never copy it.** The
   source suite runs only in the nightly and its lift runs on every PR, so a

@@ -2,7 +2,7 @@
 title: Development
 description: The contributor/maintainer zone for Spec Kitty — subdivided into getting-started, how-to runbooks, reference policy, and testing — kept separate from end-user guides.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-11-01'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/getting-started/index.md
@@ -56,7 +56,7 @@ introduced them.
   `version_leakage_check.py`, `_inventory.py`) reads it at this stable path.
   A regression guard (`tests/docs/test_inventory_path_stable.py`) asserts the
   path cannot silently move.
-- **`docs-retrieval-index.yaml`** — the docs retrieval index, regenerated
+- **`docs-retrieval-index.yaml`** — the docs retrieval index, generated
   by `scripts/docs/docs_index.py` (see below).
 
 ## Repo-owned workflow commands
@@ -64,32 +64,23 @@ introduced them.
 Two commands a mission session runs directly, not through a `spec-kitty` CLI
 subcommand — plus the regen command for generated agent copies:
 
-- **Freshen the docs-inventory rollups.** After adding or refrontmattering any
-  page under `docs/**`, regenerate both generated rollups and verify no drift
-  remains:
+- **Do not regenerate the docs-inventory rollups in a PR.** The page
+  inventory, the retrieval index and the ADR era table rows are regenerated on
+  `main` after merge by the `ci/regen-docs-index` bot pull request
+  (`.github/workflows/docs-index-regen.yml`). Editing them in a PR made every
+  docs PR conflict with every other one, and the `docs-lint` guard now refuses
+  it. After adding or refrontmattering a page, verify the tree only:
 
   ```bash
-  # inventory_lockfile.py: --write takes the OUTPUT PATH as its argument (not a bare flag)
-  PYTHONPATH=. .venv/bin/python scripts/docs/inventory_lockfile.py \
-    --write docs/development/page-inventory.yaml
-
-  # docs_index.py: --write IS a bare flag here (rewrites the default --index path in place)
-  PYTHONPATH=. .venv/bin/python scripts/docs/docs_index.py --write
-
-  PYTHONPATH=. .venv/bin/python scripts/docs/check_docs_freshness.py --ci   # must report errors=0; external-URL WARNINGS are fine
+  PYTHONPATH=. .venv/bin/python scripts/docs/check_docs_freshness.py --ci   # must report errors=0; staleness and external-URL WARNINGS are fine
   ```
 
-  The two `--write` flags are **not** the same shape — a bare `--write` on
-  `inventory_lockfile.py` is a usage error (it needs a path argument), while
-  passing a path to `docs_index.py --write` is rejected as an unexpected
-  positional. These are two separate generators for two sibling artifacts
-  that are never conflated with each other — `inventory_lockfile.py` only
-  regenerates the page inventory, `docs_index.py` only regenerates the
-  retrieval index. `check_docs_freshness --ci` fails closed with a blocking
-  `INVENTORY-LOCKFILE-DRIFT` / `DOCS-INDEX-DRIFT` finding if either rollup is
-  stale relative to frontmatter — see
-  [Known current friction points](reference/known-friction-points.md). Commit
-  both regenerated YAMLs alongside your doc edit.
+  `INVENTORY-LOCKFILE-DRIFT` / `DOCS-INDEX-DRIFT` are warnings on a branch,
+  and `spec-kitty docs query` lags by the pages that have not merged yet. The
+  per-PR content check is `tests/docs/test_docs_index_regenerates_cleanly.py`.
+  To read a fresh index locally, run
+  `PYTHONPATH=. .venv/bin/python scripts/docs/docs_index.py --write` and do not
+  commit the result.
 
 - **Mission wrap-up sequence.** The standing close-out procedure a mission
   runs between "all work packages approved" and "draft PR handed to the
