@@ -28,7 +28,8 @@ history:
   action: Authored via /spec-kitty.tasks
 agent_profile: python-pedro
 authoritative_surface: tests/docs/
-create_intent: []
+create_intent:
+- tests/docs/test_frontmatter_contract_corpus.py
 execution_mode: code_change
 model: ''
 owned_files:

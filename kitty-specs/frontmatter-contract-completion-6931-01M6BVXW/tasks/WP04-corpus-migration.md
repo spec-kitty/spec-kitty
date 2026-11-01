@@ -32,7 +32,9 @@ history:
   action: Authored via /spec-kitty.tasks
 agent_profile: python-pedro
 authoritative_surface: docs/
-create_intent: []
+create_intent:
+- docs/_meta/immutable-body-hashes.json
+- tests/docs/test_frontmatter_body_immutability.py
 execution_mode: code_change
 model: ''
 owned_files:
