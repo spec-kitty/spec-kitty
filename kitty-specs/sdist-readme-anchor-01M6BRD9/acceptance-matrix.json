@@ -1,0 +1,49 @@
+{
+  "mission_slug": "sdist-readme-anchor-01M6BRD9",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_packaging_safety.py::test_sdist_ships_no_docs_kitty_specs_or_site_member + ::test_sdist_config_anchors_the_root_documents_and_excludes_site (red 8e55142ad, green e2e296ef6); archive diff 0 added / 746 removed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T15:22:25.875406+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_packaging_safety.py::test_sdist_config_anchors_the_root_documents_and_excludes_site (red on base: site/** missing)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T15:22:30.002827+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_packaging_safety.py::test_sdist_ships_no_docs_kitty_specs_or_site_member + ::test_sdist_stray_tree_helper_flags_planted_members; red on base with 732 members",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T15:22:33.984041+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_packaging_safety.py::test_root_document_helper_flags_links_empty_and_missing_files + archive positive control; packs/built-in sha256-identical (505), src identical (1639), wheel members identical (2149)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T15:22:37.932707+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
