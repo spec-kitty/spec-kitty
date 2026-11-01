@@ -1,0 +1,11 @@
+# Tracer: approach
+
+One entry per finding: `YYYY-MM-DD · actor · <text>`.
+
+---
+
+2026-11-01 · claude · T001 red-first (recorded at mission base 287a226cfe, before any fix): a proven prose-only docstring-only diff of scripts/release/extract_changelog.py yields prose_only=True, matched_groups=['arch_scan_scope'], select_battery_gates returns the five declared scripts/** scanners (test_clock_call_ban, test_clock_import_ban, test_first_party_hosts_are_owned, test_no_deprecated_doctrine_command_in_guidance, test_no_retired_subsystems), yet the real architectural-heavy if: evaluates False under changes.arch_scan_scope=true + prose-scan.prose_only=true. The down-route drops every gate that declares the changed path.
+
+2026-11-01 · claude · T007 verification (WP01): pytest tests/ci/test_battery_scope.py tests/ci/test_ci_module_wiring.py tests/ci/test_ci_config_battery_routing.py tests/ci/test_prose_only.py tests/ci/test_skip_if_green_wiring.py = 192 passed; pytest tests/architectural/test_battery_scan_scope_routing.py test_ci_router_transcription_guards.py test_local_gate_parity.py test_gate_selection_authority.py test_ci_quality_path_filters.py test_battery_partition_proof.py test_module_shard_registry.py test_ci_collection_completeness.py test_workflow_coherence.py test_ci_integrity_oracle_nonvacuous.py = 378 passed; ruff check + format clean; mypy no issues; battery_scope CLI answers mode=full for no base and mode=scoped for a --prose-only true diff. Design correction folded during implementation: the battery if: reads prose-scan's new scan_scope_match output instead of a second needs.changes.outputs.arch_scan_scope reference, because the second reference made the #6994 planted control (drop the group OR term) pass vacuously.
+
+2026-11-01 · claude · WP02 verification: docs/changelog/unreleased/6999.changed.md (739 chars, 0 style errors), docs/development/reference/ci-gate-mechanics.md heavy-leg When column + prose-only paragraph updated; check_changelog_style 0 errors, check_spelling --pass unreleased 0 findings, check_docs_freshness --ci exit=0 errors=0 (21 pre-existing link-health warnings on unrelated pages), tests/architectural terminology/retired-vocabulary/stale-path gates 177 passed, tests/docs/test_docs_lint_guidance.py 13 passed. Issue matrix #6999 -> fixed (WP01); #4842/#6994/#6996/#7000 -> not-applicable context.
