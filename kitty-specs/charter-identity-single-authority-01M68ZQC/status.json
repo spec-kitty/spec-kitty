@@ -1,0 +1,121 @@
+{
+  "event_count": 24,
+  "last_event_id": "01M698SF3D7KF7XD1X6ZFKDVS1",
+  "materialized_at": "2026-10-31T15:20:59.245763+00:00",
+  "mission_number": "245",
+  "mission_slug": "charter-identity-single-authority-01M68ZQC",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "python-pedro",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6987YHFJCX96HXHTEN94VE9",
+      "last_transition_at": "2026-10-31T15:11:25.231426+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: implementation and its red-first tests committed",
+        "- 2026-10-31T14:23:11Z – python-pedro – shell_pid=123723 – Review round 1 (REJECT, 1 major / 2 minor / 2 nit). Fixed: (1) stem_for_declared_id now normalises a directive id like has_declared_id does, trying the verbatim id first so slug-named ids such as CHOSEN-POLICY still resolve -- resolve_config_id('directive:24') and resolve_selected_id_to_stem(DIRECTIVE,'24') now return the stem, pinned. (2) resolve_artifact_urn keeps its long-standing single refusal type for an unrepresentable directive id (UnknownArtifactIdError, not the subclass) because C-002 forbids changing the failure contract for this entry point; pinned with a type-identity assertion. (3) memoization-test seam counts a file once (the parse counts only reads that came without text). Nits recorded, no code change for the sanctioned PLC0415 local import.",
+        "Approved after one rejection round",
+        "Approved by independent reviewer; landing in the mission PR"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 123723,
+      "shell_pid_created_at": "1793450722.65",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "python-pedro",
+      "agent": "python-pedro",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M6988157D4HFWX2S56891PPQ",
+      "last_transition_at": "2026-10-31T15:11:27.911702+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Work committed in 702d12a (before the claim transition, because WP02 was blocked on WP01's approval); the pre-flight cannot see it as 'since claim'",
+        "- 2026-10-31T15:06:14Z – python-pedro – Review round 1 (info finding): test_one_index_serves_the_whole_active_set now asserts the command builds at least one index, so the equality cannot pass trivially.",
+        "Approved: one index per command; CLI acceptance tests non-vacuous; count test self-standing",
+        "Approved by independent reviewer; landing in the mission PR",
+        "- 2026-10-31T21:42:49Z – python-pedro – Post-merge review finding from CI: the architectural boundary gate (test_runtime_charter_activation_boundary) rejected a direct import of charter.activation.identity_index from specify_cli. Routed it through the sanctioned seam charter.activation.api (which re-exports IdentityIndex); gate, ruff, mypy and the CLI module re-run green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "pi",
+      "agent": "pi:glm-5.3:reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 7,
+      "lane": "done",
+      "last_event_id": "01M698SF3D7KF7XD1X6ZFKDVS1",
+      "last_transition_at": "2026-10-31T15:20:59.245763+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Committed in e5f4b950 and 42a9b55: the four-surface unknown-token policy module, the architecture note and the changelog entry",
+        "- 2026-10-31T15:06:12Z – python-pedro – Review round 1 (REJECT, 1 major / 1 minor / 1 info). Fixed: the compile row now runs the compile entry point (resolve_config_activated_roots on a ledger-seeded repo) with a known-token positive control instead of pinning the facade; the changelog claim is scoped to spellings and names the preserved directive refusal; the index-count test asserts at least one build so it cannot pass at 0==0.",
+        "Approved: independent reviewer pi/glm-5.3; the WP was force-moved to for_review by the implementer because it was blocked on the WP01 dependency, so the assignee field still says the implementer",
+        "Approved by independent reviewer; landing in the mission PR",
+        "Done with the reviewer identity recorded as the landing actor",
+        "Record the implementer of record: the WP was force-moved to review from planned, so no claim was ever logged",
+        "Implementation committed in e5f4b950 and 10e8c3f2: the policy module, the architecture note and the changelog entry",
+        "Independent review APPROVE (round 2): compile row runs the compile entry point with a positive control; changelog claim scoped to spellings",
+        "Landed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    }
+  }
+}

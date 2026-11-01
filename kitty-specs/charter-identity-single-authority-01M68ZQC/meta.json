@@ -1,0 +1,33 @@
+{
+  "accept_commit": "895958799c4ccd1bdd8aefc72356ada02fce09c1",
+  "acceptance_history": [
+    {
+      "accept_commit": "895958799c4ccd1bdd8aefc72356ada02fce09c1",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T15:22:00.651366+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "bddc7cb21bdab30bfc1f780da24591bf71b5830f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T15:22:00.651366+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "bddc7cb21bdab30bfc1f780da24591bf71b5830f",
+  "baseline_merge_commit": "83329734d6caa45008a9fc14c7d1857e3f59b579",
+  "created_at": "2026-10-31T12:42:34.349741+00:00",
+  "flattened": false,
+  "friendly_name": "charter identity single authority",
+  "merged_at": "2026-10-31T15:22:13.139938+00:00",
+  "merged_commit": "83329734d6caa45008a9fc14c7d1857e3f59b579",
+  "mid8": "01M68ZQC",
+  "mission_id": "01M68ZQCTBH0HQRABS3BGT44Z9",
+  "mission_number": 245,
+  "mission_slug": "charter-identity-single-authority-01M68ZQC",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances charter identity single authority on issue-6433-charter-identity-single-authority so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "charter identity single authority",
+  "slug": "charter-identity-single-authority-01M68ZQC",
+  "status_phase": "1",
+  "target_branch": "issue-6433-charter-identity-single-authority",
+  "topology": "single_branch"
+}
