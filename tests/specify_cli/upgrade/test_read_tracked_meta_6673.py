@@ -79,6 +79,21 @@ def test_committed_meta_is_read_back_after_the_working_tree_copy_is_deleted(tmp_
     assert (mission_dir / "meta.json").is_file()
     assert read_tracked_meta(mission_dir).meta == tracked.meta
 
+    # A staged edit is not what `git checkout --` or HEAD would give back: the reader refuses rather than
+    # write HEAD's bytes over it, and the notice's remedy keeps the edit.
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta
+
+    (mission_dir / "meta.json").write_text(json.dumps({**_META, "friendly_name": "staged edit"}) + "\n", encoding="utf-8")
+    _git(mission_dir, "add", "meta.json")
+    (mission_dir / "meta.json").unlink()
+    staged = read_tracked_meta(mission_dir)
+    assert (staged.meta, staged.unavailable, staged.staged_differs) == (None, True, True)
+    classified = classify_missing_tracked_meta(mission_dir, mission_dir.parent.parent)
+    assert classified is not None
+    assert classified.refuse is True
+    assert "staged edit" in classified.notice
+    assert "git restore --staged" in classified.notice
+
 
 def test_a_staged_only_meta_is_refused_as_index_only(tmp_path: Path) -> None:
     root = _repo(tmp_path)
