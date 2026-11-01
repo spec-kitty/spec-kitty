@@ -1,7 +1,7 @@
 {
-  "event_count": 11,
-  "last_event_id": "01M6BWCB5RTPZPTDRHYHR7ZSC6",
-  "materialized_at": "2026-11-01T15:41:49.624256+00:00",
+  "event_count": 12,
+  "last_event_id": "01M6BWM2C45P06637AHE48ZJ3D",
+  "materialized_at": "2026-11-01T15:46:02.756086+00:00",
   "mission_number": "",
   "mission_slug": "docsite-url-ledgers-01M6BRMR",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -52,23 +52,23 @@
       }
     },
     "WP02": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "for_review",
-      "last_event_id": "01M6BWCB5RTPZPTDRHYHR7ZSC6",
-      "last_transition_at": "2026-11-01T15:41:49.624256+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6BWM2C45P06637AHE48ZJ3D",
+      "last_transition_at": "2026-11-01T15:46:02.756086+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Defaults repointed to site/moves.yaml; defaults gate red->green; 183 targeted tests green"
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 25755,
-      "shell_pid_created_at": "1793546153.26",
+      "role": "reviewer",
+      "shell_pid": 11500,
+      "shell_pid_created_at": "1793547958.49",
       "subtasks": {
         "T007": "done",
         "T008": "done",
