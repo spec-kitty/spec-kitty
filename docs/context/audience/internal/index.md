@@ -4,12 +4,12 @@ description: Index of internal-audience personas — contributors and system/run
 doc_status: active
 updated: '2026-03-10'
 related:
-- docs/context/audience/internal/ai-collaboration-agent.md
-- docs/context/audience/internal/lead-developer.md
-- docs/context/audience/internal/maintainer.md
-- docs/context/audience/internal/project-codebase.md
-- docs/context/audience/internal/spec-kitty-cli-runtime.md
-- docs/context/audience/internal/system-architect.md
+- context/audience/internal/ai-collaboration-agent
+- context/audience/internal/lead-developer
+- context/audience/internal/maintainer
+- context/audience/internal/project-codebase
+- context/audience/internal/spec-kitty-cli-runtime
+- context/audience/internal/system-architect
 ---
 # Internal Audience Personas
 

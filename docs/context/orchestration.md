@@ -4,11 +4,11 @@ description: 'Glossary context for orchestration: lifecycle and runtime orchestr
 doc_status: active
 updated: '2026-10-07'
 related:
-- docs/context/charter.md
-- docs/context/identity.md
-- docs/context/system-events.md
-- docs/context/technology-foundations.md
-- docs/context/topology.md
+- context/charter
+- context/identity
+- context/system-events
+- context/technology-foundations
+- context/topology
 ---
 ## Context: Orchestration
 

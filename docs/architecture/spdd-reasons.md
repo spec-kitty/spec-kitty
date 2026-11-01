@@ -4,7 +4,9 @@ description: Optional set of Spec Kitty built-in artifacts that records change-i
 doc_status: active
 updated: '2026-10-08'
 type: explanation
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 ---
 # SPDD and the REASONS Canvas (opt-in artifact set)
 

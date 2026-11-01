@@ -3,11 +3,13 @@ title: Getting started (contributors)
 description: Entry points for people new to contributing to or maintaining Spec Kitty — a co-maintainer onboarding run and how to stand up isolated development checkouts.
 doc_status: active
 updated: '2026-08-10'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/development/index.md
-- docs/development/how-to/index.md
-- docs/development/testing/index.md
+- development
+- development/how-to
+- development/testing
 ---
 # Getting started (contributors)
 

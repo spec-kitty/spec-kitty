@@ -4,9 +4,9 @@ description: Reference for Spec Kitty event envelopes. Understand the 3.0.0 cont
 doc_status: active
 updated: '2026-06-09'
 related:
-- docs/migrations/feature-flag-deprecation.md
-- docs/migrations/mission-id-canonical-identity.md
-- docs/migrations/mission-type-flag-deprecation.md
+- migrations/feature-flag-deprecation
+- migrations/mission-id-canonical-identity
+- migrations/mission-type-flag-deprecation
 ---
 # Event Envelope Reference
 

@@ -2,6 +2,8 @@
 title: 'ADR: replace charter reads and writes through a staged Java service strangler'
 description: 'Define the staged transition from the Python charter implementation to a per-worktree Java read service and, later, Java write adapters.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-03'
 updated: '2026-10-22'
 ---

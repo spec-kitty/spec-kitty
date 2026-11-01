@@ -2,6 +2,8 @@
 title: 'ADR 4 (2026-04-08): Charter and Doctrine Are Not Init-Time Concerns'
 description: 'Strips the doctrine interview and default application out of init; a charter is authored afterwards via /spec-kitty.charter against an already-created project.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-08'
 ---
 

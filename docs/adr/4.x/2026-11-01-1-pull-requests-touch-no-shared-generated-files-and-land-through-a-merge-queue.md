@@ -2,6 +2,8 @@
 title: 'ADR: pull requests touch no shared generated file and land through a merge queue'
 description: 'Changelog entries become per-PR fragments, the docs index regenerates on main through a bot PR, and main merges through a GitHub merge queue.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-11-01'
 ---
 

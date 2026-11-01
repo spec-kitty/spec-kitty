@@ -3,6 +3,8 @@ title: Protected-branch configuration is a standalone boundary-resolved value,
   not a nested context sub-object
 description: 'Protected-branch configuration resolves once into a standalone value object with `is_protected(ref)`, because the `safe-commit` deadlock site holds no mission context.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-06-21'
 ---
 

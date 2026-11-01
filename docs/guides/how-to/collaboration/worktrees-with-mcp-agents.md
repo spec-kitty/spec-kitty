@@ -5,9 +5,11 @@ doc_status: active
 updated: '2026-06-12'
 type: how-to
 related:
-- docs/guides/how-to/missions/implement-work-package.md
-- docs/guides/how-to/collaboration/parallel-development.md
-audience: docs/context/audience/external/tech-lead-evaluator.md
+- guides/how-to/missions/implement-work-package
+- guides/how-to/collaboration/parallel-development
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 ---
 # How to Keep MCP Agents in the Worktree
 

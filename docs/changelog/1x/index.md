@@ -4,13 +4,13 @@ description: Historical Spec Kitty 1.x archive page for 1.x Documentation (Legac
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/context/index.md
-- docs/changelog/1x/artifacts-and-commands.md
-- docs/changelog/1x/branches-and-workspaces.md
-- docs/changelog/1x/orchestration-and-api.md
-- docs/changelog/1x/workflow.md
-- docs/index.md
-- docs/migrations/index.md
+- context
+- changelog/1x/artifacts-and-commands
+- changelog/1x/branches-and-workspaces
+- changelog/1x/orchestration-and-api
+- changelog/1x/workflow
+- ''
+- migrations
 ---
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 

@@ -2,6 +2,8 @@
 title: 'Install-agnostic pre-commit hook fallback + spec-kitty migrate repin-hooks'
 description: 'Pre-commit hook falls back to a PATH-resolved spec-kitty entrypoint when its pinned interpreter is gone, and a repair command re-pins already-broken repos.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-27'
 ---
 # Install-agnostic pre-commit hook fallback + `spec-kitty migrate repin-hooks`

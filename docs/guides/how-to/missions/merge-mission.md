@@ -3,14 +3,16 @@ title: How to Merge a Mission
 description: 'How to merge a mission with Spec Kitty 3.2: land approved work packages on the local target branch with spec-kitty consolidate, preview it, and choose cleanup.'
 doc_status: active
 updated: '2026-10-30'
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 type: how-to
 related:
-- docs/guides/how-to/missions/accept-and-merge.md
-- docs/guides/how-to/missions/keep-main-clean.md
-- docs/guides/how-to/missions/review-work-package.md
-- docs/guides/how-to/collaboration/run-an-autonomous-mission.md
-- docs/guides/how-to/governance/use-retrospective-learning.md
+- guides/how-to/missions/accept-and-merge
+- guides/how-to/missions/keep-main-clean
+- guides/how-to/missions/review-work-package
+- guides/how-to/collaboration/run-an-autonomous-mission
+- guides/how-to/governance/use-retrospective-learning
 ---
 # How to Merge a Mission
 

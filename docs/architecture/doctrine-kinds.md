@@ -4,13 +4,15 @@ description: What each doctrine artifact kind is for, with a real built-in examp
 doc_status: active
 updated: '2026-10-08'
 type: explanation
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/development/how-to/create-a-doctrine-artifact.md
-- docs/context/charter.md
-- docs/architecture/org-doctrine-layer.md
-- docs/guides/how-to/governance/setup-governance.md
-- docs/adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown.md
+- development/how-to/create-a-doctrine-artifact
+- context/charter
+- architecture/org-doctrine-layer
+- guides/how-to/governance/setup-governance
+- adr/3.x/2026-09-29-1-catalog-languages-states-and-reserved-unknown
 ---
 # Doctrine artifact kinds
 

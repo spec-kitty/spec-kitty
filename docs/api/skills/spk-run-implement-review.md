@@ -4,7 +4,7 @@ description: "Reference for the spk-run-implement-review skill: orchestrating th
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/skills/index.md
+- api/skills
 ---
 
 # spk-run-implement-review

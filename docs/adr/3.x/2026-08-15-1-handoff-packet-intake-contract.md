@@ -2,9 +2,11 @@
 title: 'ADR: Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract'
 description: 'Ratifies handoff-packet v1: an additive, version-gated frontmatter overlay that seeds spec-kitty intake with stable FR/AC ids from upstream tools, degrading to prose when absent.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-15'
 related:
-- docs/contracts/handoff-packet-v1.md
+- contracts/handoff-packet-v1
 ---
 
 # Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract

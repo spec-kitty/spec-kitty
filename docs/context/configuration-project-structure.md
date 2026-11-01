@@ -4,12 +4,12 @@ description: Glossary context defining where policy, runtime configuration, and 
 doc_status: active
 updated: '2026-10-08'
 related:
-- docs/context/charter.md
-- docs/context/execution.md
-- docs/context/governance.md
-- docs/context/identity.md
-- docs/context/orchestration.md
-- docs/context/system-events.md
+- context/charter
+- context/execution
+- context/governance
+- context/identity
+- context/orchestration
+- context/system-events
 ---
 ## Context: Configuration and Project Structure
 

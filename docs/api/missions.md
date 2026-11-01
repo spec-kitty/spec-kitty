@@ -4,7 +4,7 @@ description: Reference for Spec Kitty mission types (software-dev, research, doc
 doc_status: active
 updated: '2026-10-13'
 related:
-- docs/api/configuration.md
+- api/configuration
 ---
 # Mission Types Reference
 

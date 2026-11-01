@@ -2,13 +2,15 @@
 title: 'ADR: Executable doctrine runs only from trusted publishers (built-in trusted by position; TOFU for the rest)'
 description: 'Gate assets run only from trusted packs: built-in by install position; others via a user-home TOFU store keyed on a local executable-surface hash. Untrusted is BLOCKING.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-13'
 related:
-- docs/architecture/mission-gates.md
-- docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
-- docs/adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md
-- docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
-- docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md
+- architecture/mission-gates
+- adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts
+- adr/3.x/2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect
+- adr/3.x/2026-08-16-1-pack-metadata-manifest-unification
+- adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped
 ---
 # Executable doctrine runs only from trusted publishers
 

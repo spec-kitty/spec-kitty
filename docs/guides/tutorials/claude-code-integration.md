@@ -4,10 +4,12 @@ description: 'Tutorial for Claude Code + Spec Kitty Integration Guide in Spec Ki
 doc_status: active
 updated: '2026-08-11'
 type: tutorial
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/tutorials/getting-started.md
-- docs/guides/tutorials/claude-code-workflow.md
+- guides/tutorials/getting-started
+- guides/tutorials/claude-code-workflow
 ---
 # Claude Code + Spec Kitty Integration Guide
 

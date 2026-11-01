@@ -2,6 +2,8 @@
 title: '`surface` names two unrelated domains — split the vocabulary, rename to `ToolSurfaceKind` and `TopologySurface`'
 description: 'The overloaded word `surface` splits into two named types: `ToolSurfaceKind` for tool-facing artifacts and `TopologySurface` for the physical tree an artifact lives in.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-07-23'
 ---
 

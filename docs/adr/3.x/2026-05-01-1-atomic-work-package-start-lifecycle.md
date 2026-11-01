@@ -2,6 +2,8 @@
 title: Atomic Work Package Start Lifecycle
 description: 'Implementation start emits planned, claimed, and in_progress as one atomic event batch, so a crash mid-sequence can no longer strand a work package in claimed.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-05-01'
 ---
 

@@ -4,10 +4,12 @@ description: How to add, remove, and manage AI agents in a spec-kitty project af
 doc_status: active
 updated: '2026-10-21'
 type: how-to
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- docs/guides/how-to/installation/install-and-upgrade.md
-- docs/guides/how-to/installation/install-spec-kitty.md
+- guides/how-to/installation/install-and-upgrade
+- guides/how-to/installation/install-spec-kitty
 ---
 # Managing AI Agents
 

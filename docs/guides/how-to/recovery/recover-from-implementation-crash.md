@@ -4,9 +4,11 @@ description: 'How to recover from an implementation crash with Spec Kitty 3.2: L
 doc_status: active
 updated: '2026-09-30'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/recovery/recover-from-interrupted-merge.md
+- guides/how-to/recovery/recover-from-interrupted-merge
 ---
 # Recover from an Implementation Crash
 

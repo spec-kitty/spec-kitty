@@ -2,6 +2,8 @@
 title: 'ADR: Plan Concerns To Work Package Traceability'
 description: 'Plans carry `IC-##` Implementation Concerns, and `wps.yaml` alone records the many-to-many concern-to-work-package mapping — never work-package prompt frontmatter.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-06-06'
 ---
 

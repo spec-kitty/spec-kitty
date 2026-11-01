@@ -2,6 +2,8 @@
 title: 'ADR: Retrospective Gate as Shared Module'
 description: 'One shared completion-gate function owns retrospective enforcement, so the runtime hook and status-transition surfaces cannot drift into rival implementations.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-27'
 ---
 

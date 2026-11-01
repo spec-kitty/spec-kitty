@@ -2,6 +2,8 @@
 title: 'ADR: charter.yaml is the authoritative structured source; charter.md is a curated companion; retire the prose→triad extractor'
 description: '`charter.yaml` becomes the authoritative structured charter owning activation state, `charter.md` becomes a curated companion, and the prose-to-triad extractor retires.'
 status: Proposed
+doc_status: active
+kind: ADR
 date: '2026-07-18'
 ---
 

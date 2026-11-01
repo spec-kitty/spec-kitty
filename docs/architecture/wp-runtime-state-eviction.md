@@ -3,12 +3,14 @@ title: WP Runtime-State Eviction — Architecture Design
 description: 'Architecture design for evicting runtime-mutable state from tasks/WP##.md into the append-only event log via a non-transition annotation event class; ADR 2026-07-16-1.'
 doc_status: proposal
 updated: '2026-10-05'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md
-- docs/architecture/status-model.md
-- docs/architecture/execution-lanes.md
-- docs/architecture/runtime-loop.md
+- adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction
+- architecture/status-model
+- architecture/execution-lanes
+- architecture/runtime-loop
 ---
 # WP Runtime-State Eviction — Architecture Design
 

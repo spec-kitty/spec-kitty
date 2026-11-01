@@ -4,7 +4,9 @@ description: Give agency clients read-only visibility into Spec Kitty mission pr
 doc_status: active
 updated: '2026-08-10'
 type: how-to
-audience: docs/context/audience/external/product-manager-evaluator.md
+audience:
+- profile: external/product-manager-evaluator
+  guidance_text: Written for the External Product Manager Evaluator reader.
 ---
 
 # Agency Client Transparency Workflow

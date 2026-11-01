@@ -4,10 +4,12 @@ description: 'How to install and upgrade spec kitty with Spec Kitty 3.2: Spec Ki
 doc_status: active
 updated: '2026-08-16'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/installation/non-interactive-init.md
-- docs/adr/3.x/2026-08-16-4-rc-release-channel.md
+- guides/how-to/installation/non-interactive-init
+- adr/3.x/2026-08-16-4-rc-release-channel
 ---
 # How to Install and Upgrade Spec Kitty
 

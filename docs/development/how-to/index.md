@@ -3,11 +3,13 @@ title: How-to (contributor & maintainer tasks)
 description: Task-oriented runbooks for contributors and maintainers — landing PRs, review gates, overrides, the issue tracker, contract pinning, and authoring doctrine and pack skills.
 doc_status: active
 updated: '2026-10-04'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/development/index.md
-- docs/development/getting-started/index.md
-- docs/development/reference/index.md
+- development
+- development/getting-started
+- development/reference
 ---
 # How-to (contributor & maintainer tasks)
 

@@ -4,9 +4,9 @@ description: 'AI harness and external-system integration for Spec Kitty. This fo
 doc_status: active
 updated: '2026-06-27'
 related:
-- docs/api/index.md
-- docs/guides/index.md
-- docs/index.md
+- api
+- guides
+- ''
 ---
 # Integrations
 

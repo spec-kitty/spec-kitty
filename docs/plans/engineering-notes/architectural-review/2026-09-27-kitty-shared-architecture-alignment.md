@@ -5,20 +5,25 @@ doc_status: point_in_time
 type: explanation
 updated: '2026-09-27'
 audience:
-- docs/context/audience/internal/system-architect.md
-- docs/context/audience/internal/maintainer.md
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/engineering-notes/architectural-review/README.md
-- docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md
-- docs/context/team-kitty.md
-- docs/context/glossary-conventions.md
-- docs/architecture/diagrams/01_context/README.md
-- docs/architecture/diagrams/02_containers/README.md
-- docs/architecture/launch-readiness-future.md
-- docs/adr/3.x/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md
-- docs/adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md
-- docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md
-- docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
+- context/team-kitty
+- context/glossary-conventions
+- architecture/diagrams/01_context
+- architecture/diagrams/02_containers
+- architecture/launch-readiness-future
+- adr/3.x/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix
+- adr/3.x/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage
+- adr/3.x/2026-04-26-1-contract-pinning-resolved-version
+- adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/engineering-notes/architectural-review/README.md
+  title: Engineering notes — Architectural reviews
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md
+  title: Architectural deep-dive — 2026-05-25
 ---
 # Engine-side alignment review against the Kitty Shared Architecture — 2026-09-27
 

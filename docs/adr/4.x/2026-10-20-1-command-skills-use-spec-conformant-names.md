@@ -2,6 +2,8 @@
 title: 'ADR: command skills use spec-conformant spec-kitty-<command> names, and Antigravity gets its commands as skills'
 description: 'Command skills are renamed spec-kitty-<command> by one naming authority, Antigravity becomes a command-skill agent, and the home writer is scoped to configured agents.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-20'
 updated: '2026-10-21'
 ---

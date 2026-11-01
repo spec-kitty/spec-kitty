@@ -4,9 +4,11 @@ description: "Recovery when a mission's meta.json declares coordination_branch b
 doc_status: active
 updated: '2026-08-15'
 related:
-- docs/operations/recovery-index.md
-- docs/operations/stale-lane-seed.md
-- docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
+- operations/recovery-index
+- operations/stale-lane-seed
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
+  title: 'Coord-branch bookkeeping: read/write split-brain root-cause'
 ---
 
 # Recovery: Coordination Branch Declared but Worktree Missing

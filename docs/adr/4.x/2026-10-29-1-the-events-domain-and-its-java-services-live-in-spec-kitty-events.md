@@ -2,6 +2,8 @@
 title: 'ADR: the events domain and its Java services live in spec-kitty-events; core consumes a released, pinned service'
 description: 'The Java event services and contracts move to spec-kitty-events; core pins a service-v* release by tag and sha256, fetches it on first use, and fails closed.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-29'
 ---
 

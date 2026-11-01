@@ -2,6 +2,8 @@
 title: 'ADR: pack skills — share and co-maintain agent commands through charter packs'
 description: 'Accepted: a charter-activatable `skill` doctrine kind so teams share and co-maintain agent commands through pack tiers, not private per-user copies.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-09-27'
 ---
 

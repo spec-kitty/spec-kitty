@@ -3,7 +3,9 @@ title: Zeitgeist publisher and lease identity
 type: explanation
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 description: How logical agents, SaaS leases, and relay session references relate.
 ---
 

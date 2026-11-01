@@ -4,9 +4,9 @@ description: "Glossary context for the glossary's own data model: how terms are 
 doc_status: active
 updated: '2026-03-10'
 related:
-- docs/context/execution.md
-- docs/context/identity.md
-- docs/context/system-events.md
+- context/execution
+- context/identity
+- context/system-events
 ---
 ## Context: Lexical
 

@@ -3,14 +3,22 @@ title: 'Spec Kitty Architecture: User Journeys'
 description: 'Landing page for the Spec Kitty architecture user journeys: end-to-end narratives that drive the evolution and refinement of the system.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
-related:
-- docs/archive/plans/user_journey/001-project-onboarding-bootstrap.md
-- docs/archive/plans/user_journey/002-system-architecture-design.md
-- docs/archive/plans/user_journey/003-system-design-and-shared-understanding.md
-- docs/archive/plans/user_journey/004-curating-external-practice-into-governance.md
-- docs/archive/plans/user_journey/005-governance-mission-charter-operations.md
-- docs/archive/plans/user_journey/evaluation.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/001-project-onboarding-bootstrap.md
+  title: 'User Journey: Project Onboarding & Bootstrap'
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/002-system-architecture-design.md
+  title: 'User Journey: System Architecture Design'
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/003-system-design-and-shared-understanding.md
+  title: 'User Journey: System Design & Shared Understanding'
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/004-curating-external-practice-into-governance.md
+  title: 'User Journey: Curating External Practice into Governance'
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/005-governance-mission-charter-operations.md
+  title: 'User Journey: Governance Mission Creation and Charter Operations'
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/user_journey/evaluation.md
+  title: 2.x User Journey Evaluation
 ---
 # Spec Kitty Architecture: User Journeys
 

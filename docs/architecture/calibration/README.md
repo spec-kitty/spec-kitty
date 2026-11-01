@@ -3,12 +3,14 @@ title: Calibration Report Template
 description: Template for per-mission-type calibration reports that check, for every mission step, that DRG context resolution returns what the step needs and nothing irrelevant.
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/architecture/calibration/documentation.md
-- docs/architecture/calibration/erp-custom.md
-- docs/architecture/calibration/research.md
-- docs/architecture/calibration/software-dev.md
+- architecture/calibration/documentation
+- architecture/calibration/erp-custom
+- architecture/calibration/research
+- architecture/calibration/software-dev
 ---
 # Calibration Report Template
 

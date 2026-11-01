@@ -3,16 +3,18 @@ title: Create a doctrine artifact
 description: A concrete, followable walkthrough for authoring a new doctrine artifact end to end — file location, schema, activation, and the loose-contract asset kind.
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: how-to
 related:
-- docs/development/how-to/create-a-pack-skill.md
-- docs/architecture/doctrine-kinds.md
-- docs/architecture/doctrine-relationships.md
-- docs/context/charter.md
-- docs/guides/how-to/governance/synthesize-doctrine.md
-- docs/guides/how-to/governance/setup-governance.md
-- docs/development/how-to/review-gates.md
+- development/how-to/create-a-pack-skill
+- architecture/doctrine-kinds
+- architecture/doctrine-relationships
+- context/charter
+- guides/how-to/governance/synthesize-doctrine
+- guides/how-to/governance/setup-governance
+- development/how-to/review-gates
 ---
 # Create a doctrine artifact
 

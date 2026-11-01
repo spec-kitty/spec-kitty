@@ -2,6 +2,8 @@
 title: 'ADR: the applied-migration ledger is an explicit, two-partition record that is the execution authority for what has run'
 description: 'An explicit two-partition migration ledger replaces metadata.yaml and the version window as the authority for what has run; selection becomes ledger-diff.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-17'
 updated: '2026-10-30'
 ---

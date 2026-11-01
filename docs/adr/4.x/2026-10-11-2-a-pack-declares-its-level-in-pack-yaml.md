@@ -2,11 +2,13 @@
 title: 'ADR: a Charter Pack declares its level in pack.yaml'
 description: 'Every Charter Pack declares its level (built-in, org or project) in pack.yaml; loading refuses a pack whose declared level disagrees with where it is configured.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-11'
 related:
-- docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
-- docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
-- docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
+- adr/3.x/2026-08-16-1-pack-metadata-manifest-unification
+- adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine
+- adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics
 ---
 
 **Status:** Accepted

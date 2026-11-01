@@ -2,6 +2,8 @@
 title: 'ADR 7 (2026-04-08): Preferred Agent Roles Removed as Unused Concept'
 description: 'Deletes the never-called preferred implementer and reviewer selection API, and migrates the orphaned selection block out of existing config.yaml files.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-08'
 ---
 

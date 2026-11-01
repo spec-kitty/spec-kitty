@@ -2,12 +2,14 @@
 title: 'ADR: Open-packs Is the Source of Truth for Built-in Doctrine; Core Pins and Fetches It (amended)'
 description: 'Built-in doctrine is authored in spec-kitty-open-packs; core pins it by commit and fetches the verified tree, so consumers see no change (amended 2026-10-19; was a CI re-vendor).'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-16'
 related:
-- docs/adr/3.x/2026-04-25-1-shared-package-boundary.md
-- docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
-- docs/adr/3.x/2026-08-16-1-pack-metadata-manifest-unification.md
-- docs/adr/3.x/2026-05-24-3-shipped-to-built-in-cutover.md
+- adr/3.x/2026-04-25-1-shared-package-boundary
+- adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics
+- adr/3.x/2026-08-16-1-pack-metadata-manifest-unification
+- adr/3.x/2026-05-24-3-shipped-to-built-in-cutover
 ---
 
 # Open-packs Is the Source of Truth for Built-in Doctrine; Core Pins and Fetches It

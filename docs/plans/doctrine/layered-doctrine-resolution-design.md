@@ -3,7 +3,9 @@ title: Layered Doctrine Resolution — Design Blueprint
 description: 'Design blueprint (approved 2026-05-15) for layered doctrine resolution across issues #832/#883/#1013: how doctrine layers compose and resolve.'
 doc_status: durable
 updated: '2026-09-30'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 # Layered Doctrine Resolution — Design Blueprint
 

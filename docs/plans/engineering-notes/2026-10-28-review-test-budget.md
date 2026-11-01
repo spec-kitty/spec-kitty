@@ -3,9 +3,11 @@ title: Review test budget repair
 description: Implementation decisions, validation evidence and remaining release obligations for the review test budget repair.
 doc_status: point_in_time
 updated: '2026-10-28'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/configuration/review-test-budget.md
+- configuration/review-test-budget
 ---
 # Review test budget repair
 

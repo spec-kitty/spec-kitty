@@ -2,6 +2,8 @@
 title: Retrospective Default-on Policy Architecture
 description: 'Retrospective generation becomes a deterministic pure-Python module on by default at mission boundaries, because agent invocation is too slow and irreproducible.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-05-19'
 ---
 

@@ -2,6 +2,8 @@
 title: 'ADR: Stale-Lane Auto-Rebase Classifier Policy'
 description: 'Auto-rebase may resolve a stale lane only through a closed list of file-and-conflict-shape rules; anything unmatched falls back to manual handling and halts.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-05-14'
 ---
 

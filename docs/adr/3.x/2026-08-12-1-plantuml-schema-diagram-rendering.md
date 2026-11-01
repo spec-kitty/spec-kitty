@@ -2,6 +2,8 @@
 title: 'ADR: Local, No-Egress PlantUML Rendering for Code-Grounded Doctrine Schema Diagrams — a New Genre Beside the Hand-Authored C4 Lane'
 description: 'Why doctrine schema diagrams render locally at build time from a pinned, network-isolated PlantUML — a genre distinct from C4 progressive-zoom, carving R-04 accordingly.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-12'
 updated: '2026-08-12'
 type: explanation

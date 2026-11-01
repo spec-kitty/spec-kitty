@@ -2,6 +2,8 @@
 title: 'ADR: at done, every issue-matrix row is judged, cited or not'
 description: 'At done the verdict decides resolution for every issue-matrix row; a present matrix is judged whole even with zero gating references, and a missing one is nothing to enforce.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-26'
 ---
 

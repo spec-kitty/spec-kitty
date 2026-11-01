@@ -4,8 +4,8 @@ description: Reference for Spec Kitty file and directory structure. Learn the ro
 doc_status: active
 updated: '2026-06-09'
 related:
-- docs/api/configuration.md
-- docs/api/supported-agents.md
+- api/configuration
+- api/supported-agents
 ---
 # File Structure Reference
 

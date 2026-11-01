@@ -2,6 +2,8 @@
 title: 'ADR: No Legacy-Compat Branches in Resolvers — Require Canonical Identity, Migrate Legacy'
 description: 'Resolvers never grow a legacy branch to rescue degraded input: make the field nullable or migrate the data, and fix stale fixtures instead of the product.'
 status: Proposed
+doc_status: active
+kind: ADR
 date: '2026-07-01'
 ---
 

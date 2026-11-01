@@ -3,6 +3,8 @@ title: 'ADR: Pack Augmentation Vocabulary — `overrides` and `enhances` as Decl
   Fields'
 description: 'Adds mutually exclusive overrides and enhances fields to five doctrine artifact kinds, making full replacement versus field-level augmentation a declared intent.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-05-24'
 ---
 

@@ -2,6 +2,8 @@
 title: 'ADR: MissionResolver Port — One Walk Trunk, Shell-Side DI, No Shared Container'
 description: 'One `MissionResolver` Protocol in `mission_runtime` with adapters injected shell-side and a token-keyed AST allowlist — no second Protocol and no shared container.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-07-08'
 ---
 

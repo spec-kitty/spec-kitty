@@ -2,6 +2,8 @@
 title: 'ADR: A project path_conventions override precedes the doctrine default, without changing the blocking policy'
 description: 'A project path_conventions override remaps resolved accept directories ahead of the mission-type doctrine default, leaving the #3783 blocking policy unchanged.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-28'
 ---
 

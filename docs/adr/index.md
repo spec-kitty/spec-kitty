@@ -4,12 +4,12 @@ description: 'Architecture Decision Records for Spec Kitty, organized by release
 doc_status: active
 updated: '2026-11-01'
 related:
-- docs/adr/1.x/index.md
-- docs/adr/2.x/index.md
-- docs/adr/3.x/index.md
-- docs/adr/4.x/index.md
-- docs/architecture/index.md
-- docs/index.md
+- adr/1.x
+- adr/2.x
+- adr/3.x
+- adr/4.x
+- architecture
+- ''
 ---
 # Architecture Decision Records
 

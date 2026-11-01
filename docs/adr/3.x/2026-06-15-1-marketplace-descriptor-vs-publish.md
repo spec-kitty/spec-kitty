@@ -3,6 +3,8 @@ title: 'ADR 2026-06-15-1: C-006 Amendment — Declarative `marketplace.json` Des
   vs. Marketplace Publish'
 description: 'Narrows constraint C-006 to prohibit install and publish actions only, permitting an inert `marketplace.json` descriptor and dropping the bare `marketplace` guard token.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-06-15'
 ---
 

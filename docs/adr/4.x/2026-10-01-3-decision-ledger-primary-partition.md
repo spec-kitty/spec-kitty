@@ -2,6 +2,8 @@
 title: 'ADR: the decision ledger is a PRIMARY-partition kind (reverses the #3928 COORD intent)'
 description: 'DECISION_LEDGER is classified PRIMARY for every topology; decision events stay COORD; the index gets a union merge driver and a doctor repair.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-01'
 updated: '2026-10-02'
 ---

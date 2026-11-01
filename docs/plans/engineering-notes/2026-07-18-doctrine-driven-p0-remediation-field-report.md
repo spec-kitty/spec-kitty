@@ -3,12 +3,16 @@ title: 'Field report: a doctrine-driven P0 remediation, end to end'
 description: 'Field report: remediating the merge-core P0 pair #2709/#2711 under Spec Kitty''s own doctrine — process, operator decisions, and doctrine effects.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/development/how-to/manage-issue-tracker.md
-- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
-- docs/development/how-to/pr-landing.md
-- .kittify/charter/charter.md
+- development/how-to/manage-issue-tracker
+- adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority
+- development/how-to/pr-landing
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/.kittify/charter/charter.md
+  title: .kittify/charter/charter.md
 ---
 
 # Field report: a doctrine-driven P0 remediation, end to end

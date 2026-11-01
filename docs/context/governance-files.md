@@ -4,8 +4,8 @@ description: Authoritative reference for every file under .kittify/charter/ — 
 doc_status: active
 updated: '2026-10-08'
 related:
-- docs/context/charter-overview.md
-- docs/architecture/charter-pack-usage-journey.md
+- context/charter-overview
+- architecture/charter-pack-usage-journey
 ---
 # Governance Files Reference
 

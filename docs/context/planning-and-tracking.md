@@ -4,9 +4,9 @@ description: 'Glossary context for planning and tracking: how work is organized,
 doc_status: active
 updated: '2026-09-30'
 related:
-- docs/context/execution.md
-- docs/context/orchestration.md
-- docs/context/system-events.md
+- context/execution
+- context/orchestration
+- context/system-events
 ---
 ## Context: Planning & Tracking
 

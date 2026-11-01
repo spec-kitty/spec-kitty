@@ -4,9 +4,11 @@ description: Use spec-kitty-orchestrator with spec-kitty orchestrator-api to aut
 doc_status: active
 updated: '2026-06-03'
 type: how-to
-audience: docs/context/audience/external/architect-evaluator.md
+audience:
+- profile: external/architect-evaluator
+  guidance_text: Written for the External Architect Evaluator reader.
 related:
-- docs/guides/how-to/collaboration/build-custom-orchestrator.md
+- guides/how-to/collaboration/build-custom-orchestrator
 ---
 # Run the External Orchestrator
 

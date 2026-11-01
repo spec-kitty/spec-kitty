@@ -2,6 +2,8 @@
 title: 'ADR: gate bindings reuse `mission_step_contract` — the content-vs-relationship principle'
 description: 'Gate bindings reuse `mission_step_contract` instead of earning a kind: promote only distributable content artefacts, attach relationships and configuration to existing ones.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-07-22'
 ---
 

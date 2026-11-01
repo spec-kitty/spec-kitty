@@ -4,7 +4,7 @@ description: 'Glossary context for technology foundations: general technology te
 doc_status: active
 updated: '2026-03-10'
 related:
-- docs/context/dossier.md
+- context/dossier
 ---
 ## Context: Technology Foundations
 

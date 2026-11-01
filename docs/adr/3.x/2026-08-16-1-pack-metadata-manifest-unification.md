@@ -2,10 +2,12 @@
 title: 'ADR: Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage'
 description: 'Unifies the two divergent pack manifests (counts vs enumerated) onto one canonical pack-manifest schema for every pack type, splitting authored lineage from generated constituents.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-16'
 related:
-- docs/plans/investigations/2026-08-pack-level-metadata-manifest.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
+- plans/investigations/2026-08-pack-level-metadata-manifest
+- plans/domains/doctrine-charter-domain-plan
 ---
 
 # Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage

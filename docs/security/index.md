@@ -4,8 +4,8 @@ description: 'Security posture for Spec Kitty: credential handling, secrets, and
 doc_status: active
 updated: '2026-06-27'
 related:
-- docs/configuration/index.md
-- docs/index.md
+- configuration
+- ''
 ---
 # Security
 

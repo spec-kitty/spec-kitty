@@ -4,10 +4,12 @@ description: 'How to diagnose installation problems with Spec Kitty 3.2: When Sp
 doc_status: active
 updated: '2026-06-14'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/installation/install-spec-kitty.md
-- docs/guides/how-to/collaboration/manage-agents.md
+- guides/how-to/installation/install-spec-kitty
+- guides/how-to/collaboration/manage-agents
 ---
 # Diagnose Installation Problems
 

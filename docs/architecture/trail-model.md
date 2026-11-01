@@ -4,9 +4,11 @@ description: 'Operator reference for the Phase 4 trail model: how every standalo
 doc_status: active
 updated: '2026-10-18'
 type: explanation
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/architecture/host-surface-parity.md
+- architecture/host-surface-parity
 ---
 # Trail Model
 

@@ -4,8 +4,8 @@ description: Tool-agnostic optional YAML-frontmatter contract for seeding a Spec
 doc_status: durable
 updated: '2026-08-13'
 related:
-- docs/api/agent-plan-artifacts.md
-- docs/contracts/index.md
+- api/agent-plan-artifacts
+- contracts
 ---
 # Handoff Packet v1
 

@@ -2,6 +2,8 @@
 title: 'ADR: dead-symbol allowlist identity is (module, name)'
 description: 'Accepted: dead-symbol allowlist entries are keyed (module, name) in a schema-checked YAML file; body hashes are computed at runtime only and never persisted.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-01'
 updated: '2026-10-01'
 ---

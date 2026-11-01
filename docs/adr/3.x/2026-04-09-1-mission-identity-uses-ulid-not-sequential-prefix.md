@@ -2,6 +2,8 @@
 title: 'ADR 1 (2026-04-09): Mission Identity Uses ULID, Not Sequential Prefix'
 description: 'Missions get a creation-time ULID as canonical machine identity; the sequential number becomes display metadata no selector or state file may resolve by.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-09'
 ---
 

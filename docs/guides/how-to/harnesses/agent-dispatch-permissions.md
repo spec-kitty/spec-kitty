@@ -4,9 +4,11 @@ description: 'Spec Kitty dispatches implementer and reviewer agents with their s
 doc_status: active
 updated: '2026-10-21'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/harnesses/index.md
+- guides/how-to/harnesses
 ---
 # Set Agent Dispatch Permissions
 

@@ -3,14 +3,16 @@ title: 'Packs Extraction — Domain Plan'
 description: 'Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics.'
 doc_status: durable
 updated: '2026-10-19'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/index.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/domains/api-dashboard-domain-plan.md
-- docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md
-- docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
-- docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
+- plans
+- plans/domains/doctrine-charter-domain-plan
+- plans/domains/api-dashboard-domain-plan
+- adr/3.x/2026-08-02-1-charter-wheel-assessment
+- adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine
+- adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics
 ---
 
 # Packs Extraction — Domain Plan

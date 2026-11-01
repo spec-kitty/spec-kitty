@@ -3,11 +3,15 @@ title: Profile-Load Reliability (Squads & WP Prompts)
 description: 'Why adversarial and research squads stopped loading charter agent profiles, and the stabilization design: resolve-then-inject, fail-loud dispatch, and /spk-load-profile.'
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/architecture/governed-profile-invocation.md
-- docs/architecture/multi-agent-orchestration.md
-- docs/architecture/charter-backend-service-future.md
+- architecture/governed-profile-invocation
+- architecture/multi-agent-orchestration
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/architecture/charter-backend-service-future.md
+  title: Charter Backend Service (Future — Backlog)
 ---
 # Profile-Load Reliability (Squads & WP Prompts)
 

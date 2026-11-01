@@ -4,9 +4,9 @@ description: 'Topology glossary: the four topologies, write checkout, repo-root 
 doc_status: active
 updated: '2026-10-16'
 related:
-- docs/context/orchestration.md
-- docs/context/execution.md
-- docs/architecture/execution-lanes.md
+- context/orchestration
+- context/execution
+- architecture/execution-lanes
 ---
 ## Context: Topology
 

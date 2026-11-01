@@ -2,6 +2,8 @@
 title: 'ADR: Auto-Merge Gates on the Terminal CI Aggregators — main Required Status Checks'
 description: 'main now requires the router and CI Modules terminal gates as status checks, plus repo auto-merge, so GitHub auto-merge waits for real green instead of merging on one fast check.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-09-23'
 updated: '2026-11-01'
 ---

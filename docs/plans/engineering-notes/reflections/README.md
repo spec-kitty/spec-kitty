@@ -3,9 +3,11 @@ title: Engineering notes — Reflections
 description: 'Landing page for the reflections engineering notes: quick dated notes on process inaccuracies and ad-hoc findings, not architectural decisions or doctrine.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/engineering-notes/reflections/2026-05-24-drg-profile-routing-missed-first-pass.md
+- plans/engineering-notes/reflections/2026-05-24-drg-profile-routing-missed-first-pass
 ---
 # Engineering notes — Reflections
 

@@ -4,7 +4,7 @@ description: Terminology reference for Spec Kitty. Clear vocabulary definitions 
 doc_status: active
 updated: '2026-06-13'
 related:
-- docs/migrations/mission-id-canonical-identity.md
+- migrations/mission-id-canonical-identity
 ---
 # Terminology Reference
 

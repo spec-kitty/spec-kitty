@@ -4,13 +4,13 @@ description: 'Durable configuration and toolchain references for Spec Kitty: lib
 doc_status: active
 updated: '2026-06-27'
 related:
-- docs/configuration/linting-cutoff-policy.md
-- docs/configuration/pack-yaml.md
-- docs/configuration/yaml-libraries.md
-- docs/guides/index.md
-- docs/index.md
-- docs/operations/index.md
-- docs/plans/index.md
+- configuration/linting-cutoff-policy
+- configuration/pack-yaml
+- configuration/yaml-libraries
+- guides
+- ''
+- operations
+- plans
 ---
 # Configuration
 

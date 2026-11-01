@@ -3,10 +3,12 @@ title: 'Comprehensive Manual Test Plan'
 description: 'Full-ecosystem manual verification plan for Spec Kitty Beta/GA readiness: SaaS staging, CLI, tracker connectors, and webhook integrations across all repositories.'
 doc_status: active
 type: reference
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 updated: '2026-08-10'
 related:
-- docs/operations/index.md
+- operations
 ---
 # Spec Kitty: Comprehensive Manual Test Plan
 

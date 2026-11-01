@@ -2,6 +2,8 @@
 title: 'ADR: org packs ship their own built-in override sanction'
 description: 'An org pack lists the built-ins it replaces in a pack-root replaceable-builtins.yaml; doctor doctrine honours it for that pack only, and the consumer can revoke it.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-05'
 updated: '2026-10-19'
 ---

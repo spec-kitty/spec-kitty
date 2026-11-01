@@ -2,6 +2,8 @@
 title: Post-Consolidation Deferral and External Enforcement of Negative Invariants
 description: 'Negative invariants are verified externally at a named `post-consolidation` phase on the `CONSOLIDATED` surface, never at a step whose integrated tree does not yet exist.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-07-23'
 ---
 

@@ -4,8 +4,8 @@ description: "Curator proposal for the test-slicing/mocking-boundary doctrine se
 doc_status: draft
 updated: '2026-07-26'
 related:
-- docs/plans/doctrine/test_quality/mocking-boundary-and-test-slicing-research.md
-- docs/plans/doctrine/index.md
+- plans/doctrine/test_quality/mocking-boundary-and-test-slicing-research
+- plans/doctrine
 ---
 # Test-Quality Doctrine — Artefact Series Proposal
 

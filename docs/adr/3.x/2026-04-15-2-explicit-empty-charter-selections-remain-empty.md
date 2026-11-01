@@ -2,6 +2,8 @@
 title: 'ADR 2026-04-15-2: Explicit Empty Charter Selections Remain Empty'
 description: 'An empty paradigm, directive, or tool selection compiles to empty; the charter compiler may never silently expand an explicit empty list into shipped defaults.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-15'
 ---
 

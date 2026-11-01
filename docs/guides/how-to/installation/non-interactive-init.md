@@ -4,10 +4,12 @@ description: 'How to non-interactive init mode with Spec Kitty 3.2: ✅ spec-kit
 doc_status: active
 updated: '2026-10-21'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/installation/install-and-upgrade.md
-- docs/guides/how-to/installation/install-spec-kitty.md
+- guides/how-to/installation/install-and-upgrade
+- guides/how-to/installation/install-spec-kitty
 ---
 # Non-Interactive Init Mode
 

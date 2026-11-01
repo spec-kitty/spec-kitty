@@ -4,7 +4,9 @@ description: Index and era history for the 2.x decisions — event-sourced statu
 doc_status: active
 updated: '2026-08-10'
 type: explanation
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 
 # 2.x ADRs

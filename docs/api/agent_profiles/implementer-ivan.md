@@ -4,8 +4,8 @@ description: General-purpose software implementation specialist
 doc_status: active
 updated: '2026-09-28'
 related:
-  - docs/api/agent_profiles/index.md
-  - docs/context/charter.md
+- api/agent_profiles
+- context/charter
 ---
 
 # Implementer Ivan — Agent Profile

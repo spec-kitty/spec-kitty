@@ -3,11 +3,13 @@ title: Reference (contributor policy & ledgers)
 description: Reference material for maintainers — friction inventories, coverage-signal reconciliation, seam ledgers, standing orders, red-main policy, and terminology exemptions.
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/development/index.md
-- docs/development/how-to/index.md
-- docs/development/testing/index.md
+- development
+- development/how-to
+- development/testing
 ---
 # Reference (contributor policy & ledgers)
 

@@ -3,13 +3,15 @@ title: Test-pyramid rebalance plan
 description: Which layer a Spec Kitty test belongs in, and the measured, wave-by-wave plan for moving end-to-end coverage from tests/integration and tests/e2e into the acceptance scenarios.
 doc_status: active
 updated: '2026-10-15'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: explanation
 related:
-- docs/adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md
-- docs/development/testing/integration-e2e-inventory.md
-- docs/development/testing/acceptance-scenarios.md
-- docs/development/testing/index.md
+- adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger
+- development/testing/integration-e2e-inventory
+- development/testing/acceptance-scenarios
+- development/testing
 ---
 
 # Test-pyramid rebalance plan

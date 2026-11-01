@@ -4,9 +4,11 @@ description: 'Recovery for a post-finalize planning commit that stale-seeds a la
 doc_status: active
 updated: '2026-08-15'
 related:
-- docs/operations/recovery-index.md
-- docs/operations/coord-worktree-missing.md
-- docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
+- operations/recovery-index
+- operations/coord-worktree-missing
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
+  title: 'Coord-branch bookkeeping: read/write split-brain root-cause'
 ---
 
 # Recovery: Stale Lane Seed After Re-Finalizing Tasks

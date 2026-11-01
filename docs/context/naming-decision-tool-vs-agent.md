@@ -4,8 +4,8 @@ description: "The canonical naming decision separating tool (the concrete execut
 doc_status: active
 updated: '2026-07-16'
 related:
-- docs/context/index.md
-- docs/context/historical-terms.md
+- context
+- context/historical-terms
 ---
 # Naming Decision: Tool vs Agent
 

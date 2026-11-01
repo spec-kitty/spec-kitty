@@ -4,8 +4,10 @@ description: 'Recovery when the runtime-state cutover flip fails closed with Pla
 doc_status: active
 updated: '2026-08-15'
 related:
-- docs/operations/recovery-index.md
-- docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
+- operations/recovery-index
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
+  title: 'Coord-branch bookkeeping: read/write split-brain root-cause'
 ---
 
 # Recovery: Cutover Flip Fails From a Linked Worktree

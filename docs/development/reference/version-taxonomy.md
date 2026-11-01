@@ -3,10 +3,14 @@ title: Version taxonomy
 description: The five version-relevance tags every docs page carries, what each means for the active release line, and how the leakage check enforces them.
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/development/reference/index.md
-- docs/development/page-inventory.yaml
+- development/reference
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/development/page-inventory.yaml
+  title: docs/development/page-inventory.yaml
 ---
 # Version taxonomy
 

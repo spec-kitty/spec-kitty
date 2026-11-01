@@ -1,15 +1,21 @@
-"""``related:`` frontmatter graph validator (IC-03 / FR-005).
+"""``related:`` frontmatter graph validator (IC-03 / FR-005; doc-kitty slugs, #6929).
 
-Walks every ``docs/**/*.md`` page, reads its YAML frontmatter ``related:``
-list, and resolves each entry — a repo-relative path — against the
-repository root. A ``related:`` entry that does not resolve to an existing
-file is a **dangling edge**.
+Walks every ``docs/**/*.md`` page and resolves each ``related:`` entry the way
+doc-kitty does (ADR ``2026-10-31-1`` D-7/D-8): an entry is a page **slug** (its
+path under ``docs/`` without ``.md``, a trailing ``README``/``index`` removed;
+the docs root page is ``""``) or a ``{ref, note}`` mapping. Two findings:
 
-Per ADR ``2026-06-27-1-common-docs-reconciliation`` the canonical ``related:``
-form is a list of resolvable repo-relative ``.md`` paths. This validator is
-**report-only** (exit ``0``; C-002): it prints what it finds and records a
-baseline, but it does not fail CI. Mission B turns the wired ``--strict`` flag
-on to flip the exit semantics to blocking.
+* a **dangling edge** — the slug names no page (a repository path such as
+  ``docs/x.md`` is not a slug, so it dangles too);
+* an **unpublished edge** — the slug names a page doc-kitty does not build when it
+  builds the source: a published page naming a draft or excluded page, or a draft
+  page naming an excluded page. doc-kitty fails the build on either. Pages in
+  an excluded folder are never built, so they are not checked.
+
+Slug, publication and exclusion rules come from
+:mod:`scripts.docs._dockitty_contract`. Paths outside ``docs/`` live in
+``external_references``, which this validator does not read. Report-only (exit
+``0``) unless ``--strict`` is passed.
 
 The validator never mutates the docs tree (C-006) and depends only on the
 standard library plus ``ruamel.yaml`` (already a project dependency).
@@ -24,7 +30,9 @@ only an unresolvable/unfetched base ref errors.
 
 Output shape (per the rulers contract)::
 
-    { "checked_count": int, "dangling_edges": [ {"from": path, "to": path} ] }
+    { "checked_count": int,
+      "dangling_edges": [ {"from": path, "to": slug} ],
+      "unpublished_edges": [ {"from": path, "to": slug} ] }
 
 where ``checked_count`` is the number of ``related:`` edges examined — so a
 "0 dangling" result can never silently mean "0 checked".
@@ -37,8 +45,9 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
+from scripts.docs._dockitty_contract import is_excluded, is_published, page_for_slug
 from scripts.docs._guards import GitDiffError, assert_examined_floor, resolve_changed_files
 from scripts.docs._inventory import parse_frontmatter
 from scripts.docs._page_scope import iter_docs_pages
@@ -58,7 +67,7 @@ DEFAULT_DOCS_ROOT: Final[str] = "docs"
 
 @dataclass(slots=True, frozen=True)
 class DanglingEdge:
-    """A ``related:`` edge whose target does not resolve to an existing file."""
+    """A ``related:`` edge (``to_path`` is the slug as written) that names no page, or an unbuilt one."""
 
     from_path: str
     to_path: str
@@ -74,30 +83,59 @@ class RelatedReport:
 
     checked_count: int = 0
     dangling_edges: list[DanglingEdge] = field(default_factory=list)
+    unpublished_edges: list[DanglingEdge] = field(default_factory=list)
+
+    @property
+    def failed(self) -> bool:
+        """True when ``--strict`` must exit non-zero."""
+        return bool(self.dangling_edges or self.unpublished_edges)
 
     def as_dict(self) -> dict[str, object]:
         """Serialize to the contract's JSON shape."""
         return {
             "checked_count": self.checked_count,
             "dangling_edges": [edge.as_dict() for edge in self.dangling_edges],
+            "unpublished_edges": [edge.as_dict() for edge in self.unpublished_edges],
         }
 
 
-def _related_edges_in_file(md_path: Path, repo_root: Path) -> tuple[int, list[DanglingEdge]]:
+def _related_edges_in_file(md_path: Path, docs_root: Path, repo_root: Path) -> tuple[int, list[DanglingEdge], list[DanglingEdge]]:
     """Whole-file ``related:`` edge check for one docs page.
 
     Shared by the whole-tree walk (:func:`validate_related`) and the
     diff-scope walk (:func:`validate_related_diff_scoped`) so both check the
     SAME whole file (B-WP02: scope by *file*, never by hunk/line).
 
-    Returns ``(edges_examined, dangling_edges)``.
+    Returns ``(edges_examined, dangling_edges, unpublished_edges)``.
     """
-    related = _read_related(md_path)
-    if not related:
-        return 0, []
+    frontmatter = _read_frontmatter(md_path)
+    refs = _related_refs(frontmatter)
+    if not refs:
+        return 0, [], []
     from_rel = _repo_relative(md_path, repo_root)
-    dangling = [DanglingEdge(from_path=from_rel, to_path=entry) for entry in related if not _resolves(entry, repo_root)]
-    return len(related), dangling
+    source = _docs_relative(md_path, docs_root)
+    dangling: list[DanglingEdge] = []
+    unpublished: list[DanglingEdge] = []
+    for ref in refs:
+        target = page_for_slug(docs_root, ref) if not _looks_like_path(ref) else None
+        if target is None:
+            dangling.append(DanglingEdge(from_path=from_rel, to_path=ref))
+        elif not _target_allowed(source, frontmatter, target, docs_root):
+            unpublished.append(DanglingEdge(from_path=from_rel, to_path=ref))
+    return len(refs), dangling, unpublished
+
+
+def _looks_like_path(ref: str) -> bool:
+    """A repository path (``docs/x.md``) is not a slug, even when the file exists."""
+    return ref.endswith(".md") or ref.startswith("docs/")
+
+
+def _target_allowed(source: str, frontmatter: dict[str, Any], target: Path, docs_root: Path) -> bool:
+    """Whether doc-kitty resolves *target* whenever it builds *source* (see the module docstring)."""
+    target_rel = _docs_relative(target, docs_root)
+    if not is_published(source, frontmatter):
+        return not is_excluded(target_rel)
+    return is_published(target_rel, _read_frontmatter(target))
 
 
 def validate_related(*, docs_root: Path, repo_root: Path, min_files: int = 1) -> RelatedReport:
@@ -130,25 +168,17 @@ def validate_related(*, docs_root: Path, repo_root: Path, min_files: int = 1) ->
     RuntimeError
         Fewer than ``min_files`` ``related:`` edges were examined (non-vacuity guard).
     """
-    checked_count = 0
-    dangling: list[DanglingEdge] = []
-
-    if docs_root.exists() and docs_root.is_dir():
-        for md_path in iter_docs_pages(docs_root):
-            file_checked, file_dangling = _related_edges_in_file(md_path, repo_root)
-            checked_count += file_checked
-            dangling.extend(file_dangling)
+    pages = iter_docs_pages(docs_root) if docs_root.is_dir() else []
+    report = _check_pages(pages, docs_root, repo_root)
 
     assert_examined_floor(
-        checked_count,
+        report.checked_count,
         min_files,
         gate="related_validator",
         noun=f"related edge(s) examined under {docs_root}",
         fr_id="FR-008",
     )
-
-    dangling.sort(key=lambda edge: (edge.from_path, edge.to_path))
-    return RelatedReport(checked_count=checked_count, dangling_edges=dangling)
+    return report
 
 
 def validate_related_diff_scoped(*, docs_root: Path, repo_root: Path, changed_files: list[str]) -> RelatedReport:
@@ -171,40 +201,54 @@ def validate_related_diff_scoped(*, docs_root: Path, repo_root: Path, changed_fi
     :func:`validate_related`'s whole-tree/``push`` mode.
     """
     docs_root_rel = _repo_relative(docs_root, repo_root)
+    pages = [
+        repo_root / rel
+        for rel in sorted(changed_files)
+        # a deleted changed path no longer exists: nothing to check
+        if rel.startswith(f"{docs_root_rel}/") and rel.endswith(".md") and (repo_root / rel).is_file()
+    ]
+    return _check_pages(pages, docs_root, repo_root)
+
+
+def _check_pages(pages: list[Path], docs_root: Path, repo_root: Path) -> RelatedReport:
     checked_count = 0
     dangling: list[DanglingEdge] = []
-    for rel in sorted(changed_files):
-        if not (rel.startswith(f"{docs_root_rel}/") and rel.endswith(".md")):
-            continue
-        md_path = repo_root / rel
-        if not md_path.is_file():
-            continue  # deleted changed path — nothing to check
-        file_checked, file_dangling = _related_edges_in_file(md_path, repo_root)
+    unpublished: list[DanglingEdge] = []
+    for md_path in pages:
+        if is_excluded(_docs_relative(md_path, docs_root)):
+            continue  # never built by doc-kitty, so never resolved (ADR D-8)
+        file_checked, file_dangling, file_unpublished = _related_edges_in_file(md_path, docs_root, repo_root)
         checked_count += file_checked
         dangling.extend(file_dangling)
-
+        unpublished.extend(file_unpublished)
     dangling.sort(key=lambda edge: (edge.from_path, edge.to_path))
-    return RelatedReport(checked_count=checked_count, dangling_edges=dangling)
+    unpublished.sort(key=lambda edge: (edge.from_path, edge.to_path))
+    return RelatedReport(checked_count=checked_count, dangling_edges=dangling, unpublished_edges=unpublished)
 
 
-def _read_related(md_path: Path) -> list[str]:
-    """Return the ``related:`` list from a page's frontmatter (``[]`` if none)."""
+def _read_frontmatter(md_path: Path) -> dict[str, Any]:
     try:
-        text = md_path.read_text(encoding="utf-8")
+        return parse_frontmatter(md_path.read_text(encoding="utf-8"))
     except OSError:
-        return []
+        return {}
 
-    frontmatter = parse_frontmatter(text)
+
+def _related_refs(frontmatter: dict[str, Any]) -> list[str]:
+    """The ``related:`` refs as written: bare slugs and the ``ref`` of ``{ref, note}`` entries."""
     raw = frontmatter.get("related")
     if not isinstance(raw, list):
         return []
-    return [str(item) for item in raw if isinstance(item, str) and item.strip()]
+    refs: list[str] = []
+    for item in raw:
+        ref = item.get("ref") if isinstance(item, dict) else item
+        if isinstance(ref, str):
+            refs.append(ref.strip())
+    return refs
 
 
-def _resolves(entry: str, repo_root: Path) -> bool:
-    """An entry resolves when its repo-relative path exists as a file."""
-    candidate = (repo_root / entry).resolve()
-    return candidate.is_file()
+def _docs_relative(path: Path, docs_root: Path) -> str:
+    """*path* (always a page under *docs_root*) as a POSIX path relative to it."""
+    return path.resolve().relative_to(docs_root.resolve()).as_posix()
 
 
 def _repo_relative(path: Path, repo_root: Path) -> str:
@@ -231,7 +275,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--repo-root",
         type=Path,
         default=Path.cwd(),
-        help="Base for resolving repo-relative 'related:' entries (default: cwd).",
+        help="Base for the repo-relative page paths in the report (default: cwd).",
     )
     parser.add_argument(
         "--json",
@@ -241,7 +285,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--strict",
         action="store_true",
-        help=("Exit non-zero when dangling edges are found. Wired but OFF by default in Mission A (report-only, C-002); Mission B turns it on."),
+        help="Exit non-zero when a dangling or unpublished edge is found.",
     )
     parser.add_argument(
         "--changed-from",
@@ -273,7 +317,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         report = validate_related(docs_root=args.docs_root, repo_root=args.repo_root)
     _emit(report, as_json=args.json)
-    if args.strict and report.dangling_edges:
+    if args.strict and report.failed:
         return 1
     return 0
 
@@ -284,9 +328,13 @@ def _emit(report: RelatedReport, *, as_json: bool) -> None:
         sys.stdout.write(json.dumps(report.as_dict(), indent=2, sort_keys=True) + "\n")
         return
 
-    sys.stdout.write(f"related_validator: checked {report.checked_count} edge(s); {len(report.dangling_edges)} dangling.\n")
+    sys.stdout.write(
+        f"related_validator: checked {report.checked_count} edge(s); {len(report.dangling_edges)} dangling, {len(report.unpublished_edges)} unpublished.\n"
+    )
     for edge in report.dangling_edges:
         sys.stdout.write(f"  DANGLING {edge.from_path} -> {edge.to_path}\n")
+    for edge in report.unpublished_edges:
+        sys.stdout.write(f"  UNPUBLISHED {edge.from_path} -> {edge.to_path}\n")
 
 
 if __name__ == "__main__":  # pragma: no cover - module-level CLI guard

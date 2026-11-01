@@ -5,11 +5,13 @@ doc_status: active
 updated: '2026-06-03'
 type: how-to
 related:
-- docs/guides/how-to/installation/install-linux.md
-- docs/guides/how-to/installation/install-windows.md
-- docs/guides/how-to/installation/non-interactive-init.md
-- docs/guides/how-to/installation/upgrade-cli.md
-audience: docs/context/audience/external/project-owner.md
+- guides/how-to/installation/install-linux
+- guides/how-to/installation/install-windows
+- guides/how-to/installation/non-interactive-init
+- guides/how-to/installation/upgrade-cli
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 os: macos
 ---
 # Install Spec Kitty on macOS

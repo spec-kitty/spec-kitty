@@ -2,6 +2,8 @@
 title: 'ADR: Charter Freshness UX Contract'
 description: 'Establishes one freshness vocabulary across the charter command family, anchored by a tri-state graph identity carried on every decay report the lint engine emits.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-05-24'
 ---
 

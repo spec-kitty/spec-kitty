@@ -4,7 +4,9 @@ description: 'End-to-end authority for a local autonomous mission: the nine phas
 doc_status: active
 updated: '2026-11-01'
 type: explanation
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 ---
 # Spec Kitty Mission Workflow
 

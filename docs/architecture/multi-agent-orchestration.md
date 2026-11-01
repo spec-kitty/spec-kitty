@@ -3,9 +3,11 @@ title: Multi-Agent Orchestration
 description: Coordination model for multi-agent delivery with a host-owned workflow state and external orchestration providers.
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/architecture/kanban-workflow.md
+- architecture/kanban-workflow
 ---
 # Multi-Agent Orchestration
 

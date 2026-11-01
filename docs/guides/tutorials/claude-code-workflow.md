@@ -4,10 +4,12 @@ description: End-to-end guide for running Spec Kitty with the Claude Code CLI an
 doc_status: active
 updated: '2026-10-10'
 type: tutorial
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/tutorials/getting-started.md
-- docs/guides/tutorials/claude-code-integration.md
+- guides/tutorials/getting-started
+- guides/tutorials/claude-code-integration
 ---
 # Claude Code Workflow
 
