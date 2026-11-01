@@ -1025,7 +1025,7 @@ def _identity_normalised(
     index = IdentityIndex.build(repo_root)
 
     def stem_of(token: str) -> str:
-        return index.stored_spelling(kind, token)
+        return str(index.stored_spelling(kind, token))
 
     collapsed = _collapse_spellings(present_list, stem_of)
     if present_list and collapsed != present_list:

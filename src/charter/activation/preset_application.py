@@ -321,8 +321,8 @@ def _id_key(yaml_key: str, artifact_id: str, identity: IdentityIndex | None = No
     """
     kind = _KIND_BY_KEY.get(yaml_key)
     if identity is None:
-        return IdentityIndex.unindexed_key(kind, artifact_id)
-    return identity.lookup_key(kind, artifact_id)
+        return str(IdentityIndex.unindexed_key(kind, artifact_id))
+    return str(identity.lookup_key(kind, artifact_id))
 
 
 def _missing(yaml_key: str, listed: Iterable[str], available: Iterable[str]) -> list[str]:
