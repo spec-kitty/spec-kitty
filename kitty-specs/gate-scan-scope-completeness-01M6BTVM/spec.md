@@ -47,7 +47,7 @@ As a maintainer, when a gate starts reading a new repository path, CI tells me t
 the gate's scope row is already wrong and the check says so), instead of the gate silently not
 running on the diff that can break it.
 
-**Independent test**: plant `_REPO_ROOT / "planted-undelcared-dir"` in a gate; the new gate reds
+**Independent test**: plant `_REPO_ROOT / "planted-undeclared-dir"` in a gate; the new gate reds
 naming the gate file, the line and the path. Declare the glob (or move the read into code scope);
 it goes green. No other file changes.
 
