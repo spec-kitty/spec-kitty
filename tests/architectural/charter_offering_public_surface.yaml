@@ -1,0 +1,199 @@
+# Frozen census of the charter.offering public contract surface (#6285).
+#
+# P1 of epic #6099. This file is the ONE canonical list the offering's public
+# contract is pinned to: `charter.offering.api.__all__`, the charter facades that
+# front it by object identity, and the reached-path classification are all checked
+# against it by `tests/architectural/test_charter_offering_public_surface.py`.
+#
+# It is a gate asset, never wheel data: it lives under `tests/`, not `src/`.
+#
+# To change the surface: edit `charter.offering.api.__all__` and this file in the
+# same change, then run the gate. A symbol a runtime consumer needs that is not
+# here belongs in `public_contract_delta` for operator approval -- never a silent
+# widening.
+schema_version: "1.0"
+contract: in-process Python public contract of charter.offering (not an HTTP surface)
+mission: charter-offering-surface-freeze-01M6BTTR
+issue: 6285
+frozen_at: "2026-11-01"
+c003: >-
+  The seam's return types become DTOs generated from the spec-kitty-charter OpenAPI
+  contract (spec-kitty-charter ADR-0004, tracked in core by #6218). The hand-written
+  types recorded per symbol below are transitional.
+surface:
+  - name: ArtifactKind
+    origin: charter.offering.artifact_kinds
+    disposition: PUBLIC
+    facades: ["charter.drg"]
+    contract_kind: enum
+    today_type: "Enum class; members are the singular artifact kinds (directive, tactic, procedure, ...)"
+    signature: null
+    dto_target: "Generated enum from the contract's artifact-kind schema; the hand-written Python enum is transitional."
+    dto_status: transitional
+  - name: AssetManifest
+    origin: charter.offering.assets.models
+    disposition: PUBLIC
+    facades: ["charter.assets"]
+    contract_kind: model
+    today_type: "Pydantic model: id, mime, path and optional title for one asset blob"
+    signature: null
+    dto_target: "Generated AssetManifest DTO from the OpenAPI schema; the Pydantic model is transitional."
+    dto_status: transitional
+  - name: AssetNotFoundError
+    origin: charter.offering.assets.repository
+    disposition: PUBLIC
+    facades: ["charter.assets"]
+    contract_kind: exception
+    today_type: "Exception raised when an asset id resolves to no file"
+    signature: null
+    dto_target: "Contract-defined asset-resolution error payload; today's exception class is transitional."
+    dto_status: transitional
+  - name: AssetPathEscapeError
+    origin: charter.offering.assets.repository
+    disposition: PUBLIC
+    facades: ["charter.assets"]
+    contract_kind: exception
+    today_type: "Exception raised when an asset path escapes its pack root"
+    signature: null
+    dto_target: "Contract-defined asset-resolution error payload; today's exception class is transitional."
+    dto_status: transitional
+  - name: AssetRepository
+    origin: charter.offering.assets.repository
+    disposition: PUBLIC
+    facades: ["charter.assets"]
+    contract_kind: class
+    today_type: "Concrete three-tier repository (built-in, org, project) resolving asset ids to blob paths"
+    signature: null
+    dto_target: "Generated asset-service client returning DTOs; the in-process repository is transitional."
+    dto_status: transitional
+  - name: AssetResolutionError
+    origin: charter.offering.assets.repository
+    disposition: PUBLIC
+    facades: ["charter.assets"]
+    contract_kind: exception
+    today_type: "Base exception of the asset-resolution error hierarchy"
+    signature: null
+    dto_target: "Contract-defined asset-resolution error payload; today's exception class is transitional."
+    dto_status: transitional
+  - name: CatalogLoadResult
+    origin: charter.offering.model_task_routing.loader
+    disposition: PUBLIC
+    facades: ["charter.model_routing"]
+    contract_kind: dataclass
+    today_type: "Dataclass wrapping the loaded model-to-task-type catalog and its load outcome"
+    signature: null
+    dto_target: "Generated catalog-load DTO; the dataclass is transitional."
+    dto_status: transitional
+  - name: LANGUAGE_TOKENS
+    origin: charter.offering.shared.language_catalog
+    disposition: PUBLIC
+    facades: ["charter.languages"]
+    contract_kind: constant
+    today_type: "Read-only tuple of plain language tokens in catalog order"
+    signature: null
+    dto_target: "Generated language-token list from the contract vocabulary; the tuple is transitional."
+    dto_status: transitional
+  - name: RoutingRecommendation
+    origin: charter.offering.model_task_routing.evaluator
+    disposition: PUBLIC
+    facades: ["charter.model_routing"]
+    contract_kind: dataclass
+    today_type: "Dataclass carrying the routed model tier, the task type and the rationale"
+    signature: null
+    dto_target: "Generated routing-recommendation DTO; the dataclass is transitional."
+    dto_status: transitional
+  - name: evaluate
+    origin: charter.offering.model_task_routing.evaluator
+    disposition: PUBLIC
+    facades: ["charter.model_routing"]
+    contract_kind: function
+    today_type: "Function selecting a model tier for a task type against a routing catalog and agent profile"
+    signature: "(catalog: 'ModelToTaskType', task_type: 'str', profile: 'AgentProfile', *, recommended_model_tier: 'str | None' = None, model_tier_override: 'str | None' = None) -> 'RoutingRecommendation'"
+    dto_target: "Returns the generated routing-recommendation DTO; the hand-written return type is transitional."
+    dto_status: transitional
+  - name: load
+    origin: charter.offering.model_task_routing.loader
+    disposition: PUBLIC
+    facades: ["charter.model_routing"]
+    contract_kind: function
+    today_type: "Function loading the routing catalog from a path (or the built-in catalog)"
+    signature: "(catalog_path: 'Path | None' = None) -> 'CatalogLoadResult | None'"
+    dto_target: "Returns the generated catalog-load DTO; the hand-written return type is transitional."
+    dto_status: transitional
+  - name: slug_for
+    origin: charter.offering.artifact_kinds
+    disposition: PUBLIC
+    facades: ["charter.drg"]
+    contract_kind: function
+    today_type: "Function deriving the canonical slug for an artifact identifier"
+    signature: "(kind: 'str', identifier: 'str') -> 'str'"
+    dto_target: "Returns a plain string from a contract-defined derivation; no DTO is planned for the result."
+    dto_status: transitional
+
+# ---------------------------------------------------------------------------
+# Reached-path classification (FR-005).
+#
+# Every charter.offering path a module under src/ reaches, with the disposition
+# the authoritative manifest records for it
+# (tests/architectural/test_doctrine_census.py::DISPOSITION, compared by longest
+# prefix), whether it is on the frozen surface, the files that reach it, and the
+# sanctioned route for a path that is not on the surface.
+# ---------------------------------------------------------------------------
+reached_classification:
+  - path: charter.offering
+    disposition: INTERNAL-METADATA
+    on_surface: false
+    route: "metadata: package __file__ only, no symbol reach-through"
+    consumers: ["src/specify_cli/tool_surface/bundles/codex.py"]
+  - path: charter.offering.agent_profiles.operating_procedures
+    disposition: FACADE-ONLY
+    on_surface: false
+    route: "boundary-baseline: lazy pair pinned in tests/architectural/test_runtime_charter_doctrine_boundary.py (#3179, pending charter.profiles migration)"
+    consumers: ["src/specify_cli/cli/commands/_charter_pack_collect.py"]
+  - path: charter.offering.artifact_kinds
+    disposition: PUBLIC
+    on_surface: true
+    route: "surface: ArtifactKind, slug_for"
+    consumers: ["src/specify_cli/cli/commands/_charter_pack_collect.py"]
+  - path: charter.offering.drg.loader
+    disposition: FACADE-ONLY
+    on_surface: false
+    route: "facade: charter.drg (load_graph, load_built_in_graph)"
+    consumers: ["src/specify_cli/cli/commands/_charter_pack_collect.py"]
+  - path: charter.offering.drg.migration.hand_authored_overlay
+    disposition: TICKETED-BASELINE
+    on_surface: false
+    route: "ticketed-baseline: no public door; lazy pair pinned in tests/architectural/test_runtime_charter_doctrine_boundary.py (#3179)"
+    consumers: ["src/specify_cli/cli/commands/charter/pack_tooling.py"]
+  - path: charter.offering.drg.override_policy
+    disposition: TICKETED-BASELINE
+    on_surface: false
+    route: "ticketed-baseline: no public door; lazy pair pinned in tests/architectural/test_runtime_charter_doctrine_boundary.py (#3179)"
+    consumers: ["src/specify_cli/cli/commands/_charter_pack_collect.py"]
+  - path: charter.offering.missions.step_contracts
+    disposition: FACADE-ONLY
+    on_surface: false
+    route: "facade: charter.mission_steps"
+    consumers: ["src/runtime/next/runtime_bridge_composition.py"]
+  - path: charter.offering.missions.step_projection
+    disposition: FACADE-ONLY
+    on_surface: false
+    route: "facade: charter.missions"
+    consumers: ["src/runtime/next/runtime_bridge_io.py"]
+  - path: charter.offering.pack_paths
+    disposition: FACADE-ONLY
+    on_surface: false
+    route: "facade: charter.pack_paths"
+    consumers: ["src/specify_cli/cli/commands/_charter_pack_collect.py"]
+  - path: charter.offering.service
+    disposition: CONSTRUCTION-ROUTED
+    on_surface: false
+    route: "service: charter.offering.service (construction entry point, #3179)"
+    consumers:
+      - "src/specify_cli/cli/commands/_charter_pack_collect.py"
+      - "src/specify_cli/cli/commands/charter/pack_asset.py"
+
+# Public-contract delta: reached, not on the frozen surface, and not sanctioned by
+# a facade / ticketed baseline / service construction / package metadata. Expected
+# empty. A non-empty entry is an operator decision; never widen the surface here.
+public_contract_delta: []
