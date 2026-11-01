@@ -28,7 +28,7 @@ pytestmark = pytest.mark.fast
 TAG = "service-v0.1.0-rc.1"
 CHARTER = "https://github.com/spec-kitty/spec-kitty-charter"
 CHARTER_SLUG = "spec-kitty/spec-kitty-charter"
-ASSET = Path("/scratch/assets/spec-kitty-charter-service-0.1.0-rc.1-linux-x64")
+ASSET = Path("assets/spec-kitty-charter-service-0.1.0-rc.1-linux-x64")
 DIGEST = "a" * 64
 
 
@@ -63,7 +63,7 @@ def fake_gh(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, ...]]:
         ("https://github.com/spec-kitty", None),
         ("https://github.com/spec-kitty/spec-kitty-charter/tree/main", None),
         ("https://alice:s3cr3t@example.invalid/spec-kitty/charter", None),
-        ("file:///tmp/releases", None),
+        ("file://localhost/releases", None),
         ("https://gitlab.com/spec-kitty/spec-kitty-charter", None),
     ],
 )
@@ -96,7 +96,7 @@ def test_a_non_github_repository_is_unsupported_before_any_command_runs(monkeypa
     monkeypatch.setattr(attestation_module, "_run", lambda argv, *, timeout: calls.append(argv) or _completed(0))
 
     with pytest.raises(AttestationError) as excinfo:
-        attestation_args(ASSET, repository="file:///tmp/releases", tag=TAG)
+        attestation_args(ASSET, repository="file://localhost/releases", tag=TAG)
 
     assert excinfo.value.code == SERVICE_ATTESTATION_UNSUPPORTED
     assert ASSET.name in excinfo.value.message
