@@ -17,8 +17,8 @@ input_artifacts:
     path: kitty-specs/frontmatter-contract-completion-6931-01M6BVXW/tasks.md
     sha256: b8c69cee31d3225443fec5d5e6b5ba1de584a0448a45e4beab76ac019816fc34
   charter:
-    path: /home/exedev/work/sk-6931/.kittify/charter/charter.md
-    sha256: 1bf06fd2403c9f4cef7dfc2d36208df2530aeb89910c96368816240f3cbdf87d
+    path: .kittify/charter/charter.yaml
+    sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 ---
 # Analysis Report — frontmatter-contract-completion-6931-01M6BVXW
 
