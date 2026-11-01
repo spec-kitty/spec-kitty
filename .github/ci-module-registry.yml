@@ -1014,8 +1014,9 @@ special_tiers:
     # too (#7000): tests/architectural/test_gate_scan_scope_completeness.py statically extracts
     # every repository-rooted read of each gate and fails when a read is covered by neither
     # that gate's row nor the battery code scope (src/**, tests/architectural/** and the router's
-    # code groups), so a stale row is a red gate rather than a silent routing miss. Only paths with tracked
-    # files are declared (a glob that matches nothing is a dead router glob,
+    # code groups), so a stale row is a red gate rather than a silent routing miss. The scan is
+    # static; its known blind spots are listed in tests/architectural/_gate_read_scope.py. Only
+    # paths with tracked files are declared (a glob that matches nothing is a dead router glob,
     # tests/architectural/test_workflow_coherence.py): test_retired_charter_vocabulary also reads the
     # generated agent command directories when present, but none is tracked in this repository.
     scan_scopes:
