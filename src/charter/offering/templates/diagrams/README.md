@@ -67,8 +67,8 @@ needing the stickies/causal DSL. See
 | Request Lifecycle | [C4 Components](../architecture/c4-component-mermaid-template.md) | [`docs/architecture/diagrams/02_containers/runtime-execution-domain.md`](../../../../../docs/architecture/diagrams/02_containers/runtime-execution-domain.md) |
 | Structure Meta Model | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/diagrams/01_context/README.md`](../../../../../docs/architecture/diagrams/01_context/README.md) |
 | Causal Map | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/diagrams/01_context/README.md`](../../../../../docs/architecture/diagrams/01_context/README.md) |
-| Content Map | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/README.md`](../../../../docs/architecture/README.md) |
-| Repo Content Graph | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/README.md`](../../../../docs/architecture/README.md) |
+| Content Map | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/index.md`](../../../../../docs/architecture/index.md) |
+| Repo Content Graph | [C4 Context](../architecture/c4-context-mermaid-template.md) | [`docs/architecture/index.md`](../../../../../docs/architecture/index.md) |
 
 ## Choosing Between Mermaid and PlantUML
 

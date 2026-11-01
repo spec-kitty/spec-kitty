@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 related:
-- docs/architecture/README.md
+- docs/architecture/index.md
 - docs/architecture/diagrams/01_context/README.md
 - docs/architecture/diagrams/02_containers/README.md
 - docs/architecture/diagrams/03_components/README.md
@@ -15,7 +15,7 @@ related:
 This directory holds the **living C4 model** for the **current architecture**.
 It is not era-stamped: it was carried forward from the 2.x snapshot and is refreshed
 in place against the ratified domain model. It is one of the living surfaces
-described in [`../README.md`](../README.md).
+described in [architecture index](../index.md).
 
 The numbered C4 levels are kept stable so navigation and tooling stay predictable:
 

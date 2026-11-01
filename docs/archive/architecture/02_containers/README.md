@@ -84,7 +84,7 @@ flowchart TB
 
 ## Domain-to-Container Allocation
 
-See [2.x Domain Breakdown](../../../architecture/README.md) for the domain-level model.
+See [2.x Domain Breakdown](../../../architecture/index.md) for the domain-level model.
 
 | Domain | Primary Containers | Secondary Containers |
 |---|---|---|
@@ -118,7 +118,7 @@ See [2.x Domain Breakdown](../../../architecture/README.md) for the domain-level
 
 ## Usage Flow Reference
 
-See [Usage Flow High-Level User Journey](../../../architecture/README.md)
+See [Usage Flow High-Level User Journey](../../../architecture/index.md)
 for a generic end-to-end execution narrative.
 
 ## Runtime/Execution Domain Detail

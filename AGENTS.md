@@ -266,7 +266,7 @@ kitty-specs/      # Mission specs (dogfooding)
 docs/             # User documentation
 ```
 
-New architectural designs → `docs/architecture/` following `docs/architecture/README.md` template.
+New architectural designs → `docs/architecture/` following `docs/architecture/index.md` template.
 
 ### Modularity SSOT (canonical)
 

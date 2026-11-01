@@ -69,7 +69,7 @@ flowchart LR
 
 ## Domain Context Map
 
-See [2.x Domain Breakdown](../../../architecture/README.md) for full detail.
+See [2.x Domain Breakdown](../../../architecture/index.md) for full detail.
 
 ```mermaid
 flowchart LR
@@ -99,7 +99,7 @@ flowchart LR
 
 ## Usage Flow Reference
 
-See [Usage Flow High-Level User Journey](../../../architecture/README.md)
+See [Usage Flow High-Level User Journey](../../../architecture/index.md)
 for the generic cross-domain execution path that these boundaries protect.
 
 ## Branch and Routing Boundary

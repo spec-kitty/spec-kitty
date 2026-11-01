@@ -149,7 +149,7 @@ flowchart TB
 
 ## Domain Alignment Matrix
 
-See [2.x Domain Breakdown](../../../architecture/README.md) for domain-level definitions.
+See [2.x Domain Breakdown](../../../architecture/index.md) for domain-level definitions.
 
 | Domain | Primary Components |
 |---|---|
