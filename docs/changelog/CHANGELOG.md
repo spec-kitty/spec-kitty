@@ -244,8 +244,6 @@ this section at publish._
 - **The five charter and DRG permission-denied tests that still skipped as root now run for every uid** (#6641). They deny the fragment read or the org-layer directory listing at the seam instead of using `chmod(0)`, so the root-vacuous denial gate's exemption list drops from 17 to 12 entries and loses its `deferred-6595` category.
 - **A test pins that an activation token matching a file name resolves to that file's artifact, in any layer, before any declared id** (#6459). The rule is now documented in `docs/architecture/org-doctrine-layer.md`; the precedence itself is unchanged.
 
-- **The charter offering's public contract surface is frozen in one committed census, and the gates fail when it drifts** (#6285, P1 of #6099). **Before:** `charter.offering.api.__all__` was asserted only against itself — an added or dropped export needed no other record — and C-003 told a reader that OpenAPI conventions do not apply. **After:** `tests/architectural/charter_offering_public_surface.yaml` records each exported symbol with its origin, disposition, fronting facades, contract kind, today's type and signature, and the `spec-kitty-charter` ADR-0004 generated-DTO direction (today's types marked transitional). The gate pins `__all__` to it in both directions, proves facade routing from the facade imports, classifies every reached offering path against the WP01 disposition manifest, asserts the delta is empty, and carries planted-mutation self-tests. C-003 now states the DTO direction. **What to do:** change `__all__` and the census together; a consumer need the surface lacks goes to `public_contract_delta` for operator approval (#6218 keeps the ADR record).
-
 ## [4.0.0rc7] - 2026-10-15
 
 ### Breaking
