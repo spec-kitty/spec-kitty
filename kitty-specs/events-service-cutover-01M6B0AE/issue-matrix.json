@@ -24,6 +24,18 @@
       "verdict": "unknown",
       "wp": null
     },
+    "#6590": {
+      "evidence_ref": "Closed issue cited for context: it built scripts/sync_services.py, which WP01 extends; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6949": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
