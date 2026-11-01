@@ -42,7 +42,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.activation.activation_ledger import DENY_KEYS, DenyListChoice, resolve_ledger_source
+from charter.activation.activation_ledger import DENY_KEYS, RENAME_LEGACY_SLUG, RENAME_NEW_SLUG, DenyListChoice, resolve_ledger_source
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.offering.artifact_kinds import ArtifactKind
 from kernel.activation_ledger_store import ActivationSource
@@ -61,8 +61,8 @@ __all__ = [
     "rename_legacy_project_intent_directive",
 ]
 
-_LEGACY_SLUG = "mission-type-scope-directive"
-_NEW_SLUG = "project-intent-directive"
+_LEGACY_SLUG = RENAME_LEGACY_SLUG
+_NEW_SLUG = RENAME_NEW_SLUG
 _NEW_LABEL = "Project Intent Directive"
 #: Labels the legacy directive's overlay node carried (the generic fallback and the registered title).
 _LEGACY_LABELS = frozenset({"Mission Type Directive", "Mission Type Scope Directive"})
