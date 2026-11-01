@@ -1,7 +1,7 @@
 {
-  "event_count": 37,
-  "last_event_id": "01M6B87GW1KWN0FPW8DXJQVG5D",
-  "materialized_at": "2026-11-01T09:49:40.097585+00:00",
+  "event_count": 38,
+  "last_event_id": "01M6B899K0AKN9YEADSAERS402",
+  "materialized_at": "2026-11-01T09:50:38.176232+00:00",
   "mission_number": "",
   "mission_slug": "events-service-cutover-01M6B0AE",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 5
   },
   "work_packages": {
@@ -88,14 +88,14 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude:opus:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude:opus:python-pedro:implementer",
-      "lane": "for_review",
-      "last_event_id": "01M6B87GW1KWN0FPW8DXJQVG5D",
-      "last_transition_at": "2026-11-01T09:49:40.097585+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6B899K0AKN9YEADSAERS402",
+      "last_transition_at": "2026-11-01T09:50:38.176232+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Oracle, mission-status/mission-write contract tests, scenario contract and corpus script read the pinned contract-bundles/contract-tools extras (bundled_schema/bundled_examples/bundled_path_item in _mission_status_payloads; load_contract_tools tools_root; corpus --tools-root). Targeted set: 1804 passed, 5 skipped (pre-existing), also with contracts/ moved aside except fixtures. Live corpus compare vs pinned service-v0.1.0-rc.1: compared 677 Missions: 678 rows equal, 0 rows not equal. Residuals (split-source assertions, port to spec-kitty-events): drift CHANGELOG.md assertion; project 'exactly one of x-source/x-derived' per property (now 'at least one'). ruff/format clean, no new mypy errors.",
@@ -109,9 +109,9 @@
         "reviewer": "claude:opus:reviewer-renata:reviewer",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 27569,
+      "shell_pid_created_at": "1793526634.43",
       "subtasks": {
         "T011": "done",
         "T012": "done",
