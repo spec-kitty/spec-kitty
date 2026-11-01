@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-01T14:38:27.611152Z",
+      "decision_id": "01M6BRRA8VAED9C86WVXDKSKBK",
+      "final_answer": "Legacy published route (a/b.html), site-relative",
+      "input_key": "ledger_route_form",
+      "mission_id": "01M6BRMR1VJ9DJZP4R04K1QMJT",
+      "mission_slug": "docsite-url-ledgers-01M6BRMR",
+      "opened_by": "cli",
+      "options": [
+        "Legacy published route (a/b.html), site-relative",
+        "docs/ source path (a/b.md)",
+        "Directory URL (/a/b/)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "In what form does site/moves.yaml record a route, so DocFX and a doc-kitty generator can both read it?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T14:38:31.175664Z",
+      "resolved_by": null,
+      "slot_key": "specify.ledger.route-form",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6BRMR1VJ9DJZP4R04K1QMJT",
+  "version": 1
+}
