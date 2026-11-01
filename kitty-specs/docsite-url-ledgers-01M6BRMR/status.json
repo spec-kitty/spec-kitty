@@ -93,6 +93,9 @@
       "last_event_id": "01M6BXT1SQEM2CW4H6PK61CSNV",
       "last_transition_at": "2026-11-01T16:06:47.351158+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "4 folders single-index; README routes redirected; DocFX coverage 970/970; tests/docs green"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 14973,
