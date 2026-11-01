@@ -1,7 +1,7 @@
 {
-  "event_count": 54,
-  "last_event_id": "01M6BFXAEJ5RFNTHSQF751YX6F",
-  "materialized_at": "2026-11-01T12:03:54.450670+00:00",
+  "event_count": 56,
+  "last_event_id": "01M6BG6HZM7KZYZZR5FHKX7X4X",
+  "materialized_at": "2026-11-01T12:08:57.072852+00:00",
   "mission_number": "",
   "mission_slug": "events-service-cutover-01M6B0AE",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -189,9 +189,9 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude:opus:python-pedro:implementer",
-      "lane": "planned",
-      "last_event_id": "01M6BFXAEJ5RFNTHSQF751YX6F",
-      "last_transition_at": "2026-11-01T12:03:54.450670+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M6BG6HZM7KZYZZR5FHKX7X4X",
+      "last_transition_at": "2026-11-01T12:08:57.072852+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Absence gate (red first, db8170e3) replaces the D-9 freeze gate on the fast_gate roster; services/ (743), contracts copies (1159: tools 903, mission-status 191, mission-write 52, _shared 9, lint/gradle/README/build.gradle/settings.gradle), 3 workflows, freeze gate, gate-checks script+test, build pins test, test_contracts_workflows (one-home rule + src-import routing moved to test_contracts_routing), 26 tool tests, 2 contract-copy tests, pre_slice fixtures deleted; fleet inventory changed atomically with the workflow deletion; tests-contract-tools uses the sync-services action; coupling (CODEOWNERS, .gitattributes, NOTICE, pyproject sdist). Gate files + packaging + timing/roster tests: 608 passed; tests/cross_cutting/packaging + tests/ci + tests/contract: 4456 passed, 2 failed (test_terminology_guards unclog-ci.md and test_orchestrator_api SAFE_COMMIT_DIRECTORY_ARGUMENT, both red on the WP06 base); make test-fast: 2686 passed."
@@ -204,7 +204,7 @@
         "reviewer": "claude:opus:reviewer-renata:reviewer",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
