@@ -3,12 +3,12 @@ title: 'ADR: one activation ledger persists deactivation, and nothing silently r
 description: 'Activation state moves to one git-tracked file, .kittify/charter/activation.yaml, with a persistent deny-list so a deactivated charter artifact stays deactivated.'
 status: Accepted
 date: '2026-10-19'
-updated: '2026-10-31'
+updated: '2026-11-01'
 ---
 
 # One activation ledger persists deactivation, and nothing silently reinstalls it
 
-**Status:** Accepted (2026-10-19); amended 2026-10-20, 2026-10-25 and 2026-10-31 (see the amendments at the end).
+**Status:** Accepted (2026-10-19); amended 2026-10-20, 2026-10-25, 2026-10-31 and 2026-11-01 (see the amendments at the end).
 
 **Date:** 2026-10-19
 
@@ -557,3 +557,40 @@ user cannot see, for a deactivation that is still theirs to keep.
 
 **Residual kept.** `#6539` (the rename skipped when a project has no git repository) is not fixed
 here; this amendment makes that state harmless on the next run rather than removing the trigger.
+
+## Amendment 2026-11-01 (#6684): the seeded-list warning covers a released-preset seed
+
+**Decision.** No follow-up migration resets an activation list an earlier build filled. `spec-kitty
+upgrade` keeps reporting such a list and never narrows it, so a deliberate activate-all (#6499) is never
+silently undone. The *warning's* known gap is fixed instead: a list an earlier build wrote from a
+**released** `default` activation preset is recognised even though the catalogue has grown since.
+
+The gap: `4.0.0rc8_promote_interview_selections` recognised a machine-written list by set-equality with
+**today's** in-force set. `unify_charter_activation_promote_answers` seeded an absent key from the
+released `default.yaml` of the CLI that ran it (`charter.default_pack.load_default_pack_activation_ids`,
+3.2.6rc1 through the #4400 effective-set rewrite), so a project seeded then holds that release's preset
+ids (19 directives, not today's 38). Equality with today's set fails, and the upgrade said nothing while
+`charter synthesize` still demanded a companion tactic per listed directive.
+
+- **What the warning compares against.** Two provenances, one per key: today's whole in-force set (as
+  before), and the released preset lists frozen in
+  `upgrade/migrations/_charter_pack_cutover_snapshots.DEFAULT_SNAPSHOTS` — the same comparand
+  `_charter_pack_cutover_resets` already uses. The preset provenance accepts the preset itself and the
+  preset plus interview ids the preset lacks (the shape the superseded seeding produced), and rejects a
+  hand-picked list that merely overlaps it or holds an id no longer in force. Nothing is written; the
+  warning names `charter interview --narrow-activation` and `charter activate <kind> <id> --only`.
+- **Why not a reset.** Set-equality cannot tell a seeded list from an operator's deliberate one, and no
+  provenance is recorded: the activation ledger's L1 validation refuses a provenance key, and a key
+  added now could not be backfilled for lists already written. A reset would therefore silently undo
+  #6499's choice. The provenance question is answered in synthesis, by the #6685 amendment above, not by
+  rewriting activation state during an upgrade.
+- **Home.** `_seeded_list_hints` and its message `_SEEDED_PRESET_HINT` in
+  `m_4_0_0rc8_promote_interview_selections.py`; the released lists stay owned by the frozen snapshot
+  module, never a live preset file.
+
+**Residual kept.** A list an earlier build seeded from a *whole-catalogue* effective set is matched only
+while the catalogue is unchanged: the comparison is today's in-force set, because no per-release catalogue
+snapshot is kept. That case is not reachable with any released CLI today — the effective-set seeding era
+(4.0.0rc6/4.0.0rc7) shipped the same catalogue as now for every kind. If a future release grows the
+catalogue, a project seeded by 4.0.0rc6/rc7 would fall into the gap; the fix then is a frozen
+per-release catalogue set beside the preset snapshots, not a reset.
