@@ -34,7 +34,8 @@
         "Independent review started",
         "Changes requested: 1 blocker, 1 major, 7 minor/nit",
         "Review cycle 1 folded (4f7fd7cb9): all 9 findings addressed; spec amended for finding 2 (DM 01M6BW2S981SKQWXKCBNQD8RBW). 88 tests, 100% coverage.",
-        "Review cycle 2"
+        "Review cycle 2",
+        "APPROVE (review cycle 2): all cycle-1 findings verified fixed; two nits folded with tests before approval"
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
