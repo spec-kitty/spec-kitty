@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.ci.gate_selection import Router, load_router, select_gates
+from scripts.ci.gate_selection import HEAVY_BATTERY_JOB, Router, load_router, select_battery_gates, select_gates
 
 pytestmark = pytest.mark.architectural
 
@@ -111,7 +111,8 @@ def test_local_parity_carries_no_second_parser() -> None:
 
 
 def test_docs_only_diff_local_parity_matches_ci_zero_shards(router: Router) -> None:
-    """A docs-only diff selects zero code shards, identically, on both paths."""
+    """A docs-only diff selects the same shards, identically, on both paths: no code shard beyond a
+    scoped run of the battery gates that read docs (#6994), never the whole battery."""
     from scripts.ci.local_gate_parity import resolve_selection
 
     paths = ["docs/architecture/status-model.md"]
@@ -119,7 +120,8 @@ def test_docs_only_diff_local_parity_matches_ci_zero_shards(router: Router) -> N
     local_selection = resolve_selection(paths, router=router)
 
     assert local_selection == ci_selection
-    assert local_selection.selected_code_shards == frozenset()
+    assert local_selection.selected_code_shards <= {HEAVY_BATTERY_JOB}
+    assert select_battery_gates(paths, router=router) is not None
     assert not local_selection.unmatched_src
 
 
