@@ -258,6 +258,41 @@ def test_add_records_a_valid_subdir(project: Path) -> None:
     assert _registered_entries(project)[0]["subdir"] == "nested"
 
 
+def test_add_refuses_a_subdir_that_escapes_through_a_symlink(project: Path, tmp_path: Path) -> None:
+    """A subdir that resolves outside the pack root is a refusal, not a traceback."""
+    pack = _scaffold(project / "packs" / "acme")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (pack / "link").symlink_to(outside, target_is_directory=True)
+
+    refused = _invoke("org", "add", "acme", "--local-path", str(pack), "--subdir", "link")
+
+    assert refused.exit_code == 1, refused.output
+    assert "ORG_PACK_INVALID" in refused.output
+    assert _registered_entries(project) == []
+
+
+def test_remove_reports_a_write_failure_without_a_traceback(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-004: remove's seam failure is a coded refusal, like add's."""
+    import charter.drg as seam
+
+    pack = _scaffold(project / "packs" / "acme")
+    assert _invoke("org", "add", "acme", "--local-path", str(pack)).exit_code == 0
+    config_path = project / ".kittify" / "config.yaml"
+    before = config_path.read_bytes()
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(seam, "unregister_org_pack", _boom)
+
+    refused = _invoke("org", "remove", "acme")
+
+    assert refused.exit_code == 1, refused.output
+    assert "ORG_PACK_UNREADABLE" in refused.output
+    assert config_path.read_bytes() == before
+
+
 def test_add_refuses_a_regular_file_local_path(project: Path, tmp_path: Path) -> None:
     not_a_dir = tmp_path / "pack.yaml"
     not_a_dir.write_text("not a directory\n", encoding="utf-8")
