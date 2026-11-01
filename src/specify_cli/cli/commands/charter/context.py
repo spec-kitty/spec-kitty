@@ -86,6 +86,7 @@ def context(
     from charter.activation.context_contract import CONTEXT_SCHEMA_VERSION
 
     from charter.activation.layer_roots import resolve_pack_chain
+    from charter.activation.profile_resolution import _load_agent_profile
     from charter.activation.org_charter_loader import load_org_charter_json_block
 
     try:
@@ -136,6 +137,15 @@ def context(
 
         if action is None:
             raise TaskCliError("--action is required unless --include is provided.")
+
+        if profile and _load_agent_profile(profile, repo_root) is None:
+            # An unresolvable profile is omitted from the rendered text; say so
+            # on stderr (never stdout, so ``--json`` stays parseable) so a typo
+            # does not silently yield thinner governance.
+            typer.echo(
+                f"Warning: profile '{profile}' not found; profile-cited sections omitted.",
+                err=True,
+            )
 
         result = build_charter_context(
             repo_root,
