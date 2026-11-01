@@ -676,6 +676,17 @@ PROPERTY_WORDS = {
     "lastActivityAt": ("no Mission is listed", "null activity"),
 }
 
+# The provenance each new property carries in the bundle: exactly one of x-source and x-derived, except health. The bundle inlines the
+# referenced ProjectHealth schema, which brings its own x-source (CompatibilityStatus), beside the property's own x-derived (#6915).
+EXPECTED_PROVENANCE: dict[str, tuple[str, ...]] = {
+    "specKittyVersion": ("x-source",),
+    "schemaVersion": ("x-source",),
+    "health": ("x-derived", "x-source"),
+    "currentBranch": ("x-source",),
+    "lastActivityAt": ("x-derived",),
+}
+HEALTH_INLINED_SOURCE = "CompatibilityStatus"
+
 
 def schema_problems(document: Mapping[str, Any]) -> list[str]:
     """Every way a ``Project`` schema document misses FR-001 and the descriptions that carry rules."""
@@ -695,12 +706,14 @@ def schema_problems(document: Mapping[str, Any]) -> list[str]:
     for name, words in PROPERTY_WORDS.items():
         text = str(properties.get(name, {}).get("description", ""))
         problems += [f"{name} description lacks {word!r}" for word in words if word not in text]
-    # The bundle inlines a referenced schema with its own provenance, so a property may carry both keys there; that it carries exactly one
-    # is a rule of the split contract source, which spec-kitty-events owns (#6915). Here every new property must carry provenance.
     for name in NEW_PROPERTIES:
-        carried = [key for key in ("x-source", "x-derived") if key in properties.get(name, {})]
-        if not carried:
-            problems.append(f"{name} carries neither x-source nor x-derived")
+        expected = EXPECTED_PROVENANCE.get(name)
+        carried = tuple(sorted(key for key in ("x-source", "x-derived") if key in properties.get(name, {})))
+        if carried != expected:
+            problems.append(f"{name} carries {carried!r}, expected exactly {expected!r}")
+    health_source = properties.get("health", {}).get("x-source", {})
+    if not isinstance(health_source, Mapping) or health_source.get("symbol") != HEALTH_INLINED_SOURCE:
+        problems.append(f"health's x-source is {health_source!r}, expected the inlined ProjectHealth one ({HEALTH_INLINED_SOURCE})")
     if "x-provisional" not in properties.get("health", {}):
         problems.append("health is not provisional")
     return problems
@@ -723,7 +736,22 @@ def row8_problems(env: Env) -> list[str]:
     silent["description"] = silent["description"].replace(COST_WORDS[0], "depends on the Mission count")
     old_text = copy.deepcopy(real)
     old_text["description"] = OLD_DESCRIPTION
-    for label, plant in (("the frozen old schema", frozen), ("a short required list", short), ("no cost sentence", silent), ("the old description", old_text)):
+    doubled = copy.deepcopy(real)
+    doubled["properties"]["schemaVersion"]["x-derived"] = {"rule": "planted"}
+    underived = copy.deepcopy(real)
+    del underived["properties"]["lastActivityAt"]["x-derived"]
+    foreign_health = copy.deepcopy(real)
+    foreign_health["properties"]["health"]["x-source"] = {"path": "planted.py", "symbol": "Planted"}
+    plants = (
+        ("the frozen old schema", frozen),
+        ("a short required list", short),
+        ("no cost sentence", silent),
+        ("the old description", old_text),
+        ("schemaVersion carrying both provenance keys", doubled),
+        ("lastActivityAt without its x-derived", underived),
+        ("health with a foreign x-source", foreign_health),
+    )
+    for label, plant in plants:
         if not schema_problems(plant):
             problems.append(f"{label}: the plant was not refused, so the check proves nothing")
     return problems
