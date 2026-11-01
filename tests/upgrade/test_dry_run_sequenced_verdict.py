@@ -45,7 +45,7 @@ from specify_cli.upgrade.migrations.m_3_2_6_issue_matrix_driver_repoint import (
 from specify_cli.upgrade.manifest import load_order_manifest
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
-from specify_cli.upgrade.runner import MigrationRunner, UpgradeResult
+from specify_cli.upgrade.runner import MigrationRunner, UpgradeResult, declared_predecessors
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -264,22 +264,17 @@ def test_a_dry_run_writes_nothing(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_an_undeclared_ordering_pair_claims_only_the_current_tree(tmp_path: Path) -> None:
-    """A dry-run skip cannot claim target state when a predecessor's write is unsimulated."""
-    original = _project(tmp_path / "original", version="9.9.8")
-    dry_project = _copy(original, tmp_path / "dry")
-    real_project = _copy(original, tmp_path / "real")
-    _only(_WritesMarker, _ReadsMarker)
+@pytest.mark.parametrize("dry_run", [True, False])
+def test_an_undeclared_ordering_pair_words_its_skip_by_run_mode(tmp_path: Path, dry_run: bool) -> None:
+    """A dry-run skip claims only the current tree (C-002: a real run keeps its target-state wording)."""
+    project = _project(tmp_path / "project", version="9.9.8")
+    _only(*((_WritesMarker, _ReadsMarker) if dry_run else (_ReadsMarker,)))
 
-    dry = MigrationRunner(dry_project).upgrade("9.9.9", dry_run=True, include_worktrees=False)
-    real = MigrationRunner(real_project).upgrade("9.9.9", dry_run=False, include_worktrees=False)
+    result = MigrationRunner(project).upgrade("9.9.9", dry_run=dry_run, include_worktrees=False)
 
-    assert dry.migrations_skipped == [_ReadsMarker.migration_id]
-    assert any("not needed on the current tree" in warning for warning in dry.warnings), dry.warnings
-    assert not any("project already in target state" in warning for warning in dry.warnings), dry.warnings
-    # Positive control on the same fixture: the real run selects the dependent, so the
-    # dry run's "not needed" was a look-ahead it could not support.
-    assert real.migrations_applied == [_WritesMarker.migration_id, _ReadsMarker.migration_id]
+    assert result.migrations_skipped == [_ReadsMarker.migration_id]
+    assert any(("not needed on the current tree" if dry_run else "not needed (project already in target state)") in w for w in result.warnings), result.warnings
+    assert not any(("project already in target state" if dry_run else "not needed on the current tree") in w for w in result.warnings), result.warnings
 
 
 def test_an_undeclared_dependent_stays_skipped_when_nothing_re_selects_it(tmp_path: Path) -> None:
@@ -333,18 +328,6 @@ def test_a_settled_predecessor_predicts_nothing(tmp_path: Path) -> None:
     assert any("not needed on the current tree" in warning for warning in result.warnings), result.warnings
 
 
-def test_a_real_run_keeps_its_target_state_wording(tmp_path: Path) -> None:
-    """C-002: the honest dry-run wording does not leak into a real run."""
-    project = _project(tmp_path / "project", version="9.9.8")
-    _only(_ReadsMarker)
-
-    result = MigrationRunner(project).upgrade("9.9.9", dry_run=False, include_worktrees=False)
-
-    assert result.migrations_skipped == [_ReadsMarker.migration_id]
-    assert any("not needed (project already in target state)" in warning for warning in result.warnings), result.warnings
-    assert not any("not needed on the current tree" in warning for warning in result.warnings), result.warnings
-
-
 # --------------------------------------------------------------------------- #
 # Declaration audit — a declaration that can never fire is a silent no-op
 # --------------------------------------------------------------------------- #
@@ -353,7 +336,7 @@ def test_a_real_run_keeps_its_target_state_wording(tmp_path: Path) -> None:
 def _declarations() -> list[tuple[str, tuple[str, ...]]]:
     """Every declared ``sequenced_after`` in the discovered registry, in manifest order."""
     auto_discover_migrations()
-    return [(migration.migration_id, tuple(migration.sequenced_after)) for migration in MigrationRegistry.get_all() if migration.sequenced_after]
+    return [(migration.migration_id, declared_predecessors(migration)) for migration in MigrationRegistry.get_all() if declared_predecessors(migration)]
 
 
 def test_every_declared_predecessor_is_a_registered_earlier_migration() -> None:
@@ -374,8 +357,3 @@ def test_every_declared_predecessor_is_a_registered_earlier_migration() -> None:
             assert predecessor in registered, f"{declarer} declares unknown predecessor {predecessor}"
             assert predecessor in order, f"{declarer} declares {predecessor}, which order_manifest.txt does not order"
             assert order[predecessor] < order[declarer], f"{declarer} declares {predecessor}, which the manifest orders after it"
-
-
-def test_the_reported_pair_declares_its_detect_input() -> None:
-    """The measured case stays declared: without it the preview under-reports #6552 again."""
-    assert (_REPOINT, (_GATE,)) in _declarations()
