@@ -1,0 +1,149 @@
+schema_version: 1
+mission_id: 01M6BV5D4PER07N6SSFC38CCRM
+mission_slug: scoped-leg-universe-prestep-01M6BV5D
+mission_number:
+friendly_name: scoped leg universe prestep
+mission_type: software-dev
+target_branch: issue-7001-universe-prestep-scope
+created_at: '2026-11-01T17:45:00.519770+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-11-01T17:45:00.519770+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped: []
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 3 finding(s)
+  evidence_refs:
+  - e-008
+  details: The analysis-report.md artifact for this mission records 3 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-11-01][discovery] Fail closed on an unreadable file, skip nothing silently.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-11-01][discovery] Fail closed on an unreadable file, skip nothing silently.** A named gates file that
+    is missing or unreadable exits non-zero with no answer, matching the plug-in's own fail-closed rule; the workflow step
+    then reds the job rather than skipping a collection a selected gate may need.\n\n2026-11-01 · reviewer-renata · Aggregate-diff
+    review, LAND. The three lanes only meet in the workflow: lane-a's single parser, lane-b's decision and the docs. Verified
+    end to end on the lane-b checkout: a two-gate selected file answers false in 2.3 s, a consumer gate answers true, a missing
+    file exits 1 with nothing on stdout, and no file keeps the whole-part answer; the sha-pinned cache steps and the select->key->restore->collect->save->pytest->check
+    order are untouched. Two findings fixed rather than deferred: the changelog/docs cache-reuse note now says a first run
+    collects on both legs in parallel (only a re-run restores), and the tracer no longer carries a machine-local path. "
+- id: n-002
+  category: tooling
+  summary: "Tracer: [2026-11-01][discovery] Intersect the pre-step's *decision*, never the collection."
+  evidence_refs:
+  - e-009
+  details: "- **[2026-11-01][discovery] Intersect the pre-step's *decision*, never the collection.** A scope-only heavy leg
+    runs a handful of gates (#6994). The universe pre-step still asks its question of the whole battery partition, so both
+    legs collect a full test universe that none of their selected gates reads. The approach is to hand the decision the leg's
+    own selected-gates file (the one `SK_BATTERY_GATES_FILE` names for the running leg) and answer for the intersection; a
+    leg that does collect keeps collecting the whole tree, because the two consuming gates compare across the whole suite."
+- id: n-003
+  category: tooling
+  summary: 'Tracer: [2026-11-01][discovery] One parser for the selected-gates file.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-11-01][discovery] One parser for the selected-gates file.** The format is owned by `scripts/ci/battery_scope.py`
+    (next to the writer the CI scope step calls); `battery_partition_plugin.read_gates_file` and the pre-step's `consumers`
+    decision both parse through it, so the pre-step can never believe a gate is selected that the leg refuses to run."
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-11-01][discovery] `spec-kitty charter context --include procedure:mission-wrap-up-sequence` resolves
+    from the installed pack, but the same artifact is absent from the fetched internal pa'
+  evidence_refs:
+  - e-011
+  details: '- **[2026-11-01][discovery] `spec-kitty charter context --include procedure:mission-wrap-up-sequence` resolves
+    from the installed pack, but the same artifact is absent from the fetched internal pack tree.** `packs/internal/procedures/`
+    (and the pinned checkout at `/home/exedev/spec-kitty-internal-pack/internal/procedures/`) has no `mission-wrap-up-sequence.procedure.yaml`,
+    so the documented fallback path does not exist and only the CLI answers. Workaround: read it from `spec-kitty charter
+    context`.'
+gaps:
+- id: g-001
+  category: tooling
+  summary: 'Tracer: [2026-11-01][discovery] `spec-kitty specify` scaffolds into the primary checkout, not the coordination
+    worktree.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-11-01][discovery] `spec-kitty specify` scaffolds into the primary checkout, not the coordination worktree.**
+    On a `coord` topology mission the scaffold (`spec.md`, `meta.json`, `tasks/`) landed in the root checkout's `kitty-specs/`,
+    while `next` names the `.worktrees/<slug>-coord` mission directory as the mission dir and only `status.events.jsonl` was
+    committed there. The scaffold was moved into the coordination worktree by hand before any planning artifact was authored.
+    Candidate gap (no issue filed; a specify step that resolves the mission dir through the same resolver `next` uses would
+    close it)."
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/tasks/WP01-one-parser.md
+- id: e-006
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/tasks/WP02-decision-intersection.md
+- id: e-007
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/tasks/WP03-docs-and-changelog.md
+- id: e-008
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/analysis-report.md
+- id: e-009
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/traces/approach.md
+- id: e-010
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/traces/design-decisions.md
+- id: e-011
+  kind: file
+  path: kitty-specs/scoped-leg-universe-prestep-01M6BV5D/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
