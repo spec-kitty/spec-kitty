@@ -239,6 +239,8 @@ def _check_cli_guards(
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
+    run_dir: Path | None = None,
+    mission_slug: str | None = None,
 ) -> list[str]:
     """Evaluate the CLI guards for ``step_id`` and return the failures.
 
@@ -261,6 +263,11 @@ def _check_cli_guards(
     ``analysis_currency`` (WP07) is the injected analysis-report check; it is
     read only for the software-dev ``analyze`` step.
 
+    ``run_dir`` / ``mission_slug`` (#6330) feed the ``wp_driven`` fact and are
+    forwarded verbatim to :func:`runtime_bridge_io.gather_artifact_presence`:
+    runtime callers thread the run they already resolved, and no path here
+    re-derives a mission handle from ``feature_dir.name``.
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
     mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
@@ -272,6 +279,8 @@ def _check_cli_guards(
         step_id=step_id,
         repo_root=repo_root,
         owned=owned,
+        run_dir=run_dir,
+        mission_slug=mission_slug,
         **injected,
     )
     if step_id in ("implement", "review"):
@@ -836,6 +845,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 mission_family=mission_type,
                 repo_root=repo_root,
                 owned=owned,
+                run_dir=ctx.run_dir,
             )
         except _cores.UnregisteredMissionFamilyError:
             logger.warning(
@@ -883,6 +893,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             repo_root=repo_root,
             owned=owned,
             analysis_currency=ctx.analysis_currency,
+            run_dir=ctx.run_dir,
         )
         if guard_failures:
             return _dn_reissue_step_decision(ctx, current_step_id, guard_failures)
@@ -1063,6 +1074,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
             legacy_step_id=current_step_id,
             contract=runtime_contract,
             owned=ctx.owned,
+            run_dir=ctx.run_dir,
         )
         if composition_failures:
             return _dn_composition_blocked_decision(ctx, current_step_id, composition_failures)

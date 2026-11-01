@@ -1487,30 +1487,50 @@ def mission_declares_analyze_step(run_dir: Path) -> bool:
     return ANALYZE_STEP_ID in {step.id for step in template.steps}
 
 
-def mission_declares_wp_iteration(run_dir: Path) -> bool:
-    """True when the run's frozen runtime DAG declares the ``implement`` step (WP-driven).
+def _wp_iteration_declared_by_run(run_dir: Path) -> bool:
+    """True/False from the run's frozen DAG; a read failure is logged, never silent.
 
     The rule itself is ``kernel.mission_runtime_shape.step_ids_declare_wp_iteration``.
     Like :func:`mission_declares_analyze_step` it reads the frozen template from
-    disk, so it lives here and not in the pure cores leaf; a missing or
-    unreadable template means "not WP-driven" (fail-closed).
+    disk, so it lives here and not in the pure cores leaf. A missing or
+    unreadable template still means "not WP-driven" (fail-closed), but the
+    downgrade is observable (#6330): skipping the WP-advance guard is a decision
+    a maintainer must be able to see in the log, not a silent ``False``.
     """
     try:
         template = load_mission_template_file(run_dir / "mission_template_frozen.yaml")
-    except (OSError, MissionRuntimeError, ValueError):
+    except (OSError, MissionRuntimeError, ValueError) as exc:
+        _logger.warning(
+            "wp_driven fact cannot read the frozen runtime template under %s; treating the run as not WP-driven: %s",
+            run_dir,
+            exc,
+        )
         return False
     return step_ids_declare_wp_iteration(step.id for step in template.steps)
 
 
-def _wp_driven_fact(step_id: str, run_dir: Path | None, repo_root: Path | None, mission_slug: str) -> bool:
+def mission_declares_wp_iteration(run_dir: Path) -> bool:
+    """True when the run's frozen runtime DAG declares the ``implement`` step (WP-driven).
+
+    A missing or unreadable template means "not WP-driven" (fail-closed) and logs
+    a WARNING saying so — see :func:`_wp_iteration_declared_by_run`.
+    """
+    return _wp_iteration_declared_by_run(run_dir)
+
+
+def _wp_driven_fact(step_id: str, run_dir: Path | None, repo_root: Path | None, mission_slug: str | None) -> bool:
     """The plain ``wp_driven`` fact for an ``implement``/``review`` snapshot.
 
-    Uses ``run_dir`` when given, else the run recorded for ``mission_slug`` (read-only,
-    never starts a run). Any other step, or an unresolvable run, is not WP-driven.
+    ``run_dir`` — the run the caller already resolved — is authoritative (#6330).
+    An explicitly supplied ``mission_slug`` is the only fallback: the run recorded
+    for it is read read-only and a run is never started. ``feature_dir.name`` is
+    deliberately not consulted (AGENTS.md: a directory name is not a mission
+    handle); with neither input the fact is simply ``False``. Any other step, or
+    an unresolvable run, is not WP-driven.
     """
     if step_id not in ("implement", "review"):
         return False
-    if run_dir is None and repo_root is not None:
+    if run_dir is None and repo_root is not None and mission_slug is not None:
         try:
             run_dir = _resolve_run_dir_for_mission(repo_root, mission_slug)
         except (OSError, ValueError, RunDirOutsideRepoError, MissionSelectorAmbiguous, StatusReadPathNotFound):
@@ -1528,6 +1548,7 @@ def gather_artifact_presence(
     owned: OwnedCheckout | None = None,
     analysis_currency: AnalysisCurrency | None = None,
     run_dir: Path | None = None,
+    mission_slug: str | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
@@ -1560,6 +1581,15 @@ def gather_artifact_presence(
     function: a seam refusal or a coordination-branch liveness failure while
     resolving a home degrades to the supplied directory rather than raising
     (:class:`_ArtifactPresenceHomes`).
+
+    ``run_dir`` and ``mission_slug`` feed the ``wp_driven`` fact (#6330). The
+    caller that resolves a run threads ``run_dir`` and it is authoritative; a
+    direct caller holding no run may pass the mission handle explicitly and the
+    run recorded for it is read read-only. ``feature_dir.name`` is never used as
+    a mission handle — a caller that supplies neither input gets
+    ``wp_driven=False``, not a guess. A ``run_dir`` that belongs to a different
+    mission than ``feature_dir`` is the caller's contract to keep; it is not
+    cross-checked here.
     """
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
@@ -1650,5 +1680,5 @@ def gather_artifact_presence(
         step_id=step_id,
         legacy_step_id=legacy_step_id,
         blocking_artifact_names=blocking_artifact_names,
-        wp_driven=_wp_driven_fact(step_id, run_dir, repo_root, feature_dir.name),
+        wp_driven=_wp_driven_fact(step_id, run_dir, repo_root, mission_slug),
     )
