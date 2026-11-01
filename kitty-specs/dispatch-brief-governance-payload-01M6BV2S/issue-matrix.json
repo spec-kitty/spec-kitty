@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6990": {
+      "evidence_ref": "WP01 charter context --profile lands the fetch surface; WP02 lands the brief payload; final verdict after the PR is green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
