@@ -110,7 +110,7 @@ code):
 - **One selection resolver.** `SelectionResolver` (`selection.py`) turns an interview
   selection into an activation stem through every layer, so the interview and the
   upgrade promotion share one rule (#6686).
-- **One stem↔id authority.** `IdentityIndex` is the only place the rule lives (#6433). Every
+- **One stem↔id authority.** `IdentityIndex` is the only place the rule lives (`SelectionResolver` composes it) (#6433). Every
   surface asks it the same question, in both directions: a file stem, a declared id, a
   `<kind>:<id>` URN or a normalised directive id (`24`) resolves to the same artifact, and a
   cascade source (`charter activate|deactivate --cascade`) starts from exactly the artifact
