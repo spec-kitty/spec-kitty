@@ -77,7 +77,8 @@ def _pinned_repo(tmp_path: Path, **release: Any) -> tuple[Path, ServicePin]:
 
 
 def _extras() -> dict[str, bytes]:
-    return {"contracts": b"contract bundle", "fixtures": b"conformance fixtures"}
+    # Extras are gzip tarballs by contract (fetch unpacks them), so the fixtures are real archives.
+    return {"contracts": _tar_gz({"bundle/mission-status/openapi.yaml": b"openapi: 3.1.0\n"}), "fixtures": _tar_gz({"conformance/manifest.json": b"{}"})}
 
 
 # --------------------------------------------------------------------------- #

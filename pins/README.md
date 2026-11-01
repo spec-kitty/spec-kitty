@@ -10,11 +10,18 @@ versions, the core version range it needs and, for each target, the release
 asset's file name and SHA-256 digest. The wheel ships no service binary; the
 pinned assets are fetched and checked against these digests.
 
-## Empty until the first release
+## What is pinned
 
-This directory is empty until spec-kitty-events cuts its first `service-v*`
-release. No pin with real digests is committed before then, and a placeholder
-pin (tag `service-v0.0.0` or an all-zero commit) is refused when it is loaded.
+- `read-service.source.yaml`: the Mission Status read service from spec-kitty-events
+  `service-v0.1.0-rc.1`, with its contract bundles, contract tools and conformance
+  fixtures. It is pinned for CI conformance only: the CLI never launches it, and
+  `spec-kitty service fetch --all` does not fetch it (ADR 2026-10-29-1 D-6).
+- The write service and the charter service are not pinned yet: each waits for a
+  release that carries it.
+
+`make sync-services` fetches, verifies and unpacks the pinned assets for this host;
+`make dev-setup` fetches the extras only. A placeholder pin (tag `service-v0.0.0` or an
+all-zero commit) is refused when it is loaded.
 
 ## Rules
 
