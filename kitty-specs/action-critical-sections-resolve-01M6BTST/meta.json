@@ -1,0 +1,36 @@
+{
+  "accept_commit": "fbe60e0e3110321f97e8d9999b4b1e22cc6eb7e7",
+  "acceptance_history": [
+    {
+      "accept_commit": "fbe60e0e3110321f97e8d9999b4b1e22cc6eb7e7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:14:09.104327+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "9a8785c0e0ce75e7fc22703a34e5364a9c67c724"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:14:09.104327+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "9a8785c0e0ce75e7fc22703a34e5364a9c67c724",
+  "baseline_merge_commit": "1d6ce043eb0e6fad6abb5f529e93628c6270fc29",
+  "contracts": "none",
+  "contracts_rationale": "No new interface: the mission changes the content of the existing `charter context` render output and leaves its CLI shape, selectors and exit codes unchanged. The one contract document that pins the row (kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/charter-context-resolver.md) is updated in place.",
+  "created_at": "2026-11-01T15:14:14.489839+00:00",
+  "flattened": true,
+  "friendly_name": "action critical sections resolve",
+  "merged_at": "2026-11-01T17:31:18.679049+00:00",
+  "merged_commit": "3747fba8b4617b21a9c17ad5e0339303f0fb9133",
+  "mid8": "01M6BTST",
+  "mission_id": "01M6BTSTGACCYT222BDC1WFZEQ",
+  "mission_number": 246,
+  "mission_slug": "action-critical-sections-resolve-01M6BTST",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances action critical sections resolve on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "action critical sections resolve",
+  "slug": "action-critical-sections-resolve-01M6BTST",
+  "status_phase": "1",
+  "target_branch": "issue-6968-action-critical-sections-resolve",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:22:24.749199+00:00"
+}

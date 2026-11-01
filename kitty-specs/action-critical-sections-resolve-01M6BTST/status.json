@@ -1,0 +1,53 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M6C2JNN7BZMEPCNDMPEZA9E1",
+  "materialized_at": "2026-11-01T17:30:08.423503+00:00",
+  "mission_number": "",
+  "mission_slug": "action-critical-sections-resolve-01M6BTST",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6C2JJV1HVX3YT80N7BB06MS",
+      "last_transition_at": "2026-11-01T17:30:05.537964+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 3345375,
+      "shell_pid_created_at": "1793546539.7"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6C2JNN7BZMEPCNDMPEZA9E1",
+      "last_transition_at": "2026-11-01T17:30:08.423503+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 3669702,
+      "shell_pid_created_at": "1793550826.29"
+    }
+  }
+}
