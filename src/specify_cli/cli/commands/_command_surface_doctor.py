@@ -283,8 +283,8 @@ def _load_command_skill_state(
     The loaded ``AgentConfig`` rides along because the summary needs to know whether
     the project *states* an agent list at all: a config with no ``agents.available``
     is the legacy every-agent fallback (#6501), and an audit over that shape must not
-    claim health over the surfaces it never examined (#6891). Carrying it here keeps
-    one YAML read per invocation.
+    claim health over the surfaces it never examined (#6891). Carrying it here adds
+    no YAML read of its own.
     """
     from specify_cli.core.agent_config import load_agent_config
     from specify_cli.skills import command_installer, manifest_store
@@ -908,7 +908,8 @@ def _tool_config_or_exit(project_path: Path, json_output: bool) -> AgentConfig:
     Returns the whole :class:`AgentConfig`, not just its keys, because the human
     summary needs ``explicit_agent_list``: an audit over the legacy every-agent
     fallback (#6501) has no surfaces to check and must say so instead of claiming
-    health (#6891). Loading it here keeps one YAML read per invocation.
+    health (#6891). Loading it here adds no YAML read
+    beyond the one the command already made.
 
     Mirrors :func:`_load_skills_state_or_exit`'s ``AgentConfigError`` handling
     (the sibling ``doctor skills`` command) so a non-mapping
