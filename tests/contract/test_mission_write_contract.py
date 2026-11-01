@@ -1,4 +1,4 @@
-"""Acceptance and refusal-parity tests of ``contracts/mission-write`` (#6675, ADR 2026-10-27-1).
+"""Acceptance and refusal-parity tests of the ``mission-write`` contract (#6675, ADR 2026-10-27-1).
 
 The module is resolved with the contract resolver (the one resolution authority) and checked
 against the operator's protocol rulings: six operations, the bearer scheme on every one, the
@@ -8,6 +8,10 @@ every refusal. Refusal-code parity is checked three ways: the contract, the clie
 ``tests/contract/fixtures/mission_write_refusal_parity.yaml`` agree, and every code that claims
 a CLI origin is found verbatim in the CLI file the inventory cites. The client shapes' serialized
 requests and the module's examples validate against the resolved schemas.
+
+The module and the contract tools are the pinned ``contract-bundles`` and ``contract-tools`` extras of
+spec-kitty-events (``make sync-services``, #6915); the bundle keeps each example on its schema's
+``examples`` list, so an example is picked from that list by title and content, never by file name.
 """
 
 from __future__ import annotations
@@ -25,14 +29,19 @@ from jsonschema import Draft202012Validator
 from runtime.next.event_bridge import WorkPackageTransition
 from specify_cli.coordination.status_service import EventLogWriteContract
 from specify_cli.status import write_service_protocol as wsp
+from tests.contract import _mission_status_payloads as helper
 from tests.contract._loader import load_tool
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TOOLS_DIR = REPO_ROOT / "contracts" / "tools"
-MODULE_DIR = REPO_ROOT / "contracts" / "mission-write"
-EXAMPLES_DIR = MODULE_DIR / "examples"
+WRITE_MODULE = "mission-write"
+#: The pinned contract tools and bundled ``mission-write`` module (``make sync-services``); see the autouse fixture below.
+TOOLS_DIR = expected_extra_root("contract_tools") / "contracts" / "tools"
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / WRITE_MODULE
+#: The ``code`` of each ``WriteRefusal`` example the contract carries; the list must equal the bundle's, so an empty one fails.
+REFUSAL_EXAMPLE_CODES = ("DEPENDENCIES_NOT_SATISFIED", "PROTECTED_BRANCH_REFUSED", "SERVICE_BUSY", "TRANSITION_REJECTED", "WRITE_TOKEN_INVALID")
 PARITY_FILE = Path(__file__).resolve().parent / "fixtures" / "mission_write_refusal_parity.yaml"
 
 OPERATIONS = {
@@ -45,6 +54,13 @@ OPERATIONS = {
 }
 PROBLEM_MEDIA_TYPE = "application/problem+json"
 JSON_MEDIA_TYPE = "application/json"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
 
 
 @pytest.fixture(scope="module")
@@ -88,8 +104,11 @@ def _validate(schema: Mapping[str, Any], instance: Any) -> None:
     assert not errors, [error.message for error in errors]
 
 
-def _example(name: str) -> Any:
-    return yaml.safe_load((EXAMPLES_DIR / name).read_text(encoding="utf-8"))
+def _example(title: str, **members: Any) -> Any:
+    """The one example of the schema *title* whose top-level *members* have the given values (all of them when none are given)."""
+    matching = [example for example in helper.bundled_examples(title, WRITE_MODULE) if all(example.get(key) == value for key, value in members.items())]
+    assert len(matching) == 1, f"{len(matching)} {title} examples match {members}"
+    return matching[0]
 
 
 # -- operations and security --------------------------------------------------
@@ -257,7 +276,7 @@ def _unit_from_the_port(tmp_path: Path) -> wsp.TransitionUnit:
     checkout = tmp_path / ".worktrees" / "demo-01M5Z6N5-coord"
     mission_dir = checkout / "kitty-specs" / "demo-01M5Z6N5"
     mission_dir.mkdir(parents=True)
-    row = _example("TransitionUnit.claim.yaml")["rows"][0]
+    row = _example("TransitionUnit")["rows"][0]
     transition = WorkPackageTransition(
         write_location=mission_dir,
         rows=(_Row(row),),
@@ -268,7 +287,7 @@ def _unit_from_the_port(tmp_path: Path) -> wsp.TransitionUnit:
 
 def test_requests_the_client_builds_validate_against_the_contract(tree: dict[str, Any], tmp_path: Path) -> None:
     unit = _unit_from_the_port(tmp_path)
-    annotation = wsp.AnnotationRequest(wp_id="WP01", row=_example("AnnotationRequest.note.yaml")["row"], context=unit.context)
+    annotation = wsp.AnnotationRequest(wp_id="WP01", row=_example("AnnotationRequest")["row"], context=unit.context)
 
     _validate(_request_schema(tree, "/missions/{missionId}/work-package-transitions"), unit.to_wire())
     _validate(_request_schema(tree, "/missions/{missionId}/work-package-transitions/batch"), wsp.TransitionBatch(units=(unit, unit)).to_wire())
@@ -278,23 +297,32 @@ def test_requests_the_client_builds_validate_against_the_contract(tree: dict[str
 @pytest.mark.parametrize(
     ("path", "method", "status", "example", "shape"),
     [
-        ("/missions/{missionId}/work-package-transitions", "post", "201", "DurabilityAck.appended.yaml", wsp.DurabilityAck),
-        ("/missions/{missionId}/work-package-transitions", "post", "201", "DurabilityAck.replayed.yaml", wsp.DurabilityAck),
-        ("/missions/{missionId}/work-package-transitions/batch", "post", "201", "BatchDurabilityAck.two-units.yaml", wsp.BatchDurabilityAck),
-        ("/handshake", "get", "200", "Handshake.example.yaml", wsp.Handshake),
-        ("/health", "get", "200", "Health.ready.yaml", wsp.Health),
+        ("/missions/{missionId}/work-package-transitions", "post", "201", ("DurabilityAck", {"replayed": False}), wsp.DurabilityAck),
+        ("/missions/{missionId}/work-package-transitions", "post", "201", ("DurabilityAck", {"replayed": True}), wsp.DurabilityAck),
+        ("/missions/{missionId}/work-package-transitions/batch", "post", "201", ("BatchDurabilityAck", {}), wsp.BatchDurabilityAck),
+        ("/handshake", "get", "200", ("Handshake", {}), wsp.Handshake),
+        ("/health", "get", "200", ("Health", {"status": "ready"}), wsp.Health),
     ],
+    ids=["DurabilityAck.appended", "DurabilityAck.replayed", "BatchDurabilityAck.two-units", "Handshake.example", "Health.ready"],
 )
-def test_success_examples_validate_and_the_client_reads_them(tree: dict[str, Any], path: str, method: str, status: str, example: str, shape: Any) -> None:
-    body = _example(example)
+def test_success_examples_validate_and_the_client_reads_them(
+    tree: dict[str, Any], path: str, method: str, status: str, example: tuple[str, dict[str, Any]], shape: Any
+) -> None:
+    title, members = example
+    body = _example(title, **members)
 
     _validate(_success_schema(tree, path, method, status), body)
     shape.from_wire(body)
 
 
-@pytest.mark.parametrize("example", sorted(p.name for p in EXAMPLES_DIR.glob("WriteRefusal.*.yaml")))
-def test_refusal_examples_validate_and_the_client_reads_them(tree: dict[str, Any], example: str) -> None:
-    body = _example(example)
+def test_the_refusal_examples_are_exactly_the_listed_codes() -> None:
+    codes = sorted(example["code"] for example in helper.bundled_examples("WriteRefusal", WRITE_MODULE))
+    assert codes == sorted(REFUSAL_EXAMPLE_CODES), f"the contract's WriteRefusal examples carry {codes}"
+
+
+@pytest.mark.parametrize("code", REFUSAL_EXAMPLE_CODES)
+def test_refusal_examples_validate_and_the_client_reads_them(tree: dict[str, Any], code: str) -> None:
+    body = _example("WriteRefusal", code=code)
 
     _validate(_refusal_schema(tree), body)
     refusal = wsp.WriteRefusal.from_wire(body)
@@ -308,7 +336,7 @@ def test_a_refusal_with_the_wrong_status_for_its_code_is_invalid(tree: dict[str,
 
 
 def test_an_empty_unit_and_an_oversized_batch_are_invalid(tree: dict[str, Any]) -> None:
-    unit = _example("TransitionUnit.claim.yaml")
+    unit = _example("TransitionUnit")
     empty = {**unit, "rows": []}
     oversized = {"units": [unit] * (wsp.MAX_BATCH_UNITS + 1)}
 
@@ -325,8 +353,8 @@ def test_the_module_keeps_its_hands_off_the_events_envelope(tree: dict[str, Any]
     assert "spec-kitty-events#92" in row["description"]
 
 
-def test_the_split_root_reads_without_the_resolver() -> None:
-    # A consumer with only PyYAML can read the split root and see the six path keys.
+def test_the_bundled_root_reads_without_the_resolver() -> None:
+    # A consumer with only PyYAML can read the bundled root and see the six path keys.
     root: dict[str, Any] = yaml.safe_load((MODULE_DIR / "openapi.yaml").read_text(encoding="utf-8"))
 
     assert {path for path, _ in OPERATIONS} == set(root["paths"])
@@ -350,14 +378,14 @@ def test_the_write_surface_wire_values_name_no_retired_alias(tree: dict[str, Any
 @pytest.mark.parametrize("field", ["checkout", "missionDirectory"])
 @pytest.mark.parametrize("value", ["..", "../x", "a/../b", "/abs", "C:/x", "a\\b", ""])
 def test_request_paths_refuse_escapes_and_host_paths(tree: dict[str, Any], field: str, value: str) -> None:
-    context = {**_example("TransitionUnit.claim.yaml")["context"], field: value}
+    context = {**_example("TransitionUnit")["context"], field: value}
 
     assert list(Draft202012Validator(_context_schema(tree)).iter_errors(context)), f"{field}={value!r} was accepted"
 
 
 @pytest.mark.parametrize("value", [".", "kitty-specs/demo-01M5Z6N5", ".worktrees/demo-01M5Z6N5-lane-a"])
 def test_request_paths_accept_relative_forward_slash_paths(tree: dict[str, Any], value: str) -> None:
-    context = {**_example("TransitionUnit.claim.yaml")["context"], "checkout": value}
+    context = {**_example("TransitionUnit")["context"], "checkout": value}
 
     _validate(_context_schema(tree), context)
 
@@ -371,7 +399,7 @@ def test_a_reason_travels_only_under_its_own_code(tree: dict[str, Any]) -> None:
 
 
 def test_a_fully_replayed_batch_acknowledges_zero_fsyncs(tree: dict[str, Any]) -> None:
-    replayed = _example("DurabilityAck.replayed.yaml")
+    replayed = _example("DurabilityAck", replayed=True)
     body = {"units": [replayed, replayed], "fsyncs": 0}
 
     _validate(_success_schema(tree, "/missions/{missionId}/work-package-transitions/batch", "post", "201"), body)
