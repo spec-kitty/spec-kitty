@@ -1,7 +1,7 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M6BS9W586M87SJ7YATF1DNDP",
-  "materialized_at": "2026-11-01T14:48:02.980519+00:00",
+  "event_count": 6,
+  "last_event_id": "01M6BTDCT3BKRYY73SV169MCKP",
+  "materialized_at": "2026-11-01T15:07:26.915460+00:00",
   "mission_number": "",
   "mission_slug": "docsite-url-ledgers-01M6BRMR",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 2
   },
@@ -25,14 +25,22 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M6BS9W586M87SJ7YATF1DNDP",
-      "last_transition_at": "2026-11-01T14:48:02.980519+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M6BTDCT3BKRYY73SV169MCKP",
+      "last_transition_at": "2026-11-01T15:07:26.915460+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 6182,
-      "shell_pid_created_at": "1793544477.12"
+      "shell_pid_created_at": "1793544477.12",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     },
     "WP02": {
       "actor": "finalize-tasks",
