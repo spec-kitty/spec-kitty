@@ -22,7 +22,6 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-import yaml
 
 from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 from specify_cli.core.git_ops import get_current_branch
@@ -35,12 +34,13 @@ from specify_cli.upgrade.metadata import ProjectMetadata
 from tests.contract import _mission_status_memo as memo_module
 from tests.contract import _mission_status_payloads as helper
 from tests.contract import _mission_status_project as project
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.corpus, pytest.mark.git_repo]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-MODULE_DIR = REPO_ROOT / "contracts" / "mission-status"
-SCHEMA_FILE = MODULE_DIR / "schemas" / "Project.yaml"
+#: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE
 SLASH = chr(47)
 PROJECT_NAME = "fixture-project"
 VERSION_OK = "4.0.0"
@@ -49,6 +49,13 @@ NEW_PROPERTIES = PROPERTIES[2:]
 NOT_KILLED = "the mutation was not killed"
 FAULT_NOT_FIRED = "the injected fault did not fire"
 MISSION = "alpha-mission"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
 
 
 class UnexpectedProcess(AssertionError):
@@ -471,7 +478,7 @@ def _undecodable_activity_problems(env: Env) -> list[str]:
 
 def test_the_last_activity_description_and_rule_state_the_unreadable_cases() -> None:
     """FR-006 and FR-024: an unreadable status.json leaves its Mission out, a broken event log fails the read."""
-    member = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8"))["properties"]["lastActivityAt"]
+    member = helper.bundled_schema(helper.SCHEMA_PROJECT)["properties"]["lastActivityAt"]
     for place, text in (("description", member["description"]), ("x-derived rule", member["x-derived"]["rule"])):
         flat = " ".join(text.split())
         assert "status.json" in flat and "cannot be decoded or parsed" in flat and "500" in flat, place
@@ -669,6 +676,17 @@ PROPERTY_WORDS = {
     "lastActivityAt": ("no Mission is listed", "null activity"),
 }
 
+# The provenance each new property carries in the bundle: exactly one of x-source and x-derived, except health. The bundle inlines the
+# referenced ProjectHealth schema, which brings its own x-source (CompatibilityStatus), beside the property's own x-derived (#6915).
+EXPECTED_PROVENANCE: dict[str, tuple[str, ...]] = {
+    "specKittyVersion": ("x-source",),
+    "schemaVersion": ("x-source",),
+    "health": ("x-derived", "x-source"),
+    "currentBranch": ("x-source",),
+    "lastActivityAt": ("x-derived",),
+}
+HEALTH_INLINED_SOURCE = "CompatibilityStatus"
+
 
 def schema_problems(document: Mapping[str, Any]) -> list[str]:
     """Every way a ``Project`` schema document misses FR-001 and the descriptions that carry rules."""
@@ -689,16 +707,20 @@ def schema_problems(document: Mapping[str, Any]) -> list[str]:
         text = str(properties.get(name, {}).get("description", ""))
         problems += [f"{name} description lacks {word!r}" for word in words if word not in text]
     for name in NEW_PROPERTIES:
-        carried = [key for key in ("x-source", "x-derived") if key in properties.get(name, {})]
-        if len(carried) != 1:
-            problems.append(f"{name} carries {carried!r}, expected exactly one of x-source and x-derived")
+        expected = EXPECTED_PROVENANCE.get(name)
+        carried = tuple(sorted(key for key in ("x-source", "x-derived") if key in properties.get(name, {})))
+        if carried != expected:
+            problems.append(f"{name} carries {carried!r}, expected exactly {expected!r}")
+    health_source = properties.get("health", {}).get("x-source", {})
+    if not isinstance(health_source, Mapping) or health_source.get("symbol") != HEALTH_INLINED_SOURCE:
+        problems.append(f"health's x-source is {health_source!r}, expected the inlined ProjectHealth one ({HEALTH_INLINED_SOURCE})")
     if "x-provisional" not in properties.get("health", {}):
         problems.append("health is not provisional")
     return problems
 
 
 def row8_problems(env: Env) -> list[str]:
-    real = yaml.safe_load(SCHEMA_FILE.read_text(encoding="utf-8"))
+    real = helper.bundled_schema(helper.SCHEMA_PROJECT)
     problems = [f"real schema: {problem}" for problem in schema_problems(real)]
     frozen = {
         "title": "Project",
@@ -714,7 +736,22 @@ def row8_problems(env: Env) -> list[str]:
     silent["description"] = silent["description"].replace(COST_WORDS[0], "depends on the Mission count")
     old_text = copy.deepcopy(real)
     old_text["description"] = OLD_DESCRIPTION
-    for label, plant in (("the frozen old schema", frozen), ("a short required list", short), ("no cost sentence", silent), ("the old description", old_text)):
+    doubled = copy.deepcopy(real)
+    doubled["properties"]["schemaVersion"]["x-derived"] = {"rule": "planted"}
+    underived = copy.deepcopy(real)
+    del underived["properties"]["lastActivityAt"]["x-derived"]
+    foreign_health = copy.deepcopy(real)
+    foreign_health["properties"]["health"]["x-source"] = {"path": "planted.py", "symbol": "Planted"}
+    plants = (
+        ("the frozen old schema", frozen),
+        ("a short required list", short),
+        ("no cost sentence", silent),
+        ("the old description", old_text),
+        ("schemaVersion carrying both provenance keys", doubled),
+        ("lastActivityAt without its x-derived", underived),
+        ("health with a foreign x-source", foreign_health),
+    )
+    for label, plant in plants:
         if not schema_problems(plant):
             problems.append(f"{label}: the plant was not refused, so the check proves nothing")
     return problems

@@ -13,7 +13,8 @@ Also checks, per ADR 2026-10-15-1:
   tree built under ``tmp_path`` that must fail it;
 * the ownership rules: ``.github/CODEOWNERS`` gives the scenarios to QA and core together and the
   runner to core, resolved with the last-matching-rule semantics of
-  ``contracts/tools/codeowners_check.py`` (reused, not re-implemented).
+  ``codeowners_check.py`` of the pinned ``contract-tools`` extra (reused, not re-implemented;
+  ``make sync-services`` fetches it, #6915).
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ import pytest
 from scripts.ci import absorption_ledger as ledger
 from scripts.ci import scenario_contract as contract
 from tests.contract._loader import load_tool
+from tests.pinned_service_assets import contract_tools_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).parent / "fixtures" / "scenarios"
@@ -250,7 +252,7 @@ EXPECTED_OWNERS = {
 
 @pytest.fixture(scope="module")
 def owners_tool():
-    tools = REPO_ROOT / "contracts" / "tools"
+    tools = contract_tools_dir()  # fails closed (never skips) when the pinned contract-tools extra is not fetched
     with pytest.MonkeyPatch.context() as mp:
         yield load_tool(mp, tools / "codeowners_check.py", "codeowners_check_for_scenarios", syspath=tools)
 

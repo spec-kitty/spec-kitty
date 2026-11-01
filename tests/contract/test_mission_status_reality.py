@@ -72,14 +72,24 @@ from tests.contract._mission_status_payloads import (
     require_cases,
     tree_fingerprint,
 )
+from tests.pinned_service_assets import expected_extra_root, require_pinned_extra
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 KITTY_SPECS = "kitty-specs"
-MODULE_DIR = REPO_ROOT / "contracts" / "mission-status"
+#: The pinned, bundled ``mission-status`` contract of spec-kitty-events (``make sync-services``); see the autouse fixture below.
+MODULE_DIR = expected_extra_root("contracts") / "bundle" / helper.MISSION_STATUS_MODULE
 SLASH = chr(47)
 AT = chr(64)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _pinned_contracts() -> None:
+    """Fail closed (never skip) before any test reads the pinned contract bundle or tools: ``make sync-services`` fetches them."""
+    require_pinned_extra("contracts")
+    require_pinned_extra("contract_tools")
+
 
 # Collected at import: an empty enumeration is a collection error, never a silent skip.
 CASES: list[str] = require_cases(enumerate_missions(REPO_ROOT))
@@ -1063,7 +1073,7 @@ def scan_eligible_files(mission: ScannedMission) -> list[str]:
 # The examinations: build everything a service would answer, compare it with the independent scans, count what ran
 # ---------------------------------------------------------------------------
 
-VERDICTS = frozenset(yaml.safe_load((MODULE_DIR / "schemas" / "ReviewVerdict.yaml").read_text(encoding="utf-8"))["enum"])
+VERDICTS = frozenset(helper.bundled_schema("ReviewVerdict")["enum"])
 
 
 def count_problems(name: str, *, examined: int, discovered: int, floor: int) -> list[str]:
