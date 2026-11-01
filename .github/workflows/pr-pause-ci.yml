@@ -9,9 +9,13 @@
 #   labeled   -> cancel every queued/in-progress run for the PR head SHA, and post a
 #                failing check run under each required gate name so a PR whose gates
 #                were already green stops being mergeable at once.
-#   unlabeled -> close and reopen the PR. A re-run (`gh run rerun`) would replay the
-#                ORIGINAL event payload, label list included, so a PR pushed while
-#                paused would re-pause itself; `reopened` carries fresh labels.
+#   unlabeled -> re-run every cancelled run for the PR head SHA. Events caused by
+#                `GITHUB_TOKEN` (a close/reopen, a push) start no workflow runs, so a
+#                re-run is the only resume this token can trigger. A re-run replays the
+#                ORIGINAL payload: runs the pause cancelled started before the label and
+#                resume cleanly; a run that started while labelled pauses again, so after
+#                a push made under the label, push again (or close and reopen the PR by
+#                hand) once the label is off.
 name: PR Pause CI
 
 on:
@@ -66,18 +70,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
-      pull-requests: write
+      actions: write
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      - name: Reopen the PR so CI starts with the current label set
+      - name: Re-run the runs the pause cancelled for the head commit
         shell: bash
         run: |
           set -euo pipefail
-          state="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json state -q .state)"
-          if [ "$state" = "OPEN" ]; then
-            gh pr close "$PR_NUMBER" --repo "$REPO"
-            gh pr reopen "$PR_NUMBER" --repo "$REPO"
-          fi
+          gh run list --repo "$REPO" --commit "$HEAD_SHA" --status cancelled \
+            --json databaseId,event -q '.[] | select(.event == "pull_request") | .databaseId' --limit 200 \
+            | while read -r id; do
+              gh run rerun "$id" --repo "$REPO" || echo "run $id could not be re-run"
+            done

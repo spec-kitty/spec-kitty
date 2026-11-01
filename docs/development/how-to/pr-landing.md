@@ -602,8 +602,11 @@ PR that is not being landed `pr:pause-ci`:
   in-progress runs and posts a failing check under each required gate name, so a PR that was
   already green stops being mergeable.
 
-To resume, remove the label. The same workflow closes and reopens the PR, which starts CI with
-the current labels (re-running an old run would replay the old label list).
+To resume, remove the label. The same workflow re-runs the runs the pause cancelled; they started
+before the label, so they run in full. A run that started while the PR was labeled replays that
+label and pauses again, so if the PR was pushed while labeled, push again (or close and reopen the
+PR by hand) after removing the label. The workflow cannot do that itself: events caused by its own
+token start no workflow runs.
 
 ## Gotchas
 
