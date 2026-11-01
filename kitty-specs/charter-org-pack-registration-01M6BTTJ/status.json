@@ -1,0 +1,119 @@
+{
+  "event_count": 18,
+  "last_event_id": "01M6CAJ8K7XK9YNQVRBVVMQ0MN",
+  "materialized_at": "2026-11-01T19:49:43.655858+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-org-pack-registration-01M6BTTJ",
+  "mission_type": "",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "approved",
+      "last_event_id": "01M6C8KWW97JDF5VFY189KH7CG",
+      "last_transition_at": "2026-11-01T19:15:40.041973+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review gate skipped: its 300s budget is structurally insufficient for the scope it selects on this host (measured make test-fast 17m21s); tracked in #3046. Bounded evidence instead: tests/charter_offering/drg (769 passed) + the new seam file (14 passed).",
+        "Review passed: unregister now fails loudly on a vanished block/entry, byte round-trip pinned against the CLI's own config writer (17 seam tests, 43 org_pack_config tests, ruff+mypy clean)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3312946,
+      "shell_pid_created_at": "1793546403.95",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "approved",
+      "last_event_id": "01M6C9GAVEGQR4Y8WC7BE8E5W8",
+      "last_transition_at": "2026-11-01T19:31:11.854582+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: add/remove implemented, 26 CLI acceptance tests green (+11 existing org tests), ruff/mypy clean.",
+        "Review passed: facade export fixed (org add no longer ImportErrors), seam failure renders as ORG_PACK_UNREADABLE, 27 acceptance tests green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 392596,
+      "shell_pid_created_at": "1793560562.46",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "approved",
+      "last_event_id": "01M6CAJ8K7XK9YNQVRBVVMQ0MN",
+      "last_transition_at": "2026-11-01T19:49:43.655858+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: fetch guidance, CLI reference sections, how-to Step 8, changelog fragment; docs freshness errors=0, changelog style errors=0.",
+        "Review passed: fetch guidance names the command, CLI reference spliced from a temp build, how-to Step 8 leads with org add, fragment-style changelog; docs freshness errors=0."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 414052,
+      "shell_pid_created_at": "1793561482.63",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done"
+      }
+    }
+  }
+}
