@@ -131,6 +131,9 @@
       "last_event_id": "01M6BZFYJA349ZSF5TDYW393JW",
       "last_transition_at": "2026-11-01T16:36:13.515013+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Build evidence: migrated docs/ exit 0, 640 pages; control on origin/main exit 1. Pre-review gate skipped: planning-artifact WP; make test-fast already green (2686 passed)."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 11817,
