@@ -5,3 +5,4 @@
 - **[2026-11-01][specify] `charter context` reported `packs/internal` missing.** `make sync-packs` had not run in this checkout (the setup script does not run it). Fixed by running it; candidate gap: `scripts/dev/cloud-session-setup.sh` could sync packs.
 - **[2026-11-01][specify] `mission create` scaffold commit carries no co-author trailer.** The CLI's own commit cannot take the operator-required trailer. Candidate gap.
 - **[2026-11-01][implement] `tests/docs` collection costs ~55 s of session setup in this container.** Any single docs test file pays it; the ledger tests themselves run under 1 s. Not investigated (not this Mission's surface).
+- **[2026-11-01][implement] `rename_reconcile.py` needs ruamel, so it cannot run under bare system `python3`.** Pre-existing; run it with `.venv/bin/python`. `bulk_ref_rewrite.py --dry-run` over the whole repo exceeds 10 minutes with 298 substitutions; scope it with `--root`. Candidate gaps, not fixed here.
