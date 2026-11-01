@@ -30,11 +30,7 @@ _RESOLVED_FOLDERS = ("adr/1.x", "adr/2.x", "adr/3.x", "architecture")
 
 def folders_with_two_index_files(root: Path) -> list[str]:
     """Folders under *root* that hold both ``index.md`` and ``README.md``."""
-    return sorted(
-        index.parent.relative_to(root).as_posix()
-        for index in root.rglob("index.md")
-        if (index.parent / "README.md").is_file()
-    )
+    return sorted(index.parent.relative_to(root).as_posix() for index in root.rglob("index.md") if (index.parent / "README.md").is_file())
 
 
 def test_no_docs_folder_holds_two_index_files() -> None:

@@ -1,33 +1,33 @@
 {
-  "event_count": 15,
-  "last_event_id": "01M6BWPS0QZJQ73ASGKV42VV7V",
-  "materialized_at": "2026-11-01T15:47:31.476350+00:00",
-  "mission_number": "",
+  "event_count": 21,
+  "last_event_id": "01M6BY88FE67V6N0P5S46EBSMM",
+  "materialized_at": "2026-11-01T16:14:32.942599+00:00",
+  "mission_number": "246",
   "mission_slug": "docsite-url-ledgers-01M6BRMR",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 2,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 3,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude-reviewer",
+      "actor": "merge",
       "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M6BTVYCWS3HA7CKW7GSPSQ7K",
-      "last_transition_at": "2026-11-01T15:15:23.676151+00:00",
+      "lane": "done",
+      "last_event_id": "01M6BY8547QBFZEKCPQWJ9KC7B",
+      "last_transition_at": "2026-11-01T16:14:29.511086+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ledgers seeded; map derived from site/moves.yaml; 154 targeted tests green; local DocFX coverage 970/970",
@@ -52,15 +52,15 @@
       }
     },
     "WP02": {
-      "actor": "claude-reviewer",
+      "actor": "merge",
       "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "approved",
-      "last_event_id": "01M6BWNY1GPJH2QFD64BDHGBRY",
-      "last_transition_at": "2026-11-01T15:47:03.856212+00:00",
+      "lane": "done",
+      "last_event_id": "01M6BY86RVPFKJEHTTFN1XW0S5",
+      "last_transition_at": "2026-11-01T16:14:31.195290+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Defaults repointed to site/moves.yaml; defaults gate red->green; 183 targeted tests green",
@@ -83,20 +83,36 @@
       }
     },
     "WP03": {
-      "actor": "claude",
-      "agent": "claude",
+      "actor": "merge",
+      "agent": "claude-reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M6BWPS0QZJQ73ASGKV42VV7V",
-      "last_transition_at": "2026-11-01T15:47:31.476350+00:00",
+      "lane": "done",
+      "last_event_id": "01M6BY88FE67V6N0P5S46EBSMM",
+      "last_transition_at": "2026-11-01T16:14:32.942599+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "4 folders single-index; README routes redirected; DocFX coverage 970/970; tests/docs green",
+        "Review passed (claude-reviewer). Red->green: test_one_index_per_folder 6 fail/1 pass at 96321e1f7 (4 colliding folders, routes missing), 7 pass now. Landing content: every README section survives in architecture/index.md (+Page index); no self-links; related 10/10 exist; description 164 chars. ADR stubs were pure redirect stubs. moves.yaml append-only (+4 #6928 entries, header comment only); check-map fresh (302). Archive edits are link-target-only README.md->index.md (ADR D-7, occurrence map). Generated surfaces untouched. Tests: 2038 passed, 8 skipped (tests/docs + roundtrip + regen_docs_index + no_legacy_terminology + archive_root_byte_identical). Changelog style 0 errors. DocFX: coverage 970/970, drift 0, README.html stubs -> index.html. Low follow-ups: 6 frontmatter related: edges in immutable archive/plans now dangle (report-only validator); packs/built-in docs_structural_lint.py:679 docstring cites architecture/README.md (upstream open-packs)."
+      ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 14973,
-      "shell_pid_created_at": "1793548045.59"
+      "review_result": {
+        "reference": "auto-approval:WP03:20261101",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3628,
+      "shell_pid_created_at": "1793549243.11",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
     }
   }
 }

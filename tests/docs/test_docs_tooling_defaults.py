@@ -89,8 +89,13 @@ def test_collector_ignores_docstrings_and_the_exclude_prefix() -> None:
     assert mission_scoped_defaults(source) == []
 
 
-def test_tooling_defaults_point_at_the_standing_ledger() -> None:
+def test_tooling_defaults_point_at_the_standing_ledger(monkeypatch: pytest.MonkeyPatch) -> None:
+    import importlib
+
     from scripts.docs import bulk_ref_rewrite, rename_reconcile
 
+    # The rewriter's default honours an env override; judge the built-in default.
+    monkeypatch.delenv("SPEC_KITTY_OCCURRENCE_MAP", raising=False)
+    importlib.reload(bulk_ref_rewrite)
     assert rename_reconcile.DEFAULT_MOVES_LEDGER == "site/moves.yaml"
     assert bulk_ref_rewrite.DEFAULT_OCCURRENCE_MAP == "site/moves.yaml"

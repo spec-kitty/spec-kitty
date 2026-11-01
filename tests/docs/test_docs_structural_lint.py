@@ -583,15 +583,19 @@ def test_live_nav_basenames_do_not_trip_shadow_tree() -> None:
     assert "README.md" not in flagged_basenames
 
 
-def test_live_adr_readmes_do_not_trip_frontmatter_contract() -> None:
-    """The 3 frontmatter-less docs/adr/{1.x,2.x,3.x}/README.md are allowlisted (#2227)."""
+def test_live_adr_era_indexes_do_not_trip_frontmatter_contract() -> None:
+    """The docs/adr/{1.x,2.x,3.x}/index.md era landing pages stay out of scope (#2227).
+
+    Their README.md redirect stubs, which this test first guarded, were deleted in
+    #6928 (one index file per folder); the era index pages are the landing pages now.
+    """
     config = load_config(STYLEGUIDE_PATH)
     docs_root = _REPO_ROOT / "docs"
-    adr_readmes = [docs_root / "adr" / era / "README.md" for era in ("1.x", "2.x", "3.x")]
-    for readme in adr_readmes:
-        assert readme.is_file()
+    era_indexes = [docs_root / "adr" / era / "index.md" for era in ("1.x", "2.x", "3.x")]
+    for index in era_indexes:
+        assert index.is_file()
 
-    violations = check_frontmatter_contract(adr_readmes, docs_root, _REPO_ROOT, config)
+    violations = check_frontmatter_contract(era_indexes, docs_root, _REPO_ROOT, config)
 
     assert violations == []
 

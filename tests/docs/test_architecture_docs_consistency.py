@@ -41,7 +41,7 @@ ADR_TRACKS = {
 ADR_FILENAME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-\d+-.+\.md$")
 
 REQUIRED_ARCH_PATHS: list[Path] = [
-    ARCH_DIR / "README.md",
+    ARCH_DIR / "index.md",  # the landing page, folded from README.md (#6928)
     ARCH_DIR / "adr-template.md",
     ADR_DIR,
     AUDIENCE_DIR / "index.md",
