@@ -207,6 +207,14 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     ("src/specify_cli/core/paths.py", "load_meta_fail_closed"): (1, "authority"),
     ("src/specify_cli/core/vcs/detection.py", "_get_locked_vcs_from_feature"): (2, "silent-by-contract"),
     ("src/specify_cli/git/sparse_checkout.py", "_load_managed_lane_policies"): (1, "silent-by-contract"),
+    # #6844: the lane-local policy source reads the lane worktree's own
+    # `kitty-specs/<mission-dir>/meta.json` with `on_malformed="none"`. A
+    # missing/unreadable/malformed record yields no managed-lane policy, which
+    # leaves the pre-#6844 verdict (legacy state, blocking) in place — a
+    # fail-closed raise would instead crash the whole scan, and `scan_repo` is
+    # also reached from `warn_if_sparse_once`, which must never break the
+    # command that called it. Deliberately silent, like its sibling above.
+    ("src/specify_cli/git/sparse_checkout.py", "_policy_from_lane_worktree"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/recovery.py", "_mission_id_from_meta"): (1, "silent-by-contract"),
     ("src/specify_cli/lanes/worktree_allocator.py", "_read_coordination_branch"): (1, "silent-by-contract"),
     # #5135: the #4474 / FR-011 primary-tree fallback for the mission_number
