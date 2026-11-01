@@ -66,6 +66,7 @@ def _installed(
     host: str | None = "linux-x64",
     services: tuple[str, ...] = ("write-service",),
     write_binary: bool = True,
+    pinned: str | None = _SHA,
 ) -> Path:
     """A stand-in installed package directory: manifest plus ``bin/`` (the provider's ``_package_dir`` seam)."""
     package = tmp_path / "site" / "spec_kitty_services"
@@ -78,6 +79,7 @@ def _installed(
     monkeypatch.setattr(companion, "_package_dir", lambda: package)
     monkeypatch.setattr(companion, "_installed_cli_version", lambda: installed_version)
     monkeypatch.setattr(companion, "_host_target", lambda: host)
+    monkeypatch.setattr(companion, "_pinned_sha256", lambda service, target: pinned)
     return package
 
 
@@ -103,11 +105,15 @@ def test_provider_offers_nothing_without_an_installed_cli(tmp_path: Path, compan
     assert companion.write_service() is None
 
 
-@pytest.mark.parametrize("host", ["linux-arm64", None])
-def test_provider_offers_nothing_on_another_host(
-    tmp_path: Path, companion: ModuleType, writer: ModuleType, monkeypatch: pytest.MonkeyPatch, host: str | None
+@pytest.mark.parametrize(
+    ("host", "pinned"),
+    [("linux-arm64", _SHA), (None, _SHA), ("linux-x64", "b" * 64), ("linux-x64", None)],
+    ids=["other-host", "unknown-host", "digest-differs-from-the-cli-pin", "cli-pins-no-build"],
+)
+def test_provider_offers_nothing_on_another_host_or_an_unpinned_build(
+    tmp_path: Path, companion: ModuleType, writer: ModuleType, monkeypatch: pytest.MonkeyPatch, host: str | None, pinned: str | None
 ) -> None:
-    _installed(tmp_path, companion, writer, monkeypatch, host=host)
+    _installed(tmp_path, companion, writer, monkeypatch, host=host, pinned=pinned)
     assert companion.write_service() is None
 
 

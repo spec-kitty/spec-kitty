@@ -44,6 +44,18 @@ def _host_target() -> str | None:
     return None if target is None else target.value
 
 
+def _pinned_sha256(service: str, target: str) -> str | None:
+    """The sha256 the CLI's own pin names for *service* on *target*, or ``None`` when it pins none."""
+    from kernel.service_pin import ServiceTarget  # lazy, like _host_target
+    from specify_cli.services.resolution import find_pin, load_pin
+
+    path = find_pin(service)
+    if path is None:
+        return None
+    asset = load_pin(path).asset_for(ServiceTarget(target))
+    return None if asset is None else asset.sha256
+
+
 def _provide(service: str) -> str | None:
     package = _package_dir()
     manifest_path = package / MANIFEST_NAME
@@ -58,8 +70,8 @@ def _provide(service: str) -> str | None:
     if manifest.target != _host_target():
         return None  # a wheel forced onto another platform
     binary = manifest.binary_for(service)
-    if binary is None:
-        return None
+    if binary is None or binary.sha256 != _pinned_sha256(service, manifest.target):
+        return None  # a build the CLI does not pin: step aside rather than have the CLI refuse it
     path = package / BIN_DIR / binary.asset
     return str(path) if path.is_file() and not path.is_symlink() else None
 
