@@ -818,11 +818,14 @@ outcome**, not from its own record:
 - It is settled only when the predecessor's own authoritative partition records `success`, or a
   pending adoption will record one — the same evidence that settles the predecessor itself, which is
   what makes the retry behave as the predecessor did before #6669.
-- The rule body is `registry._predecessor_outcome_settled_in_view`, composed into the one
-  selection-view predicate `_settled_in_view` that `settled_in_selection_view` exposes, and exposed
-  directly as `registry.predecessor_outcome_settled`, which the runner's skip gate reaches through
-  `BaseMigration.reselect_when_recorded`. Selection and apply-time settlement cannot disagree, and a
-  run that adopts the ledger and then reaches the successor in the same pass applies it.
+- Successor settlement is part of the **ledger predicate**, not a second reselection. The rule body
+  is `registry._predecessor_outcome_settled_in_view`, composed into the one selection-view predicate
+  `_settled_in_view` that `settled_in_selection_view` exposes. The runner's skip gate consults that
+  same predicate, so selection and apply-time settlement cannot disagree, and a run that adopts the
+  ledger and then reaches the successor in the same pass applies it.
+  `BaseMigration.reselect_when_recorded` is unchanged by this amendment: it stays the single
+  structural reselection of Amendment 2026-10-30 (#6613), so that amendment's statement that
+  selection is ledger-diff plus one structural reselection still holds.
 - `detect()` remains the only thing that can trigger `apply()`. The rule widens *who is
   re-evaluated*, never *what is re-applied*: on a repaired project `detect()` reports nothing to do,
   and nothing is written: no Mission file changes and no ledger record. A re-evaluation that finds
@@ -865,6 +868,13 @@ and rc8. The issue records both routes as considered and rejected.
   "the ledger holds a success", and the *selection view* (`settled_in_selection_view`) is the
   authority for what may run. It is the same split the "stale pending listing" residual records from
   the other direction.
+- **Accepted cost: the substitute only records `skipped`.** The predecessor is a
+  `SupersededMigration` substitute that never records `success`, so a successor whose predecessor
+  never recorded `success` is selected on every `upgrade` and re-runs `detect()` (one walk of
+  `kitty-specs/`). That is idempotent and writes nothing when there is nothing to do.
+- **Accepted cost: the selection view takes no ledger lock.** It is read per successor without the
+  ledger lock, so within one live run it can see records that earlier migrations appended. That is
+  consistent with every other reader of the ledger.
 - A predecessor with no record at all is unchanged on a pre-ledger project: the version stamp still
   settles it and its successor, because nothing contradicts the stamp.
 - The "stale pending listing" residual of Amendment 2026-10-25b is unchanged and now covers the
