@@ -46,6 +46,7 @@ def _manifest(slug: str = MISSION_SLUG) -> SimpleNamespace:
         mission_branch=f"kitty/mission-{slug}",
         target_branch="main",
         lanes=[lane],
+        mission_id=None,
     )
 
 
