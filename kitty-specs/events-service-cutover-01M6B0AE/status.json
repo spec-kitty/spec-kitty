@@ -20,7 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
-      "agent": "claude:opus:python-pedro:implementer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -33,6 +33,7 @@
         "Pin vendored (online check sound); extras-only, verified unpack, --extras-path; dev-setup extras only. tests/ci/test_sync_services.py + test_service_pins_gate.py: 53 passed, 1 expected red (wiring ratchet = WP04 acceptance test). make sync-services + ARGS=--check exit 0."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/events-service-cutover-01M6B0AE/tasks/WP01-pin-and-fetch-tooling/review-cycle-1.md",
         "reference": "review-cycle://events-service-cutover-01M6B0AE/WP01-pin-and-fetch-tooling/review-cycle-1.md",
@@ -40,15 +41,15 @@
         "verdict": "changes_requested"
       },
       "role": "implementer",
-      "shell_pid": 30574,
-      "shell_pid_created_at": "1793520539.0",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned"
       }
     },
     "WP02": {
