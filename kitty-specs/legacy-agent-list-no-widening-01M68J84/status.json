@@ -1,0 +1,53 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M68PQB9HMTNMQF8V91EYYGZH",
+  "materialized_at": "2026-10-31T10:05:15.441866+00:00",
+  "mission_number": "",
+  "mission_slug": "legacy-agent-list-no-widening-01M68J84",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M68PQA16WMYDP266ZN0Y3T5A",
+      "last_transition_at": "2026-10-31T10:05:14.150117+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 747367,
+      "shell_pid_created_at": "1793436699.87"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M68PQB9HMTNMQF8V91EYYGZH",
+      "last_transition_at": "2026-10-31T10:05:15.441866+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "shell_pid": 1130927,
+      "shell_pid_created_at": "1793438854.55"
+    }
+  }
+}

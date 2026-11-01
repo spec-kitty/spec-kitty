@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "legacy-agent-list-no-widening-01M68J84",
+  "mission_id": "01M68J84FDNEMVDVZEZDWBCVW9",
+  "mission_branch": "kitty/mission-legacy-agent-list-no-widening-01M68J84",
+  "target_branch": "issue-6501-legacy-agent-list-no-widening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/agent_utils/directories.py",
+        "tests/agent/test_agent_config_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/configuration.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/agent_utils/ignore_entries.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-31T08:51:09.108054+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "acca3412dddcdcc5afa6736f9356bd466f013745"
+}
