@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/architecture/README.md
+- docs/architecture/index.md
 ---
 # Architecture Navigation Guide
 

@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/archive/architecture/02_containers/runtime-execution-domain-2x.md
-- docs/architecture/README.md
+- docs/architecture/index.md
 ---
 # 2.x Containers
 

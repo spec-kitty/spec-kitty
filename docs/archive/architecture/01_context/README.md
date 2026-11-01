@@ -5,7 +5,7 @@ doc_status: superseded
 updated: '2026-09-30'
 audience: docs/context/audience/internal/system-architect.md
 related:
-- docs/architecture/README.md
+- docs/architecture/index.md
 ---
 # 2.x System Context
 
