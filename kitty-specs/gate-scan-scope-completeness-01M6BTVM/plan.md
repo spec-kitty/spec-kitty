@@ -25,7 +25,9 @@ the transcription.
 
 ## Technical Context
 
-- **Language / runtime**: Python 3.12, pytest, `ast` + `pathlib` only; no new dependency.
+**Language/Version**: Python 3.12 (the repository's `.python-version`; the battery runs on 3.12 in CI)
+
+**Primary Dependencies**: `pytest`, the standard library (`ast`, `pathlib`, `fnmatch`, `collections`), `pyyaml` (already used by the existing gates), and the in-repo `scripts.ci.gate_selection` seam. No new dependency, no network, no subprocess.
 - **Existing seams reused, not duplicated**:
   - `scripts.ci.gate_selection`: `load_router()` (`Router.filters`, `Router.job_gates`),
     `battery_scan_scopes()`, `always_on_battery_files()`, `scope_trigger_globs()`,
