@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "sdist-readme-anchor-01M6BRD9",
+  "mission_id": "01M6BRD9XZ5ZMKGV7951FSQB84",
+  "mission_branch": "issue-6926-sdist-readme-anchor",
+  "target_branch": "issue-6926-sdist-readme-anchor",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/unreleased/6926-sdist-readme-anchor.fixed.md",
+        "pyproject.toml",
+        "tests/cross_cutting/packaging/test_packaging_safety.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T14:36:31.255724+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0375e9994c84f79f83f340d649050ebdb15de7ee"
+}

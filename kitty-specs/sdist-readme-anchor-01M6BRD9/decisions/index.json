@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-01T14:33:11.443055Z",
+      "decision_id": "01M6BRENGKBHJN1K9CMRE6AKDT",
+      "final_answer": "Anchor the includes and exclude site/**",
+      "input_key": "fix_shape",
+      "mission_id": "01M6BRD9XZ5ZMKGV7951FSQB84",
+      "mission_slug": "sdist-readme-anchor-01M6BRD9",
+      "opened_by": "cli",
+      "options": [
+        "Anchor the includes and exclude site/**",
+        "Exclude docs/, kitty-specs/, scripts/, tests/ and site/ one by one",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Anchor the README.md/CHANGELOG.md includes to the repository root, or exclude the stray trees one by one?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T14:33:14.335582Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.fix-shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6BRD9XZ5ZMKGV7951FSQB84",
+  "version": 1
+}
