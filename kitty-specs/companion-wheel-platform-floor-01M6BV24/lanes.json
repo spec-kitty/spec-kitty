@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "companion-wheel-platform-floor-01M6BV24",
+  "mission_id": "01M6BV2418PTM2W673QTQCTWPP",
+  "mission_branch": "kitty/mission-companion-wheel-platform-floor-01M6BV24",
+  "target_branch": "issue-6948-companion-wheel-platform-floor",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/service_platform.py",
+        "tests/cross_cutting/packaging/test_service_platform.py",
+        "tests/kernel/service_release_fixture.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/release.yml",
+        "docs/changelog/unreleased/6948-platform-floor.fixed.md",
+        "packages/spec-kitty-services/spec_kitty_services/wheel.py",
+        "scripts/build_services_wheel.py",
+        "tests/cross_cutting/packaging/test_companion_package.py",
+        "tests/cross_cutting/packaging/test_companion_services_wheel.py"
+      ],
+      "predicted_surfaces": [
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-01T15:22:33.251951+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "7bf66ee8c18895858d76d2fab351fad7f734f262"
+}

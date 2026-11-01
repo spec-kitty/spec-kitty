@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6904": {
+      "evidence_ref": "Closed parent: the companion wheel landed in PR #6949; this Mission is its recorded follow-up (#6948) and owes #6904 no further work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6948": {
+      "evidence_ref": "PR to come; the build and --verify read the platform floor from each pinned binary and refuse SERVICE_PLATFORM_FLOOR_EXCEEDED / SERVICE_PLATFORM_FLOOR_UNREADABLE; tests in tests/cross_cutting/packaging/test_companion_services_wheel.py and test_service_platform.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

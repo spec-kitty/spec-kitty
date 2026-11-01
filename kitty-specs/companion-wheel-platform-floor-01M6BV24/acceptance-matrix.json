@@ -1,0 +1,99 @@
+{
+  "mission_slug": "companion-wheel-platform-floor-01M6BV24",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_service_platform.py::test_the_glibc_floor_is_the_highest_version_need (+ 5 more ELF cases, 51 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:02:50.390647+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_service_platform.py::test_the_macos_floor_is_the_build_version_minos (+ fallback and refusal cases)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:02:55.214451+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py::test_the_wheel_floor_is_the_maximum_over_its_binaries",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:02:59.937097+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py::test_a_linux_asset_that_needs_more_than_the_declared_floor_refuses (+ macOS)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:03:05.345275+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py::test_an_unreadable_asset_is_refused (+ 10 malformed-header cases)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:03:10.096100+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py::test_windows_assets_are_not_measured",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:03:15.684698+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py::test_the_macos_floor_is_a_build_input and test_a_bad_macos_floor_fails_even_without_a_macos_target",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:03:20.448679+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py::test_verify_fails_a_wheel_whose_tag_understates_its_binaries",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:03:25.231433+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/cross_cutting/packaging/test_companion_services_wheel.py::test_a_bad_glibc_floor_fails_even_without_a_linux_target and test_a_bad_macos_floor_fails_even_without_a_macos_target",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-11-01T18:03:29.630834+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
