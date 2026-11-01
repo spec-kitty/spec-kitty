@@ -1,0 +1,61 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M6C0X6GEDTX7DN6DQDHFBQPM",
+  "materialized_at": "2026-11-01T17:00:56.206183+00:00",
+  "mission_number": "246",
+  "mission_slug": "bare-doctor-default-checks-01M6BTX6",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M6C0X6GEDTX7DN6DQDHFBQPM",
+      "last_transition_at": "2026-11-01T17:00:56.206183+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Default run implemented; red-first pin plus docs.",
+        "Review passed: WP01 anti-pattern checklist PASS; independent round 1 findings (completion manifest, two stale docs, empty-set renderer, dangling path) fixed and re-tested."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3570116,
+      "shell_pid_created_at": "1793548974.5",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#6969"
+      ]
+    }
+  }
+}
