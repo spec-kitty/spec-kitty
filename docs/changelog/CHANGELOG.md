@@ -5,7 +5,6 @@ doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
 updated: '2026-10-31'
-updated: '2026-10-30'
 ---
 # Changelog
 
