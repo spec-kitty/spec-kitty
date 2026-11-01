@@ -17,7 +17,8 @@ from tests.architectural.test_json_contract_enumeration import walk_commands
 
 pytestmark = pytest.mark.architectural
 # "doctor" joined 2026-09-19 (#4678): the group opted into ``invoke_without_command``
-# so a bare ``spec-kitty doctor`` refuses (exit 2) instead of reading as a passing check.
+# so a bare ``spec-kitty doctor`` runs instead of dispatching help-only. Since #6969
+# that bare run executes the default check set (and reports a real exit code).
 CALLBACK_PATHS = {"", "context", "migrate", "charter list", "doctor"}
 
 
