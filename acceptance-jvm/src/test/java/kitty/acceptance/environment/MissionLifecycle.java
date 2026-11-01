@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,7 +28,8 @@ import java.util.regex.Pattern;
  * authors during {@code specify}, {@code plan} and {@code tasks} ({@code spec.md}, {@code plan.md},
  * {@code tasks.md}, {@code tasks/WP*.md}) and the code a work package's implementer writes in its
  * lane worktree. CLI-managed state ({@code meta.json}, the status log, {@code lanes.json}, anything
- * under {@code .kittify/}) is never written from here.
+ * under {@code .kittify/}) is never written from here, with the single documented exception of
+ * {@link #plantFutureStampedApproval(String, String)}.
  *
  * <p>Planning happens on a topic branch, {@value #TOPIC_BRANCH}: Spec Kitty refuses planning commits
  * on the protected primary branch, so that is where a user plans. Every step fails fast with the
@@ -42,6 +46,11 @@ public final class MissionLifecycle {
     private static final Pattern COORDINATION_BRANCH = Pattern.compile("\"coordination_branch\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern MISSION_BRANCH = Pattern.compile("\"mission_branch\"\\s*:\\s*\"([^\"]+)\"");
     private static final Pattern LANE_WORKTREE = Pattern.compile("\\(Lane [^:]+: ([^)]+)\\)");
+    private static final Pattern STAMP = Pattern.compile("\"at\"\\s*:\\s*\"([^\"]+)\"");
+    private static final Pattern APPROVED_ROW = Pattern.compile("\"to_lane\"\\s*:\\s*\"approved\"");
+
+    /** How far the planted approval's clock runs ahead of the rejecting reviewer's clock. */
+    private static final Duration SLOWER_CLOCK_SKEW = Duration.ofMinutes(10);
     private static final List<String> LANE_ORDER = List.of("planned", "in_progress", "for_review", "in_review", "approved");
     private static final String REVIEWER = "reviewer";
 
@@ -219,6 +228,79 @@ public final class MissionLifecycle {
             enter(name, wp, LANE_ORDER.get(step));
             lanes.put(key(name, wp), LANE_ORDER.get(step));
         }
+    }
+
+    /**
+     * Plants the approval of {@code wp} as a teammate's clock-skewed row arrives by pull: the status
+     * log's {@code approved} row for the work package is restamped a fixed ten minutes into the
+     * future and committed, and nothing else about it changes.
+     *
+     * <p>This is a <strong>narrow, documented exception</strong> to decision 6 of ADR 2026-10-15-1
+     * (a builder never writes the status log), authorised by spec-kitty/spec-kitty#6260. The promise
+     * the event-traceability scenario checks is that the reducer and the consolidation claim honour a
+     * rejection recorded after an approval whose clock ran ahead; the JVM runner cannot move the
+     * emitter's clock and the CLI reads no clock environment variable, so the only black-box
+     * arrangement is the production-equivalent one: a row that came from someone else's machine. It
+     * keeps the row's shape exactly as the CLI writes it (no {@code lamport_clock} on lane
+     * transitions) and commits it, as {@code git pull} through the status-log union driver would.
+     */
+    public void plantFutureStampedApproval(String name, String wp) {
+        Path checkout = statusCheckout(name);
+        String relative = "kitty-specs/" + slug(name) + "/status.events.jsonl";
+        Path events = checkout.resolve(relative);
+        List<String> lines;
+        try {
+            lines = new ArrayList<>(Files.readAllLines(events));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not read " + events, e);
+        }
+        String wpId = "\"wp_id\"\\s*:\\s*\"" + Pattern.quote(wp) + "\"";
+        Pattern ownedByWp = Pattern.compile(wpId);
+        int approval = -1;
+        for (int i = 0; i < lines.size(); i++) {
+            if (ownedByWp.matcher(lines.get(i)).find() && APPROVED_ROW.matcher(lines.get(i)).find()) {
+                approval = i;
+            }
+        }
+        if (approval < 0) {
+            throw new IllegalStateException("Work package " + wp + " of mission '" + name
+                    + "' has no approved status row in " + events);
+        }
+        String row = lines.get(approval);
+        Matcher stamp = STAMP.matcher(row);
+        if (!stamp.find()) {
+            throw new IllegalStateException("The approval row of " + wp + " carries no 'at' stamp: " + row);
+        }
+        String future = OffsetDateTime.parse(stamp.group(1)).plus(SLOWER_CLOCK_SKEW)
+                .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        lines.set(approval, row.substring(0, stamp.start(1)) + future + row.substring(stamp.end(1)));
+        write(events, String.join("\n", lines) + "\n");
+        String at = checkout.toString();
+        git.apply(new String[] {"-C", at, "add", "--", relative});
+        git.apply(new String[] {"-C", at, "commit", "-m", "pull the approval recorded on a clock that runs ahead"});
+    }
+
+    /**
+     * The checkout that holds the Mission's status log: its coordination worktree when the Mission has
+     * a coordination branch, else the write checkout. Found through git's own worktree list, never by
+     * assuming the resolver's folder layout.
+     */
+    private Path statusCheckout(String name) {
+        String coordination = coordinationBranches.get(name);
+        if (coordination == null) {
+            return workDir;
+        }
+        String listing = git.apply(new String[] {"worktree", "list", "--porcelain"});
+        Path candidate = null;
+        for (String line : listing.split("\n")) {
+            if (line.startsWith("worktree ")) {
+                candidate = Path.of(line.substring("worktree ".length()).trim());
+            } else if (line.equals("branch refs/heads/" + coordination) && candidate != null) {
+                return candidate;
+            }
+        }
+        throw new IllegalStateException("No worktree of mission '" + name + "' is on its coordination branch "
+                + coordination + ":\n" + listing);
     }
 
     /**

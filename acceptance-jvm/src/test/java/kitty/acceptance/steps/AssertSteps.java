@@ -159,6 +159,76 @@ public final class AssertSteps {
                 .as("Uncommitted changes in the lane worktree of %s", wp).isEmpty();
     }
 
+    @Then("the work package {string} is sent back for rework")
+    public void theWorkPackageIsSentBackForRework(String wp) {
+        assertThat(reportedLane(wp))
+                .as("The lane the CLI reports for %s after the rejection:%n%s", wp, context.lastResult())
+                .isEqualTo("in_progress");
+    }
+
+    @Then("{string} is not reported as approved")
+    public void theWorkPackageIsNotReportedAsApproved(String wp) {
+        // Positive, not an absence: the same status read must show the rework lane for the work
+        // package, so an empty or unrelated output can never satisfy this assertion.
+        assertThat(reportedLane(wp))
+                .as("The lane the CLI reports for %s after the rejection:%n%s", wp, context.lastResult())
+                .isNotEqualTo("approved")
+                .isEqualTo("in_progress");
+    }
+
+    @Then("consolidation is refused because {string} is not approved")
+    public void consolidationIsRefusedBecauseTheWorkPackageIsNotApproved(String wp) {
+        CliResult result = context.lastResult();
+        assertThat(result.exitCode()).as("Exit code of consolidate:%n%s", result).isNotZero();
+        String refusal = flowed(output());
+        assertThat(refusal).as("The refusal from consolidate:%n%s", result).contains("not merge-ready");
+        assertThat(refusal).as("The refusal from consolidate:%n%s", result).contains("missing review approval");
+        assertThat(refusal).as("The refusal from consolidate names %s:%n%s", wp, result).contains(wp);
+    }
+
+    /**
+     * The lane the CLI's own status read reports for {@code wp}. It runs the status command itself and
+     * never updates the scenario's last result, so an Assert step can inspect state without consuming
+     * the result it is checking.
+     */
+    private String reportedLane(String wp) {
+        CliResult status = context.run(List.of("spec-kitty", "agent", "tasks", "status", "--mission",
+                context.lifecycle().slug(ScenarioContext.SCENARIO_MISSION), "--json"));
+        assertThat(status.exitCode()).as("Reading the mission status failed:%n%s", status).isZero();
+        String json = status.stdout();
+        Matcher id = Pattern.compile("\"id\"\\s*:\\s*\"" + Pattern.quote(wp) + "\"").matcher(json);
+        assertThat(id.find()).as("The status output reports %s:%n%s", wp, status).isTrue();
+        // Read the whole object the id belongs to, so the assertion does not depend on the order of
+        // its fields or on the entry having no nested object before the lane.
+        String row = json.substring(json.lastIndexOf('{', id.start()), closingBrace(json, json.lastIndexOf('{', id.start())) + 1);
+        Matcher lane = Pattern.compile("\"lane\"\\s*:\\s*\"([^\"]+)\"").matcher(row);
+        assertThat(lane.find()).as("The reported lane of %s in:%n%s", wp, status).isTrue();
+        return lane.group(1);
+    }
+
+    /** The index of the brace closing the object that opens at {@code open}, ignoring braces in strings. */
+    private static int closingBrace(String json, int open) {
+        int depth = 0;
+        boolean inString = false;
+        for (int i = open; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (inString) {
+                if (c == '\\') {
+                    i++;
+                } else if (c == '"') {
+                    inString = false;
+                }
+            } else if (c == '"') {
+                inString = true;
+            } else if (c == '{') {
+                depth++;
+            } else if (c == '}' && --depth == 0) {
+                return i;
+            }
+        }
+        throw new IllegalStateException("Unbalanced JSON object in the status output");
+    }
+
     @Then("the output is a JSON object")
     public void theOutputIsAJsonObject() {
         String stdout = context.lastResult().stdout().trim();
