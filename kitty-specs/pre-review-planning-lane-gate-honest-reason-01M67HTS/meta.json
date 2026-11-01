@@ -1,0 +1,36 @@
+{
+  "accept_commit": "6a74e524149fce0467a31a578780af29b390273d",
+  "acceptance_history": [
+    {
+      "accept_commit": "6a74e524149fce0467a31a578780af29b390273d",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T01:18:12.220075+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "389587e41470ec3e82887b946a895b0f1e428a6c"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T01:18:12.220075+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "389587e41470ec3e82887b946a895b0f1e428a6c",
+  "baseline_merge_commit": "461fff85890a9de38e07b4f99b9fc6d04cf004e6",
+  "created_at": "2026-10-30T23:20:31.227723+00:00",
+  "flattened": false,
+  "friendly_name": "An honest pre-review gate reason for a planning-lane WP",
+  "merged_at": "2026-10-31T01:18:56.756708+00:00",
+  "merged_commit": "28b34d129a27fe38cc771b876949ab0d2e6222bb",
+  "mid8": "01M67HTS",
+  "mission_id": "01M67HTSN74F8KRC82JGETD2NW",
+  "mission_number": 244,
+  "mission_slug": "pre-review-planning-lane-gate-honest-reason-01M67HTS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances An honest pre-review gate reason for a planning-lane WP on issue-6792-planning-lane-gate-honest-reason so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Make the pre-review gate record why it did not inspect a planning-lane WP's committed diff, instead of claiming no files changed.",
+  "slug": "pre-review-planning-lane-gate-honest-reason-01M67HTS",
+  "status_phase": "1",
+  "target_branch": "issue-6792-planning-lane-gate-honest-reason",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T23:25:08.215519+00:00"
+}
