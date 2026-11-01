@@ -397,7 +397,9 @@ consumes `spec-kitty-events` as two artifact kinds:
   `spec-kitty service vendor`. The mechanism is built (#6590). The first pin is vendored:
   `pins/read-service.source.yaml`, `spec-kitty-events` `service-v0.1.0-rc.1` (#6915).
 
-The wheel stays pure: it ships the pins, never a service binary. The CLI fetches the host binary on
+The `spec-kitty-cli` wheel stays pure: it ships the pins, never a service binary (the optional
+`spec-kitty-services` companion wheel carries the pinned bytes, which the CLI still verifies against
+its own pin; ADR `2026-10-29-1` Amendment 2026-10-31). The CLI fetches the host binary on
 first need, executes it only when its digest matches the pin, and fails closed with a named code
 and remedy when it cannot. There is no Python fallback writer. The read service is pinned for CI
 conformance only, and the CLI never launches it. `make dev-setup` fetches the pinned extras only,
