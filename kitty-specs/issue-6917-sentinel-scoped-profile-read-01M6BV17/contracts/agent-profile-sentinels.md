@@ -37,10 +37,14 @@ def build_agent_profile_sentinels(
    read; the full repository remains the authority for that case.
 4. **No exceptions for data.** An unknown, empty or non-`str` id never raises. An unknown id
    answers `False` (semantics 0); an empty or non-`str` item contributes no key.
-5. **Configuration still fails closed.** The accessor performs the same project/org layer
-   resolution (and therefore the same config reads) as the builder's other entry points: a
-   malformed `.kittify/config.yaml` propagates its structured charter configuration error instead
-   of degrading to an empty mapping.
+5. **Configuration still fails closed.** `build_agent_profile_sentinels` validates
+   `.kittify/config.yaml` through the one authority (`PackContext.from_config`) *before* it reads
+   any layer, and raises the same `ActiveCharterConfigError` the activation-aware builder raises
+   for an unreadable file, an invalid activation key, or a dangling `charter:` pointer. The
+   object is then discarded — only its validation is used (~0.04 s warm), because the layer
+   resolution itself reads the file leniently and would otherwise turn a broken config into a
+   successful markerless render. The `ActiveCharterService` accessor inherits this through the
+   builder.
 6. **Cheap by construction.** It does not build `PackContext`, the activation ledger, or the shipped
    lineage graph, and it does not materialise the profile catalogue.
 
