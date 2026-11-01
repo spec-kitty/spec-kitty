@@ -12,7 +12,8 @@
   "notices": [
     "Catalog not recompiled (--no-compile): catalog.references may go stale until the next `charter generate` or `charter activate --resynthesize`."
   ],
-  "referenced_not_cascaded": [
+  "referenced_not_cascaded": [],
+  "referenced_already_in_force": [
     {
       "kind": "procedure",
       "id": "g-proc",
