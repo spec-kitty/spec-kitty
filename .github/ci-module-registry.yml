@@ -1117,7 +1117,7 @@ special_tiers:
       - {gate: tests/architectural/test_runtime_emitter_seam.py, globs: ['tests/**']}
       - {gate: tests/architectural/test_same_tier_uniqueness.py, globs: ['tests/**']}
       - {gate: tests/architectural/test_scanner_parse_fail_closed.py, globs: ['tests/**']}
-      - {gate: tests/architectural/test_scenario_contract.py, globs: ['.github/CODEOWNERS', 'acceptance-jvm/src/test/java/**', 'contracts/tools/**', 'tests/scenarios/**']}
+      - {gate: tests/architectural/test_scenario_contract.py, globs: ['.github/CODEOWNERS', 'acceptance-jvm/src/test/java/**', 'tests/scenarios/**']}
       - {gate: tests/architectural/test_shape_guard_membership.py, globs: ['tests/**']}
       - {gate: tests/architectural/test_shard_capture_provenance.py, globs: ['tests/**']}
       - {gate: tests/architectural/test_shim_registry_schema.py, globs: ['docs/migrations/**']}
