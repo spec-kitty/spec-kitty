@@ -1,7 +1,7 @@
 {
-  "event_count": 42,
-  "last_event_id": "01M6BAQ5BN4QG1VN80PCP7WK6A",
-  "materialized_at": "2026-11-01T10:33:09.749865+00:00",
+  "event_count": 43,
+  "last_event_id": "01M6BASA0S8G6A106BV5J2BBJP",
+  "materialized_at": "2026-11-01T10:34:20.057690+00:00",
   "mission_number": "",
   "mission_slug": "events-service-cutover-01M6B0AE",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 4
   },
   "work_packages": {
@@ -122,22 +122,22 @@
     },
     "WP04": {
       "actor": "claude",
-      "agent": "claude:opus:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude:opus:python-pedro:implementer",
-      "lane": "for_review",
-      "last_event_id": "01M6BAQ5BN4QG1VN80PCP7WK6A",
-      "last_transition_at": "2026-11-01T10:33:09.749865+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6BASA0S8G6A106BV5J2BBJP",
+      "last_transition_at": "2026-11-01T10:34:20.057690+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Router (tests-corpus-blocking + module-tests.yml use ./.github/actions/sync-services extras-only; tests-contract-tools inline cache+sync_services.py --extras-only), path groups (services/ globs and contracts workflows dropped; pins/** in glossary/corpus/contract_tools; corpus contracts/fixtures/**), registry + scrub mirror, pins-only gate-selection case (red-first), test_mission_status_routing.py deleted. Wiring ratchet green. 54 router/module-tests-parsing test files: 2017 passed, 1 skipped, 1 failed (test_archive_root_byte_identical, red on base too: history read of 8e2d40bc). DEFERRED: fleet_verdict PR_WORKFLOWS + ci-fleet-verdict.yml + fleet tests must change in the same commit that deletes contracts.yml/mission-status-api.yml (applicable_workflows fails closed on inventory drift) -> WP06. Out of map: test_contracts_workflows.py group assertion. actionlint unavailable (YAML parse only)."
       ],
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 5613,
-      "shell_pid_created_at": "1793527039.77",
+      "role": "reviewer",
+      "shell_pid": 30790,
+      "shell_pid_created_at": "1793529256.29",
       "subtasks": {
         "T016": "done",
         "T017": "done",
