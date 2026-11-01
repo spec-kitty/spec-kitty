@@ -94,7 +94,7 @@ not_helpful:
   - e-011
   details: '- **[2026-11-01][discovery] `spec-kitty charter context --include procedure:mission-wrap-up-sequence` resolves
     from the installed pack, but the same artifact is absent from the fetched internal pack tree.** `packs/internal/procedures/`
-    (and the pinned checkout at `/home/exedev/spec-kitty-internal-pack/internal/procedures/`) has no `mission-wrap-up-sequence.procedure.yaml`,
+    (and the internal-pack checkout on the maintainer doctrine path) has no `mission-wrap-up-sequence.procedure.yaml`,
     so the documented fallback path does not exist and only the CLI answers. Workaround: read it from `spec-kitty charter
     context`.'
 gaps:
