@@ -119,11 +119,11 @@
       "form": "docstring-or-comment",
       "lines": [
         106,
-        476,
-        478,
-        484,
-        537,
-        963
+        477,
+        479,
+        485,
+        538,
+        964
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -153,7 +153,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        2262
+        2263
       ],
       "dependency": true,
       "disposition": "none",
@@ -355,14 +355,14 @@
       ],
       "form": "set-equality",
       "lines": [
-        281,
-        282,
-        295,
-        302,
+        289,
+        290,
         303,
-        1364,
-        1365,
-        1678
+        310,
+        311,
+        1372,
+        1373,
+        1686
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -392,8 +392,8 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        1791,
-        1800
+        1799,
+        1808
       ],
       "dependency": false,
       "disposition": "none",
@@ -408,7 +408,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        482
+        490
       ],
       "dependency": true,
       "disposition": "none",
@@ -423,8 +423,8 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        1761,
-        1771
+        1769,
+        1779
       ],
       "dependency": false,
       "disposition": "none",
@@ -439,7 +439,7 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        466
+        474
       ],
       "dependency": false,
       "disposition": "none",
@@ -484,7 +484,7 @@
       ],
       "form": "synthetic-fixture",
       "lines": [
-        560
+        568
       ],
       "dependency": false,
       "disposition": "none",
@@ -499,7 +499,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        727
+        735
       ],
       "dependency": true,
       "disposition": "none",
@@ -514,7 +514,7 @@
       ],
       "form": "exact-string",
       "lines": [
-        1354
+        1362
       ],
       "dependency": true,
       "disposition": "none",
@@ -529,7 +529,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        1055
+        1063
       ],
       "dependency": true,
       "disposition": "none",
@@ -544,7 +544,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        932
+        940
       ],
       "dependency": true,
       "disposition": "none",
@@ -589,7 +589,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        301
+        311
       ],
       "dependency": false,
       "disposition": "none",
@@ -604,7 +604,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        320
+        330
       ],
       "dependency": false,
       "disposition": "none",
@@ -828,7 +828,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        65
+        66
       ],
       "dependency": true,
       "disposition": "none",
@@ -843,7 +843,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        243
+        244
       ],
       "dependency": true,
       "disposition": "none",
@@ -859,8 +859,8 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        206,
-        212
+        207,
+        213
       ],
       "dependency": true,
       "disposition": "rewrite",
@@ -875,8 +875,8 @@
       ],
       "form": "path-anchored",
       "lines": [
-        276,
-        277
+        277,
+        278
       ],
       "dependency": true,
       "disposition": "none",
@@ -891,7 +891,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        392
+        393
       ],
       "dependency": false,
       "disposition": "none",
@@ -906,7 +906,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        397
+        398
       ],
       "dependency": false,
       "disposition": "none",
@@ -921,7 +921,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        361
+        362
       ],
       "dependency": false,
       "disposition": "none",
@@ -936,7 +936,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        347
+        348
       ],
       "dependency": false,
       "disposition": "none",
@@ -951,8 +951,8 @@
       ],
       "form": "derived-relation",
       "lines": [
-        240,
-        243
+        241,
+        244
       ],
       "dependency": false,
       "disposition": "none",
@@ -967,9 +967,9 @@
       ],
       "form": "derived-relation",
       "lines": [
-        325,
-        327,
-        330
+        326,
+        328,
+        331
       ],
       "dependency": false,
       "disposition": "none",
@@ -984,7 +984,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        293
+        294
       ],
       "dependency": false,
       "disposition": "none",
@@ -999,9 +999,9 @@
       ],
       "form": "derived-relation",
       "lines": [
-        435,
         436,
-        438
+        437,
+        439
       ],
       "dependency": false,
       "disposition": "none",
@@ -1016,8 +1016,8 @@
       ],
       "form": "derived-relation",
       "lines": [
-        270,
-        272
+        271,
+        273
       ],
       "dependency": false,
       "disposition": "none",
@@ -1032,7 +1032,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        475
+        476
       ],
       "dependency": false,
       "disposition": "none",
@@ -1047,7 +1047,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        105
+        106
       ],
       "dependency": false,
       "disposition": "none",
@@ -1092,7 +1092,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        462
+        466
       ],
       "dependency": false,
       "disposition": "none",
@@ -1107,7 +1107,7 @@
       ],
       "form": "path-anchored",
       "lines": [
-        447
+        451
       ],
       "dependency": false,
       "disposition": "none",
@@ -1122,7 +1122,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        358
+        362
       ],
       "dependency": false,
       "disposition": "none",
@@ -1137,7 +1137,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        850
+        867
       ],
       "dependency": false,
       "disposition": "none",
@@ -1204,6 +1204,21 @@
       "dependency": false,
       "disposition": "none",
       "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_pause_ci_label.py::_REQUIRED_GATES",
+      "file": "tests/ci/test_pause_ci_label.py",
+      "scope": "_REQUIRED_GATES",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "set-equality",
+      "lines": [
+        24
+      ],
+      "dependency": true,
+      "disposition": "none",
+      "reason": "Set-equality over the required-gate list of the pr:pause-ci contract, which names ci-quality.yml's clean-install-verification job: under the label that job must still RUN and fail, because a skipped required check passes. The job SURVIVES the retirement untouched -- only the job beside it left the host -- and this file never names the retired job, so nothing the rule asserts changes. Recorded rather than left, because the rule entered the tree with the pause contract (#6961) and no per-PR gate re-derives this artefact (#6998)."
     },
     {
       "rule": "tests/ci/test_sonar_project_version.py::<module-docstring>",
@@ -1708,8 +1723,8 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        72,
-        80
+        73,
+        81
       ],
       "dependency": false,
       "disposition": "none",
@@ -1769,7 +1784,7 @@
       ],
       "form": "docstring-or-comment",
       "lines": [
-        407
+        418
       ],
       "dependency": false,
       "disposition": "none",
