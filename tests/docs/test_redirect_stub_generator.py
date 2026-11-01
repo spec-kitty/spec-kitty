@@ -2,8 +2,8 @@
 
 Covers the three contract guarantees from ``contracts/redirect-stub.md``:
 
-* **derivation** — the redirect map is derived single-writer from the baseline +
-  ``moves:`` spine and matches the committed ``redirect_map.yaml`` (diff-stable);
+* **derivation** — the redirect map is derived from the standing moves ledger
+  ``site/moves.yaml`` and matches the committed ``redirect_map.yaml`` (diff-stable);
 * **emit + no-404** — ``generate`` writes ``<meta refresh>`` stubs at the old paths
   and refuses to emit a stub whose target is a 404;
 * **coverage goes RED on a gap** — a baseline URL with neither a live page nor a
@@ -22,29 +22,34 @@ from pathlib import Path
 import pytest
 import yaml
 
+from scripts.docs.moves_ledger import (
+    DEFAULT_MOVES_LEDGER,
+    Move,
+    derive_redirect_map,
+    load_moves,
+)
 from scripts.docs.redirect_stub_generator import (
     DEFAULT_BASELINE,
-    DEFAULT_OCCURRENCE_MAP,
     DEFAULT_REDIRECT_MAP,
     SITE_URL,
-    Move,
     assert_non_vacuous,
+    baseline_drift,
     check_coverage,
-    derive_redirect_map,
     generate,
     load_baseline,
-    load_moves,
     load_redirect_map,
+    main,
     render_redirect_map,
 )
 
 # Pure generator unit tests (no git/subprocess) — fast developer-loop shard.
 pytestmark = pytest.mark.fast
 
-# The docs-published move that relocates a baseline URL: WP10 distils the
-# ``docs/3x`` charter shadow tree into ``docs/context`` (so ``3x/*.html`` ->
-# ``context/*.html``). Source != dest, so it produces real redirect entries.
-_MOVE_3X = Move(sources=("docs/3x",), dest="docs/context")
+# The move that distilled the ``docs/3x`` charter shadow tree into ``docs/context``,
+# in ledger form: one entry per published route.
+_MOVE_3X = Move("/3x/charter-overview.html", "/context/charter-overview.html", "#test")
+
+_OLD_MANIFEST = Path(__file__).resolve().parents[2] / "scripts" / "docs" / "redirect_baseline_urls.json"
 
 # Realistic published-URL paths.
 _DIRECT_URL = "tutorials/getting-started.html"
@@ -65,49 +70,23 @@ def _make_site(tmp_path: Path, pages: list[str]) -> Path:
 # --- derivation -------------------------------------------------------------
 
 
-def test_derive_maps_published_move_to_new_url() -> None:
-    baseline = [_DIRECT_URL, _MOVED_URL, "3x/index.html"]
-    mapping = derive_redirect_map(baseline, [_MOVE_3X])
-    assert mapping == {
-        "3x/charter-overview.html": "context/charter-overview.html",
-        "3x/index.html": "context/index.html",
-    }
-    # A page whose source did not move has no redirect (it resolves directly).
+def test_derive_maps_a_ledger_move_to_the_new_url() -> None:
+    mapping = derive_redirect_map([_MOVE_3X])
+    assert mapping == {_MOVED_URL: _MOVED_TARGET}
+    # A page that did not move has no redirect (it resolves directly).
     assert _DIRECT_URL not in mapping
 
 
-def test_derive_ignores_never_published_internal_moves() -> None:
-    # architecture/** + CHANGELOG.md were never published URLs, so a baseline-driven
-    # derivation yields no public-URL redirect for them (their source is not docs/).
-    arch_move = Move(sources=("docs/adr/2.x",), dest="docs/adr/2.x")
-    changelog_move = Move(sources=("CHANGELOG.md",), dest="docs/changelog")
-    mapping = derive_redirect_map(
-        [_DIRECT_URL, _MOVED_URL], [arch_move, changelog_move]
-    )
-    assert mapping == {}
-
-
-def test_derive_supports_same_directory_rename_via_explicit_file_dest() -> None:
-    # A `dest` ending in `.md` is an explicit target file (rename), not a
-    # directory whose basename is preserved from the source — this is what
-    # lets a same-directory rename (not just a relocate) produce a redirect.
-    rename_move = Move(
-        sources=("docs/guides/your-first-feature.md",),
-        dest="docs/guides/your-first-mission.md",
-    )
-    mapping = derive_redirect_map(
-        ["guides/your-first-feature.html"], [rename_move]
-    )
-    assert mapping == {
+def test_derive_supports_a_same_directory_rename() -> None:
+    rename = Move("/guides/your-first-feature.html", "/guides/your-first-mission.html", "#test")
+    assert derive_redirect_map([rename]) == {
         "guides/your-first-feature.html": "guides/your-first-mission.html"
     }
 
 
 def test_committed_redirect_map_is_diff_stable() -> None:
-    """Re-deriving from the committed inputs reproduces the committed map."""
-    _, baseline = load_baseline(DEFAULT_BASELINE)
-    occ = _resolve_occurrence_map()
-    derived = derive_redirect_map(baseline, load_moves(occ))
+    """Re-deriving from the committed moves ledger reproduces the committed map."""
+    derived = derive_redirect_map(load_moves(DEFAULT_MOVES_LEDGER))
     committed = load_redirect_map(DEFAULT_REDIRECT_MAP)
     assert derived == committed
     # And the rendered form round-trips (the on-disk YAML body is canonical).
@@ -232,11 +211,23 @@ def test_assert_non_vacuous_rejects_empty_baseline() -> None:
 
 def test_real_baseline_is_non_empty_and_normalised() -> None:
     site_url, baseline = load_baseline(DEFAULT_BASELINE)
-    raw = json.loads(DEFAULT_BASELINE.read_text(encoding="utf-8"))
+    assert DEFAULT_BASELINE.name == "url-baseline.txt"  # the standing ledger
+    assert site_url == SITE_URL
+    assert len(baseline) >= 900  # non-vacuous: about 970 routes when seeded
+    assert all(not p.startswith(("http", "/")) for p in baseline)
+
+
+def test_old_json_manifest_still_loads() -> None:
+    site_url, baseline = load_baseline(_OLD_MANIFEST)
+    raw = json.loads(_OLD_MANIFEST.read_text(encoding="utf-8"))
     assert site_url == raw["site_url"]
     assert len(baseline) == raw["url_count"]
-    assert baseline  # non-vacuous denominator
-    assert all(not p.startswith("http") for p in baseline)
+
+
+def test_load_baseline_reads_the_text_ledger(tmp_path: Path) -> None:
+    ledger = tmp_path / "url-baseline.txt"
+    ledger.write_text("# header\n/index.html\n/guides/a.html\n", encoding="utf-8")
+    assert load_baseline(ledger) == (SITE_URL, ["guides/a.html", "index.html"])
 
 
 def test_load_baseline_rejects_non_html_entries(tmp_path: Path) -> None:
@@ -284,7 +275,7 @@ def test_load_baseline_tolerates_amendments_key(tmp_path: Path) -> None:
 
 def test_real_baseline_amendments_are_recorded() -> None:
     """Every post-WP03 entry-level amendment carries its provenance record."""
-    raw = json.loads(DEFAULT_BASELINE.read_text(encoding="utf-8"))
+    raw = json.loads(_OLD_MANIFEST.read_text(encoding="utf-8"))
     amendments = raw["amendments"]
     assert isinstance(amendments, list) and amendments
     for record in amendments:
@@ -294,19 +285,39 @@ def test_real_baseline_amendments_are_recorded() -> None:
         assert record["removed"] or record["added"]
 
 
-def _resolve_occurrence_map() -> Path:
-    """Return the current canonical ``moves:`` spine for the committed map.
+# --- baseline drift (grow-on-publish report) ---------------------------------
 
-    Each mission that relocates published pages merges the prior mission's
-    ``moves:`` forward into its own occurrence map (never replacing it — see the
-    redirect-map-entry contract) and regenerates ``redirect_map.yaml`` from the
-    merged file. As of ``common-docs-convergence-01KZMTR9`` (WP03 T009) the
-    generator's own ``--occurrence-map`` default (:data:`DEFAULT_OCCURRENCE_MAP`)
-    was repointed AT that mission's collapsed cumulative spine, which carries the
-    structural-move + onboarding-overhaul entries forward and composes the
-    ``docs/archive`` -> ``docs/changelog`` twice-move. That merged spine is the
-    one the committed map is regenerated from, so this diff-stability test
-    resolves it directly.
-    """
-    assert DEFAULT_OCCURRENCE_MAP.is_file(), DEFAULT_OCCURRENCE_MAP
-    return DEFAULT_OCCURRENCE_MAP
+
+def test_baseline_drift_lists_unlisted_pages_only(tmp_path: Path) -> None:
+    site = _make_site(
+        tmp_path,
+        [_DIRECT_URL, "guides/new-page.html", "toc.html", "kitty-specs/m/index.html"],
+    )
+    assert baseline_drift([_DIRECT_URL], site) == ["guides/new-page.html"]
+    # Positive control: once listed, nothing is reported.
+    assert baseline_drift([_DIRECT_URL, "guides/new-page.html"], site) == []
+
+
+def test_baseline_drift_command_warns_but_never_fails(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    site = _make_site(tmp_path, [_DIRECT_URL, "guides/new-page.html"])
+    baseline = tmp_path / "url-baseline.txt"
+    baseline.write_text(f"/{_DIRECT_URL}\n", encoding="utf-8")
+    code = main(["baseline-drift", "--baseline", str(baseline), "--site-dir", str(site)])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "::warning title=URL baseline::/guides/new-page.html" in out
+
+
+def test_regenerate_map_refuses_a_dead_target(tmp_path: Path) -> None:
+    ledger = tmp_path / "moves.yaml"
+    ledger.write_text(
+        "kind: docs-moves-ledger\nversion: 1\nmoves:\n"
+        "  - {from: /no-such-old.html, to: /no-such-target.html, ref: '#test'}\n",
+        encoding="utf-8",
+    )
+    out_map = tmp_path / "redirect_map.yaml"
+    code = main(["regenerate-map", "--moves", str(ledger), "--redirect-map", str(out_map)])
+    assert code == 1
+    assert not out_map.exists()

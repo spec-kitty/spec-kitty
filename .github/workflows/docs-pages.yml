@@ -17,6 +17,10 @@ on:
       - 'scripts/docs/redirect_stub_generator.py'
       - 'scripts/docs/redirect_map.yaml'
       - 'scripts/docs/redirect_baseline_urls.json'
+      - 'scripts/docs/moves_ledger.py'
+      - 'scripts/docs/capture_baseline_urls.py'
+      - 'site/moves.yaml'
+      - 'site/url-baseline.txt'
       - 'scripts/docs/glossary_page/**'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
@@ -159,18 +163,25 @@ jobs:
 
       # DocFX/GitHub Pages has no native redirect (FR-006). Inject a
       # <meta http-equiv="refresh"> stub at every moved old URL into the built
-      # _site BEFORE upload, so no bookmarked URL 404s post-fold. The redirect
-      # map is single-writer (WP07-owned), derived from occurrence_map.yaml
-      # `moves:`. Runs after `Build documentation` (which emits docs/_site) and
-      # before `Upload artifact`. Fails the job if any stub would point at a 404.
+      # _site BEFORE upload, so no bookmarked URL 404s. The redirect map is
+      # derived from the standing moves ledger site/moves.yaml (#6927). Runs
+      # after `Build documentation` (which emits docs/_site) and before
+      # `Upload artifact`. Fails the job if any stub would point at a 404.
       - name: Inject redirect stubs into _site (FR-006)
         run: python3 scripts/docs/redirect_stub_generator.py generate --site-dir docs/_site
 
-      # NFR-002 gate: assert every URL in WP02's committed pre-move baseline
-      # resolves directly or via a live-target stub (uncovered == []). The check
-      # is non-vacuous — it refuses to pass against an empty baseline.
+      # NFR-002 gate: assert every route of the URL baseline site/url-baseline.txt
+      # (every URL the site has published, #6927) resolves directly or via a
+      # live-target stub (uncovered == []). The check is non-vacuous — it refuses
+      # to pass against an empty baseline.
       - name: Verify redirect coverage (NFR-002)
         run: python3 scripts/docs/redirect_stub_generator.py coverage --site-dir docs/_site
+
+      # Grow-on-publish report (#6927): warn about every published page missing
+      # from site/url-baseline.txt. It reports and never fails the deploy; the
+      # blocking gate arrives with the doc-kitty build gate (ADR 2026-10-31-1 D-11).
+      - name: Report URL baseline drift (grow-on-publish)
+        run: python3 scripts/docs/redirect_stub_generator.py baseline-drift --site-dir docs/_site
 
       # FR-005/FR-008/FR-012 gate: assert the *shipped* HTML carries a
       # description, a self-referential canonical, and matching Open Graph

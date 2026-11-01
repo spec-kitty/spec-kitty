@@ -54,9 +54,7 @@ pytestmark = pytest.mark.fast
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _OLD_MANIFEST = _REPO_ROOT / "scripts" / "docs" / "redirect_baseline_urls.json"
 # Read here as evidence of #3914 only: no script reads a Mission's occurrence map.
-_ISSUE_3914_MAP = (
-    _REPO_ROOT / "kitty-specs" / "common-docs-convergence-01KZMTR9" / "occurrence_map.yaml"
-)
+_ISSUE_3914_MAP = _REPO_ROOT / "kitty-specs" / "common-docs-convergence-01KZMTR9" / "occurrence_map.yaml"
 _DOCS_PREFIX = "docs/"
 
 
@@ -133,9 +131,7 @@ def test_no_redirect_key_is_a_published_page() -> None:
 
 def test_every_redirect_target_is_published() -> None:
     published = _published_routes()
-    dead = sorted(
-        f"{k} -> {v}" for k, v in _committed_map().items() if _route(v) not in published
-    )
+    dead = sorted(f"{k} -> {v}" for k, v in _committed_map().items() if _route(v) not in published)
     assert dead == [], f"redirect targets that are not published: {dead[:10]}"
 
 
@@ -143,9 +139,7 @@ def test_every_baseline_route_is_published_or_redirected() -> None:
     published = _published_routes()
     assert len(published) >= 500  # non-vacuous: about 670 pages today
     redirect = {_route(k): _route(v) for k, v in _committed_map().items()}
-    broken = sorted(
-        r for r in _baseline() if r not in published and redirect.get(r) not in published
-    )
+    broken = sorted(r for r in _baseline() if r not in published and redirect.get(r) not in published)
     assert broken == [], f"baseline routes that would break: {broken[:10]}"
 
 

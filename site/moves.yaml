@@ -1,0 +1,341 @@
+# Docsite moves ledger — standing, repository-level, APPEND-ONLY (#6927, absorbs #2358).
+#
+# Every published route that moved, as `from -> to`. ADR
+# docs/adr/4.x/2026-10-31-1-the-docsite-is-built-with-doc-kitty.md D-5.
+# DocFX's scripts/docs/redirect_map.yaml is DERIVED from this file:
+#   python3 scripts/docs/redirect_stub_generator.py regenerate-map
+# A later doc-kitty generator (#6933) reads the same entries.
+#
+# Route form: site-relative legacy published path with a leading slash
+# (`/guides/x.html`, `/adr/1.x/index.html`). Chains are allowed and collapse to
+# their final route (ADR D-5 rule 2). A route that is no longer published points
+# at its section hub (ADR D-5 rule 4) with a `note`.
+#
+# Rules: append only; never edit or delete a recorded line. A page that moves
+# again gets a NEW entry from its previous route. Each `from` appears once, and no
+# `from` is a published page. Each entry carries a `ref` (PR, issue or Mission).
+# How to record a move: kitty-specs/docsite-url-ledgers-01M6BRMR/quickstart.md
+#
+# Provenance (seeded 2026-11-01 on main 7e2ca9fdc, Mission docsite-url-ledgers-01M6BRMR):
+#   (a) the 163 entries of scripts/docs/redirect_map.yaml, derived until now from the
+#       occurrence maps of the closed Missions common-docs-structural-move-01KW3SBK and
+#       common-docs-convergence-01KZMTR9;
+#   (b) the 124 file moves of that convergence occurrence map with no redirect (#3914);
+#   (c) follow-ups for (b) destinations that later moved again or were archived.
+#
+# Amendments inherited from scripts/docs/redirect_baseline_urls.json (the old 180-URL
+# manifest; its URL set is folded into site/url-baseline.txt):
+#   - 2026-07-04, PR #2350, ground operator-ruling: 14 legacy migration/*.html URLs
+#     retired without stubs; runbooks relocated to migrations/*.html (#2313). 14 removed,
+#     14 added.
+#   - 2026-07-04, PR #2350, ground capture-defect: assets/index.html removed, a phantom URL
+#     that was never published (#2348; assets/index.md is a verbatim resource).
+#   - 2026-07-20, PR mission:docs-ia-onboarding-overhaul-01KY02JB, ground
+#     mission-extension: 13 contributor-only guides/*.html URLs added after they moved to
+#     development/ (FR-003).
+kind: docs-moves-ledger
+version: 1
+moves:
+  # --- (a) Carried from scripts/docs/redirect_map.yaml (163 entries, already final) ---
+  # Missions common-docs-structural-move-01KW3SBK and common-docs-convergence-01KZMTR9.
+  - {from: /1x/artifacts-and-commands.html, to: /changelog/1x/artifacts-and-commands.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /1x/branches-and-workspaces.html, to: /changelog/1x/branches-and-workspaces.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /1x/index.html, to: /changelog/1x/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /1x/orchestration-and-api.html, to: /changelog/1x/orchestration-and-api.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /1x/workflow.html, to: /changelog/1x/workflow.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /2x/adr-coverage.html, to: /changelog/2x/adr-coverage.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /2x/doctrine-and-charter.html, to: /changelog/2x/doctrine-and-charter.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /2x/glossary-system.html, to: /changelog/2x/glossary-system.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /2x/index.html, to: /changelog/2x/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /2x/model-discipline-routing.html, to: /changelog/2x/model-discipline-routing.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /2x/model-to-task_type.html, to: /changelog/2x/model-to-task_type.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /2x/orchestration-and-api.html, to: /changelog/2x/orchestration-and-api.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /2x/runtime-and-missions.html, to: /changelog/2x/runtime-and-missions.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /3x/charter-overview.html, to: /context/charter-overview.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /3x/governance-files.html, to: /context/governance-files.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /3x/index.html, to: /context/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/1x/artifacts-and-commands.html, to: /changelog/1x/artifacts-and-commands.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/1x/branches-and-workspaces.html, to: /changelog/1x/branches-and-workspaces.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/1x/index.html, to: /changelog/1x/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/1x/orchestration-and-api.html, to: /changelog/1x/orchestration-and-api.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/1x/workflow.html, to: /changelog/1x/workflow.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/2x/adr-coverage.html, to: /changelog/2x/adr-coverage.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/2x/doctrine-and-charter.html, to: /changelog/2x/doctrine-and-charter.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/2x/glossary-system.html, to: /changelog/2x/glossary-system.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/2x/index.html, to: /changelog/2x/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/2x/model-discipline-routing.html, to: /changelog/2x/model-discipline-routing.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/2x/model-to-task_type.html, to: /changelog/2x/model-to-task_type.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/2x/orchestration-and-api.html, to: /changelog/2x/orchestration-and-api.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/2x/runtime-and-missions.html, to: /changelog/2x/runtime-and-missions.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /archive/index.html, to: /changelog/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/ai-agent-architecture.html, to: /architecture/ai-agent-architecture.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/branch-target-routing.html, to: /architecture/branch-target-routing.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/charter-synthesis-drg.html, to: /architecture/charter-synthesis-drg.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/divio-documentation.html, to: /architecture/divio-documentation.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/doctrine-relationships.html, to: /architecture/doctrine-relationships.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/documentation-mission.html, to: /architecture/documentation-mission.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/execution-lanes.html, to: /architecture/execution-lanes.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/git-workflow.html, to: /architecture/git-workflow.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/git-worktrees.html, to: /architecture/git-worktrees.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/governed-profile-invocation.html, to: /architecture/governed-profile-invocation.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/index.html, to: /architecture/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/kanban-workflow.html, to: /architecture/kanban-workflow.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/launch-readiness-future.html, to: /architecture/launch-readiness-future.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/mission-system.html, to: /architecture/mission-system.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/multi-agent-orchestration.html, to: /architecture/multi-agent-orchestration.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/org-doctrine-layer.html, to: /architecture/org-doctrine-layer.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/pip-vs-pipx-vs-uv.html, to: /architecture/pip-vs-pipx-vs-uv.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/retrospective-learning-loop.html, to: /architecture/retrospective-learning-loop.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/runtime-loop.html, to: /architecture/runtime-loop.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /explanation/spec-driven-development.html, to: /architecture/spec-driven-development.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/contract-pinning.html, to: /development/how-to/contract-pinning.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/contributing.html, to: /development/contributing.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/coverage-signals.html, to: /development/reference/coverage-signals.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/internal-hosted-readiness.html, to: /operations/internal-hosted-readiness.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/local-overrides.html, to: /development/how-to/local-overrides.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/manage-issue-tracker.html, to: /development/how-to/manage-issue-tracker.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/pr-landing.html, to: /development/how-to/pr-landing.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/red-main-and-release-readiness.html, to: /development/reference/red-main-and-release-readiness.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/review-gates.html, to: /development/how-to/review-gates.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/run-mutation-tests.html, to: /development/testing/run-mutation-tests.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/testing-flakiness.html, to: /development/testing/testing-flakiness.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/testing-parallel.html, to: /development/testing/testing-parallel.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /guides/write-time-dependent-tests.html, to: /development/testing/write-time-dependent-tests.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/accept-and-merge.html, to: /guides/how-to/missions/accept-and-merge.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/adhoc-specialist-session.html, to: /guides/how-to/collaboration/adhoc-specialist-session.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/build-custom-orchestrator.html, to: /guides/how-to/collaboration/build-custom-orchestrator.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/create-an-org-doctrine-pack.html, to: /guides/how-to/governance/create-an-org-doctrine-pack.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/create-plan.html, to: /guides/how-to/missions/create-plan.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/create-specification.html, to: /guides/how-to/missions/create-specification.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/diagnose-installation.html, to: /guides/how-to/installation/diagnose-installation.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/generate-tasks.html, to: /guides/how-to/missions/generate-tasks.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/gstack-glossary-observations.html, to: /guides/gstack-glossary-observations.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/handle-dependencies.html, to: /guides/how-to/missions/handle-dependencies.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/amazon-q.html, to: /guides/how-to/harnesses/amazon-q.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/antigravity.html, to: /guides/how-to/harnesses/antigravity.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/augment.html, to: /guides/how-to/harnesses/augment.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/claude-code.html, to: /guides/how-to/harnesses/claude-code.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/codex.html, to: /guides/how-to/harnesses/codex.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/copilot.html, to: /guides/how-to/harnesses/copilot.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/cursor.html, to: /guides/how-to/harnesses/cursor.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/gemini.html, to: /guides/how-to/harnesses/gemini.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/kilocode.html, to: /guides/how-to/harnesses/kilocode.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/kiro.html, to: /guides/how-to/harnesses/kiro.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/letta.html, to: /guides/how-to/harnesses/letta.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/opencode.html, to: /guides/how-to/harnesses/opencode.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/pi-tui.html, to: /guides/how-to/harnesses/pi-tui.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/qwen.html, to: /guides/how-to/harnesses/qwen.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/roo.html, to: /guides/how-to/harnesses/roo.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/setup-lint-hooks.html, to: /guides/how-to/harnesses/setup-lint-hooks.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/harnesses/windsurf.html, to: /guides/how-to/harnesses/windsurf.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/implement-work-package.html, to: /guides/how-to/missions/implement-work-package.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/index.html, to: /guides/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/install-and-upgrade.html, to: /guides/how-to/installation/install-and-upgrade.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/install-claude-code-plugin.html, to: /guides/how-to/installation/install-claude-code-plugin.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/install-linux.html, to: /guides/how-to/installation/install-linux.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/install-macos.html, to: /guides/how-to/installation/install-macos.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/install-spec-kitty.html, to: /guides/how-to/installation/install-spec-kitty.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/install-windows.html, to: /guides/how-to/installation/install-windows.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/internal-hosted-readiness.html, to: /operations/internal-hosted-readiness.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/keep-main-clean.html, to: /guides/how-to/missions/keep-main-clean.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/manage-agents.html, to: /guides/how-to/collaboration/manage-agents.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/manage-glossary.html, to: /guides/how-to/governance/manage-glossary.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/merge-feature.html, to: /guides/how-to/missions/merge-mission.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/non-interactive-init.html, to: /guides/how-to/installation/non-interactive-init.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/parallel-development.html, to: /guides/how-to/collaboration/parallel-development.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/recover-from-implementation-crash.html, to: /guides/how-to/recovery/recover-from-implementation-crash.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/recover-from-interrupted-merge.html, to: /guides/how-to/recovery/recover-from-interrupted-merge.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/review-artifacts-with-planbridge.html, to: /guides/how-to/missions/review-artifacts-with-planbridge.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/review-work-package.html, to: /guides/how-to/missions/review-work-package.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/run-an-autonomous-mission.html, to: /guides/how-to/collaboration/run-an-autonomous-mission.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/run-external-orchestrator.html, to: /guides/how-to/collaboration/run-external-orchestrator.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/run-governed-mission.html, to: /guides/how-to/governance/run-governed-mission.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/run-mutation-tests.html, to: /development/testing/run-mutation-tests.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/setup-codex-spec-kitty-launcher.html, to: /guides/how-to/harnesses/setup-codex-spec-kitty-launcher.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/setup-governance.html, to: /guides/how-to/governance/setup-governance.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/switch-missions.html, to: /guides/how-to/missions/switch-missions.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/sync-workspaces.html, to: /guides/how-to/collaboration/sync-workspaces.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/synthesize-doctrine.html, to: /guides/how-to/governance/synthesize-doctrine.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/tool-surface-upgrade-and-repair.html, to: /guides/how-to/installation/tool-surface-upgrade-and-repair.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/troubleshoot-charter.html, to: /guides/how-to/governance/troubleshoot-charter.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/troubleshoot-merge.html, to: /guides/how-to/recovery/troubleshoot-merge.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/uninstall.html, to: /guides/how-to/installation/uninstall.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/upgrade-cli.html, to: /guides/how-to/installation/upgrade-cli.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/upgrade-project.html, to: /guides/how-to/installation/upgrade-project.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/use-dashboard.html, to: /guides/how-to/monitoring/use-dashboard.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/use-operation-history.html, to: /guides/how-to/monitoring/use-operation-history.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/use-retrospective-learning.html, to: /guides/how-to/governance/use-retrospective-learning.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/use-wps-yaml-manifest.html, to: /guides/how-to/missions/use-wps-yaml-manifest.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/worktrees-with-mcp-agents.html, to: /guides/how-to/collaboration/worktrees-with-mcp-agents.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /how-to/write-time-dependent-tests.html, to: /development/testing/write-time-dependent-tests.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /recovery/index.html, to: /operations/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /recovery/logged-out-teamspace.html, to: /operations/logged-out-teamspace.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/README.html, to: /api/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/agent-plan-artifacts.html, to: /api/agent-plan-artifacts.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/agent-subcommands.html, to: /api/agent-subcommands.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/bulk-edit-gate.html, to: /api/bulk-edit-gate.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/charter-commands.html, to: /api/charter-commands.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/cli-commands.html, to: /api/cli-commands.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/configuration.html, to: /api/configuration.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/environment-variables.html, to: /api/environment-variables.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/event-envelope.html, to: /api/event-envelope.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/file-structure.html, to: /api/file-structure.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/finalize-tasks-internals.html, to: /api/finalize-tasks-internals.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/index.html, to: /api/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/init-lifecycle.html, to: /api/init-lifecycle.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/missions.html, to: /api/missions.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/orchestrator-api.html, to: /api/orchestrator-api.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/profile-invocation.html, to: /api/profile-invocation.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/retrospective-schema.html, to: /api/retrospective-schema.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/slash-commands.html, to: /api/slash-commands.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/supported-agents.html, to: /api/supported-agents.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/supported-harnesses.html, to: /api/supported-harnesses.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/terminology.html, to: /api/terminology.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /reference/upgrade-lifecycle.html, to: /api/upgrade-lifecycle.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/charter-governed-workflow.html, to: /guides/tutorials/charter-governed-workflow.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/claude-code-integration.html, to: /guides/tutorials/claude-code-integration.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/claude-code-workflow.html, to: /guides/tutorials/claude-code-workflow.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/getting-started.html, to: /guides/tutorials/getting-started.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/index.html, to: /guides/index.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/missions-overview.html, to: /guides/tutorials/missions-overview.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/multi-agent-workflow.html, to: /guides/tutorials/multi-agent-workflow.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/orchestrator-quickstart.html, to: /guides/tutorials/orchestrator-quickstart.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  - {from: /tutorials/your-first-feature.html, to: /guides/tutorials/your-first-mission.html, ref: "mission:common-docs-convergence-01KZMTR9"}
+  # --- (b) #3914: file moves of the convergence occurrence map that never got a redirect ---
+  # Recorded as that map moved them; a destination that moved again is carried on in (c).
+  - {from: /adr/1.x/2026-01-25-8-deterministic-csv-schema-enforcement.html, to: /adr/1.x/2026-01-25-9-deterministic-csv-schema-enforcement.html, ref: "#3914"}
+  - {from: /adr/3.x/2026-06-07-1-session-presence-multi-harness-architecture.html, to: /adr/3.x/2026-06-07-2-session-presence-multi-harness-architecture.html, ref: "#3914"}
+  - {from: /adr/3.x/2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.html, to: /adr/3.x/2026-06-07-3-wp-lane-fsm-genesis-and-finalize-clobber.html, ref: "#3914"}
+  - {from: /adr/3.x/2026-06-26-1-core-integration-boundary.html, to: /adr/3.x/2026-06-26-2-core-integration-boundary.html, ref: "#3914"}
+  - {from: /adr/3.x/2026-07-19-1-skill-projection-copies-not-symlinks.html, to: /adr/3.x/2026-07-19-2-skill-projection-copies-not-symlinks.html, ref: "#3914"}
+  - {from: /adr/3.x/2026-07-21-1-glossary-first-order-doctrine-artefact.html, to: /adr/3.x/2026-07-21-2-glossary-first-order-doctrine-artefact.html, ref: "#3914"}
+  - {from: /adr/3.x/adr-connector-auth-binding-separation.html, to: /adr/3.x/2026-04-06-2-connector-auth-binding-separation.html, ref: "#3914"}
+  - {from: /adr/3.x/adr-github-app-installation-authority.html, to: /adr/3.x/2026-04-06-3-github-app-installation-authority.html, ref: "#3914"}
+  - {from: /architecture/README-1.x.html, to: /adr/1.x/README-1.x.html, ref: "#3914"}
+  - {from: /architecture/README-2.x.html, to: /adr/2.x/README-2.x.html, ref: "#3914"}
+  - {from: /architecture/README-3.x.html, to: /adr/3.x/README-3.x.html, ref: "#3914"}
+  - {from: /context/audience/README.html, to: /context/audience/index.html, ref: "#3914"}
+  - {from: /context/audience/external/README.html, to: /context/audience/external/index.html, ref: "#3914"}
+  - {from: /context/audience/internal/README.html, to: /context/audience/internal/index.html, ref: "#3914"}
+  - {from: /context/doctrine.html, to: /context/charter.html, ref: "#3914"}
+  - {from: /contextive-glossaries.html, to: /context/contextive-glossaries.html, ref: "#3914"}
+  - {from: /development/contract-pinning.html, to: /development/how-to/contract-pinning.html, ref: "#3914"}
+  - {from: /development/coverage-signals.html, to: /development/reference/coverage-signals.html, ref: "#3914"}
+  - {from: /development/cutover-guard.html, to: /development/how-to/cutover-guard.html, ref: "#3914"}
+  - {from: /development/isolated_dev_environments.html, to: /development/getting-started/isolated-dev-environments.html, ref: "#3914"}
+  - {from: /development/known-friction-points.html, to: /development/reference/known-friction-points.html, ref: "#3914"}
+  - {from: /development/local-overrides.html, to: /development/how-to/local-overrides.html, ref: "#3914"}
+  - {from: /development/manage-issue-tracker.html, to: /development/how-to/manage-issue-tracker.html, ref: "#3914"}
+  - {from: /development/onboarding-run.html, to: /development/getting-started/onboarding-run.html, ref: "#3914"}
+  - {from: /development/pr-landing.html, to: /development/how-to/pr-landing.html, ref: "#3914"}
+  - {from: /development/process-global-inventory-3115.html, to: /development/reference/process-global-inventory-3115.html, ref: "#3914"}
+  - {from: /development/quality-and-tech-debt-standing-orders.html, to: /development/reference/quality-and-tech-debt-standing-orders.html, ref: "#3914"}
+  - {from: /development/read-side-seam-classification.html, to: /development/reference/read-side-seam-classification.html, ref: "#3914"}
+  - {from: /development/red-main-and-release-readiness.html, to: /development/reference/red-main-and-release-readiness.html, ref: "#3914"}
+  - {from: /development/review-gates.html, to: /development/how-to/review-gates.html, ref: "#3914"}
+  - {from: /development/run-mutation-tests.html, to: /development/testing/run-mutation-tests.html, ref: "#3914"}
+  - {from: /development/terminology-exemptions.html, to: /development/reference/terminology-exemptions.html, ref: "#3914"}
+  - {from: /development/testing-flakiness.html, to: /development/testing/testing-flakiness.html, ref: "#3914"}
+  - {from: /development/testing-parallel.html, to: /development/testing/testing-parallel.html, ref: "#3914"}
+  - {from: /development/ui-e2e.html, to: /development/testing/ui-e2e.html, ref: "#3914"}
+  - {from: /development/write-time-dependent-tests.html, to: /development/testing/write-time-dependent-tests.html, ref: "#3914"}
+  - {from: /doctrine/create-a-doctrine-artifact.html, to: /development/create-a-doctrine-artifact.html, ref: "#3914"}
+  - {from: /doctrine/doctrine-kinds.html, to: /architecture/doctrine-kinds.html, ref: "#3914"}
+  - {from: /doctrine/spdd-reasons.html, to: /architecture/spdd-reasons.html, ref: "#3914"}
+  - {from: /guides/accept-and-merge.html, to: /guides/how-to/missions/accept-and-merge.html, ref: "#3914"}
+  - {from: /guides/adhoc-specialist-session.html, to: /guides/how-to/collaboration/adhoc-specialist-session.html, ref: "#3914"}
+  - {from: /guides/build-custom-orchestrator.html, to: /guides/how-to/collaboration/build-custom-orchestrator.html, ref: "#3914"}
+  - {from: /guides/charter-governed-workflow.html, to: /guides/tutorials/charter-governed-workflow.html, ref: "#3914"}
+  - {from: /guides/claude-code-integration.html, to: /guides/tutorials/claude-code-integration.html, ref: "#3914"}
+  - {from: /guides/claude-code-workflow.html, to: /guides/tutorials/claude-code-workflow.html, ref: "#3914"}
+  - {from: /guides/create-an-org-doctrine-pack.html, to: /guides/how-to/governance/create-an-org-doctrine-pack.html, ref: "#3914"}
+  - {from: /guides/create-plan.html, to: /guides/how-to/missions/create-plan.html, ref: "#3914"}
+  - {from: /guides/create-specification.html, to: /guides/how-to/missions/create-specification.html, ref: "#3914"}
+  - {from: /guides/diagnose-installation.html, to: /guides/how-to/installation/diagnose-installation.html, ref: "#3914"}
+  - {from: /guides/fork-packaging-hooks.html, to: /guides/how-to/installation/fork-packaging-hooks.html, ref: "#3914"}
+  - {from: /guides/generate-tasks.html, to: /guides/how-to/missions/generate-tasks.html, ref: "#3914"}
+  - {from: /guides/getting-started.html, to: /guides/tutorials/getting-started.html, ref: "#3914"}
+  - {from: /guides/handle-dependencies.html, to: /guides/how-to/missions/handle-dependencies.html, ref: "#3914"}
+  - {from: /guides/harnesses/amazon-q.html, to: /guides/how-to/harnesses/amazon-q.html, ref: "#3914"}
+  - {from: /guides/harnesses/antigravity.html, to: /guides/how-to/harnesses/antigravity.html, ref: "#3914"}
+  - {from: /guides/harnesses/augment.html, to: /guides/how-to/harnesses/augment.html, ref: "#3914"}
+  - {from: /guides/harnesses/claude-code.html, to: /guides/how-to/harnesses/claude-code.html, ref: "#3914"}
+  - {from: /guides/harnesses/codex.html, to: /guides/how-to/harnesses/codex.html, ref: "#3914"}
+  - {from: /guides/harnesses/copilot.html, to: /guides/how-to/harnesses/copilot.html, ref: "#3914"}
+  - {from: /guides/harnesses/cursor.html, to: /guides/how-to/harnesses/cursor.html, ref: "#3914"}
+  - {from: /guides/harnesses/gemini.html, to: /guides/how-to/harnesses/gemini.html, ref: "#3914"}
+  - {from: /guides/harnesses/kilocode.html, to: /guides/how-to/harnesses/kilocode.html, ref: "#3914"}
+  - {from: /guides/harnesses/kiro.html, to: /guides/how-to/harnesses/kiro.html, ref: "#3914"}
+  - {from: /guides/harnesses/letta.html, to: /guides/how-to/harnesses/letta.html, ref: "#3914"}
+  - {from: /guides/harnesses/opencode.html, to: /guides/how-to/harnesses/opencode.html, ref: "#3914"}
+  - {from: /guides/harnesses/pi-tui.html, to: /guides/how-to/harnesses/pi-tui.html, ref: "#3914"}
+  - {from: /guides/harnesses/qwen.html, to: /guides/how-to/harnesses/qwen.html, ref: "#3914"}
+  - {from: /guides/harnesses/roo.html, to: /guides/how-to/harnesses/roo.html, ref: "#3914"}
+  - {from: /guides/harnesses/setup-lint-hooks.html, to: /guides/how-to/harnesses/setup-lint-hooks.html, ref: "#3914"}
+  - {from: /guides/harnesses/windsurf.html, to: /guides/how-to/harnesses/windsurf.html, ref: "#3914"}
+  - {from: /guides/implement-work-package.html, to: /guides/how-to/missions/implement-work-package.html, ref: "#3914"}
+  - {from: /guides/install-and-upgrade.html, to: /guides/how-to/installation/install-and-upgrade.html, ref: "#3914"}
+  - {from: /guides/install-claude-code-plugin.html, to: /guides/how-to/installation/install-claude-code-plugin.html, ref: "#3914"}
+  - {from: /guides/install-linux.html, to: /guides/how-to/installation/install-linux.html, ref: "#3914"}
+  - {from: /guides/install-macos.html, to: /guides/how-to/installation/install-macos.html, ref: "#3914"}
+  - {from: /guides/install-spec-kitty.html, to: /guides/how-to/installation/install-spec-kitty.html, ref: "#3914"}
+  - {from: /guides/install-windows.html, to: /guides/how-to/installation/install-windows.html, ref: "#3914"}
+  - {from: /guides/keep-main-clean.html, to: /guides/how-to/missions/keep-main-clean.html, ref: "#3914"}
+  - {from: /guides/manage-agents.html, to: /guides/how-to/collaboration/manage-agents.html, ref: "#3914"}
+  - {from: /guides/manage-glossary.html, to: /guides/how-to/governance/manage-glossary.html, ref: "#3914"}
+  - {from: /guides/merge-feature.html, to: /guides/how-to/missions/merge-mission.html, ref: "#3914"}
+  - {from: /guides/missions-overview.html, to: /guides/tutorials/missions-overview.html, ref: "#3914"}
+  - {from: /guides/multi-agent-workflow.html, to: /guides/tutorials/multi-agent-workflow.html, ref: "#3914"}
+  - {from: /guides/non-interactive-init.html, to: /guides/how-to/installation/non-interactive-init.html, ref: "#3914"}
+  - {from: /guides/orchestrator-quickstart.html, to: /guides/tutorials/orchestrator-quickstart.html, ref: "#3914"}
+  - {from: /guides/parallel-development.html, to: /guides/how-to/collaboration/parallel-development.html, ref: "#3914"}
+  - {from: /guides/recover-from-implementation-crash.html, to: /guides/how-to/recovery/recover-from-implementation-crash.html, ref: "#3914"}
+  - {from: /guides/recover-from-interrupted-merge.html, to: /guides/how-to/recovery/recover-from-interrupted-merge.html, ref: "#3914"}
+  - {from: /guides/review-artifacts-with-planbridge.html, to: /guides/how-to/missions/review-artifacts-with-planbridge.html, ref: "#3914"}
+  - {from: /guides/review-work-package.html, to: /guides/how-to/missions/review-work-package.html, ref: "#3914"}
+  - {from: /guides/run-an-autonomous-mission.html, to: /guides/how-to/collaboration/run-an-autonomous-mission.html, ref: "#3914"}
+  - {from: /guides/run-external-orchestrator.html, to: /guides/how-to/collaboration/run-external-orchestrator.html, ref: "#3914"}
+  - {from: /guides/run-governed-mission.html, to: /guides/how-to/governance/run-governed-mission.html, ref: "#3914"}
+  - {from: /guides/setup-codex-spec-kitty-launcher.html, to: /guides/how-to/harnesses/setup-codex-spec-kitty-launcher.html, ref: "#3914"}
+  - {from: /guides/setup-governance.html, to: /guides/how-to/governance/setup-governance.html, ref: "#3914"}
+  - {from: /guides/switch-missions.html, to: /guides/how-to/missions/switch-missions.html, ref: "#3914"}
+  - {from: /guides/sync-workspaces.html, to: /guides/how-to/collaboration/sync-workspaces.html, ref: "#3914"}
+  - {from: /guides/synthesize-doctrine.html, to: /guides/how-to/governance/synthesize-doctrine.html, ref: "#3914"}
+  - {from: /guides/tool-surface-upgrade-and-repair.html, to: /guides/how-to/installation/tool-surface-upgrade-and-repair.html, ref: "#3914"}
+  - {from: /guides/troubleshoot-charter.html, to: /guides/how-to/governance/troubleshoot-charter.html, ref: "#3914"}
+  - {from: /guides/troubleshoot-merge.html, to: /guides/how-to/recovery/troubleshoot-merge.html, ref: "#3914"}
+  - {from: /guides/uninstall.html, to: /guides/how-to/installation/uninstall.html, ref: "#3914"}
+  - {from: /guides/upgrade-cli.html, to: /guides/how-to/installation/upgrade-cli.html, ref: "#3914"}
+  - {from: /guides/upgrade-project.html, to: /guides/how-to/installation/upgrade-project.html, ref: "#3914"}
+  - {from: /guides/use-dashboard.html, to: /guides/how-to/monitoring/use-dashboard.html, ref: "#3914"}
+  - {from: /guides/use-operation-history.html, to: /guides/how-to/monitoring/use-operation-history.html, ref: "#3914"}
+  - {from: /guides/use-retrospective-learning.html, to: /guides/how-to/governance/use-retrospective-learning.html, ref: "#3914"}
+  - {from: /guides/use-wps-yaml-manifest.html, to: /guides/how-to/missions/use-wps-yaml-manifest.html, ref: "#3914"}
+  - {from: /guides/worktrees-with-mcp-agents.html, to: /guides/how-to/collaboration/worktrees-with-mcp-agents.html, ref: "#3914"}
+  - {from: /guides/your-first-mission.html, to: /guides/tutorials/your-first-mission.html, ref: "#3914"}
+  - {from: /host-surface-parity.html, to: /architecture/host-surface-parity.html, ref: "#3914"}
+  - {from: /migrations/06_migration_and_shim_rules.html, to: /migrations/migration-and-shim-rules.html, ref: "#3914"}
+  - {from: /p0-baseline-refresh.html, to: /operations/p0-baseline-refresh.html, ref: "#3914"}
+  - {from: /plans/2497-external-observability-endpoints-assessment.html, to: /plans/investigations/2497-external-observability-endpoints-assessment.html, ref: "#3914"}
+  - {from: /plans/charter-sole-door-deferred-issues.html, to: /plans/doctrine/charter-sole-door-deferred-issues.html, ref: "#3914"}
+  - {from: /plans/doctrine-charter-domain-plan.html, to: /plans/domains/doctrine-charter-domain-plan.html, ref: "#3914"}
+  - {from: /plans/initiatives/README.html, to: /plans/initiatives/index.html, ref: "#3914"}
+  - {from: /plans/loop-friction-fastfollow-spec.html, to: /plans/investigations/loop-friction-fastfollow-spec.html, ref: "#3914"}
+  - {from: /plans/next-mission-mappings/README.html, to: /plans/next-mission-mappings/index.html, ref: "#3914"}
+  - {from: /plans/saas-hosted-sync-domain-plan.html, to: /plans/domains/saas-hosted-sync-domain-plan.html, ref: "#3914"}
+  - {from: /plans/test-change-coupling-caacs.html, to: /plans/testing/test-change-coupling-caacs.html, ref: "#3914"}
+  - {from: /plans/user_journey/README.html, to: /plans/user_journey/index.html, ref: "#3914"}
+  - {from: /status-model.html, to: /architecture/status-model.html, ref: "#3914"}
+  - {from: /trail-model.html, to: /architecture/trail-model.html, ref: "#3914"}
+  # --- (c) #3914 follow-ups: destinations of (b) that moved again or were archived ---
+  - {from: /adr/1.x/README-1.x.html, to: /adr/1.x/index.html, ref: "#3914", note: "distilled into the era index"}
+  - {from: /adr/2.x/README-2.x.html, to: /adr/2.x/index.html, ref: "#3914", note: "distilled into the era index"}
+  - {from: /adr/3.x/README-3.x.html, to: /adr/3.x/index.html, ref: "#3914", note: "distilled into the era index"}
+  - {from: /development/create-a-doctrine-artifact.html, to: /development/how-to/create-a-doctrine-artifact.html, ref: "#3914", note: "moved again into development/how-to"}
+  - {from: /development/reference/process-global-inventory-3115.html, to: /development/reference/index.html, ref: "#3914", note: "archived, unpublished: section hub (ADR D-5 rule 4)"}
+  - {from: /plans/domains/saas-hosted-sync-domain-plan.html, to: /plans/index.html, ref: "#3914", note: "retired hosted-sync plan, unpublished: plans hub (ADR D-5 rule 4)"}
+  - {from: /plans/initiatives/index.html, to: /plans/index.html, ref: "#3914", note: "section removed: plans hub (ADR D-5 rule 4)"}
+  - {from: /plans/investigations/2497-external-observability-endpoints-assessment.html, to: /plans/investigations/index.html, ref: "#3914", note: "archived, unpublished: section hub (ADR D-5 rule 4)"}
+  - {from: /plans/investigations/loop-friction-fastfollow-spec.html, to: /plans/investigations/index.html, ref: "#3914", note: "archived, unpublished: section hub (ADR D-5 rule 4)"}
+  - {from: /plans/next-mission-mappings/index.html, to: /plans/index.html, ref: "#3914", note: "section removed: plans hub (ADR D-5 rule 4)"}
+  - {from: /plans/testing/test-change-coupling-caacs.html, to: /plans/testing/index.html, ref: "#3914", note: "archived, unpublished: section hub (ADR D-5 rule 4)"}
