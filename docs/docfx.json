@@ -20,7 +20,8 @@
           "changelog/**.md"
         ],
         "exclude": [
-          "**/_*.md"
+          "**/_*.md",
+          "changelog/unreleased/**"
         ]
       }
     ],
