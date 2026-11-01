@@ -7,11 +7,16 @@ would add nothing (ADR 2026-10-27-1; CLAUDE.md, loopback HTTP). The standard
 library's ``http.client`` is used instead of httpx so the warm path (NFR-001)
 pays no third-party import cost.
 
+Every operation is called under the contract's server prefix, ``/api/v1``
+(``contracts/mission-write/openapi.yaml``, ``servers: [{url: /api/v1}]``): the
+paths are the protocol module's constants (``API_PREFIX`` and the three
+operation paths), never literals here (#6910).
+
 The request and response shapes are the protocol module's
 (``specify_cli.status.write_service_protocol``); nothing is redefined here.
-``/handshake`` and ``/health`` carry the bearer token only; ``/shutdown`` also
-carries the negotiated major in ``Spec-Kitty-Write-Protocol`` (ADR 2026-10-27-1
-D-4).
+``/api/v1/handshake`` and ``/api/v1/health`` carry the bearer token only;
+``/api/v1/shutdown`` also carries the negotiated major in
+``Spec-Kitty-Write-Protocol`` (ADR 2026-10-27-1 D-4).
 
 Every failure -- a refused connection, a timeout, a non-2xx answer, a body
 outside the contract -- is a :class:`ServiceUnreachable` whose message names the
@@ -26,6 +31,9 @@ from collections.abc import Mapping
 from typing import Any
 
 from specify_cli.status import (
+    HANDSHAKE_PATH,
+    HEALTH_PATH,
+    SHUTDOWN_PATH,
     WRITE_PROTOCOL_HEADER,
     Handshake,
     Health,
@@ -92,12 +100,12 @@ class ServiceClient:
         return _decode(body, f"{_GET} {path}")
 
     def handshake(self) -> Handshake:
-        """``GET /handshake``; it also remembers the negotiated major when one exists."""
-        wire = self._get("/handshake")
+        """``GET /api/v1/handshake``; it also remembers the negotiated major when one exists."""
+        wire = self._get(HANDSHAKE_PATH)
         try:
             handshake = Handshake.from_wire(wire)
         except ProtocolShapeError:
-            raise ServiceUnreachable("GET /handshake answered with a body outside the contract") from None
+            raise ServiceUnreachable(f"{_GET} {HANDSHAKE_PATH} answered with a body outside the contract") from None
         try:
             self._protocol_version = negotiate_protocol_version(handshake.protocol_versions)
         except ProtocolShapeError:
@@ -105,17 +113,17 @@ class ServiceClient:
         return handshake
 
     def health(self) -> Health:
-        """``GET /health``."""
-        wire = self._get("/health")
+        """``GET /api/v1/health``."""
+        wire = self._get(HEALTH_PATH)
         try:
             return Health.from_wire(wire)
         except ProtocolShapeError:
-            raise ServiceUnreachable("GET /health answered with a body outside the contract") from None
+            raise ServiceUnreachable(f"{_GET} {HEALTH_PATH} answered with a body outside the contract") from None
 
     def shutdown(self) -> None:
-        """``POST /shutdown`` with the negotiated major (a handshake first when none is known yet)."""
+        """``POST /api/v1/shutdown`` with the negotiated major (a handshake first when none is known yet)."""
         if self._protocol_version is None:
             handshake = self.handshake()
             if self._protocol_version is None:
                 raise ServiceUnreachable(f"no common protocol version with the service (it speaks {list(handshake.protocol_versions)})")
-        self._request(_POST, "/shutdown", {WRITE_PROTOCOL_HEADER: str(self._protocol_version)})
+        self._request(_POST, SHUTDOWN_PATH, {WRITE_PROTOCOL_HEADER: str(self._protocol_version)})

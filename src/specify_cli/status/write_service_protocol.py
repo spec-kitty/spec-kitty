@@ -55,6 +55,16 @@ __all__ = [
 
 WRITE_PROTOCOL_HEADER = "Spec-Kitty-Write-Protocol"
 SUPPORTED_PROTOCOL_VERSIONS: tuple[int, ...] = (1,)
+
+# The contract's server prefix (``contracts/mission-write/openapi.yaml`` declares
+# ``servers: [{url: /api/v1}]``), so every operation is served at this prefix plus the
+# path the contract lists. It is defined once, here, and every client path is derived
+# from it (#6910); a bare path is what the real service answers with 404.
+API_PREFIX = "/api/v1"
+HANDSHAKE_PATH = f"{API_PREFIX}/handshake"
+HEALTH_PATH = f"{API_PREFIX}/health"
+SHUTDOWN_PATH = f"{API_PREFIX}/shutdown"
+
 REASON_URN_PREFIX = "urn:spec-kitty:write-refusal:"
 MAX_BATCH_UNITS = 64
 

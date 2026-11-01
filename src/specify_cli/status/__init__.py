@@ -446,7 +446,11 @@ from .mission_write import (
 # service launcher, resolution and `spec-kitty service` CLI (#6590) reach them without a
 # direct status-submodule import (test_status_module_boundary.py).
 from .write_service_protocol import (
+    API_PREFIX,
     ENDPOINT_DIRECTORY,
+    HANDSHAKE_PATH,
+    HEALTH_PATH,
+    SHUTDOWN_PATH,
     SUPPORTED_PROTOCOL_VERSIONS,
     WRITE_PROTOCOL_HEADER,
     EndpointFileError,
@@ -484,7 +488,11 @@ __all__ = [
     "ActiveWPStatus",
     "CutOverVerdict",
     "LANE_HEAD_KEY",
+    "API_PREFIX",
     "ENDPOINT_DIRECTORY",
+    "HANDSHAKE_PATH",
+    "HEALTH_PATH",
+    "SHUTDOWN_PATH",
     "SUPPORTED_PROTOCOL_VERSIONS",
     "WRITE_PROTOCOL_HEADER",
     "EndpointFileError",
