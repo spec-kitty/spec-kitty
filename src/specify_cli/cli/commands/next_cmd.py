@@ -543,7 +543,7 @@ def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> No
     ignore_delta = None
     # Listed before the ignore provisioning below: a failing git probe here
     # must not leave the operator's ignore file edited with no restore.
-    lifecycle_records = _uncommitted_lifecycle_records(owned.owned_root)
+    lifecycle_records = _uncommitted_lifecycle_records(owned)
     if runtime_lock.exists():
         preflight_commit(
             repo_root=owned.owned_root,
@@ -588,7 +588,7 @@ def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> No
             raise
 
 
-def _uncommitted_lifecycle_records(owned_root: Path) -> tuple[Path, ...]:
+def _uncommitted_lifecycle_records(owned: OwnedCheckout) -> tuple[Path, ...]:
     """The per-record lifecycle files (#7003) the owned checkout has not committed yet.
 
     Only these are passed to ``safe_commit``: the record directory keeps every
@@ -599,6 +599,7 @@ def _uncommitted_lifecycle_records(owned_root: Path) -> tuple[Path, ...]:
     from kernel.git import status_entries
     from specify_cli.invocation.lifecycle import LIFECYCLE_RECORD_SUFFIX, LIFECYCLE_RECORDS_RELATIVE_DIR
 
+    owned_root = owned.owned_root
     if not (owned_root / LIFECYCLE_RECORDS_RELATIVE_DIR).is_dir():
         return ()
     entries = status_entries(
