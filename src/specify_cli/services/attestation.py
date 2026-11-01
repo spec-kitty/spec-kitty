@@ -25,9 +25,6 @@ from pathlib import Path
 
 __all__ = [
     "SIGNER_WORKFLOW",
-    "SERVICE_ATTESTATION_FAILED",
-    "SERVICE_ATTESTATION_UNAVAILABLE",
-    "SERVICE_ATTESTATION_UNSUPPORTED",
     "AttestationError",
     "attestation_args",
     "github_slug",
