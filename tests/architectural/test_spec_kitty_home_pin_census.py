@@ -636,8 +636,8 @@ def _string_items(node: ast.List) -> list[str | None]:
     return [item.value if isinstance(item, ast.Constant) and isinstance(item.value, str) else None for item in node.elts]
 
 
-def mypy_calls_without_cache_dir(source: str) -> tuple[int, list[int]]:
-    """Count ``[..., "-m", "mypy", ...]`` argv lists in *source*; return (count, offending lines).
+def mypy_calls_without_cache_dir(tree: ast.Module) -> tuple[int, list[int]]:
+    """Count ``[..., "-m", "mypy", ...]`` argv lists in *tree*; return (count, offending lines).
 
     A mypy run that names no ``--cache-dir`` writes ``.mypy_cache/`` into its working
     directory, the checkout, which then reads as dirty to the battery's universe-reuse check
@@ -645,7 +645,7 @@ def mypy_calls_without_cache_dir(source: str) -> tuple[int, list[int]]:
     """
     count = 0
     offenders: list[int] = []
-    for node in ast.walk(ast.parse(source)):
+    for node in ast.walk(tree):
         if not isinstance(node, ast.List):
             continue
         items = _string_items(node)
@@ -663,7 +663,7 @@ def test_no_mypy_subprocess_writes_a_cache_into_the_checkout() -> None:
     total = 0
     offenders: list[str] = []
     for path in sorted(ARCHITECTURAL_TESTS.glob("*.py")):
-        count, lines = mypy_calls_without_cache_dir(path.read_text(encoding="utf-8"))
+        count, lines = mypy_calls_without_cache_dir(scan.parse_module(path))
         total += count
         offenders.extend(f"{path}:{line}" for line in lines)
     # Floor: the census arity limb, the guard's arity probe and its version probe.
@@ -671,13 +671,21 @@ def test_no_mypy_subprocess_writes_a_cache_into_the_checkout() -> None:
     assert not offenders, "mypy runs without --cache-dir write .mypy_cache/ into the checkout: " + ", ".join(offenders)
 
 
-def test_the_mypy_cache_scan_flags_a_planted_cacheless_run() -> None:
+def _planted_tree(tmp_path: Path, name: str, source: str) -> ast.Module:
+    """Materialise *source* and parse it through the seam's one parser."""
+    planted = tmp_path / name
+    planted.write_text(source, encoding="utf-8")
+    return scan.parse_module(planted)
+
+
+def test_the_mypy_cache_scan_flags_a_planted_cacheless_run(tmp_path: Path) -> None:
     """Self-mutation control: the scan is not vacuous."""
-    planted = 'subprocess.run([sys.executable, "-m", "mypy", "--strict", "x.py"])\n'
-    assert mypy_calls_without_cache_dir(planted) == (1, [1])
-    fixed = 'subprocess.run([sys.executable, "-m", "mypy", "--cache-dir", d, "x.py"])\n'
-    assert mypy_calls_without_cache_dir(fixed) == (1, [])
-    assert mypy_calls_without_cache_dir('run(["python", "-m", "pytest"])\n') == (0, [])
+    cacheless = _planted_tree(tmp_path, "cacheless.py", 'run([sys.executable, "-m", "mypy", "--strict", "x.py"])\n')
+    assert mypy_calls_without_cache_dir(cacheless) == (1, [1])
+    cached = _planted_tree(tmp_path, "cached.py", 'run([sys.executable, "-m", "mypy", "--cache-dir", d, "x.py"])\n')
+    assert mypy_calls_without_cache_dir(cached) == (1, [])
+    other = _planted_tree(tmp_path, "other.py", 'run(["python", "-m", "pytest"])\n')
+    assert mypy_calls_without_cache_dir(other) == (0, [])
 
 
 # ---------------------------------------------------------------------------
