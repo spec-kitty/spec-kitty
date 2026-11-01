@@ -23,6 +23,7 @@ from scripts.docs.freshen_adr_inventory import (
     freshen,
     indexed_era_adrs,
     main,
+    prune_dangling_rows,
 )
 from scripts.docs.inventory_lockfile import (
     generate_inventory,
@@ -576,3 +577,63 @@ def test_all_reconciles_several_missing_adrs_idempotently(tmp_path: Path) -> Non
     assert dates == sorted(dates)
     assert len(dates) == 5
     assert detect_missing_adrs(docs_root) == []
+
+
+# --------------------------------------------------------------------------- #
+# 9. Pruning rows whose ADR file is gone (rename / delete)
+# --------------------------------------------------------------------------- #
+
+
+def test_prune_removes_the_row_of_a_deleted_adr(tmp_path: Path) -> None:
+    docs_root = _write_docs_tree(tmp_path)
+    (docs_root / "adr" / "3.x" / "2026-05-16-1-doctrine-merge.md").unlink()
+
+    pruned = prune_dangling_rows(docs_root)
+
+    assert pruned == ["adr/3.x/README.md: 2026-05-16-1-doctrine-merge.md"]
+    rows = _table_rows(_read_readme(docs_root))
+    assert len(rows) == 2
+    assert all("doctrine-merge" not in row for row in rows)
+    assert prune_dangling_rows(docs_root) == []  # idempotent
+
+
+def test_all_with_prune_reconciles_a_renamed_adr(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    era = docs_root / "adr" / "3.x"
+    (era / "2026-05-16-1-doctrine-merge.md").rename(era / "2026-05-16-1-doctrine-layer-merge.md")
+    args = ["--all", "--prune", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
+
+    assert main(args) == 0
+    first = _read_readme(docs_root)
+    assert main(args) == 0
+
+    assert _read_readme(docs_root) == first
+    assert "](2026-05-16-1-doctrine-merge.md)" not in first
+    assert "| 2026-05-16 | [Doctrine layer merge semantics](2026-05-16-1-doctrine-layer-merge.md) |" in first
+    assert len(_table_rows(first)) == 3
+
+
+def test_check_with_prune_reports_a_dangling_row_without_writing(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    (docs_root / "adr" / "3.x" / "2026-04-03-1-execution-lanes.md").unlink()
+    _write_inventory(repo_root, docs_root)
+    before = _read_readme(docs_root)
+
+    assert main(["--check", "--prune", "--repo-root", str(repo_root), "--docs-root", str(docs_root)]) == 1
+    assert _read_readme(docs_root) == before
+
+
+def test_prune_keeps_rows_linking_existing_or_external_targets(tmp_path: Path) -> None:
+    docs_root = _write_docs_tree(tmp_path)
+    readme = docs_root / "adr" / "3.x" / "README.md"
+    readme.write_text(
+        readme.read_text(encoding="utf-8").rstrip("\n") + "\n| 2026-06-27 | [Elsewhere](../index.md) |\n| 2026-06-28 | [External](https://example.com/x.md) |\n",
+        encoding="utf-8",
+    )
+    (docs_root / "adr" / "index.md").write_text("# ADRs\n", encoding="utf-8")
+    before = readme.read_text(encoding="utf-8")
+
+    assert prune_dangling_rows(docs_root) == []
+    assert readme.read_text(encoding="utf-8") == before

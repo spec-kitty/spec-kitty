@@ -303,6 +303,13 @@ def test_render_index_header_present() -> None:
     assert render_index([]).startswith("# GENERATED — do not edit by hand")
 
 
+def test_render_index_header_names_the_post_merge_bot_and_never_a_pr_regeneration() -> None:
+    header = "".join(line + "\n" for line in render_index([]).splitlines() if line.startswith("#"))
+    assert "ci/regen-docs-index" in header
+    assert "do not regenerate it in a pull request" in header
+    assert "--write" not in header  # the old "run docs_index.py --write to refresh" advice is gone
+
+
 def test_compare_index_detects_added_removed_changed() -> None:
     base = render_index(
         [
