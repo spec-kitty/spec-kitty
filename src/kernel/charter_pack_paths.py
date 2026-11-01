@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from kernel.paths import to_posix
+
 __all__ = [
     "DRG_DIRNAME",
     "DRG_FRAGMENT",
@@ -35,6 +37,7 @@ __all__ = [
     "pack_presets_dir",
     "project_pack_path",
     "project_pack_root",
+    "repo_relative_posix",
 ]
 
 #: The per-project Spec Kitty state directory at the repository root.
@@ -73,6 +76,24 @@ def project_pack_root(repo_root: Path) -> Path:
 def project_pack_path(repo_root: Path, *parts: str) -> Path:
     """Return ``<project pack root>/<parts...>`` for *repo_root*."""
     return project_pack_root(repo_root).joinpath(*parts)
+
+
+def repo_relative_posix(path: Path, repo_root: Path) -> str:
+    """Return *path* as a repo-relative POSIX string.
+
+    A repo-relative path handed to a consumer (the JSON envelope, a manifest, a
+    log line) is a POSIX string, so it reads the same on every operating system;
+    a :class:`Path` stays the OS-native access path. ``str(Path.relative_to(...))``
+    does not honour that split — on Windows it renders ``\\`` (#6277) — so every
+    site that reports a repo-relative path renders it through this helper.
+
+    Both arguments are :class:`Path` objects by design: an already-rendered
+    string cannot be normalised safely, and a relative string would silently
+    double its own prefix. The separator swap itself is
+    :func:`kernel.paths.to_posix`'s job — the single normalisation seam — so
+    this helper only decides *what* is reported, never *how* it is spelled.
+    """
+    return to_posix(path.relative_to(repo_root))
 
 
 def pack_drg_fragment(pack_root: Path) -> Path:

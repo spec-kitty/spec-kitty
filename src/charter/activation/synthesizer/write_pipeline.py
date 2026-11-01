@@ -42,6 +42,7 @@ from kernel.charter_pack_paths import (
     PROJECT_GRAPH_FILENAME,
     PROJECT_PACK_DIRNAME,
     project_pack_path,
+    repo_relative_posix,
 )
 
 from charter.activation.language_authority import declared_languages, expand_language_families
@@ -651,7 +652,7 @@ def _replace_one_artifact(
         guard.replace(staged_prov, live_prov, caller="write_pipeline.promote[prov-replace]")
     # else: unchanged — staged copy is discarded by staging_dir.wipe().
 
-    rel_content = str(live_content.relative_to(repo_root))
+    rel_content = repo_relative_posix(live_content, repo_root)
     rel_prov = provenance_path_for(kind, slug)
 
     return ManifestArtifactEntry(

@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "mission_slug": "charter-synthesize-json-posix-paths-01M6BTVM",
+  "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC",
+  "mission_branch": "kitty/mission-charter-synthesize-json-posix-paths-01M6BTVM",
+  "target_branch": "issue-6277-charter-synthesize-json-posix-paths",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/synthesizer/write_pipeline.py",
+        "src/kernel/charter_pack_paths.py",
+        "src/specify_cli/cli/commands/charter/_fresh_project_layer.py",
+        "src/specify_cli/cli/commands/charter/_synthesis.py",
+        "tests/specify_cli/cli/commands/charter/test_synthesize_reported_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/scenarios/absorption-ledger.json",
+        "tests/scenarios/charter/charter.feature"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-01T15:20:12.727176+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "50432f10494ce58edb7d672ea06bb52403eda7dc"
+}
