@@ -3,7 +3,7 @@
 | Field | Before | After | Owner of the rule |
 | --- | --- | --- | --- |
 | `audience` | `docs/context/audience/<p>.md` (scalar or list) or free text | `[{profile: <p>, guidance_text: "Written for the <Persona title> reader."}]` | `_dockitty_contract.profile_of_path` |
-| `related` | repo paths | slugs of pages doc-kitty resolves for the source (published source: published pages; draft source: non-excluded pages; excluded source: any page) | `_dockitty_contract.slug_of`, `is_published`; `Corpus.related_target_allowed` |
+| `related` | repo paths | slugs of pages doc-kitty resolves for the source (published source: published pages; draft source: non-excluded pages); pages in excluded folders are not migrated | `_dockitty_contract.slug_of`, `is_published`; `Corpus.related_target_allowed` |
 | `external_references` | absent | `[{url: https://github.com/spec-kitty/spec-kitty/blob/main/<path>, title: <title or path>}]` | migration |
 | ADR `doc_status` | absent | `Accepted`/`Proposed` → `active`; `Superseded` → `superseded` | migration (`ADR_DOC_STATUS`) |
 | ADR `kind` | absent | `ADR` | migration |

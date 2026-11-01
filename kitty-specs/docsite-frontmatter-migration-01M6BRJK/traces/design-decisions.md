@@ -13,3 +13,9 @@
 - Root page slug is `''` (doc-kitty's `slugFromEntryId`; `check-links` skips an empty id). Accepting it fixed a non-idempotent second run (review blocker).
 - `related` rule made source-aware and the spec amended (DM `01M6BW2S981SKQWXKCBNQD8RBW`): excluded history keeps slugs, drafts keep draft slugs, published pages name published pages only.
 - Fail closed on comments inside an edited block, mixed line endings, unknown `external_references` shapes; `{ref, note}` entries classified like strings; index basenames case-insensitive; `--apply` computes every change before the first write; `verify_against` follows renames.
+
+## 2026-11-01 — WP03 cutover folds
+- ADR era `index.md` frontmatter IS migrated: only their table rows are bot-owned (the PR guard refuses new rows, not frontmatter). Found in the WP02 review.
+- Excluded folders are NOT migrated (DM 01M6BZ0JPAYWD42A3GB4PYSTNA): a byte-pinned archive evidence bundle tripped `test_archive_root_byte_identical.py`. Readers and the shape test skip excluded folders as doc-kitty's gates do. Diff shrank from 719 to 618 pages.
+- Two more readers of the old shape surfaced only by running the suites: `tests/glossary/test_canonical_promotion.py` (T007b diff-shape vs a pinned historical commit; now sanctions exactly this migration by running it over the expected text, mutation-checked) and `tests/docs/test_tracker_egress_upgrade_note_3108.py`.
+- NFR-002: the docs retrieval index regenerated from the migrated tree equals the one from the base tree, so `docs query` is unaffected by construction.

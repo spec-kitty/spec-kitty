@@ -73,6 +73,30 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-11-01T16:27:49.834333Z",
+      "decision_id": "01M6BZ0JPAYWD42A3GB4PYSTNA",
+      "final_answer": "Leave untouched. A reviewed evidence bundle under docs/archive is byte-pinned by tests/architectural/test_archive_root_byte_identical.py; doc-kitty never reads excluded folders and its own gates skip them (ADR D-8). Readers and the shape test skip them too, so each still carries one shape for the pages they judge. Reverses the earlier assumption 'excluded trees are migrated too'.",
+      "input_key": "excluded_folders_migrated",
+      "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+      "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+      "opened_by": "cli",
+      "options": [
+        "Leave untouched; readers skip excluded folders as doc-kitty gates do",
+        "Migrate them too",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should pages in the excluded folders (archive, reports, convergence) be migrated to the new shapes so readers carry one shape, or left untouched?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T16:27:52.694079Z",
+      "resolved_by": null,
+      "slot_key": "plan.excluded.not-migrated",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
