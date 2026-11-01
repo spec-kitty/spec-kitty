@@ -63,6 +63,9 @@ _KEY_WITH_COMMIT_RE = re.compile(rf"{_PRESTEP} key --with-commit\b")
 _COLLECT_RE = re.compile(rf"{_PRESTEP} collect\b")
 _CHECK_RE = re.compile(rf"{_PRESTEP} check\b")
 _CONSUMERS_RE = re.compile(rf"{_PRESTEP} consumers --battery-part \${{{{ matrix\.shard }}}}")
+#: The decision must ask about the SAME selection the battery step runs (#7001).
+_SCOPE_GATES_EXPRESSION = "${{ steps.scope.outputs.gates_file }}"
+_GATES_FILE_BINDING = f'--gates-file "{_SCOPE_GATES_EXPRESSION}"'
 _COMPARE_RE = re.compile(rf"{_PRESTEP} compare\b")
 _PYTEST_RE = re.compile(r"-m pytest\b")
 _DECISION_ID = "select"
@@ -204,11 +207,37 @@ def _heavy_decision_problems(job: Job) -> list[str]:
     problems: list[str] = []
     if not _CONSUMERS_RE.search(text):
         problems.append("the select step must run `collect_universe_prestep consumers --battery-part ${{ matrix.shard }}`")
+    if _GATES_FILE_BINDING not in text:
+        problems.append(
+            "the select step must pass the leg's selected-gates file "
+            '(`--gates-file "${{ steps.scope.outputs.gates_file }}"`), so a scoped leg asks about the gates it runs (#7001)'
+        )
+    elif text.count(_GATES_FILE_BINDING) != 1:
+        problems.append("the select step must pass --gates-file exactly once")
+    if _GATES_FILE_BINDING in text and _pytest_gates_expression(job) != _SCOPE_GATES_EXPRESSION:
+        problems.append(
+            "the battery step must read the same `steps.scope.outputs.gates_file` the decision asks about, or the leg runs a file the decision never saw"
+        )
     if "||" in text:
         problems.append("the select step must not swallow a failure of the consumers command (`||`)")
     if step.get("shell") != "bash":
         problems.append("the select step must declare `shell: bash` so a failing command fails the step")
     return problems
+
+
+def _pytest_gates_expression(job: Job) -> str | None:
+    """The expression the battery (pytest) step binds ``SK_BATTERY_GATES_FILE`` to, or ``None``."""
+    for step in job["steps"]:
+        if not _PYTEST_RE.search(_run(step)):
+            continue
+        return str((step.get("env") or {}).get("SK_BATTERY_GATES_FILE", ""))
+    return None
+
+
+def _decision_asks_the_python_authority(job: Job) -> bool:
+    """Whether this job's ``select`` step decides through ``collect_universe_prestep consumers``."""
+    found = _find(job, lambda step: step.get("id") == _DECISION_ID)
+    return len(found) == 1 and bool(_CONSUMERS_RE.search(_run(job["steps"][found[0]])))
 
 
 def _prestep_problems(job: Job, *, selection_guard: str | None) -> list[str]:
@@ -237,6 +266,8 @@ def _prestep_problems(job: Job, *, selection_guard: str | None) -> list[str]:
         problems.extend(_guard_problems(steps[index], label, selection_guard))
     if selection_guard is not None:
         problems.extend(_decision_problems(job, key))
+        if _decision_asks_the_python_authority(job):
+            problems.extend(_heavy_decision_problems(job))
     for label, index in (("collect", collect), ("pytest", pytest_step), ("check", check)):
         if not _has_report_env(steps[index]):
             problems.append(f"the {label} step does not see {_REPORT_ENV} ({_REPORT_FILE})")
@@ -369,6 +400,24 @@ def _is_restore(step: Step) -> bool:
     return _uses(step, "actions/cache/restore@")
 
 
+def _drop_gates_file_binding(steps: list[Step]) -> None:
+    """The decision asks about the whole partition again: a scope-only leg then collects for nothing."""
+    step = next(step for step in steps if _is_decision(step))
+    step["run"] = step["run"].replace(f" {_GATES_FILE_BINDING}", "")
+
+
+def _point_the_decision_at_another_file(steps: list[Step]) -> None:
+    """The decision reads a different file than the battery step: the two disagree about the leg."""
+    step = next(step for step in steps if _is_decision(step))
+    step["run"] = step["run"].replace(_GATES_FILE_BINDING, '--gates-file "${{ matrix.shard }}.txt"')
+
+
+def _point_the_battery_at_another_file(steps: list[Step]) -> None:
+    step = next(step for step in steps if _is_pytest(step))
+    env = step.setdefault("env", {})
+    env["SK_BATTERY_GATES_FILE"] = "hard-coded.txt"
+
+
 def _append_to_pytest_run(steps: list[Step], text: str) -> None:
     step = next(step for step in steps if _is_pytest(step))
     step["run"] = _run(step) + text
@@ -425,6 +474,9 @@ def _drop(steps: list[Step], predicate: Callable[[Step], bool]) -> None:
         ("collect loses the decision guard", lambda steps: _unguard(steps, _is_collect)),
         ("save loses the decision guard", lambda steps: _unguard(steps, _is_save)),
         ("check loses the decision guard", lambda steps: _unguard(steps, _is_check)),
+        ("decision stops asking about the selected gates", _drop_gates_file_binding),
+        ("decision asks about a different gates file than the battery step", _point_the_decision_at_another_file),
+        ("battery step reads a different gates file than the decision", _point_the_battery_at_another_file),
     ],
 )
 def test_a_broken_heavy_job_is_rejected(heavy_job: Job, label: str, mutate: Callable[[list[Step]], None]) -> None:
@@ -439,6 +491,8 @@ def test_a_broken_heavy_job_is_rejected(heavy_job: Job, label: str, mutate: Call
         ("failure swallowed by || true", lambda step: step.update({"run": step["run"].replace(')"\n', ')" || true\n', 1)})),
         ("shell not bash", lambda step: step.pop("shell", None)),
         ("not asked per leg", lambda step: step.update({"run": step["run"].replace("${{ matrix.shard }}", "1/2")})),
+        ("the selected-gates file dropped", lambda step: step.update({"run": step["run"].replace(f" {_GATES_FILE_BINDING}", "")})),
+        ("a different gates file", lambda step: step.update({"run": step["run"].replace(_GATES_FILE_BINDING, '--gates-file "${{ matrix.shard }}.txt"')})),
     ],
 )
 def test_a_heavy_decision_that_could_hide_an_error_is_rejected(heavy_job: Job, label: str, mutate: Callable[[Step], None]) -> None:

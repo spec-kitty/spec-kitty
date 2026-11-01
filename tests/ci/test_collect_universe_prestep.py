@@ -667,6 +667,99 @@ def test_the_real_legs_answer_true_or_false_consistently_with_their_files(capsys
         assert capsys.readouterr().out.strip() == expected, part
 
 
+# ---------------------------------------------------------------------------
+# #7001: a scoped leg asks about the gates the diff selected, not its whole partition
+# ---------------------------------------------------------------------------
+
+
+def _gates(tmp_path: Path, *gates: str) -> Path:
+    named = tmp_path / "battery-scope-gates.txt"
+    named.write_text("".join(f"{gate}\n" for gate in gates), encoding="utf-8")
+    return named
+
+
+def test_a_scoped_leg_whose_selected_gates_hold_no_consumer_declines(
+    partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Red on main: leg 1/2 holds the consumer in its partition and answers ``true`` regardless."""
+    assert prestep.main(["consumers", "--battery-part", "1/2", "--gates-file", str(_gates(tmp_path, _OTHER))]) == 0
+    assert capsys.readouterr().out.strip() == "false"
+
+
+def test_a_scoped_leg_that_selects_the_consumer_keeps_collecting(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Same fixture, one gate added: the probe can observe the thing it denies above."""
+    assert prestep.main(["consumers", "--battery-part", "1/2", "--gates-file", str(_gates(tmp_path, _OTHER, _CONSUMER))]) == 0
+    assert capsys.readouterr().out.strip() == "true"
+
+
+def test_a_gates_file_naming_only_the_other_legs_files_declines(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert prestep.main(["consumers", "--battery-part", "2/2", "--gates-file", str(_gates(tmp_path, _CONSUMER))]) == 0
+    assert capsys.readouterr().out.strip() == "false", "the consumer runs in leg 1/2, so leg 2/2 gains nothing from it"
+
+
+def test_no_gates_file_keeps_the_whole_partition_answer(partition: dict[str, frozenset[str]], capsys: pytest.CaptureFixture[str]) -> None:
+    assert prestep.main(["consumers", "--battery-part", "1/2"]) == 0
+    assert capsys.readouterr().out.strip() == "true"
+    assert prestep.main(["consumers", "--battery-part", "2/2"]) == 0
+    assert capsys.readouterr().out.strip() == "false"
+
+
+def test_an_explicitly_empty_gates_file_declines(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert prestep.main(["consumers", "--battery-part", "1/2", "--gates-file", str(_gates(tmp_path))]) == 0
+    assert capsys.readouterr().out.strip() == "false", "an empty selection is no selected gate, never the whole part"
+
+
+def test_an_empty_variable_runs_the_whole_partition(
+    partition: dict[str, frozenset[str]], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("SK_BATTERY_GATES_FILE", "")
+    assert prestep.main(["consumers", "--battery-part", "1/2"]) == 0
+    assert capsys.readouterr().out.strip() == "true"
+
+
+def test_the_environment_names_the_file_when_the_option_does(
+    partition: dict[str, frozenset[str]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("SK_BATTERY_GATES_FILE", str(_gates(tmp_path, _OTHER)))
+    assert prestep.main(["consumers", "--battery-part", "1/2"]) == 0
+    assert capsys.readouterr().out.strip() == "false"
+
+
+def test_the_option_wins_over_the_environment(
+    partition: dict[str, frozenset[str]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("SK_BATTERY_GATES_FILE", str(_gates(tmp_path, _CONSUMER)))
+    assert prestep.main(["consumers", "--battery-part", "1/2", "--gates-file", str(_gates(tmp_path, _OTHER))]) == 0
+    assert capsys.readouterr().out.strip() == "false"
+
+
+def test_a_missing_gates_file_fails_with_no_answer(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    missing = tmp_path / "absent.txt"
+    assert prestep.main(["consumers", "--battery-part", "1/2", "--gates-file", str(missing)]) != 0
+    captured = capsys.readouterr()
+    assert captured.out.strip() not in {"true", "false"}, "an unreadable selection must never read as an answer"
+    assert str(missing) in captured.err
+
+
+def test_a_scoped_leg_says_how_much_it_narrowed(partition: dict[str, frozenset[str]], tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    assert prestep.main(["consumers", "--battery-part", "1/2", "--gates-file", str(_gates(tmp_path, _OTHER))]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.strip() == "false"
+    assert "1 of 2" in captured.err, "the log must show which part of the partition the leg reads"
+
+
+def test_gates_file_applies_to_the_consumers_command_only() -> None:
+    with pytest.raises(SystemExit) as stopped:
+        prestep.main(["collect", "--gates-file", "gates.txt"])
+    assert stopped.value.code == 2
+
+
 def _tests_dir(root: Path) -> Path:
     target = root / "tests" / "architectural"
     target.mkdir(parents=True)

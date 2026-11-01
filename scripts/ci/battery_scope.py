@@ -11,6 +11,11 @@
 The selection itself is ``scripts.ci.gate_selection.select_battery_gates``; this module only
 reads the diff and the leg's part. It fails safe: no usable base, a git error or a selection error
 gives ``mode=full`` (and a ``::warning::``), never a narrower run.
+
+This module also owns the *format* of that gates file: :func:`write_selected_gates` is the one
+writer and :func:`read_selected_gates` the one parser, so the battery plug-in (which restricts the
+running leg) and the test-universe decision (#7001, which decides whether the leg needs the
+universe at all) can never disagree about which gates a leg runs.
 """
 
 from __future__ import annotations
@@ -18,10 +23,10 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 
-__all__ = ["FULL", "SCOPED", "changed_paths", "decide", "main", "output_lines"]
+__all__ = ["FULL", "SCOPED", "changed_paths", "decide", "main", "output_lines", "read_selected_gates", "write_selected_gates"]
 
 FULL = "full"
 SCOPED = "scoped"
@@ -60,11 +65,25 @@ def decide(paths: Sequence[str] | None, *, part: str, mode: str = "pr", repo: Pa
     return SCOPED, gates & _part_files(part, repo)
 
 
+def write_selected_gates(gates: Iterable[str], out: Path) -> None:
+    """Write the selected-gates file: one gate per line, sorted, trailing newline."""
+    out.write_text("".join(f"{gate}\n" for gate in sorted(gates)), encoding="utf-8")
+
+
+def read_selected_gates(named: str) -> frozenset[str]:
+    """The gates a scoped leg's file lists, as a set (blank lines and duplicates dropped).
+
+    A missing or unreadable file raises ``OSError``: each caller decides what that means (the
+    battery plug-in refuses the run, the universe decision answers nothing and fails the step).
+    """
+    return frozenset(line.strip() for line in Path(named).read_text(encoding="utf-8").splitlines() if line.strip())
+
+
 def output_lines(mode: str, gates: frozenset[str], out: Path) -> list[str]:
     """The ``$GITHUB_OUTPUT`` lines; writes the gates file for a scoped answer."""
     if mode == FULL:
         return [f"mode={FULL}", "run=true", "gates_file="]
-    out.write_text("".join(f"{gate}\n" for gate in sorted(gates)), encoding="utf-8")
+    write_selected_gates(gates, out)
     return [f"mode={SCOPED}", f"run={'true' if gates else 'false'}", f"gates_file={out}"]
 
 
