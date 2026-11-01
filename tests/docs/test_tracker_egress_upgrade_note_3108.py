@@ -21,6 +21,8 @@ from typing import Final
 
 import pytest
 
+from scripts.docs._inventory import parse_frontmatter
+
 pytestmark = pytest.mark.fast
 
 _REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[2]
@@ -164,11 +166,13 @@ def test_index_links_note_in_frontmatter_related_and_in_body() -> None:
     index_text = _INDEX_PATH.read_text(encoding="utf-8")
     parts = index_text.split("---", 2)
     assert len(parts) == 3, "docs/migrations/index.md must have a frontmatter block"
-    frontmatter, body = parts[1], parts[2]
+    body = parts[2]
 
-    assert "docs/migrations/tracker-egress-refusal.md" in frontmatter, (
+    # #6929: `related:` names doc-kitty slugs, not repository paths.
+    related = parse_frontmatter(index_text).get("related") or []
+    assert "migrations/tracker-egress-refusal" in related, (
         "index.md frontmatter `related:` list must list the upgrade note "
-        "(docs/migrations/tracker-egress-refusal.md)"
+        "(slug migrations/tracker-egress-refusal)"
     )
     # Review LOW-7: a bare-filename substring is satisfied by prose that merely
     # *names* the file with no markdown link around it, and the repo-wide

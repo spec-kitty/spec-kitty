@@ -43,15 +43,15 @@ def _write(path: Path, frontmatter_related: list[str] | None, body: str = "x") -
 def _stage_repo(tmp_path: Path, *, dangling: bool) -> Path:
     """Stage a repo-shaped tree under ``tmp_path`` and return the repo root.
 
-    The source page links to ``docs/target.md`` (which always exists) and,
-    when ``dangling`` is true, also to ``docs/missing.md`` (which never does).
+    The source page names the slug ``target`` (``docs/target.md`` always exists)
+    and, when ``dangling`` is true, also ``missing`` (which never does).
     """
     repo = tmp_path / "repo"
     docs = repo / "docs"
     _write(docs / "target.md", None, body="target")
-    related = ["docs/target.md"]
+    related = ["target"]
     if dangling:
-        related.append("docs/missing.md")
+        related.append("missing")
     _write(docs / "source.md", related, body="source")
     return repo
 
@@ -63,7 +63,7 @@ def test_dangling_edge_is_detected(tmp_path: Path) -> None:
     report = validate_related(docs_root=repo / "docs", repo_root=repo)
 
     assert report.checked_count > 0
-    assert DanglingEdge(from_path="docs/source.md", to_path="docs/missing.md") in report.dangling_edges
+    assert DanglingEdge(from_path="docs/source.md", to_path="missing") in report.dangling_edges
 
 
 def test_clean_tree_has_no_dangling_edges(tmp_path: Path) -> None:
@@ -134,13 +134,13 @@ class TestDiffScopeValidatorPureFunction:
     def test_in_scope_dangling_edge_is_reported(self, tmp_path: Path) -> None:
         repo = _stage_repo(tmp_path, dangling=True)
         report = validate_related_diff_scoped(docs_root=repo / "docs", repo_root=repo, changed_files=["docs/source.md"])
-        assert DanglingEdge(from_path="docs/source.md", to_path="docs/missing.md") in report.dangling_edges
+        assert DanglingEdge(from_path="docs/source.md", to_path="missing") in report.dangling_edges
 
     def test_out_of_scope_dangling_edge_is_not_reported(self, tmp_path: Path) -> None:
         # source.md carries the dangling edge but is NOT in the changed set —
         # diff-scope must not surface it.
         repo = _stage_repo(tmp_path, dangling=True)
-        report = validate_related_diff_scoped(docs_root=repo / "docs", repo_root=repo, changed_files=["docs/target.md"])
+        report = validate_related_diff_scoped(docs_root=repo / "docs", repo_root=repo, changed_files=["target"])
         assert report.dangling_edges == []
         assert report.checked_count == 0
 
@@ -181,7 +181,7 @@ class TestDiffScopeValidatorCLI:
         repo = tmp_path / "repo"
         _write(repo / "docs" / "target.md", None, body="target")
         base_sha = init_git_repo_with_base(repo)
-        _write(repo / "docs" / "source.md", ["docs/missing.md"], body="source")
+        _write(repo / "docs" / "source.md", ["missing"], body="source")
         commit_all_changes(repo, "add dangling related edge")
 
         rc = main(
@@ -201,7 +201,7 @@ class TestDiffScopeValidatorCLI:
     def test_out_of_scope_preexisting_dangling_edge_passes(self, tmp_path: Path) -> None:
         repo = tmp_path / "repo"
         # Pre-existing dangling edge, committed as part of the base state.
-        _write(repo / "docs" / "source.md", ["docs/missing.md"], body="source")
+        _write(repo / "docs" / "source.md", ["missing"], body="source")
         base_sha = init_git_repo_with_base(repo)
         _write(repo / "docs" / "other.md", None, body="other")
         commit_all_changes(repo, "add unrelated doc")
@@ -281,3 +281,89 @@ class TestDiffScopeValidatorCLI:
             ]
         )
         assert rc not in (0, 1)
+
+
+# --------------------------------------------------------------------------- #
+# doc-kitty slugs and publication (#6929)
+# --------------------------------------------------------------------------- #
+
+
+def _page(path: Path, frontmatter: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"---\ntitle: t\n{frontmatter}---\n# t\n", encoding="utf-8")
+
+
+def _publication_repo(tmp_path: Path, source_status: str, related: list[str]) -> Path:
+    repo = tmp_path / "repo"
+    docs = repo / "docs"
+    _page(docs / "index.md", "doc_status: active\n")
+    _page(docs / "guides" / "index.md", "doc_status: active\n")
+    _page(docs / "notes.md", "doc_status: draft\n")
+    _page(docs / "archive" / "old.md", "doc_status: active\n")
+    lines = "".join(f"- {entry!r}\n" for entry in related)
+    _page(docs / "source.md", f"doc_status: {source_status}\nrelated:\n{lines}")
+    return repo
+
+
+def test_slugs_resolve_to_files_and_folder_indexes(tmp_path: Path) -> None:
+    repo = _publication_repo(tmp_path, "active", ["guides", "", "guides/"])
+    report = validate_related(docs_root=repo / "docs", repo_root=repo)
+    assert report.dangling_edges == []
+    assert report.unpublished_edges == []
+
+
+def test_a_repository_path_is_no_longer_a_slug(tmp_path: Path) -> None:
+    repo = _publication_repo(tmp_path, "active", ["docs/guides/index.md"])
+    report = validate_related(docs_root=repo / "docs", repo_root=repo)
+    assert report.dangling_edges == [DanglingEdge(from_path="docs/source.md", to_path="docs/guides/index.md")]
+
+
+@pytest.mark.parametrize(
+    ("source_status", "target", "flagged"),
+    [
+        ("active", "notes", True),
+        ("active", "archive/old", True),
+        ("draft", "notes", False),
+        ("draft", "archive/old", True),
+    ],
+)
+def test_published_and_draft_pages_name_only_what_doc_kitty_builds(tmp_path: Path, source_status: str, target: str, flagged: bool) -> None:
+    repo = _publication_repo(tmp_path, source_status, [target])
+    report = validate_related(docs_root=repo / "docs", repo_root=repo)
+    assert (report.unpublished_edges == [DanglingEdge(from_path="docs/source.md", to_path=target)]) is flagged
+    assert related_main_strict(repo) == (1 if flagged else 0)
+
+
+def test_pages_in_excluded_folders_are_not_checked(tmp_path: Path) -> None:
+    """doc-kitty never builds them, so their related list (old shape included) is never resolved."""
+    repo = _publication_repo(tmp_path, "active", ["guides"])
+    _page(repo / "docs" / "archive" / "x.md", "related:\n- docs/gone.md\n- archive/old\n")
+    report = validate_related(docs_root=repo / "docs", repo_root=repo)
+    assert report.dangling_edges == []
+    assert report.unpublished_edges == []
+
+
+def test_ref_note_entries_are_checked_by_their_ref(tmp_path: Path) -> None:
+    repo = _publication_repo(tmp_path, "active", ["guides"])
+    _page(repo / "docs" / "other.md", "doc_status: active\nrelated:\n- ref: gone\n  note: n\n")
+    report = validate_related(docs_root=repo / "docs", repo_root=repo)
+    assert DanglingEdge(from_path="docs/other.md", to_path="gone") in report.dangling_edges
+
+
+def test_json_report_lists_unpublished_edges(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo = _publication_repo(tmp_path, "active", ["notes"])
+    main(["--docs-root", str(repo / "docs"), "--repo-root", str(repo), "--json"])
+    assert '"unpublished_edges"' in capsys.readouterr().out
+
+
+def test_unreadable_page_is_skipped(tmp_path: Path) -> None:
+    """A ``*.md`` path that cannot be read (here a directory) contributes no edges."""
+    repo = _publication_repo(tmp_path, "active", ["guides"])
+    (repo / "docs" / "folder.md").mkdir()
+    report = validate_related(docs_root=repo / "docs", repo_root=repo)
+    assert report.checked_count == 1
+    assert not report.failed
+
+
+def related_main_strict(repo: Path) -> int:
+    return main(["--docs-root", str(repo / "docs"), "--repo-root", str(repo), "--strict"])
