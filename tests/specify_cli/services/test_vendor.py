@@ -565,7 +565,9 @@ def test_a_refused_attestation_leaves_the_lockfile_unchanged(repo: Path, release
     assert pin_path(repo, "write-service").read_bytes() == before
 
 
-def test_a_file_repository_never_verifies_attestations(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_file_repository_never_verifies_attestations(
+    repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     """A local fixture or mirror has no GitHub attestation: the digest is the whole check."""
     pin, _ = release
     monkeypatch.setattr(
@@ -575,9 +577,14 @@ def test_a_file_repository_never_verifies_attestations(repo: Path, release: tupl
     )
 
     assert _vendor(repo, pin).pin.repository == pin.repository
+    err = capsys.readouterr().err
+    assert "Provenance not verified" in err
+    assert "file:// mirror" in err
 
 
-def test_no_attestation_is_the_explicit_escape(repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_attestation_is_the_explicit_escape(
+    repo: Path, release: tuple[ServicePin, Path], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     pin, release_dir = release
     _serve_the_fixture_over_https(monkeypatch, release_dir)
     monkeypatch.setattr(
@@ -587,6 +594,9 @@ def test_no_attestation_is_the_explicit_escape(repo: Path, release: tuple[Servic
     )
 
     assert _vendor(repo, pin, repository=HTTPS_REPO, verify_attestation=False).pin.repository == HTTPS_REPO
+    err = capsys.readouterr().err
+    assert "Provenance not verified" in err
+    assert "--no-attestation" in err
 
 
 def test_a_credentialed_repository_is_a_usage_error_without_echoing_it(repo: Path, release: tuple[ServicePin, Path]) -> None:
