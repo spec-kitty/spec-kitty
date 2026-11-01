@@ -4,8 +4,8 @@ The ``3.2.6rc1`` cutover walks every ``kitty-specs/`` child and flips its ``stat
 :func:`~specify_cli.migration.runtime_state_cutover._flip_phase` writes a one-key
 ``{"status_phase": "1"}`` ``meta.json`` when the file is missing, which would hand a Mission
 whose tracked ``meta.json`` is absent from the working tree an identity-less file that a later
-``migrate backfill-identity`` mints into. The upgrade migration therefore skips such a Mission
-before the corpus walk.
+``migrate backfill-identity`` mints into. ``cutover_mission`` therefore skips such a Mission before
+its seed phase, which keeps the shipped ``3.2.6rc1`` migration module byte-identical (DIRECTIVE_044).
 
 Proven on ``main`` before the fix: ``RuntimeStateBackfillMigration().apply()`` created
 ``{"status_phase": "1"}`` in a folder whose corrupt ``meta.json`` was tracked and deleted.
@@ -14,6 +14,7 @@ Proven on ``main`` before the fix: ``RuntimeStateBackfillMigration().apply()`` c
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from pathlib import Path
 
@@ -72,24 +73,25 @@ def _build_project(root: Path) -> None:
     (refused / "meta.json").unlink()
 
 
-def test_the_cutover_skips_a_mission_with_a_tracked_absent_meta(tmp_path: Path) -> None:
+def test_the_cutover_skips_a_mission_with_a_tracked_absent_meta(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     root = tmp_path / "proj"
     _build_project(root)
     refused = root / "kitty-specs" / _REFUSED
 
-    result = RuntimeStateBackfillMigration().apply(root)
+    with caplog.at_level(logging.WARNING):
+        RuntimeStateBackfillMigration().apply(root)
 
     # The guard: no meta.json (and no event log) is written for the refused Mission.
     assert not (refused / "meta.json").exists(), "the cutover stubbed a meta.json for a tracked-absent Mission"
     assert not (refused / "status.events.jsonl").exists()
-    assert any("tracked meta.json" in warning or "meta.json" in warning for warning in result.warnings), result.warnings
+    assert any("meta.json" in record.getMessage() and _REFUSED in record.getMessage() for record in caplog.records), caplog.text
     # Positive control on the same fixture: the cutover still runs for the other Mission, so the
     # assertion above cannot pass because the walk never visits anything.
     assert (root / "kitty-specs" / _CUT_OVER / "meta.json").is_file()
     assert "status_phase" in json.loads((root / "kitty-specs" / _CUT_OVER / "meta.json").read_text(encoding="utf-8"))
 
 
-def test_a_pre_identity_mission_with_no_meta_anywhere_is_not_skipped(tmp_path: Path) -> None:
+def test_a_pre_identity_mission_with_no_meta_anywhere_is_not_skipped(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     """The skip keys on *git tracking the path*; a folder git holds nothing for keeps the old behaviour."""
     root = tmp_path / "proj"
     _build_project(root)
@@ -98,7 +100,9 @@ def test_a_pre_identity_mission_with_no_meta_anywhere_is_not_skipped(tmp_path: P
     _git(root, "rm", "--cached", "-q", f"kitty-specs/{_CUT_OVER}/meta.json")
     _git(root, "commit", "-q", "-m", "drop the meta")
 
-    result = RuntimeStateBackfillMigration().apply(root)
+    with caplog.at_level(logging.WARNING):
+        result = RuntimeStateBackfillMigration().apply(root)
 
     # No notice for the folder git holds no meta.json for: nothing to restore, nothing to refuse.
-    assert not any(_CUT_OVER in warning for warning in result.warnings), result.warnings
+    assert not any(_CUT_OVER in record.getMessage() and "meta.json" in record.getMessage() for record in caplog.records), caplog.text
+    assert result.success

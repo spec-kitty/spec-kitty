@@ -97,7 +97,6 @@ from specify_cli.migration.runtime_state_cutover import (
 )
 
 from ..registry import MigrationRegistry
-from ..tracked_meta_notice import classify_missing_tracked_meta
 from .base import BaseMigration, MigrationResult, PartialWrite
 
 #: Corpus root, relative to the project root -- the canonical enumeration
@@ -330,34 +329,16 @@ class RuntimeStateBackfillMigration(BaseMigration):
         if not missions:
             return MigrationResult(success=True, changes_made=[])
 
-        # #6673: a Mission whose tracked meta.json is absent from the working tree is not cut
-        # over. _flip_phase writes a one-key meta.json stub when the file is missing, which would
-        # hand a Mission git already holds an identity-less meta.json that a later
-        # `migrate backfill-identity` mints into. Skipped before _cutover_corpus, so neither the
-        # seed phase nor the flip phase reaches it.
-        skipped: dict[Path, str] = {}
-        for mission_dir in missions:
-            classified = classify_missing_tracked_meta(mission_dir, project_path)
-            if classified is not None:
-                skipped[mission_dir] = classified.notice
-        cut_over = [mission_dir for mission_dir in missions if mission_dir not in skipped]
-        notices = list(skipped.values())
-        if not cut_over:
-            return MigrationResult(success=True, changes_made=[], warnings=notices)
-
-        results, abort_message = _cutover_corpus(cut_over, dry_run=dry_run)
+        results, abort_message = _cutover_corpus(missions, dry_run=dry_run)
         if abort_message is not None:
             return MigrationResult(
                 success=False,
                 errors=[abort_message],
-                warnings=notices,
                 partial_writes=_partial_writes(results, project_path),
             )
 
         return MigrationResult(
-            success=True,
-            changes_made=_summarize_changes(results, dry_run=dry_run),
-            warnings=notices,
+            success=True, changes_made=_summarize_changes(results, dry_run=dry_run)
         )
 
 

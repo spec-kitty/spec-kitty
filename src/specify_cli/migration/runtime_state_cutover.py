@@ -119,6 +119,9 @@ class CutoverResult:
         residue: True iff *feature_dir* is not a Mission
             (:func:`~specify_cli.context.mission_resolver.is_kitty_specs_residue`): the
             run left it untouched, wrote nothing and is not a failure (#6627).
+        skipped_notice: The operator notice when the run left *feature_dir* untouched because
+            git tracks its ``meta.json`` but the working tree has lost it (#6673); ``None``
+            otherwise. Not a failure: the flip would have written an identity-less stub.
     """
 
     slug: str
@@ -129,6 +132,7 @@ class CutoverResult:
     verify: VerifyResult | None = None
     error: str | None = None
     residue: bool = False
+    skipped_notice: str | None = None
 
 
 def _seed_phase(
@@ -278,6 +282,14 @@ def _flip_target(feature_dir: Path, *, owned: OwnedCheckout | None = None) -> Pa
         return canonical
     resolved: Path = _runtime_feature_dir(feature_dir, owned)
     return resolved
+
+
+def _tracked_meta_notice(feature_dir: Path) -> str | None:
+    """The operator notice when git tracks *feature_dir*'s ``meta.json`` and the working tree lost it, else ``None`` (#6673)."""
+    from specify_cli.upgrade.tracked_meta_notice import classify_missing_tracked_meta  # deferred: upgrade imports this package
+
+    classified = classify_missing_tracked_meta(feature_dir, feature_dir.parent.parent)
+    return None if classified is None else classified.notice
 
 
 def _already_at_snapshot_authority(feature_dir: Path, *, owned: OwnedCheckout | None = None) -> bool:
@@ -434,6 +446,13 @@ def cutover_mission(
         feature_dir = _runtime_feature_dir(feature_dir, owned)
         status_dir = _runtime_feature_dir(status_dir, owned)
     slug = feature_dir.name
+    notice = _tracked_meta_notice(feature_dir)
+    if notice is not None:
+        # #6673: _flip_phase writes a one-key meta.json stub when the file is missing, which would hand a
+        # Mission git already holds an identity-less file for a later `backfill-identity` to mint into.
+        # Neither the seed phase nor the flip reaches it.
+        logger.warning("%s", notice)
+        return CutoverResult(slug=slug, flipped=False, skipped_notice=notice)
     try:
         seed = _seed_phase(status_dir, read_dir=feature_dir, dry_run=dry_run, owned=owned)
     except MigrationOrderingError as exc:
