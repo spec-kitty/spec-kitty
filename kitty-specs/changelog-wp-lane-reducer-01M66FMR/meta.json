@@ -1,0 +1,34 @@
+{
+  "accept_commit": "62cd8c0e0052dc109c37dd6cb21d5cba90d5a06c",
+  "acceptance_history": [
+    {
+      "accept_commit": "62cd8c0e0052dc109c37dd6cb21d5cba90d5a06c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T14:45:55.051238+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "df4053cef88de2636bef21b27bf067bc4496a56d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T14:45:55.051238+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "df4053cef88de2636bef21b27bf067bc4496a56d",
+  "baseline_merge_commit": "977cb249640fcd9e305401044cd4b41f4bc4fae9",
+  "created_at": "2026-10-30T13:23:02.267923+00:00",
+  "flattened": true,
+  "friendly_name": "changelog wp lane reducer",
+  "merged_at": "2026-10-30T14:48:15.942781+00:00",
+  "merged_commit": "d8dcabb6203cf095bfa8c3dcdcb92cde2e360f64",
+  "mid8": "01M66FMR",
+  "mission_id": "01M66FMRX1Q8WXYAE32SHM5M07",
+  "mission_number": 244,
+  "mission_slug": "changelog-wp-lane-reducer-01M66FMR",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances changelog wp lane reducer on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "changelog wp lane reducer",
+  "slug": "changelog-wp-lane-reducer-01M66FMR",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T13:31:06.062720+00:00"
+}

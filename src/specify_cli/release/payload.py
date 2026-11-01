@@ -125,8 +125,10 @@ def build_release_prep_payload(
 
     Performance:
         <= 5 seconds wall-clock on a mission with up to 16 WPs (NFR-004).
-        The implementation makes at most one ``git`` subprocess call for tag
-        resolution, then reads filesystem only.
+        The changelog build resolves each mission's status surface through
+        the placement seam (one git probe per coordination-declared
+        mission) plus one ``git`` subprocess call for tag resolution; the
+        rest is filesystem reads.
 
     No network calls are made (FR-014, C-002). Raises :class:`ValueError` if
     the current version cannot be parsed for the requested channel.
