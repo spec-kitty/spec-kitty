@@ -193,19 +193,31 @@ def test_unknown_profile_id_renders_without_a_marker_or_an_error(
     assert parsed == []
 
 
-def test_malformed_config_still_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A malformed ``.kittify/config.yaml`` must not degrade to a markerless board.
+@pytest.mark.parametrize(
+    ("config_text", "label"),
+    [
+        ("charter: [unclosed\n", "malformed-yaml"),
+        ("activated_agent_profiles: 12\n", "invalid-activation-key"),
+        ("charter: .kittify/does-not-exist.yaml\n", "dangling-charter-pointer"),
+    ],
+)
+def test_broken_config_still_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, config_text: str, label: str
+) -> None:
+    """A broken ``.kittify/config.yaml`` must not degrade to a markerless board.
 
-    The scoped read skips ``PackContext``, but it still resolves the pack layers,
-    so the same fail-closed contract applies: the error surfaces instead of a
-    render (charter FR-002 / ``status_failed``).
+    The scoped read does not use activation *state*, but it must not turn a config
+    the activation-aware build rejects into a successful render: the builder
+    validates the file through the charter configuration authority first
+    (charter FR-002 / ``status_failed``). Each class below raised through the old
+    ``build_active_charter_service`` path, so each must still fail here.
     """
     _create_project(tmp_path, {"WP01": (_HIC_PROFILE, "in_progress")})
-    (tmp_path / ".kittify" / "config.yaml").write_text("charter: [unclosed\n", encoding="utf-8")
+    (tmp_path / ".kittify" / "config.yaml").write_text(config_text, encoding="utf-8")
     parsed = _count_profile_parses(monkeypatch)
 
     result = _invoke_status(tmp_path)
 
-    assert result.exit_code != 0
-    assert "👤" not in result.output
-    assert parsed == []
+    assert result.exit_code != 0, label
+    assert "👤" not in result.output, label
+    assert parsed == [], label

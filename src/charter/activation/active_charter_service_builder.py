@@ -378,19 +378,31 @@ def build_agent_profile_sentinels(repo_root: Path, profile_ids: Iterable[str]) -
         layering and the ``applies_to_languages`` gate) declares
         ``sentinel: true``, ``False`` otherwise — including ids no layer ships.
 
-    Why no ``PackContext``: ``sentinel`` is structural, exactly like
+    Why no activation *state*: ``sentinel`` is structural, exactly like
     ``get_provenance()`` — see
     :attr:`~charter.activation.resolver.ActiveCharterService.agent_profile_repository`.
-    The configuration reads that *do* happen are the layer resolution below, so a
-    malformed ``.kittify/config.yaml`` still fails closed here rather than
-    degrading to an empty mapping.
+    No ``activated_`` key or deny entry may change an answer, so the returned
+    mapping deliberately does not depend on activation filtering.
+
+    Why it still validates the configuration: ``agent tasks status`` treats an
+    unreadable or invalid ``.kittify/config.yaml`` as a structured failure, not as
+    a markerless render. The layer resolution below reads that file *leniently*
+    (a bad org registry or an unreadable pointer is logged and skipped), so this
+    function asks the one authority — :meth:`PackContext.from_config` — to
+    validate it first and raises the same ``ActiveCharterConfigError`` the
+    activation-aware builder would. The object is then discarded: only its
+    validation is used (measured ~0.04 s warm, so the fail-closed contract costs
+    a fraction of the catalogue read this function exists to avoid).
 
     Construction stays in this module on purpose: it is the ONE place that builds
     the inner ``charter.offering.service.CharterOfferingService`` (Gate 1/Gate 2
     exempt it), so no new construction site appears outside the sole door.
     """
     from charter.activation.context import _build_offering_service  # noqa: PLC0415
+    from charter.activation.pack_context import PackContext  # noqa: PLC0415
 
+    # Fail-closed before anything lenient reads the file (see the docstring).
+    PackContext.from_config(repo_root)
     inner = _build_offering_service(repo_root, org_roots=_self_resolve_existing_org_roots(repo_root))
     sentinels: dict[str, bool] = inner.agent_profile_sentinels(profile_ids)
     return sentinels
