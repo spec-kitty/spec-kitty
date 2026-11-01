@@ -213,8 +213,8 @@ _GOLDEN_APPLIED_DRY_RUN = (
     "╭──────────────────────────────────────────────────────────────────────────────╮\n"
     "│ DRY RUN - No changes were made                                               │\n"
     "╰──────────────────────────────────────────────────────────────────────────────╯\n"
-    "Migrations applied:\n"
-    "  ✓ 3.2.0a4_fake_migration\n"
+    "Migrations that would be applied:\n"
+    "  → 3.2.0a4_fake_migration\n"
     "Migrations skipped (already applied or not needed):\n"
     "  ○ 3.1.0_old_migration\n"
     "\n"
@@ -237,7 +237,12 @@ def test_golden_no_op_with_one_warning(project: Path, monkeypatch: pytest.Monkey
 
 
 def test_golden_applied_run(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An applied run prints its sections, then the closing line, then the commit line."""
+    """An applied run prints its sections, then the closing line, then the commit line.
+
+    This golden keeps the real-run ``Migrations applied:`` / ``✓`` wording and is the
+    unedited control for :func:`test_golden_applied_dry_run` (#6234): if a change renames
+    the heading in both modes, this test fails.
+    """
     _stub_applied_migration(monkeypatch)
 
     result = _invoke(project, ["--target", _MIGRATED_VERSION, "--yes", "--no-worktrees"])
@@ -247,7 +252,14 @@ def test_golden_applied_run(project: Path, monkeypatch: pytest.MonkeyPatch) -> N
 
 
 def test_golden_applied_dry_run(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """A completed dry run says nothing was applied and never prints the commit line."""
+    """A completed dry run says nothing was applied and never prints the commit line.
+
+    Unlike the other goldens this one no longer only characterises pre-existing output: it
+    rules on the wording, which is why it heads the list ``Migrations that would be
+    applied:`` with a non-success marker (#6234). A dry run applies nothing, so a green
+    ``Migrations applied:`` block under the ``DRY RUN`` panel contradicted the very banner
+    and closing line around it.
+    """
     _stub_applied_migration(monkeypatch)
 
     result = _invoke(project, ["--target", _MIGRATED_VERSION, "--yes", "--no-worktrees", "--dry-run"])

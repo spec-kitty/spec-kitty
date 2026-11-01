@@ -617,7 +617,7 @@ class MigrationRunner:
 
         # Predicted verdict: the declared predecessor this run reported applied has
         # written the state the real run's detect() would see, so the real run applies
-        # this migration next. Reporting it here keeps ``Migrations applied:`` (and the
+        # this migration next. Reporting it here keeps the run's applied list (and the
         # JSON ``migrations_applied``) the same in both modes, and the change line says
         # it is a prediction. Nothing is written: a prediction is a verdict only.
         if pending_predecessors:
