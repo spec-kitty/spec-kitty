@@ -315,7 +315,7 @@ def migrate_related(source: _Source, value: object, existing_external: object, c
     for entry in value:
         if isinstance(entry, Mapping):
             _classify_ref_entry(source, entry, corpus, out)
-        elif isinstance(entry, str):
+        elif isinstance(entry, str) and (entry == "" or entry.strip()):
             _classify_entry(source, entry.strip(), corpus, out)
         else:
             raise MigrationError(f"related entry is not a string or {{ref, note}}: {entry!r}")
@@ -460,7 +460,7 @@ def migrate_text(rel: str, text: str, corpus: Corpus, report: MigrationReport | 
         return text
     lines = block.splitlines(keepends=True)
     newline = "\r\n" if lines[0].endswith("\r\n") else "\n"
-    if any(not line.endswith(newline) or (newline == "\n" and line.endswith("\r\n")) for line in lines):
+    if any(not line.endswith(newline) or (newline == "\n" and line.endswith("\r\n")) for line in lines[:-1]):
         raise MigrationError(f"{rel}: frontmatter mixes line endings; migrate it by hand")
     editor = _Editor(lines=[line.replace("\r\n", "\n") for line in lines[1:-1]])
     _apply_edits(editor, intended)

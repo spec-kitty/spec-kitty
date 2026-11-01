@@ -199,6 +199,18 @@ def test_a_comment_inside_an_edited_block_is_refused(repo: Path) -> None:
         _migrate(repo, "guides/p.md", f"---\ntitle: P\naudience:\n  # keep me\n- {_MAINTAINER}\n---\n")
 
 
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_a_closing_fence_without_a_trailing_newline_is_migrated(repo: Path, newline: str) -> None:
+    text = f"---{newline}title: P{newline}audience: {_MAINTAINER}{newline}---"
+    out = _migrate(repo, "guides/p.md", text)[0]
+    assert out.endswith(f"guidance_text: Written for the Maintainer reader.{newline}---")
+
+
+def test_a_whitespace_only_related_entry_fails_closed(repo: Path) -> None:
+    with pytest.raises(mig.MigrationError, match="related entry"):
+        _migrate(repo, "guides/p.md", "---\ntitle: P\nrelated:\n- '  '\n---\n")
+
+
 def test_mixed_line_endings_are_refused(repo: Path) -> None:
     with pytest.raises(mig.MigrationError, match="line endings"):
         _migrate(repo, "guides/p.md", f"---\r\ntitle: Q\naudience: {_MAINTAINER}\r\n---\r\n")
