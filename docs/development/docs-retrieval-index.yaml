@@ -3849,7 +3849,7 @@ pages:
     - {slug: "2-declared-ordering-a-checked-in-order-manifest", text: "2. Declared ordering — a checked-in order manifest", level: 3}
     - {slug: "3-selection-ledger-diff-replaces-the-version-window", text: "3. Selection — ledger-diff replaces the version window", level: 3}
     - {slug: "4-drift-detection-audit-report-only-never-auto-reapply", text: "4. Drift detection — audit/report only, never auto-reapply", level: 3}
-    - {slug: "5-visibility-one-pending-source-two-read-surfaces", text: "5. Visibility — one pending-source, two read surfaces", level: 3}
+    - {slug: "5-visibility-one-pending-source-one-read-surface", text: "5. Visibility — one pending-source, one read surface", level: 3}
     - {slug: "6-adoption-backfill-hard-cutover-detect-gated-for-clone-local", text: "6. Adoption / backfill — hard cutover, detect-gated for clone-local", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "touchpoints", text: "Touchpoints", level: 2}

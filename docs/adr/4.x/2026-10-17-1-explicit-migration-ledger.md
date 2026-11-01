@@ -3,7 +3,7 @@ title: 'ADR: the applied-migration ledger is an explicit, two-partition record t
 description: 'An explicit two-partition migration ledger replaces metadata.yaml and the version window as the authority for what has run; selection becomes ledger-diff.'
 status: Accepted
 date: '2026-10-17'
-updated: '2026-10-25'
+updated: '2026-10-31'
 ---
 
 **Status:** Accepted (2026-10-17).
@@ -216,16 +216,22 @@ not gate or re-run anything; it is the audit that makes a violation of that rule
 **Rejected:** checksum-mismatch → auto re-apply — it would fight `detect()` idempotency and
 could re-run destructive `apply()` against a project that already carries the old effect.
 
-### 5. Visibility — one pending-source, two read surfaces
+### 5. Visibility — one pending-source, one read surface
 
-A new doctor sub-surface `spec-kitty doctor migrations`
-(`src/specify_cli/cli/commands/_migration_ledger_doctor.py`, following the existing doctor
-family shape) and an `upgrade --list-applied` flag (`cli/commands/upgrade.py`) render: the
-declared set (manifest), the applied set (both ledgers), the pending set, the
-tracked/clone-local partition, and drift flags. Both consume the single pending-source
-`VersionDetector.applicable_migrations` (`detector.py:49`) — the same method the compat planner
-and `--dry-run` already delegate to — so the reported pending set can never diverge from the
-applied set.
+The shipped read surface is `spec-kitty migrate ledger` (read-only; `--json` emits the same
+report as structured data). It renders: the declared set (manifest), the applied set (both
+ledgers), the pending set, the tracked/clone-local partition, and drift flags. It consumes the
+single pending-source `VersionDetector.applicable_migrations` (`detector.py:49`) — the same
+method the compat planner and `--dry-run` already delegate to — so the reported pending set can
+never diverge from the applied set. The command writes nothing and commits nothing; drift is
+reported only (§4).
+
+The original proposal recorded here — a new doctor sub-surface (`doctor migrations`, following
+the existing doctor family shape) plus an `upgrade --list-applied` flag
+(`cli/commands/upgrade.py`) — is **historical: it was not built.** Its own argument defeated it:
+two renderers over the same report would have been two consumers that could drift from the
+single pending-source, which is the failure §3 and this section exist to prevent. One read
+surface carries the decision instead.
 
 ### 6. Adoption / backfill — hard cutover, detect-gated for clone-local
 
@@ -311,8 +317,11 @@ populated ledger. The new tracked ledger file is added to the state contract as 
   idempotency guard. (Deliverable 3; depends on #A, #B.)
 - **#D — Drift identity/checksum on apply.** `identity` + `content_hash`
   (`kernel.content_digest`) stored per record; audit/report only. (Deliverable 4; depends on #A.)
-- **#E — Visibility surface.** `doctor migrations` + `upgrade --list-applied` via
-  `detector.applicable_migrations`. (Deliverable 5; depends on #A, #C.)
+- **#E — Visibility surface.** `spec-kitty migrate ledger` (read-only; `--json` for the same
+  report) via `detector.applicable_migrations`: the declared, applied and pending sets, the
+  tracked/clone-local partition, and drift flags. The proposed `doctor migrations` sub-surface and
+  `upgrade --list-applied` flag were not built — one read surface shipped. (Deliverable 5;
+  depends on #A, #C.)
 - **#F — Adoption backfill (hard cutover, detect-gated for clone-local).** Backfill from
   `metadata.yaml.applied_migrations`, then remove it as authority; no dual-write mirror; add the
   tracked ledger to `state/contract.py`. (Deliverable 6; depends on #A.)
@@ -389,11 +398,11 @@ state for the fresh-clone case accordingly.
 
 ### 3. Incidental notes
 
-- **Visibility surface command name.** The shipped read surface is `spec-kitty migrate ledger`
-  (read-only; `--json` emits the same report), rather than the `spec-kitty doctor migrations`
-  spelling named in §5. Both consume the single pending-source
-  (`VersionDetector.applicable_migrations`), so the §5 no-divergence property holds; only the
-  command path differs.
+- **Visibility surface command name.** §5 and #E now name the surface that shipped:
+  `spec-kitty migrate ledger` (read-only; `--json` emits the same report). The spike's proposed
+  `doctor migrations` sub-surface and `upgrade --list-applied` flag were not built. One read
+  surface over the single pending-source (`VersionDetector.applicable_migrations`) makes §5's
+  no-divergence property hold by construction rather than by two consumers staying in step.
 - **R4 mirror strip location.** The retirement of the stale on-disk `migrations:` block from
   `metadata.yaml` (§6, no dual-write mirror) ships in `metadata.py::save()`, **gated on ledger
   adoption** (`_ledger_adopted`), rather than inside the backfill migration — so a `save()` that
