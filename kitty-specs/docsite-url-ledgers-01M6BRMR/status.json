@@ -62,6 +62,9 @@
       "last_event_id": "01M6BWCB5RTPZPTDRHYHR7ZSC6",
       "last_transition_at": "2026-11-01T15:41:49.624256+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Defaults repointed to site/moves.yaml; defaults gate red->green; 183 targeted tests green"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 25755,
