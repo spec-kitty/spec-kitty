@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 import typer
 
 from kernel.charter_pack_paths import PROJECT_PACK_ROOT, PROJECT_PACK_ROOT_POSIX
+from kernel.paths import to_posix
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.console import console, err_console
 from specify_cli.task_utils import TaskCliError
@@ -492,7 +493,10 @@ def _load_written_artifacts_from_manifest(repo_root: Path) -> list[dict[str, Any
 
         entries.append(
             {
-                "path": entry.path,
+                # #6277: a manifest written by an older Windows run records ``\\``;
+                # the reported contract is the POSIX spelling, so normalise on read
+                # rather than re-emitting whatever the file happened to hold.
+                "path": to_posix(entry.path),
                 "kind": entry.kind,
                 "slug": entry.slug,
                 "artifact_id": artifact_id,
