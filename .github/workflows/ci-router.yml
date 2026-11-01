@@ -767,11 +767,14 @@ jobs:
           prose_only="false"
           if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ]; then
             if diff_output="$(git diff --name-only "$base" "$HEAD_SHA" 2>/dev/null)"; then
-              # The raw diff is threaded through an env var, NOT piped to
-              # stdin: `python3 -` reads its OWN script text from stdin (the
-              # heredoc below), so a concurrent stdin pipe would never reach
-              # the script's own input reads.
-              prose_only="$(SCAN_BASE_SHA="$base" SCAN_HEAD_SHA="$HEAD_SHA" SCAN_DIFF_PATHS="$diff_output" python3 - <<'PY'
+              # The raw diff is handed over in a FILE, NOT piped to stdin and
+              # NOT in an env var: `python3 -` reads its OWN script text from
+              # stdin (the heredoc below), and one env string over 128 KiB
+              # (MAX_ARG_STRLEN; ~2000 paths) makes exec fail with E2BIG
+              # "Argument list too long" (#6915).
+              diff_file="$RUNNER_TEMP/prose-only-diff.txt"
+              printf '%s\n' "$diff_output" > "$diff_file"
+              prose_only="$(SCAN_BASE_SHA="$base" SCAN_HEAD_SHA="$HEAD_SHA" SCAN_DIFF_FILE="$diff_file" python3 - <<'PY'
           import os
           import subprocess
           import sys
@@ -782,7 +785,8 @@ jobs:
 
           _base_sha = os.environ["SCAN_BASE_SHA"]
           _head_sha = os.environ["SCAN_HEAD_SHA"]
-          _raw_paths = os.environ.get("SCAN_DIFF_PATHS", "")
+          with open(os.environ["SCAN_DIFF_FILE"], encoding="utf-8") as _fh:
+              _raw_paths = _fh.read()
 
 
           def _show(sha: str, path: str) -> str | None:
