@@ -104,6 +104,12 @@ Three rules make this safe:
   `--no-mark-loaded` mirrors dispatch's own `mark_loaded=False`, so fetching
   does not record a first-load and shrink the next mission prompt.
 
+The reference is a command that rebuilds the text on fetch, not a snapshot, so
+a charter, DRG or profile change made between dispatch and fetch can make the
+fetched text differ from the one `digest` describes. The consumer must compare
+the first 16 hex characters of the SHA-256 of the fetched `text` with `digest`
+and, on a mismatch, discard it and re-dispatch without `--brief`.
+
 The Op record, the glossary scan and the routing decision are unchanged in
 brief mode: only the rendered text is replaced.
 
