@@ -37,7 +37,7 @@
       "wp": null
     },
     "#7000": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "spec.md FR-001..FR-007; the gate and its declarations are WP01/WP02",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -45,8 +45,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
