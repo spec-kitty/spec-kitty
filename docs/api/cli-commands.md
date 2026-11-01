@@ -5687,10 +5687,10 @@ _Fetch, vendor, inspect and stop the pinned service binaries_
 │ fetch   Fetch and verify the pinned build of a service for this host into    │
 │         the cache.                                                           │
 │ status  Show the pin, the cache state and the running instance of a service  │
-│         (starts nothing; evicts a corrupt cached copy).                      │
+│         (reads only: starts, writes and evicts nothing).                     │
 │ stop    Stop this clone's running instance of a service.                     │
-│ vendor  Bump (or --check) pins/<service>.source.yaml from a                  │
-│         spec-kitty-events release; the only way to change a pin.             │
+│ vendor  Bump (or --check) pins/<service>.source.yaml from the service's own  │
+│         release; the only way to change a pin.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5718,8 +5718,8 @@ _Fetch, vendor, inspect and stop the pinned service binaries_
 ```
  Usage: spec-kitty service status [OPTIONS]
 
- Show the pin, the cache state and the running instance of a service (starts
- nothing; evicts a corrupt cached copy).
+ Show the pin, the cache state and the running instance of a service (reads
+ only: starts, writes and evicts nothing).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --service          <str>  The service: one of charter-service, read-service, │
@@ -5750,18 +5750,21 @@ _Fetch, vendor, inspect and stop the pinned service binaries_
 ```
  Usage: spec-kitty service vendor [OPTIONS]
 
- Bump (or --check) pins/<service>.source.yaml from a spec-kitty-events release;
+ Bump (or --check) pins/<service>.source.yaml from the service's own release;
  the only way to change a pin.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --service                    <str>  The service: one of charter-service,     │
 │                                     read-service, write-service.             │
 │                                     [default: write-service]                 │
-│ --tag                        <str>  The spec-kitty-events release tag to pin │
+│ --tag                        <str>  The service's release tag to pin         │
 │                                     (service-vX.Y.Z).                        │
-│ --repository                 <str>  The release repository (https:// or      │
-│                                     file://); default: the current pin's,    │
-│                                     else spec-kitty-events.                  │
+│ --repository                 <str>  The service's release repository         │
+│                                     (https:// or file://); default: the      │
+│                                     current pin's, else the service's own    │
+│                                     (spec-kitty-charter for charter-service, │
+│                                     spec-kitty-events for the events         │
+│                                     services).                               │
 │ --commit                     <str>  The commit the tag names. Required for a │
 │                                     file:// repository (no git remote to     │
 │                                     ask); for https:// it must match the     │
@@ -5779,6 +5782,11 @@ _Fetch, vendor, inspect and stop the pinned service binaries_
 │                                     (<prefix>-<ver>-<target>,                │
 │                                     <prefix>-<ver>.jar); default: the        │
 │                                     service's known prefix.                  │
+│ --no-attestation                    Skip the release's build-provenance      │
+│                                     check (`gh attestation verify`, signer   │
+│                                     workflow and source tag ref). Only for   │
+│                                     an offline mirror or a rehearsal; never  │
+│                                     for a real bump.                         │
 │ --help               -h             Show this message and exit.              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
