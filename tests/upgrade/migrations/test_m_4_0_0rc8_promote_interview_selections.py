@@ -421,7 +421,7 @@ def test_an_unresolvable_doctrine_root_is_a_failed_result(tmp_path: Path, monkey
     assert result.errors == ["Could not resolve doctrine root: no doctrine"]
 
 
-def test_an_unrepresentable_directive_id_is_reported_as_unresolved(tmp_path: Path) -> None:
+def test_an_unrepresentable_directive_id_is_reported_as_ambiguous_not_unresolved(tmp_path: Path) -> None:
     """A directive identity no file stem can represent is reported, never promoted as another artifact.
 
     The fixture shadows the built-in ``024-locality-of-change`` file with an org
@@ -438,7 +438,9 @@ def test_an_unrepresentable_directive_id_is_reported_as_unresolved(tmp_path: Pat
     result = PromoteInterviewSelectionsMigration().apply(project)
 
     assert result.success, result.errors
-    assert result.warnings == [module._unresolved_warning(["directive:DIRECTIVE_024"])]
+    assert result.warnings == [module._unresolved_warning([], ["directive:DIRECTIVE_024"])]
+    assert "Unresolved" not in result.warnings[0]
+    assert "more than one layer" in result.warnings[0]
     assert read_activation_ledger(project)[DIRECTIVES] == [ARCHITECTURE_STEM]
 
 
