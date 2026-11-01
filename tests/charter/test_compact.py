@@ -80,7 +80,9 @@ def test_render_compact_view_reports_governance_resolution_errors(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def _raise_resolution_error(_repo_root: Path):
+    def _raise_resolution_error(_repo_root: Path, **_kwargs: object):
+        # The rendering path now passes the resolved scope explicitly; the
+        # double refuses for any scope, which is the point of the test.
         raise GovernanceResolutionError(["missing directive"])
 
     monkeypatch.setattr("charter.activation.compact.resolve_project_governance", _raise_resolution_error)
