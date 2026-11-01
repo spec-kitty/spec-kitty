@@ -36,6 +36,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6915": {
+      "evidence_ref": "Mission issue; WP01 delivers the read-service pin and fetch tooling (95d2f7c8, 03fa97d3, cf627bcb); remaining WPs pending",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
     "#6949": {
       "evidence_ref": "<auto-classified: no action required>",
       "fr": null,
