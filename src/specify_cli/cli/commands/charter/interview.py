@@ -214,7 +214,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any, *, narro
     # One resolution rule for both writers (#6686): `refuse_ambiguous=True` keeps this
     # writer's Decision ``file_name_collision`` refusal (a known id with no single stem),
     # which the upgrade reports instead.
-    resolver = SelectionResolver.build(repo_root)
+    resolver = SelectionResolver.build(repo_root, quiet=False)
     resolution = resolver.resolve(kind_to_selection, refuse_ambiguous=True)
     promotions: dict[str, list[str]] = dict(resolution.stems)
     warnings: list[str] = [f"Could not resolve selected {item.kind.operator_token} id {item.raw_id!r}; skipped." for item in resolution.unresolved]

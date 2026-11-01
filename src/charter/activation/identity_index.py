@@ -195,14 +195,19 @@ class IdentityIndex:
         org_roots: list[Path] | None = None,
         resolution_pass: kind_vocabulary.ResolutionPass | None = None,
         offering_root: Path | None = None,
+        quiet: bool = True,
     ) -> IdentityIndex:
         """Index *repo_root*'s layers; *org_roots* defaults to the existing configured chain.
+
+        *quiet* is forwarded to the chain read: ``True`` (the default, a resolution hot path)
+        demotes the unparseable-``config.yaml`` warning to debug; an operator-facing writer
+        passes ``False`` to keep it loud.
 
         A caller that already resolved the roots passes *org_roots* and its shared
         *resolution_pass* so each file is read once per plan (NFR-003), and its
         *offering_root* (the built-in layer) so the index scans the roots it does.
         """
-        chain = resolve_pack_chain(repo_root, strict=False, quiet=True) if org_roots is None else org_roots
+        chain = resolve_pack_chain(repo_root, strict=False, quiet=quiet) if org_roots is None else org_roots
         project = project_pack_root(repo_root)
         index = cls(
             org_roots=[root for root in chain if root.is_dir()],
