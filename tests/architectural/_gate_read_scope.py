@@ -27,11 +27,26 @@ becomes a ``*`` component: the scan cannot know the value, so the read is treate
 spanning that directory (``kitty-specs/*/meta.json`` -> the literal parent
 ``kitty-specs``), and a read rooted at the repository root itself needs ``**``.
 
+Known limits (fail-open, by design -- inventing a read is worse than missing one)
+-------------------------------------------------------------------------------
+* A root taken from a pytest parameter (``repo_root``) is not followed: of the ~69 battery
+  files naming one, most receive a synthetic ``tmp_path`` tree, and no fixture of that name
+  is provided by a conftest, so aliasing it would invent reads.
+* A ``git ls-files`` / ``ls-tree -- <paths>`` pathspec counts only when the same call names
+  a repository-root name (``cwd=_REPO_ROOT``, ``-C str(_REPO_ROOT)``, ``_git(_REPO_ROOT, ...)``)
+  and the paths are literals, f-strings, or a module-level tuple of literals. Pathspecs
+  routed through variables, parameters, or a helper that hides the root are not seen.
+* ``tests/conftest.py`` (any ``conftest.py``) is pytest plumbing and is not followed, even
+  when a gate imports a name from it.
+* Anything computed at runtime beyond a ``*`` component (``getattr``, ``os.path.join`` on a
+  root string, ``Path(str(root) + ...)``) is invisible.
+
 Ownership
 ---------
-The gate set is ``tests/architectural/test_*.py``. A read inside a ``tests.architectural``
-helper module belongs to every gate that imports it transitively -- the same "battery
-code" attribution ``scripts.ci.gate_selection.battery_code_helpers()`` uses, and the reason
+The gate set is ``tests/architectural/test_*.py``. A read inside any ``tests`` module a gate
+imports transitively -- ``tests/_support``, ``tests/utils.py``, a relative import -- belongs
+to that gate -- the same "battery code" attribution
+``scripts.ci.gate_selection.battery_code_helpers()`` uses, and the reason
 ``test_clock_import_ban.py`` declares the roots its ``_clock_gate_scan`` helper walks.
 
 Coverage
@@ -72,6 +87,8 @@ CODE_SCOPE_EXTRA: Final[tuple[str, ...]] = ("src/**", "tests/architectural/**")
 _TRAVERSALS: Final = frozenset({"glob", "rglob", "iterdir", "walk"})
 #: Wildcard component a non-constant chain step becomes.
 DYNAMIC: Final = "*"
+#: Characters that make a path component a glob pattern.
+_GLOB_CHARS: Final = frozenset("*?[")
 #: Floor for the scan itself: a scanner that silently finds nothing must not pass.
 MIN_GATES: Final = 90
 MIN_READS: Final = 300
@@ -218,7 +235,13 @@ def _traversal_root(node: ast.AST, roots: Mapping[str, str], constants: Mapping[
         return None
     if node.func.attr not in _TRAVERSALS:
         return None
-    return _chain(node.func.value, roots, constants)
+    chain = _chain(node.func.value, roots, constants)
+    if chain is not None and node.func.attr == "glob" and node.args:
+        pattern = _literal_parts(node.args[0], constants)
+        if pattern and not _GLOB_CHARS & set(pattern[0]):
+            # ``root.glob("kitty-specs/*/spec.md")`` reads under kitty-specs, not the whole root.
+            chain = chain + [DYNAMIC if _GLOB_CHARS & set(part) else part for part in pattern]
+    return chain
 
 
 def _assignments(tree: ast.AST) -> dict[str, list[ast.AST]]:
@@ -237,14 +260,14 @@ def _assignments(tree: ast.AST) -> dict[str, list[ast.AST]]:
     return values
 
 
-def _resolve_root_value(value: ast.AST, file_names: set[str], roots: Mapping[str, str]) -> tuple[bool, str]:
+def _resolve_root_value(value: ast.AST, file_names: set[str], roots: Mapping[str, str], root_index: int = 2) -> tuple[bool, str]:
     """``(is_root, prefix)`` for the value assigned to a name.
 
     ``is_root`` is False when the value is neither a file-path reference, nor
     ``<file-path>.parents[2]``, nor a chain rooted at a name already known to be a root.
     """
     parent_index = _parents_index(value)
-    if parent_index == 2 and _is_file_ref(value.value.value, file_names):
+    if parent_index == root_index and _is_file_ref(value.value.value, file_names):
         return True, ""
     if parent_index is not None and _is_file_ref(value.value.value, file_names):
         return False, ""
@@ -254,7 +277,7 @@ def _resolve_root_value(value: ast.AST, file_names: set[str], roots: Mapping[str
     return False, ""
 
 
-def repo_root_names(tree: ast.AST) -> dict[str, str]:
+def repo_root_names(tree: ast.AST, root_index: int = 2, imported: Mapping[str, str] | None = None) -> dict[str, str]:
     """Names bound to a repository-root path, and the prefix each one denotes.
 
     A name is a repository root when every value assigned to it is
@@ -263,10 +286,15 @@ def repo_root_names(tree: ast.AST) -> dict[str, str]:
     something else -- a fixture shadowing ``repo_root`` with a ``tmp_path``, a walk variable
     advanced in a loop -- is *not* a repository root: treating it as one would invent reads
     the gate never makes.
+
+    ``root_index`` is the ``parents[...]`` index that reaches the repository from the file
+    (2 under ``tests/architectural``, 2 under ``tests/_support``, 1 for ``tests/utils.py``).
+    ``imported`` seeds names a ``from tests.<module> import REPO_ROOT`` brings in from a
+    module whose own root is known, unless this file also assigns them.
     """
     assignments = _assignments(tree)
     file_names: set[str] = {"__file__"}
-    roots: dict[str, str] = {}
+    roots: dict[str, str] = {name: prefix for name, prefix in (imported or {}).items() if name not in assignments}
     poisoned: set[str] = set()
     changed = True
     while changed:
@@ -277,7 +305,7 @@ def repo_root_names(tree: ast.AST) -> dict[str, str]:
             if all(isinstance(value, ast.Call) and _is_file_ref(value, file_names) for value in values):
                 file_names.add(name)
                 continue
-            resolved = [_resolve_root_value(value, file_names, roots) for value in values]
+            resolved = [_resolve_root_value(value, file_names, roots, root_index) for value in values]
             if not all(is_root for is_root, _ in resolved):
                 poisoned.add(name)
                 continue
@@ -316,13 +344,105 @@ def string_constants(tree: ast.AST) -> dict[str, str]:
     return constants
 
 
+def sequence_constants(tree: ast.Module) -> dict[str, tuple[str, ...]]:
+    """Module-level names bound to a tuple/list of string literals: ``_PACK_PATHS = ("a", "b")``."""
+    found: dict[str, tuple[str, ...]] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            value = node.value
+            if isinstance(value, (ast.Tuple, ast.List)) and value.elts:
+                items = [element.value for element in value.elts if isinstance(element, ast.Constant) and isinstance(element.value, str)]
+                if len(items) == len(value.elts):
+                    found[node.targets[0].id] = tuple(items)
+    return found
+
+
+_LISTING_VERBS: Final = frozenset({"ls-files", "ls-tree"})
+
+
+def _call_elements(node: ast.Call, sequences: Mapping[str, tuple[str, ...]]) -> list[ast.AST]:
+    """The flat argument list of a call: positional args, one level of list/tuple, ``*CONSTANT``."""
+    elements: list[ast.AST] = []
+    for argument in node.args:
+        if isinstance(argument, (ast.List, ast.Tuple)):
+            elements.extend(argument.elts)
+        elif isinstance(argument, ast.Starred) and isinstance(argument.value, ast.Name) and argument.value.id in sequences:
+            elements.extend(ast.Constant(value=item) for item in sequences[argument.value.id])
+        else:
+            elements.append(argument)
+    return elements
+
+
+def _pathspec_chain(element: ast.AST, constants: Mapping[str, str]) -> list[str] | None:
+    """The components a literal pathspec names, ``None`` for an option, a bare variable or ``.``."""
+    if isinstance(element, ast.Constant) and not isinstance(element.value, str):
+        return None
+    literal = _literal_parts(element, constants)
+    if literal is None:
+        return None
+    if isinstance(element, ast.Constant) and (str(element.value).startswith("-") or not literal):
+        return None
+    return [DYNAMIC if _GLOB_CHARS & set(part) else part for part in literal if part != "."] or None
+
+
+def _pathspec_reads(node: ast.Call, roots: Mapping[str, str], constants: Mapping[str, str], sequences: Mapping[str, tuple[str, ...]]) -> list[list[str]]:
+    """Literal ``git ls-files`` / ``git ls-tree -- <paths>`` pathspecs in a call that names the repo root.
+
+    Git resolves a pathspec against its working directory, so the paths are repository reads
+    only when the call itself shows the repository is that directory -- a repo-root name
+    anywhere in the call (``cwd=_REPO_ROOT``, ``-C str(_REPO_ROOT)``, ``_git(_REPO_ROOT, ...)``).
+    A call that never mentions the root (``_git("ls-files", "src")`` through a helper that
+    hides it, or a ``tmp_path`` repo) is not seen, which is the sound direction to err in.
+    """
+    if not any(isinstance(inner, ast.Name) and inner.id in roots for inner in ast.walk(node)):
+        return []
+    elements = _call_elements(node, sequences)
+    words = [element.value for element in elements if isinstance(element, ast.Constant) and isinstance(element.value, str)]
+    verbs = _LISTING_VERBS & set(words)
+    if not verbs:
+        return []
+    start = next(index for index, element in enumerate(elements) if isinstance(element, ast.Constant) and element.value in verbs)
+    tail = elements[start + 1 :]
+    if "ls-tree" in verbs:  # the first non-option word is a tree-ish; only ``--`` introduces paths
+        marker = next((index for index, element in enumerate(tail) if isinstance(element, ast.Constant) and element.value == "--"), None)
+        if marker is None:
+            return []
+        tail = tail[marker + 1 :]
+    chains = (_pathspec_chain(element, constants) for element in tail)
+    return [chain for chain in chains if chain]
+
+
+def _imported_roots(tree: ast.Module, path: Path, root: Path) -> dict[str, str]:
+    """Repo-root names a file imports from another ``tests`` module (``from tests.utils import REPO_ROOT``)."""
+    imported: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        module = _resolve_import(node, path, root)
+        found = _module_file(module, root) if module else None
+        if found is None or not found.is_relative_to(root / "tests") or found == path:
+            continue
+        theirs = _module_roots(found, root)
+        for alias in node.names:
+            if alias.name in theirs:
+                imported[alias.asname or alias.name] = theirs[alias.name]
+    return imported
+
+
+@cache
+def _module_roots(path: Path, root: Path) -> dict[str, str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    return repo_root_names(tree, len(path.relative_to(root).parts) - 1)
+
+
 def repo_root_reads(path: Path, root: Path) -> tuple[Read, ...]:
     """Every repository-rooted read in ``path``, one per source line (the longest chain)."""
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    roots = repo_root_names(tree)
+    roots = repo_root_names(tree, len(path.relative_to(root).parts) - 1, _imported_roots(tree, path, root))
     if not roots:
         return ()
     constants = string_constants(tree)
+    sequences = sequence_constants(tree)
     relative = path.relative_to(root).as_posix()
     found: list[tuple[int, list[str]]] = []
     for node in ast.walk(tree):
@@ -330,6 +450,7 @@ def repo_root_reads(path: Path, root: Path) -> tuple[Read, ...]:
             chain = _chain(node, roots, constants)
         elif isinstance(node, ast.Call):
             chain = _traversal_root(node, roots, constants)
+            found.extend((getattr(node, "lineno", 0), spec) for spec in _pathspec_reads(node, roots, constants, sequences))
         else:
             continue
         if chain is not None:
@@ -361,7 +482,12 @@ def _module_file(module: str, root: Path) -> Path | None:
 
 
 def imported_battery_modules(path: Path, root: Path | None = None) -> frozenset[str]:
-    """The ``tests/architectural`` files ``path`` reaches through imports, itself included."""
+    """The ``tests`` files ``path`` reaches through imports, itself included.
+
+    Imports are followed wherever they point under ``tests/`` -- ``tests/_support``,
+    ``tests/utils.py``, a sibling reached by a relative import -- not only inside
+    ``tests/architectural``: a helper's reads belong to every gate that imports it.
+    """
     root = root or _repo_root()
     gate = (root / path).resolve() if not path.is_absolute() else path
     pending = [gate]
@@ -376,22 +502,35 @@ def imported_battery_modules(path: Path, root: Path | None = None) -> frozenset[
     return frozenset(seen)
 
 
+def _resolve_import(node: ast.ImportFrom, path: Path, root: Path) -> str | None:
+    """The dotted module an ``ImportFrom`` names, resolving relative levels against ``path``."""
+    if node.level == 0:
+        return node.module
+    package = list(path.relative_to(root).parent.parts)
+    keep = len(package) - (node.level - 1)
+    if keep < 0:
+        return None
+    return ".".join([*package[:keep], *([node.module] if node.module else [])])
+
+
 def _imported_files(path: Path, root: Path) -> set[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     modules: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             modules.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-            modules.add(node.module)
-            modules.update(f"{node.module}.{alias.name}" for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            module = _resolve_import(node, path, root)
+            if module:
+                modules.add(module)
+                modules.update(f"{module}.{alias.name}" for alias in node.names)
     files: set[str] = set()
     for module in modules:
         if module.split(".")[0] != "tests":
             continue
         found = _module_file(module, root)
-        if found is None or not found.is_relative_to(root / BATTERY_TREE):
-            continue
+        if found is None or not found.is_relative_to(root / "tests") or found.name == "conftest.py":
+            continue  # a conftest is pytest-wide fixture plumbing: importing one name does not make a gate read all of it
         files.add(found.relative_to(root).as_posix())
     return files
 
@@ -443,11 +582,15 @@ def _exempted(gate: str, target: str, exemptions: Mapping[str, Mapping[str, str]
 
 
 def all_reads(root: Path | None = None) -> tuple[Read, ...]:
-    """Every read written under the battery tree (gates and helpers), with a per-file cache."""
+    """Every read written in a gate or in any ``tests`` module a gate reaches, cached per file."""
     root = root or _repo_root()
+    files: set[str] = set()
+    for gate in gate_files(root):
+        files |= imported_battery_modules(root / gate, root)
+    files.update(path.relative_to(root).as_posix() for path in (root / BATTERY_TREE).rglob("*.py"))
     reads: list[Read] = []
-    for path in sorted((root / BATTERY_TREE).rglob("*.py")):
-        reads.extend(_cached_reads(path, root))
+    for relative in sorted(files):
+        reads.extend(_cached_reads(root / relative, root))
     return tuple(reads)
 
 

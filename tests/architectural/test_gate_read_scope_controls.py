@@ -10,11 +10,16 @@ gate, a copied registry, the exemption table) and demand the scan names the muta
 * dropping a row from a copy of the live registry reds the gate that needed it;
 * a shadowed repo-root name is not a repository root;
 * a module-level string constant is resolved instead of becoming a wildcard;
-* an exemption that is unexplained, wildcard, unknown or stale is a problem.
+* an exemption that is unexplained, wildcard, unknown or stale is a problem;
+* a read in a helper the gate reaches by a relative import, from ``tests/_support`` or through
+  an imported ``REPO_ROOT`` is attributed to the gate (it used to be invisible);
+* a literal ``git ls-files`` / ``ls-tree -- <path>`` pathspec in a call that names the repository
+  root, and a ``root.glob("<dir>/*/...")`` pattern, are reads of that directory.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
@@ -32,10 +37,14 @@ def _gate_source(read: str) -> str:
     return f"from pathlib import Path\n\n_REPO_ROOT = Path(__file__).resolve().parents[2]\n\n\ndef test_planted() -> None:\n    assert {read}\n"
 
 
-def _tree(tmp_path: Path, gates: dict[str, str], rows: dict[str, list[str]]) -> Path:
+def _tree(tmp_path: Path, gates: dict[str, str], rows: dict[str, list[str]], extra: dict[str, str] | None = None) -> Path:
     """A synthetic checkout with `tests/architectural/<gate>.py` files and a registry."""
     battery = tmp_path / scope.BATTERY_TREE
     battery.mkdir(parents=True)
+    for relative, text in (extra or {}).items():
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
     for name, source in gates.items():
         (battery / name).write_text(source, encoding="utf-8")
     entries = [{"gate": f"{scope.BATTERY_TREE}/{name}", "globs": globs} for name, globs in sorted(rows.items())]
@@ -47,12 +56,19 @@ def _tree(tmp_path: Path, gates: dict[str, str], rows: dict[str, list[str]]) -> 
     return registry
 
 
-def _scan(tmp_path: Path, gates: dict[str, str], rows: dict[str, list[str]], *, exemptions: dict[str, dict[str, str]] | None = None):
-    registry = _tree(tmp_path, gates, rows)
+def _scan(
+    tmp_path: Path,
+    gates: dict[str, str],
+    rows: dict[str, list[str]],
+    *,
+    exemptions: dict[str, dict[str, str]] | None = None,
+    extra: dict[str, str] | None = None,
+) -> scope.Scan:
+    registry = _tree(tmp_path, gates, rows, extra)
     return scope.scan(root=tmp_path, registry_path=registry, router=gs.load_router(), exemptions=exemptions or {})
 
 
-def _targets(defects) -> list[str]:
+def _targets(defects: Iterable[scope.Finding]) -> list[str]:
     return [finding.target for finding in defects]
 
 
@@ -167,3 +183,43 @@ def test_the_covers_rule_is_the_declared_semantics() -> None:
     assert not scope.covers("pytest.ini", "uv.lock")
     assert scope.covers("**", "anything")
     assert not scope.covers("docs/**", ""), "a bare-root read needs '**', not a directory glob"
+
+
+_ROOT_AT_2 = "from pathlib import Path\n\n_REPO_ROOT = Path(__file__).resolve().parents[2]\n"
+
+
+def test_a_read_in_a_helper_outside_the_battery_tree_belongs_to_the_importing_gate(tmp_path: Path) -> None:
+    """``tests/_support``, a relative import and an imported ``REPO_ROOT`` all carry reads to the gate."""
+    gate = "test_via_helpers.py"
+    source = (
+        "from tests._support.reader import read_it\n"
+        "from tests.utils import REPO_ROOT\n"
+        "from . import _sibling\n"
+        "\n"
+        "def test_planted() -> None:\n"
+        "    assert (REPO_ROOT / 'planted-imported-root').exists() or read_it() or _sibling\n"
+    )
+    extra = {
+        "tests/_support/reader.py": f"{_ROOT_AT_2}\n\ndef read_it():\n    return (_REPO_ROOT / 'planted-support').exists()\n",
+        "tests/utils.py": "from pathlib import Path\n\nREPO_ROOT = Path(__file__).resolve().parents[1]\n",
+        f"{scope.BATTERY_TREE}/_sibling.py": f"{_ROOT_AT_2}\n_X = (_REPO_ROOT / 'planted-relative').exists()\n",
+    }
+    findings = _scan(tmp_path, {gate: source}, {}, extra=extra).findings
+    assert sorted(_targets(findings)) == ["planted-imported-root", "planted-relative", "planted-support"]
+    assert {finding.gate for finding in findings} == {f"{scope.BATTERY_TREE}/{gate}"}
+
+
+def test_a_git_listing_pathspec_or_glob_pattern_is_a_read(tmp_path: Path) -> None:
+    source = (
+        "import subprocess\n"
+        f"{_ROOT_AT_2}\n"
+        "def test_planted() -> None:\n"
+        "    subprocess.run(['git', 'ls-files', '--', 'planted-listing/'], cwd=_REPO_ROOT)\n"
+        "    subprocess.run(['git', 'ls-tree', 'HEAD', '--', 'planted-tree'], cwd=_REPO_ROOT)\n"
+        "    subprocess.run(['git', 'ls-files', 'not-rooted'], cwd='/elsewhere')\n"
+        "    list(_REPO_ROOT.glob('planted-glob/*/spec.md'))\n"
+    )
+    findings = _scan(tmp_path, {"test_listing.py": source}, {}).findings
+    assert sorted(_targets(findings)) == ["planted-glob", "planted-listing", "planted-tree"], (
+        "a pathspec in a call that never names the repo root is not a repo read"
+    )
