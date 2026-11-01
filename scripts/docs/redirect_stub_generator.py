@@ -1,97 +1,98 @@
-"""Redirect-stub generator + coverage gate (FR-006, NFR-002).
+"""Redirect-stub generator + coverage gate for the DocFX docsite (FR-006, NFR-002).
 
-This is **WP07 / IC-05a** of the Common Docs Structural Move (mission B,
-``common-docs-structural-move-01KW3SBK``). DocFX on GitHub Pages has **no native
-redirect**, so every moved published URL is preserved by a generated
-``<meta http-equiv="refresh">`` **stub page emitted at the old path** into the
-built ``_site`` (Mission A's D4 mechanism). ``contracts/redirect-stub.md`` is the
-authority.
+DocFX on GitHub Pages has **no native redirect**, so every moved published URL
+is preserved by a generated ``<meta http-equiv="refresh">`` **stub page emitted
+at the old path** into the built ``_site``.
 
-Three concerns, kept single-writer and deterministic:
+The inputs are the two standing ledgers under ``site/`` (#6927, ADR
+``2026-10-31-1`` D-5), read through :mod:`scripts.docs.moves_ledger`:
 
-``redirect_map.yaml`` (single-writer, WP07-owned)
-    ``{ old_url_path: new_url_path }`` derived **deterministically** from two
-    committed, immutable inputs — WP02's pre-move baseline manifest
-    (:data:`DEFAULT_BASELINE`) and the mission's ``occurrence_map.yaml`` ``moves:``
-    spine. A baseline URL earns a redirect entry iff its source path falls under a
-    move that relocates it *within the published tree*. The move WPs
-    (WP03/WP04/WP06/WP10) do **not** hand-append to the map — they ensure their
-    moves are represented in ``moves:``; WP07 re-derives. A regen is diff-stable.
+``site/moves.yaml``
+    The append-only ``from -> to`` route ledger. ``regenerate-map`` derives
+    ``redirect_map.yaml`` from it alone, collapsing chains, and refuses a key
+    that is a published page or a target that is not (the no-404 invariant).
+    ``check-map`` proves the committed map is that derivation. No Mission's
+    ``occurrence_map.yaml`` is read (#2358).
 
-    Only moves whose ``from`` is a **currently-published** ``docs/`` path can change
-    a baseline (public) URL. Internal relocations that were *never* published —
-    ``architecture/**`` folds, the ``architecture/adrs`` era-less ADRs, the
-    ``CHANGELOG.md`` relocate-with-alias — have **no public URL to preserve** and so
-    yield no redirect entry (verified against ``docs/docfx.json``'s content globs /
-    the baseline). Their continuity is an *internal-link* concern handled by the
-    move WPs' ``targeted_ref_updates``, not a ``<meta refresh>`` stub.
+``site/url-baseline.txt``
+    Every route the site has published. ``coverage`` asserts each one resolves
+    on the built site, directly or through a stub to a live target, and refuses
+    an empty baseline. ``baseline-drift`` reports published pages missing from
+    it, without failing.
 
-``generate(redirect_map, site_dir)``
-    For each ``old -> new`` emit a stub at ``old`` inside ``_site`` pointing at
-    ``new``. A stub is emitted **only** when ``new`` resolves to a live page — **no
-    stub may point at a 404** (the no-404 invariant). Entries whose target is
-    missing are returned as ``dead_targets`` and fail CI.
+Subcommands:
 
-``check_coverage(baseline, redirect_map, site_dir)``
-    A baseline URL is **covered** iff it resolves directly (page still present) OR a
-    stub exists at that path pointing to a live target. Returns the ``uncovered``
-    list; the contract is ``uncovered == []`` (NFR-002, 100%). The check is
-    **non-vacuous**: it asserts the loaded baseline is non-empty, so it can never
-    silently pass against an empty denominator.
+``generate``
+    For each ``old -> new`` of ``redirect_map.yaml``, emit a stub at ``old``
+    inside ``_site``. A stub is emitted **only** when ``new`` resolves to a live
+    page. Entries whose target is missing are returned as ``dead_targets`` and
+    fail CI.
 
-**No live build locally.** DocFX/.NET is CI-only, so ``redirect_map.yaml`` is
-derived structurally from the source tree + committed manifests (as WP02 did); the
-real ``_site`` injection + coverage gate run in ``.github/workflows/docs-pages.yml``
-between the ``Build documentation`` and ``Upload artifact`` steps.
+``coverage`` / ``baseline-drift`` / ``regenerate-map`` / ``check-map``
+    As above. ``.github/workflows/docs-pages.yml`` runs ``generate``,
+    ``coverage`` and ``baseline-drift`` between ``Build documentation`` and
+    ``Upload artifact``.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+# ``python3 scripts/docs/redirect_stub_generator.py`` puts ``scripts/docs/`` on
+# ``sys.path``, not the repository root; anchor it so the shared ledger module
+# resolves the same way under pytest and under the deploy job.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from scripts.docs.capture_baseline_urls import (  # noqa: E402  (sys.path bootstrap above)
+    DEFAULT_DOCFX_JSON,
+    DEFAULT_DOCS_DIR,
+    derive_urls_from_source,
+    urls_from_site,
+)
+from scripts.docs.moves_ledger import (  # noqa: E402  (sys.path bootstrap above)
+    DEFAULT_MOVES_LEDGER,
+    DEFAULT_URL_BASELINE,
+    derive_redirect_map,
+    load_moves,
+    validate,
+)
+from scripts.docs.moves_ledger import (  # noqa: E402  (sys.path bootstrap above)
+    load_baseline as load_baseline_ledger,
+)
+
 # --- Canonical constants ----------------------------------------------------
 
-# Published site root. Mirrors ``_siteUrl`` in ``docs/docfx.json`` and the
-# ``site_url`` recorded in WP02's baseline manifest.
+# Published site root. Mirrors ``_siteUrl`` in ``docs/docfx.json``.
 SITE_URL = "https://docs.spec-kitty.ai/"
 
-MD_SUFFIX = ".md"
 HTML_SUFFIX = ".html"
-DOCS_PREFIX = "docs/"
+JSON_SUFFIX = ".json"
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_BASELINE = _REPO_ROOT / "scripts" / "docs" / "redirect_baseline_urls.json"
+DEFAULT_BASELINE = DEFAULT_URL_BASELINE
 DEFAULT_REDIRECT_MAP = _REPO_ROOT / "scripts" / "docs" / "redirect_map.yaml"
 DEFAULT_SITE_DIR = _REPO_ROOT / "docs" / "_site"
 
-# The derivation reads a mission's ``occurrence_map.yaml`` ``moves:`` spine. The
-# default points at the CURRENTLY-ACTIVE convergence mission, whose map is a
-# *collapsed cumulative spine* (it carries the closed structural-move mission's
-# entries forward — see that map's header), so a default-driven regen reproduces
-# every prior redirect entry plus the new ones with no coverage regression. The
-# closed ``common-docs-structural-move-01KW3SBK`` default was retired here so no
-# invocation silently regenerates against the stale closed map (WP03 T009).
-# IC-11 / the PR gates always pass ``--occurrence-map <this mission>`` explicitly;
-# the constant only governs an argument-less invocation.
-MISSION_SLUG = "common-docs-convergence-01KZMTR9"
-DEFAULT_OCCURRENCE_MAP = (
-    _REPO_ROOT / "kitty-specs" / MISSION_SLUG / "occurrence_map.yaml"
-)
+# Routes a site walk sees that are not pages of the baseline: the generated
+# Mission dashboards (dropped, ADR D-5) and DocFX's navigation fragment.
+_WALK_EXCLUDED_PREFIXES = ("kitty-specs/",)
+_WALK_EXCLUDED_PAGES = frozenset({"toc.html"})
 
 REDIRECT_MAP_HEADER = (
     "# Redirect map — DocFX has no native redirect; each old->new preserves a\n"
     "# moved published URL via a <meta http-equiv=\"refresh\"> stub (FR-006).\n"
     "#\n"
-    "# SINGLE-WRITER (WP07-owned): DERIVED, do not hand-edit. Regenerate with\n"
+    "# DERIVED, do not hand-edit. Record a move in site/moves.yaml, then run\n"
     "#   python3 scripts/docs/redirect_stub_generator.py regenerate-map\n"
-    "# from the committed baseline manifest + occurrence_map.yaml `moves:` spine.\n"
-    "# Keys/values are site-relative published-URL paths.\n"
+    "# Keys/values are site-relative published-URL paths; chains are collapsed.\n"
 )
 
 STUB_TEMPLATE = """\
@@ -114,14 +115,6 @@ STUB_TEMPLATE = """\
 # --- Data structures --------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class Move:
-    """One ``occurrence_map.yaml`` ``moves:`` entry (``from`` paths -> ``to``)."""
-
-    sources: tuple[str, ...]
-    dest: str
-
-
 @dataclass
 class GenerateResult:
     """Outcome of :func:`generate`.
@@ -138,18 +131,26 @@ class GenerateResult:
 # --- Input loading ----------------------------------------------------------
 
 
-def load_baseline(manifest_path: Path) -> tuple[str, list[str]]:
-    """Return ``(site_url, url_paths)`` from WP02's baseline manifest.
+def load_baseline(baseline_path: Path) -> tuple[str, list[str]]:
+    """Return ``(site_url, url_paths)`` from a baseline.
 
-    ``url_paths`` are site-relative (the ``site_url`` prefix stripped), sorted and
-    de-duplicated, so they line up with paths inside ``_site``.
+    Reads ``site/url-baseline.txt`` (the standing ledger) or, by its ``.json``
+    suffix, the retired 180-URL manifest. ``url_paths`` are site-relative without
+    a leading slash, sorted and de-duplicated, so they line up with paths inside
+    ``_site``.
+    """
+    if baseline_path.suffix == JSON_SUFFIX:
+        return _load_json_manifest(baseline_path)
+    routes = load_baseline_ledger(baseline_path)
+    return SITE_URL, sorted({route.lstrip("/") for route in routes})
 
-    Fails loud on a non-``.html`` entry: the NFR-002 baseline universe is
-    restricted to *redirect-protectable* URLs, and a ``<meta refresh>`` stub is
-    an HTML mechanism — a verbatim resource URL (e.g. a resource-block ``*.md``
-    copied as-is) cannot be redirect-protected, so its presence in the baseline
-    is a capture/amendment defect, not a coverable entry (see the
-    ``capture_baseline_urls`` module docstring for the two-role split).
+
+def _load_json_manifest(manifest_path: Path) -> tuple[str, list[str]]:
+    """The retired JSON manifest; fails loud on a non-``.html`` entry.
+
+    The baseline universe is restricted to *redirect-protectable* URLs: a
+    ``<meta refresh>`` stub is an HTML mechanism, so a verbatim resource URL in
+    the manifest is a capture or amendment defect, not a coverable entry.
     """
     data: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
     site_url = str(data.get("site_url", SITE_URL))
@@ -166,20 +167,6 @@ def load_baseline(manifest_path: Path) -> tuple[str, list[str]]:
     return site_url, sorted(paths)
 
 
-def load_moves(occurrence_map_path: Path) -> list[Move]:
-    """Return the ``moves:`` spine from an ``occurrence_map.yaml``."""
-    data: dict[str, Any] = yaml.safe_load(
-        occurrence_map_path.read_text(encoding="utf-8")
-    )
-    moves: list[Move] = []
-    for raw in data.get("moves", []) or []:
-        sources = tuple(str(s) for s in raw.get("from", []))
-        dest = str(raw.get("to", "")).rstrip("/")
-        if sources and dest:
-            moves.append(Move(sources=sources, dest=dest))
-    return moves
-
-
 def load_redirect_map(redirect_map_path: Path) -> dict[str, str]:
     """Load the committed redirect map (``{old_url_path: new_url_path}``)."""
     raw = yaml.safe_load(redirect_map_path.read_text(encoding="utf-8")) or {}
@@ -190,80 +177,17 @@ def _strip_site(url: str, site_url: str) -> str:
     return url[len(site_url):] if url.startswith(site_url) else url
 
 
-# --- Redirect-map derivation (single-writer) --------------------------------
+def published_routes(docs_dir: Path = DEFAULT_DOCS_DIR, docfx_json: Path = DEFAULT_DOCFX_JSON) -> set[str]:
+    """Routes (leading ``/``) of the ``.html`` pages the docs source tree publishes."""
+    urls = derive_urls_from_source(docs_dir, docfx_json)
+    return {
+        f"/{path}"
+        for path in (_strip_site(u, SITE_URL) for u in urls)
+        if path.endswith(HTML_SUFFIX) and not path.startswith(_WALK_EXCLUDED_PREFIXES)
+    }
 
 
-def _url_path_to_repo_paths(url_path: str) -> tuple[str, ...]:
-    """Map a published URL path back to its candidate ``docs/`` source path(s).
-
-    Content pages publish ``docs/<rel>.md`` -> ``<rel>.html``; standalone
-    resources (``1x``/``2x``/``assets``) publish ``docs/<rel>.html`` as-is. We
-    return both candidate shapes so move-matching works for either.
-    """
-    repo_html = f"{DOCS_PREFIX}{url_path}"
-    if repo_html.endswith(HTML_SUFFIX):
-        repo_md = f"{repo_html[: -len(HTML_SUFFIX)]}{MD_SUFFIX}"
-        return (repo_md, repo_html)
-    return (repo_html,)
-
-
-def _relocate(repo_path: str, moves: list[Move]) -> str | None:
-    """Return the new repo path if a move relocates ``repo_path``, else ``None``."""
-    for move in moves:
-        for src in move.sources:
-            if repo_path == src:
-                # An explicit file-path `dest` (rename, not just relocate) is
-                # used as-is; a directory `dest` preserves the source's
-                # basename under the new location.
-                if move.dest.endswith(MD_SUFFIX):
-                    return move.dest
-                return f"{move.dest}/{Path(src).name}"
-            prefix = f"{src.rstrip('/')}/"
-            if repo_path.startswith(prefix):
-                return f"{move.dest}/{repo_path[len(prefix):]}"
-    return None
-
-
-def _repo_path_to_url_path(repo_path: str) -> str | None:
-    """Convert a ``docs/`` source path to its published URL path, or ``None``.
-
-    A source path that no longer lives under ``docs/`` has no published page to
-    redirect to (it left the public tree), so it cannot back a stub.
-    """
-    if not repo_path.startswith(DOCS_PREFIX):
-        return None
-    rel = repo_path[len(DOCS_PREFIX):]
-    if rel.endswith(MD_SUFFIX):
-        rel = f"{rel[: -len(MD_SUFFIX)]}{HTML_SUFFIX}"
-    return rel
-
-
-def derive_redirect_map(
-    baseline_url_paths: list[str],
-    moves: list[Move],
-) -> dict[str, str]:
-    """Derive ``{old_url_path: new_url_path}`` from baseline URLs + the move spine.
-
-    For each baseline (published) URL, find a move that relocates its source path
-    *within the published tree* and record old->new when the URL actually changes.
-    Driven purely by the two committed, immutable inputs, so the result is
-    deterministic and diff-stable across the mission's timeline.
-    """
-    mapping: dict[str, str] = {}
-    for url_path in baseline_url_paths:
-        new_url = _resolve_new_url(url_path, moves)
-        if new_url is not None and new_url != url_path:
-            mapping[url_path] = new_url
-    return dict(sorted(mapping.items()))
-
-
-def _resolve_new_url(url_path: str, moves: list[Move]) -> str | None:
-    for repo_path in _url_path_to_repo_paths(url_path):
-        new_repo = _relocate(repo_path, moves)
-        if new_repo is None:
-            continue
-        return _repo_path_to_url_path(new_repo)
-    return None
+# --- Redirect-map rendering (single-writer) ---------------------------------
 
 
 def render_redirect_map(mapping: dict[str, str]) -> str:
@@ -322,7 +246,7 @@ def check_coverage(
     redirect_map: dict[str, str],
     site_dir: Path,
 ) -> list[str]:
-    """Return the baseline URLs that are **not** covered post-move.
+    """Return the baseline URLs that are **not** covered on the built site.
 
     Covered iff the URL resolves directly (page present) OR a stub exists at that
     path pointing to a live target. Caller is responsible for asserting the
@@ -343,6 +267,23 @@ def check_coverage(
     return uncovered
 
 
+def baseline_drift(baseline_url_paths: list[str], site_dir: Path) -> list[str]:
+    """Pages published in ``site_dir`` that the baseline does not list.
+
+    Excludes the generated Mission dashboards and DocFX's ``toc.html``, which are
+    outside the baseline by design (ADR D-5).
+    """
+    listed = set(baseline_url_paths)
+    walked = (_strip_site(u, SITE_URL) for u in urls_from_site(site_dir, SITE_URL))
+    return sorted(
+        path
+        for path in walked
+        if path not in listed
+        and path not in _WALK_EXCLUDED_PAGES
+        and not path.startswith(_WALK_EXCLUDED_PREFIXES)
+    )
+
+
 def assert_non_vacuous(baseline_url_paths: list[str]) -> None:
     """Guard against a false-green coverage check over an empty baseline."""
     if not baseline_url_paths:
@@ -355,35 +296,39 @@ def assert_non_vacuous(baseline_url_paths: list[str]) -> None:
 # --- CLI --------------------------------------------------------------------
 
 
-def _default_occurrence_map() -> Path | None:
-    """Resolve the mission's ``occurrence_map.yaml`` (the move spine source)."""
-    return DEFAULT_OCCURRENCE_MAP if DEFAULT_OCCURRENCE_MAP.is_file() else None
+def _derive_checked(moves_path: Path) -> tuple[dict[str, str], list[str]]:
+    """Derive the map from the ledger and list its problems against the source tree."""
+    mapping = derive_redirect_map(load_moves(moves_path))
+    return mapping, validate(mapping, published_routes())
+
+
+def _print_problems(problems: list[str]) -> None:
+    print("ERROR: the moves ledger derives an unsafe redirect map:")
+    for problem in problems:
+        print(f"  {problem}")
 
 
 def _cmd_regenerate_map(args: argparse.Namespace) -> int:
-    occ = args.occurrence_map or _default_occurrence_map()
-    if occ is None:
-        print("ERROR: could not resolve occurrence_map.yaml; pass --occurrence-map")
-        return 2
-    _, baseline = load_baseline(args.baseline)
-    mapping = derive_redirect_map(baseline, load_moves(occ))
+    mapping, problems = _derive_checked(args.moves)
+    if problems:
+        _print_problems(problems)
+        return 1
     write_redirect_map(args.redirect_map, mapping)
     print(f"wrote {len(mapping)} redirect entries -> {args.redirect_map}")
     return 0
 
 
 def _cmd_check_map(args: argparse.Namespace) -> int:
-    occ = args.occurrence_map or _default_occurrence_map()
-    if occ is None:
-        print("ERROR: could not resolve occurrence_map.yaml; pass --occurrence-map")
-        return 2
-    _, baseline = load_baseline(args.baseline)
-    derived = derive_redirect_map(baseline, load_moves(occ))
+    derived, problems = _derive_checked(args.moves)
+    if problems:
+        _print_problems(problems)
+        return 1
     committed = load_redirect_map(args.redirect_map)
     if derived != committed:
+        stale = sorted(set(derived.items()) ^ set(committed.items()))
         print("ERROR: redirect_map.yaml is stale — re-run `regenerate-map`.")
-        print(f"  derived={derived}")
-        print(f"  committed={committed}")
+        for old, new in stale[:20]:
+            print(f"  {old} -> {new}")
         return 1
     print(f"redirect_map.yaml is fresh ({len(committed)} entries).")
     return 0
@@ -419,6 +364,18 @@ def _cmd_coverage(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_baseline_drift(args: argparse.Namespace) -> int:
+    _, baseline = load_baseline(args.baseline)
+    missing = baseline_drift(baseline, args.site_dir)
+    for path in missing:
+        print(
+            f"::warning title=URL baseline::/{path} is published but not in "
+            "site/url-baseline.txt; append it in the PR that publishes it."
+        )
+    print(f"baseline drift: {len(missing)} published page(s) missing from the baseline.")
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -427,12 +384,13 @@ def _build_parser() -> argparse.ArgumentParser:
         ("check-map", _cmd_check_map),
         ("generate", _cmd_generate),
         ("coverage", _cmd_coverage),
+        ("baseline-drift", _cmd_baseline_drift),
     ):
         sp = sub.add_parser(name)
         sp.add_argument("--baseline", type=Path, default=DEFAULT_BASELINE)
         sp.add_argument("--redirect-map", type=Path, default=DEFAULT_REDIRECT_MAP)
         sp.add_argument("--site-dir", type=Path, default=DEFAULT_SITE_DIR)
-        sp.add_argument("--occurrence-map", type=Path, default=None)
+        sp.add_argument("--moves", type=Path, default=DEFAULT_MOVES_LEDGER)
         sp.set_defaults(handler=handler)
     return parser
 
