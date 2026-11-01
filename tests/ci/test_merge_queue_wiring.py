@@ -102,14 +102,18 @@ def test_the_queue_triggered_set_is_the_required_producers() -> None:
 def test_event_keyed_diff_bases_handle_merge_group(workflow: str) -> None:
     if workflow == "<none>":
         pytest.fail("no workflow triggers on merge_group")
-    steps = _event_case_steps(_load(workflow))
-    for where, step in steps:
-        arms = set(_CASE_ARM_RE.findall(str(step["run"])))
+    for where, step in _event_case_steps(_load(workflow)):
+        run = str(step["run"])
+        arms = set(_CASE_ARM_RE.findall(run))
         if "push" not in arms:
             continue
-        assert MERGE_GROUP in arms, f"{workflow} {where}: picks a diff base for push but not merge_group"
+        assert re.search(r'^\s*merge_group\)\s*base="\$MERGE_GROUP_BASE"\s*;;', run, re.MULTILINE), (
+            f"{workflow} {where}: the merge_group arm must take the queue's base SHA"
+        )
         env = {str(key): str(value) for key, value in (step.get("env") or {}).items()}
-        assert any("github.event.merge_group.base_sha" in value for value in env.values()), f"{workflow} {where}: no merge_group base SHA in env"
+        assert " ".join(env.get("MERGE_GROUP_BASE", "").split()) == "${{ github.event.merge_group.base_sha }}", (
+            f"{workflow} {where}: MERGE_GROUP_BASE must be github.event.merge_group.base_sha"
+        )
 
 
 def test_the_diff_base_steps_are_found() -> None:
@@ -121,8 +125,34 @@ def test_the_diff_base_steps_are_found() -> None:
 _SKIP_QUEUE = "github.event.workflow_run.event != 'merge_group'"
 
 
+def _top_level_conjuncts(condition: str) -> list[str]:
+    """Split an ``if:`` on ``&&`` outside parentheses, so a conjunct inside an ``||`` never counts."""
+    text = " ".join(condition.split())
+    match = re.fullmatch(r"\$\{\{\s*(.*?)\s*\}\}", text)
+    text = match.group(1) if match else text
+    parts: list[str] = []
+    depth, start, index = 0, 0, 0
+    while index < len(text):
+        char = text[index]
+        depth += {"(": 1, ")": -1}.get(char, 0)
+        if depth == 0 and text.startswith("&&", index):
+            parts.append(text[start:index].strip())
+            start = index + 2
+            index += 2
+            continue
+        index += 1
+    parts.append(text[start:].strip())
+    return parts
+
+
 @pytest.mark.parametrize("job", ["collect", "diff-cover", "aggregate-gate"])
 def test_ci_aggregate_skips_merge_group_sources(job: str) -> None:
-    condition = " ".join(str(_load("ci-aggregate.yml")["jobs"][job]["if"]).split())
-    assert _SKIP_QUEUE in condition, f"ci-aggregate {job} would run on a merge-group CI Modules run"
+    condition = str(_load("ci-aggregate.yml")["jobs"][job]["if"])
+    assert _SKIP_QUEUE in _top_level_conjuncts(condition), f"ci-aggregate {job} would run on a merge-group CI Modules run"
 
+
+def test_the_conjunct_split_ignores_a_skip_inside_an_or() -> None:
+    """Non-vacuity of the check above: a skip nested in an ``||`` is not a top-level conjunct."""
+    nested = f"(a == 'b' || {_SKIP_QUEUE}) && always()"
+    assert _SKIP_QUEUE not in _top_level_conjuncts(nested)
+    assert _SKIP_QUEUE in _top_level_conjuncts(f"(a == 'b') && {_SKIP_QUEUE} && always()")
