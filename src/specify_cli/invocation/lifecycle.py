@@ -3,14 +3,23 @@
 This module manages the local append-only store for paired
 `ProfileInvocationRecord` lifecycle entries written by ``spec-kitty next``.
 
-Storage layout
---------------
-- One JSONL file at ``kitty-ops/lifecycle.jsonl``.
-- Each line is a single ``ProfileInvocationRecord`` (sorted-key JSON, see
-  ``record.ProfileInvocationRecord.to_json_line``).
-- Append-only — a second ``started`` record for the same
-  ``canonical_action_id`` is preserved as its own line; nothing is silently
-  overwritten.
+Storage layout (#7003)
+----------------------
+- One file per record at ``kitty-ops/lifecycle/<ulid>.json``, holding a single
+  ``ProfileInvocationRecord`` line (sorted-key JSON, see
+  ``record.ProfileInvocationRecord.to_json_line``). No two branches ever write
+  the same file, so two Mission PRs never conflict on the lifecycle store.
+- The legacy log ``kitty-ops/lifecycle.jsonl`` (one record per line) stays
+  readable and is never written again. It is not migrated.
+- Append-only: a record file is created once and never rewritten; a second
+  ``started`` record for the same ``canonical_action_id`` is its own file.
+
+Read order
+----------
+:func:`read_lifecycle_records` returns the legacy log's lines in insertion
+order first, then the per-record files sorted by (``at`` as UTC, ulid). The
+ulid is generated monotonically within one process, so two records with the
+same ``at`` keep their write order.
 
 Pairing semantics
 -----------------
@@ -29,25 +38,74 @@ and ``data-model.md`` §4.
 
 from __future__ import annotations
 
-from kernel.event_log_append import append_event_log_lines
+from kernel.event_log_append import EventLogAppendError, append_event_log_lines
 from kernel.clock import UTC, datetime, now_utc
 import json
+import threading
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+
+from ulid import ULID
 
 from specify_cli.invocation.record import (
     ProfileInvocationPhase,
     ProfileInvocationRecord,
 )
 
+#: The legacy shared log: read-only since #7003, kept readable, never migrated.
 LIFECYCLE_LOG_RELATIVE_PATH = Path("kitty-ops") / "lifecycle.jsonl"
+#: The one-file-per-record directory every new record is written to (#7003).
+LIFECYCLE_RECORDS_RELATIVE_DIR = Path("kitty-ops") / "lifecycle"
+#: Suffix of a per-record file: ``<ulid>.json``.
+LIFECYCLE_RECORD_SUFFIX = ".json"
+
+_ULID_LOCK = threading.Lock()
+_last_record_id: ULID | None = None
+
+
+class LifecycleRecordExistsError(EventLogAppendError):
+    """A per-record file already holds content; a record file is never rewritten."""
 
 
 def lifecycle_log_path(repo_root: Path) -> Path:
-    """Return the absolute path of the lifecycle JSONL log under ``repo_root``."""
+    """Return the absolute path of the legacy lifecycle JSONL log under ``repo_root``."""
     return repo_root / LIFECYCLE_LOG_RELATIVE_PATH
+
+
+def lifecycle_records_dir(repo_root: Path) -> Path:
+    """Return the absolute path of the per-record lifecycle directory under ``repo_root``."""
+    return repo_root / LIFECYCLE_RECORDS_RELATIVE_DIR
+
+
+def lifecycle_record_files(repo_root: Path) -> frozenset[Path]:
+    """Return every per-record file currently under ``repo_root``'s record directory."""
+    directory = lifecycle_records_dir(repo_root)
+    if not directory.is_dir():
+        return frozenset()
+    return frozenset(path for path in directory.glob(f"*{LIFECYCLE_RECORD_SUFFIX}") if path.is_file())
+
+
+def _new_record_id() -> str:
+    """Return a ULID that sorts after every one this process issued before.
+
+    A plain ULID is random within one millisecond, so two records written in
+    the same millisecond could sort out of write order. The read order breaks
+    an ``at`` tie on the ulid, so it must follow write order.
+    """
+    global _last_record_id
+    with _ULID_LOCK:
+        candidate = ULID()
+        if _last_record_id is not None and candidate.bytes <= _last_record_id.bytes:
+            candidate = ULID.from_int(int(_last_record_id) + 1)
+        _last_record_id = candidate
+        return str(candidate)
+
+
+def _refuse_existing_content(existing: bytes) -> None:
+    if existing:
+        raise LifecycleRecordExistsError("lifecycle record file already exists; a record is never rewritten")
 
 
 # ---------------------------------------------------------------------------
@@ -56,41 +114,81 @@ def lifecycle_log_path(repo_root: Path) -> Path:
 
 
 def append_lifecycle_record(repo_root: Path, record: ProfileInvocationRecord) -> Path:
-    """Append a record to the lifecycle log; return the path written.
+    """Write ``record`` to its own ``kitty-ops/lifecycle/<ulid>.json``; return that path.
 
-    Creates the parent directory if missing. Append-only: never rewrites or
-    removes an existing line.
+    Creates the directory if missing. Append-only: the file is new, and a
+    name that already holds content refuses (:class:`LifecycleRecordExistsError`)
+    with nothing written. The legacy ``lifecycle.jsonl`` is never written.
     """
-    path = lifecycle_log_path(repo_root)
+    directory = lifecycle_records_dir(repo_root)
+    path = directory / f"{_new_record_id()}{LIFECYCLE_RECORD_SUFFIX}"
     # interim-locked-append: retires at the #6193 handover (kernel.event_log_append).
-    append_event_log_lines(path, [record.to_json_line()], create_parents=True)
+    # One family lock on the record directory, so lock files do not grow with records.
+    append_event_log_lines(
+        path,
+        [record.to_json_line()],
+        lock_anchor=directory,
+        create_parents=True,
+        no_follow=True,
+        precondition=_refuse_existing_content,
+    )
     return path
 
 
 def read_lifecycle_records(repo_root: Path) -> list[ProfileInvocationRecord]:
-    """Return all lifecycle records in chronological (insertion) order.
+    """Return all lifecycle records: legacy lines first, then per-record files.
 
-    Returns ``[]`` when the log does not exist. Skips malformed lines rather
-    than raising — a corrupt line is preferable as a doctor signal than an
-    aborted CLI command.
+    The legacy ``lifecycle.jsonl`` lines come in insertion order; the
+    per-record files follow, sorted by (``at`` as UTC, ulid). Returns ``[]``
+    when neither exists. Skips malformed lines and files rather than raising
+    — a corrupt record is preferable as a doctor signal than an aborted CLI
+    command.
     """
-    path = lifecycle_log_path(repo_root)
-    if not path.exists():
+    return _read_legacy_records(lifecycle_log_path(repo_root)) + _read_record_files(lifecycle_records_dir(repo_root))
+
+
+def _parse_record_line(line: str) -> ProfileInvocationRecord | None:
+    if not line.strip():
+        return None
+    try:
+        return ProfileInvocationRecord.from_dict(json.loads(line))
+    except (json.JSONDecodeError, KeyError, ValueError, TypeError, AttributeError):
+        # Tolerate corrupt/unknown content — doctor will surface it via the
+        # orphan check or other diagnostics rather than crashing the caller.
+        return None
+
+
+def _read_text_or_none(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+
+
+def _read_legacy_records(path: Path) -> list[ProfileInvocationRecord]:
+    raw = _read_text_or_none(path) if path.is_file() else None
+    if raw is None:
         return []
-    out: list[ProfileInvocationRecord] = []
-    raw = path.read_text(encoding="utf-8")
-    for line in raw.splitlines():
-        if not line.strip():
-            continue
-        try:
-            data = json.loads(line)
-            out.append(ProfileInvocationRecord.from_dict(data))
-        except (json.JSONDecodeError, KeyError, ValueError):
-            # Tolerate corrupt/unknown lines — doctor will surface them via
-            # the orphan check or other diagnostics rather than crashing the
-            # caller mid-issue.
-            continue
-    return out
+    parsed = (_parse_record_line(line) for line in raw.splitlines())
+    return [record for record in parsed if record is not None]
+
+
+def _utc_at(record: ProfileInvocationRecord) -> datetime:
+    at: datetime = record.at
+    return at.replace(tzinfo=UTC) if at.tzinfo is None else at.astimezone(UTC)
+
+
+def _read_record_files(directory: Path) -> list[ProfileInvocationRecord]:
+    if not directory.is_dir():
+        return []
+    keyed: list[tuple[datetime, str, ProfileInvocationRecord]] = []
+    for path in directory.glob(f"*{LIFECYCLE_RECORD_SUFFIX}"):
+        raw = _read_text_or_none(path) if path.is_file() else None
+        record = _parse_record_line(raw) if raw is not None else None
+        if record is not None:
+            keyed.append((_utc_at(record), path.stem, record))
+    keyed.sort(key=lambda entry: (entry[0], entry[1]))
+    return [record for _, _, record in keyed]
 
 
 # ---------------------------------------------------------------------------
