@@ -262,21 +262,26 @@ def test_select_modules_selects_the_ci_module_on_ci_infra_change(router: Router)
     assert "ci" in select_modules([".github/workflows/ci-modules.yml"], router=router)
 
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        "services/mission-status-api/build.gradle.kts",
-        "services/mission-status-api/gradle/libs.versions.toml",
-        "services/mission-status-api/gradle/wrapper/gradle-wrapper.properties",
-        "services/mission-status-api/.gitattributes",
-    ],
-)
-def test_a_services_only_diff_selects_the_ci_module(router: Router, path: str) -> None:
-    """#5529 landing review B: tests/ci/test_mission_status_api_build.py pins the service's build inputs, and its only
-    per-PR home is the ``ci`` module shard. A diff confined to services/mission-status-api/ must select that module, or the
-    pins never run on the PR that breaks them (the service workflow runs no pytest by design)."""
-    assert select_modules([path], router=router) == frozenset({"ci"})
-    assert not select_gates([path], router=router).unmatched_src
+PINS_ONLY_PATH = "pins/read-service.source.yaml"
+
+
+def test_a_pins_only_diff_selects_the_ci_module_and_the_contract_tests(router: Router) -> None:
+    """#6915: the contract bundle, tools and conformance fixtures the contract, corpus and glossary suites read are the
+    spec-kitty-events extras named by ``pins/*.source.yaml``. A pin bump changes what those suites read, so a diff confined
+    to the pin must select the ``ci`` module (the pin gate and the sync tests), the glossary module (the torn-tail goldens)
+    and both router jobs that run tests/contract; it is not src, so it never reaches the fail-closed catch-all."""
+    assert (_REPO_ROOT / PINS_ONLY_PATH).is_file(), "control: the read-service pin is committed"
+    contract_jobs = frozenset(job for job, groups in router.job_gates.items() if "contract_tools" in groups)
+    assert "tests-contract-tools" in contract_jobs, "non-vacuity: the contract-tools router job gates on the group"
+
+    selection = select_gates([PINS_ONLY_PATH], router=router)
+
+    assert {"ci", "contract_tools", "corpus", "glossary"} <= selection.matched_groups
+    assert contract_jobs | {"tests-corpus-blocking"} <= selection.selected_jobs
+    assert {"ci", "glossary"} <= select_modules([PINS_ONLY_PATH], router=router)
+    assert not selection.unmatched_src
+    unrelated = select_gates(["docs/index.md"], router=router)
+    assert not contract_jobs & unrelated.selected_jobs, "control: a docs-only diff does not run the contract tests"
 
 
 def test_manifest_edit_cannot_mask_an_unmapped_src_change(router: Router) -> None:
