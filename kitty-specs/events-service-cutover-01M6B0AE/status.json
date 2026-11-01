@@ -66,7 +66,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Reader tests/pinned_service_assets.py (fail closed, real-env cache); conformance/artifact/torn-tail goldens read the pinned fixtures; generators keep --write behind --root (events regenerates with core's oracle; see design-decisions tracer). pytest test_pinned_service_assets + artifact_goldens + torn_tail + conformance: 82 passed.",
-        "Review cycle 1 folded: conformance docstring no longer names services/; torn-tail failure hint names the events-side regenerate command; artifact --check without --root fails closed via pinned_extra. 29 passed (reader, artifact goldens, torn-tail); conformance file docstring-only."
+        "Review cycle 1 folded: conformance docstring no longer names services/; torn-tail failure hint names the events-side regenerate command; artifact --check without --root fails closed via pinned_extra. 29 passed (reader, artifact goldens, torn-tail); conformance file docstring-only.",
+        "Review passed (cycle 2): cycle-1 findings folded in 386fef2c; 82 passed incl. with services/ moved aside; fail-closed SERVICE_* verified; ruff/format clean; mypy only pre-existing"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
