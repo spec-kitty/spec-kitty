@@ -60,6 +60,15 @@ Use this checklist for releases from `main`.
   ```bash
   spec-kitty charter pack vendor --check
   ```
+- [ ] Verify the service pins (run BEFORE building; fails on drift). The first command checks
+  `pins/read-service.source.yaml` online against the release's `SHA256SUMS`; the other two fetch the
+  pinned assets and verify them. The wheel ships the pins only, never a service binary
+  (ADR `2026-10-29-1` D-4); the release workflow asserts that on the built wheel.
+  ```bash
+  spec-kitty service vendor --service read-service --check
+  make sync-services
+  make sync-services ARGS=--check
+  ```
 - [ ] Build the package and verify metadata:
   ```bash
   python -m build

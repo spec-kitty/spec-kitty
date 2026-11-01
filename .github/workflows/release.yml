@@ -186,6 +186,15 @@ jobs:
       - name: Verify the fetched packs equal their pins (fail-closed on drift)
         run: uv run --frozen --no-sync python scripts/sync_packs.py --pack all --check
 
+      # #6915: the pinned spec-kitty-events service assets (pins/*.source.yaml): this host's native build (~95 MB, once
+      # per release) and the extras. A digest mismatch exits 1 here, before anything is built. The wheel ships the pins
+      # only, never a service binary (ADR 2026-10-29-1 D-4; asserted in "Verify wheel contents").
+      - name: Fetch the pinned service assets
+        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_services.py --service all
+
+      - name: Verify the fetched service assets equal their pins (fail-closed on drift)
+        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/sync_services.py --service all --check
+
       - name: Build distributions
         run: python -m build
 
@@ -272,6 +281,19 @@ jobs:
           fi
 
           echo "✅ Wheel contains all $SOURCE_DOCTRINE_COUNT doctrine files and $SOURCE_SKILL_COUNT bundled skills"
+          echo "::endgroup::"
+
+          echo "::group::Verifying the service pins in wheel (pins only, never a service binary)"
+          python - <<'PY'
+          import fnmatch, glob, zipfile
+          names = zipfile.ZipFile(glob.glob("dist/*.whl")[0]).namelist()
+          if "specify_cli/_pins/read-service.source.yaml" not in names:
+              raise SystemExit("::error::the wheel lacks specify_cli/_pins/read-service.source.yaml")
+          binaries = [n for n in names if any(fnmatch.fnmatch(n.rsplit("/", 1)[-1], p) for p in ("mission-status-api-*", "command-cli-*", "*.jar", "*.exe"))]
+          if binaries:
+              raise SystemExit(f"::error::the wheel ships service binaries: {binaries}")
+          print("✅ Wheel ships the read-service pin and no service binary")
+          PY
           echo "::endgroup::"
 
       - name: Generate CycloneDX SBOM
