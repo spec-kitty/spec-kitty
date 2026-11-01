@@ -10,17 +10,13 @@ requirement_refs:
 - C-005
 - C-006
 - SC-006
-tracker_refs: []
 planning_base_branch: issue-6931-frontmatter-contract
 merge_target_branch: issue-6931-frontmatter-contract
-branch_strategy: Planning artifacts were generated on issue-6931-frontmatter-contract. Completed changes merge back into that branch.
+branch_strategy: Planning artifacts for this mission were generated on issue-6931-frontmatter-contract. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6931-frontmatter-contract unless the human explicitly redirects the landing branch.
 subtasks:
 - T013
 - T014
 phase: Phase 5 - Wrap-up
-assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: ""
 history:
 - at: '2026-11-01T15:40:00Z'
   actor: system
@@ -37,6 +33,7 @@ owned_files:
 role: implementer
 tags: []
 task_type: implement
+tracker_refs: []
 ---
 
 # Work Package Prompt: WP05 – Changelog, gate docs, recorded deferral

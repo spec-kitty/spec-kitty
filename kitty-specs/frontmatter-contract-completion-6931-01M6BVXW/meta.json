@@ -11,6 +11,6 @@
   "purpose_context": "This mission advances frontmatter contract completion 6931 on main so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "frontmatter contract completion 6931",
   "slug": "frontmatter-contract-completion-6931-01M6BVXW",
-  "target_branch": "main",
+  "target_branch": "issue-6931-frontmatter-contract",
   "topology": "coord"
 }
