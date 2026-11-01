@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -306,6 +307,13 @@ def test_verify_against_flags_a_body_change_only(tmp_path: Path, capsys: pytest.
     (repo / "docs" / "b.md").rename(repo / "docs" / "c.md")
     commit_all_changes(repo, "rename")
     assert mig.verify_against(repo_root=repo, ref=base) == ["docs/c.md"]
+    # A later body change on the ref's own line is not this branch's: measured from the merge-base.
+    subprocess.run(["git", "checkout", "-q", "-b", "side", base], cwd=repo, check=True)
+    _write(repo, "docs/a.md", "---\ntitle: A\n---\nbody moved on main\n")
+    commit_all_changes(repo, "main moves on")
+    side = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
+    subprocess.run(["git", "checkout", "-q", "-"], cwd=repo, check=True)
+    assert mig.verify_against(repo_root=repo, ref=side) == ["docs/c.md"]
     assert mig.main(["--repo-root", str(repo), "--verify-against", base]) == 1
     assert "docs/c.md" in capsys.readouterr().out
 

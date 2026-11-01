@@ -89,12 +89,12 @@ def _external_problems(rel: str, data: Mapping[str, Any]) -> list[str]:
 
 
 def related_problems(docs_root: Path, rel: str, data: Mapping[str, Any]) -> list[str]:
-    problems = _external_problems(rel, data)
+    problems: list[str] = []
     raw = data.get("related")
     if raw is None:
         return problems
     if not isinstance(raw, list):
-        return [*problems, f"{rel}: related is not a list"]
+        return [f"{rel}: related is not a list"]
     for entry in raw:
         ref = entry.get("ref") if isinstance(entry, dict) else entry
         if not isinstance(ref, str):
@@ -139,6 +139,13 @@ def test_every_related_entry_is_a_slug_doc_kitty_resolves() -> None:
     assert problems == [], "\n".join(problems)
 
 
+def test_every_external_reference_has_url_and_title() -> None:
+    """Checked on every page, ``related`` or not: doc-kitty's schema requires both fields."""
+    examined, problems = _collect(_external_problems, "external_references")
+    assert examined >= 30, f"non-vacuity: only {examined} pages carry external_references"
+    assert problems == [], "\n".join(problems)
+
+
 def test_every_adr_carries_doc_status_and_kind() -> None:
     adrs = [(rel, data) for rel, data in _pages(_DOCS_ROOT) if is_dated_adr(rel)]
     assert len(adrs) >= _MIN_ADRS, f"non-vacuity: only {len(adrs)} ADRs found"
@@ -178,7 +185,7 @@ def test_controls_name_each_old_shape(tmp_path: Path) -> None:
     assert related_problems(docs, "p.md", {"doc_status": "active", "related": [{"ref": "a", "note": "n"}, ""]}) == []
     assert related_problems(docs, "p.md", {"related": "a"}) == ["p.md: related is not a list"]
     assert related_problems(docs, "p.md", {"related": [3]})
-    assert related_problems(docs, "p.md", {"external_references": [{"url": "u"}]})
+    assert _external_problems("p.md", {"external_references": [{"url": "u"}]}) == ["p.md: external_references entry {'url': 'u'} lacks url/title"]
     assert adr_problems("adr/4.x/2026-01-01-1-x.md", {"status": "Accepted"}) == [
         "adr/4.x/2026-01-01-1-x.md: doc_status None, expected 'active' for status 'Accepted'",
         "adr/4.x/2026-01-01-1-x.md: kind None, expected 'ADR'",

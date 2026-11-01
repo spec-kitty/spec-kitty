@@ -100,9 +100,7 @@ _INTENDED_KEYS: Final[frozenset[str]] = frozenset({_AUDIENCE, _RELATED, _EXTERNA
 #: The ADR era ``index.md`` pages ARE migrated: their table rows are bot-owned,
 #: their frontmatter is not (``check_generated_docs_untouched.py`` refuses only
 #: new table rows).
-_SKIPPED_FILES: Final[frozenset[str]] = frozenset(
-    {"adr/1.x/README.md", "adr/2.x/README.md", "adr/3.x/README.md", "architecture/README.md"}
-)
+_SKIPPED_FILES: Final[frozenset[str]] = frozenset({"adr/1.x/README.md", "adr/2.x/README.md", "adr/3.x/README.md", "architecture/README.md"})
 
 
 class MigrationError(RuntimeError):
@@ -516,15 +514,16 @@ def _git(repo_root: Path) -> _GitRunner:
 
 
 def verify_against(*, repo_root: Path, ref: str, docs_dir: str = "docs", git: _GitRunner | None = None) -> list[str]:
-    """Every ``docs/**/*.md`` file changed or renamed since *ref* whose body differs from *ref*.
+    """Every ``docs/**/*.md`` file changed or renamed since the merge-base with *ref* whose body differs there.
 
     Added files have no earlier body and are skipped.
     """
     run = git or _git(repo_root)
-    status = run(["diff", "--name-status", "-M", "--diff-filter=MR", ref, "--", docs_dir]).splitlines()
+    base = run(["merge-base", ref, "HEAD"]).strip()  # where this branch left *ref*, so later commits on *ref* are not ours
+    status = run(["diff", "--name-status", "-M", "--diff-filter=MR", base, "--", docs_dir]).splitlines()
     offenders: list[str] = []
     for old, new in sorted(_changed_pairs(status)):
-        before = run(["show", f"{ref}:{old}"])
+        before = run(["show", f"{base}:{old}"])
         after = (repo_root / new).read_text(encoding="utf-8")
         if body_of(before) != body_of(after):
             offenders.append(new)
