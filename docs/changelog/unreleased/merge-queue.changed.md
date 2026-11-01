@@ -1,1 +1,0 @@
-- **`main` merges through GitHub's merge queue**. **Before:** every merge put the other in-flight PRs in conflict, and each needed a manual rebase and a full CI re-run. **After:** a ready PR is queued, tested on `main` plus the PRs ahead of it, and rebase-merged when the required checks pass there; do not push to a queued PR, which removes it from the queue.
