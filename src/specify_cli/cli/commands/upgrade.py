@@ -2342,6 +2342,10 @@ def _display_upgrade_results(result: UpgradeResult) -> None:
     the closing line) is rendered by :func:`_render_outcome_tail` from the finalized
     ``UpgradeOutcome``, and the caller derives the exit code exactly once, from
     ``UpgradeOutcome.exit_code`` (D-5), after every renderer has run.
+
+    The heading and marker above the migration list follow the mode from one place:
+    a dry run applies nothing, so it says what it *would* apply and marks each entry
+    with a non-success arrow (#6234); a real run keeps the applied wording and `✓`.
     """
     console.print()
 
@@ -2352,8 +2356,13 @@ def _display_upgrade_results(result: UpgradeResult) -> None:
                 border_style="yellow",
             )
         )
+        applied_header = "[yellow]Migrations that would be applied:[/yellow]"
+        applied_prefix = "  [yellow]→[/yellow] "
+    else:
+        applied_header = "[green]Migrations applied:[/green]"
+        applied_prefix = "  [green]✓[/green] "
 
-    _print_upgrade_section("[green]Migrations applied:[/green]", result.migrations_applied, "  [green]✓[/green] ")
+    _print_upgrade_section(applied_header, result.migrations_applied, applied_prefix)
     _print_upgrade_section(
         "[dim]Migrations skipped (already applied or not needed):[/dim]",
         result.migrations_skipped,
@@ -2368,7 +2377,7 @@ def _print_predicted_verdicts(result: UpgradeResult) -> None:
     A dry run applies nothing, so a migration whose ``detect()`` reads an earlier
     migration's write is reported applied on the strength of its declared
     ``sequenced_after`` predecessors rather than a direct detection. Without this line the
-    operator cannot tell the two apart in ``Migrations applied:``; a real run never
+    operator cannot tell the two apart in the run's applied list; a real run never
     predicts, so this section is empty there.
     """
     predicted = {

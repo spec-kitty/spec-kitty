@@ -5,8 +5,9 @@ module drives the real ``spec-kitty upgrade`` command and asserts the RENDERED o
 a verdict the operator cannot tell apart from a direct detection is only half the fix
 (tactic ``acceptance-criteria-non-vacuity``, "exercise the production path"):
 
-* the dry-run summary lists the predicted migration under ``Migrations applied:`` **and**
-  names the migration it follows, so the operator can tell a prediction from a detection;
+* the dry-run summary lists the predicted migration under ``Migrations that would be
+  applied:`` (the dry-run heading, #6234) **and** names the migration it follows, so the
+  operator can tell a prediction from a detection;
 * ``--dry-run --verbose``'s pre-run detection preview agrees with that summary instead of
   calling the same migration ``skipped``;
 * the same fixture upgraded for real lists the migration as applied without the prediction
@@ -77,8 +78,9 @@ def test_the_dry_run_summary_names_the_migration_it_predicts(tmp_path: Path, mon
     result = _invoke(project, ["--project", "--dry-run", "--no-worktrees"], monkeypatch)
 
     assert result.exit_code == 0, result.output
-    assert "Migrations applied:" in result.output
-    assert re.search(rf"✓\s+{re.escape(_REPOINT)}", result.output), result.output
+    assert "Migrations that would be applied:" in result.output
+    assert "Migrations applied:" not in result.output
+    assert re.search(rf"→\s+{re.escape(_REPOINT)}", result.output), result.output
     assert _PREDICTION_HEADER in result.output, result.output
     assert re.search(
         rf"•\s+{re.escape(_REPOINT)}\s+would apply after\s+{re.escape(_GATE)}",
@@ -115,6 +117,8 @@ def test_a_real_run_lists_the_migration_without_a_prediction(tmp_path: Path, mon
     result = _invoke(project, ["--project", "--yes", "--no-worktrees"], monkeypatch)
 
     assert result.exit_code == 0, result.output
+    assert "Migrations applied:" in result.output
+    assert "Migrations that would be applied:" not in result.output
     assert re.search(rf"✓\s+{re.escape(_REPOINT)}", result.output), result.output
     assert _PREDICTION_HEADER not in result.output, result.output
     assert _tree_digest(project) != before, "the real run must write, or the dry-run no-writes check is vacuous"
