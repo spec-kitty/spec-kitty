@@ -1,0 +1,56 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-01T14:38:42.819609Z",
+      "decision_id": "01M6BRRS43THXH8SZ861AFG8M3",
+      "final_answer": "Persona-derived sentence: 'Written for the <persona page title> reader.' (free-text values keep their text as the profile with 'Written for <value>.'). Mechanical and honest; page-specific guidance is authoring work for #6931. Autonomous run default, flagged for the operator in the PR.",
+      "input_key": "audience_guidance_text",
+      "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+      "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+      "opened_by": "cli",
+      "options": [
+        "Persona-derived sentence: Written for the <persona title> reader.",
+        "Copy the page description",
+        "Leave for #6931 with an empty string",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "doc-kitty requires a guidance_text on every audience entry, and the current path-string audience carries none. What should the mechanical migration write?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T14:39:16.587833Z",
+      "resolved_by": null,
+      "slot_key": "specify.audience.guidance-text",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-11-01T14:38:47.296504Z",
+      "decision_id": "01M6BRRXG0MVX09DH92W1NTEWP",
+      "final_answer": "external_references with a GitHub repository URL and the target's title, for every related entry that is not a published page (outside docs/, non-Markdown, draft, excluded). Frontmatter-only, so immutable bodies stay byte-identical, and no dead site link is added. A related entry whose target file no longer exists is dropped. Deviates from the issue's literal 'body link or drop'; flagged for the operator in the PR.",
+      "input_key": "related_unpublished_targets",
+      "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+      "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+      "opened_by": "cli",
+      "options": [
+        "external_references with a GitHub repository URL (frontmatter-only)",
+        "Body link",
+        "Drop",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "A published page's related entry that names a draft or excluded page is build-fatal. Move it into the body as a link, drop it, or move it to external_references as a repository URL?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T14:39:20.449927Z",
+      "resolved_by": null,
+      "slot_key": "specify.related.unpublished-targets",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+  "version": 1
+}

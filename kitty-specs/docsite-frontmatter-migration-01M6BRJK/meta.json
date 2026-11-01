@@ -12,5 +12,7 @@
   "purpose_tldr": "Make the real docs/ tree build on doc-kitty by migrating the build-blocking frontmatter, keeping DocFX and docs query working.",
   "slug": "docsite-frontmatter-migration-01M6BRJK",
   "target_branch": "issue-6929-docsite-frontmatter-migration",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "contracts": "none",
+  "contracts_rationale": "The Mission defines no service or API interface: it migrates Markdown frontmatter and ports internal scripts. The frontmatter shapes are doc-kitty's published contract, recorded in data-model.md."
 }
