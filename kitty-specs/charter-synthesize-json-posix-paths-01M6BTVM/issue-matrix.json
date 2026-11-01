@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#6266": {
+      "evidence_ref": "PR #6266 relaxed the acceptance scenario to file-name matching pending #6277; this mission restores the full-path assertion it removed, so the PR owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6277": {
+      "evidence_ref": "fix commit fc1dbb68 + red-first regression module tests/specify_cli/cli/commands/charter/test_synthesize_reported_paths.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,69 @@
+{
+  "mission_slug": "charter-synthesize-json-posix-paths-01M6BTVM",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_synthesize_reported_paths.py::test_fresh_seed_json_reports_only_posix_paths (5/5 green after the fix; 4/5 red before it under simulated Windows rendering)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T18:04:49.876585+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "write_pipeline.promote records ManifestArtifactEntry.path via repo_relative_posix; asserted by test_manifest_projection_normalises_a_windows_style_recorded_path",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T18:04:54.759315+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_manifest_projection_normalises_a_windows_style_recorded_path: a backslash path read from an older manifest projects as POSIX",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T18:04:59.257601+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "code_inspection",
+      "evidence": "kernel/charter_pack_paths.py::repo_relative_posix is the single reported-path seam; the five emit sites route through it, the separator swap stays in kernel.paths.to_posix",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T18:05:03.979428+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/charter/charter.feature asserts .kittify/charter-packs/PROVENANCE.md and .kittify/charter/synthesis-manifest.yaml in the fresh-seed and dry-run scenarios",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T18:05:08.435890+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_simulation_renders_backslashes_for_a_bare_str (non-vacuity control) plus the pre-fix red run of the module",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T18:05:13.023591+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
