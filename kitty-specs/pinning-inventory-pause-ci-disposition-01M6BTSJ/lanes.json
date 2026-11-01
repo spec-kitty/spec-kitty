@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "mission_slug": "pinning-inventory-pause-ci-disposition-01M6BTSJ",
+  "mission_id": "01M6BTSJSQ1BXYRACJ5YEGTFHF",
+  "mission_branch": "kitty/mission-pinning-inventory-pause-ci-disposition-01M6BTSJ",
+  "target_branch": "issue-6998-pinning-inventory-pause-ci-disposition",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "scripts/ci/derive_pinning_inventory.py",
+        "tests/release/pinning_rule_inventory.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-11-01T15:21:12.499897+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "683d461f6462b4e3c01e0fb38b6c341e7e2532ef"
+}

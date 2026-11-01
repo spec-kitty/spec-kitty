@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#4334": {
+      "evidence_ref": "Background: the mission that introduced the derived pinning-rule ledger this artefact belongs to. Cited for provenance only; owes this mission no work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "CI efficiency (P0): per-PR SonarCloud job re-runs the fast tier instead of reusing CI Modules shard coverage",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#4845": {
+      "evidence_ref": "Follow-up: #4845 \u2014 run the pinning-inventory freshness check unconditionally on main pushes. This mission fixes the missing disposition and the stale artefact; it does not change the warn-per-PR / strict-nightly split (operator ruling 2026-10-18), so the recurrence cause stays with #4845.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "run pinning-inventory freshness check unconditionally on main pushes",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#6915": {
+      "evidence_ref": "Context only: #6998 was found while running the blast radius of the events-service cut-over. The failure reproduces on the untouched base, so that work neither caused it nor owes a fix here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Ship the full stack from core: remaining gaps for the events write service and the charter service",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6961": {
+      "evidence_ref": "Context only: the pr:pause-ci label contract (commit eb099b70b1) introduced tests/ci/test_pause_ci_label.py::_REQUIRED_GATES, which the derivation then discovered undispositioned. A correct upstream change; no work owed back to it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "ci: a pr:pause-ci label pauses a PR's CI and blocks its merge",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6998": {
+      "evidence_ref": "Fixed on issue-6998-pinning-inventory-pause-ci-disposition. DISPOSITIONS records tests/ci/test_pause_ci_label.py::_REQUIRED_GATES as none with a stated reason; tests/release/pinning_rule_inventory.json is regenerated to byte-identity with the derivation (one added row, zero removed, zero null dispositions); derive_pinning_inventory.py --check exits 0 and tests/release/test_pinning_inventory_fresh.py passes 8/8 under SPEC_KITTY_STRICT_PINNING_INVENTORY=1 with the test file unmodified.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Pinning inventory stale on main: tests/release/pinning_rule_inventory.json lacks a row for test_pause_ci_label._REQUIRED_GATES (needs a disposition)",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
