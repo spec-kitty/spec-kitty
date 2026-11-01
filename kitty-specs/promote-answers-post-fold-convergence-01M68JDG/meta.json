@@ -1,0 +1,34 @@
+{
+  "accept_commit": "09fcf5131e24d06645f466c4ecf69eaee5a2c2ee",
+  "acceptance_history": [
+    {
+      "accept_commit": "09fcf5131e24d06645f466c4ecf69eaee5a2c2ee",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T09:27:17.771814+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "37cbafff7089879cf80763a34685ae194a690a12"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T09:27:17.771814+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "37cbafff7089879cf80763a34685ae194a690a12",
+  "baseline_merge_commit": "e66260255ce340e364035a1a970e738fff4b2995",
+  "created_at": "2026-10-31T08:49:58.781371+00:00",
+  "flattened": true,
+  "friendly_name": "promote answers post fold convergence",
+  "merged_at": "2026-10-31T09:28:55.644975+00:00",
+  "merged_commit": "4b12a1d59b8a5879c680dc9a92b9727fb17a577b",
+  "mid8": "01M68JDG",
+  "mission_id": "01M68JDGBJGY6AWK7YRW9GSNMD",
+  "mission_number": 245,
+  "mission_slug": "promote-answers-post-fold-convergence-01M68JDG",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances promote answers post fold convergence on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "promote answers post fold convergence",
+  "slug": "promote-answers-post-fold-convergence-01M68JDG",
+  "status_phase": "1",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T08:52:37.981629+00:00"
+}
