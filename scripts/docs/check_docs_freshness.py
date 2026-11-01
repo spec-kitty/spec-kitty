@@ -7,12 +7,20 @@ docs-freshness sub-check into one :class:`FreshnessReport`:
 2. :mod:`scripts.docs.check_cli_reference_freshness` — ``REF-*`` and
    ``HELP-*`` findings.
 3. Link health — HEAD-request external URLs (``none``/``spot``/``full``).
-4. Page-inventory completeness — every ``.md`` under ``docs/`` must be in
+4. Page-inventory completeness — every ``.md`` under ``docs/`` should be in
    the inventory (mirrors ``LEAK-MISSING-INVENTORY``).
-5. Inventory-lockfile drift — the committed inventory must equal a fresh
-   generation from in-file frontmatter (ADR 2026-06-27-1 D1). **Blocking**
-   from Mission B: drift is an ``error``-severity ``INVENTORY-LOCKFILE-DRIFT``
-   finding (was report-only in Mission A) and runs by default (no opt-in flag).
+5. Inventory-lockfile drift — the committed inventory against a fresh
+   generation from in-file frontmatter (ADR 2026-06-27-1 D1).
+6. Docs-index drift — the committed retrieval index against a fresh generation.
+
+The generated surfaces (the page inventory, the retrieval index and the ADR era
+tables) are no longer regenerated in pull requests: the ``ci/regen-docs-index``
+bot pull request regenerates them on ``main`` after a merge
+(``.github/workflows/docs-index-regen.yml``). On a branch they are expected to
+lag, so their staleness findings (``INVENTORY-INCOMPLETE``,
+``LEAK-MISSING-INVENTORY``, ``INVENTORY-LOCKFILE-DRIFT``, ``DOCS-INDEX-DRIFT``)
+are ``warning`` severity: reported, never blocking. Their content is checked
+per PR by ``tests/docs/test_docs_index_regenerates_cleanly.py``.
 
 Exit codes (per contract):
 
@@ -43,7 +51,7 @@ import sys  # noqa: E402
 import urllib.error  # noqa: E402
 import urllib.request  # noqa: E402
 from collections.abc import Iterable, Sequence  # noqa: E402
-from dataclasses import asdict, dataclass, field  # noqa: E402
+from dataclasses import asdict, dataclass, field, replace  # noqa: E402
 from kernel.clock import now_utc_iso  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import Final, Literal  # noqa: E402
@@ -74,6 +82,17 @@ DEFAULT_DOCS_INDEX_PATH: Final[str] = "docs/development/docs-retrieval-index.yam
 # docs/reference/ path short-circuits the whole freshness gate with INPUT-MISSING.
 DEFAULT_REFERENCE_PATH: Final[str] = "docs/api/cli-commands.md"
 DEFAULT_AGENT_REFERENCE_PATH: Final[str] = "docs/api/agent-subcommands.md"
+
+# The generated surfaces (inventory, retrieval index, ADR era tables) are
+# regenerated on main after merge by the ``ci/regen-docs-index`` bot pull
+# request (.github/workflows/docs-index-regen.yml), never in a pull request.
+_REGEN_BOT_ACTION: Final[str] = (
+    "nothing to do in this pull request: do not regenerate the generated docs "
+    "surfaces here; the ci/regen-docs-index bot pull request regenerates them "
+    "on main after merge"
+)
+# Leakage-check rules that only report a not-yet-regenerated inventory.
+_GENERATED_SURFACE_STALENESS_RULES: Final[frozenset[str]] = frozenset({"LEAK-MISSING-INVENTORY"})
 
 LinkCheckMode = Literal["none", "spot", "full"]
 Severity = Literal["error", "warning"]
@@ -327,15 +346,11 @@ def run_orchestrator(
 
     The inverted ruler (ADR 2026-06-27-1 D1) regenerates the inventory from
     in-file frontmatter and reports any drift against the committed lockfile as
-    ``INVENTORY-LOCKFILE-DRIFT`` findings. Mission B makes this **blocking and
-    default-on**: drift is ``error``-severity (so it flips the aggregate exit
-    code) and the check runs unconditionally — there is no longer an opt-in
-    guard, since a guarded check the CI workflow never enables is dead code.
-
-    WP02 (FR-005) adds a sibling inverted ruler for the docs retrieval index
-    (WP01, C-001: a separate artifact from the page inventory): drift against
-    the committed ``docs_index`` surfaces as ``DOCS-INDEX-DRIFT`` findings,
-    also ``error``-severity and default-on. ``docs_index`` defaults to
+    ``INVENTORY-LOCKFILE-DRIFT`` findings, and its sibling for the docs
+    retrieval index (WP02 / FR-005, C-001) reports ``DOCS-INDEX-DRIFT``. Both run
+    unconditionally and are ``warning`` severity: the post-merge regeneration
+    bot owns the committed files, so drift on a branch is expected and never
+    flips the aggregate exit code. ``docs_index`` defaults to
     :data:`DEFAULT_DOCS_INDEX_PATH` when not supplied.
     """
     started_at = _now_iso()
@@ -373,7 +388,7 @@ def run_orchestrator(
     leak_payload = _load_report_payload(leak_report)
     raw_count = leak_payload.get("inventory_rows_count", 0)
     inventory_rows_count = raw_count if isinstance(raw_count, int) else 0
-    findings.extend(_findings_from_payload(leak_payload))
+    findings.extend(_demote_generated_surface_staleness(_findings_from_payload(leak_payload)))
     if leak_rc == 2:
         findings.append(
             FreshnessFinding(
@@ -446,13 +461,12 @@ def run_orchestrator(
     completeness = _check_page_inventory_completeness(inventory, docs_root)
     findings.extend(completeness)
 
-    # --- Sub-check 5: inventory lockfile drift (blocking, default-on) -------
-    # Mission B (WP14): no opt-in guard — the check runs every time. The guard
-    # used to gate it behind ``--inventory-lockfile``, which the CI workflow
-    # never passed, making the severity escalation below dead code in CI.
+    # --- Sub-check 5: inventory lockfile drift (warning, default-on) --------
+    # Runs every time; non-blocking since the post-merge regeneration bot owns
+    # the committed lockfile (see the module docstring).
     findings.extend(_check_inventory_lockfile_drift(inventory, docs_root))
 
-    # --- Sub-check 6: docs-index drift (blocking, default-on) --------------
+    # --- Sub-check 6: docs-index drift (warning, default-on) ---------------
     # WP02 (FR-005): sibling inverted ruler for the docs retrieval index
     # (WP01). Appended alongside sub-check 5, never replacing it (C-001).
     findings.extend(_check_docs_index_drift(docs_index_path, docs_root))
@@ -689,12 +703,10 @@ def _check_page_inventory_completeness(
         findings.append(
             FreshnessFinding(
                 rule_id="INVENTORY-INCOMPLETE",
-                severity="error",
+                severity="warning",
                 location=rel,
                 message="markdown file under docs/ is not in the inventory",
-                suggested_action=(
-                    "add a PageInventoryEntry row or move the file outside docs/"
-                ),
+                suggested_action=_REGEN_BOT_ACTION,
             )
         )
     return findings
@@ -708,13 +720,12 @@ def _check_page_inventory_completeness(
 def _check_inventory_lockfile_drift(
     inventory: Path, docs_root: Path
 ) -> list[FreshnessFinding]:
-    """Regenerate the rollup from frontmatter and report drift as errors.
+    """Regenerate the rollup from frontmatter and report drift as warnings.
 
     This is the inverted ruler (ADR 2026-06-27-1 D1): rather than asserting
-    "every page is in the sidecar", it asserts "the committed inventory equals
-    a fresh generation from frontmatter". Mission B (WP14) makes it **blocking**
-    — every drift finding is an ``error`` (see :func:`_lockfile_finding`) so the
-    aggregate exit code reds on drift.
+    "every page is in the sidecar", it compares the committed inventory with a
+    fresh generation from frontmatter. Drift is a ``warning`` (see
+    :func:`_lockfile_finding`): the post-merge regeneration bot owns the file.
     """
     from scripts.docs.inventory_lockfile import run_generate_and_compare
 
@@ -743,21 +754,18 @@ def _check_inventory_lockfile_drift(
 
 
 def _lockfile_finding(location: str, message: str) -> FreshnessFinding:
-    """Build a blocking ``INVENTORY-LOCKFILE-DRIFT`` error (Mission B / WP14).
+    """Build a non-blocking ``INVENTORY-LOCKFILE-DRIFT`` warning.
 
-    The severity is ``error`` — this is the real gate flip: the aggregate exit
-    code keys off ``any(f.severity == "error")``, so an ``error`` drift finding
-    reds ``check_docs_freshness``.
+    ``warning``, not ``error``: the aggregate exit code keys off
+    ``any(f.severity == "error")``, and a branch is expected to lag the
+    committed lockfile until the post-merge regeneration bot refreshes it.
     """
     return FreshnessFinding(
         rule_id="INVENTORY-LOCKFILE-DRIFT",
-        severity="error",
+        severity="warning",
         location=location,
         message=message,
-        suggested_action=(
-            "regenerate the lockfile with scripts/docs/inventory_lockfile.py "
-            "--write docs/development/page-inventory.yaml, then commit it"
-        ),
+        suggested_action=_REGEN_BOT_ACTION,
     )
 
 
@@ -769,7 +777,7 @@ def _lockfile_finding(location: str, message: str) -> FreshnessFinding:
 def _check_docs_index_drift(
     index_path: Path, docs_root: Path
 ) -> list[FreshnessFinding]:
-    """Regenerate the docs retrieval index and report drift as errors.
+    """Regenerate the docs retrieval index and report drift as warnings.
 
     Mirrors :func:`_check_inventory_lockfile_drift` exactly (WP02 / FR-005):
     the committed docs-index (WP01's ``docs/development/docs-retrieval-index.yaml``,
@@ -816,21 +824,36 @@ def _check_docs_index_drift(
 
 
 def _docs_index_finding(location: str, message: str) -> FreshnessFinding:
-    """Build a blocking ``DOCS-INDEX-DRIFT`` error (WP02 / FR-005).
+    """Build a non-blocking ``DOCS-INDEX-DRIFT`` warning (WP02 / FR-005).
 
-    Mirrors :func:`_lockfile_finding`: severity ``error`` so the aggregate
-    exit code reds on any docs-index drift.
+    Mirrors :func:`_lockfile_finding`: ``warning`` severity, because the
+    post-merge regeneration bot owns the committed index.
     """
     return FreshnessFinding(
         rule_id="DOCS-INDEX-DRIFT",
-        severity="error",
+        severity="warning",
         location=location,
         message=message,
-        suggested_action=(
-            "regenerate the docs index with PYTHONPATH=. uv run python "
-            "scripts/docs/docs_index.py --write, then commit it"
-        ),
+        suggested_action=_REGEN_BOT_ACTION,
     )
+
+
+def _demote_generated_surface_staleness(
+    findings: Iterable[FreshnessFinding],
+) -> list[FreshnessFinding]:
+    """Downgrade the leakage check's generated-surface staleness rules to warnings.
+
+    ``LEAK-MISSING-INVENTORY`` only says the committed inventory has not caught
+    up with a new page yet, which on a branch is expected (the post-merge
+    regeneration bot owns the inventory). Every other leakage finding keeps its
+    severity.
+    """
+    return [
+        replace(f, severity="warning", suggested_action=_REGEN_BOT_ACTION)
+        if f.rule_id in _GENERATED_SURFACE_STALENESS_RULES
+        else f
+        for f in findings
+    ]
 
 
 # ---------------------------------------------------------------------------
