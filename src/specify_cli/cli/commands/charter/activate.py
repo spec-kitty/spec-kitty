@@ -38,7 +38,13 @@ from rich.markup import escape
 from specify_cli.cli.console import console, sanitize_terminal_text
 from specify_cli.cli.helpers import parameter_source_name
 
-from charter.activation.api import DenyListChoice, deny_delta
+from charter.activation.api import (
+    DenyListChoice,
+    SynthesisLockHeldError,
+    SynthesisLockUnavailableError,
+    deny_delta,
+    synthesis_lock,
+)
 from charter.activation.cascade import (
     CascadeActivationResult,
     CascadeScope,
@@ -136,6 +142,26 @@ def render_refusal(refusal: CodedRefusal, *, json_output: bool) -> NoReturn:
 def config_refusal(exc: ActiveCharterConfigError) -> CodedRefusal:
     """An :class:`ActiveCharterConfigError` as a refusal under its own code (FR-035)."""
     return CodedRefusal(exc.code, exc.body)
+
+
+@contextlib.contextmanager
+def activation_write_window(repo_root: Path) -> Iterator[None]:
+    """Hold the run-wide charter synthesis lock across this command's activation writes (#6719).
+
+    ``charter activate``/``deactivate`` read the activation target, plan in memory and commit; a
+    ``charter synthesize``/``resynthesize`` run appends created artifacts to the same document. Without
+    the lock one writer lands between the other's read and write, so one change is lost or refused with
+    ``precondition_changed`` (#6719). The lock is the existing run-wide one (#6453) and is re-entrant, so
+    the nested ``--resynthesize`` and ``restamp_bundle_hash`` calls still work.
+
+    A lock that cannot be acquired within the bounded wait, or cannot be placed at all, is a
+    :class:`CodedRefusal` under its own code with nothing written — never a silent unlocked write.
+    """
+    try:
+        with synthesis_lock(repo_root):
+            yield
+    except (SynthesisLockHeldError, SynthesisLockUnavailableError) as exc:
+        raise CodedRefusal(exc.code, exc.body) from exc
 
 
 def check_activation_kind(kind: str) -> None:
@@ -1062,9 +1088,12 @@ def _preset_payload(plan: PresetPlan, outcome: PresetOutcome) -> dict[str, objec
 def _plan_and_apply_preset(repo_root: Path, pack: str, preset: str, *, force: bool, json_output: bool) -> tuple[PresetPlan, PresetOutcome]:
     """Validate the config, plan and apply the preset; render a refusal and exit(1) on failure."""
     try:
-        validate_pack_config(repo_root)
-        plan = plan_preset_application(repo_root, pack, preset)
-        outcome = apply_preset_plan(repo_root, plan, force=force)
+        with activation_write_window(repo_root):
+            validate_pack_config(repo_root)
+            plan = plan_preset_application(repo_root, pack, preset)
+            outcome = apply_preset_plan(repo_root, plan, force=force)
+    except CodedRefusal as refusal:
+        render_refusal(refusal, json_output=json_output)
     except PresetApplicationError as exc:
         render_coded_error(exc.code, str(exc), details=exc.detail_lines(), payload=exc.payload(), json_output=json_output)
         raise typer.Exit(1) from exc
@@ -1347,8 +1376,18 @@ def _apply_direct_activation(
 
 
 def _activation_change_report(request: _ActivationRequest, repo_root: Path) -> tuple[Path, ActivationChangeReport]:
-    """Run a positional activation (direct write, then cascade) and return its write root and change report."""
+    """Run a positional activation (direct write, then cascade) and return its write root and change report.
+
+    The read-only preflight runs before the window; everything that reads or writes the activation
+    config (the direct write, the cascade children, the change report's post-state reads) runs inside it.
+    """
     preflight = _activation_preflight(request, repo_root)
+    with activation_write_window(preflight.repo_root):
+        return _activation_change_report_locked(request, preflight)
+
+
+def _activation_change_report_locked(request: _ActivationRequest, preflight: _Preflight) -> tuple[Path, ActivationChangeReport]:
+    """Body of :func:`_activation_change_report`; the caller holds the activation write window."""
     repo_root, scope, deactivated = preflight.repo_root, preflight.scope, preflight.deactivated
     ctx_project = ProjectContext(repo_root=repo_root)
     layer_roots = resolve_layer_roots(repo_root)

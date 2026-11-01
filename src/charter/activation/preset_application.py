@@ -321,8 +321,8 @@ def _id_key(yaml_key: str, artifact_id: str, identity: IdentityIndex | None = No
     """
     kind = _KIND_BY_KEY.get(yaml_key)
     if identity is None:
-        return IdentityIndex.unindexed_key(kind, artifact_id)
-    return identity.lookup_key(kind, artifact_id)
+        return str(IdentityIndex.unindexed_key(kind, artifact_id))
+    return str(identity.lookup_key(kind, artifact_id))
 
 
 def _missing(yaml_key: str, listed: Iterable[str], available: Iterable[str]) -> list[str]:
@@ -678,6 +678,11 @@ def _cleared_by_force(document: Mapping[str, Any], plan: PresetPlan) -> dict[str
 def apply_preset_plan(repo_root: Path, plan: PresetPlan, *, force: bool = False) -> PresetOutcome:
     """Perform *plan* as one write through the single activation writer.
 
+    The write (and, for ``--force``, its deny-clearing read) runs under the
+    run-wide charter synthesis lock (#6719): a preset write is one
+    read-modify-write of the activation config, so a synthesis run appending
+    between the read and the write would otherwise lose one of the two changes.
+
     Raises :class:`PresetWouldOverwriteError` (writing nothing) when the plan
     changes a customised key and *force* is false. A no-op plan writes nothing.
     Without *force*, the deactivated ids the preset lists stay excluded and are
@@ -685,17 +690,21 @@ def apply_preset_plan(repo_root: Path, plan: PresetPlan, *, force: bool = False)
     written and their exclusions cleared with
     :attr:`~charter.activation.activation_ledger.DenyListChoice.PRESET_FORCE`.
     """
+    from charter.activation.synthesizer.synthesis_lock import synthesis_lock  # deferred import
+
+    # The refusal writes nothing, so it needs no lock (and must not wait on one).
     if plan.customised_changes and not force:
         raise PresetWouldOverwriteError(plan)
-    if not force or not plan.forced_deny:
-        if not plan.is_noop:
-            _write(repo_root, plan, plan.written, plan.removed, deny_change=None)
-        return PresetOutcome(written=dict(plan.written), kept_deactivated=dict(plan.denied_listed))
-    _target_file, document = _read_target(repo_root)
-    cleared = _cleared_by_force(document, plan)
-    values, removed = _forced_values(plan)
-    _write(repo_root, plan, values, removed, deny_change=DenyListChoice.PRESET_FORCE)
-    return PresetOutcome(written={key: ids for key, ids in values.items() if key in plan.written or key in plan.forced_written}, cleared=cleared)
+    with synthesis_lock(repo_root):
+        if not force or not plan.forced_deny:
+            if not plan.is_noop:
+                _write(repo_root, plan, plan.written, plan.removed, deny_change=None)
+            return PresetOutcome(written=dict(plan.written), kept_deactivated=dict(plan.denied_listed))
+        _target_file, document = _read_target(repo_root)
+        cleared = _cleared_by_force(document, plan)
+        values, removed = _forced_values(plan)
+        _write(repo_root, plan, values, removed, deny_change=DenyListChoice.PRESET_FORCE)
+        return PresetOutcome(written={key: ids for key, ids in values.items() if key in plan.written or key in plan.forced_written}, cleared=cleared)
 
 
 def _write(repo_root: Path, plan: PresetPlan, values: dict[str, list[str]], removed: list[str], *, deny_change: DenyListChoice | None) -> None:

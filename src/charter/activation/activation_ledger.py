@@ -959,6 +959,11 @@ def _stamp_manifest(repo_root: Path, bundle_hash: str) -> bool:
 
     No-op (``False``) without a manifest, for a built-in-only seed or an
     unstamped manifest, and when the stamp already equals *bundle_hash*.
+
+    This is a read-modify-write of the whole manifest. Its only caller,
+    :func:`apply_ledger_migration`, holds the run-wide synthesis lock for the
+    apply, so a concurrent synthesis run cannot write an entry between this
+    read and this write (#6719).
     """
     from charter.activation.synthesizer.manifest import MANIFEST_PATH, finalize_manifest
     from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
@@ -994,7 +999,35 @@ def _stamp_before_strips(repo_root: Path, prepared: tuple[tuple[Path, PreparedYa
 
 
 def apply_ledger_migration(repo_root: Path, plan: LedgerMigrationPlan) -> tuple[Path, ...]:
-    """Apply *plan*: (a) the ledger write (allow keys only), (b) the manifest stamp, (c) per legacy file its strip.
+    """Apply *plan* under the run-wide synthesis lock (#6719).
+
+    The whole apply is one unit: the ledger write, the manifest stamp and the
+    legacy-key strips. The manifest stamp is a read-modify-write of the WHOLE
+    synthesis manifest (:func:`_stamp_manifest`), so a concurrent synthesis run
+    that wrote an entry between the read and the write would lose it (#6719);
+    the stamp's hash must also describe the bundle the strips produce, so the
+    lock cannot end between them. See :func:`_apply_ledger_migration_locked`.
+
+    Raises:
+        SynthesisLockHeldError: another run holds the lock past the bounded
+            wait; nothing was written.
+        SynthesisLockUnavailableError: git could not be invoked to place the
+            lock; nothing was written.
+    """
+    from charter.activation.synthesizer.synthesis_lock import synthesis_lock  # deferred import
+
+    # A plan that writes nothing needs no lock and must not leave a lock file behind: a refusal raises, and a
+    # no-op has nothing to serialize.
+    if plan.refusal is not None:
+        raise LedgerMigrationRefused(plan.refusal)
+    if plan.noop:
+        return _apply_ledger_migration_locked(repo_root, plan)
+    with synthesis_lock(repo_root):
+        return _apply_ledger_migration_locked(repo_root, plan)
+
+
+def _apply_ledger_migration_locked(repo_root: Path, plan: LedgerMigrationPlan) -> tuple[Path, ...]:
+    """The body of :func:`apply_ledger_migration`; the caller holds the synthesis lock.
 
     (b) stamps the synthesis manifest with the hash the bundle has after (a)
     and (c), whichever file the keys leave. Each step is idempotent, and every

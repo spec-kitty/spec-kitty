@@ -114,6 +114,39 @@ Remediation: fix .kittify/config.yaml (or the charter.yaml it points to) or run
 `spec-kitty upgrade` to restore the default active charter shape.
 ```
 
+# Synthesis lock codes (activation writes)
+
+> **Source of truth**: `src/charter/activation/synthesizer/synthesis_lock.py`
+> (`SynthesisLockHeldError` / `SynthesisLockUnavailableError`, both
+> `KittyInternalConsistencyError`s carrying the code as `.code` and the prose as
+> `.body`). The lock itself is #6453's run-wide charter synthesis lock; #6719
+> put the activation writes under it.
+
+## CHARTER_SYNTHESIS_LOCK_HELD
+
+**When it fires**: a writing run could not take the run-wide synthesis lock
+within the bounded wait (about 10 seconds). Its holders are `charter
+synthesize`, `charter resynthesize`, and — since #6719 — `charter activate`,
+`charter deactivate`, `charter activate --preset` and the activation-ledger
+migration (`spec-kitty migrate activation-ledger`, `spec-kitty upgrade`'s
+`4.0.0rc8_activation_ledger` step), each of which holds it across its whole
+activation read-modify-write so two writers cannot drop each other's change.
+
+**Nothing was written.** The body names the lock file.
+
+**Remediation**: retry once the other run finishes. A command that needs to run
+alongside a synthesis run can be sequenced after it; there is no override, and
+no flag makes a write take the lock only partially.
+
+## CHARTER_SYNTHESIS_LOCK_UNAVAILABLE
+
+**When it fires**: git could not be invoked, so the lock file could not be
+placed. The writers refuse rather than write unlocked, because a lock that
+lands somewhere another run would not look would serialize nothing.
+
+**Remediation**: make git runnable in the checkout (PATH, permissions, a
+readable `.git`), then retry.
+
 # Governance resolution diagnostic codes
 
 > **Source of truth**: `src/charter/activation/_diagnostics.py` (StrEnum class

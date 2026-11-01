@@ -263,12 +263,17 @@ def test_resynthesize_json_envelope_carries_the_lock_code(tmp_path: Path, charte
     assert str(lock_path) in "".join(json.dumps(envelope).split()).replace("\\\\", "\\")
 
 
-# --- activation restamp warns and skips while a synthesis run holds the lock (#6453) --------------
+# --- activation writes take the same lock (#6719) --------------------------------------------------
 
-_WARNING_FRAGMENT = "bundle hash was not refreshed"
+_CHARTER_YAML_REL = Path(".kittify", "charter", "charter.yaml")
 
 
-def test_activate_saves_warns_and_skips_restamp_while_lock_is_held(tmp_path: Path) -> None:
+def test_activate_refuses_while_a_synthesis_run_holds_the_lock(tmp_path: Path) -> None:
+    """#6719 supersedes #6453's "save unlocked, warn and skip the restamp": that unlocked save is the race.
+
+    The activation read-modify-write now runs under the run-wide synthesis lock, so a held lock is the
+    same bounded-wait-then-refuse as a second synthesis run, with nothing written.
+    """
     from charter.activation.synthesizer.manifest import load_yaml
     from charter.bundle import compute_bundle_content_hash
     from tests.charter.test_activate_restamps_bundle_hash import _project
@@ -276,21 +281,21 @@ def test_activate_saves_warns_and_skips_restamp_while_lock_is_held(tmp_path: Pat
     repo = _project(tmp_path)
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True, capture_output=True)
     stamped = load_yaml(repo / MANIFEST_PATH).bundle_content_hash
+    before = _snapshot(repo)
     args = ["activate", "--repo-root", str(repo), "--no-compile", "directive", "010-specification-fidelity-requirement"]
 
     with _held_by_other_thread(repo) as lock_path:
         result = runner.invoke(charter_app, args)
 
-    assert result.exit_code == 0, result.output
-    assert "Traceback" not in result.output
-    assert _WARNING_FRAGMENT in " ".join(result.output.split())
-    assert str(lock_path) in "".join(result.output.split())
-    assert "010-specification-fidelity-requirement" in (repo / ".kittify" / "charter" / "charter.yaml").read_text(encoding="utf-8")
-    assert load_yaml(repo / MANIFEST_PATH).bundle_content_hash == stamped  # restamp skipped
-    assert compute_bundle_content_hash(repo) != stamped  # so the manifest is genuinely stale
+    assert result.exit_code == 1, result.output
+    assert _HELD in result.output
+    assert str(lock_path) in "".join(result.output.split())  # rich wraps long lines; compare without whitespace
+    assert _snapshot(repo) == before  # nothing written
+    assert "010-specification-fidelity-requirement" not in (repo / _CHARTER_YAML_REL).read_text(encoding="utf-8")
+    assert load_yaml(repo / MANIFEST_PATH).bundle_content_hash == stamped
 
-    # Positive control, lock free: the next activation change restamps.
+    # Positive control, lock free, same fixture: the activation writes and restamps.
     free = runner.invoke(charter_app, args)
     assert free.exit_code == 0, free.output
-    assert _WARNING_FRAGMENT not in " ".join(free.output.split())
+    assert "010-specification-fidelity-requirement" in (repo / _CHARTER_YAML_REL).read_text(encoding="utf-8")
     assert load_yaml(repo / MANIFEST_PATH).bundle_content_hash == compute_bundle_content_hash(repo)

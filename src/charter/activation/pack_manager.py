@@ -1025,7 +1025,7 @@ def _identity_normalised(
     index = IdentityIndex.build(repo_root)
 
     def stem_of(token: str) -> str:
-        return index.stored_spelling(kind, token)
+        return str(index.stored_spelling(kind, token))
 
     collapsed = _collapse_spellings(present_list, stem_of)
     if present_list and collapsed != present_list:
@@ -1041,6 +1041,30 @@ def _availability_roots(repo_root: Path, layer_roots: dict[str, Path] | None, or
         "layer_roots": layer_roots if layer_roots is not None else resolve_layer_roots(repo_root),
         "org_root_chain": org_root_chain if org_root_chain is not None else resolve_pack_chain(repo_root, strict=False),
     }
+
+
+def _synthesis_locked_write(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Run a manager write under the run-wide charter synthesis lock (#6719).
+
+    ``activate``/``deactivate`` read the activation target, plan in memory and
+    commit the write; a synthesis run can land its own activation append between
+    that read and that write, so the operator's change is either overwritten or
+    refused with ``precondition_changed`` (#6719). The lock makes the whole
+    read-plan-write of one artifact one unit, and it is re-entrant, so the
+    nesting ``commit_plan`` → ``restamp_bundle_hash`` still works.
+
+    A lock that cannot be acquired raises :class:`SynthesisLockHeldError` /
+    :class:`SynthesisLockUnavailableError` with nothing written; the CLI renders
+    those as the coded refusal.
+    """
+    from charter.activation.synthesizer.synthesis_lock import synthesis_lock  # deferred import
+
+    @functools.wraps(method)
+    def _locked(self: ActiveCharterManager, ctx: ProjectContext, *args: Any, **kwargs: Any) -> Any:
+        with synthesis_lock(ctx.require_repo_root()):
+            return method(self, ctx, *args, **kwargs)
+
+    return _locked
 
 
 class ActiveCharterManager:
@@ -1067,6 +1091,7 @@ class ActiveCharterManager:
         resolved = self._require_kind(kind)
         return resolved.effective_when_absent if resolved is not None else "all"
 
+    @_synthesis_locked_write
     def activate(
         self,
         ctx: ProjectContext,
@@ -1095,6 +1120,11 @@ class ActiveCharterManager:
         when the set cannot be resolved it falls back to the available ids
         (an explicit activation has already validated its id) and says so in
         :attr:`ActivationResult.warnings`.
+
+        When the write is needed the whole read-plan-write runs under the
+        run-wide charter synthesis lock (#6719): a concurrent synthesis append
+        can neither be overwritten by this activation nor leave this plan
+        based on a read that predates it.
 
         Parameters
         ----------
@@ -1194,6 +1224,7 @@ class ActiveCharterManager:
         restamp_bundle_hash(repo_root)
         return result
 
+    @_synthesis_locked_write
     def deactivate(
         self,
         ctx: ProjectContext,
@@ -1217,6 +1248,12 @@ class ActiveCharterManager:
         is removed from a present allow list and recorded in
         ``deactivated_<plural>`` — also when the allow list is absent. An id
         that is already denied writes nothing and warns.
+
+        The whole read-plan-write runs under the run-wide charter synthesis
+        lock (#6719), so a deactivation that lands while a synthesis run is
+        appending is serialized rather than lost: without it synthesis's stale
+        read puts the artifact back (or this call refuses with
+        ``precondition_changed``).
 
         Parameters
         ----------

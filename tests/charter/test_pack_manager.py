@@ -47,7 +47,18 @@ pytestmark = pytest.mark.unit
     ],
 )
 def test_deactivate_preserves_entry_boundaries(tmp_path: Path, pointer: bool, newline: str, body: str) -> None:
-    from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
+    from dataclasses import replace
+
+    from tests.upgrade.preview_support.snapshot import assert_unchanged
+    from tests.upgrade.preview_support.snapshot import Node
+    from tests.upgrade.preview_support.snapshot import snapshot as _raw_snapshot
+
+    def snapshot(roots: dict[str, Path]) -> dict[tuple[str, str], Node]:
+        # Every manager write takes the run-wide synthesis lock (#6719), even one that then refuses; its
+        # lock files live in the git dir (process coordination, not project state), so only that subtree
+        # (and the `.git` directory's own mtime, which creating it bumps) is left out of the purity oracle.
+        nodes = {key: node for key, node in _raw_snapshot(roots).items() if not key[1].startswith(".git/spec-kitty-locks")}
+        return {key: replace(node, mtime_ns=None) if key[1] == ".git" else node for key, node in nodes.items()}
 
     config = tmp_path / ".kittify/config.yaml"
     config.parent.mkdir()
