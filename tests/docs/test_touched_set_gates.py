@@ -186,6 +186,11 @@ def _page(fm: dict[str, str], body: str = "body\n") -> str:
 _GOOD_DESC = "x" * 90  # inside the 50-180 band
 
 
+def _aud(profile: str) -> str:
+    """A one-entry doc-kitty ``audience:`` list in YAML flow style (#6929)."""
+    return f"[{{profile: {profile}, guidance_text: g}}]"
+
+
 # --------------------------------------------------------------------------- #
 # T012 — touched-set gates.
 # --------------------------------------------------------------------------- #
@@ -206,26 +211,25 @@ def test_compute_touched_set_scopes_to_docs_content_pages(tmp_path: Path) -> Non
 
 def test_audience_presence_red_first_and_clean(tmp_path: Path) -> None:
     repo = tmp_path
-    catalog = repo / "docs" / "context" / "audience" / "internal"
-    _touch(catalog / "maintainer.md")
-    good = repo / "docs" / "guides" / "good.md"
-    good.parent.mkdir(parents=True, exist_ok=True)
-    good.write_text(
-        _page({"audience": "../context/audience/internal/maintainer.md"}),
-        encoding="utf-8",
-    )
-    missing = repo / "docs" / "guides" / "missing.md"
-    missing.write_text(_page({"title": "no audience"}), encoding="utf-8")
-    dangling = repo / "docs" / "guides" / "dangling.md"
-    dangling.write_text(_page({"audience": "../context/audience/internal/ghost.md"}), encoding="utf-8")
-    catalog_root = repo / "docs" / "context" / "audience"
+    docs = repo / "docs"
+    _touch(docs / "context" / "audience" / "internal" / "maintainer.md")
+    pages = {}
+    for name, fm in {
+        "good": {"audience": _aud("internal/maintainer")},
+        "missing": {"title": "no audience"},
+        "dangling": {"audience": _aud("internal/ghost")},
+        "free-text": {"audience": _aud("end-users")},
+        "old-path": {"audience": "../context/audience/internal/maintainer.md"},
+        "no-guidance": {"audience": "[{profile: internal/maintainer}]"},
+    }.items():
+        page = docs / "guides" / f"{name}.md"
+        page.parent.mkdir(parents=True, exist_ok=True)
+        page.write_text(_page(fm), encoding="utf-8")
+        pages[name] = page
 
-    assert tsg.check_audience_presence([good], repo, catalog_root) == []
-    flagged = tsg.check_audience_presence([good, missing, dangling], repo, catalog_root)
-    assert {v.path for v in flagged} == {
-        "docs/guides/missing.md",
-        "docs/guides/dangling.md",
-    }
+    assert tsg.check_audience_presence([pages["good"]], repo, docs) == []
+    flagged = tsg.check_audience_presence(list(pages.values()), repo, docs)
+    assert {v.path for v in flagged} == {f"docs/guides/{name}.md" for name in ("missing", "dangling", "free-text", "old-path", "no-guidance")}
     assert all(v.rule_id == "audience_presence" for v in flagged)
 
 
@@ -263,7 +267,7 @@ def test_audience_placement_flags_misfiled_howto(tmp_path: Path) -> None:
         _page(
             {
                 "type": "how_to",
-                "audience": "../context/audience/internal/maintainer.md",
+                "audience": _aud("internal/maintainer"),
             }
         ),
         encoding="utf-8",
@@ -275,7 +279,7 @@ def test_audience_placement_flags_misfiled_howto(tmp_path: Path) -> None:
         _page(
             {
                 "type": "how_to",
-                "audience": "../context/audience/internal/maintainer.md",
+                "audience": _aud("internal/maintainer"),
             }
         ),
         encoding="utf-8",
@@ -293,7 +297,7 @@ def test_audience_placement_skips_when_homes_unresolvable(tmp_path: Path) -> Non
     page = docs / "guides" / "howto.md"
     page.parent.mkdir(parents=True, exist_ok=True)
     page.write_text(
-        _page({"type": "how_to", "audience": "../context/audience/internal/m.md"}),
+        _page({"type": "how_to", "audience": _aud("internal/m")}),
         encoding="utf-8",
     )
     # Baseline (pre-WP01) routing has no how_to_internal/how_to_external split.
@@ -498,3 +502,25 @@ def test_run_reconcile_end_to_end_with_fixtures(tmp_path: Path) -> None:
         )
         == 1
     )
+
+
+def test_audience_placement_ignores_a_page_with_no_catalog_profile(tmp_path: Path) -> None:
+    """A how-to whose only profile is free text has no orientation, so placement says nothing."""
+    repo = tmp_path
+    docs = repo / "docs"
+    page = docs / "guides" / "howto.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(_page({"type": "how_to", "audience": _aud("end-users")}), encoding="utf-8")
+    config = {"concern_bucket_to_section": {"how_to_internal": "development/", "how_to_external": "guides/"}}
+
+    assert tsg.check_audience_placement([page], repo, docs, config) == []
+
+
+def test_audience_presence_skips_pages_in_excluded_folders(tmp_path: Path) -> None:
+    repo = tmp_path
+    docs = repo / "docs"
+    page = docs / "archive" / "old.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(_page({"audience": "../context/audience/internal/maintainer.md"}), encoding="utf-8")
+
+    assert tsg.check_audience_presence([page], repo, docs) == []
