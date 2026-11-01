@@ -45,7 +45,16 @@ Rules
 * **A list an earlier build seeded is reported, never narrowed** (#6499): when
   a present list holds every available artefact of its kind and the interview
   selected only some of them, the result warns and names the narrowing
-  commands (#6408).
+  commands (#6408). A list an earlier build wrote from a *released* ``default``
+  activation preset (the superseded seeding wrote that preset, then appended
+  the interview ids it lacked) is reported too, even though the catalogue has
+  grown since and the list is smaller than today's in-force set (#6684); the
+  comparand is :data:`._charter_pack_cutover_snapshots.DEFAULT_SNAPSHOTS`, the
+  same frozen released-preset data the pack cutover compares against, never a
+  live preset. Residual: a whole-catalogue seed from a release whose catalogue
+  later grows is only recognised while the catalogue is unchanged (today's set),
+  because no per-release catalogue snapshot is kept; #6684's ADR amendment
+  records that condition.
 
 Resolution is not this step's own rule any more (#6686): every interview id is
 resolved through :class:`charter.activation.selection.SelectionResolver`, the
@@ -71,6 +80,7 @@ from charter.activation.api import (
 )
 from charter.drg import ArtifactKind
 
+from ._charter_pack_cutover_snapshots import DEFAULT_SNAPSHOTS
 from ..ledger import SETTLED_RESULT, LedgerRecord, MigrationLedger
 from ..metadata import _LEGACY_MIGRATION_ID_MAP, ProjectMetadata
 from ..registry import MigrationRegistry, migration_settled, pending_adoption_ids
@@ -100,6 +110,12 @@ _SUPERSEDED_PROMOTION_ID = "unify_charter_activation_promote_answers"
 _SKIPPED_RESULT = "skipped"
 _SEEDED_LIST_HINT = (
     "{key} lists every available {token} ({listed}), as an upgrade before 4.0.0rc8 wrote it; the interview selected {selected}. "
+    "To keep only those, run `spec-kitty charter interview --narrow-activation` or "
+    "`spec-kitty charter activate {token} <id> --only`; `charter synthesize` then asks for companion tactics only for what you keep."
+)
+_SEEDED_PRESET_HINT = (
+    "{key} lists the {listed} {token} a released `default` activation preset wrote, as an upgrade before 4.0.0rc8 left it, "
+    "while more {token}s are in force today; the interview selected {selected}. "
     "To keep only those, run `spec-kitty charter interview --narrow-activation` or "
     "`spec-kitty charter activate {token} <id> --only`; `charter synthesize` then asks for companion tactics only for what you keep."
 )
@@ -166,8 +182,34 @@ def _discard(path: Path, data: dict[str, Any]) -> None:
     del path, data
 
 
+def _accounts_for_a_released_preset(key: str, kind: ArtifactKind, listed: set[str], selected: set[str], resolver: SelectionResolver) -> bool:
+    """Whether a released ``default`` preset accounts for *listed*.
+
+    One provenance rule, two shapes: the preset itself (a seeding migration
+    wrote it as the kind's in-force list) and the preset plus interview ids the
+    preset lacks (the seeding appended those afterwards). ``listed`` must stay
+    inside the preset's union with the interview's own selection, so a
+    hand-picked list that merely overlaps a released preset is not reported.
+
+    The comparand is a *released* preset, never today's: a list seeded before
+    the catalogue grew holds fewer ids than today's in-force set and the
+    equality check in :func:`_seeded_list_hints` would miss it (#6684).
+    """
+    for preset in DEFAULT_SNAPSHOTS.get(key, ()):
+        stems = resolver.stems(kind, sorted(preset))
+        if stems <= listed <= (stems | selected):
+            return True
+    return False
+
+
 def _seeded_list_hints(project_path: Path, present: Mapping[ArtifactKind, list[str]], selections: SelectionResolution, resolver: SelectionResolver) -> list[str]:
-    """A warning for each present list that holds every available artefact while the interview selected fewer.
+    """A warning for each present list an earlier build wrote while the interview selected fewer.
+
+    Two provenances are recognised: a list that holds today's whole in-force
+    set, and a list set-equal to (or a released preset plus its interview ids
+    from) a **released** ``default`` activation preset. The second closes the
+    gap #6684 names: such a list was machine-written before the catalogue grew,
+    so it is smaller than today's set and the equality check alone misses it.
 
     The in-force set is resolved once, only for the candidate kinds (a list
     longer than the selection). Nothing is written: narrowing is an operator
@@ -182,10 +224,17 @@ def _seeded_list_hints(project_path: Path, present: Mapping[ArtifactKind, list[s
     hints: list[str] = []
     for key, entry in resolve_effective_sets(project_path, list(candidates)).items():
         kind = candidates[key]
+        if not entry.resolved or not entry.ids:
+            continue
+        in_force = resolver.stems(kind, entry.ids)
         listed = resolver.stems(kind, present[kind])
         selected = set(selections.stems[key])
-        if entry.resolved and entry.ids and listed == resolver.stems(kind, entry.ids) and selected < listed:
+        if not selected < listed:
+            continue
+        if listed == in_force:
             hints.append(_SEEDED_LIST_HINT.format(key=key, token=kind.operator_token, listed=len(listed), selected=len(selected)))
+        elif listed <= in_force and _accounts_for_a_released_preset(key, kind, listed, selected, resolver):
+            hints.append(_SEEDED_PRESET_HINT.format(key=key, token=kind.operator_token, listed=len(listed), selected=len(selected)))
     return hints
 
 
