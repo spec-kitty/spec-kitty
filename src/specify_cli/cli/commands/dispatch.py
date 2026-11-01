@@ -107,7 +107,87 @@ def _render_empty_charter_warning(payload: InvocationPayload) -> None:
     )
 
 
-def _render_payload_capsule(payload: InvocationPayload, *, show_invocation_id: bool) -> None:
+def _governance_reference(payload: InvocationPayload) -> dict[str, object] | None:
+    """Reference standing in for the re-embedded governance text (#6990).
+
+    ``dispatch`` assembles the full governance context on every call and
+    re-embeds it; a harness that dispatches repeatedly pays ~13-26 KB of
+    unchanged prompt context per invocation. ``--brief`` keeps the routing and
+    orientation fields and prints this reference instead: a digest, the payload
+    size, and the command that fetches the text again.
+
+    Returns ``None`` -- meaning "leave the payload alone" -- when there is no
+    text to reference or the fetch command could not reproduce it
+    (``governance_context_available`` is the executor's own signal). Never emit
+    a reference that resolves to something other than what was omitted
+    (spec C-002).
+
+    The action is the payload's **own** derived action, never a re-derivation
+    from the request text: ``--profile <implementer>`` with a request beginning
+    "implement" can still derive ``generate`` (role-default-verb), and naming
+    the request verb would fetch a different governance grain.
+    """
+    text = payload.governance_context_text or ""
+    if not payload.governance_context_available or not text.strip():
+        return None
+    # The empty-charter fallback renders with
+    # ``suppress_project_resolver=True`` (executor.py), and ``charter context``
+    # has no equivalent flag, so its render would be a superset of this one.
+    # Keep the text embedded rather than print a reference that does not
+    # reproduce what was omitted (spec C-002).
+    if getattr(payload, "empty_charter_fallback", False):
+        return None
+    return {
+        "digest": payload.governance_context_hash,
+        "bytes": len(text.encode("utf-8")),
+        "lines": len(text.splitlines()),
+        # ``--json`` is deliberate: its ``text`` field is the byte-exact render,
+        # while the plain console path wraps long lines to the terminal width.
+        # ``--no-mark-loaded`` mirrors this command's own ``mark_loaded=False``
+        # (#2532): fetching the text must not record a first-load for a
+        # bootstrap action and silently shrink the next mission prompt.
+        "fetch_command": (
+            f"spec-kitty charter context --action {payload.action} --profile {payload.profile_id} "
+            "--json --no-mark-loaded"
+        ),
+    }
+
+
+def _apply_governance_brief(envelope: dict[str, object], payload: InvocationPayload) -> None:
+    """Swap the re-embedded text for its reference in a JSON envelope (#6990).
+
+    Mutates the already-built envelope dict, never the payload: the Op record,
+    the glossary scan and the router keep seeing the real text. Adds
+    ``governance_context_reference`` only in brief mode, so the non-brief shape
+    is byte-identical (spec C-003).
+    """
+    reference = _governance_reference(payload)
+    if reference is None:
+        return
+    envelope["governance_context_text"] = None
+    envelope["governance_context_reference"] = reference
+
+
+def _emit_json_envelope(
+    payload: InvocationPayload,
+    envelope: dict[str, object],
+    *,
+    brief: bool,
+    indent: int | None = None,
+) -> None:
+    """Emit a JSON payload envelope, applying brief mode when asked (#6990).
+
+    One call site per envelope shape (real and ``--dry-run``) so the brief
+    substitution and the ``json.dumps`` options cannot drift between them.
+    """
+    if brief:
+        _apply_governance_brief(envelope, payload)
+    typer.echo(json.dumps(envelope, indent=indent))
+
+
+def _render_payload_capsule(
+    payload: InvocationPayload, *, show_invocation_id: bool, brief: bool = False
+) -> None:
     """Shared rich-console capsule body: profile/action/context/warnings.
 
     Factored out of ``_render_rich_payload`` (WP01-002 fix) so the real
@@ -117,6 +197,12 @@ def _render_payload_capsule(payload: InvocationPayload, *, show_invocation_id: b
     behavior-preserving for the real path: ``_render_rich_payload`` below
     calls this with ``show_invocation_id=True`` in the exact same order as
     before.
+
+    ``brief`` (#6990) replaces the full governance panel with the reference
+    ``--brief`` also emits in the JSON envelope: a digest, the payload size,
+    and the exact command that fetches the text. Only when the text exists and
+    the command can reproduce it (``_governance_reference``); otherwise the
+    normal panel/unavailable signal is unchanged.
 
     Also prints ``alternatives`` when non-empty (WP2/#3840, FR-005; PR-BOUNDARY-002
     pre-merge finding), so BOTH the real (Op-opening) console path and the
@@ -165,18 +251,25 @@ def _render_payload_capsule(payload: InvocationPayload, *, show_invocation_id: b
     recommendation = payload.recommendation
     if recommendation is not None:
         console.print(Panel(_format_recommendation(recommendation), title="Model Routing Recommendation (advisory)", border_style="cyan", expand=False))
-    if payload.governance_context_available and payload.governance_context_text:
+    reference = _governance_reference(payload) if brief else None
+    if reference is not None:
+        console.print(
+            f"[dim]Governance context:[/dim] digest {reference['digest']} "
+            f"({reference['bytes']} bytes, {reference['lines']} lines) — not re-embedded (--brief)"
+        )
+        console.print(f"  [dim]Fetch the full text:[/dim] {reference['fetch_command']}")
+    elif payload.governance_context_available and payload.governance_context_text:
         console.print(Panel(payload.governance_context_text, title="Governance Context", expand=False))
     else:
         console.print("[yellow]Governance context unavailable.[/yellow] Run 'spec-kitty charter synthesize'.")
 
 
-def _render_rich_payload(payload: InvocationPayload) -> None:
+def _render_rich_payload(payload: InvocationPayload, *, brief: bool = False) -> None:
     """Rich console output for profile/action/context (real dispatch, OPEN Op)."""
-    _render_payload_capsule(payload, show_invocation_id=True)
+    _render_payload_capsule(payload, show_invocation_id=True, brief=brief)
 
 
-def _render_dry_run_rich_payload(payload: InvocationPayload) -> None:
+def _render_dry_run_rich_payload(payload: InvocationPayload, *, brief: bool = False) -> None:
     """Rich console output for the ``--dry-run`` success path (WP01-002 fix).
 
     Mirrors ``_render_rich_payload`` minus ``invocation_id`` -- no Op was
@@ -185,9 +278,9 @@ def _render_dry_run_rich_payload(payload: InvocationPayload) -> None:
     rendering (WP2/#3840, FR-005) now lives in the shared
     ``_render_payload_capsule`` body itself (PR-BOUNDARY-002), so both this
     and ``_render_rich_payload`` print it identically -- no standalone block
-    needed here any more.
+    needed here any more. ``brief`` (#6990) is passed through unchanged.
     """
-    _render_payload_capsule(payload, show_invocation_id=False)
+    _render_payload_capsule(payload, show_invocation_id=False, brief=brief)
     console.print("[dim]Dry run — no Op opened, nothing written.[/dim]")
 
 
@@ -294,8 +387,14 @@ def _dispatch_impl(
     executor: ProfileInvocationExecutor,
     dry_run: bool = False,
     record_root: Path | None = None,
+    brief: bool = False,
 ) -> None:
     """Open a standalone Op and emit either JSON or rich console output.
+
+    ``brief=True`` (#6990) swaps the re-embedded governance text for the
+    reference built by :func:`_governance_reference` -- in the JSON envelope
+    and in the console capsule, on both the real and the ``--dry-run`` paths.
+    The default (``brief=False``) output is untouched.
 
     ``dry_run=True`` (FR-001) is a SECOND, separate try/except scoped only to
     ``executor.dry_run(...)`` -- kept distinct from the invoke()-path
@@ -339,9 +438,9 @@ def _dispatch_impl(
             # project this is the first failure the operator sees.
             exit_git_resolution_failure(e, repo_root, json_output=json_output)
         if json_output:
-            typer.echo(json.dumps(payload.to_dry_run_dict()))
+            _emit_json_envelope(payload, payload.to_dry_run_dict(), brief=brief)
             return
-        _render_dry_run_rich_payload(payload)
+        _render_dry_run_rich_payload(payload, brief=brief)
         return
 
     op_root = record_root if record_root is not None else repo_root
@@ -366,10 +465,10 @@ def _dispatch_impl(
     # FR-001/FR-002: the Op stays OPEN. The caller closes it via
     # `spec-kitty profile-invocation complete` with the real outcome.
     if json_output:
-        typer.echo(json.dumps(payload.to_dict(), indent=2))
+        _emit_json_envelope(payload, payload.to_dict(), brief=brief, indent=2)
         return
 
-    _render_rich_payload(payload)
+    _render_rich_payload(payload, brief=brief)
     render_open_hint_task_execution(payload)
 
     # Inline drift observation — reads glossary events written by the chokepoint.
@@ -389,6 +488,15 @@ def dispatch(
         help="Optional profile ID. Bypasses the router — use when the request is ambiguous.",
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON payload"),
+    brief: bool = typer.Option(
+        False,
+        "--brief",
+        help=(
+            "Emit routing and orientation metadata only: replace the embedded governance text "
+            "with its digest and the exact command that fetches it. Use after this session has "
+            "already read the full text for the resolved profile and action."
+        ),
+    ),
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
@@ -402,7 +510,9 @@ def dispatch(
     request verb is ambiguous. Opens an Op record; the caller closes it with the
     real outcome. Pass --dry-run to get the routing signal only -- no Op is
     opened, no kitty-ops/ file is written, no glossary event is persisted, and
-    nothing is submitted to the SaaS propagator.
+    nothing is submitted to the SaaS propagator. Pass --brief to replace the
+    embedded governance text with its digest and the command that fetches it;
+    the governance context is still assembled and the Op record is unchanged.
     """
     repo_root = _get_repo_root()
     # An owned checkout keeps the record wherever the command runs from (#6682 follow-up).
@@ -418,4 +528,5 @@ def dispatch(
         executor=executor,
         dry_run=dry_run,
         record_root=record_root,
+        brief=brief,
     )
