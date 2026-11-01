@@ -1,0 +1,35 @@
+{
+  "accept_commit": "d18dd1d71e10e415473e3396cdd6267fdef39754",
+  "acceptance_history": [
+    {
+      "accept_commit": "d18dd1d71e10e415473e3396cdd6267fdef39754",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-11-01T18:03:11.669550+00:00",
+      "accepted_by": "reviewer-renata",
+      "accepted_from_commit": "0c2d84609ed0b3a482ed30029217e05795bdbbe7"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-11-01T18:03:11.669550+00:00",
+  "accepted_by": "reviewer-renata",
+  "accepted_from_commit": "0c2d84609ed0b3a482ed30029217e05795bdbbe7",
+  "baseline_merge_commit": "cdd8fda22521d5e6d20a3dce9a0eeef7bd87ba0a",
+  "created_at": "2026-11-01T15:14:24.154210+00:00",
+  "flattened": false,
+  "friendly_name": "mission type capability hardening",
+  "merged_at": "2026-11-01T18:03:58.098028+00:00",
+  "merged_commit": "b29538e0ac5aeb29375eb3a4531f60fa74d5e6a1",
+  "mid8": "01M6BTT4",
+  "mission_id": "01M6BTT405RH5K0BE6W97FA25K",
+  "mission_number": 246,
+  "mission_slug": "mission-type-capability-hardening-01M6BTT4",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances mission type capability hardening on issue-6330-run-dir-threading so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "mission type capability hardening",
+  "slug": "mission-type-capability-hardening-01M6BTT4",
+  "status_phase": "1",
+  "target_branch": "issue-6330-run-dir-threading",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-11-01T15:22:47.249736+00:00"
+}

@@ -1,0 +1,85 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6C4GNKZBTRDFDR6VGVY5TVT",
+  "materialized_at": "2026-11-01T18:03:59.999159+00:00",
+  "mission_number": "246",
+  "mission_slug": "mission-type-capability-hardening-01M6BTT4",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M6C4GKVYYNAGGDY2JY9MCJTX",
+      "last_transition_at": "2026-11-01T18:03:58.206215+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed: run_dir threading verified at all three production call sites; the fact port keeps one kernel rule and takes an explicit mission_slug fallback only; built-in suites (7 guard + 83 presence/CLI-family + 120 next-bridge) green; non-vacuity proven by reverting each half and watching the matching test go red; the two test-double signature updates in test_bridge_cores/test_bridge_composition are required by the new kwargs (recorded as out-of-map edits)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 135762,
+      "shell_pid_created_at": "1793555612.13",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi",
+      "lane": "done",
+      "last_event_id": "01M6C4GNKZBTRDFDR6VGVY5TVT",
+      "last_transition_at": "2026-11-01T18:03:59.999159+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review passed after a fix round: (1) the changelog moved from a CHANGELOG.md edit to the repository's fragment convention (docs/changelog/unreleased/6330.fixed.md, 895 chars, check_changelog_style clean); (2) the duplicated CHANGELOG line was removed; (3) the new fail-open test class no longer absorbs TestCapabilityFacets.test_existing_fields_still_present. Verified: 38 passed across the two touched modules; the WARNING fires exactly once and only on failure (positive control); the curated-away parity fixture builds the real divergence and both halves go red when reverted."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 192760,
+      "shell_pid_created_at": "1793555932.32",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    }
+  }
+}

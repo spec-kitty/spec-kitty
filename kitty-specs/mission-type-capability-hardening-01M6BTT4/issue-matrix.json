@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#2721": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6315": {
+      "evidence_ref": "#6315 shipped as PR #6332 (merged 2026-10-17); this mission implements its three non-blocking follow-ups, it owes that issue no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6330": {
+      "evidence_ref": "branch issue-6330-run-dir-threading: WP01 threads ctx.run_dir into gather_artifact_presence (runtime_bridge.py, runtime_bridge_composition.py, runtime_bridge_io.py) and WP02 makes the requires_substantive_spec fail-open observable and pins the advisory wp_driven facet; tests tests/runtime/test_wp_driven_guard.py, tests/runtime/test_wp_driven_parity.py, tests/charter/test_resolved_mission_type_context.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6331": {
+      "evidence_ref": "#6331 is the sibling capability-offering seam (PR #6914); out of this mission's scope",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6332": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

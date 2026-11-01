@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "mission_slug": "mission-type-capability-hardening-01M6BTT4",
+  "mission_id": "01M6BTT405RH5K0BE6W97FA25K",
+  "mission_branch": "kitty/mission-mission-type-capability-hardening-01M6BTT4",
+  "target_branch": "issue-6330-run-dir-threading",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "tests/runtime/test_wp_driven_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/mission_type_profiles.py",
+        "tests/charter/test_resolved_mission_type_context.py",
+        "tests/runtime/test_wp_driven_parity.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:21:05.920683+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a1bb49d8d27cf3336f6d4ab4182d9e45211924ea"
+}
