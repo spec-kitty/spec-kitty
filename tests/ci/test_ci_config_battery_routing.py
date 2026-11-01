@@ -31,7 +31,7 @@ import yaml
 from scripts.ci.gate_selection import DEFAULT_ROUTER_PATH, Router, load_router, select_battery_gates, select_gates, select_modules
 from scripts.ci.prose_only import prose_only_pr_verdict
 from tests.architectural import _ci_integrity_oracle as oracle
-from tests.ci._gh_if import eval_gh_value
+from tests.ci._gh_if import eval_gh_if, eval_gh_value
 
 pytestmark = pytest.mark.fast
 
@@ -215,12 +215,67 @@ def test_unmapped_src_change_still_runs_everything_with_ci_config_selected(route
 
 
 def test_battery_if_keeps_the_prose_only_conjunct_as_the_single_outer_and() -> None:
-    """C-002: the OR grows by one term; the subtraction stays the one outer AND."""
+    """C-002 + #6999 (operator ruling 2026-11-01): the OR grows by one term; the prose
+    subtraction stays the one outer ``&&`` but is EXEMPTED for a declared scan-scope match.
+    """
     condition = _battery_condition()
 
     assert condition.count("needs.prose-scan.outputs.prose_only != 'true'") == 1
-    assert re.search(r"\)\s*&&\s*needs\.prose-scan\.outputs\.prose_only != 'true'\s*$", condition)
+    # The subtraction is still the single outer AND, now a two-term guard: prose subtracts the
+    # battery unless the diff touches a declared scan scope (#6999).
+    assert re.search(
+        r"\)\s*&&\s*\(\s*needs\.prose-scan\.outputs\.prose_only != 'true' \|\|\s*needs\.prose-scan\.outputs\.scan_scope_match == 'true'\s*\)\s*$",
+        condition,
+    ), condition
     assert "needs.changes.outputs.ci_config == 'true'" in condition
+
+
+def _condition_context(prose_only: bool, scan_scope: bool) -> dict[str, bool]:
+    """Every output the battery ``if:`` reads, defaulted false, with the two prose inputs set.
+
+    ``scan_scope`` is prose-scan's ``scan_scope_match`` companion output (#6999): the same parsed
+    ``arch_scan_scope`` globs, evaluated in the job that already holds the diff. Keeping it out of
+    ``needs.changes.outputs.*`` leaves the battery ``if:`` naming that group exactly once, so the
+    #6994 planted control (drop the group's OR term) still reds.
+    """
+    context = {f"{job}.{name}": False for job, name in _CONTEXT_OUTPUTS}
+    # The routing half: a diff that touches a declared scan scope selects the battery through the
+    # `arch_scan_scope` group, so the group term is lit in every row and only the prose guard varies.
+    context["changes.arch_scan_scope"] = True
+    context["prose-scan.prose_only"] = prose_only
+    context["prose-scan.scan_scope_match"] = scan_scope
+    return context
+
+
+def test_the_prose_only_exemption_runs_the_battery_only_for_a_declared_scan_scope_match() -> None:
+    """#6999: the ruling's truth table, evaluated on the REAL ``if:`` string.
+
+    Operator ruling 2026-11-01: a prose-only diff still skips the battery as a whole, but every
+    gate whose declared ``scan_scopes`` entry matches runs (the ``arch_scan_scope`` group is the
+    test-pinned transcription of those declarations).
+    """
+    condition = _battery_condition()
+
+    # Group lit (declared scope routed) in every row; the prose guard is what varies.
+    assert eval_gh_if(condition, _condition_context(prose_only=True, scan_scope=True)) is True, "declared prose match keeps the battery"
+    assert eval_gh_if(condition, _condition_context(prose_only=True, scan_scope=False)) is False, "prose with no declared match is still down-routed"
+    assert eval_gh_if(condition, _condition_context(prose_only=False, scan_scope=True)) is True, "code PR unchanged"
+    assert eval_gh_if(condition, _condition_context(prose_only=False, scan_scope=False)) is True, "code PR unchanged (#6994)"
+
+
+def test_dropping_the_prose_only_scan_scope_exemption_reds_the_ruling_truth_table() -> None:
+    """Planted control (#6999, SC-004): reverting the exemption must make the prose half fail."""
+    exempted = _battery_condition()
+    reverted, count = re.subn(
+        r"\)\s*&&\s*\(\s*needs\.prose-scan\.outputs\.prose_only != 'true' \|\|\s*needs\.prose-scan\.outputs\.scan_scope_match == 'true'\s*\)\s*$",
+        ") && needs.prose-scan.outputs.prose_only != 'true'\n",
+        exempted,
+    )
+    assert count == 1, "the exemption must be one replaceable guard, so the control cannot silently no-op"
+    context = _condition_context(prose_only=True, scan_scope=True)
+
+    assert eval_gh_if(exempted, context) is True, "the shipped if: must run the battery for a declared prose match"
+    assert eval_gh_if(reverted, context) is False, "the reverted subtraction must drop the battery, or this control is vacuous"
 
 
 def _battery_condition() -> str:
@@ -228,9 +283,14 @@ def _battery_condition() -> str:
     return str(workflow["jobs"][_HEAVY]["if"])
 
 
-def test_proven_prose_only_ci_script_is_still_subtracted_but_config_files_never_are(router: Router) -> None:
-    """C-002: a docstring-only ``scripts/ci/*.py`` is prose-only (the battery's
-    ``prose_only != 'true'`` conjunct then drops the battery, exactly as for ``src/``);
+#: Every ``needs.<job>.outputs.<name>`` the battery ``if:`` reads, so the truth tables above are
+#: explicit about their context instead of relying on a helper's defaults.
+_CONTEXT_OUTPUTS = tuple((match.group(1), match.group(2)) for match in re.finditer(r"needs\.([A-Za-z0-9_-]+)\.outputs\.([A-Za-z0-9_]+)", _battery_condition()))
+
+
+def test_proven_prose_only_ci_script_is_still_scoped_but_config_files_never_are(router: Router) -> None:
+    """C-002 + #6999: a docstring-only ``scripts/ci/*.py`` is prose-only, so the battery runs only
+    the heavy gates that DECLARE ``scripts/**`` in their scan scope (operator ruling 2026-11-01);
     workflow YAML, ``pytest.ini``, ``pyproject.toml`` and the ``Makefile`` are never prose-only.
     """
     doc_globs = [*router.filters["docs"], *router.filters["corpus"]]
@@ -238,9 +298,18 @@ def test_proven_prose_only_ci_script_is_still_subtracted_but_config_files_never_
     def blobs(path: str, side: str) -> str | None:
         return _PROSE_BASE if side == "base" else _PROSE_HEAD
 
-    assert prose_only_pr_verdict(["scripts/ci/some_helper.py"], blobs, doc_globs) is True
+    # Not under scripts/ci/** (that is the ci_config code group): a scripts/** path whose only
+    # router group is the declared scan scope, so the prose narrowing is what is under test.
+    prose_path = "scripts/release/some_helper.py"
+    assert prose_only_pr_verdict([prose_path], blobs, doc_globs) is True
     for config_only in (".github/workflows/ci-router.yml", "pytest.ini", "pyproject.toml", "Makefile"):
         assert prose_only_pr_verdict([config_only], blobs, doc_globs) is False, config_only
+
+    # The prose verdict narrows to the declared scanners instead of dropping the battery whole.
+    selected = select_battery_gates([prose_path], router=router, prose_only=True)
+    assert selected is not None and selected, "a prose-only scripts/ci diff must keep its declared scanners"
+    assert selected == select_battery_gates([prose_path], router=router), "a scope-only path keeps exactly its declared matches"
+    assert "tests/architectural/test_clock_call_ban.py" in selected
 
 
 # ---------------------------------------------------------------------------

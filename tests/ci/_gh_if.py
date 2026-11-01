@@ -193,4 +193,6 @@ BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
     "changes.ci_config": False,
     "changes.arch_scan_scope": False,
     "changes.contract_tools": False,
+    # #6999: prose-scan's companion to the #4842 verdict. False is the code-PR / non-skip default.
+    "prose-scan.scan_scope_match": False,
 }

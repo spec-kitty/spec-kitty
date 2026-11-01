@@ -9,8 +9,14 @@
 * ``run=false``: scoped, and this leg holds none of the selected gates.
 
 The selection itself is ``scripts.ci.gate_selection.select_battery_gates``; this module only
-reads the diff and the leg's part. It fails safe: no usable base, a git error or a selection error
-gives ``mode=full`` (and a ``::warning::``), never a narrower run.
+reads the diff, the leg's part and the ``--prose-only`` verdict the ``prose-scan`` job published.
+It fails safe: no usable base, a git error or a selection error gives ``mode=full`` (and a
+``::warning::``), never a narrower run.
+
+``prose_only`` (#6999) narrows a PROVEN prose-only diff to the heavy gates whose declared scan
+scope it touches -- the gates that read comment text, which the #4842 down-route used to drop
+along with the whole battery (operator ruling 2026-11-01). It never widens: a prose answer is
+still a scoped leg, and any doubt still answers the whole leg.
 """
 
 from __future__ import annotations
@@ -48,13 +54,20 @@ def _part_files(part: str, repo: Path) -> frozenset[str]:
     return frozenset(compute_partition(spec, repo, timings).parts[parse_part(part).key])
 
 
-def decide(paths: Sequence[str] | None, *, part: str, mode: str = "pr", repo: Path = _REPO_ROOT) -> tuple[str, frozenset[str]]:
+def decide(
+    paths: Sequence[str] | None,
+    *,
+    part: str,
+    mode: str = "pr",
+    prose_only: bool = False,
+    repo: Path = _REPO_ROOT,
+) -> tuple[str, frozenset[str]]:
     """``(FULL, {})`` or ``(SCOPED, the gates of this leg the diff selects)``."""
     from scripts.ci.gate_selection import select_battery_gates
 
     if paths is None or mode == FULL:
         return FULL, frozenset()
-    gates = select_battery_gates(paths, mode=mode)
+    gates = select_battery_gates(paths, mode=mode, prose_only=prose_only)
     if gates is None:
         return FULL, frozenset()
     return SCOPED, gates & _part_files(part, repo)
@@ -68,6 +81,11 @@ def output_lines(mode: str, gates: frozenset[str], out: Path) -> list[str]:
     return [f"mode={SCOPED}", f"run={'true' if gates else 'false'}", f"gates_file={out}"]
 
 
+def _flag(value: str) -> bool:
+    """``true``/``false`` as the prose-scan output spells them; anything else is ``False``."""
+    return value.strip().lower() == "true"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="battery_scope", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
@@ -75,11 +93,17 @@ def main(argv: list[str] | None = None) -> int:
     select.add_argument("--base", default="")
     select.add_argument("--head", default="")
     select.add_argument("--mode", default="pr")
+    select.add_argument(
+        "--prose-only",
+        default="false",
+        type=_flag,
+        help="the prose-scan job's prose_only verdict (true|false); narrows a proven prose diff to its declared scan-scope gates",
+    )
     select.add_argument("--battery-part", required=True)
     select.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
-        mode, gates = decide(changed_paths(args.base, args.head), part=args.battery_part, mode=args.mode)
+        mode, gates = decide(changed_paths(args.base, args.head), part=args.battery_part, mode=args.mode, prose_only=args.prose_only)
     except Exception as error:  # fail safe: any doubt runs the whole leg, it never narrows the run
         print(f"::warning::battery scope selection failed ({error!r}); running the whole leg", file=sys.stderr)
         mode, gates = FULL, frozenset()
