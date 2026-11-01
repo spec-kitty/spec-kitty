@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#2744": {
+      "evidence_ref": "Context-only citation in spec.md (referenced history / deferred follow-up); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3016": {
+      "evidence_ref": "Context-only citation in spec.md (referenced history / deferred follow-up); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3730": {
+      "evidence_ref": "Context-only citation in spec.md (referenced history / deferred follow-up); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3783": {
+      "evidence_ref": "Context-only citation in spec.md (referenced history / deferred follow-up); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4088": {
+      "evidence_ref": "Context-only citation in spec.md (referenced history / deferred follow-up); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5298": {
+      "evidence_ref": "Context-only citation in spec.md (referenced history / deferred follow-up); owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6633": {
+      "evidence_ref": "src/specify_cli/validators/paths.py (commit 81ce3b4c6e on lane-a): strict failure names project.path_conventions with exact missing keys + .kittify/overrides/missions/<type>/mission.yaml drop route; regression tests in tests/agent/test_validators_unit.py (red-first); how-to + changelog in commit 43181ea0f4",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

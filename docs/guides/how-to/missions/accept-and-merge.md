@@ -81,6 +81,33 @@ Nothing writes these fields for you yet: add them by hand to the Mission's `meta
 the plan step do it. For the reasoning, see the
 [ADR](../../../adr/4.x/2026-10-04-1-mission-contracts-waiver-in-meta-json.md).
 
+### When the Project Layout Differs
+
+The other path conventions, such as `src/`, `tests/` and `docs/`, stay in force for the
+mission type — but a project whose real layout differs has two honest project-level levers
+(#6633), and the strict failure text names both:
+
+- **Remap to the real layout.** Declare it once in `.kittify/config.yaml` under
+  `project.path_conventions` and `accept` checks the remapped directories instead:
+
+  ```yaml
+  project:
+    path_conventions:
+      workspace: internal/   # where the source actually lives
+      tests: internal/       # where the tests actually live
+  ```
+
+  The override is remap-only: it moves a required directory, never adds or drops one, and
+  `deliverables` (artifact-routed) is not in its vocabulary. See the
+  [ADR](../../../adr/3.x/2026-08-28-1-project-path-convention-override-precedes-doctrine.md).
+- **Drop a key the project has no directory for.** Copy the packaged `mission.yaml` to
+  `.kittify/overrides/missions/<mission-type>/mission.yaml` (for example `software-dev`)
+  and remove that key's line.
+
+Prefer these over `accept --lenient`: lenient mode also skips the per-work-package
+`agent`, `assignee` and `shell_pid` metadata checks, so it gives up more than the path
+check.
+
 ### Negative Invariants That Assert the Consolidated Post-State
 
 The accept gate **re-runs each acceptance negative-invariant `verification_command`

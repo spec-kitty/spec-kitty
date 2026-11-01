@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "mission_slug": "accept-path-conventions-name-overrides-01M66F7N",
+  "mission_id": "01M66F7NWDF15PWTEQ96V0HS4J",
+  "mission_branch": "kitty/mission-accept-path-conventions-name-overrides-01M66F7N",
+  "target_branch": "issue-6633-accept-path-conventions-name-overrides",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/validators/paths.py",
+        "tests/agent/test_validators_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/missions/accept-and-merge.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T13:22:26.327092+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "f1b3765e79aa6a29d2f770d9f9eadb291b538d63"
+}
