@@ -168,6 +168,7 @@ EXPECTED_DOOR_CALLERS: Mapping[tuple[str, str, str], int] = MappingProxyType(
         ("glossary.events", "append_event", "event_log_lock"): 1,  # the contract writer runs under the interim lock
         ("glossary.events", "held_event_log", "event_log_lock"): 1,  # one interim lock across a loop of glossary emits (#6706)
         ("runtime.next._internal_runtime.engine", "_append_event", _LOCKED): 1,  # run journal
+        ("specify_cli.decisions.service", "_decisions_anchor_lock", "event_log_lock"): 1,  # decisions anchor lock rides the interim lock (#6765)
         ("specify_cli.events.decision_log", "DecisionGitLog._append_to_file", _LOCKED): 1,  # decisions.events.jsonl
         ("specify_cli.invocation.lifecycle", "append_lifecycle_record", _LOCKED): 1,  # kitty-ops/lifecycle.jsonl
         ("specify_cli.invocation.propagator", "_log_propagation_error", _LOCKED): 1,  # kitty-ops/propagation-errors.jsonl
