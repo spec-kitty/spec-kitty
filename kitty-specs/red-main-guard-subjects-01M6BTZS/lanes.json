@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "red-main-guard-subjects-01M6BTZS",
+  "mission_id": "01M6BTZS6MPFP3B0X8SVPVDX9T",
+  "mission_branch": "kitty/mission-red-main-guard-subjects-01M6BTZS",
+  "target_branch": "issue-6997-red-main-guard-subjects",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/development/how-to/unclog-ci.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/api/orchestrator-api.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/contracts/upstream-3.0.0-shape.json",
+        "src/charter/offering/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md",
+        "src/specify_cli/core/upstream_contract.json",
+        "tests/contract/test_orchestrator_api.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:22:08.016390+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "958af111f73299a409036dd3dcf04c213961bcc9"
+}

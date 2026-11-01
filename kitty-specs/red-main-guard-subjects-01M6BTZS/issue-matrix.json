@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5443": {
+      "evidence_ref": "Precedent only: the #5443 registration of three sibling safe-commit codes is the shape this mission follows; that work is closed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5903": {
+      "evidence_ref": "Precedent only: the #5903 registration of SAFE_COMMIT_UNREQUESTED_PATHS; closed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6750": {
+      "evidence_ref": "Context only: SAFE_COMMIT_DIRECTORY_ARGUMENT shipped with the #6750 fix; that issue is closed and this mission registers the code in the contract rather than changing the refusal",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6870": {
+      "evidence_ref": "Context only: the #6870/#6750 change introduced SAFE_COMMIT_DIRECTORY_ARGUMENT; closed, not modified here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6988": {
+      "evidence_ref": "Context only: #6988 moved changelog entries to per-PR fragments, which this mission follows; closed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6997": {
+      "evidence_ref": "Mission red-main-guard-subjects-01M6BTZS consolidated on issue-6997-red-main-guard-subjects: tests/contract/test_terminology_guards.py (17 passed) and tests/contract/test_orchestrator_api.py::TestAllowedErrorCodes (red->green) both pass on the consolidated tree; SAFE_COMMIT_DIRECTORY_ARGUMENT registered in both contract copies at 1.22.0; both guards' own files unmodified",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}
