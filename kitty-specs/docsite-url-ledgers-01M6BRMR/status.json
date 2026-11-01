@@ -30,7 +30,8 @@
       "last_transition_at": "2026-11-01T15:15:23.676151+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Ledgers seeded; map derived from site/moves.yaml; 154 targeted tests green; local DocFX coverage 970/970"
+        "Ledgers seeded; map derived from site/moves.yaml; 154 targeted tests green; local DocFX coverage 970/970",
+        "Review passed (reviewer-renata). Red: 7cce0445b imports scripts.docs.moves_ledger absent at that commit; impl commit only reformatted 3 test statements. Green: 102 passed in 2.78s (6 docs test files). redirect_map: 163 prior values unchanged (only header lines removed). No Mission binding in generator/ledger. DocFX copy of base build: generate 298 stubs/0 dead, coverage 970/970, drift 0, check-map fresh. ruff/format/mypy/C901 clean; workflow YAML valid. 10/10 sampled #3914 entries match convergence occurrence map and resolve to existing pages; 11 follow-ups verified (archived pages under docs/archive/, outside docfx.json content globs). kitty-specs/common-docs-* and docs/adr untouched."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
