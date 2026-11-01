@@ -65,6 +65,7 @@ membership claims beside them are set equalities.
 
 from __future__ import annotations
 
+import ast
 import json
 import re
 import subprocess
@@ -613,6 +614,60 @@ def test_t024_sc005_mypy_strict_over_the_real_exempt_module() -> None:
         check=False,
     )
     assert completed.returncode == 0, completed.stdout or completed.stderr
+
+
+#: Where the architectural tests live; every mypy subprocess they start is checked below (#6953).
+ARCHITECTURAL_TESTS = TESTS_ROOT / "architectural"
+#: mypy flags that make a run write no cache: an explicit cache dir, or nothing to type-check.
+_MYPY_CACHE_SAFE_FLAGS = frozenset({"--cache-dir", "--version"})
+
+
+def _string_items(node: ast.List) -> list[str | None]:
+    return [item.value if isinstance(item, ast.Constant) and isinstance(item.value, str) else None for item in node.elts]
+
+
+def mypy_calls_without_cache_dir(source: str) -> tuple[int, list[int]]:
+    """Count ``[..., "-m", "mypy", ...]`` argv lists in *source*; return (count, offending lines).
+
+    A mypy run that names no ``--cache-dir`` writes ``.mypy_cache/`` into its working
+    directory, the checkout, which then reads as dirty to the battery's universe-reuse check
+    (#6953).
+    """
+    count = 0
+    offenders: list[int] = []
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.List):
+            continue
+        items = _string_items(node)
+        pairs = zip(items, items[1:], strict=False)
+        if not any(first == "-m" and second == "mypy" for first, second in pairs):
+            continue
+        count += 1
+        if not _MYPY_CACHE_SAFE_FLAGS.intersection(item for item in items if item):
+            offenders.append(node.lineno)
+    return count, offenders
+
+
+def test_no_mypy_subprocess_writes_a_cache_into_the_checkout() -> None:
+    """#6953: every mypy the architectural tests start keeps its cache out of the checkout."""
+    total = 0
+    offenders: list[str] = []
+    for path in sorted(ARCHITECTURAL_TESTS.glob("*.py")):
+        count, lines = mypy_calls_without_cache_dir(path.read_text(encoding="utf-8"))
+        total += count
+        offenders.extend(f"{path}:{line}" for line in lines)
+    # Floor: the census arity limb, the guard's arity probe and its version probe.
+    assert total >= 3, f"the scan found only {total} mypy invocation(s); it no longer sees them"
+    assert not offenders, "mypy runs without --cache-dir write .mypy_cache/ into the checkout: " + ", ".join(offenders)
+
+
+def test_the_mypy_cache_scan_flags_a_planted_cacheless_run() -> None:
+    """Self-mutation control: the scan is not vacuous."""
+    planted = 'subprocess.run([sys.executable, "-m", "mypy", "--strict", "x.py"])\n'
+    assert mypy_calls_without_cache_dir(planted) == (1, [1])
+    fixed = 'subprocess.run([sys.executable, "-m", "mypy", "--cache-dir", d, "x.py"])\n'
+    assert mypy_calls_without_cache_dir(fixed) == (1, [])
+    assert mypy_calls_without_cache_dir('run(["python", "-m", "pytest"])\n') == (0, [])
 
 
 # ---------------------------------------------------------------------------
