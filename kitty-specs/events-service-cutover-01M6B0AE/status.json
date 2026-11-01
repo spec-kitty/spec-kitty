@@ -31,7 +31,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Pin vendored (online check sound); extras-only, verified unpack, --extras-path; dev-setup extras only. tests/ci/test_sync_services.py + test_service_pins_gate.py: 53 passed, 1 expected red (wiring ratchet = WP04 acceptance test). make sync-services + ARGS=--check exit 0.",
-        "Re-submitted under the full implementer identity; review findings 1-3 folded (cf. review-cycle-1). test_sync_services + test_service_pins_gate: 56 passed, 1 expected red (WP04 wiring ratchet)."
+        "Re-submitted under the full implementer identity; review findings 1-3 folded (cf. review-cycle-1). test_sync_services + test_service_pins_gate: 56 passed, 1 expected red (WP04 wiring ratchet).",
+        "Review passed (cycle 2). Pin matches release SHA256SUMS (all 8 digests) and tag commit 2f5e0394; red tests (95d2f7c8) precede impl (cf627bcb); fold a6171b4a resolves the three Low findings (no-extras report, pre-3.11.4 extraction fallback, unpinned-service path query) with tests. 56 passed / 1 expected red (WP04 wiring ratchet); ruff, format, mypy, C901 clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
