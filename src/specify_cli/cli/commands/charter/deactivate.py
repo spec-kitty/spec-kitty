@@ -155,7 +155,13 @@ def _active_urns(
         found: set[str] = set()
         for config_id in ids:
             declared = identity.declared_id(kind_enum, config_id)
-            if declared is not None:
+            # Same representability guard as ``resolve_artifact_urn``: a directive id no
+            # filename represents is not a live reference (C-005 keeps prior semantics).
+            if declared is not None and (
+                kind_enum is not ArtifactKind.DIRECTIVE
+                or identity.names_a_file(kind_enum, config_id)
+                or identity.stem_for_declared_id(kind_enum, declared) is not None
+            ):
                 found.add(f"{kind_enum.value}:{declared}")
         return found
 
