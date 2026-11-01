@@ -35,8 +35,13 @@ and ``INTERNAL`` paths are deliberately absent — the negative guard
 
 Contract kind (C-003)
 ---------------------
-This is an in-process Python contract (versioned via wheel semver + ``py.typed``),
-not an HTTP/REST schema — OpenAPI conventions do not apply.
+This is an in-process Python contract today (versioned via wheel semver + ``py.typed``), and
+its types are **transitional**: the seam's return types become DTOs generated from the
+spec-kitty-charter OpenAPI contract (spec-kitty-charter ADR-0004, tracked in core by #6218).
+The hand-written types this module exports are recorded symbol by symbol — with today's type
+and the generated-DTO direction — in the frozen census at
+``tests/architectural/charter_offering_public_surface.yaml``. Read that census before binding
+a consumer to a type here; it is the record of what is expected to change.
 """
 
 from __future__ import annotations

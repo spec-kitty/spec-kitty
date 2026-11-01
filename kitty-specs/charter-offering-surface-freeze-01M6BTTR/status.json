@@ -1,0 +1,92 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6C3TERVREF683Y5XAGR997F",
+  "materialized_at": "2026-11-01T17:51:52.091741+00:00",
+  "mission_number": "246",
+  "mission_slug": "charter-offering-surface-freeze-01M6BTTR",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C3TDYYHA1RD2FVKQFMH12Q",
+      "last_transition_at": "2026-11-01T17:51:51.262199+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Census committed; gate files green (289 passed); red-first observed; planted-mutation self-tests cover six mutation classes.",
+        "Review (reviewer-renata) passed: the census is pinned in both directions and in order; provenance is compared to the WP01 disposition manifest; facade routing is read from the facade ASTs (no second table); every row is DTO-forward annotated and 'transitional' is enforced; reached paths are classified with the delta asserted empty; six planted mutations plus an empty-scan guard prove non-vacuity. Existing assertions untouched and no other gate file edited. One finding fixed in review: an empty reached-path scan now fails instead of passing the classification/delta checks vacuously."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3436873,
+      "shell_pid_created_at": "1793547149.5",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      },
+      "tracker_refs": [
+        "#6285"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C3TERVREF683Y5XAGR997F",
+      "last_transition_at": "2026-11-01T17:51:52.091741+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "C-003 now states the generated-DTO direction (transactional types, census pointer); offering README gains the public-contract-surface section; changelog Internal entry with (#6285). Gates: 110 passed (public-surface + terminology), ruff/mypy clean, docs freshness errors=0 (pre-existing warnings only).",
+        "Review (reviewer-renata) passed: C-003 now states the transitional generated-DTO direction with the ADR-0004 / #6218 pointer and no longer claims OpenAPI conventions do not apply; it promises no DTO that does not exist and does not close #6218. api.py's diff is docstring-only (no __all__/import change). The offering README points at the census, states the change procedure and the non-surface routes, and does not duplicate the census table (one canonical authority). The changelog entry leads with impact, carries (#6285) and stays under 1,200 characters under Internal — the change is maintainer-facing, not user-visible. Docs freshness stays at 0 errors (18 warnings, all pre-existing link-health/index drift), terminology guard green, ruff/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4101796,
+      "shell_pid_created_at": "1793554512.18",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      },
+      "tracker_refs": [
+        "#6285",
+        "#6218"
+      ]
+    }
+  }
+}
