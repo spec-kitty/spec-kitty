@@ -126,12 +126,14 @@ def test_a_colliding_required_id_is_still_refused_and_nothing_is_written(tmp_pat
     """``file_name_collision`` survives the fix: the floor read is what refuses, before any write.
 
     The no-shadow case on the same fixture family is the positive control: it
-    materialises the list, so the refusal is not blanket.
+    activates without a collision refusal (and, per #6685, writes nothing because
+    the artifact is already in force — an absent key of an "all" kind stays
+    implicit), so the refusal is not blanket.
     """
     control = _directive_project(tmp_path / "control", shadow=False)
-    assert _activate(control, "directive", "001-architectural-integrity-standard").exit_code == 0
-    written = yaml.safe_load((control / ".kittify" / "config.yaml").read_text(encoding="utf-8"))["activated_directives"]
-    assert "024-locality-of-change" in written and "DIRECTIVE_024" not in written, written
+    allowed = _activate(control, "directive", "001-architectural-integrity-standard")
+    assert allowed.exit_code == 0, allowed.output
+    assert "ActivationIdCollisionError" not in allowed.output
 
     root = _directive_project(tmp_path / "collision", shadow=True)
 
