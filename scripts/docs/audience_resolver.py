@@ -1,20 +1,27 @@
-"""``audience:`` frontmatter resolver (IC-01 / FR-002 / FR-003).
+"""``audience:`` frontmatter resolver (IC-01 / FR-002 / FR-003; doc-kitty shape, #6929).
 
-Walks every ``docs/**/*.md`` page, reads its YAML frontmatter ``audience:``
-value — a scalar **or** a list — and resolves each *reference* entry against
-the repository root. Per the audience-resolution contract the canonical
-``audience:`` form is one (or more) resolvable repo-relative ``.md`` path(s)
-targeting a persona under ``docs/context/audience/``.
+Walks every ``docs/**/*.md`` page and checks its ``audience:`` frontmatter, which
+is doc-kitty's list of ``{profile, guidance_text}`` entries (ADR
+``2026-10-31-1`` D-7)::
 
-Two value shapes coexist during the Common Docs convergence:
+    audience:
+    - profile: internal/maintainer
+      guidance_text: Written for the Maintainer reader.
 
-* **Reference** — a value ending in ``.md``. It MUST resolve to an existing
-  file under ``docs/context/audience/``; a value that does not is a **dangling
-  reference** and reds ``--strict``.
-* **Free-text** — any other value (e.g. ``end-users``, ``packagers``). These
-  are pages whose ``audience:`` has not yet been migrated to a persona path by
-  the mover WPs. They are examined (they count toward the non-vacuity floor)
-  but are *not* treated as dangling — migrating them is out of scope here.
+A ``profile`` is a persona path under ``docs/context/audience/`` without ``.md``,
+resolved by :func:`scripts.docs._dockitty_contract.persona_page` exactly as
+doc-kitty's ``resolveProfile`` does. Two kinds of profile:
+
+* **Catalog** — first segment ``internal`` or ``external``. It MUST name a
+  persona page; one that does not is a **dangling reference** and reds
+  ``--strict``.
+* **Free text** — anything else (e.g. ``end-users``). Examined (it counts toward
+  the non-vacuity floor) but never dangling; doc-kitty renders it as a soft miss.
+
+An ``audience:`` that is not a list, or an entry that is not a mapping with a
+non-empty ``profile`` and ``guidance_text`` (for example the retired path-string
+form), is **malformed**: doc-kitty's build schema rejects it, so it reds
+``--strict`` too.
 
 Non-vacuity (#3264-family / FR-003): the walk reuses
 :func:`scripts.docs._guards.assert_examined_floor` so a scope-narrowing
@@ -35,7 +42,9 @@ reference.
 
 Output shape (parallels the ``related_validator`` rulers contract)::
 
-    { "checked_count": int, "dangling_references": [ {"from": path, "to": path} ] }
+    { "checked_count": int,
+      "dangling_references": [ {"from": path, "to": profile} ],
+      "malformed_entries": [ {"from": path, "detail": str} ] }
 """
 
 from __future__ import annotations
@@ -45,8 +54,9 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Final
+from typing import Any, Final
 
+from scripts.docs._dockitty_contract import persona_page
 from scripts.docs._guards import (
     GitDiffError,
     assert_examined_floor,
@@ -57,9 +67,9 @@ from scripts.docs._page_scope import iter_docs_pages
 
 __all__ = [
     "AudienceReport",
-    "DEFAULT_CATALOG_ROOT",
     "DEFAULT_DOCS_ROOT",
     "DanglingReference",
+    "MalformedAudience",
     "build_parser",
     "main",
     "resolve_audiences",
@@ -67,14 +77,15 @@ __all__ = [
 ]
 
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
-DEFAULT_CATALOG_ROOT: Final[str] = "docs/context/audience"
-_REFERENCE_SUFFIX: Final[str] = ".md"
+_CATALOG_SEGMENTS: Final[frozenset[str]] = frozenset({"internal", "external"})
+_PROFILE: Final[str] = "profile"
+_GUIDANCE: Final[str] = "guidance_text"
 _GATE_NAME: Final[str] = "audience_resolver"
 
 
 @dataclass(slots=True, frozen=True)
 class DanglingReference:
-    """An ``audience:`` reference whose target is not a catalog persona file."""
+    """An ``audience:`` catalog profile that names no persona page (``to_path`` is the profile)."""
 
     from_path: str
     to_path: str
@@ -85,17 +96,36 @@ class DanglingReference:
 
 
 @dataclass(slots=True, frozen=True)
+class MalformedAudience:
+    """An ``audience:`` value doc-kitty's build schema rejects."""
+
+    from_path: str
+    detail: str
+
+    def as_dict(self) -> dict[str, str]:
+        """Serialize to the contract's ``{from, detail}`` shape."""
+        return {"from": self.from_path, "detail": self.detail}
+
+
+@dataclass(slots=True, frozen=True)
 class AudienceReport:
     """Result of an ``audience:`` resolution walk."""
 
     checked_count: int = 0
     dangling_references: list[DanglingReference] = field(default_factory=list)
+    malformed_entries: list[MalformedAudience] = field(default_factory=list)
+
+    @property
+    def failed(self) -> bool:
+        """True when ``--strict`` must exit non-zero."""
+        return bool(self.dangling_references or self.malformed_entries)
 
     def as_dict(self) -> dict[str, object]:
         """Serialize to the contract's JSON shape."""
         return {
             "checked_count": self.checked_count,
             "dangling_references": [ref.as_dict() for ref in self.dangling_references],
+            "malformed_entries": [entry.as_dict() for entry in self.malformed_entries],
         }
 
 
@@ -103,60 +133,43 @@ def resolve_audiences(
     *,
     docs_root: Path,
     repo_root: Path,
-    catalog_root: Path | None = None,
     min_files: int = 1,
 ) -> AudienceReport:
-    """Walk ``docs_root`` and resolve every ``audience:`` reference.
+    """Walk ``docs_root`` and check every ``audience:`` entry.
 
     Parameters
     ----------
     docs_root:
-        Directory whose ``*.md`` files are scanned for frontmatter.
+        Directory whose ``*.md`` files are scanned; personas resolve under its
+        ``context/audience/`` folder.
     repo_root:
-        Base against which each repo-relative ``audience:`` reference resolves.
-    catalog_root:
-        Directory a resolved reference must live under to be valid (default:
-        ``repo_root / docs/context/audience``). References that resolve to a
-        file outside this tree are dangling (mis-targeted).
+        Base for the repo-relative page paths in the report.
     min_files:
         Non-vacuity floor (FR-003). The walk must examine at least this many
-        ``audience:`` values; an empty/missing tree or a parse breakage raises
+        ``audience:`` entries; an empty/missing tree or a parse breakage raises
         :class:`RuntimeError` rather than reporting "0 dangling" over 0 checked.
 
     Returns
     -------
     AudienceReport
-        ``checked_count`` (total ``audience:`` values examined — references and
-        not-yet-migrated free-text alike) and the dangling references, in
-        deterministic ``(from, to)`` order.
+        ``checked_count`` (entries examined, catalog and free-text alike), the
+        dangling catalog profiles and the malformed values, in deterministic order.
 
     Raises
     ------
     RuntimeError
-        Fewer than ``min_files`` ``audience:`` values were examined.
+        Fewer than ``min_files`` ``audience:`` entries were examined.
     """
-    catalog = (catalog_root or repo_root / DEFAULT_CATALOG_ROOT).resolve()
-    checked_count = 0
-    dangling: list[DanglingReference] = []
-
-    if docs_root.exists() and docs_root.is_dir():
-        for md_path in iter_docs_pages(docs_root):
-            file_checked, file_dangling = _audiences_in_file(
-                md_path, repo_root, catalog
-            )
-            checked_count += file_checked
-            dangling.extend(file_dangling)
-
+    pages = iter_docs_pages(docs_root) if docs_root.is_dir() else []
+    report = _check_pages(pages, docs_root, repo_root)
     assert_examined_floor(
-        checked_count,
+        report.checked_count,
         min_files,
         gate=_GATE_NAME,
         noun=f"audience: value(s) examined under {docs_root}",
         fr_id="FR-003",
     )
-
-    dangling.sort(key=lambda ref: (ref.from_path, ref.to_path))
-    return AudienceReport(checked_count=checked_count, dangling_references=dangling)
+    return report
 
 
 def resolve_audiences_diff_scoped(
@@ -164,9 +177,8 @@ def resolve_audiences_diff_scoped(
     docs_root: Path,
     repo_root: Path,
     changed_files: list[str],
-    catalog_root: Path | None = None,
 ) -> AudienceReport:
-    """Resolve ``audience:`` values only in changed ``docs_root`` Markdown.
+    """Check ``audience:`` entries only in changed ``docs_root`` Markdown.
 
     Each in-scope page is checked whole-file. Deleted paths and changed files
     outside ``docs_root/**/*.md`` are skipped. Unlike the whole-tree walk, this
@@ -179,66 +191,69 @@ def resolve_audiences_diff_scoped(
     whole-tree run (:func:`resolve_audiences`) is the backstop that catches the
     newly dangling references.
     """
-    catalog = (catalog_root or repo_root / DEFAULT_CATALOG_ROOT).resolve()
     docs_root_rel = _repo_relative(docs_root, repo_root)
+    pages = [
+        repo_root / rel
+        for rel in sorted(changed_files)
+        if rel.startswith(f"{docs_root_rel}/") and rel.endswith(".md") and (repo_root / rel).is_file()
+    ]
+    return _check_pages(pages, docs_root, repo_root)
+
+
+def _check_pages(pages: list[Path], docs_root: Path, repo_root: Path) -> AudienceReport:
     checked_count = 0
     dangling: list[DanglingReference] = []
-
-    for rel in sorted(changed_files):
-        if not (rel.startswith(f"{docs_root_rel}/") and rel.endswith(".md")):
-            continue
-        md_path = repo_root / rel
-        if not md_path.is_file():
-            continue
-        file_checked, file_dangling = _audiences_in_file(md_path, repo_root, catalog)
-        checked_count += file_checked
+    malformed: list[MalformedAudience] = []
+    for md_path in pages:
+        from_rel = _repo_relative(md_path, repo_root)
+        checked, file_dangling, file_malformed = _audiences_in_file(md_path, from_rel, docs_root)
+        checked_count += checked
         dangling.extend(file_dangling)
-
+        malformed.extend(file_malformed)
     dangling.sort(key=lambda ref: (ref.from_path, ref.to_path))
-    return AudienceReport(checked_count=checked_count, dangling_references=dangling)
+    malformed.sort(key=lambda entry: (entry.from_path, entry.detail))
+    return AudienceReport(checked_count=checked_count, dangling_references=dangling, malformed_entries=malformed)
 
 
 def _audiences_in_file(
-    md_path: Path, repo_root: Path, catalog: Path
-) -> tuple[int, list[DanglingReference]]:
-    """Check all ``audience:`` values in one Markdown page."""
-    values = _read_audience(md_path)
-    if not values:
-        return 0, []
-    from_rel = _repo_relative(md_path, repo_root)
-    dangling = [
-        DanglingReference(from_path=from_rel, to_path=value)
-        for value in values
-        if _is_reference(value) and not _resolves(value, repo_root, catalog)
-    ]
-    return len(values), dangling
-
-
-def _read_audience(md_path: Path) -> list[str]:
-    """Return a page's ``audience:`` values (scalar or list) as a string list."""
+    md_path: Path, from_rel: str, docs_root: Path
+) -> tuple[int, list[DanglingReference], list[MalformedAudience]]:
+    """Check every ``audience:`` entry of one page: ``(examined, dangling, malformed)``."""
     try:
-        text = md_path.read_text(encoding="utf-8")
+        raw = parse_frontmatter(md_path.read_text(encoding="utf-8")).get("audience")
     except OSError:
-        return []
+        return 0, [], []
+    if raw is None:
+        return 0, [], []
+    if not isinstance(raw, list):
+        return 1, [], [MalformedAudience(from_path=from_rel, detail="not a list")]
+    dangling: list[DanglingReference] = []
+    malformed: list[MalformedAudience] = []
+    for entry in raw:
+        problem = _entry_problem(entry)
+        if problem is not None:
+            malformed.append(MalformedAudience(from_path=from_rel, detail=problem))
+            continue
+        profile = str(entry[_PROFILE]).strip()
+        if _is_catalog_profile(profile) and persona_page(docs_root, profile) is None:
+            dangling.append(DanglingReference(from_path=from_rel, to_path=profile))
+    return len(raw), dangling, malformed
 
-    frontmatter = parse_frontmatter(text)
-    raw = frontmatter.get("audience")
-    if isinstance(raw, str):
-        return [raw] if raw.strip() else []
-    if isinstance(raw, list):
-        return [str(item) for item in raw if isinstance(item, str) and item.strip()]
-    return []
+
+def _entry_problem(entry: Any) -> str | None:
+    """Why *entry* is not a valid ``{profile, guidance_text}`` mapping, or ``None``."""
+    if not isinstance(entry, dict):
+        return "not a {profile, guidance_text} mapping"
+    for key in (_PROFILE, _GUIDANCE):
+        value = entry.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return f"missing {key}"
+    return None
 
 
-def _is_reference(value: str) -> bool:
-    """A value is a persona *reference* when it points at a ``.md`` path."""
-    return value.strip().endswith(_REFERENCE_SUFFIX)
-
-
-def _resolves(value: str, repo_root: Path, catalog: Path) -> bool:
-    """A reference resolves when it is a file under the persona catalog."""
-    candidate = (repo_root / value.strip()).resolve()
-    return candidate.is_file() and candidate.is_relative_to(catalog)
+def _is_catalog_profile(profile: str) -> bool:
+    """A profile whose first segment is a persona catalog (``internal``/``external``)."""
+    return profile.split("/", 1)[0] in _CATALOG_SEGMENTS
 
 
 def _repo_relative(path: Path, repo_root: Path) -> str:
@@ -254,8 +269,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=_GATE_NAME,
         description=(
-            "Validate docs/ frontmatter 'audience:' references (scalar or "
-            "list) against the persona catalog. Report-only (exit 0) unless "
+            "Validate docs/ frontmatter 'audience:' profile lists against the "
+            "persona catalog. Report-only (exit 0) unless "
             "--strict is passed."
         ),
     )
@@ -269,16 +284,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--repo-root",
         type=Path,
         default=Path.cwd(),
-        help="Base for resolving repo-relative 'audience:' references (default: cwd).",
-    )
-    parser.add_argument(
-        "--catalog-root",
-        type=Path,
-        default=None,
-        help=(
-            "Directory a resolved reference must live under "
-            f"(default: <repo-root>/{DEFAULT_CATALOG_ROOT})."
-        ),
+        help="Base for the repo-relative page paths in the report (default: cwd).",
     )
     parser.add_argument(
         "--json",
@@ -288,7 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--strict",
         action="store_true",
-        help="Exit non-zero when any dangling 'audience:' reference is found.",
+        help="Exit non-zero when any dangling or malformed 'audience:' entry is found.",
     )
     parser.add_argument(
         "--changed-from",
@@ -316,16 +322,14 @@ def main(argv: list[str] | None = None) -> int:
             docs_root=args.docs_root,
             repo_root=args.repo_root,
             changed_files=changed,
-            catalog_root=args.catalog_root,
         )
     else:
         report = resolve_audiences(
             docs_root=args.docs_root,
             repo_root=args.repo_root,
-            catalog_root=args.catalog_root,
         )
     _emit(report, as_json=args.json)
-    if args.strict and report.dangling_references:
+    if args.strict and report.failed:
         return 1
     return 0
 
@@ -338,10 +342,12 @@ def _emit(report: AudienceReport, *, as_json: bool) -> None:
 
     sys.stdout.write(
         f"{_GATE_NAME}: checked {report.checked_count} audience value(s); "
-        f"{len(report.dangling_references)} dangling.\n"
+        f"{len(report.dangling_references)} dangling, {len(report.malformed_entries)} malformed.\n"
     )
     for ref in report.dangling_references:
         sys.stdout.write(f"  DANGLING {ref.from_path} -> {ref.to_path}\n")
+    for entry in report.malformed_entries:
+        sys.stdout.write(f"  MALFORMED {entry.from_path}: {entry.detail}\n")
 
 
 if __name__ == "__main__":  # pragma: no cover - module-level CLI guard

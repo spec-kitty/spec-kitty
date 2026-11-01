@@ -9,9 +9,9 @@ finding.
 
 Three touched-set gates plus one closed-root gate:
 
-* ``audience_presence`` (FR-018) — every touched in-scope page declares a
-  resolvable ``audience:`` frontmatter reference (scalar or list) into the
-  persona catalog under ``docs/context/audience/``.
+* ``audience_presence`` (FR-018) — every touched in-scope page declares
+  doc-kitty's ``audience:`` list (``[{profile, guidance_text}]``, #6929) and every
+  ``profile`` names a persona page under ``docs/context/audience/``.
 * ``description_band`` (NFR-008) — every touched in-scope page carries a
   ``description:`` of 50-180 characters inclusive (the SEO band).
 * ``audience_placement`` (SC-007) — a touched ``how_to``-typed page sits in the
@@ -52,6 +52,7 @@ from typing import Any, Final
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from scripts.docs._dockitty_contract import persona_page
 from scripts.docs._guards import assert_examined_floor
 from scripts.docs._inventory import parse_frontmatter
 from scripts.docs._page_scope import is_docs_page
@@ -75,7 +76,6 @@ DEFAULT_DOCS_ROOT: Final[str] = "docs"
 DEFAULT_STYLEGUIDE: Final[str] = (
     "packs/internal/styleguides/spec-kitty-docs-lint-config.styleguide.yaml"
 )
-DEFAULT_CATALOG_ROOT: Final[str] = "docs/context/audience"
 _CONFIG_KEY: Final[str] = "structural_lint_config"
 
 #: SEO description band (inclusive), mirrors the styleguide principle.
@@ -90,7 +90,6 @@ _NAV_BASENAMES: Final[frozenset[str]] = frozenset({"index.md", "README.md"})
 _DOC_ROOT_SUFFIXES: Final[tuple[str, ...]] = (".md", ".txt")
 _DOC_ROOT_EXTRA: Final[frozenset[str]] = frozenset({".all-contributorsrc"})
 
-_REFERENCE_SUFFIX: Final[str] = ".md"
 
 
 @dataclass(slots=True, frozen=True)
@@ -192,65 +191,51 @@ def _frontmatter(md_path: Path) -> dict[str, Any]:
         return {}
 
 
-def _audience_values(frontmatter: dict[str, Any]) -> list[str]:
+def _audience_entries(frontmatter: dict[str, Any]) -> list[dict[str, Any]] | None:
+    """The page's ``audience:`` entries, ``[]`` when absent, ``None`` when not doc-kitty's shape."""
     raw = frontmatter.get("audience")
-    if isinstance(raw, str):
-        return [raw] if raw.strip() else []
-    if isinstance(raw, list):
-        return [str(item) for item in raw if isinstance(item, str) and item.strip()]
-    return []
+    if raw is None:
+        return []
+    if not isinstance(raw, list) or not all(isinstance(entry, dict) for entry in raw):
+        return None
+    return list(raw)
+
+
+def _audience_profiles(frontmatter: dict[str, Any]) -> list[str]:
+    """The non-empty ``profile`` values of the page's ``audience:`` entries."""
+    entries = _audience_entries(frontmatter) or []
+    return [str(entry["profile"]).strip() for entry in entries if str(entry.get("profile") or "").strip()]
 
 
 # --- Gate 1: audience presence + resolvability (FR-018) ----------------------
 
 
-def check_audience_presence(
-    pages: list[Path], repo_root: Path, catalog_root: Path
-) -> list[Violation]:
-    """Flag touched pages lacking a resolvable ``audience:`` reference."""
-    catalog = catalog_root.resolve()
+def _presence_problems(frontmatter: dict[str, Any], docs_root: Path) -> list[str]:
+    """Why a page's ``audience:`` fails the presence gate (empty when it passes)."""
+    entries = _audience_entries(frontmatter)
+    if entries is None:
+        return ["audience is not a list of {profile, guidance_text} entries"]
+    if not entries:
+        return ["declares no audience: profile"]
+    problems: list[str] = []
+    for entry in entries:
+        profile = str(entry.get("profile") or "").strip()
+        if not profile or not str(entry.get("guidance_text") or "").strip():
+            problems.append("has an audience entry without profile and guidance_text")
+        elif persona_page(docs_root, profile) is None:
+            problems.append(f"audience profile '{profile}' is not a persona under docs/context/audience/")
+    return problems
+
+
+def check_audience_presence(pages: list[Path], repo_root: Path, docs_root: Path) -> list[Violation]:
+    """Flag touched pages whose ``audience:`` names no resolvable persona profile."""
     violations: list[Violation] = []
     for page in pages:
         page_rel = _repo_relative(page, repo_root)
-        values = _audience_values(_frontmatter(page))
-        if not values:
-            violations.append(
-                Violation(
-                    rule_id="audience_presence",
-                    path=page_rel,
-                    message=f"{page_rel} declares no audience: reference",
-                )
-            )
-            continue
-        for value in values:
-            if not value.strip().endswith(_REFERENCE_SUFFIX):
-                violations.append(
-                    Violation(
-                        rule_id="audience_presence",
-                        path=page_rel,
-                        message=(
-                            f"{page_rel} audience '{value}' is not a persona "
-                            "reference (.md path)"
-                        ),
-                    )
-                )
-                continue
-            # The audience: value is a page-relative .md path into the persona
-            # catalog (per the styleguide good_example, e.g.
-            # ``../context/audience/internal/maintainer.md``), resolved against
-            # the page's own directory like a markdown link.
-            target = (page.parent / value.strip()).resolve()
-            if not (target.is_file() and target.is_relative_to(catalog)):
-                violations.append(
-                    Violation(
-                        rule_id="audience_presence",
-                        path=page_rel,
-                        message=(
-                            f"{page_rel} audience '{value}' does not resolve to a "
-                            f"persona under {_repo_relative(catalog, repo_root)}/"
-                        ),
-                    )
-                )
+        violations.extend(
+            Violation(rule_id="audience_presence", path=page_rel, message=f"{page_rel} {problem}")
+            for problem in _presence_problems(_frontmatter(page), docs_root)
+        )
     return violations
 
 
@@ -308,13 +293,11 @@ def _placement_homes(config: dict[str, Any]) -> dict[str, str] | None:
 
 
 def _audience_orientation(frontmatter: dict[str, Any]) -> str | None:
-    """Classify a page's audience as ``internal``/``external`` from its refs."""
-    for value in _audience_values(frontmatter):
-        segments = value.strip("./").split("/")
-        if "internal" in segments:
-            return "internal"
-        if "external" in segments:
-            return "external"
+    """Classify a page's audience as ``internal``/``external`` from its profiles' first segment."""
+    for profile in _audience_profiles(frontmatter):
+        head = profile.split("/", 1)[0]
+        if head in ("internal", "external"):
+            return head
     return None
 
 
@@ -419,17 +402,15 @@ def run_gates(
     repo_root: Path,
     styleguide_path: Path,
     docs_root: Path | None = None,
-    catalog_root: Path | None = None,
     min_root_files: int = 1,
 ) -> GateReport:
     """Run every touched-set gate plus the root-allowlist gate."""
     docs = docs_root or repo_root / DEFAULT_DOCS_ROOT
-    catalog = catalog_root or repo_root / DEFAULT_CATALOG_ROOT
     config = load_structural_config(styleguide_path)
 
     pages = compute_touched_set(base, repo_root)
     violations: list[Violation] = []
-    violations.extend(check_audience_presence(pages, repo_root, catalog))
+    violations.extend(check_audience_presence(pages, repo_root, docs))
     violations.extend(check_description_band(pages, repo_root))
     violations.extend(check_audience_placement(pages, repo_root, docs, config))
     root_violations, root_examined = check_root_allowlist(
