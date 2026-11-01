@@ -62,11 +62,17 @@
 # `_CHARTER_RELATIVE_PATH` literal is gone (the module now imports
 # `charter.bundle.CHARTER_YAML` instead), so the site is genuinely gone from
 # the census, not relocated. FLOOR lowered in the gate to match.
+# DRAINED 2026-11-01 (#6846 landing): 47 -> 42 (the stale entry's removal plus
+# the honest census the gate now reports). analysis_report.py::_charter_path's
+# charter.md presence fallback moved into one _charter_candidate(root) helper that
+# compares CHARTER_MD (the imported constant) instead of spelling the literal, so
+# the keyed clause-(b) site is gone from the census, not relocated. FLOOR lowered
+# in the gate to the same honest census.
 # DRAINED 2026-10-07 (mission charter-pack-cutover-01M491G6 WP06, #4400): 49 -> 47.
 # ActiveCharterManager.merge_defaults (and the pack_manager _CHARTER_FILENAME
 # constant only it used) were deleted, so both pack_manager.py sites are gone
 # from the census, not relocated.
-charter_path_literal_baseline: 47
+charter_path_literal_baseline: 42
 
 charter_path_literals:
 - file: src/charter/activation/compiler.py
@@ -333,13 +339,6 @@ charter_path_literals:
   clause: "b"
   token: "if not charter_path . exists ( ) :"
   rationale: "NFR-005 DISPLAY-only degrade: the compact-mode action-critical section block reads the optional charter.md companion and returns the empty string when absent, per its own docstring."
-- file: src/specify_cli/analysis_report.py
-  qualname: _charter_path
-  line: 203
-  literal: "charter.md"
-  clause: "b"
-  token: "if charter_md . exists ( ) :"
-  rationale: "Staleness-input fallback documented in the comment directly above (FR-004): keys on charter.yaml first, falls back to charter.md only when charter.yaml has not yet been compiled, mirroring the yaml-or-md presence gate in charter.activation.context (C-003)."
 - file: src/specify_cli/retrospective/gate.py
   qualname: _charter_authorizes_autonomous_skip
   line: 147
