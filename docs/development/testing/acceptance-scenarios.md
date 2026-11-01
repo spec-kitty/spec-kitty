@@ -2,7 +2,7 @@
 title: CLI Acceptance Scenarios (Cucumber-JVM nightly)
 description: How to write, run and read the Gherkin acceptance scenarios that check the built spec-kitty CLI every night on Linux, macOS and Windows.
 doc_status: active
-updated: '2026-10-15'
+updated: '2026-10-30'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -71,6 +71,23 @@ package of the `acceptance-jvm` test sources. They share one
 Steps talk to the CLI only through the `SpecKittyDriver` port and never import Python
 code. Assertions use AssertJ.
 
+### The one Arrange write that is not the CLI's
+
+ADR 2026-10-15-1 decision 6 lists what an Arrange builder may write: the planning files
+an agent authors, the code a work package's implementer writes, a reviewer's feedback file
+outside the repository, and plain files a user edits in git. It never writes CLI-managed
+state.
+
+There is one narrow, documented exception, for a promise whose subject *is* the state the
+CLI reduces: a scenario that checks how the status log's ordering is honoured may plant a
+row as a teammate's `git pull` delivers it. `MissionLifecycle.plantFutureStampedApproval`
+restamps a work package's `approved` row to a fixed ten minutes into the future and commits
+it, so the reducer sees a clock that ran ahead of the rejecting reviewer's. The row keeps
+exactly the shape the CLI writes (no `lamport_clock` on lane transitions), and everything
+after it goes through the CLI. `tests/scenarios/status/event-traceability.feature` is the
+only user, added for [#6260](https://github.com/spec-kitty/spec-kitty/issues/6260); do not
+copy the pattern for a behaviour a real CLI call can arrange.
+
 ## Tags
 
 | Tag | Rule |
@@ -100,6 +117,13 @@ A scenario drafted from a promise page lands as `@wip`, with its `@promise:<id>`
 `@wip-owner` and `@wip-since`. It may use steps that have no binding yet. An engineer
 then binds the steps, adds a positive control and removes `@wip`. Tooling never invents
 an identifier.
+
+Removing `@wip` and adding `@promise:<id>` are separate steps. The engineer's pull
+request binds the steps, adds the positive control and drops `@wip`; the identifier comes
+from the QA promise registry, so if it is not assigned yet the scenario gates without it
+(the contract check validates the identifier's shape only when the tag is present) and a
+QA owner adds the tag in review. Never hold a bound scenario in `@wip` until an identifier
+arrives: an unbound promise that nobody executes is the worse outcome.
 
 ### Per-PR check
 
