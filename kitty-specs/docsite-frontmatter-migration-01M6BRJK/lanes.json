@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
+  "mission_id": "01M6BRJK82753H4QXJBGCYVQ12",
+  "mission_branch": "issue-6929-docsite-frontmatter-migration",
+  "target_branch": "issue-6929-docsite-frontmatter-migration",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/**/*.md",
+        "kitty-specs/docsite-frontmatter-migration-01M6BRJK/build-evidence.md",
+        "scripts/docs/_dockitty_contract.py",
+        "scripts/docs/audience_resolver.py",
+        "scripts/docs/dockitty_frontmatter_migration.py",
+        "scripts/docs/related_validator.py",
+        "scripts/docs/touched_set_gates.py",
+        "tests/docs/test_audience_resolves.py",
+        "tests/docs/test_dockitty_contract.py",
+        "tests/docs/test_dockitty_frontmatter_migration.py",
+        "tests/docs/test_dockitty_frontmatter_shape.py",
+        "tests/docs/test_immutable_bodies.py",
+        "tests/docs/test_related_validator.py",
+        "tests/docs/test_rulers_blocking.py",
+        "tests/docs/test_touched_set_gates.py",
+        "tests/glossary/test_canonical_promotion.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T14:47:09.212945+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP04"
+  ],
+  "planning_commit_sha": "21eeeef0f0c65babaf80de198a8f597702fd49e8"
+}
