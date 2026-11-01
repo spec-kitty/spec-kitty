@@ -17,3 +17,6 @@ Some single-file pytest runs take ~2 minutes before the first test (cold import 
 
 ## 2026-11-01 — `move-task --to for_review` ran > 5 minutes
 It captures baseline tests for the WP before the transition; no progress output while it runs.
+
+## 2026-11-01 — the `spec-kitty` on PATH was a different, stale checkout
+`spec-kitty` on PATH was a uv-tool install editable from `/opt/spec-kitty` (257 commits behind `origin/main`, same `4.0.0rc8` version string). The setup check (`spec-kitty --version`) passed only because that shell had activated `.venv`. Mission lifecycle commands from scaffold through WP02's for_review ran the stale code; fixed with `uv tool install --force --editable .` from this checkout before WP02's approval. Suggestion: `spec-kitty --version` could print the import path, so a stale editable install is visible.

@@ -69,7 +69,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "audience_resolver + touched_set_gates on profile lists; red-first f8174eeff, impl 78b186cd6; 42 tests green; ruff/format/mypy strict clean",
-        "Independent review"
+        "Independent review",
+        "APPROVE: semantics match resolveProfile/schema; CLI contract kept; red-first confirmed. Nits (profile case, stale docstring) folded with a test (f14cff967) before approval; whole-tree residual handled in WP03 (era indexes migrated; architecture/README.md leaves with #6928)."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
