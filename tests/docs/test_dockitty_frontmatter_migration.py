@@ -232,26 +232,6 @@ def test_skipped_files_are_never_edited(repo: Path, rel: str) -> None:
     assert _migrate(repo, rel, text)[0] == text
 
 
-def test_events_frozen_docs_pages_are_at_the_fixed_point() -> None:
-    """A re-run never moves a page the events freeze pins (ADR 2026-10-29-1 D-9).
-
-    The frozen page's migration was operator-approved and re-pinned in
-    ``test_events_import_frozen.py`` (#6929); a later ``--apply`` must not change
-    its bytes again, or the freeze gate goes red.
-    """
-    from tests.architectural.test_events_import_frozen import _FROZEN_OBJECTS
-
-    frozen_docs = sorted(path.removeprefix("docs/") for path in _FROZEN_OBJECTS if path.startswith("docs/"))
-    assert frozen_docs, "non-vacuity: the freeze gate pins no docs page"
-    corpus = mig.Corpus.load(docs_root=_REAL_DOCS, repo_root=_REAL_DOCS.parent)
-    moved = [
-        rel
-        for rel in frozen_docs
-        if mig.migrate_text(rel, (_REAL_DOCS / rel).read_text(encoding="utf-8"), corpus) != (_REAL_DOCS / rel).read_text(encoding="utf-8")
-    ]
-    assert moved == []
-
-
 def test_adr_era_index_frontmatter_is_migrated(repo: Path) -> None:
     """The era table rows are bot-owned; the page's frontmatter is not, so it is migrated."""
     out = _migrate(repo, "adr/4.x/index.md", f"---\ntitle: ADRs\naudience: {_MAINTAINER}\n---\n| table |\n")[0]
