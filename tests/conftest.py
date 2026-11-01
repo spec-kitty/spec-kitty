@@ -35,6 +35,7 @@ from tests._support.quarantine import (
     quarantine_skip_mark,
 )
 from tests._support.repo_root_status_guard import register_repo_root_status_guard
+from tests._support.git_ceiling import harness_git_ceilings, install_git_ceilings
 from tests._support.run_basetemp import install_run_basetemp, mark_session_outcome
 from tests._support.shared_build_artifacts import (
     SharedBuildError,
@@ -285,6 +286,12 @@ def pytest_configure(config: pytest.Config) -> None:
     # TempPathFactory now, and xdist nests every worker's popen-gwN under the
     # controller's value. Controller-gated; an explicit --basetemp wins.
     install_run_basetemp(config, now_epoch())
+
+    # The roots this harness owns are a git ceiling (#7022, #5356): when the
+    # platform temp root sits inside a git work tree, discovery from tmp_path
+    # must not climb into that foreign repository. After install_run_basetemp
+    # so the run's basetemp is known; workers and subprocesses inherit it.
+    install_git_ceilings(harness_git_ceilings(config, _worker_home_base(config)), os.environ)
 
     try:
         prepare_mutants_environment_from_cwd()
