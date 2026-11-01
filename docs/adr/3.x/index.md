@@ -2,7 +2,7 @@
 title: '3.x Architectural Decision Records'
 description: 'Index and era history for every Spec Kitty 3.x architectural decision record, with the dated naming convention, the status vocabulary, and how to register a new entry.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-11-01'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -51,12 +51,11 @@ foundational decisions are [1.x](../1.x/index.md).
 
 - `YYYY-MM-DD-N-descriptive-title-with-dashes.md` where `N` is `1, 2, 3, …` per ADR landed on a given date.
 
-After adding an ADR file, run (from the repository root, so `scripts` resolves as a
-package — #3227) `python -m scripts.docs.freshen_adr_inventory docs/adr/<era>/<your-adr>.md`
-to update the page-inventory lockfile and add the row to that era's index table. New ADRs
-use the `4.x` era; this table only grows for back-filled 3.x records. Invoking
-the script by file path (`python scripts/docs/freshen_adr_inventory.py ...`) fails with
-`ModuleNotFoundError: No module named 'scripts'`; use the `python -m` module form.
+Do not add an index-table row or regenerate the page-inventory lockfile in your PR:
+after merge, the `ci/regen-docs-index` bot pull request adds the row to that era's
+index table (`python -m scripts.docs.freshen_adr_inventory --all`) and regenerates the
+inventory and the docs retrieval index. New ADRs use the `4.x` era; this table only
+grows for back-filled 3.x records.
 
 ## Source of Truth
 

@@ -2,7 +2,7 @@
 title: '4.x Architectural Decision Records'
 description: 'Index for Spec Kitty 4.x architectural decision records: where new ADRs land from the 4.0.0 cycle onward, the naming convention, and how to register one.'
 doc_status: active
-updated: '2026-10-26'
+updated: '2026-11-01'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 ---
@@ -26,9 +26,9 @@ full 4.0.0 decision record.
 
 - `YYYY-MM-DD-N-descriptive-title-with-dashes.md` where `N` is `1, 2, 3, …` per ADR landed on a given date.
 
-After adding an ADR file, run (from the repository root, so `scripts` resolves as a
-package) `python -m scripts.docs.freshen_adr_inventory docs/adr/4.x/<your-adr>.md`
-to update the page-inventory lockfile and add the row to the index table below.
+Do not add the row to the index table below in your PR: after merge, the
+`ci/regen-docs-index` bot pull request adds it (`freshen_adr_inventory --all`)
+and regenerates the page-inventory lockfile and the docs retrieval index.
 
 ## Status Conventions
 

@@ -603,32 +603,31 @@ The prose of those pages is linted by a separate, always-on job: see
   `LEAK-MISSING-INVENTORY`, and a description-length failure. The "committed
   index" in a drift error is the machine-generated *retrieval* index, not the
   curated `index.md`, which is why updating only `index.md` is not enough.
-- **Fix / repro:** register the page in three places and satisfy the frontmatter
-  band:
+- **Fix / repro:** register the page in its curated index and satisfy the
+  frontmatter band; leave the generated surfaces alone:
   1. **Curated section index** — hand-add the page to its section's `index.md`
      (satisfies the index-completeness rule).
-  2. **Page inventory** — regenerate `docs/development/page-inventory.yaml`
-     in place with `scripts/docs/inventory_lockfile.py --write <that path>` (run
-     with `PYTHONPATH=.`). The script does not refuse a
-     path under `docs/` (its `--help` text and module docstring still say it
-     never writes there; the code does not enforce that), so no temp-file copy
-     is needed.
-  3. **Retrieval index** — regenerate
-     `docs/development/docs-retrieval-index.yaml` via
-     `scripts/docs/docs_index.py --write` (this one writes in place).
-  4. **Frontmatter `description`** — a hard **50–180 character** band, enforced by
-     `scripts/docs/description_length_check.py` and the docs SEO tests. Both
-     inventories derive from frontmatter and headings, so regenerate them *after*
-     the frontmatter and headings are final.
+  2. **Page inventory, retrieval index, ADR era table rows** — do **not**
+     regenerate `docs/development/page-inventory.yaml`,
+     `docs/development/docs-retrieval-index.yaml` or the era table rows in the
+     PR. They are regenerated on `main` after merge by the `ci/regen-docs-index`
+     bot pull request (`docs-index-regen.yml`, `scripts/ci/regen_docs_index.py`),
+     and the `docs-lint` guard (`scripts/ci/check_generated_docs_untouched.py`)
+     refuses a PR that edits them. Until the bot PR merges, `INVENTORY-INCOMPLETE`,
+     `LEAK-MISSING-INVENTORY`, `INVENTORY-LOCKFILE-DRIFT` and `DOCS-INDEX-DRIFT`
+     report the new page as **warnings**, and `spec-kitty docs query` does not
+     find it yet. The per-PR content check is
+     `tests/docs/test_docs_index_regenerates_cleanly.py`: the generators must
+     run cleanly over the tree you merge.
+  3. **Frontmatter `description`** — a hard **50–180 character** band, enforced by
+     `scripts/docs/description_length_check.py` and the docs SEO tests.
 
   Verify with `PYTHONPATH=. python scripts/docs/check_docs_freshness.py --ci`
-  (expect `errors=0`; external-URL link-health *warnings* are fine).
+  (expect `errors=0`; staleness and external-URL link-health *warnings* are fine).
 
-  **ADRs** are tracked in all three surfaces too, and have a dedicated helper,
-  `scripts/docs/freshen_adr_inventory.py`, that adds the ADR index-table row and
-  regenerates the page inventory in one step; then run the retrieval-index
-  regeneration. An ADR's frontmatter needs `date:`, `updated:`, and a 50–180
-  character `description`.
+  **ADRs** need only the ADR file: the bot adds the era index-table row
+  (`freshen_adr_inventory --all`). An ADR's frontmatter needs `title:`, `date:`,
+  `updated:`, and a 50–180 character `description`.
 
 ### `docs-lint`
 
