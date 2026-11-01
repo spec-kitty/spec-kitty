@@ -42,8 +42,13 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from kernel.service_artifacts import ServiceArtifactError, default_cache_root, fetch_asset
-from kernel.service_pin import PINS_DIR, SERVICE_PIN_INVALID, ServicePin, ServicePinError, ServiceTarget, load_service_pin, pin_file
+# Run directly (`python scripts/build_services_wheel.py`), neither the repo root nor `src` is on sys.path.
+for _root in (Path(__file__).resolve().parents[1], Path(__file__).resolve().parents[1] / "src"):
+    if str(_root) not in sys.path:
+        sys.path.insert(0, str(_root))
+
+from kernel.service_artifacts import ServiceArtifactError, default_cache_root, fetch_asset  # noqa: E402 - after the sys.path setup above
+from kernel.service_pin import PINS_DIR, SERVICE_PIN_INVALID, ServicePin, ServicePinError, ServiceTarget, load_service_pin, pin_file  # noqa: E402
 
 COMPANION_PROJECT = Path("packages") / "spec-kitty-services"
 COMPANION_SIZE_EXCEEDED = "COMPANION_SIZE_EXCEEDED"
