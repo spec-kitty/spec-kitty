@@ -748,7 +748,6 @@ def test_ci_module_row_claims_the_ci_guard_suites() -> None:
     assert list(row["roots"]) == [
         "scripts/ci/**",
         ".github/workflows/**",
-        "services/mission-status-api/**",
         "pins/**",
         "scripts/sync_services.py",
         ".github/actions/sync-services/**",

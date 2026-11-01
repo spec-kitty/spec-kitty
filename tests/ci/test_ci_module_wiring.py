@@ -60,7 +60,6 @@ _MODULE = "ci"
 _ROOTS = [
     "scripts/ci/**",
     ".github/workflows/**",
-    "services/mission-status-api/**",
     "pins/**",
     "scripts/sync_services.py",
     ".github/actions/sync-services/**",
