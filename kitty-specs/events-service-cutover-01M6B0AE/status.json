@@ -64,6 +64,9 @@
       "last_event_id": "01M6B3CZY4GXAJ1R5N8M4R8D4T",
       "last_transition_at": "2026-11-01T08:25:16.484305+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Reader tests/pinned_service_assets.py (fail closed, real-env cache); conformance/artifact/torn-tail goldens read the pinned fixtures; generators keep --write behind --root (events regenerates with core's oracle; see design-decisions tracer). pytest test_pinned_service_assets + artifact_goldens + torn_tail + conformance: 82 passed."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 7496,
