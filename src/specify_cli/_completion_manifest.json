@@ -543,7 +543,7 @@
      }
     },
     "org": {
-     "help": "Manage org Charter Pack authoring (init, validate).",
+     "help": "Manage org Charter Pack authoring (init, validate) and registration (add, remove).",
      "hidden": false,
      "deprecated": false,
      "commands": {
@@ -554,6 +554,16 @@
       },
       "validate": {
        "help": "Validate an org Charter Pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "add": {
+       "help": "Register an org Charter Pack with this project (#6267).\n\nValidates the pack exactly as ``spec-kitty charter org validate`` does, then\nwrites one ``charter_packs.org.packs[]`` entry through the registry's own\nwrite seam -- the operator never hand-edits ``.kittify/config.yaml``.\n\nEvery refusal exits 1 and leaves the config byte-identical. With ``--url``\nthe pack root may be absent: it is then registered for\n``spec-kitty charter fetch`` rather than validated. Nothing here touches the\nnetwork.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "remove": {
+       "help": "Retire an org Charter Pack registration (#6267).\n\nDeletes exactly that ``charter_packs.org.packs[]`` entry; every other key,\ncomment and pack in ``.kittify/config.yaml`` is left alone. The pack\ndirectory is never deleted -- the command prints where it stays (C-003).\nAn unknown name exits 1 listing the configured names; the config is then\nbyte-identical.",
        "hidden": false,
        "deprecated": false
       }

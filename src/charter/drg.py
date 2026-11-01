@@ -106,10 +106,12 @@ from charter.offering.drg.org_pack_config import (
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     load_pack_registry as load_pack_registry,
+    register_org_pack,
     resolve_existing_org_roots,
     resolve_org_dirs,
     resolve_org_roots,
     resolve_relative_path_within_root,
+    unregister_org_pack,
 )
 from charter.offering.drg.org_pack_loader import (
     OrgDRGFragment,
@@ -158,6 +160,8 @@ __all__ = [
     "load_org_pack",
     "merge_layers",
     "model_to_graph_dict",
+    "register_org_pack",
+    "unregister_org_pack",
     "resolve_context",
     "scan_project_artifacts",
     "resolve_existing_org_roots",
