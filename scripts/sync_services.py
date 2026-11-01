@@ -63,6 +63,7 @@ from kernel.service_pin import (
 SERVICE_UNSUPPORTED_PLATFORM = "SERVICE_UNSUPPORTED_PLATFORM"
 SERVICE_ASSET_ARCHIVE_UNSAFE = "SERVICE_ASSET_ARCHIVE_UNSAFE"
 NO_SERVICE_PINNED = "no service pinned"
+NO_EXTRAS_PINNED = "no extras pinned"
 _ALL = "all"
 _REMEDY = "run `make sync-services`"
 _ARCHIVE_SUFFIX = ".tar.gz"
@@ -180,7 +181,21 @@ def _unpack_into(archive_path: Path, scratch: Path, asset: ServiceAsset) -> None
             reason = _unsafe_member(member)
             if reason is not None:
                 raise SyncServicesError(SERVICE_ASSET_ARCHIVE_UNSAFE, f"{asset.name}: {reason}; nothing was unpacked")
+        _extract(archive, members, scratch)
+
+
+def _has_data_filter() -> bool:
+    """Whether ``tarfile`` has the ``data`` extraction filter (Python 3.11.4+)."""
+    return hasattr(tarfile, "data_filter")
+
+
+def _extract(archive: tarfile.TarFile, members: list[tarfile.TarInfo], scratch: Path) -> None:
+    """Extract the already-checked *members*: through the ``data`` filter where it exists, else one by one without metadata."""
+    if _has_data_filter():
         archive.extractall(scratch, members=members, filter="data")
+        return
+    for member in members:  # Python < 3.11.4: _unsafe_member above refused every shape the data filter would
+        archive.extract(member, scratch, set_attrs=False)
 
 
 def unpack(pin: ServicePin, asset: ServiceAsset, cache_root: Path) -> Path:
@@ -239,6 +254,9 @@ def _run_service(root: Path, service: str, cache_root: Path, *, mode: _Mode, rep
     except SyncServicesError as exc:
         report(str(exc))
         return True
+    if not items:
+        print(f"{pin.service} {pin.tag}: {NO_EXTRAS_PINNED}")
+        return False
     failed = False
     for item in items:
         try:
