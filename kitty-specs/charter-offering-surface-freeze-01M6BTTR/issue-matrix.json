@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#6218": {
+      "evidence_ref": "C-003 direction folded in (spec C-004); #6218 stays open as the docs/ADR record, not closed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#6285": {
+      "evidence_ref": "kitty-specs/charter-offering-surface-freeze-01M6BTTR/tasks/WP01-frozen-census-gate-checks.md + tests/architectural/charter_offering_public_surface.yaml",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#6286": {
+      "evidence_ref": "P2 sibling phase of #6099, cited as context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6287": {
+      "evidence_ref": "P3 sibling phase of #6099, cited as context only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
