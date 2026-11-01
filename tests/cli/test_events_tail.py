@@ -547,7 +547,7 @@ def test_log_comes_from_the_resolved_status_surface(tmp_path: Path) -> None:
         patch.object(events_cli, "resolve_mission_handle", return_value=_resolved(primary_dir)),
         patch.object(events_cli, "resolve_surface_dir_or_typed_error", return_value=coord_dir) as resolver,
     ):
-        result = _invoke("tail", "--mission", MISSION_SLUG, "--once")
+        result = _invoke("tail", "--mission", MISSION_SLUG, "--json", "--once")
 
     assert result.exit_code == 0, result.output
     assert [json.loads(line)["event_id"] for line in result.stdout.splitlines() if line.strip()] == ["coord-1", "coord-2"]

@@ -1,0 +1,35 @@
+{
+  "accept_commit": "9daf7289b9080fe3f173d5c588e544163aa0984a",
+  "acceptance_history": [
+    {
+      "accept_commit": "9daf7289b9080fe3f173d5c588e544163aa0984a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-30T15:15:02.228995+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "6da945d2be27b9787b1107f9a92e5be60f6bfbad"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-30T15:15:02.228995+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "6da945d2be27b9787b1107f9a92e5be60f6bfbad",
+  "baseline_merge_commit": "fadbda3e5aba5e851b84338f35eae4eba068c552",
+  "created_at": "2026-10-30T13:16:14.481502+00:00",
+  "flattened": true,
+  "friendly_name": "events tail multi log and json",
+  "merged_at": "2026-10-30T15:16:37.142152+00:00",
+  "merged_commit": "f2862766ea9933cc23514f4f148bc55709abd6b0",
+  "mid8": "01M66F8A",
+  "mission_id": "01M66F8AMTK80VRVD0E17AAEVZ",
+  "mission_number": 244,
+  "mission_slug": "events-tail-multi-log-and-json-01M66F8A",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances events tail multi log and json on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "events tail multi log and json",
+  "slug": "events-tail-multi-log-and-json-01M66F8A",
+  "status_phase": "1",
+  "target_branch": "issue-6611-events-tail-multi-log-and-json",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-30T13:39:14.352867+00:00"
+}

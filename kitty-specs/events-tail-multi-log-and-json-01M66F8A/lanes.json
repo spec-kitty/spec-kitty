@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "mission_slug": "events-tail-multi-log-and-json-01M66F8A",
+  "mission_id": "01M66F8AMTK80VRVD0E17AAEVZ",
+  "mission_branch": "kitty/mission-events-tail-multi-log-and-json-01M66F8A",
+  "target_branch": "issue-6611-events-tail-multi-log-and-json",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_events_tail_logs.py",
+        "tests/cli/test_events_tail_logs_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/events.py",
+        "tests/cli/test_events_tail_log_selector.py",
+        "tests/cli/test_events_tail_status_surface.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-30T13:37:07.105478+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "1b091b06e37ecdd6b67c432ef341c9c385950928"
+}
