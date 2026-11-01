@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-01T07:36:06.089210Z",
+      "decision_id": "01M6B0JYP9B0CMBWRQ7TR7GBVN",
+      "final_answer": "extras only: make dev-setup runs sync-services with --extras-only (fixtures, bundles, tools); make sync-services keeps fetching everything for this host. Resolved from the operator brief (non-interactive dispatch): it asks to add sync-services to dev-setup and keeps the read service off user machines (decision 2); the binary is needed only by the nightly compare and the release check.",
+      "input_key": "dev_setup_asset_set",
+      "mission_id": "01M6B0AEGV2NN3DZP7S6734GS2",
+      "mission_slug": "events-service-cutover-01M6B0AE",
+      "opened_by": "cli",
+      "options": [
+        "extras only",
+        "everything for this host",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which pinned assets does make dev-setup fetch: everything for this host (incl. the ~95 MB read-service binary) or only the extras (fixtures, bundles, tools)?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T07:36:13.206210Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.dev-setup-asset-set",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6B0AEGV2NN3DZP7S6734GS2",
+  "version": 1
+}

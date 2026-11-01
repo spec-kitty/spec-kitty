@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-11-01T07:31:28.547923+00:00",
+  "flattened": false,
+  "friendly_name": "Events service cut-over in core",
+  "mid8": "01M6B0AE",
+  "mission_id": "01M6B0AEGV2NN3DZP7S6734GS2",
+  "mission_number": null,
+  "mission_slug": "events-service-cutover-01M6B0AE",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The events domain's Java services and contracts moved to spec-kitty-events (ADR 2026-10-29-1). This Mission pins the first service-v* release in core, points CI and the conformance tests at the pinned assets, removes core's frozen copies, and makes the release process verify the service pins (#6915 gaps 3 and 11).",
+  "purpose_tldr": "Core consumes the released, pinned events read service instead of carrying the Java service and contracts in-tree.",
+  "slug": "events-service-cutover-01M6B0AE",
+  "target_branch": "issue-6915-events-service-cutover",
+  "topology": "single_branch"
+}
