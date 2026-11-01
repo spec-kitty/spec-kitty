@@ -67,7 +67,7 @@ owned_files:
 - tests/charter_offering/test_activation_parity_guard.py
 - tests/charter_offering/drg/test_unknown_kind_fails_loudly.py
 - tests/architectural/test_charter_kind_vocabulary_public_scan_api.py
-- docs/changelog/unreleased/6434-kind-vocabulary-scan-api.internal.md
+- docs/changelog/unreleased/7025.internal.md
 - src/charter/activation/interview.py
 - src/charter/activation/context_renderers/delivery_table.py
 - tests/charter/test_activation_consumers.py
