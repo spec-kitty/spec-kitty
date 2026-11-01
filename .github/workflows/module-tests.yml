@@ -140,6 +140,15 @@ jobs:
         with:
           mode: ${{ inputs.mode }}
 
+      # #6915: the pinned service extras of spec-kitty-events (contract bundles, contract tools, conformance
+      # fixtures; ~230 KB, cached on the pin hash). The glossary shard's torn-tail goldens and any shard that
+      # collects tests/contract read them, and tests/pinned_service_assets.py fails closed without them.
+      - name: Sync the pinned service extras
+        uses: ./.github/actions/sync-services
+        with:
+          python-exe: ${{ steps.warmup.outputs.venv-path }}/bin/python
+          extras-only: 'true'
+
       - name: Compute shard identifiers
         id: shard-info
         shell: bash
