@@ -1,0 +1,109 @@
+{
+  "mission_slug": "dispatch-router-docs-coverage-01M6BTTX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_docs_domain_routing.py::test_issue_request_routes_to_the_documentation_profile + cli/test_dispatch.py::test_issue_request_routes_through_the_dispatch_command",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:35.516235+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_docs_domain_routing.py::test_adr_index_phrase_routes_but_bare_index_does_not + cli/test_dispatch.py::test_bare_database_index_still_refuses_at_the_command_surface",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:38.905364+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_router.py::test_phrase_keyword_matches_only_as_a_contiguous_phrase, test_hyphenated_canonical_verb_matches_its_words + shipped-catalog phrase/hyphen tests",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:42.422735+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_router.py::test_no_match_reports_the_closest_profiles_and_the_remedy, test_no_match_refusal_is_bounded_and_deterministic",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:45.921283+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_router.py::test_no_match_without_any_overlap_names_no_candidate",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:49.727947+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_router.py::test_ambiguous_suggestion_names_every_tied_profile + cli/test_dispatch.py::test_ambiguous_without_json_names_every_tied_id_with_a_remedy",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:32:53.650719+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "cli/test_dispatch.py::test_no_match_without_json_renders_a_human_refusal, test_dry_run_no_match_without_json_renders_the_same_human_refusal, test_unknown_profile_without_json_renders_a_human_refusal",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:33:00.647623+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "cli/test_dispatch.py::test_no_match_json_envelope_keeps_five_keys_and_candidates (exactly the five routing_failed keys; suites: cli/ 130 passed, 1 skipped)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:33:04.874571+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_router.py::test_route_reads_the_catalog_exactly_once + test_decided_route_has_no_ranking_side_effects (router stays pure; no I/O added)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:33:08.276495+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/invocation/test_router.py verb-vs-keyword precedence tests (canonical verb tier still outranks domain vocabulary; 66 passed)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-11-01T17:33:11.681089+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,31 @@
+{
+  "accept_commit": "e22d27a37d24cb826c1574da7e0cecc2d1ffb3df",
+  "acceptance_history": [
+    {
+      "accept_commit": "e22d27a37d24cb826c1574da7e0cecc2d1ffb3df",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-11-01T17:34:48.144199+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "b9a80a90e40d16167cdbf0069a45b245f702b50f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-11-01T17:34:48.144199+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "b9a80a90e40d16167cdbf0069a45b245f702b50f",
+  "created_at": "2026-11-01T15:14:50.376590+00:00",
+  "flattened": false,
+  "friendly_name": "dispatch router docs coverage",
+  "mid8": "01M6BTTX",
+  "mission_branch": "kitty/mission-dispatch-router-docs-coverage-01M6BTTX",
+  "mission_id": "01M6BTTXA9B98ZEY6T8W6G4RSG",
+  "mission_number": null,
+  "mission_slug": "dispatch-router-docs-coverage-01M6BTTX",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances dispatch router docs coverage on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "dispatch router docs coverage",
+  "slug": "dispatch-router-docs-coverage-01M6BTTX",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
