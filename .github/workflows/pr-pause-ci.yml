@@ -13,11 +13,19 @@
 #                `GITHUB_TOKEN` (a close/reopen, a push) start no workflow runs, so a
 #                re-run is the only resume this token can trigger. A re-run replays the
 #                ORIGINAL payload: runs the pause cancelled started before the label and
-#                resume cleanly; a run that started while labelled pauses again, so after
-#                a push made under the label, push again (or close and reopen the PR by
-#                hand) once the label is off. When the head moved after the label came off
-#                (a push), the re-run is skipped: the new head's runs are current, and an old
-#                head's re-run would cancel them through the shared concurrency group.
+#                resume cleanly; a run that started while labelled pauses again. When the
+#                head moved after the label came off (a push), the re-run is skipped: the
+#                new head's runs are current, and an old head's re-run would cancel them
+#                through the shared concurrency group.
+#
+# The workflows behind the required checks (LABEL_TRIGGERED_WORKFLOWS) trigger on
+# labeled/unlabeled themselves (#7019): removing the label starts their full run on the
+# current head, adding it re-reports paused, and their shared concurrency group cancels
+# the run in flight. The pause job still cancels their runs created before the label (a
+# label-triggered run may never start, for example on a PR with a merge conflict, and the old
+# run's gate could then finish green over the posted failure) but spares the run the label
+# started, which re-reports paused. The resume job never re-runs them: an old run would join
+# that group and cancel the fresh run.
 name: PR Pause CI
 
 on:
@@ -42,6 +50,13 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      LABEL_TRIGGERED_WORKFLOWS: '["CI Router", "CI Modules", "CI Quality"]'
+      # When the label was applied. A run of the label-triggered workflows created before it is
+      # cancelled like any other (its gate could still finish green); the run this label event
+      # itself started (created at or after it) re-reports paused and is left alone.
+      LABELED_AT: ${{ github.event.pull_request.updated_at }}
+      CANCEL_FILTER: >-
+        .[] | select(((.workflowName as $w | $own | index($w)) == null) or (.createdAt < $labeled_at)) | .databaseId
       OWN_RUN_ID: ${{ github.run_id }}
     steps:
       - name: Cancel queued and in-progress runs for the head commit
@@ -50,7 +65,9 @@ jobs:
           set -euo pipefail
           for status in queued in_progress waiting pending requested; do
             gh run list --repo "$REPO" --commit "$HEAD_SHA" --status "$status" \
-              --json databaseId -q '.[].databaseId' --limit 200 | while read -r id; do
+              --json databaseId,workflowName,createdAt --limit 200 \
+              | jq -r --argjson own "$LABEL_TRIGGERED_WORKFLOWS" --arg labeled_at "$LABELED_AT" "$CANCEL_FILTER" \
+              | while read -r id; do
               [ "$id" = "$OWN_RUN_ID" ] && continue
               gh run cancel "$id" --repo "$REPO" || echo "run $id already finished"
             done
@@ -77,6 +94,9 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      LABEL_TRIGGERED_WORKFLOWS: '["CI Router", "CI Modules", "CI Quality"]'
+      RERUN_FILTER: >-
+        .[] | select(.event == "pull_request") | select((.workflowName as $w | $own | index($w)) == null) | .databaseId
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
       - name: Re-run the runs the pause cancelled for the head commit
@@ -92,7 +112,8 @@ jobs:
             exit 0
           fi
           gh run list --repo "$REPO" --commit "$HEAD_SHA" --status cancelled \
-            --json databaseId,event -q '.[] | select(.event == "pull_request") | .databaseId' --limit 200 \
+            --json databaseId,event,workflowName --limit 200 \
+            | jq -r --argjson own "$LABEL_TRIGGERED_WORKFLOWS" "$RERUN_FILTER" \
             | while read -r id; do
               gh run rerun "$id" --repo "$REPO" || echo "run $id could not be re-run"
             done

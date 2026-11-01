@@ -369,6 +369,13 @@ def test_the_baseline_reach_checker_does_not_fire_on_prose() -> None:
             "!contains(github.event.pull_request.labels.*.name, 'pr:deferred') }}",
             True,
         ),
+        (
+            "(github.event.label.name == 'pr:pause-ci' || "
+            "(github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always()",
+            True,
+        ),
+        ("github.event.action == 'labeled'", False),
+        ("github.event.label.name == 'pr:pause-ci'", False),
         ("some.unmodelled.expression == 'true'", False),
     ],
 )

@@ -47,6 +47,11 @@ PR_WORKFLOWS = frozenset(
         "mission-status-api.yml",
     }
 )
+# The PR workflows that also trigger on ``labeled`` / ``unlabeled`` (#7019). A run of theirs that
+# a label other than ``pr:pause-ci`` started skips every job, so it concludes ``skipped``; it is
+# never evidence, and the run it followed stays the latest. Their gate jobs always run on any
+# other ``pull_request`` event, so a skipped run of theirs is always such a no-op.
+LABEL_TRIGGERED_WORKFLOWS = frozenset({"ci-router.yml", "ci-modules.yml", "ci-quality.yml"})
 AGGREGATE = "ci-aggregate.yml"
 MARKER = "<!-- spec-kitty-actions-verdict-v1 -->"
 
@@ -87,6 +92,7 @@ def latest_run(runs: list[dict[str, Any]], *, workflow_id: int, repository: str,
         and r.get("head_sha") == head
         and r.get("event") == "pull_request"
         and r.get("path") == f".github/workflows/{name}"
+        and not (name in LABEL_TRIGGERED_WORKFLOWS and r.get("conclusion") == "skipped")
         and any(
             p.get("number") == number
             and p.get("head", {}).get("sha") == head

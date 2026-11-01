@@ -35,7 +35,10 @@ name: CI Router
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    # labeled/unlabeled (#7019): removing pr:pause-ci starts a full run on the PR head with no push.
+    # Any other label event is a no-op: every self-starting job carries the label guard, the
+    # required gate posts under a different name, and the run gets its own concurrency group.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   push:
     branches: [main]
   # Merge queue (landing-merge-queue ADR): the queue tests each PR on main plus
@@ -55,8 +58,12 @@ on:
 # Per-SHA concurrency on push→main (#4347): each landed tip gets its own singleton
 # group (nothing to cancel), so a merge burst no longer cancel-cascades main runs and
 # every tip receives a terminal evaluation. PR/dispatch keep the per-ref self-coalesce.
+# Label events (#7019): a run started by a label other than pr:pause-ci (or by any label on a
+# closed PR) joins its own group
+# (`-label-no-op-<run id>`), so it never cancels the real run; a pr:pause-ci label event joins
+# the PR group and supersedes it (removing the label resumes, adding it re-reports paused).
 concurrency:
-  group: ci-router-${{ github.event_name == 'push' && github.sha || github.ref }}
+  group: ci-router-${{ github.event_name == 'push' && github.sha || github.ref }}${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && (github.event.label.name != 'pr:pause-ci' || github.event.pull_request.state != 'open') && format('-label-no-op-{0}', github.run_id) || '' }}
   cancel-in-progress: ${{ github.event_name != 'push' }}
 
 permissions:
@@ -75,7 +82,7 @@ jobs:
   # post-merge safety net that replaces the old push-always-full-scope.
   # ---------------------------------------------------------------------------
   changes:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     # Job-level `permissions:` REPLACES the workflow-level grant, so `contents` is restated
     # next to the `actions: read` the skip-if-green step needs (ci-modules.yml `summarize`
     # precedent).
@@ -711,7 +718,7 @@ jobs:
   # by this step's own IO.
   # ---------------------------------------------------------------------------
   prose-scan:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: prose-only PR scan
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -814,7 +821,7 @@ jobs:
   # Ordered cheapest-first in declaration order.
   # ===========================================================================
   ruff:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: ruff (lint + format)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -832,7 +839,7 @@ jobs:
           uv run --frozen ruff format --check .
 
   commit-msg:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: commit message lint
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -843,7 +850,7 @@ jobs:
       - run: git log --format=%s origin/${{ github.base_ref || 'main' }}..HEAD || true
 
   markdownlint:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: markdownlint
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -852,7 +859,7 @@ jobs:
       - run: npx --yes markdownlint-cli2 "**/*.md" || true
 
   uv-lock:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: uv lock --check
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -864,7 +871,7 @@ jobs:
       - run: uv lock --check
 
   import-linter:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: import boundaries (TID251)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -880,7 +887,7 @@ jobs:
           uv run --frozen ruff check --select TID251 .
 
   regen-check:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: regen --check
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -901,7 +908,7 @@ jobs:
   # still pays for them but pays for NO code shard and NOT the heavy battery.
   # ---------------------------------------------------------------------------
   terminology:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: terminology guard (fast, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -925,7 +932,7 @@ jobs:
   # skips every event but pull_request and the bot's own PR; fetch-depth 2
   # gives it the PR merge commit's base parent (HEAD^1).
   docs-lint:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: docs lint (spelling + changelog style, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -951,7 +958,7 @@ jobs:
   # are synced first because `init` reads them. Runs no pytest. The pin lives
   # only in the script (REFERENCE_SPEC); an unusable uvx/skills-ref exits 2.
   agent-skills:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: agent skills (skills-ref validate, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -966,7 +973,7 @@ jobs:
           uv run --frozen python scripts/ci/validate_agent_skills.py
 
   layer-rules:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: layer rules / import direction (fast, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 8
@@ -990,7 +997,7 @@ jobs:
   # reads archived history. The heavy battery deselects this file (as it does
   # terminology/layer-rules) so it is not executed twice on a code PR.
   archive-freeze:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: archive freeze (fast, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -1018,7 +1025,7 @@ jobs:
   # and the junit feeds the timings refresh (D-29). Pinned by
   # tests/ci/test_xdist_worker_policy.py and tests/ci/test_ci_module_wiring.py.
   architectural-fast:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: architectural fast gates (ratchet/census, always-on)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -1549,7 +1556,7 @@ jobs:
   # real result of every dependency in both PR (fail-fast) and full mode.
   # ---------------------------------------------------------------------------
   router-gate:
-    name: router gate
+    name: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && (github.event.label.name != 'pr:pause-ci' || github.event.pull_request.state != 'open') && 'router gate (label no-op)' || 'router gate' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     # actions:read is needed to read each dependency's real conclusion from the
@@ -1579,7 +1586,7 @@ jobs:
       - tests-contract-tools
       - tests-events-consumers
       - mission-state-audit
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always() && !cancelled() }}
     steps:
       - name: Refuse while CI is paused by label
         if: ${{ contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}

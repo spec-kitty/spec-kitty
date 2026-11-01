@@ -24,6 +24,8 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.ci._gh_expr import github_context, interpolate
+
 pytestmark = [pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -61,10 +63,16 @@ def _all_workflows() -> list[str]:
 def _producers() -> dict[str, str]:
     """Required check name -> the workflow file whose job carries that name."""
     found: dict[str, str] = {}
+    running = github_context("pull_request", action="synchronize")
     for name in _all_workflows():
         for job in (_load(name).get("jobs") or {}).values():
-            if job.get("name") in required_check_names():
-                found[job["name"]] = name
+            raw = str(job.get("name", ""))
+            if re.search(r"\b(matrix|inputs|needs|strategy)\.", raw):
+                continue  # a per-leaf or per-caller name is never a fixed required check
+            # A gate name is an expression since #7019; it resolves to the check name wherever it runs.
+            resolved = interpolate(raw, running)
+            if resolved in required_check_names():
+                found[resolved] = name
     return found
 
 

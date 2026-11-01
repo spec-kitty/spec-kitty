@@ -75,8 +75,10 @@ PR runs use the workflows as merged with current `main`, so paused PRs need no r
      -q '.[].databaseId' | xargs -I{} gh run rerun {} --repo $R
    ```
 
-6. **Resume a paused PR when you pick it up for landing.** Remove the label. If the PR was pushed
-   while labeled, push again (or close and reopen it).
+6. **Resume a paused PR when you pick it up for landing.** Remove the label. The required
+   workflows start a full run on the PR's current head; no push is needed. If the gates still
+   read "CI is paused" with the label off (a run started by adding the label was created after
+   the one started by removing it, and cancelled it), add and remove the label again.
 
    ```bash
    gh pr edit <n> --repo $R --remove-label pr:pause-ci
@@ -96,8 +98,10 @@ paused. A fleet push to a paused PR now costs three quick gate jobs.
 - **Why the label stops it.** Under `pr:pause-ci` the root job of each PR workflow skips, so the
   heavy jobs skip. The three required gates still run and fail with a message, so the PR cannot be
   merged on GitHub while paused. On `labeled`, a small `pull_request_target` workflow cancels the
-  PR's queued and in-progress runs and posts failing gate checks. On `unlabeled` it re-runs the
-  runs it canceled, unless the PR's head moved since (a push already started fresh runs). Details: [Pausing a PR's CI](pr-landing.md#pausing-a-prs-ci-prpause-ci).
+  PR's queued and in-progress runs and posts failing gate checks. The three required workflows
+  trigger on the label change themselves: removing the label starts their full run, and adding it
+  re-reports paused. On `unlabeled` the pause workflow re-runs the other runs it canceled, unless
+  the PR's head moved since (a push already started fresh runs). Details: [Pausing a PR's CI](pr-landing.md#pausing-a-prs-ci-prpause-ci).
 - **Queued PRs are not paused by the label.** A merge-queue run carries no PR labels, so
   `pr:pause-ci` does not stop it. To stop a queued PR, remove it from the merge queue; a
   paused PR cannot enter the queue, because its required gates read `fail`.
@@ -108,9 +112,11 @@ paused. A fleet push to a paused PR now costs three quick gate jobs.
   completion, and a canceled run counts as completed. Mass-canceling CI Modules queues one CI
   Aggregate run each (90 of 195 in-flight runs at one point). A single cancel sweep refilled
   within minutes, so loop until the pause runs finish.
-- **Why push again after unlabeling.** A run that started while the PR was labeled replays the
-  label and pauses again. The workflow cannot push for you: events caused by `GITHUB_TOKEN` start
-  no workflow runs.
+- **Why no push is needed after unlabeling.** Re-running a run that started while the PR was
+  labeled replays the label and pauses again, and the pause workflow cannot push for you: events
+  caused by `GITHUB_TOKEN` start no workflow runs. So the required workflows trigger on `unlabeled`
+  themselves (#7019). A label other than `pr:pause-ci` starts a no-op run of them that skips every
+  job and cancels nothing.
 
 ## What not to do
 

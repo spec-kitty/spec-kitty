@@ -14,6 +14,8 @@ from typing import Any, cast
 import pytest
 import yaml
 
+from tests.ci._gh_expr import github_context, interpolate
+
 pytestmark = [pytest.mark.fast]
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -336,7 +338,8 @@ def test_clean_install_check_name_is_branch_protection_ready() -> None:
     workflow = load_workflow("ci-quality.yml")
     job = workflow["jobs"]["clean-install-verification"]
 
-    assert job["name"] == "Clean install verification"
+    # The name is an expression since #7019; it resolves to the required check name wherever the job runs.
+    assert interpolate(job["name"], github_context("pull_request", action="synchronize")) == "Clean install verification"
     assert "spec-kitty-runtime" in workflow_text("ci-quality.yml")
     assert "tests/fixtures/clean_install_fixture_mission" in workflow_text("ci-quality.yml")
 

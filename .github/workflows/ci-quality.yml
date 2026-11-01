@@ -2,7 +2,10 @@ name: CI Quality
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    # labeled/unlabeled (#7019): removing pr:pause-ci starts a full run on the PR head with no push.
+    # Any other label event is a no-op: every self-starting job carries the label guard, the
+    # required gate posts under a different name, and the run gets its own concurrency group.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   push:
     branches: [main]
   # Merge queue (landing-merge-queue ADR): the queue tests each PR on main plus
@@ -10,8 +13,12 @@ on:
   merge_group:
   workflow_dispatch:
 
+# Label events (#7019): a run started by a label other than pr:pause-ci (or by any label on a
+# closed PR) joins its own group
+# (`-label-no-op-<run id>`), so it never cancels the real run; a pr:pause-ci label event joins
+# the PR group and supersedes it (removing the label resumes, adding it re-reports paused).
 concurrency:
-  group: ci-quality-${{ github.ref }}
+  group: ci-quality-${{ github.ref }}${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && (github.event.label.name != 'pr:pause-ci' || github.event.pull_request.state != 'open') && format('-label-no-op-{0}', github.run_id) || '' }}
   cancel-in-progress: true
 
 permissions:
@@ -22,7 +29,7 @@ permissions:
 # run everywhere. Pinned by tests/ci/test_fork_guard.py.
 jobs:
   lint:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: Lint
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -39,7 +46,7 @@ jobs:
           uv run --frozen ruff format --check .
 
   build-wheel:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: Build wheel
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -64,13 +71,13 @@ jobs:
           retention-days: 7
 
   clean-install-verification:
-    name: Clean install verification
+    name: ${{ (github.event.action == 'labeled' || github.event.action == 'unlabeled') && (github.event.label.name != 'pr:pause-ci' || github.event.pull_request.state != 'open') && 'Clean install verification (label no-op)' || 'Clean install verification' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [build-wheel]
     # Must RUN (not skip) on a paused PR: it is a required check, and a skipped
     # required check passes. `always()` keeps it alive when build-wheel is skipped.
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always() && !cancelled() }}
     steps:
       - name: Refuse while CI is paused by label
         if: ${{ contains(github.event.pull_request.labels.*.name, 'pr:pause-ci') }}
@@ -128,7 +135,7 @@ jobs:
           "
 
   uv-lock-check:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && !contains(github.event.pull_request.labels.*.name, 'pr:pause-ci')
     name: uv lock --check
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -149,7 +156,7 @@ jobs:
       - build-wheel
       - clean-install-verification
       - uv-lock-check
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && ((github.event.label.name == 'pr:pause-ci' && github.event.pull_request.state == 'open') || (github.event.action != 'labeled' && github.event.action != 'unlabeled')) && always() && !cancelled() }}
     steps:
       - name: Evaluate quality-gate decision
         shell: bash

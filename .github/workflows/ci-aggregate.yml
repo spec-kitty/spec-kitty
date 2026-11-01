@@ -86,8 +86,11 @@ on:
           - pr
           - full
 
+# A skipped CI Modules source is a no-op label-event run (#7019: every job skips on a label other
+# than pr:pause-ci). It gets its own group so it never cancels the real source's aggregate, and
+# every job skips: collect needs a success/failure source, and the always() jobs exclude it.
 concurrency:
-  group: ci-aggregate-${{ github.event.workflow_run.head_branch || github.ref }}
+  group: ci-aggregate-${{ github.event.workflow_run.head_branch || github.ref }}${{ github.event.workflow_run.conclusion == 'skipped' && format('-skipped-{0}', github.event.workflow_run.id) || '' }}
   cancel-in-progress: true
 
 # Fork guard: automated runs (schedule, push to main, workflow_run) are core-repo
@@ -675,7 +678,7 @@ jobs:
   aggregate-gate:
     name: CI Aggregate gate
     needs: [collect, diff-cover]
-    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') && github.event.workflow_run.event != 'merge_group' && always() }}
+    if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch' || github.event.workflow_run.event == 'pull_request') && github.event.workflow_run.event != 'merge_group' && github.event.workflow_run.conclusion != 'skipped' && always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
