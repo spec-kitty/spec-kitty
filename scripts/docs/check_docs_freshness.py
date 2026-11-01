@@ -91,8 +91,10 @@ _REGEN_BOT_ACTION: Final[str] = (
     "surfaces here; the ci/regen-docs-index bot pull request regenerates them "
     "on main after merge"
 )
-# Leakage-check rules that only report a not-yet-regenerated inventory.
-_GENERATED_SURFACE_STALENESS_RULES: Final[frozenset[str]] = frozenset({"LEAK-MISSING-INVENTORY"})
+# Leakage-check rules that only report a not-yet-regenerated inventory: a page
+# the inventory lacks (LEAK-MISSING-INVENTORY) or still lists after a branch
+# deleted or renamed it (LEAK-MISSING-FILE).
+_GENERATED_SURFACE_STALENESS_RULES: Final[frozenset[str]] = frozenset({"LEAK-MISSING-INVENTORY", "LEAK-MISSING-FILE"})
 
 LinkCheckMode = Literal["none", "spot", "full"]
 Severity = Literal["error", "warning"]
@@ -843,9 +845,10 @@ def _demote_generated_surface_staleness(
 ) -> list[FreshnessFinding]:
     """Downgrade the leakage check's generated-surface staleness rules to warnings.
 
-    ``LEAK-MISSING-INVENTORY`` only says the committed inventory has not caught
-    up with a new page yet, which on a branch is expected (the post-merge
-    regeneration bot owns the inventory). Every other leakage finding keeps its
+    ``LEAK-MISSING-INVENTORY`` and ``LEAK-MISSING-FILE`` only say the committed
+    inventory has not caught up with a page added, deleted or renamed on the
+    branch, which is expected (the post-merge regeneration bot owns the
+    inventory, so a PR may not edit it). Every other leakage finding keeps its
     severity.
     """
     return [

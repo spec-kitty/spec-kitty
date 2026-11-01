@@ -807,10 +807,11 @@ def test_leak_missing_inventory_is_demoted_and_other_leaks_keep_their_severity()
     def _finding(rule_id: str) -> orchestrator.FreshnessFinding:
         return orchestrator.FreshnessFinding(rule_id=rule_id, severity="error", location="docs/x.md", message="m", suggested_action="a")
 
-    demoted = orchestrator._demote_generated_surface_staleness([_finding("LEAK-MISSING-INVENTORY"), _finding("LEAK-MISSING-BANNER")])
+    demoted = orchestrator._demote_generated_surface_staleness([_finding("LEAK-MISSING-INVENTORY"), _finding("LEAK-MISSING-FILE"), _finding("LEAK-MISSING-BANNER")])
 
     assert [(f.rule_id, f.severity) for f in demoted] == [
         ("LEAK-MISSING-INVENTORY", "warning"),
+        ("LEAK-MISSING-FILE", "warning"),
         ("LEAK-MISSING-BANNER", "error"),
     ]
-    assert "ci/regen-docs-index" in demoted[0].suggested_action
+    assert all("ci/regen-docs-index" in f.suggested_action for f in demoted[:2])
