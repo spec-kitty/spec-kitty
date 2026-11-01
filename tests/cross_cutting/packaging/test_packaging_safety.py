@@ -434,3 +434,96 @@ def test_wheel_and_sdist_ship_no_companion_file(build_artifacts: dict[str, Path]
     # Positive control: the archives are real (the slot the companion fills ships).
     assert "specify_cli/services/resolution.py" in wheel
     assert "src/specify_cli/services/resolution.py" in sdist
+
+
+# --------------------------------------------------------------------------- #
+# Documentation, Mission and site trees never ship in the sdist (#6926; ADR 2026-10-31-1 D-12)
+# --------------------------------------------------------------------------- #
+
+#: Repository-root trees no sdist member may sit under. The bare ``README.md`` / ``CHANGELOG.md`` include entries
+#: were gitignore-style and matched at any depth, so every nested README of ``docs/``, ``kitty-specs/``, ``tests/``
+#: and ``scripts/`` shipped; ``site/`` is the doc-kitty docsite (#6930), excluded before it exists.
+_SDIST_FORBIDDEN_TREES = ("docs/", "kitty-specs/", "site/", "tests/", "scripts/")
+
+
+def sdist_stray_tree_members(rooted: list[str]) -> list[str]:
+    """Rooted sdist members (``<name>-<version>/`` already stripped) under a tree that must never ship."""
+    return [member for member in rooted if member.startswith(_SDIST_FORBIDDEN_TREES)]
+
+
+def test_sdist_stray_tree_helper_flags_planted_members() -> None:
+    """Self-test: the helper the archive test uses flags the forbidden trees and nothing anchored elsewhere."""
+    planted = [
+        "docs/README.md",
+        "docs/changelog/CHANGELOG.md",
+        "kitty-specs/some-mission-01ABCDEF/README.md",
+        "site/README.md",
+        "site/dist/index.html",
+        "tests/README.md",
+        "scripts/release/README.md",
+    ]
+    clean = [
+        "README.md",
+        "CHANGELOG.md",
+        "src/charter/README.md",
+        "src/specify_cli/docs/notes.py",
+        "packs/built-in/missions/README.md",
+        "pins/README.md",
+    ]
+    assert sdist_stray_tree_members(planted + clean) == planted
+
+
+@pytest.mark.slow
+def test_sdist_ships_no_docs_kitty_specs_or_site_member(build_artifacts: dict[str, Path]) -> None:
+    """The sdist carries the root README and CHANGELOG, and nothing under ``docs/``, ``kitty-specs/``, ``site/``, ``tests/`` or ``scripts/``."""
+    rooted = _sdist_rooted_members(build_artifacts)
+
+    stray = sdist_stray_tree_members(rooted)
+    assert not stray, f"{len(stray)} sdist members under {_SDIST_FORBIDDEN_TREES}: {stray[:10]}"
+    # Positive control (same archive): the root documents still ship as real content, and the archive is real.
+    assert _sdist_root_documents_without_content(build_artifacts) == [], "the sdist's root README.md / CHANGELOG.md is missing, empty or a link"
+    assert "pyproject.toml" in rooted
+    assert any(member.startswith("src/specify_cli/") for member in rooted), "Source dist is missing the specify_cli package (positive control failed)"
+
+
+#: Root documents the sdist must carry as regular, non-empty files. The repository's ``CHANGELOG.md`` is a symlink into
+#: ``docs/changelog/``, so once ``docs/`` stops shipping an archived symlink would dangle.
+_SDIST_ROOT_DOCUMENTS = ("README.md", "CHANGELOG.md")
+
+
+def root_documents_without_content(members: dict[str, tarfile.TarInfo]) -> list[str]:
+    """Root documents absent from rooted ``members``, or present only as a link or an empty file."""
+    return [name for name in _SDIST_ROOT_DOCUMENTS if name not in members or not members[name].isfile() or members[name].size == 0]
+
+
+def _sdist_root_documents_without_content(build_artifacts: dict[str, Path]) -> list[str]:
+    with tarfile.open(build_artifacts["sdist"], "r:gz") as tar:
+        members = {info.name.split("/", 1)[1]: info for info in tar.getmembers() if "/" in info.name}
+    return root_documents_without_content(members)
+
+
+def test_root_document_helper_flags_links_empty_and_missing_files() -> None:
+    """Self-test: a symlink, an empty file and a missing document are all flagged; a regular file with content is not."""
+    readme = tarfile.TarInfo("README.md")
+    readme.size = 10
+    link = tarfile.TarInfo("CHANGELOG.md")
+    link.type, link.linkname = tarfile.SYMTYPE, "docs/changelog/CHANGELOG.md"
+    assert root_documents_without_content({"README.md": readme, "CHANGELOG.md": link}) == ["CHANGELOG.md"]
+    assert root_documents_without_content({"README.md": tarfile.TarInfo("README.md")}) == ["README.md", "CHANGELOG.md"]
+    changelog = tarfile.TarInfo("CHANGELOG.md")
+    changelog.size = 10
+    assert root_documents_without_content({"README.md": readme, "CHANGELOG.md": changelog}) == []
+
+
+def test_sdist_config_anchors_the_root_documents_and_excludes_site() -> None:
+    """Config-level twin (no build): ``site/**`` is excluded and the README / CHANGELOG includes are root-anchored."""
+    import tomllib
+
+    sdist = tomllib.loads((_REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["hatch"]["build"]["targets"]["sdist"]
+    assert "site/**" in sdist["exclude"]
+    unanchored = [entry for entry in sdist["include"] if entry in {"README.md", "CHANGELOG.md"}]
+    assert not unanchored, f"gitignore-style entries match at any depth; anchor them with a leading '/': {unanchored}"
+    assert "/README.md" in sdist["include"]
+    # The root CHANGELOG.md is a symlink into docs/changelog/; the sdist carries the real file at the root instead.
+    assert sdist.get("force-include", {}).get("docs/changelog/CHANGELOG.md") == "CHANGELOG.md"
+    assert (_REPO_ROOT / "docs" / "changelog" / "CHANGELOG.md").is_file()
