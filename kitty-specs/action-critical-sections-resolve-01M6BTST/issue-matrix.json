@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6968": {
+      "evidence_ref": "Branch issue-6968-action-critical-sections-resolve: renderer filters ACTION_CRITICAL_SECTIONS against the active charter (src/charter/activation/context_renderers/section_bodies.py); red-first regression test tests/charter/test_context_action_critical_minimal.py (3 failed/3 passed pre-fix, 6 passed post-fix); end-to-end CLI in a minimal consumer project emits zero 'include section:' lines for implement and review while an explicit fetch still returns the honest placeholder",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "charter context advertises action-critical sections a consumer charter does not have",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
