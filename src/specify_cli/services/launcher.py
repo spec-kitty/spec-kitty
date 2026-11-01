@@ -6,11 +6,11 @@ The binding contract is ``kitty-specs/pinned-service-binaries-01M64N66/contracts
 * **start** -- ``<binary> serve --git-common-dir <abs> [--idle-timeout <s>]``, detached,
   ``stdin`` from the null device, ``stdout``/``stderr`` appended to
   ``<gcd>/spec-kitty-write-service/service.log``;
-* **ready** -- ``endpoint.json`` passes ``read_endpoint_file``, then ``GET /handshake``
-  reports ``repositoryId == sha256(realpath(gcd))``, a protocol major the CLI speaks
-  and the endpoint's ``instanceId``, then ``GET /health`` reads ``ready`` for that
-  same instance;
-* **stop** -- ``POST /shutdown``, then, when the process is still alive after the stop
+* **ready** -- ``endpoint.json`` passes ``read_endpoint_file``, then
+  ``GET /api/v1/handshake`` reports ``repositoryId == sha256(realpath(gcd))``, a protocol
+  major the CLI speaks and the endpoint's ``instanceId``, then ``GET /api/v1/health``
+  reads ``ready`` for that same instance;
+* **stop** -- ``POST /api/v1/shutdown``, then, when the process is still alive after the stop
   budget (10 s) *and* still answers as the endpoint's instance, SIGTERM on POSIX or
   TerminateProcess on Windows.
 
@@ -411,7 +411,7 @@ class ServiceLauncher:
             return StopOutcome.NOT_RUNNING
         client = self._client(endpoint)
         if self._answers_as(client, endpoint):
-            # The answer to /shutdown does not decide the outcome; liveness and identity below do.
+            # The answer to /api/v1/shutdown does not decide the outcome; liveness and identity below do.
             with contextlib.suppress(ServiceUnreachable):
                 client.shutdown()
             if self._wait_for_exit(endpoint.pid):

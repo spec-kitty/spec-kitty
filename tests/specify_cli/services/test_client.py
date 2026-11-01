@@ -114,7 +114,7 @@ class _GarbageHandler(http.server.BaseHTTPRequestHandler):
         """Silent."""
 
     def do_GET(self) -> None:
-        body = b"not json" if self.path == "/handshake" else b'{"status": "sleeping", "instanceId": "x"}'
+        body = b"not json" if self.path == "/api/v1/handshake" else b'{"status": "sleeping", "instanceId": "x"}'
         self.send_response(200)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -146,6 +146,7 @@ def test_a_refused_connection_is_unreachable() -> None:
     with pytest.raises(ServiceUnreachable) as excinfo:
         ServiceClient(endpoint, timeout=1.0).handshake()
     assert endpoint.token not in str(excinfo.value)
+    assert "/api/v1/handshake" in str(excinfo.value)  # NFR-002: the message names the contract path, never the token
     assert excinfo.value.__cause__ is None
 
 
