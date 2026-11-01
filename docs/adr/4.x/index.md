@@ -4,7 +4,9 @@ description: 'Index for Spec Kitty 4.x architectural decision records: where new
 doc_status: active
 updated: '2026-11-01'
 type: explanation
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 
 # 4.x ADRs
