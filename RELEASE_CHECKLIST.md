@@ -260,8 +260,9 @@ does not advance beyond latest tag" until this step lands (#4290).
   - `version` in `pyproject.toml`
   - the project's own entry in `uv.lock`
   - `.kittify/metadata.yaml`
-  - a new `## [Unreleased] - <next version>` heading at the top of `CHANGELOG.md`,
-    then refresh the docs retrieval index with `python -m scripts.docs.docs_index --write`
+  - a new `## [Unreleased] - <next version>` heading at the top of `CHANGELOG.md`
+    (do not refresh the docs retrieval index in this pull request: the
+    `ci/regen-docs-index` bot pull request regenerates it after merge)
 - [ ] Give that pull request priority so it merges ahead of routine work. Changes
   that merge after the tag belong to the next version, not the published one.
 - [ ] After it merges, confirm the Release Readiness Check on `main` is green.
@@ -336,10 +337,11 @@ source** (`pyproject.toml` / `uv.lock`) and reds a bump unless all of these agre
    section. A bare `## [Unreleased]` with the version only in prose FAILS.
 3. **The bumped version advances beyond the latest git tag** (e.g. `rc2` > tag `v…rc1`).
 
-Changing the `[Unreleased]` heading text changes its anchor slug, so also regenerate the
-docs retrieval index (`scripts/docs/docs_index.py --write`) or DOCS-INDEX-DRIFT reds
-freshness. To open a dev cycle, follow the canonical precedent (`#4017`): bump all three
-sources, put the version on the `## [Unreleased] - X.Y.Z` heading, regen the index. Verify
+Changing the `[Unreleased]` heading text changes its anchor slug in the docs retrieval
+index. Do not regenerate the index in the pull request: the `ci/regen-docs-index` bot pull
+request does it after merge, and `DOCS-INDEX-DRIFT` is only a warning until then. To open a
+dev cycle, follow the canonical precedent (`#4017`): bump all three sources and put the
+version on the `## [Unreleased] - X.Y.Z` heading. Verify
 before pushing:
 
 ```bash

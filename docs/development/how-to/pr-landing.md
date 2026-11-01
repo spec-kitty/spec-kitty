@@ -85,14 +85,15 @@ switched off and the label was deleted, so this applies to PRs it prepared earli
 review passed against the base the PR had at that time. It does not mean the PR is
 ready now. After the rebase:
 
-- **Regenerate stale generated surfaces.** Run
-  `uv run python -m scripts.docs.check_docs_freshness --ci` to see which one is
-  stale, and regenerate it with its own script, for example
-  `uv run python -m scripts.docs.docs_index --write` (docs retrieval index) and
-  `uv run python -m scripts.docs.freshen_adr_inventory` (ADR and page inventory). A
-  command that another PR added after this branch's base is missing from them and
-  reds the freshness gates although nothing in the diff is wrong. This is part of
-  landing, not scope creep.
+- **Do not regenerate the generated docs surfaces.** The docs retrieval index
+  (`docs/development/docs-retrieval-index.yaml`), the page inventory
+  (`docs/development/page-inventory.yaml`) and the ADR era table rows are
+  regenerated on `main` after merge by the `ci/regen-docs-index` bot pull request
+  (`docs-index-regen.yml`). A PR that edits them fails the `docs-lint` guard
+  (`scripts/ci/check_generated_docs_untouched.py`); revert such an edit with
+  `git checkout origin/main -- <path>`. Their staleness findings in
+  `check_docs_freshness --ci` are warnings, and `spec-kitty docs query` on a branch
+  lags by the pages that have not merged yet. Merge the open bot PR when you see one.
 - **Fix the fleet's follow-up issues.** The fleet files its smaller findings as
   separate issues that reference the PR. Search for them
   (`gh issue list --repo spec-kitty/spec-kitty --search "#<N>"`, plus the PR's own
@@ -781,8 +782,8 @@ been fixed, the end-state is stated instead of the trap.
 - **Docs checks that fail only in CI.** The frontmatter `description` must be 50 to
   180 characters (`uv run python -m scripts.docs.description_length_check`), and a
   changelog entry over 1,200 characters fails `tests/docs/test_changelog_style.py`.
-  Re-run `docs_index --write` after you edit a description again, since the retrieval
-  index stores it. A new ADR for a governance or process decision goes in
+  The retrieval index stores the description, but the bot regenerates it after merge,
+  so do not regenerate it in the PR. A new ADR for a governance or process decision goes in
   `docs/adr/4.x/YYYY-MM-DD-N-<slug>.md` with status Accepted; check the day's highest
   `-N-` on `main` first. Markdownlint is advisory in CI, so do not spend landing time
   on a file's pre-existing findings.
