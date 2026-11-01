@@ -1,13 +1,17 @@
 """The glossary torn-tail repair against the goldens the Java port is held to.
 
-``services/mission-status-api/event-log/src/test/resources/torn-tail/repair-cases.json`` records, per ledger shape,
+``event-log/torn-tail/repair-cases.json`` of spec-kitty-events' ``conformance-fixtures`` release asset (pinned in
+``pins/read-service.source.yaml``; ``make sync-services`` fetches it) records, per ledger shape,
 what ``glossary.events._repair_torn_tail`` leaves in the ledger and in its ``<ledger>.torn`` quarantine file.
 ``TornTailRepairGoldenTest`` (Java, ``event-log``) holds ``TornTailRepair`` to the same file. This module is the file's
 one source: :data:`CASES` lists the ledger shapes, live Python computes the expected bytes, and
 :func:`test_the_committed_goldens_are_what_python_produces` keeps the committed file equal to that, so the two sides
-cannot drift apart unnoticed (#6193 follow-up). After changing :data:`CASES` or the Python repair, rewrite the file::
+cannot drift apart unnoticed (#6193 follow-up). The pinned cache is read-only: after changing :data:`CASES` or the Python
+repair, write the file into a spec-kitty-events checkout, which publishes it in its next ``service-v*`` release::
 
-    uv run --frozen python -m tests.glossary.test_torn_tail_repair_goldens
+    uv run --frozen python -m tests.glossary.test_torn_tail_repair_goldens <events checkout>/<path of repair-cases.json>
+
+A missing fetch fails collection (never skips): the goldens are read at import through ``tests.pinned_service_assets``.
 """
 
 from __future__ import annotations
@@ -20,10 +24,11 @@ from typing import Any
 import pytest
 
 from glossary.events import TORN_TAIL_SUFFIX, _repair_torn_tail
+from tests.pinned_service_assets import pinned_extra
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-GOLDENS = Path(__file__).resolve().parents[2] / "services" / "mission-status-api" / "event-log" / "src" / "test" / "resources" / "torn-tail" / "repair-cases.json"
+GOLDENS = pinned_extra("fixtures") / "event-log" / "torn-tail" / "repair-cases.json"
 
 _BLOCK = 64 * 1024
 #: A run of at least this many equal bytes is written as one repeated segment.
@@ -163,4 +168,8 @@ def test_a_missing_ledger_is_refused_and_not_created(tmp_path: Path) -> None:
 
 
 if __name__ == "__main__":
-    GOLDENS.write_text(render_goldens(), encoding="utf-8")
+    import sys
+
+    if len(sys.argv) != 2:
+        raise SystemExit("usage: python -m tests.glossary.test_torn_tail_repair_goldens <repair-cases.json to write>")
+    Path(sys.argv[1]).write_text(render_goldens(), encoding="utf-8")
