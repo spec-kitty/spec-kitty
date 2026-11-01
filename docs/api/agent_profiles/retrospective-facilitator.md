@@ -35,4 +35,4 @@ You do not run a CLI command to load this profile directly. In practice it is in
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)

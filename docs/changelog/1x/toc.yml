@@ -1,5 +1,5 @@
 - name: 1.x Overview
-  href: index.md
+  href: README.md
 - name: 1.x Workflow
   href: workflow.md
 - name: 1.x Artifacts and Commands

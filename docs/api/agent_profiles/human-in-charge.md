@@ -28,5 +28,5 @@ When a work package carries the `human-in-charge` profile-id, that WP requires d
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)
 - [spk-charter-profile-load](../skills/spk-charter-profile-load.md) — how profile loading works for the 16 real personas this sentinel is excluded from

@@ -6,7 +6,7 @@ updated: '2026-10-01'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
-- docs/development/how-to/index.md
+- docs/development/how-to/README.md
 - docs/development/how-to/review-gates.md
 ---
 # Add an exemption to an architectural gate

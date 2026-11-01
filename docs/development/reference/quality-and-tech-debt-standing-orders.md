@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 type: explanation
 related:
-- docs/development/index.md
+- docs/development/README.md
 - docs/development/testing/testing-flakiness.md
 - docs/development/how-to/pr-landing.md
 ---

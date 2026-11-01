@@ -8,7 +8,7 @@ related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/archive/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/index.md
+- docs/plans/README.md
 ---
 
 # Consumer-repo layout portability: disposition and sequencing

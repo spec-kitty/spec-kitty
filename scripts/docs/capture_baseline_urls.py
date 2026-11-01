@@ -35,7 +35,7 @@ identical by design):
     The baseline universe is deliberately restricted to ``*.html``: NFR-002
     protects URLs via ``<meta http-equiv="refresh">`` stubs, an HTML
     mechanism — a verbatim non-HTML resource URL (e.g. a resource-block
-    ``*.md`` copied as-is, like ``assets/index.md``) cannot be
+    ``*.md`` copied as-is, like ``assets/README.md``) cannot be
     redirect-protected and is therefore live-but-outside the baseline, on
     purpose. ``redirect_stub_generator.load_baseline`` fails loud if a
     non-``.html`` entry ever reaches the committed manifest.

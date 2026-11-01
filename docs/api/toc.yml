@@ -1,5 +1,5 @@
 - name: Reference Overview
-  href: index.md
+  href: README.md
 - name: CLI Commands
   href: cli-commands.md
 - name: Init Lifecycle
@@ -35,10 +35,10 @@
 - name: Supported Agents
   href: supported-agents.md
 - name: Skills
-  href: skills/index.md
+  href: skills/README.md
   items:
     - name: Skills Catalog
-      href: skills/index.md
+      href: skills/README.md
     - name: spk-start-here
       href: skills/spk-start-here.md
     - name: spk-run-next
@@ -54,10 +54,10 @@
     - name: spk-meta-skill-map
       href: skills/spk-meta-skill-map.md
 - name: Agent Profiles
-  href: agent_profiles/index.md
+  href: agent_profiles/README.md
   items:
     - name: Agent Profiles Catalog
-      href: agent_profiles/index.md
+      href: agent_profiles/README.md
     - name: architect-alphonso
       href: agent_profiles/architect-alphonso.md
     - name: curator-carla

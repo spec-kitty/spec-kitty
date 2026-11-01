@@ -6,8 +6,8 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
-- docs/development/index.md
-- docs/plans/engineering-notes/index.md
+- docs/development/README.md
+- docs/plans/engineering-notes/README.md
 ---
 # Common-Docs section audit — docs-wide structural concern baseline
 

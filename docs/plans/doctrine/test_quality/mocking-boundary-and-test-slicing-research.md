@@ -4,7 +4,7 @@ description: "Research for refining Spec Kitty's test-boundary doctrine after #2
 doc_status: draft
 updated: '2026-07-26'
 related:
-- docs/plans/doctrine/index.md
+- docs/plans/doctrine/README.md
 ---
 # Test Slicing & Mocking-Boundary Discipline — Research Findings
 

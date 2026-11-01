@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/plans/investigations/index.md
+- docs/plans/investigations/README.md
 ---
 # Issue #797 Analysis: Events and Tracker Fork Census
 

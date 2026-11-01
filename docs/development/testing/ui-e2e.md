@@ -6,7 +6,7 @@ updated: '2026-10-01'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
-- docs/development/index.md
+- docs/development/README.md
 - docs/development/how-to/review-gates.md
 - docs/development/testing/testing-parallel.md
 ---

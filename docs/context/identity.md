@@ -80,7 +80,7 @@ Terms describing who performs work and who owns semantic decisions.
 | **Canonical authority** | Exactly one source per datum — **dynamic → event log** (reduced snapshot). (Umbrella rule shared with [Authored Intent](#authored-intent).) |
 | **Related terms** | [Authored Intent](#authored-intent), [Agent Profile](#agent-profile), [Role](#role), [Field-authority ADR](../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md) |
 
-See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full built-in roster.
+See the [Agent Profiles reference](../api/agent_profiles/README.md) for the full built-in roster.
 
 ---
 
@@ -105,7 +105,7 @@ See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full 
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Persona catalog** | [Internal Audience Index](../../docs/context/audience/internal/index.md), [Lead Developer](../../docs/context/audience/internal/lead-developer.md), [Maintainer](../../docs/context/audience/internal/maintainer.md), [System Architect](../../docs/context/audience/internal/system-architect.md), [Spec Kitty CLI Runtime](../../docs/context/audience/internal/spec-kitty-cli-runtime.md), [AI Collaboration Agent](../../docs/context/audience/internal/ai-collaboration-agent.md), [Project Codebase](../../docs/context/audience/internal/project-codebase.md) |
+| **Persona catalog** | [Internal Audience Index](audience/internal/README.md), [Lead Developer](../../docs/context/audience/internal/lead-developer.md), [Maintainer](../../docs/context/audience/internal/maintainer.md), [System Architect](../../docs/context/audience/internal/system-architect.md), [Spec Kitty CLI Runtime](../../docs/context/audience/internal/spec-kitty-cli-runtime.md), [AI Collaboration Agent](../../docs/context/audience/internal/ai-collaboration-agent.md), [Project Codebase](../../docs/context/audience/internal/project-codebase.md) |
 | **Related terms** | [Audience Persona](#audience-persona), [Mission Participant](#mission-participant) |
 
 ---
@@ -118,7 +118,7 @@ See the [Agent Profiles reference](../api/agent_profiles/index.md) for the full 
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Persona catalog** | [External Audience Index](../../docs/context/audience/external/index.md), [Project Owner](../../docs/context/audience/external/project-owner.md), [External Tech Lead Evaluator](../../docs/context/audience/external/tech-lead-evaluator.md), [External Architect Evaluator](../../docs/context/audience/external/architect-evaluator.md), [External Product Manager Evaluator](../../docs/context/audience/external/product-manager-evaluator.md) |
+| **Persona catalog** | [External Audience Index](audience/external/README.md), [Project Owner](../../docs/context/audience/external/project-owner.md), [External Tech Lead Evaluator](../../docs/context/audience/external/tech-lead-evaluator.md), [External Architect Evaluator](../../docs/context/audience/external/architect-evaluator.md), [External Product Manager Evaluator](../../docs/context/audience/external/product-manager-evaluator.md) |
 | **Related terms** | [Audience Persona](#audience-persona), [Mission Owner](#mission-owner) |
 
 ---

@@ -27,7 +27,7 @@ for that path.
 There is no single fixed invocation string; harnesses route natural-language
 requests like "act as the architect," "load the reviewer profile," or
 "initialize profile" to this skill (see the [Agent Profiles
-reference](../agent_profiles/index.md) for the full profile catalog).
+reference](../agent_profiles/README.md) for the full profile catalog).
 
 ## Flow
 

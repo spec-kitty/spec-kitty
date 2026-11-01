@@ -14,9 +14,9 @@ related:
 
 To find Spec Kitty documentation and architecture, start here instead:
 
-- [Documentation home](../../index.md) — the canonical entry point for all documentation.
+- [Documentation home](../../README.md) — the canonical entry point for all documentation.
 - [`docs/llms.txt`](../../llms.txt) — intent-routing rubric for agents ("when the question is about X, read Y first").
-- [ADR index](../../adr/index.md) — every Architecture Decision Record, grouped by era.
+- [ADR index](../../adr/README.md) — every Architecture Decision Record, grouped by era.
 - [Architecture README](../../architecture/README.md) — current layout of `docs/architecture/` and where ADRs live.
 
 New decisions use the shared [ADR template](../../architecture/adr-template.md); the

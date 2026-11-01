@@ -6,7 +6,7 @@ type: how-to
 audience: docs/context/audience/internal/maintainer.md
 updated: '2026-06-16'
 related:
-- docs/operations/index.md
+- docs/operations/README.md
 - docs/changelog/release-goals.md
 - docs/changelog/3.2.x.md
 ---

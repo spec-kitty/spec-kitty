@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-07-22'
 related:
 - docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
-- docs/plans/engineering-notes/index.md
+- docs/plans/engineering-notes/README.md
 ---
 
 # Coord-branch bookkeeping: read/write split-brain root-cause

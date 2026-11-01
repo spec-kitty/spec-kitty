@@ -84,4 +84,4 @@ stale coord copy.
 
 - [Stale lane seed after re-finalizing tasks](stale-lane-seed.md)
 - [Coord-branch bookkeeping root-cause](https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md)
-- [Recovery & Troubleshooting (agent-facing)](../guides/how-to/recovery/index.md) — implementation-crash and merge recovery
+- [Recovery & Troubleshooting (agent-facing)](../guides/how-to/recovery/README.md) — implementation-crash and merge recovery

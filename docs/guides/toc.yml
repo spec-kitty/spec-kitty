@@ -1,9 +1,9 @@
 - name: Overview
-  href: index.md
+  href: README.md
 - name: When to use Spec Kitty modes
   href: when-to-use-modes.md
 - name: Tutorials
-  href: tutorials/index.md
+  href: tutorials/README.md
   items:
     - name: "Getting Started with Spec Kitty"
       href: tutorials/getting-started.md
@@ -22,10 +22,10 @@
     - name: "Tutorial: Governed Charter Workflow End-to-End"
       href: tutorials/charter-governed-workflow.md
 - name: How-To Guides
-  href: how-to/index.md
+  href: how-to/README.md
   items:
     - name: Installation & Upgrade
-      href: how-to/installation/index.md
+      href: how-to/installation/README.md
       items:
         - name: "Install Spec Kitty — macOS, Linux, and Windows Installation Guide"
           href: how-to/installation/install-spec-kitty.md
@@ -54,7 +54,7 @@
         - name: "Fork packaging hooks"
           href: how-to/installation/fork-packaging-hooks.md
     - name: AI Agent Harnesses
-      href: how-to/harnesses/index.md
+      href: how-to/harnesses/README.md
       items:
         - name: "Set up Post-Edit Lint Hooks"
           href: how-to/harnesses/setup-lint-hooks.md
@@ -95,7 +95,7 @@
         - name: "Roo Cline (deprecated)"
           href: how-to/harnesses/roo.md
     - name: Run a Mission
-      href: how-to/missions/index.md
+      href: how-to/missions/README.md
       items:
         - name: "How to Create a Feature Specification"
           href: how-to/missions/create-specification.md
@@ -122,7 +122,7 @@
         - name: "Review Spec Kitty Artifacts with PlanBridge"
           href: how-to/missions/review-artifacts-with-planbridge.md
     - name: Governance & Doctrine
-      href: how-to/governance/index.md
+      href: how-to/governance/README.md
       items:
         - name: "How to Set Up Project Governance"
           href: how-to/governance/setup-governance.md
@@ -143,7 +143,7 @@
         - name: "How to Use Retrospective Learning"
           href: how-to/governance/use-retrospective-learning.md
     - name: Parallel & Multi-Agent Work
-      href: how-to/collaboration/index.md
+      href: how-to/collaboration/README.md
       items:
         - name: "How to Develop in Parallel with Multiple Agents"
           href: how-to/collaboration/parallel-development.md
@@ -162,14 +162,14 @@
         - name: "How to Start an Ad-Hoc Specialist Session"
           href: how-to/collaboration/adhoc-specialist-session.md
     - name: Status & History
-      href: how-to/monitoring/index.md
+      href: how-to/monitoring/README.md
       items:
         - name: "Use Operation History"
           href: how-to/monitoring/use-operation-history.md
         - name: "Clean Up Local Event Logs"
           href: how-to/monitoring/clean-up-local-event-logs.md
     - name: Recovery & Troubleshooting
-      href: how-to/recovery/index.md
+      href: how-to/recovery/README.md
       items:
         - name: "Recover from an Implementation Crash"
           href: how-to/recovery/recover-from-implementation-crash.md
@@ -178,7 +178,7 @@
         - name: "How to Troubleshoot Merge Issues"
           href: how-to/recovery/troubleshoot-merge.md
     - name: Scenario Walkthroughs
-      href: how-to/scenarios/index.md
+      href: how-to/scenarios/README.md
       items:
         - name: "Solo Developer Workflow"
           href: how-to/scenarios/solo-developer-workflow.md

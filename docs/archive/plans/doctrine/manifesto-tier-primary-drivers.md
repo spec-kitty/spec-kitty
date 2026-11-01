@@ -4,7 +4,7 @@ description: "Meta-analysis: doctrine implements only the middle tier of a three
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- docs/plans/doctrine/index.md
+- docs/plans/doctrine/README.md
 - docs/plans/doctrine/org-doctrine-layer-architecture-review.md
 - docs/plans/doctrine/layered-doctrine-resolution-design.md
 ---
@@ -408,6 +408,6 @@ deliberately never wrote it down.
 
 ## See also
 
-- [Doctrine plans index](../../../plans/doctrine/index.md)
+- [Doctrine plans index](../../../plans/doctrine/README.md)
 - [Org Doctrine Layer — Post-Implementation Architecture Review](../../../plans/doctrine/org-doctrine-layer-architecture-review.md)
 - [Layered Doctrine Resolution — Design Blueprint](../../../plans/doctrine/layered-doctrine-resolution-design.md)

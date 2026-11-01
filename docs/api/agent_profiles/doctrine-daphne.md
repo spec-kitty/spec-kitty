@@ -63,4 +63,4 @@ a profile directly. Instead:
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)

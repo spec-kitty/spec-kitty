@@ -1,5 +1,5 @@
 - name: Changelog Overview
-  href: index.md
+  href: README.md
 - name: Changelog (full history)
   href: CHANGELOG.md
 - name: Release Goals

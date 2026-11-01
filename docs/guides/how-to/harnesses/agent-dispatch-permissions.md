@@ -6,7 +6,7 @@ updated: '2026-10-21'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
-- docs/guides/how-to/harnesses/index.md
+- docs/guides/how-to/harnesses/README.md
 ---
 # Set Agent Dispatch Permissions
 

@@ -9,7 +9,7 @@ related:
 - docs/adr/4.x/2026-10-15-1-qa-and-core-share-the-acceptance-scenarios-and-absorb-engineering-tests-through-a-ledger.md
 - docs/development/testing/integration-e2e-inventory.md
 - docs/development/testing/acceptance-scenarios.md
-- docs/development/testing/index.md
+- docs/development/testing/README.md
 ---
 
 # Test-pyramid rebalance plan

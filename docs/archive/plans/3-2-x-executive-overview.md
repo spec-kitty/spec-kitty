@@ -9,7 +9,7 @@ related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/archive/plans/3-2-x-open-core-delivery-plan.md
 - docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/changelog/index.md
+- docs/changelog/README.md
 ---
 
 # 3.2.x Executive Overview
@@ -27,7 +27,7 @@ the milestone from a PO / C-suite / customer point of view; the durable goal
 declaration is [release-goals/3.2.x](../../changelog/3.2.x.md), the operator execution
 detail is the [milestone roadmap](../../plans/3-2-x-milestone-roadmap.md), the delivery strategy is
 the [open-core delivery plan](3-2-x-open-core-delivery-plan.md), and what actually
-shipped is the [changelog](../../changelog/index.md). Status was verified by two read-only
+shipped is the [changelog](../../changelog/README.md). Status was verified by two read-only
 audits on 2026-07-30; the delivery plan carries the evidence and the unverified-item
 flags.*
 

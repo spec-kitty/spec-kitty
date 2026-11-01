@@ -5,7 +5,7 @@ doc_status: draft
 updated: '2026-09-30'
 audience: docs/context/audience/internal/maintainer.md
 related:
-- docs/plans/index.md
+- docs/plans/README.md
 - docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
 - docs/architecture/doctrine-kinds.md
 ---

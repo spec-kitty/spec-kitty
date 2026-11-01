@@ -4,7 +4,7 @@ description: Citable record of the six GitHub issues confirmed adjacent-but-sepa
 doc_status: active
 updated: '2026-08-03'
 related:
-- docs/plans/index.md
+- docs/plans/README.md
 - docs/archive/plans/3-2-x-open-core-delivery-plan.md
 ---
 

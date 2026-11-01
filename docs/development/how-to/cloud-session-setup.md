@@ -169,4 +169,4 @@ tail /tmp/codegraph-init.log     # progress of a background index build
 
 - [Contributing to Spec Kitty](../contributing.md)
 - [Local overrides for cross-package development](local-overrides.md)
-- [How-to index](index.md)
+- [How-to index](README.md)

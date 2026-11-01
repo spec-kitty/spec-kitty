@@ -42,4 +42,4 @@ Within a running mission, review work packages ordinarily happens through the re
 
 ## See also
 
-- [Agent Profiles index](index.md)
+- [Agent Profiles index](README.md)

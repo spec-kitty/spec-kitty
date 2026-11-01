@@ -121,8 +121,9 @@ def _write_docs_tree(repo_root: Path) -> Path:
     (era / "2026-05-16-1-doctrine-merge.md").write_text(_adr("Doctrine layer merge semantics", "2026-05-16"), encoding="utf-8")
     (era / "2026-06-26-1-single-authority-seam.md").write_text(_adr("Single-authority seam", "2026-06-26"), encoding="utf-8")
 
-    # A non-ADR doc so the inventory has more than ADRs in it.
-    (docs_root / "index.md").write_text(_adr("Docs home", "2026-01-01"), encoding="utf-8")
+    # A non-ADR doc so the inventory has more than ADRs in it. README.md is the
+    # section landing basename since #6939.
+    (docs_root / "README.md").write_text(_adr("Docs home", "2026-01-01"), encoding="utf-8")
 
     _write_inventory(repo_root, docs_root)
     return docs_root
@@ -182,15 +183,17 @@ def test_new_adr_gets_inventory_and_readme_rows(tmp_path: Path) -> None:
     assert result.inventory_written is True
 
 
-def test_canonical_index_is_used_when_readme_is_redirect(tmp_path: Path) -> None:
+def test_canonical_readme_gets_the_row_and_a_retired_index_is_untouched(
+    tmp_path: Path,
+) -> None:
+    """README.md is the canonical era landing page (#6939); a stray index.md is not written."""
     repo_root = tmp_path
     docs_root = _write_docs_tree(repo_root)
     era = docs_root / "adr" / "3.x"
-    index = era / "index.md"
-    index.write_text(_README_TEMPLATE, encoding="utf-8")
     readme = era / "README.md"
-    readme.write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
-    redirect_before = readme.read_text(encoding="utf-8")
+    retired = era / "index.md"
+    retired.write_text(_README_TEMPLATE, encoding="utf-8")
+    retired_before = retired.read_text(encoding="utf-8")
     new_adr = era / "2026-06-30-1-new-thing.md"
     new_adr.write_text(_adr("A Brand New Thing", "2026-06-30"), encoding="utf-8")
     assert new_adr in detect_missing_adrs(docs_root)
@@ -198,34 +201,39 @@ def test_canonical_index_is_used_when_readme_is_redirect(tmp_path: Path) -> None
     result = freshen([new_adr], docs_root=docs_root, repo_root=repo_root, check=False)
 
     assert new_adr.name in result.readme_rows_added
-    assert f"]({new_adr.name})" in index.read_text(encoding="utf-8")
-    assert readme.read_text(encoding="utf-8") == redirect_before
+    assert f"]({new_adr.name})" in readme.read_text(encoding="utf-8")
+    assert retired.read_text(encoding="utf-8") == retired_before
     check_result = freshen([new_adr], docs_root=docs_root, repo_root=repo_root, check=True)
     assert check_result.is_clean
     assert new_adr not in detect_missing_adrs(docs_root)
 
 
 def test_all_refuses_malformed_canonical_index(tmp_path: Path) -> None:
+    """A canonical README that declares an index but carries no table is a hard error.
+
+    Whether a retired ``index.md`` also exists must not change the verdict: the
+    canonical page is the one that is validated.
+    """
     repo_root = tmp_path
     docs_root = _write_docs_tree(repo_root)
     era = docs_root / "adr" / "3.x"
-    (era / "index.md").write_text("# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8")
     readme = era / "README.md"
-    readme.write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
-    redirect_before = readme.read_text(encoding="utf-8")
+    readme.write_text("# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8")
+    malformed_before = readme.read_text(encoding="utf-8")
+    (era / "index.md").write_text(_README_TEMPLATE, encoding="utf-8")
 
     exit_code = main(["--all", "--repo-root", str(repo_root), "--docs-root", str(docs_root)])
 
     assert exit_code == 2
-    assert readme.read_text(encoding="utf-8") == redirect_before
+    assert readme.read_text(encoding="utf-8") == malformed_before
 
 
 def test_explicit_check_refuses_malformed_declared_index(tmp_path: Path) -> None:
     repo_root = tmp_path
     docs_root = _write_docs_tree(repo_root)
     era = docs_root / "adr" / "3.x"
-    (era / "index.md").write_text("# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8")
-    (era / "README.md").write_text(_README_REDIRECT_TEMPLATE, encoding="utf-8")
+    (era / "README.md").write_text("# 3.x ADRs\n\n## Index\n\nMissing table.\n", encoding="utf-8")
+    (era / "index.md").write_text(_README_TEMPLATE, encoding="utf-8")
     _write_inventory(repo_root, docs_root)
 
     exit_code = main(

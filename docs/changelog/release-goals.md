@@ -6,7 +6,7 @@ type: explanation
 audience: docs/context/audience/internal/maintainer.md
 updated: '2026-08-10'
 related:
-- docs/changelog/index.md
+- docs/changelog/README.md
 - docs/changelog/3.2.x.md
 - docs/changelog/3.3.x.md
 ---

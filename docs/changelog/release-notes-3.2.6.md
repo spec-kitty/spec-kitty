@@ -7,7 +7,7 @@ audience: docs/context/audience/internal/maintainer.md
 updated: '2026-09-03'
 related:
 - docs/changelog/CHANGELOG.md
-- docs/changelog/index.md
+- docs/changelog/README.md
 - docs/changelog/release-goals.md
 ---
 # Release notes — `3.2.6`

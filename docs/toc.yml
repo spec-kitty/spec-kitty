@@ -8,38 +8,38 @@
 - name: Using Spec Kitty
   items:
     - name: Home
-      href: index.md
+      href: README.md
     - name: Guides
-      href: guides/index.md
+      href: guides/README.md
     - name: Core Concepts
-      href: context/index.md
+      href: context/README.md
       items:
         - name: Context & Terminology
-          href: context/index.md
+          href: context/README.md
         - name: Doctrine
           href: architecture/doctrine-kinds.md
     - name: Reference
-      href: api/index.md
+      href: api/README.md
       items:
         - name: API
-          href: api/index.md
+          href: api/README.md
         - name: Configuration
-          href: configuration/index.md
+          href: configuration/README.md
         - name: Integrations
-          href: integrations/index.md
+          href: integrations/README.md
         - name: Security
-          href: security/index.md
+          href: security/README.md
         - name: Skills
-          href: api/skills/index.md
+          href: api/skills/README.md
         - name: Agent Profiles
-          href: api/agent_profiles/index.md
+          href: api/agent_profiles/README.md
     - name: Migrations
-      href: migrations/index.md
+      href: migrations/README.md
     - name: Project Updates
-      href: changelog/index.md
+      href: changelog/README.md
       items:
         - name: Changelog
-          href: changelog/index.md
+          href: changelog/README.md
         - name: Release Goals
           href: changelog/release-goals.md
         - name: Mission Runs
@@ -55,12 +55,12 @@
 - name: Contributing
   items:
     - name: Architecture
-      href: architecture/index.md
+      href: architecture/README.md
     - name: ADRs
-      href: adr/index.md
+      href: adr/README.md
     - name: Plans
-      href: plans/index.md
+      href: plans/README.md
     - name: Operations
-      href: operations/index.md
+      href: operations/README.md
     - name: Development
-      href: development/index.md
+      href: development/README.md

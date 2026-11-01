@@ -6,7 +6,7 @@ updated: '2026-09-30'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/adr/3.x/2026-07-21-1-in-tension-with-drg-edge.md
-- docs/plans/engineering-notes/index.md
+- docs/plans/engineering-notes/README.md
 ---
 # Built-in Doctrine DRG — Missing / Under-Specified Links Analysis
 
