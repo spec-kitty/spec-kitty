@@ -598,17 +598,27 @@ def test_t024_both_hashes_are_recomputed_from_content_and_match_the_baseline() -
 # test_t024_the_real_tree_is_set_equal_to_the_census_union_e above.
 
 
-def test_t024_sc005_mypy_strict_over_the_real_exempt_module() -> None:
+def test_t024_sc005_mypy_strict_over_the_real_exempt_module(tmp_path: Path) -> None:
     """SC-005's arity limb, discharged on the artefact that **ships**.
 
     WP04/T018 proves the *mechanism* over a materialised module — that a third entry is a type
     error. This limb type-checks the real ``E``, and it is the only place that happens: **CI will
     not do it**, because mypy there covers ``src/`` only and runs with ``continue-on-error``.
     Invoked as ``[sys.executable, "-m", "mypy"]`` so it is this interpreter's mypy, never whatever
-    a ``PATH`` lookup finds.
+    a ``PATH`` lookup finds. Its cache goes to ``tmp_path``, never into the checkout (#6953),
+    as the guard's own arity probe already does.
     """
     completed = subprocess.run(
-        [sys.executable, "-m", "mypy", "--strict", "tests/architectural/_home_pin_exempt.py"],
+        [
+            sys.executable,
+            "-m",
+            "mypy",
+            "--strict",
+            "--no-incremental",
+            "--cache-dir",
+            str(tmp_path / "mypy_cache"),
+            "tests/architectural/_home_pin_exempt.py",
+        ],
         capture_output=True,
         text=True,
         check=False,
