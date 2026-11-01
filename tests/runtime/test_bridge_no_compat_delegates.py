@@ -92,7 +92,7 @@ REMOVED: dict[str, tuple[str, ...]] = {
         "_load_feature_runs",
         "_mission_key_for_run_ref",
         "_build_run_ref",
-        "_build_discovery_context",
+        "build_discovery_context",
         "_resolve_runtime_template_in_root",
         "_runtime_template_key",
         "_existing_run_ref",

@@ -612,18 +612,18 @@ def _dispatch_via_composition(
     # FR-008: forward the invocation_id chain produced by the executor to the
     # bridge log so downstream event/trail writers and operators can correlate
     # the composed action with its underlying ProfileInvocationExecutor calls.
-    # Defensive ``getattr`` + duck-typed length so test mocks (MagicMock) and
-    # real ``StepContractExecutionResult`` instances both flow through cleanly.
-    invocation_ids = getattr(result, "invocation_ids", ()) or ()
-    try:
-        invocation_count = len(invocation_ids)
-    except TypeError:
-        invocation_count = 0
+    # Read the contract: the executor's ``StepContractExecutionResult`` always
+    # carries a sized ``invocation_ids`` tuple. Until #6745 this line went through
+    # ``getattr(..., ())`` plus ``except TypeError: count = 0`` so a bare test double
+    # could flow through -- production code shaped by a test, which reported a
+    # contract violation as "emitted 0 invocation(s)" instead of failing where it
+    # can be fixed.
+    invocation_ids = result.invocation_ids
     logger.info(
         "composed %s/%s emitted %d invocation(s): %s",
         mission,
         action,
-        invocation_count,
+        len(invocation_ids),
         invocation_ids,
     )
 
@@ -632,16 +632,13 @@ def _dispatch_via_composition(
     # computed by the executor and read by nothing. Non-blocking (WARNING,
     # never ERROR, D-005): a correctly-cited-but-activation-filtered candidate
     # is a valid, if inert, state, not necessarily an authoring mistake.
-    # Defensive ``getattr`` for the same reason as ``invocation_ids`` above --
-    # test mocks (MagicMock) and real ``StepContractExecutionResult``
-    # instances both flow through cleanly.
-    for step in getattr(result, "steps", ()) or ():
-        unresolved = getattr(step, "unresolved_candidates", ())
+    for step in result.steps:
+        unresolved = step.unresolved_candidates
         if unresolved:
             logger.warning(
                 "step %s (contract %s) has unresolved delegation candidate(s): %s",
-                getattr(step, "step_id", "<unknown>"),
-                getattr(result, "contract_id", "<unknown>"),
+                step.step_id,
+                result.contract_id,
                 ", ".join(unresolved),
             )
 

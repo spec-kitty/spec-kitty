@@ -18,6 +18,8 @@
       href: how-to/pr-landing.md
     - name: Review gates (pre-PR / pre-review)
       href: how-to/review-gates.md
+    - name: Auditing special-case workarounds
+      href: how-to/auditing-special-case-workarounds.md
     - name: Local overrides for cross-package development
       href: how-to/local-overrides.md
     - name: Set up a Claude Code cloud session

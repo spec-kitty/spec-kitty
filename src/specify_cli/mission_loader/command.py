@@ -49,7 +49,7 @@ from specify_cli.mission_loader.validator import validate_custom_mission
 from specify_cli.status import mission_write_lock
 from specify_cli.mission_metadata import load_meta_or_empty, locked_update_meta, write_meta
 from runtime.next import runtime_bridge
-from runtime.next.runtime_bridge_io import resolve_builtin_missions_root
+from runtime.next import runtime_bridge_io
 from runtime.next._internal_runtime.discovery import DiscoveryContext
 from runtime.next._internal_runtime.schema import MissionTemplate
 
@@ -94,13 +94,13 @@ def run_custom_mission(
             used to key the run under ``kitty-specs/<slug>/`` and the
             ``feature-runs.json`` index.
         repo_root: Project repository root.
-        discovery_context: Optional override; defaults to
-            :func:`_build_discovery_context` mirroring the runtime bridge.
+        discovery_context: Optional override; defaults to the runtime's one
+            context builder, :func:`runtime.next.runtime_bridge_io.build_discovery_context`.
 
     Returns:
         :class:`RunCustomMissionResult` with the wire-stable envelope.
     """
-    ctx = discovery_context or _build_discovery_context(repo_root)
+    ctx = discovery_context or runtime_bridge_io.build_discovery_context(repo_root)
     report = validate_custom_mission(mission_key, ctx)
 
     if not report.ok:
@@ -201,38 +201,6 @@ def run_custom_mission(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
-    """Mirror :func:`runtime_bridge_io._build_discovery_context`.
-
-    The runtime bridge's helper is module-private; we duplicate the
-    construction here so this module does not depend on a private
-    surface. Both implementations point ``builtin_roots`` at the
-    pack-shipped missions directory (the one ``builtin_missions_root()``
-    accessor) so built-in keys resolve identically.
-
-    Also mirrors the runtime bridge's ``org_roots`` population (FR-008,
-    DEC-006 site 3 -- the third, independently-duplicated production
-    wiring site that backs ``mission run <key>``): sourced via the lazy
-    ``charter.activation.layer_roots.resolve_pack_chain`` chain authority
-    (``strict=False``), no ``try/except`` around the
-    call (``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` must
-    propagate, DEC-005/NFR-001). ``resolve_pack_chain`` returns ``[]`` when
-    no org packs are configured, so this is a no-op for the common case
-    (NFR-005/SC-007). ``strict=False``: this helper backs a lenient
-    resolution hot path (``mission run <key>``); a declared pack whose root
-    is absent on disk is dropped, not raised (#6012).
-    """
-    package_missions = resolve_builtin_missions_root()
-
-    from charter.activation.layer_roots import resolve_pack_chain  # lazy, mirrors the resolve_org_dirs pattern below
-
-    return DiscoveryContext(
-        project_dir=repo_root,
-        builtin_roots=[package_missions],
-        org_roots=list(resolve_pack_chain(repo_root, strict=False, quiet=True)),
-    )
 
 
 def _resolve_contract_refs(

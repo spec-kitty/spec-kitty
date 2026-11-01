@@ -2,7 +2,7 @@
 title: How-to (contributor & maintainer tasks)
 description: Task-oriented runbooks for contributors and maintainers — landing PRs, review gates, overrides, the issue tracker, contract pinning, and authoring doctrine and pack skills.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-31'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/development/index.md
@@ -16,6 +16,7 @@ Spec Kitty. Each page is scoped to one job you can pick up and finish.
 
 - [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off maintainer runbook.
 - [Review gates: pre-PR / pre-review checklist](review-gates.md) — the hygiene steps to run locally before requesting review.
+- [Auditing special-case workarounds](auditing-special-case-workarounds.md) — find, classify and remove the branches that tolerate a wrong input, a private seam or a test double, with the disposition ledger from #6745.
 - [Local overrides for cross-package development](local-overrides.md) — dev-only editable installs across `spec-kitty-cli`/`-events`/`-tracker` that must never be committed.
 - [Set up a Claude Code cloud session](cloud-session-setup.md) — make the `spec-kitty` CLI, test package and CodeGraph available in a cloud session.
 - [Managing the issue tracker](manage-issue-tracker.md) — epics vs. meta-trackers, native sub-issue parenting, and triage conventions.

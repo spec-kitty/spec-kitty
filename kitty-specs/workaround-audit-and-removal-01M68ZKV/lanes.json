@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "mission_slug": "workaround-audit-and-removal-01M68ZKV",
+  "mission_id": "01M68ZKVJNZEA00JN3H8Z4WKRW",
+  "mission_branch": "kitty/mission-workaround-audit-and-removal-01M68ZKV",
+  "target_branch": "issue-6745-workaround-audit-and-removal",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge_io.py",
+        "src/specify_cli/mission_loader/command.py",
+        "tests/runtime/test_bridge_io.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge_composition.py",
+        "tests/specify_cli/next/test_runtime_bridge_composition.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/development/how-to/auditing-special-case-workarounds.md",
+        "docs/development/how-to/index.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-31T12:46:34.544197+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "28c6921155490f70b363c9193331efdc3c953e29"
+}
