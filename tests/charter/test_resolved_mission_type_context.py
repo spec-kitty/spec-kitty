@@ -584,3 +584,54 @@ class TestCapabilityFacets:
         assert bundle.provenance
         assert bundle.governance_text
 
+
+class TestRequiresSubstantiveSpecFailOpenIsObservable:
+    """#6330 item 2: the fail-open must stay non-crashing but become observable.
+
+    A type that authored ``requires_substantive_spec: true`` and whose resolution
+    transiently throws is silently downgraded to the built-in default (``False``
+    for a custom type), so a stub spec passes with no trace anywhere. The
+    fallback stays; the silence does not.
+    """
+
+    def test_resolution_failure_warns_and_keeps_the_builtin_default(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import logging
+
+        from charter.activation.mission_type_profiles import requires_substantive_spec_for
+
+        def _boom(*_args: object, **_kwargs: object) -> object:
+            raise ValueError("malformed mission-type layer")
+
+        monkeypatch.setattr(
+            "charter.activation.mission_type_profiles.resolve_mission_type_context", _boom
+        )
+
+        with caplog.at_level(logging.WARNING, logger="charter.activation.mission_type_profiles"):
+            result = requires_substantive_spec_for(tmp_path, "qa")
+
+        assert result is False, "the documented fallback (built-in default) is unchanged"
+        warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+        assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
+        message = warnings[0].getMessage()
+        assert "qa" in message
+        assert "malformed mission-type layer" in message
+
+    def test_a_healthy_resolution_logs_nothing(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Positive control on the same seam: the warning means a failure, not routine noise."""
+        import logging
+
+        from charter.activation.mission_type_profiles import requires_substantive_spec_for
+
+        _write_config(tmp_path, ["software-dev"])
+
+        with caplog.at_level(logging.WARNING, logger="charter.activation.mission_type_profiles"):
+            assert requires_substantive_spec_for(tmp_path, "software-dev") is True
+
+        assert [record for record in caplog.records if record.levelno >= logging.WARNING] == []

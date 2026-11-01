@@ -95,6 +95,8 @@ __all__ = [
 ]
 
 
+logger = logging.getLogger(__name__)
+
 #: The ordered governance kinds carried by :class:`ResolvedGovernance`.  The
 #: order is load-bearing for deterministic rendering (NFR-007).
 _GOVERNANCE_KINDS: tuple[str, ...] = (
@@ -431,14 +433,25 @@ class ResolvedMissionType:
     ``bundle.step_contracts`` is still the ordered list, and
     ``bundle.template_set`` is an immutable mapping or explicit ``None``. Each
     is memoised on first access, so repeated reads stay cheap.
+
+    ``wp_driven`` is **advisory**: it applies the capability kernel rule
+    (``step_ids_declare_wp_iteration``) to the type's curated
+    ``action_sequence``, which is the cheap capability read CLI and external
+    consumers want. The WP-advance guard does **not** consume this field: it
+    applies the same rule to the run's **frozen runtime DAG**, which is
+    authoritative. A type that curates its ``action_sequence`` away from its DAG
+    therefore reports ``wp_driven=False`` here while the guard still gates; that
+    divergence is pinned by ``tests/runtime/test_wp_driven_parity.py``.
     """
 
     mission_type: str | None
     governance_text: str
     action_sequence: list[str]
     provenance: str
-    #: Capability: the type iterates work packages (its ``action_sequence``
-    #: declares ``implement``; kernel rule, single authority).
+    #: Capability, **advisory**: the type's curated ``action_sequence`` declares
+    #: ``implement`` (kernel rule, single authority). The WP-advance guard reads
+    #: the run's frozen runtime DAG instead, and that side is authoritative —
+    #: see the class docstring (#6330).
     wp_driven: bool = False
     #: Deferred resolver for the activated doctrine artifact's template
     #: mapping. ``None`` yields ``None`` for the neutral/typeless bundle.
@@ -1077,11 +1090,24 @@ def requires_substantive_spec_for(repo_root: Path, mission_type: str) -> bool:
     new internal reach). A resolution error falls back to the built-in default
     map, so the built-in types keep their effective behaviour and the probe never
     crashes.
+
+    That fallback stays, but it is no longer silent (#6330): a failed resolution
+    is a real downgrade — a type that authored ``requires_substantive_spec:
+    true`` would otherwise let a stub spec pass with no trace anywhere — so it is
+    logged at WARNING with the mission type and the failure before the built-in
+    default is returned. The success path logs nothing.
     """
     try:
         return bool(resolve_mission_type_context(repo_root, mission_type=mission_type).requires_substantive_spec)
-    except Exception:  # noqa: BLE001 - probe must not crash; fall back to built-in default
-        return bool(BUILTIN_REQUIRES_SUBSTANTIVE_SPEC.get(mission_type, False))
+    except Exception as exc:  # noqa: BLE001 - probe must not crash; fall back to built-in default
+        default = bool(BUILTIN_REQUIRES_SUBSTANTIVE_SPEC.get(mission_type, False))
+        logger.warning(
+            "requires_substantive_spec resolution failed for mission type %r; falling back to the built-in default (%s): %s",
+            mission_type,
+            default,
+            exc,
+        )
+        return default
 
 
 def _resolve_code_producing(
