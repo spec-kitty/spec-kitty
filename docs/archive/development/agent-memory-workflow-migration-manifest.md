@@ -3,15 +3,13 @@ title: Agent-Memory Workflow Migration Manifest (Bucket 2)
 description: Audit manifest mapping 49 workflow/CI/git/status-and-sync mechanics memory entries to their repo-native home, an echo, a learned fact, or a private disposition.
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
-- archive/development/agent-memory-migration-manifest
-- development/how-to/review-gates
-- development/how-to/pr-landing
-- architecture/artifact-placement-seam
+- docs/archive/development/agent-memory-migration-manifest.md
+- docs/development/how-to/review-gates.md
+- docs/development/how-to/pr-landing.md
+- docs/architecture/artifact-placement-seam.md
 ---
 
 # Agent-Memory Workflow Migration Manifest (Bucket 2)

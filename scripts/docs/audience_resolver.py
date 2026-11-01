@@ -18,6 +18,10 @@ doc-kitty's ``resolveProfile`` does. Two kinds of profile:
 * **Free text** — anything else (e.g. ``end-users``). Examined (it counts toward
   the non-vacuity floor) but never dangling; doc-kitty renders it as a soft miss.
 
+Pages in the folders the site leaves out (``archive``, ``reports``,
+``convergence``, ``changelog/unreleased``) are skipped, as doc-kitty's own gates
+skip them (ADR D-8).
+
 An ``audience:`` that is not a list, or an entry that is not a mapping with a
 non-empty ``profile`` and ``guidance_text`` (for example the retired path-string
 form), is **malformed**: doc-kitty's build schema rejects it, so it reds
@@ -57,7 +61,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final
 
-from scripts.docs._dockitty_contract import persona_page
+from scripts.docs._dockitty_contract import is_excluded, persona_page
 from scripts.docs._guards import (
     GitDiffError,
     assert_examined_floor,
@@ -206,6 +210,8 @@ def _check_pages(pages: list[Path], docs_root: Path, repo_root: Path) -> Audienc
     dangling: list[DanglingReference] = []
     malformed: list[MalformedAudience] = []
     for md_path in pages:
+        if _in_excluded_folder(md_path, docs_root):
+            continue
         from_rel = _repo_relative(md_path, repo_root)
         checked, file_dangling, file_malformed = _audiences_in_file(md_path, from_rel, docs_root)
         checked_count += checked
@@ -239,6 +245,15 @@ def _audiences_in_file(
         if _is_catalog_profile(profile) and persona_page(docs_root, profile) is None:
             dangling.append(DanglingReference(from_path=from_rel, to_path=profile))
     return len(raw), dangling, malformed
+
+
+def _in_excluded_folder(md_path: Path, docs_root: Path) -> bool:
+    """Pages in the folders the site leaves out are never read by doc-kitty, so they are not checked."""
+    try:
+        rel = md_path.resolve().relative_to(docs_root.resolve()).as_posix()
+    except ValueError:
+        return False
+    return is_excluded(rel)
 
 
 def _entry_problem(entry: Any) -> str | None:

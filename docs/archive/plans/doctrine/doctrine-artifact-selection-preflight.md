@@ -4,7 +4,7 @@ description: 'Pre-mission investigation by Architect Alphonso into user-authored
 doc_status: deprecated
 updated: '2026-06-15'
 related:
-- archive/plans/doctrine/runtime-charter-doctrine-boundary
+- docs/archive/plans/doctrine/runtime-charter-doctrine-boundary.md
 ---
 # Pre-flight investigation — user-authored doctrine artifact selection
 

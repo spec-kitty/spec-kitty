@@ -88,12 +88,21 @@ _REPO_URL: Final[str] = "https://github.com/spec-kitty/spec-kitty"
 _PERSONA_TITLE_PREFIXES: Final[tuple[str, ...]] = ("Stakeholder Persona: ",)
 _INTENDED_KEYS: Final[frozenset[str]] = frozenset({_AUDIENCE, _RELATED, _EXTERNAL, _DOC_STATUS, _KIND})
 
-#: Files the migration never edits: #6928 resolves the dual-index README stubs and the
-#: architecture landing page (they leave the tree there). The ADR era ``index.md``
-#: pages ARE migrated: their table rows are bot-owned, their frontmatter is not
-#: (``scripts/ci/check_generated_docs_untouched.py`` refuses only new table rows).
-_SKIPPED_FILES: Final[frozenset[str]] = frozenset({"adr/1.x/README.md", "adr/2.x/README.md", "adr/3.x/README.md", "architecture/README.md"})
-_SKIPPED_FOLDERS: Final[tuple[str, ...]] = ("changelog/unreleased/",)
+#: Files the migration never edits:
+#:
+#: * the excluded folders (:data:`scripts.docs._dockitty_contract.EXCLUDED_FOLDERS`):
+#:   doc-kitty never reads them, its gates skip them (ADR D-8), and they are
+#:   immutable history, part of it byte-pinned by
+#:   ``tests/architectural/test_archive_root_byte_identical.py``;
+#: * the four files #6928 resolves (the dual-index README stubs and the
+#:   architecture landing page), which leave the tree there.
+#:
+#: The ADR era ``index.md`` pages ARE migrated: their table rows are bot-owned,
+#: their frontmatter is not (``check_generated_docs_untouched.py`` refuses only
+#: new table rows).
+_SKIPPED_FILES: Final[frozenset[str]] = frozenset(
+    {"adr/1.x/README.md", "adr/2.x/README.md", "adr/3.x/README.md", "architecture/README.md"}
+)
 
 
 class MigrationError(RuntimeError):
@@ -141,12 +150,11 @@ class _Source:
     """The page whose ``related`` list is being migrated, read from its own frontmatter."""
 
     rel: str
-    excluded: bool
     published: bool
 
     @classmethod
     def of(cls, rel: str, data: Mapping[str, Any]) -> _Source:
-        return cls(rel=rel, excluded=is_excluded(rel), published=_published_after_migration(rel, data))
+        return cls(rel=rel, published=_published_after_migration(rel, data))
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,12 +181,10 @@ class Corpus:
     def related_target_allowed(self, source: _Source, target: str) -> bool:
         """Whether *source* may name *target* in ``related`` (doc-kitty resolves it in every build that builds *source*).
 
-        An excluded source is never built, so any page will do. A draft source is built
-        in a drafts-on preview, where draft targets exist but excluded ones never do. A
-        published source is built with drafts off, so its target must be published.
+        A draft source is built in a drafts-on preview, where draft targets exist but
+        excluded ones never do. A published source is built with drafts off, so its
+        target must be published. (Pages in excluded folders are never migrated.)
         """
-        if source.excluded:
-            return True
         if not source.published:
             return not is_excluded(target)
         return self.published(target)
@@ -396,7 +402,7 @@ def _check_integrity(rel: str, old: Mapping[str, Any], new: Mapping[str, Any], i
 
 def is_skipped(rel: str) -> bool:
     """True for a page under ``docs/`` the migration never edits (see :data:`_SKIPPED_FILES`)."""
-    return rel in _SKIPPED_FILES or rel.startswith(_SKIPPED_FOLDERS)
+    return rel in _SKIPPED_FILES or is_excluded(rel)
 
 
 def _intended_changes(rel: str, data: Mapping[str, Any], corpus: Corpus, report: MigrationReport) -> dict[str, Any]:

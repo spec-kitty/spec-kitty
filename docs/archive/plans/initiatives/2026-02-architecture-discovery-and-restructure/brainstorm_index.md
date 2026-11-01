@@ -4,14 +4,14 @@ description: 'Timeline index of the 2026-02 repository-structuring brainstorm se
 doc_status: deprecated
 updated: '2026-09-30'
 related:
-- archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/dialectics/dialectic-structured-vs-adhoc
-- archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/lineage/session_start.dump
-- archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/lineage/session_step1.dump
-- archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/proposals/repo_coaching
-- archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/proposals/suggested_architecture_structure.dump
-- archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-adhoc-specialist-session
-- archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-formalization-session-end
-- archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-formalized-approach-to-mission
+- docs/archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/dialectics/dialectic-structured-vs-adhoc.md
+- docs/archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/lineage/session_start.dump.md
+- docs/archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/lineage/session_step1.dump.md
+- docs/archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/proposals/repo_coaching.md
+- docs/archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/proposals/suggested_architecture_structure.dump.md
+- docs/archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-adhoc-specialist-session.md
+- docs/archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-formalization-session-end.md
+- docs/archive/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-formalized-approach-to-mission.md
 ---
 # Index of brainstorm
 

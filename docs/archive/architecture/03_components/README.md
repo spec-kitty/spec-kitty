@@ -3,11 +3,9 @@ title: 2.x Components
 description: '2.x components view (C4 level 3): the historical breakdown of Spec Kitty container internals into components, preserved beneath the current living architecture.'
 doc_status: superseded
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 related:
-- architecture
+- docs/architecture/README.md
 ---
 # 2.x Components
 

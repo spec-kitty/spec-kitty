@@ -3,11 +3,9 @@ title: Reviews
 description: PR and code-review artifacts — resolution plans, test plans, and execution reports for reviewed changes.
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- plans
+- docs/plans/index.md
 ---
 
 # Reviews

@@ -3,12 +3,10 @@ title: 'RFC #2497 — External Observability Endpoints: Squad Assessment'
 description: "Squad assessment of RFC #2497's five proposed external-observability CLI endpoints across architecture, duplication, and doctrine lenses, with retain/create/decline calls."
 doc_status: superseded
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 related:
-- plans
-- api/cli-commands
+- docs/plans/index.md
+- docs/api/cli-commands.md
 ---
 
 # RFC #2497 — External Observability Endpoints: Squad Assessment

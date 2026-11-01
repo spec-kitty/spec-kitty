@@ -52,7 +52,7 @@ from typing import Any, Final
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from scripts.docs._dockitty_contract import persona_page
+from scripts.docs._dockitty_contract import is_excluded, persona_page
 from scripts.docs._guards import assert_examined_floor
 from scripts.docs._inventory import parse_frontmatter
 from scripts.docs._page_scope import is_docs_page
@@ -227,10 +227,20 @@ def _presence_problems(frontmatter: dict[str, Any], docs_root: Path) -> list[str
     return problems
 
 
+def _in_excluded_folder(page: Path, docs_root: Path) -> bool:
+    """Pages the site leaves out are never read by doc-kitty, so their audience is not checked."""
+    try:
+        return is_excluded(page.resolve().relative_to(docs_root.resolve()).as_posix())
+    except ValueError:
+        return False
+
+
 def check_audience_presence(pages: list[Path], repo_root: Path, docs_root: Path) -> list[Violation]:
     """Flag touched pages whose ``audience:`` names no resolvable persona profile."""
     violations: list[Violation] = []
     for page in pages:
+        if _in_excluded_folder(page, docs_root):
+            continue
         page_rel = _repo_relative(page, repo_root)
         violations.extend(
             Violation(rule_id="audience_presence", path=page_rel, message=f"{page_rel} {problem}")

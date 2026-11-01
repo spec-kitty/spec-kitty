@@ -4,9 +4,9 @@ description: "Hardened design after a four-lens squad: the structure needs no ne
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- archive/plans/doctrine/creed-and-values-design-as-proposed
-- archive/plans/doctrine/manifesto-tier-verdict-and-handover
-- plans/doctrine
+- docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
+- docs/archive/plans/doctrine/manifesto-tier-verdict-and-handover.md
+- docs/plans/doctrine/index.md
 ---
 # Creed and FoundationalValues — hardened design
 

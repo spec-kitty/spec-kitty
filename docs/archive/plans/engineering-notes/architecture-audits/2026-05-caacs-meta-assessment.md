@@ -3,9 +3,7 @@ title: 'CaaCS Meta-Assessment & Input for #666 Spike'
 description: 'Reflective meta-assessment of the 2026-05 ad-hoc CaaCS run on spec-kitty: synthesis for adoption stakeholders (DM-C) and input to the #666 skill-design spike.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 ---
 # CaaCS Meta-Assessment & Input for #666 Spike
 

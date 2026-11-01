@@ -3,13 +3,11 @@ title: '3.2.x Delivery Approach — Operator Plan, Dialectically Challenged'
 description: 'The operator''s 3.2.x sequencing (doctrine-swap first, cleanup next, hold non-critical PRs), stress-tested by a two-round dialectic squad into a fact-checked plan.'
 doc_status: superseded
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- development/how-to/manage-issue-tracker
-- guides/how-to/missions/keep-main-clean
-- plans/domains/doctrine-charter-domain-plan
+- docs/development/how-to/manage-issue-tracker.md
+- docs/guides/how-to/missions/keep-main-clean.md
+- docs/plans/domains/doctrine-charter-domain-plan.md
 ---
 
 > **Superseded (2026-09-06, Convergence #3881).** This plan describes the pre-convergence

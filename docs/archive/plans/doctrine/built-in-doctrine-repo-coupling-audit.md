@@ -5,9 +5,9 @@ doc_status: deprecated
 updated: '2026-07-28'
 type: explanation
 related:
-- development/how-to/review-gates
-- archive/plans/doctrine/charter-activation-reachability-assessment
-- adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention
+- docs/development/how-to/review-gates.md
+- docs/archive/plans/doctrine/charter-activation-reachability-assessment.md
+- docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
 ---
 # Repo-Coupling Audit of Built-In Doctrine
 

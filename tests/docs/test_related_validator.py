@@ -334,10 +334,12 @@ def test_published_and_draft_pages_name_only_what_doc_kitty_builds(tmp_path: Pat
     assert related_main_strict(repo) == (1 if flagged else 0)
 
 
-def test_an_excluded_page_may_name_any_page(tmp_path: Path) -> None:
+def test_pages_in_excluded_folders_are_not_checked(tmp_path: Path) -> None:
+    """doc-kitty never builds them, so their related list (old shape included) is never resolved."""
     repo = _publication_repo(tmp_path, "active", ["guides"])
-    _page(repo / "docs" / "archive" / "x.md", "related:\n- notes\n- archive/old\n")
+    _page(repo / "docs" / "archive" / "x.md", "related:\n- docs/gone.md\n- archive/old\n")
     report = validate_related(docs_root=repo / "docs", repo_root=repo)
+    assert report.dangling_edges == []
     assert report.unpublished_edges == []
 
 

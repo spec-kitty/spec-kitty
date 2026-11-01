@@ -3,15 +3,13 @@ title: 'Write-path topology: ambient-location root cause and remediation options
 description: 'Root-cause analysis of the ambient-location write-target defect class (#3129, 14 issues), squad-corroborated, with a scoped remediation seed for a future mission.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 related:
-- plans/3-2-x-milestone-roadmap
-- changelog/3.2.x
-- architecture/execution-lanes
-- architecture/git-worktrees
-- operations/how-to-maintain
+- docs/plans/3-2-x-milestone-roadmap.md
+- docs/changelog/3.2.x.md
+- docs/architecture/execution-lanes.md
+- docs/architecture/git-worktrees.md
+- docs/operations/how-to-maintain.md
 ---
 
 # Write-path topology: ambient-location root cause and remediation options

@@ -3,13 +3,11 @@ title: 'tests/sync/ process-global and thread-seam inventory (#3115)'
 description: 'FR-006: a narrowed inventory of process-global mutable state and thread-spawning seams in the tests/sync/ cone, with reset-seam and dependence classification.'
 doc_status: deprecated
 updated: '2026-09-08'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 type: reference
 related:
-- development/testing/testing-parallel
-- development/reference/read-side-seam-classification
+- docs/development/testing/testing-parallel.md
+- docs/development/reference/read-side-seam-classification.md
 ---
 
 # The `tests/sync/` process-global and thread-seam inventory

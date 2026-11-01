@@ -377,3 +377,14 @@ def test_unreadable_page_is_skipped(tmp_path: Path) -> None:
 
     assert report.checked_count == 1
     assert not report.failed
+
+
+def test_pages_in_excluded_folders_are_not_checked(tmp_path: Path) -> None:
+    """Archive, reports and convergence are never read by doc-kitty; their old shape is left alone."""
+    repo = _stage_repo(tmp_path, audience=_aud(_PERSONA), dangling=False)
+    _write(repo / "docs" / "archive" / "old.md", [f"audience: {_PERSONA_REL}"], body="old")
+
+    report = resolve_audiences(docs_root=repo / "docs", repo_root=repo)
+
+    assert report.malformed_entries == []
+    assert report.checked_count == 1

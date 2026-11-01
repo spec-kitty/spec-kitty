@@ -10,14 +10,14 @@ Rules (ADR ``2026-10-31-1`` D-7/D-8, spec FR-006 as amended):
 
 * ``audience`` is a list of ``{profile, guidance_text}`` mappings.
 * ``related`` entries are slugs (or ``{ref, note}``) of existing pages; a published
-  page names only published pages; a draft page names no excluded page; an
-  excluded page (never built) may name any page.
+  page names only published pages; a draft page names no excluded page.
 * ``external_references`` entries carry ``url`` and ``title``.
 * Every dated ADR carries ``kind: ADR`` and the ``doc_status`` its ``status`` maps to.
 
-The four files #6928 resolves (the dual-index ``README.md`` stubs and the
-architecture landing page) are skipped by the migration and here, through the
-migration's own skip predicate; they leave the tree with #6928.
+Pages in the excluded folders (never read by doc-kitty, immutable history) and the
+four files #6928 resolves (the dual-index ``README.md`` stubs and the architecture
+landing page, which leave the tree there) are skipped by the migration and here,
+through the migration's own skip predicate.
 """
 
 from __future__ import annotations
@@ -37,10 +37,11 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DOCS_ROOT: Final[Path] = Path(__file__).resolve().parents[2] / "docs"
 
-#: Non-vacuity floors, well below today's counts (344 audience pages, 228 ADRs, 413 related pages).
-_MIN_AUDIENCE_PAGES: Final[int] = 300
+#: Non-vacuity floors, below today's counts outside the excluded folders
+#: (278 audience pages, 334 related pages, 228 ADRs).
+_MIN_AUDIENCE_PAGES: Final[int] = 240
 _MIN_ADRS: Final[int] = 200
-_MIN_RELATED_PAGES: Final[int] = 300
+_MIN_RELATED_PAGES: Final[int] = 280
 
 Page = tuple[str, Mapping[str, Any]]
 
@@ -72,8 +73,6 @@ def _target_problem(docs_root: Path, rel: str, data: Mapping[str, Any], ref: str
     if page is None:
         return f"{rel}: related {ref!r} names no page"
     target = page.relative_to(docs_root).as_posix()
-    if is_excluded(rel):
-        return None
     if not is_published(rel, data):
         return f"{rel}: draft page's related {ref!r} names an excluded page" if is_excluded(target) else None
     if not is_published(target, parse_frontmatter(page.read_text(encoding="utf-8"))):
@@ -176,7 +175,6 @@ def test_controls_name_each_old_shape(tmp_path: Path) -> None:
     assert related_problems(docs, "p.md", {"doc_status": "active", "related": ["draft"]})
     assert related_problems(docs, "d.md", {"doc_status": "draft", "related": ["archive/old"]})
     assert related_problems(docs, "d.md", {"doc_status": "draft", "related": ["draft"]}) == []
-    assert related_problems(docs, "archive/x.md", {"related": ["draft", "archive/old"]}) == []
     assert related_problems(docs, "p.md", {"doc_status": "active", "related": [{"ref": "a", "note": "n"}, ""]}) == []
     assert related_problems(docs, "p.md", {"related": "a"}) == ["p.md: related is not a list"]
     assert related_problems(docs, "p.md", {"related": [3]})

@@ -5,8 +5,8 @@ doc_status: deprecated
 type: explanation
 updated: '2026-07-14'
 related:
-- adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification
-- archive/plans/engineering-notes/883-mission-type-authority-brief
+- docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
+- docs/archive/plans/engineering-notes/883-mission-type-authority-brief.md
 ---
 
 # Issue #883 — Pre-spec research synthesis (4-lens squad)

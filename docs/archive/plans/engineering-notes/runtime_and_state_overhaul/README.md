@@ -4,24 +4,24 @@ description: 'Landing page for the runtime and state overhaul engineering notes:
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- archive/plans/engineering-notes/runtime_and_state_overhaul/01-ticket-capture
-- archive/plans/engineering-notes/runtime_and_state_overhaul/02-current-state-map
-- archive/plans/engineering-notes/runtime_and_state_overhaul/03-architecture-context
-- archive/plans/engineering-notes/runtime_and_state_overhaul/04-doctrine-constraints
-- archive/plans/engineering-notes/runtime_and_state_overhaul/05-architectural-synthesis
-- archive/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits
-- archive/plans/engineering-notes/runtime_and_state_overhaul/07-existing-pattern-and-domain-extraction
-- archive/plans/engineering-notes/runtime_and_state_overhaul/08-architecture-phase-1-summary
-- archive/plans/engineering-notes/runtime_and_state_overhaul/09-context-decomposition-model
-- archive/plans/engineering-notes/runtime_and_state_overhaul/10-context-needs-capture
-- archive/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims
-- archive/plans/engineering-notes/runtime_and_state_overhaul/12-actor-mental-model
-- archive/plans/engineering-notes/runtime_and_state_overhaul/13-dialectic-mission-vs-missionrun
-- archive/plans/engineering-notes/runtime_and_state_overhaul/14-model-diagrams
-- archive/plans/engineering-notes/runtime_and_state_overhaul/15-dialectic-on-the-domain-model
-- archive/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout
-- archive/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model
-- archive/plans/engineering-notes/runtime_and_state_overhaul/SESSION-RECAP
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/01-ticket-capture.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/02-current-state-map.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/03-architecture-context.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/04-doctrine-constraints.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/05-architectural-synthesis.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/07-existing-pattern-and-domain-extraction.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/08-architecture-phase-1-summary.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/09-context-decomposition-model.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/10-context-needs-capture.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/12-actor-mental-model.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/13-dialectic-mission-vs-missionrun.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/14-model-diagrams.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/15-dialectic-on-the-domain-model.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/SESSION-RECAP.md
 ---
 # Runtime & State Overhaul — Engineering Notes
 

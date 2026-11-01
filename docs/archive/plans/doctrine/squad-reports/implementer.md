@@ -4,8 +4,8 @@ description: "Buildability of the creed design here: real Pydantic models, the d
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- archive/plans/doctrine/creed-and-values-design-hardened
-- archive/plans/doctrine/creed-and-values-design-as-proposed
+- docs/archive/plans/doctrine/creed-and-values-design-hardened.md
+- docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
 ---
 # Implementer lens — feasibility and the prototype slice
 

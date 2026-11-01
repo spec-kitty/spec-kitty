@@ -3,12 +3,10 @@ title: Architecture Documentation Guide
 description: Retired guide to the 2.x-era version-tiered architecture-docs layout; now a redirect pointing readers to the canonical documentation home and the llms.txt rubric.
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- architecture
-- architecture/adr-template
+- docs/architecture/README.md
+- docs/architecture/adr-template.md
 ---
 # Architecture Documentation Guide
 

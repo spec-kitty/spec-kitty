@@ -3,13 +3,11 @@ title: 'Mission Notes'
 description: 'Mission-scoped engineering notes and classifications that support in-flight missions; transient by intent — consolidated into the owning mission on close.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- archive/plans/engineering-notes/mission-notes/runtime-bridge-delegate-classification
-- archive/plans/engineering-notes/mission-notes/mission-type-completion-arc-research
-- plans/engineering-notes
+- docs/archive/plans/engineering-notes/mission-notes/runtime-bridge-delegate-classification.md
+- docs/archive/plans/engineering-notes/mission-notes/mission-type-completion-arc-research.md
+- docs/plans/engineering-notes/index.md
 ---
 # Mission Notes
 

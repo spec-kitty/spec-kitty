@@ -3,9 +3,7 @@ title: Degod / Unshim Program — Roadmap
 description: 'Sequenced roadmap for degodding and unshimming the codebase — the structural cure for the measured test-friction: the waves, the epic frame, and the invariants.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Degod / Unshim Program — Roadmap
 

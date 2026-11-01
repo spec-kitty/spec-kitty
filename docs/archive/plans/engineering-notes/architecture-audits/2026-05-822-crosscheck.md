@@ -3,9 +3,7 @@ title: 'CaaCS findings ↔ #822 open sub-issues cross-check'
 description: 'Cross-check mapping the 2026-05 CaaCS audit findings onto the open sub-issues of epic #822 (3.2.0 stabilization and release readiness), with per-issue state.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 ---
 # CaaCS findings ↔ #822 open sub-issues cross-check
 

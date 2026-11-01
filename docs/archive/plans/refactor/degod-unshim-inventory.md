@@ -3,9 +3,7 @@ title: Degod / Unshim — 3-Lens Inventory
 description: 'The detailed research catalogs behind the degod/unshim roadmap: the shim/dead-code inventory, the god-object decomposition map, and the #1868 seams-in-name-only catalog.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Degod / Unshim — 3-Lens Inventory (research findings)
 

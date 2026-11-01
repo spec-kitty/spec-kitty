@@ -4,8 +4,8 @@ description: "Verdict of two adversarial squads on the proposed manifesto tier: 
 doc_status: deprecated
 updated: '2026-07-26'
 related:
-- archive/plans/doctrine/manifesto-tier-primary-drivers
-- plans/doctrine
+- docs/archive/plans/doctrine/manifesto-tier-primary-drivers.md
+- docs/plans/doctrine/index.md
 ---
 # Manifesto tier — verdict, corrections, and handover
 

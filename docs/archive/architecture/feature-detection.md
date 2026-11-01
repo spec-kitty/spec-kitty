@@ -3,11 +3,9 @@ title: 'Architecture: Centralized Feature Detection'
 description: Prior-design record of the v0.14.0 centralized mission-selection (feature detection) design, superseded by mission 083's canonical mission_id identity model.
 doc_status: superseded
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- migrations/mission-id-canonical-identity
+- docs/migrations/mission-id-canonical-identity.md
 ---
 # Architecture: Centralized Feature Detection
 

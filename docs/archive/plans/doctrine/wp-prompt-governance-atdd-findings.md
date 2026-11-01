@@ -4,7 +4,7 @@ description: "Python Pedro's ATDD findings (2026-05-16) for the WP-prompt govern
 doc_status: deprecated
 updated: '2026-05-19'
 related:
-- plans/doctrine/org-doctrine-layer-architecture-review
+- docs/plans/doctrine/org-doctrine-layer-architecture-review.md
 ---
 # WP-Prompt Governance Contract — ATDD Findings
 

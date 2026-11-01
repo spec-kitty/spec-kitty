@@ -9,8 +9,8 @@ the docs root page is ``""``) or a ``{ref, note}`` mapping. Two findings:
   ``docs/x.md`` is not a slug, so it dangles too);
 * an **unpublished edge** — the slug names a page doc-kitty does not build when it
   builds the source: a published page naming a draft or excluded page, or a draft
-  page naming an excluded page. doc-kitty fails the build on either. A page in an
-  excluded folder is never built, so it may name any page.
+  page naming an excluded page. doc-kitty fails the build on either. Pages in
+  an excluded folder are never built, so they are not checked.
 
 Slug, publication and exclusion rules come from
 :mod:`scripts.docs._dockitty_contract`. Paths outside ``docs/`` live in
@@ -132,8 +132,6 @@ def _looks_like_path(ref: str) -> bool:
 
 def _target_allowed(source: str, frontmatter: dict[str, Any], target: Path, docs_root: Path) -> bool:
     """Whether doc-kitty resolves *target* whenever it builds *source* (see the module docstring)."""
-    if is_excluded(source):
-        return True
     target_rel = _docs_relative(target, docs_root)
     if not is_published(source, frontmatter):
         return not is_excluded(target_rel)
@@ -217,6 +215,8 @@ def _check_pages(pages: list[Path], docs_root: Path, repo_root: Path) -> Related
     dangling: list[DanglingEdge] = []
     unpublished: list[DanglingEdge] = []
     for md_path in pages:
+        if is_excluded(_docs_relative(md_path, docs_root)):
+            continue  # never built by doc-kitty, so never resolved (ADR D-8)
         file_checked, file_dangling, file_unpublished = _related_edges_in_file(md_path, docs_root, repo_root)
         checked_count += file_checked
         dangling.extend(file_dangling)

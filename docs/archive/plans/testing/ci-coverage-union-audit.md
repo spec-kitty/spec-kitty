@@ -3,15 +3,11 @@ title: Cross-cutting coverage-union audit — ci-test-topology-performance-01KXB
 description: Committed per-job GC-2b coverage evidence for the CI test-topology performance mission, plus cross-job disjointness and fail-fast/dist-lint verification (GC-2/GC-3/GC-4).
 doc_status: superseded
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- archive/plans/testing/ci-job-timings
-- development/testing/testing-parallel
-external_references:
-- url: https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/ci-test-topology-performance-01KXBJRT/contracts/guard-contracts.md
-  title: kitty-specs/ci-test-topology-performance-01KXBJRT/contracts/guard-contracts.md
+- docs/archive/plans/testing/ci-job-timings.md
+- docs/development/testing/testing-parallel.md
+- kitty-specs/ci-test-topology-performance-01KXBJRT/contracts/guard-contracts.md
 ---
 
 # Cross-cutting coverage-union audit (T026)

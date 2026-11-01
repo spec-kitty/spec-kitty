@@ -4,8 +4,8 @@ description: 'Root-cause analysis of the coordination-branch drift (#2841) as an
 doc_status: deprecated
 updated: '2026-07-22'
 related:
-- adr/3.x/2026-06-27-1-common-docs-reconciliation
-- plans/engineering-notes
+- docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
+- docs/plans/engineering-notes/index.md
 ---
 
 # Coord-branch bookkeeping: read/write split-brain root-cause

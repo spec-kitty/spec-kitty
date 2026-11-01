@@ -3,9 +3,7 @@ title: 'User Journey: Project Onboarding & Bootstrap'
 description: 'User journey for project onboarding and bootstrap: how a new project is initialized and brought to a working Spec Kitty state, in a field-table record.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 ---
 # User Journey: Project Onboarding & Bootstrap
 

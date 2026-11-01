@@ -3,11 +3,9 @@ title: 'Issue #797 Analysis: Events and Tracker Fork Census'
 description: Read-only census of the EXPERIMENTAL events and tracker lines against their public/PyPI predecessors, with the D6 publication recommendation.
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- plans/investigations
+- docs/plans/investigations/index.md
 ---
 # Issue #797 Analysis: Events and Tracker Fork Census
 

@@ -137,9 +137,11 @@ def test_related_with_only_missing_targets_drops_the_key(repo: Path) -> None:
     assert "external_references" not in parse_frontmatter(out)
 
 
-def test_an_excluded_source_keeps_slugs_to_unpublished_pages(repo: Path) -> None:
-    out, _ = _migrate(repo, "archive/x.md", "---\ntitle: X\nrelated:\n- docs/archive/old.md\n- docs/plans/notes.md\n---\n")
-    assert parse_frontmatter(out)["related"] == ["archive/old", "plans/notes"]
+@pytest.mark.parametrize("rel", ["archive/x.md", "reports/r.md", "convergence/c.md"])
+def test_pages_in_excluded_folders_are_never_edited(repo: Path, rel: str) -> None:
+    """doc-kitty never reads them and they are immutable (part of the archive is byte-pinned)."""
+    text = f"---\ntitle: X\naudience: {_MAINTAINER}\nrelated:\n- docs/archive/old.md\n---\n"
+    assert _migrate(repo, rel, text)[0] == text
 
 
 def test_a_draft_source_keeps_drafts_but_not_excluded_pages(repo: Path) -> None:

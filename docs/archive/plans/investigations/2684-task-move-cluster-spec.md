@@ -4,7 +4,7 @@ description: 'Consolidated feature spec for the #2684 runtime-state eviction: fi
 doc_status: deprecated
 updated: '2026-08-12'
 related:
-- adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged
+- docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
 ---
 > **RETIRED (shipped)** — this spec's #2684 runtime-state eviction was ratified in ADR
 > [`2026-07-19-1`](../../../adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md)

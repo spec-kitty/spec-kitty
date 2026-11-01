@@ -3,9 +3,7 @@ title: Phase 3 — Issue drafts (unbacked findings) and triage (unbacked open is
 description: Planning aid drafting issues for unbacked CaaCS findings and triaging unbacked open issues under DM-D; a read-only synthesis that posts and edits nothing.
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 ---
 # Phase 3 — Issue drafts (unbacked findings) and triage (unbacked open issues)
 

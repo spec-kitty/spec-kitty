@@ -3,9 +3,7 @@ title: Mutation Testing Findings (WP05)
 description: 'Findings from the WP05 mutation-testing baseline run across the status/, glossary/, merge/, and core/ priority modules: surviving mutants and gaps.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 ---
 # Mutation Testing Findings (WP05)
 

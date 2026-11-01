@@ -4,7 +4,7 @@ description: Conceptual decomposition model (Phase 2) testing the hypothesis tha
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- archive/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims.md
 ---
 # 09 — Context Decomposition: A Conceptual Model
 

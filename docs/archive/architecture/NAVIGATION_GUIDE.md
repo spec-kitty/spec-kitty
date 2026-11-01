@@ -3,11 +3,9 @@ title: Architecture Navigation Guide
 description: Retired guide to 2.x-era architecture navigation paths; now a redirect pointing readers to the canonical documentation home and the llms.txt intent-routing rubric.
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- architecture
+- docs/architecture/README.md
 ---
 # Architecture Navigation Guide
 

@@ -506,3 +506,13 @@ def test_audience_placement_ignores_a_page_with_no_catalog_profile(tmp_path: Pat
     config = {"concern_bucket_to_section": {"how_to_internal": "development/", "how_to_external": "guides/"}}
 
     assert tsg.check_audience_placement([page], repo, docs, config) == []
+
+
+def test_audience_presence_skips_pages_in_excluded_folders(tmp_path: Path) -> None:
+    repo = tmp_path
+    docs = repo / "docs"
+    page = docs / "archive" / "old.md"
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(_page({"audience": "../context/audience/internal/maintainer.md"}), encoding="utf-8")
+
+    assert tsg.check_audience_presence([page], repo, docs) == []

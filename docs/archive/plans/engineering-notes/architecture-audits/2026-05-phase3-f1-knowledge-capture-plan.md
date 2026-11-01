@@ -3,9 +3,7 @@ title: F1 Knowledge-Capture Plan
 description: 'Proposed knowledge-capture plan anchored in CaaCS Finding F1 (bus factor of 1 across src/ hotspots), honoring DM-D: document and transfer before refactoring.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 ---
 # F1 Knowledge-Capture Plan
 

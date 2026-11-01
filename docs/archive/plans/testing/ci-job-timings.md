@@ -3,17 +3,12 @@ title: CI Job Timings — ci-test-topology-performance-01KXBJRT
 description: Committed E4 timings artifact for the CI test-topology performance mission — pre-mission baseline, post-change budgets, and real per-leg wall-clock from a CI run.
 doc_status: superseded
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- development/testing/testing-parallel
-- archive/plans/testing/test-suite-acceleration-plan
-external_references:
-- url: https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/ci-test-topology-performance-01KXBJRT/data-model.md
-  title: kitty-specs/ci-test-topology-performance-01KXBJRT/data-model.md
-- url: https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/ci-test-topology-performance-01KXBJRT/spec.md
-  title: kitty-specs/ci-test-topology-performance-01KXBJRT/spec.md
+- docs/development/testing/testing-parallel.md
+- docs/archive/plans/testing/test-suite-acceleration-plan.md
+- kitty-specs/ci-test-topology-performance-01KXBJRT/data-model.md
+- kitty-specs/ci-test-topology-performance-01KXBJRT/spec.md
 ---
 
 # CI Job Timings — `ci-test-topology-performance-01KXBJRT`

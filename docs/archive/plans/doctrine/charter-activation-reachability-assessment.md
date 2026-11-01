@@ -5,10 +5,10 @@ doc_status: deprecated
 updated: '2026-07-28'
 type: explanation
 related:
-- plans/doctrine/layered-doctrine-resolution-design
-- archive/plans/doctrine/doctrine-artifact-selection-preflight
-- development/how-to/review-gates
-- adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority
+- docs/plans/doctrine/layered-doctrine-resolution-design.md
+- docs/archive/plans/doctrine/doctrine-artifact-selection-preflight.md
+- docs/development/how-to/review-gates.md
+- docs/adr/3.x/2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md
 ---
 # Charter Activation vs DRG Reachability
 

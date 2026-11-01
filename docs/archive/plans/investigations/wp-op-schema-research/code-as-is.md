@@ -3,12 +3,10 @@ title: 'WP & Op Schema Research — Code As-Is (architect-alphonso)'
 description: 'Verbatim research report: current reality of WP and Op records and the content-address machinery, grounding the WP & Op schema-model idea.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 related:
-- archive/plans/investigations/wp-op-schema-research
-- plans/investigations/wp-op-schema-model
+- docs/archive/plans/investigations/wp-op-schema-research/README.md
+- docs/plans/investigations/wp-op-schema-model.md
 ---
 # Code-As-Is Map: WP & Op Lifecycle and Content-Address Machinery
 

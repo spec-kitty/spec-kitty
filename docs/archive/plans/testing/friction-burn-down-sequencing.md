@@ -3,15 +3,13 @@ title: Friction Burn-Down Sequencing — false-red / manual-toll engines
 description: 'Sequencing note for the 3.2.x dev-friction burn-down: what already landed, the narrow toll that actually remains, and which gates look like friction but must NOT be touched.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- archive/plans/testing/test-suite-friction-audit
-- plans/code-quality/targeted-cleanup-scoping
-- archive/plans/3-2-x-executive-overview
-- development/how-to/manage-issue-tracker
-- adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority
+- docs/archive/plans/testing/test-suite-friction-audit.md
+- docs/plans/code-quality/targeted-cleanup-scoping.md
+- docs/archive/plans/3-2-x-executive-overview.md
+- docs/development/how-to/manage-issue-tracker.md
+- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
 ---
 
 # Friction Burn-Down Sequencing — false-red / manual-toll engines

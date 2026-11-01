@@ -4,8 +4,8 @@ description: 'Pre-spec scope for the coord-branch trust friction-remediation mis
 doc_status: deprecated
 updated: '2026-08-27'
 related:
-- adr/3.x/2026-06-27-1-common-docs-reconciliation
-- plans/engineering-notes
+- docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md
+- docs/plans/engineering-notes/index.md
 ---
 
 # Mission-scoping brief — Coordination-branch trust & reconciliation model (#2841)

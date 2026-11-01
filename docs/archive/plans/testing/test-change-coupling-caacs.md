@@ -3,12 +3,10 @@ title: 'CaaCS: test↔production change-coupling analysis'
 description: 'Change-coupling-as-a-code-smell mining of the architectural + core test suites to rank refactor-fragile tests for revision/rewrite/deletion.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/maintainer
-  guidance_text: Written for the Maintainer reader.
+audience: docs/context/audience/internal/maintainer.md
 related:
-- archive/plans/testing/test-suite-friction-audit
-- development/testing/testing-flakiness
+- docs/archive/plans/testing/test-suite-friction-audit.md
+- docs/development/testing/testing-flakiness.md
 ---
 # CaaCS: test↔production change-coupling analysis
 

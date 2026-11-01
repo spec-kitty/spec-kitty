@@ -3,9 +3,7 @@ title: 2.x User Journey Evaluation
 description: 'Evaluation (2026-02-28) of the 2.x user journeys: how well they cover the intended scenarios and where the coverage gaps are.'
 doc_status: deprecated
 updated: '2026-09-30'
-audience:
-- profile: internal/system-architect
-  guidance_text: Written for the System Architect reader.
+audience: docs/context/audience/internal/system-architect.md
 ---
 # 2.x User Journey Evaluation
 

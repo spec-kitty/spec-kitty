@@ -4,7 +4,7 @@ description: Multi-tier model diagrams (Phase 2) for the runtime and state overh
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- archive/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model
+- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
 ---
 # 14 — Model Diagrams (multi-tier)
 
