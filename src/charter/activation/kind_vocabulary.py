@@ -40,6 +40,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -59,6 +60,11 @@ from charter.offering.pack_paths import (
     PackRootNotFound,
     built_in_dir,
 )
+
+if TYPE_CHECKING:
+    # Annotation-only: ``identity_index`` imports this module, so the facade imports
+    # it inside the function that needs it (#6433).
+    from charter.activation.identity_index import IdentityIndex
 
 #: Public re-export of :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS`.
 #:
@@ -120,25 +126,34 @@ def _id_field_for(kind: ArtifactKind) -> str:
     return _ID_FIELD_BY_KIND.get(kind, _DEFAULT_ID_FIELD)
 
 
-def _read_id(path: Path, id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None = None) -> str | None:
+def _read_id(
+    path: Path,
+    id_field: str,
+    yaml: YAML,
+    resolution_pass: ResolutionPass | None = None,
+    *,
+    text: str | None = None,
+) -> str | None:
     """Return the artifact ID from a YAML file, falling back to the file stem.
 
     Mirrors the logic behind :func:`charter.activation.catalog._extract_artifact_id`
     (without the language-scoping filter, which is not relevant to ID identity).
-    With a *resolution_pass*, each file is parsed at most once per pass.
+    With a *resolution_pass*, each file is parsed at most once per pass. A caller
+    that already read the file (the :class:`~charter.activation.identity_index.IdentityIndex`
+    fast-id probe) passes its *text* so the file is read once, not twice.
     """
     if resolution_pass is None:
-        return _parse_id(path, id_field, yaml)
+        return _parse_id(path, id_field, yaml, text=text)
     key = (path, id_field)
     if key not in resolution_pass.ids:
-        resolution_pass.ids[key] = _parse_id(path, id_field, yaml)
+        resolution_pass.ids[key] = _parse_id(path, id_field, yaml, text=text)
     return resolution_pass.ids[key]
 
 
-def _parse_id(path: Path, id_field: str, yaml: YAML) -> str | None:
-    """Parse *path* and return its declared ID, falling back to the file stem."""
+def _parse_id(path: Path, id_field: str, yaml: YAML, *, text: str | None = None) -> str | None:
+    """Parse *path* (or the already-read *text*) and return its declared ID, falling back to the file stem."""
     try:
-        data = yaml.load(path.read_text(encoding="utf-8")) or {}
+        data = yaml.load(text if text is not None else path.read_text(encoding="utf-8")) or {}
     except (OSError, YAMLError, TypeError):
         return None
     if isinstance(data, dict):
@@ -354,6 +369,11 @@ class ResolutionPass:
 
     scans: dict[tuple[object, ...], list[Path]] = field(default_factory=dict)
     ids: dict[tuple[Path, str], str | None] = field(default_factory=dict)
+    #: One identity index per root set, so a facade call inside the pass reuses the
+    #: index (and its fast-id reads) instead of rebuilding it (#6433, NFR-004). The
+    #: value type is opaque: this module must not import ``identity_index``, which
+    #: imports it.
+    indexes: dict[tuple[object, ...], object] = field(default_factory=dict)
 
 
 def _scan_cache_key(
@@ -437,6 +457,28 @@ def _under_reserved_builtin_subdir(match: Path, scan_dir: Path) -> bool:
     return len(parts) > 1 and parts[0] == "built-in"
 
 
+def _identity_index(
+    *,
+    offering_root: Path,
+    org_roots: list[Path] | None,
+    layer_roots: dict[str, Path] | None,
+    resolution_pass: ResolutionPass | None,
+) -> IdentityIndex:
+    """The one identity authority for a facade call, over exactly the roots the caller passed.
+
+    ``identity_index`` imports this module, so the dependency is a function-local
+    import (the module-load-time cycle the package already avoids elsewhere).
+    """
+    from charter.activation.identity_index import IdentityIndex  # noqa: PLC0415
+
+    return IdentityIndex.from_roots(
+        offering_root=offering_root,
+        org_roots=org_roots,
+        layer_roots=layer_roots,
+        resolution_pass=resolution_pass,
+    )
+
+
 def resolve_artifact_urn(
     kind: ArtifactKind,
     config_id: str,
@@ -446,64 +488,60 @@ def resolve_artifact_urn(
     layer_roots: dict[str, Path] | None = None,
     resolution_pass: ResolutionPass | None = None,
 ) -> str:
-    """Resolve a config/file-stem ID to its DRG URN node ID.
+    """Resolve a config/file-stem ID to its DRG URN node ID -- a facade over ``IdentityIndex``.
 
-    Locates the artifact whose config stem (filename without suffixes) equals
-    *config_id*, reads its ``id:`` field, and returns ``f"{kind.value}:{id}"``.
-    Every kind also accepts an exact declared ID when no filename stem matches
-    (a stem match always wins); directives additionally require that the ID
-    round-trips to a safe stem, recovering entries written by older org-required
-    promotion.
+    The index is the one stem<->id authority (#6433): it applies the layer
+    precedence (project, then org packs last-declared-first, then built-in) and the
+    stem-before-declared-id rule, and it accepts every spelling the runtime gate
+    accepts -- a file stem, a declared id, a ``<kind>:<id>`` URN (FR-011) or a
+    normalised directive id such as ``24``. This function only turns the answer
+    into a URN and fails closed, so the same token can no longer resolve in the gate
+    and be refused here.
+
+    A directive declared id is accepted only when some filename represents it
+    (:meth:`IdentityIndex.stem_for_declared_id`): this recovers entries written by
+    older org-required promotion and refuses an id every candidate filename binds to
+    another identity, exactly as before. A *file stem* input needs no such check: the
+    file the reader names wins, even when two layers bind that stem to different ids
+    (:meth:`IdentityIndex.names_a_file`), so persisted stems keep first-match
+    precedence.
 
     Args:
         kind: The artifact kind (route raw kind strings through
             :meth:`ArtifactKind.from_operator_token` first).
-        config_id: The config/file-stem ID, e.g.
+        config_id: The config/file-stem ID, declared ID or ``<kind>:<id>`` URN, e.g.
             ``"001-architectural-integrity-standard"``.
         offering_root: Resolved charter offering root (passed as data, C-008).
         org_roots: Optional additional org/project doctrine roots to scan.
         layer_roots: Optional modern layer map, e.g. ``{"org": <pack-root>}``.
+        resolution_pass: Optional memo shared by several resolutions in one
+            read-only pass (see :class:`ResolutionPass`).
 
     Returns:
         The DRG URN node ID, e.g. ``"directive:DIRECTIVE_001"``.
 
     Raises:
-        UnknownArtifactIdError: if no artifact with that config stem exists for
-            *kind*.
+        UnknownArtifactIdError: if no artifact in the searched layers is known by
+            that stem, declared id or URN, or if a directive is known only by an id
+            every filename binds to another identity (this function has always
+            reported the unrepresentable case as unknown; ``resolve_config_id`` is
+            the entry point that names it precisely).
     """
-    yaml = YAML(typ="safe")
-    id_field = _id_field_for(kind)
-    paths = _iter_artifact_paths(
-        kind,
+    identity = _identity_index(
         offering_root=offering_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
         resolution_pass=resolution_pass,
     )
-    for path in paths:
-        if _config_stem(path) == config_id:
-            artifact_id = _read_id(path, id_field, yaml, resolution_pass)
-            if artifact_id:
-                return f"{kind.value}:{artifact_id}"
-    # A stem miss falls back to an exact declared id (every kind; a stem match
-    # always wins above). Directives keep their round-trip/ambiguity rule: older
-    # org-required promotion wrote declared directive IDs into activation lists,
-    # and a declared id is accepted only when it resolves back to a safe stem.
-    # Unknown identities still fail closed.
-    if kind is ArtifactKind.DIRECTIVE:
-        try:
-            resolve_config_id(
-                f"{kind.value}:{config_id}",
-                offering_root=offering_root,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-                resolution_pass=resolution_pass,
-            )
-            return f"{kind.value}:{config_id}"
-        except ValueError:
-            pass
-    elif _declares_id(paths, config_id, id_field, yaml, resolution_pass):
-        return f"{kind.value}:{config_id}"
+    declared: str | None = identity.declared_id(kind, config_id)
+    if declared is not None and (
+        kind is not ArtifactKind.DIRECTIVE or identity.names_a_file(kind, config_id) or identity.stem_for_declared_id(kind, declared) is not None
+    ):
+        return f"{kind.value}:{declared}"
+    # Unknown, or a directive id no filename represents. Both keep this function's
+    # long-standing single refusal type and message: callers catch
+    # ``UnknownArtifactIdError`` here, and ``resolve_config_id`` is the surface that
+    # distinguishes the unrepresentable case (`UnrepresentableDirectiveIdError`).
     raise unknown_artifact_id_error(kind, config_id, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots)
 
 
@@ -525,11 +563,6 @@ def unknown_artifact_id_error(
         f"misspelled entry, or run `spec-kitty doctor charter-packs` to verify the "
         f"doctrine corpus (including any org packs) is intact."
     )
-
-
-def _declares_id(paths: list[Path], artifact_id: str, id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None) -> bool:
-    """Return whether any artifact in *paths* declares exactly *artifact_id*."""
-    return any(_read_id(path, id_field, yaml, resolution_pass) == artifact_id for path in paths)
 
 
 def _searched_layers(
@@ -556,64 +589,6 @@ class UnrepresentableDirectiveIdError(UnknownArtifactIdError):
     """A declared directive exists, but every filename selects another ID."""
 
 
-def _directive_ids_by_stem(paths: list[Path], id_field: str, yaml: YAML, resolution_pass: ResolutionPass | None = None) -> dict[str, set[str]]:
-    """Map each config stem in *paths* to the distinct IDs declared under it.
-
-    A stem used by two or more directive files across layers that disagree on
-    ``id:`` (e.g. an org pack's ``shared.directive.yaml`` and a sibling org
-    pack's own ``shared.directive.yaml`` naming different policies) is a
-    genuine cross-layer collision: the stem cannot safely stand for either
-    identity, regardless of which layer wins ordinary precedence. A stem
-    reused with the *same* ID everywhere (a redundant, consistent
-    declaration) is not a collision and stays representable.
-    """
-    ids_by_stem: dict[str, set[str]] = {}
-    for path in paths:
-        artifact_id = _read_id(path, id_field, yaml, resolution_pass)
-        if artifact_id is None:
-            continue
-        ids_by_stem.setdefault(_config_stem(path), set()).add(artifact_id)
-    return ids_by_stem
-
-
-def _directive_stem_represents(
-    stem: str,
-    urn: str,
-    ids_by_stem: dict[str, set[str]],
-    *,
-    kind: ArtifactKind,
-    offering_root: Path,
-    org_roots: list[Path] | None,
-    layer_roots: dict[str, Path] | None,
-    resolution_pass: ResolutionPass,
-) -> bool:
-    """Return True when *stem* unambiguously represents *urn*'s identity.
-
-    A stem represents the identity only when both hold:
-
-    - it round-trips: ``resolve_artifact_urn(stem)`` resolves back to *urn*
-      under the same layer precedence (persisted stems retain first-match
-      precedence, and a winning override's filename can name a different
-      built-in policy), and
-    - it is not reused across layers with a disagreeing id -- a stem two
-      layers bind to different identities cannot safely stand for either,
-      even when it happens to round-trip via ordinary precedence (see
-      :func:`_directive_ids_by_stem`).
-    """
-    round_trips = (
-        resolve_artifact_urn(
-            kind,
-            stem,
-            offering_root=offering_root,
-            org_roots=org_roots,
-            layer_roots=layer_roots,
-            resolution_pass=resolution_pass,
-        )
-        == urn
-    )
-    return round_trips and len(ids_by_stem[stem]) <= 1
-
-
 def resolve_config_id(
     urn: str,
     *,
@@ -622,12 +597,14 @@ def resolve_config_id(
     layer_roots: dict[str, Path] | None = None,
     resolution_pass: ResolutionPass | None = None,
 ) -> str:
-    """Resolve a DRG URN node ID back to its config/file-stem ID.
+    """Resolve a DRG URN node ID back to its config/file-stem ID -- a facade over ``IdentityIndex``.
 
-    Inverse of :func:`resolve_artifact_urn`. Parses the ``kind:id`` URN, finds
-    the artifact whose ``id:`` field matches, and returns its config stem.
-    Directive IDs use the highest matching layer whose stem resolves back to
-    that identity. A lower-layer stem may select higher-layer repository content.
+    Inverse of :func:`resolve_artifact_urn`, answering from the same index (#6433).
+    Parses the ``kind:id`` URN and returns the stem whose *declared id* is that id
+    (:meth:`IdentityIndex.stem_for_declared_id`), in layer-precedence order; a
+    directive id is returned only through a stem that round-trips to it and that no
+    other layer binds to a different id. A lower-layer stem may select higher-layer
+    repository content.
 
     Args:
         urn: A DRG URN node ID, e.g. ``"directive:DIRECTIVE_001"``.
@@ -655,50 +632,16 @@ def resolve_config_id(
     except ValueError as exc:
         raise ValueError(f"Malformed URN {urn!r}; unknown kind {kind_value!r}.") from exc
 
-    yaml = YAML(typ="safe")
-    id_field = _id_field_for(kind)
-    # A fresh, pass-scoped memo (unless the caller is itself part of a larger
-    # pass and threaded one in): every `_iter_artifact_paths` call and every
-    # ID read this resolution makes -- the initial scan below and each
-    # per-stem round-trip check further down -- shares it, so each distinct
-    # layer set is walked, and each file parsed, at most once for the whole
-    # call (FR-001). A call-local memo is discarded when this call returns,
-    # so it can never make a *later*, independent resolution observe stale
-    # content (FR-002).
-    active_pass = resolution_pass if resolution_pass is not None else ResolutionPass()
-    paths = _iter_artifact_paths(
-        kind,
+    identity = _identity_index(
         offering_root=offering_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
-        resolution_pass=active_pass,
+        resolution_pass=resolution_pass,
     )
-    # `_iter_artifact_paths` already returns the authoritative highest-to-lowest
-    # layer precedence order (project, then org packs last-declared-first, then
-    # built-in) -- the same order `resolve_artifact_urn`'s first-match scan
-    # consumes. Directive resolution walks that order directly; no local
-    # reordering is layered on top of it.
-    ids_by_stem = _directive_ids_by_stem(paths, id_field, yaml, active_pass) if kind is ArtifactKind.DIRECTIVE else {}
-    matched_identity = False
-    for path in paths:
-        if _read_id(path, id_field, yaml, active_pass) != artifact_id:
-            continue
-        stem = _config_stem(path)
-        if kind is not ArtifactKind.DIRECTIVE:
-            return stem
-        matched_identity = True
-        if _directive_stem_represents(
-            stem,
-            urn,
-            ids_by_stem,
-            kind=kind,
-            offering_root=offering_root,
-            org_roots=org_roots,
-            layer_roots=layer_roots,
-            resolution_pass=active_pass,
-        ):
-            return stem
-    if matched_identity:
+    stem: str | None = identity.stem_for_declared_id(kind, artifact_id)
+    if stem is not None:
+        return stem
+    if identity.has_declared_id(kind, artifact_id):
         raise UnrepresentableDirectiveIdError(
             f"Directive filename stems cannot represent {artifact_id!r}: each resolves to another identity. "
             "Rename an artifact to an unambiguous filename before selecting it."
@@ -722,45 +665,22 @@ def resolve_selected_id_to_stem(
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
 ) -> str | None:
-    """Map a selection's declared ID or filename stem to an activation stem.
+    """Map a selection's declared ID or filename stem to an activation stem -- a facade over ``IdentityIndex``.
 
     Directive identities take precedence over a coincidentally equal filename;
-    other kinds retain their existing stem-first selection contract. Discovery
-    is unfiltered so inactive org artifacts can be selected. Unresolvable
-    selections return ``None`` for the caller's warning policy. Known directive
-    identities without a safe stem raise rather than promoting another policy.
+    other kinds retain their existing stem-first selection contract
+    (:meth:`IdentityIndex.stem`). Discovery is unfiltered so inactive org artifacts
+    can be selected. Unresolvable selections return ``None`` for the caller's
+    warning policy. Known directive identities without a safe stem raise rather than
+    promoting another policy.
     """
-    if kind is ArtifactKind.DIRECTIVE:
-        try:
-            return resolve_config_id(
-                f"{kind.value}:{raw_id}",
-                offering_root=offering_root,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-            )
-        except UnrepresentableDirectiveIdError:
-            # Unknown selections may fall back; known ambiguous identities must
-            # never be promoted verbatim or reinterpreted as another filename.
-            raise
-        except ValueError:
-            pass
-    # One pass is shared by the stem probe, the URN check and the id -> stem
-    # mapping, so each layer is walked once. Selections stay stem-valued for every
-    # kind (#2529): a declared id maps back to its stem, it is never returned verbatim.
-    shared_pass = ResolutionPass()
-    stems = {
-        _config_stem(path)
-        for path in _iter_artifact_paths(kind, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots, resolution_pass=shared_pass)
-    }
-    if raw_id in stems:
-        return raw_id
-    try:
-        return resolve_config_id(
-            f"{kind.value}:{raw_id}",
-            offering_root=offering_root,
-            org_roots=org_roots,
-            layer_roots=layer_roots,
-            resolution_pass=shared_pass,
+    identity = _identity_index(offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots, resolution_pass=None)
+    stem: str | None = identity.stem(kind, raw_id)
+    if stem is None and kind is ArtifactKind.DIRECTIVE and identity.has_declared_id(kind, raw_id):
+        # Known ambiguous identities must never be promoted verbatim or
+        # reinterpreted as another filename.
+        raise UnrepresentableDirectiveIdError(
+            f"Directive filename stems cannot represent {raw_id!r}: each resolves to another identity. "
+            "Rename an artifact to an unambiguous filename before selecting it."
         )
-    except ValueError:
-        return None
+    return stem

@@ -40,7 +40,7 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.api import refuse_unmigrated_deny_write
+from charter.activation.api import IdentityIndex, refuse_unmigrated_deny_write
 from charter.activation.pack_context import ActiveCharterConfigError, load_denied
 from charter.activation.pack_manager import ActiveCharterManager, DeactivationRefused
 from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
@@ -144,16 +144,19 @@ def _active_urns(
     ``include_mission_types`` (FR-022): when a mission type is the cascade
     target, the other active mission types are sources too, so a child they
     still reach is kept (C-005). An artifact target keeps today's set.
+
+    One :class:`~charter.activation.identity_index.IdentityIndex` serves the whole
+    set (#6433): the tokens are many, the layers are the same, so building one index
+    per token would re-scan every layer for every active artifact.
     """
-    offering_root = resolve_offering_root()
+    identity = IdentityIndex.from_roots(offering_root=resolve_offering_root(), org_roots=org_roots, layer_roots=layer_roots)
 
     def urns_of(kind_enum: ArtifactKind, ids: Iterable[str]) -> set[str]:
         found: set[str] = set()
         for config_id in ids:
-            try:
-                found.add(resolve_artifact_urn(kind_enum, config_id, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots))
-            except UnknownArtifactIdError:
-                continue
+            declared = identity.declared_id(kind_enum, config_id)
+            if declared is not None:
+                found.add(f"{kind_enum.value}:{declared}")
         return found
 
     # D* (deny less the org required floor), so a stale deny of a required id keeps it active (FR-012, C-005).

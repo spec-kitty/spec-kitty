@@ -121,6 +121,15 @@ def _fast_plain_id(text: str, id_field: str) -> str | None:
     return value
 
 
+def _read_artifact_text(path: Path) -> str:
+    """Read one artifact file for the fast-id probe -- the index's one read seam.
+
+    The probe reads the file without a full YAML parse (NFR-003), so a test that
+    counts *reads* rather than parses can monkeypatch this function.
+    """
+    return path.read_text(encoding="utf-8")
+
+
 def _declared_id_of(
     path: Path,
     id_field: str,
@@ -134,7 +143,8 @@ def _declared_id_of(
     its value is a conservative plain string (letter first, ``[A-Za-z0-9_.-]``, no comment,
     not a YAML special scalar), and the text has no BOM, CR or extra document markers.
     Everything else (numbers, booleans, null, quoted, commented, multi-document,
-    duplicate keys, CRLF, BOM) falls back to :func:`kind_vocabulary._read_id`.
+    duplicate keys, CRLF, BOM) falls back to :func:`kind_vocabulary._read_id`, which is
+    handed the text already read here so a file is read once per pass, not twice.
 
     Fast-path values are kept in the private *fast_ids* cache only; the shared
     *resolution_pass* is seeded exclusively by the canonical reader, so other
@@ -150,11 +160,13 @@ def _declared_id_of(
     if fast_ids is not None and key in fast_ids:
         return fast_ids[key]
     try:
-        fast = _fast_plain_id(path.read_text(encoding="utf-8"), id_field)
+        text = _read_artifact_text(path)
+        fast = _fast_plain_id(text, id_field)
     except OSError:
+        text = None
         fast = None
     if fast is None:
-        return kind_vocabulary._read_id(path, id_field, yaml, resolution_pass)
+        return kind_vocabulary._read_id(path, id_field, yaml, resolution_pass, text=text)
     if fast_ids is not None:
         fast_ids[key] = fast
     return fast
@@ -165,11 +177,11 @@ def _describe_file(entry: IdentityEntry) -> str:
     return f"{entry.layer} file {entry.path}" if entry.path is not None else f"{entry.layer} file"
 
 
-def _layer_of(scan_dir: Path, project_root: Path | None, org_roots: list[Path]) -> str:
-    """Name the layer a scanned directory belongs to."""
-    if project_root is not None and scan_dir.is_relative_to(project_root):
+def _layer_of(path: Path, project_root: Path | None, org_roots: list[Path]) -> str:
+    """Name the layer an artifact file (or its scan directory) belongs to."""
+    if project_root is not None and path.is_relative_to(project_root):
         return _LAYER_PROJECT
-    if any(scan_dir.is_relative_to(root) for root in org_roots):
+    if any(path.is_relative_to(root) for root in org_roots):
         return _LAYER_ORG
     return _LAYER_BUILT_IN
 
@@ -229,14 +241,37 @@ class IdentityIndex:
         )
 
     @classmethod
-    def from_roots(cls, *, offering_root: Path, org_roots: Sequence[Path] | None, layer_roots: Mapping[str, Path] | None) -> IdentityIndex:
-        """Index exactly the roots a filesystem resolver is given: *offering_root*, *org_roots* and ``layer_roots["project"]``."""
+    def from_roots(
+        cls,
+        *,
+        offering_root: Path,
+        org_roots: Sequence[Path] | None,
+        layer_roots: Mapping[str, Path] | None,
+        resolution_pass: kind_vocabulary.ResolutionPass | None = None,
+    ) -> IdentityIndex:
+        """Index exactly the roots a filesystem resolver is given: *offering_root*, *org_roots* and ``layer_roots["project"]``.
+
+        A caller that already owns a resolution pass passes it so the index reads the
+        layer scans and artifact ids through that pass's memo instead of walking the
+        filesystem again (#6433, NFR-004); an index is still never persisted. The pass
+        also holds the index built for these roots, so a facade call in the same pass
+        reuses it rather than re-reading every artifact file's id.
+        """
         project = (layer_roots or {}).get("project")
-        return cls(
+        key = (offering_root, tuple(org_roots or ()), project)
+        if resolution_pass is not None:
+            cached = resolution_pass.indexes.get(key)
+            if isinstance(cached, IdentityIndex):
+                return cached
+        index = cls(
             org_roots=[root for root in org_roots or () if root.is_dir()],
             project_root=project if project is not None and project.is_dir() else None,
             offering_root=offering_root,
         )
+        if resolution_pass is not None:
+            index._pass = resolution_pass
+            resolution_pass.indexes[key] = index
+        return index
 
     # --------------------------------------------------------------- scan ---
 
@@ -248,24 +283,31 @@ class IdentityIndex:
         return table
 
     def _scan(self, kind: ArtifactKind) -> list[IdentityEntry]:
-        pattern = kind.glob_pattern
-        if not pattern:
+        """Index one kind, reading the layer scan through this index's resolution pass.
+
+        The file list comes from :func:`charter.activation.kind_vocabulary._iter_artifact_paths`,
+        the one place that knows a kind's layer scan order and memoises it, so a
+        caller-threaded :class:`~charter.activation.kind_vocabulary.ResolutionPass`
+        walks each directory once per pass no matter how many lookups ask for it
+        (#6433, NFR-004). The layer of each file is read from its path, which is the
+        same question the scan-directory form answered.
+        """
+        if not kind.glob_pattern:
             return []
         layer_roots = {_LAYER_PROJECT: self.project_root} if self.project_root is not None else None
         yaml = YAML(typ="safe")
         id_field = kind_vocabulary._id_field_for(kind)
         entries: list[IdentityEntry] = []
-        for scan_dir, recursive in kind_vocabulary._scan_roots(
+        for path in kind_vocabulary._iter_artifact_paths(
             kind,
-            _offering_root=self.offering_root,
+            offering_root=self.offering_root,
             org_roots=self.org_roots,
             layer_roots=layer_roots,
+            resolution_pass=self._pass,
         ):
-            layer = _layer_of(scan_dir, self.project_root, self.org_roots)
-            for path in sorted(kind_vocabulary._scan_dir_matches(scan_dir, pattern, recursive=recursive)):
-                declared = _declared_id_of(path, id_field, yaml, self._pass, self._fast_ids)
-                if declared:
-                    entries.append(IdentityEntry(kind, kind_vocabulary._config_stem(path), declared, layer, path))
+            declared = _declared_id_of(path, id_field, yaml, self._pass, self._fast_ids)
+            if declared:
+                entries.append(IdentityEntry(kind, kind_vocabulary._config_stem(path), declared, _layer_of(path, self.project_root, self.org_roots), path))
         return entries
 
     # ------------------------------------------------------------- lookups --
@@ -330,11 +372,51 @@ class IdentityIndex:
         token = self._bare(kind, token)
         table = self._table(kind)
         if kind is ArtifactKind.DIRECTIVE and token in table.by_id:
-            return self._representable_stem(kind, token)
+            return self.stem_for_declared_id(kind, token)
         if token in table.by_stem:
             return token
         declared = self.declared_id(kind, token)
-        return self._representable_stem(kind, declared) if declared is not None else None
+        return self.stem_for_declared_id(kind, declared) if declared is not None else None
+
+    def has_declared_id(self, kind: ArtifactKind, token: str) -> bool:
+        """Whether any layer's file declares *token* as its id (a ``<kind>:`` URN or a normalised directive id is accepted)."""
+        bare = self._bare(kind, token)
+        table = self._table(kind)
+        if bare in table.by_id:
+            return True
+        return kind is ArtifactKind.DIRECTIVE and normalize_directive_id(bare) in table.by_id
+
+    def names_a_file(self, kind: ArtifactKind, token: str) -> bool:
+        """Whether *token* is the file stem of some indexed artifact (the stem-first precedence path).
+
+        A stem keeps first-match precedence even when two layers bind it to different
+        ids: the file a reader names is the file that wins, so a stem input needs no
+        representable-stem check (unlike a declared id, which must round-trip).
+        """
+        return self._bare(kind, token) in self._table(kind).by_stem
+
+    def stem_for_declared_id(self, kind: ArtifactKind, declared_id: str) -> str | None:
+        """The stem whose *declared id* is *declared_id*, or ``None``.
+
+        This is the id-first direction (URN -> stem): unlike :meth:`stem`, a file name
+        that happens to equal *declared_id* is not consulted. A directive id is
+        returned only through a stem that round-trips to it and that no other layer
+        binds to a different id (Decision ``file_name_collision``); every other kind
+        takes the first file in layer precedence order that declares the id. A
+        normalised directive id (``24``) resolves like its canonical form, the same
+        spelling :meth:`has_declared_id` accepts.
+        """
+        bare = self._bare(kind, declared_id)
+        if kind is not ArtifactKind.DIRECTIVE:
+            return self._representable_stem(kind, bare)
+        # A declared directive id is tried verbatim first (slug-named ids such as
+        # ``CHOSEN-POLICY`` are normalised to a different string), then in its
+        # normalised form (``24`` -> ``DIRECTIVE_024``).
+        literal = self._representable_stem(kind, bare)
+        if literal is not None:
+            return literal
+        normalised = normalize_directive_id(bare)
+        return self._representable_stem(kind, normalised) if normalised != bare else None
 
     def _representable_stem(self, kind: ArtifactKind, declared: str) -> str | None:
         table = self._table(kind)
