@@ -120,6 +120,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#6939": {
+      "evidence_ref": "cited for context only (historical PR/reference); no work owed by this Mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#6993": {
       "evidence_ref": "cited for context in spec.md; out of scope (C-002/C-006) or epic",
       "fr": null,
