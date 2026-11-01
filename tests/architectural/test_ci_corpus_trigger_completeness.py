@@ -422,8 +422,12 @@ def _run_selection_step(tmp_path: Path, *, event: str, changed_path: str) -> str
     head = run_git("rev-parse", "HEAD")
 
     github_output = tmp_path / "github_output.txt"
+    # The runner always sets RUNNER_TEMP; the step hands the changed-path list to the helper in a file there (#6915).
+    runner_temp = tmp_path / "runner_temp"
+    runner_temp.mkdir()
     env = {
         **{k: v for k, v in os.environ.items() if k in {"PATH", "HOME", "LANG", "LC_ALL"}},
+        "RUNNER_TEMP": str(runner_temp),
         "EVENT_NAME": event,
         "BASE_SHA": base if event == "pull_request" else _NULL_SHA,
         "HEAD_SHA": head,
