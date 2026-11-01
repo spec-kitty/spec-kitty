@@ -1,7 +1,7 @@
 {
-  "event_count": 67,
-  "last_event_id": "01M6BJ91V29P6SN7YRE76TZD56",
-  "materialized_at": "2026-11-01T12:45:16.002787+00:00",
+  "event_count": 68,
+  "last_event_id": "01M6BJ9XQSDPCCFYF94105Z237",
+  "materialized_at": "2026-11-01T12:45:44.569313+00:00",
   "mission_number": "",
   "mission_slug": "events-service-cutover-01M6B0AE",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -217,14 +217,14 @@
     },
     "WP07": {
       "actor": "claude",
-      "agent": "claude:opus:python-pedro:implementer",
+      "agent": "claude:opus:reviewer-renata:reviewer",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude:opus:python-pedro:implementer",
-      "lane": "for_review",
-      "last_event_id": "01M6BJ91V29P6SN7YRE76TZD56",
-      "last_transition_at": "2026-11-01T12:45:16.002787+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M6BJ9XQSDPCCFYF94105Z237",
+      "last_transition_at": "2026-11-01T12:45:44.569313+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "release.yml fetches (sync_services.py --service all, ~95 MB once per release) and checks (--check) the pinned service assets beside the packs check, before the build; Verify wheel contents asserts the read-service pin is in the wheel and no mission-status-api-*/command-cli-*/*.jar/*.exe member. RELEASE_CHECKLIST: service vendor --check, make sync-services [ARGS=--check], pins-only sentence. Red test first (6f87ba39). Tests: test_release_service_pins + every release.yml/checklist parser + tests/cross_cutting/packaging: 301 passed, 1 skipped; test_no_checklist_surface 2 passed. Local uv build --wheel: 2149 members, specify_cli/_pins/{README.md,read-service.source.yaml}, 0 binaries. actionlint unavailable (yaml + bash -n + compile of the embedded Python).",
@@ -238,9 +238,9 @@
         "reviewer": "claude:opus:reviewer-renata:reviewer",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 10042,
+      "shell_pid_created_at": "1793537139.6",
       "subtasks": {
         "T028": "done",
         "T029": "done",
