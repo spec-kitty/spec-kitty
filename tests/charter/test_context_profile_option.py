@@ -142,8 +142,20 @@ def test_json_text_carries_profile_sections_and_structured_blocks_unchanged(tmp_
     assert with_profile["directives"] == without_profile["directives"]
 
 
-def test_unknown_profile_still_renders_without_profile_sections(tmp_path: Path) -> None:
+def test_unknown_profile_warns_on_stderr_and_omits_profile_sections(tmp_path: Path) -> None:
     result = _invoke(tmp_path, "context", "--action", "implement", "--profile", "not-a-profile")
 
     assert result.exit_code == 0, result.output
-    assert "Profile-Cited Directives" not in result.output
+    assert "Profile-Cited Directives" not in result.stdout
+    assert "profile 'not-a-profile' not found" in result.stderr
+    # Control: a resolvable profile emits no such warning.
+    known = _invoke(tmp_path, "context", "--action", "implement", "--profile", _PROFILE)
+    assert "not found" not in known.stderr
+
+
+def test_unknown_profile_warning_keeps_json_stdout_clean(tmp_path: Path) -> None:
+    result = _invoke(tmp_path, "context", "--action", "implement", "--profile", "not-a-profile", "--json")
+
+    assert result.exit_code == 0, result.output
+    assert "profile 'not-a-profile' not found" in result.stderr
+    assert json.loads(result.stdout)["success"] is True
