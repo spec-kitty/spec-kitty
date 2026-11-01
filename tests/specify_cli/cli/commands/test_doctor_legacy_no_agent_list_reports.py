@@ -146,28 +146,20 @@ def _tree_snapshot(root: Path) -> dict[str, str]:
     return {str(path.relative_to(root)): hash_content(path.read_text(encoding="utf-8")) for path in sorted(root.rglob("*")) if path.is_file()}
 
 
-def test_legacy_skills_summary_names_the_missing_agent_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The command-skills summary must not claim health over zero examined files."""
+@pytest.mark.parametrize(
+    ("command", "health_claim"),
+    [("skills", "all manifest entries healthy"), ("tool-surfaces", "all surfaces healthy")],
+)
+def test_legacy_summary_names_the_missing_agent_list(command: str, health_claim: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neither summary may claim health over zero examined files or surfaces."""
     _write_legacy_project(tmp_path)
 
-    result = _invoke(monkeypatch, tmp_path, "skills")
+    result = _invoke(monkeypatch, tmp_path, command)
 
     assert result.exit_code == 0, result.output
     assert "no stated agent list" in result.output
     assert "nothing to check" in result.output
-    assert "all manifest entries healthy" not in result.output
-
-
-def test_legacy_tool_surfaces_summary_names_the_missing_agent_list(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The tool-surface summary must not claim health over zero checked surfaces."""
-    _write_legacy_project(tmp_path)
-
-    result = _invoke(monkeypatch, tmp_path, "tool-surfaces")
-
-    assert result.exit_code == 0, result.output
-    assert "no stated agent list" in result.output
-    assert "nothing to check" in result.output
-    assert "all surfaces healthy" not in result.output
+    assert health_claim not in result.output
 
 
 def test_legacy_summary_does_not_prescribe_installing_surfaces(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -261,30 +253,6 @@ def test_legacy_fix_json_keeps_the_envelope_and_the_truthful_line_stays_human(tm
     assert _tree_snapshot(tmp_path) == before
 
 
-def test_legacy_tool_surfaces_fix_repairs_nothing_and_stays_truthful(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``doctor tool-surfaces --fix`` in the legacy shape writes nothing and stays truthful."""
-    from types import SimpleNamespace
-
-    _write_legacy_project(tmp_path)
-    before = _tree_snapshot(tmp_path)
-    # `--fix` first asks the checkout-identity seam whether this invocation may write
-    # (#2613). The fixture lives outside this checkout, so grant ownership here; the
-    # subject under test is the summary, not the refusal.
-    monkeypatch.setattr(
-        surface_doctor_mod,
-        "resolve_checkout_identity",
-        lambda *_args, **_kwargs: SimpleNamespace(write_refusal=lambda: None),
-    )
-
-    result = _invoke(monkeypatch, tmp_path, "tool-surfaces", "--fix")
-
-    assert result.exit_code == 0, result.output
-    assert "no stated agent list" in result.output
-    assert "all surfaces healthy" not in result.output
-    assert "Repaired" not in result.output
-    assert _tree_snapshot(tmp_path) == before
-
-
 def test_missing_config_file_does_not_claim_the_file_states_anything(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A project with `.kittify/` but no `config.yaml` is legacy too; the wording must not lie."""
     (tmp_path / ".kittify").mkdir()
@@ -298,36 +266,43 @@ def test_missing_config_file_does_not_claim_the_file_states_anything(tmp_path: P
     assert "states no agents.available list" not in result.output
 
 
-def test_legacy_skills_json_key_set_is_frozen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize(
+    ("command", "expected_keys"),
+    [("skills", SKILLS_JSON_KEYS), ("tool-surfaces", TOOL_SURFACE_JSON_KEYS)],
+)
+def test_legacy_json_key_set_is_frozen(command: str, expected_keys: frozenset[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-005: the truthful wording is human-only; the JSON envelope keys do not move."""
     _write_legacy_project(tmp_path)
 
-    result = _invoke(monkeypatch, tmp_path, "skills", "--json")
+    result = _invoke(monkeypatch, tmp_path, command, "--json")
 
     payload = json.loads(result.output)
-    assert set(payload) == SKILLS_JSON_KEYS
+    assert set(payload) == expected_keys
+    if command == "tool-surfaces":
+        assert set(payload["summary"]) == TOOL_SURFACE_SUMMARY_KEYS
 
 
-def test_legacy_tool_surfaces_json_key_set_is_frozen(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """FR-005: same freeze for the tool-surface envelope."""
-    _write_legacy_project(tmp_path)
+@pytest.mark.parametrize("command", ["skills", "tool-surfaces"])
+def test_legacy_fix_repairs_nothing_and_stays_truthful(command: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--fix`` in the legacy shape installs nothing, writes nothing and must not claim a repair."""
+    from types import SimpleNamespace
 
-    result = _invoke(monkeypatch, tmp_path, "tool-surfaces", "--json")
-
-    payload = json.loads(result.output)
-    assert set(payload) == TOOL_SURFACE_JSON_KEYS
-    assert set(payload["summary"]) == TOOL_SURFACE_SUMMARY_KEYS
-
-
-def test_legacy_fix_repairs_nothing_and_stays_truthful(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``--fix`` in the legacy shape installs nothing and must not claim a repair."""
     _write_legacy_project(tmp_path)
     before = _tree_snapshot(tmp_path)
+    # `tool-surfaces --fix` first asks the checkout-identity seam whether this invocation
+    # may write (#2613). The fixture lives outside this checkout, so grant ownership here;
+    # the subject under test is the summary, not the refusal.
+    monkeypatch.setattr(
+        surface_doctor_mod,
+        "resolve_checkout_identity",
+        lambda *_args, **_kwargs: SimpleNamespace(write_refusal=lambda: None),
+    )
 
-    result = _invoke(monkeypatch, tmp_path, "skills", "--fix")
+    result = _invoke(monkeypatch, tmp_path, command, "--fix")
 
     assert result.exit_code == 0, result.output
     assert "no stated agent list" in result.output
+    assert "all surfaces healthy" not in result.output
     assert "Repaired" not in result.output
     assert _tree_snapshot(tmp_path) == before
 
