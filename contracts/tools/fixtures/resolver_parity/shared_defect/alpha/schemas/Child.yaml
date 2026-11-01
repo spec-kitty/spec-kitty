@@ -1,8 +1,0 @@
-title: Child
-$ref: Base.yaml
-properties:
-  extra:
-    type: string
-examples:
-  - id: 5
-    extra: x

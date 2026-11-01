@@ -187,9 +187,6 @@ NON_CHANGE_TRIGGERED_WORKFLOWS: dict[str, str] = {
         "design — a PR event can never start it, and it never enters a merge-blocking "
         "needs chain."
     ),
-    "contracts-release.yml": (
-        "contract-tag push + workflow_dispatch (a dry run) only: publishes a contract release, never runs the test suite and is not a change-triggered workflow."
-    ),
     "module-tests.yml": (
         "workflow_call only: a reusable workflow with no triggers of its own, spliced "
         "into ci-modules.yml's caller job. Counting it standalone would double-count THE matrix."
@@ -246,13 +243,12 @@ AUTHORIZED_PER_CHANGE_SUITE_JOBS: dict[JobKey, str] = {
     ("ci-router.yml", "tests-e2e"): "Path-routed lane: tests/e2e.",
     ("ci-router.yml", "tests-corpus-blocking"): "Path-routed lane: the corpus tests with no other blocking home (D-13/D-22); Packs deselects exactly these.",
     ("ci-router.yml", "tests-contract-tools"): (
-        "Path-routed lane: the contract tool unit tests under tests/contract (moved out of the router's corpus job "
-        "to keep that job within its time budget, #5558, and from contracts.yml's non-required job into the router so "
-        "router-gate blocks the merge on them). They read no corpus, so the router's corpus job no longer runs them; "
-        "that job keeps the reality check, its payload helper and the example round trip. Packs deselects the tool "
-        "modules and the module matrix deselects the corpus marker, so each runs once. Owner: the contracts "
-        "maintainers; exit: when the tool tests carry no corpus marker and the module matrix owns them. "
-        "tests/ci/test_contracts_workflows.py pins the job's shape and gating."
+        "Path-routed lane: the corpus-marked tests/contract modules the router's corpus job does not own (moved out of "
+        "that job to keep it within its time budget, #5558; the tool unit tests left with the tools, #6915). The corpus "
+        "job keeps the reality check, its payload helper and the example round trip. Packs deselects these modules and "
+        "the module matrix deselects the corpus marker, so each runs once. Owner: the contracts maintainers; exit: when "
+        "these modules carry no corpus marker and the module matrix owns them. tests/ci/test_contracts_routing.py pins "
+        "that every corpus-marked tests/contract module has exactly one of the two homes."
     ),
     ("ci-router.yml", "tests-events-consumers"): (
         "Path-routed lane: on a uv.lock change (the reducer_lock group), the spec-kitty-events consumers no "

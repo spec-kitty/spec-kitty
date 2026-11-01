@@ -1,7 +1,0 @@
-title: LogTruncatedEvent
-type: object
-additionalProperties: false
-properties:
-  missionId:
-    type: string
-    description: id

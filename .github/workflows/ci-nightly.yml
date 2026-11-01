@@ -1843,7 +1843,7 @@ jobs:
   # mission-status-corpus (#6915, research D-7): the full-corpus compare of the Python oracle
   # (tests/contract/_mission_status_*.py) with the read-service build core pins (pins/read-service.source.yaml,
   # ADR 2026-10-29-1 D-6), no exemptions (scripts/ci/mission_status_corpus_compare.py, E-10). It re-homes
-  # mission-status-api.yml's `nightly-corpus`, which built the jar from services/; spec-kitty-events runs its own
+  # the retired Mission Status API workflow's `nightly-corpus`, which built the jar from core's copy of the service; spec-kitty-events runs its own
   # jar-based nightly. The sync-services action fetches the host's native binary (and the extras the oracle reads),
   # so the job needs no JDK and no Gradle. Measured locally (2026-11-01): 677 Missions compared in a few minutes,
   # 678 rows equal, 0 rows not equal; the binary answered /api/v1/project in about 1 s. Pinned by

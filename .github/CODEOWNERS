@@ -10,8 +10,9 @@
 
 * @stijn-dejongh
 
-# The contracts tree and every module in it (contracts/mission-status/ included).
-/contracts/ @stijn-dejongh @MOES-Media
+# The core-owned client fixtures that remain under contracts/ (the contract modules and tools moved to
+# spec-kitty-events, #6915).
+/contracts/fixtures/ @stijn-dejongh @MOES-Media
 
 # Zeitgeist + hosted-platform integration (bound for spec-kitty/event-router).
 /src/specify_cli/zeitgeist_client/ @elefnik @LynnColeArt
@@ -30,9 +31,6 @@
 /src/specify_cli/tracker/saas_client.py @elefnik @LynnColeArt
 /src/specify_cli/tracker/saas_readiness.py @elefnik @LynnColeArt
 /src/specify_cli/tracker/egress_verdict.py @elefnik @LynnColeArt
-
-# The Mission Status API service tree (a standalone Gradle build; see services/mission-status-api/).
-/services/mission-status-api/ @stijn-dejongh @MOES-Media
 
 # Acceptance scenarios (ADR 2026-10-15-1). The Gherkin scenarios, the absorption ledger beside them
 # and the scenario-writing guide are shared by QA (spec-kitty-qa) and core: a scenario change asks

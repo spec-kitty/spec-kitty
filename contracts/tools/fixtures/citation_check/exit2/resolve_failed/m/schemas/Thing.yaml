@@ -1,5 +1,0 @@
-properties:
-  a:
-    $ref: Missing.yaml
-title: Thing
-type: object

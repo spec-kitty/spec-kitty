@@ -1,6 +1,6 @@
 """The Python side of the #6193 lock-interop spike (Mission Write API step 3).
 
-The Java harness (``services/mission-status-api/event-log``, ``LockInteropSpikeTest``) drives this peer as a child process to
+The Java harness (``event-log`` module of the Java service in spec-kitty-events, ``LockInteropSpikeTest``) drives this peer as a child process to
 prove, or refute, that the interim event-log lock of :mod:`kernel.event_log_append` and a Java writer exclude each other, and that
 appends from both sides land as whole lines that both readers accept. Every lock and every append here goes through the production
 kernel code, never a reimplementation: :func:`kernel.event_log_append.event_log_lock_path`, :func:`~kernel.event_log_append.event_log_lock`,

@@ -39,11 +39,30 @@ def test_main_push_event_selects_main_reporting(tmp_path: Path, monkeypatch: pyt
     assert "main=true\n" in written
 
 
-def test_a_tag_push_run_of_the_mission_status_workflow_selects_neither_main_nor_a_pull_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """mission-status-api.yml carries `on.push.tags` (release trigger, operator decision E-4): a run for a tag push has the tag name as
-    head_branch, so it is not main evidence and not a pull request run."""
-    tag_run = {"event": "push", "head_branch": "mission-status-api-v0.1.0", "pull_requests": []}
-    assert _identify(API(), "mission-status-api.yml", tag_run, tmp_path, monkeypatch) == ""
+# No PR workflow carries `on.push.tags` since #6915 removed mission-status-api.yml, so the tag cases run a PR workflow whose
+# push block gains a planted `tags` filter (conditional: it also has `paths`).
+TAGGED = "check-spec-kitty-events-alignment.yml"
+TAG = "v4.0.0"
+
+
+def _root_with_a_tag_trigger(tmp_path: Path) -> Path:
+    """A copy of the workflow directory where TAGGED's push block also triggers on a tag pattern."""
+    root = tmp_path / "root"
+    workflows = root / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    for path in (ROOT / ".github" / "workflows").glob("*.yml"):
+        (workflows / path.name).write_bytes(path.read_bytes())
+    document = yaml.safe_load((workflows / TAGGED).read_text(encoding="utf-8"))
+    triggers = document.get("on", document.get(True))
+    triggers["push"]["tags"] = ["v*.*.*"]
+    (workflows / TAGGED).write_text(yaml.safe_dump(document), encoding="utf-8")
+    return root
+
+
+def test_a_tag_push_run_selects_neither_main_nor_a_pull_request(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A run for a tag push has the tag name as head_branch, so it is not main evidence and not a pull request run."""
+    tag_run = {"event": "push", "head_branch": TAG, "pull_requests": []}
+    assert _identify(API(), TAGGED, tag_run, tmp_path, monkeypatch) == ""
 
 
 class MainAPI(API):
@@ -517,20 +536,21 @@ def test_retry_budget_pair_is_imported_not_redefined() -> None:
     assert fleet_main.AlreadyReported is fleet_verdict.AlreadyReported
 
 
-def test_a_push_block_with_tags_is_accepted_and_a_tag_run_never_supplies_main_evidence() -> None:
-    """The policy reader accepts `tags` in a push block, and a tag-push run of mission-status-api.yml (head_branch is the tag name, not
-    main) is excluded from the main snapshot like any non-main push."""
-    required, conditional = fleet_main.main_workflows(ROOT)
-    assert "mission-status-api.yml" in conditional
+def test_a_push_block_with_tags_is_accepted_and_a_tag_run_never_supplies_main_evidence(tmp_path: Path) -> None:
+    """The policy reader accepts `tags` in a push block, and a tag-push run (head_branch is the tag name, not main) is excluded
+    from the main snapshot like any non-main push."""
+    root = _root_with_a_tag_trigger(tmp_path)
+    required, conditional = fleet_main.main_workflows(root)
+    assert TAGGED in conditional
     api = MainAPI()
-    assert fleet_main.snapshot(api, ROOT, IDS)["runs"]["mission-status-api.yml"]["event"] == "push"
-    api.runs["mission-status-api.yml"][0]["head_branch"] = "mission-status-api-v0.1.0"
-    evidence = fleet_main.snapshot(api, ROOT, IDS)
-    assert "mission-status-api.yml" not in evidence["runs"]
-    assert "mission-status-api.yml" in evidence["conditional_gates_not_observed"]
+    assert fleet_main.snapshot(api, root, IDS)["runs"][TAGGED]["event"] == "push"
+    api.runs[TAGGED][0]["head_branch"] = TAG
+    evidence = fleet_main.snapshot(api, root, IDS)
+    assert TAGGED not in evidence["runs"]
+    assert TAGGED in evidence["conditional_gates_not_observed"]
 
 
-def test_removing_tags_from_the_accepted_push_keys_turns_the_tag_acceptance_red() -> None:
+def test_removing_tags_from_the_accepted_push_keys_turns_the_tag_acceptance_red(tmp_path: Path) -> None:
     import types
 
     source = Path(fleet_main.__file__).read_text(encoding="utf-8")
@@ -539,4 +559,4 @@ def test_removing_tags_from_the_accepted_push_keys_turns_the_tag_acceptance_red(
     module = types.ModuleType("fleet_main_reverted")
     exec(compile(reverted, "fleet_main_reverted.py", "exec"), module.__dict__)  # noqa: S102  (in-memory revert row)
     with pytest.raises(ValueError, match="unsupported main push policy"):
-        module.main_workflows(ROOT)
+        module.main_workflows(_root_with_a_tag_trigger(tmp_path))

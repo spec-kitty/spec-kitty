@@ -1,6 +1,0 @@
-properties:
-  status:
-    description: No citation here on purpose.
-    type: integer
-title: Problem
-type: object

@@ -16,18 +16,6 @@ As that license requires, the upstream copyright notice is retained in LICENSE
 and ships with every copy, including the wheel.
 
 -------------------------------------------------------------------------------
-Gradle Wrapper
-Copyright (c) 2015 the original authors
-Licensed under the Apache License, Version 2.0.
-
-Files: services/mission-status-api/gradlew
-       services/mission-status-api/gradlew.bat
-       services/mission-status-api/gradle/wrapper/gradle-wrapper.jar
-
-A copy of the License is available at
-http://www.apache.org/licenses/LICENSE-2.0
-
--------------------------------------------------------------------------------
 HumanLayer "show-me" skill
 Copyright (c) 2026 HumanLayer
 Licensed under the MIT License.

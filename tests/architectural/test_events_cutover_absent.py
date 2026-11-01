@@ -38,9 +38,11 @@ CORE_FIXTURES = frozenset(
 )
 _ROOT = "contracts"
 _SERVICE_ROOT = "services/mission-status-api"
-# Root-anchored paths, optionally with a leading ``/`` (CODEOWNERS): not preceded by a path character or a closing parenthesis
-# (a command substitution's result, e.g. the unpacked extra).
-_ROOT_PATHS = re.compile(r"(?<![\w/.)$-])/?(?:" + re.escape(_SERVICE_ROOT) + "|" + _ROOT + r"/(?:tools|mission-status|mission-write))\b")
+# Root-anchored paths: either bare and not preceded by a path character, a closing parenthesis (a command substitution's
+# result, e.g. the unpacked extra) or a placeholder's ``>``, or with a leading ``/`` (CODEOWNERS) at the start of a line or after
+# whitespace or a quote.
+_REMOVED = "(?:" + re.escape(_SERVICE_ROOT) + "|" + _ROOT + r"/(?:tools|mission-status|mission-write))\b"
+_ROOT_PATHS = re.compile(r"(?<![\w/.)$>-])" + _REMOVED + r"|(?:^|(?<=[\s'\"`]))/" + _REMOVED, re.MULTILINE)
 # Workflow file names: anywhere, as a whole name (``.github/workflows/contracts.yml`` included).
 _WORKFLOW_NAMES = re.compile(r"(?<![\w.-])(?:" + "|".join(re.escape(name) for name in REMOVED_WORKFLOWS) + r")(?![\w.-])")
 _TEXT_SUFFIXES = frozenset({".py", ".sh"})

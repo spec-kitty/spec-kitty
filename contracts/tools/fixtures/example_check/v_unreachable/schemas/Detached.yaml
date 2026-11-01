@@ -1,7 +1,0 @@
-title: Detached
-type: object
-properties:
-  x:
-    type: string
-examples:
-- $ref: ../examples/Detached.one.yaml

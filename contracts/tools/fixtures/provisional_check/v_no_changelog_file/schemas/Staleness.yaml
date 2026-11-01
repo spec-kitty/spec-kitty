@@ -1,6 +1,0 @@
-title: Staleness
-type: object
-properties:
-  status:
-    type: string
-    description: s
