@@ -1359,7 +1359,7 @@
      "deprecated": false
     },
     "vendor": {
-     "help": "Bump (or --check) pins/<service>.source.yaml from a spec-kitty-events release; the only way to change a pin.",
+     "help": "Bump (or --check) pins/<service>.source.yaml from the service's own release; the only way to change a pin.",
      "hidden": false,
      "deprecated": false
     }
