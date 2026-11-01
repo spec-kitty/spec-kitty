@@ -437,3 +437,17 @@
 {"agent": "pi", "at": "2026-10-31T13:05:16.268326+00:00", "canonical_action_id": "review::review", "mission_id": "01M68ZHZ6TX6Q1Y1KPJFPESJ9D", "phase": "started", "reason": null, "wp_id": "WP02"}
 {"agent": "pi", "at": "2026-10-31T13:05:32.360508+00:00", "canonical_action_id": "review::review", "mission_id": "01M68ZHZ6TX6Q1Y1KPJFPESJ9D", "phase": "completed", "reason": null, "wp_id": "WP02"}
 {"agent": "pi", "at": "2026-10-31T13:06:01.185127+00:00", "canonical_action_id": "accept::accept", "mission_id": "01M68ZHZ6TX6Q1Y1KPJFPESJ9D", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "planner-priti", "at": "2026-11-01T15:18:09.582078+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "planner-priti", "at": "2026-11-01T15:18:40.541663+00:00", "canonical_action_id": "plan::plan", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "planner-priti", "at": "2026-11-01T15:19:05.622057+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "planner-priti", "at": "2026-11-01T15:20:18.042248+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "planner-priti", "at": "2026-11-01T15:20:37.074165+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "python-pedro", "at": "2026-11-01T15:21:11.900379+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": "WP01"}
+{"agent": "reviewer-renata", "at": "2026-11-01T17:44:11.564689+00:00", "canonical_action_id": "review::review", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": "WP01"}
+{"agent": "python-pedro", "at": "2026-11-01T17:53:10.624287+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "completed", "reason": null, "wp_id": "WP01"}
+{"agent": "python-pedro", "at": "2026-11-01T17:53:16.626059+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": "WP02"}
+{"agent": "python-pedro", "at": "2026-11-01T17:53:19.915926+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "completed", "reason": null, "wp_id": "WP02"}
+{"agent": "python-pedro", "at": "2026-11-01T17:53:26.226634+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": "WP02"}
+{"agent": "implementer-ivan", "at": "2026-11-01T18:03:55.994039+00:00", "canonical_action_id": "review::review", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "implementer-ivan", "at": "2026-11-01T18:03:59.480281+00:00", "canonical_action_id": "review::review", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "implementer-ivan", "at": "2026-11-01T18:04:38.605899+00:00", "canonical_action_id": "accept::accept", "mission_id": "01M6BTVMQYH9K7Z8B0NH2SKRZC", "phase": "started", "reason": null, "wp_id": null}
