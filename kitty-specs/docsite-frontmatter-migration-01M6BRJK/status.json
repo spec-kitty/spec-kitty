@@ -1,7 +1,7 @@
 {
-  "event_count": 24,
-  "last_event_id": "01M6BZEVK6Y3YRVNP9KFC5CEEQ",
-  "materialized_at": "2026-11-01T16:35:37.699482+00:00",
+  "event_count": 25,
+  "last_event_id": "01M6BZFYJA349ZSF5TDYW393JW",
+  "materialized_at": "2026-11-01T16:36:13.515013+00:00",
   "mission_number": "",
   "mission_slug": "docsite-frontmatter-migration-01M6BRJK",
   "mission_type": "software-dev",
@@ -12,8 +12,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -127,14 +127,19 @@
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M6BZEVK6Y3YRVNP9KFC5CEEQ",
-      "last_transition_at": "2026-11-01T16:35:37.699482+00:00",
+      "lane": "for_review",
+      "last_event_id": "01M6BZFYJA349ZSF5TDYW393JW",
+      "last_transition_at": "2026-11-01T16:36:13.515013+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 11817,
-      "shell_pid_created_at": "1793550928.46"
+      "shell_pid_created_at": "1793550928.46",
+      "subtasks": {
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
     }
   }
 }
