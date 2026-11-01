@@ -355,7 +355,7 @@ def test_patched_hic_marker_intercepts_board_cell(tmp_path: Path) -> None:
     wp = {"id": "WP01", "title": "Latency audit", "agent_profile": "human-in-charge"}
     with patch(f"{_TASKS}._get_hic_marker", return_value="👤 ") as marker_mock:
         cell = tasks_status_cmd._st_board_cell(wp, Lane.PLANNED, tmp_path, None)
-    marker_mock.assert_called_once_with("human-in-charge", tmp_path, repo=None)
+    marker_mock.assert_called_once_with("human-in-charge", tmp_path, sentinels=None)
     assert cell.startswith("👤 WP01")
 
 
