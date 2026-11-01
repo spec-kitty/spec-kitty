@@ -8,6 +8,10 @@ import kitty.acceptance.environment.MissionFixture;
 import kitty.acceptance.environment.MissionLifecycle;
 import kitty.acceptance.environment.ScenarioWorld;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +25,9 @@ import java.util.Map;
  * steps inspect files, exit codes and git state, never Python internals.
  */
 public final class ScenarioContext {
+
+    /** The Mission every event-traceability step builds on, as the repository's other features do. */
+    static final String SCENARIO_MISSION = "demo";
 
     private final ScenarioWorld world;
     private final SpecKittyDriver driver;
@@ -103,6 +110,46 @@ public final class ScenarioContext {
 
     void recordResult(CliResult result) {
         lastResult = result;
+    }
+
+    /**
+     * Records the rejection the event-traceability promise is about. The approval row is planted as a
+     * teammate's clock-skewed pull delivers it (see
+     * {@link MissionLifecycle#plantFutureStampedApproval(String, String)}), then the reviewer's
+     * rejection goes through the real CLI, so the CLI's own guard decides the outcome. The result is
+     * recorded for the assertions: a refusal is the scenario's red, never something to paper over.
+     */
+    CliResult rejectAfterApproval(String wp) {
+        lifecycle().plantFutureStampedApproval(SCENARIO_MISSION, wp);
+        String feedback = reviewerFeedback(wp);
+        CliResult result = run(List.of("spec-kitty", "agent", "status", "emit", wp, "--to", "in_progress",
+                "--mission", lifecycle().slug(SCENARIO_MISSION), "--actor", "reviewer",
+                "--review-ref", feedback, "--reason", "review: changes requested after the approval"));
+        recordResult(result);
+        return result;
+    }
+
+    /**
+     * The reviewer's notes, kept outside the repository as a reviewer delivers them, and returned as
+     * the reference the CLI records with the rejection (an {@code approved -> in_progress} transition
+     * requires one).
+     */
+    private String reviewerFeedback(String wp) {
+        Path file = world().workDir().getParent().resolve("review-feedback-" + wp + ".md");
+        try {
+            Files.writeString(file, "# Review feedback\n\nThe approval stands, but this needs rework.\n");
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not write " + file, e);
+        }
+        return "../" + file.getFileName();
+    }
+
+    /** Consolidates the scenario's Mission as the user does, recording the result for the assertions. */
+    CliResult consolidateMission() {
+        CliResult result = run(List.of("spec-kitty", "consolidate", "--mission",
+                lifecycle().slug(SCENARIO_MISSION), "--yes"));
+        recordResult(result);
+        return result;
     }
 
     CliResult lastResult() {
