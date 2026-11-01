@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "plugin-bundle-native-target-selection-01M6BV0N",
+  "mission_id": "01M6BV0NFBAFMNNCEB05VW1TPM",
+  "mission_branch": "issue-6273-plugin-bundle-native-target-selection",
+  "target_branch": "issue-6273-plugin-bundle-native-target-selection",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/installation/tool-surface-upgrade-and-repair.md",
+        "src/specify_cli/cli/commands/_command_surface_doctor.py",
+        "src/specify_cli/tool_surface/bundles/claude.py",
+        "src/specify_cli/tool_surface/bundles/copilot.py",
+        "src/specify_cli/tool_surface/bundles/projection.py",
+        "src/specify_cli/tool_surface/bundles/vscode.py",
+        "src/specify_cli/tool_surface/providers/plugin_bundle.py",
+        "src/specify_cli/tool_surface/repair.py",
+        "tests/specify_cli/tool_surface/bundles/test_projection_selection.py",
+        "tests/specify_cli/tool_surface/integration/test_doctor_tool_surfaces_cli.py",
+        "tests/specify_cli/tool_surface/providers/test_plugin_bundle.py",
+        "tests/specify_cli/tool_surface/providers/test_plugin_bundle_repair_reporting.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:21:37.522350+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "83eadbb4dd0102fda66836074932ebd2bcb26d0a"
+}

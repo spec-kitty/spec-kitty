@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#5843": {
+      "evidence_ref": "Closed issue cited as different defect (unsupported sentinel/CWD) in research.md; this mission does not owe it work.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6273": {
+      "evidence_ref": "f48eeaa268 + afdb66c619: claude+codex+copilot init then doctor tool-surfaces --fix now stages all three bundles (missing 0, ok true, second fix a no-op); forced repair failure prints Failed to repair with cause and exits 1; targeted tests + full tool_surface suite (1163 passed) green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,86 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M6C42WG9B90WTGXYWJFWBC41",
+  "materialized_at": "2026-11-01T17:56:28.297492+00:00",
+  "mission_number": "246",
+  "mission_slug": "plugin-bundle-native-target-selection-01M6BV0N",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C42VQBQ6ZEWB43ENPAAFF4",
+      "last_transition_at": "2026-11-01T17:56:27.500015+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP01 implementation complete: target-native rendering selection + red-first tests; bundle and provider unit suites pass.",
+        "Review passed: selection contract matches C-001; conflict guard preserved; alias coalescing preserved; native suffix naming."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3791204,
+      "shell_pid_created_at": "1793552022.45",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M6C42WG9B90WTGXYWJFWBC41",
+      "last_transition_at": "2026-11-01T17:56:28.297492+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP02 complete: findings_after carried through the repair service, probe keeps the prepared-batch cause, failed --fix prints surfaces+reasons and exits 1, changelog and guide updated.",
+        "Review passed. Checked: findings_after is carried for every provider without changing RepairResult consumers; only a non-empty repair.failed escalates the exit code; audit-only ok is unchanged; the generic probe sentence is now a fallback and the cause is preserved; failed ids always print even without a finding; dedup is by message only in rendering; ruff clean (3 mypy no-any-return errors are pre-existing on main). No review fix needed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 136978,
+      "shell_pid_created_at": "1793555624.06",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    }
+  }
+}

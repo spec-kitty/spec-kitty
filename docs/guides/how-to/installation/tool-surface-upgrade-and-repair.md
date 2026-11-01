@@ -2,7 +2,7 @@
 title: Repair Tool Surfaces After an Upgrade
 description: How to understand the Tool vs Agent vs Tool Surface distinction in Spec Kitty 3.2 and repair missing generated surfaces with doctor tool-surfaces --fix after upgrading.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-11-01'
 type: how-to
 audience: docs/context/audience/external/project-owner.md
 related:
@@ -90,6 +90,18 @@ your project's agent configuration. It is **safe and conservative**:
 - It refuses to act when a managed surface path resolves outside the project
   (reported as *unsafe*).
 - It leaves files it does not own alone.
+
+A repair that cannot complete is reported, never silent. `doctor tool-surfaces --fix`
+prints a `Failed to repair:` line listing each surface it could not repair and the
+reason, and exits non-zero; the JSON output carries the same ids in `repair.failed`
+and the causes in `repair.findings_after`. A clean repair prints
+`Repaired: N surface(s)` and exits 0.
+
+Plugin bundles follow the same rule per distribution target. A project that
+configures more than one assistant stages all three bundles, each from its own
+native renderings (Claude profiles and skills for the Claude bundle, Copilot or
+VS Code renderings for theirs, the shared `.agents/skills` rendering for skills);
+a Codex TOML agent profile is never renamed into a Markdown bundle member.
 
 `spec-kitty upgrade` uses the same owner assessments in its finalizer. Inspect
 them without writing via `spec-kitty upgrade --plan-json`: `effects` are exact

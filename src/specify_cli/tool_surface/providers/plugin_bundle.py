@@ -198,9 +198,10 @@ class PluginBundleProvider:
         )
         if assessment.complete and not assessment.effects and all(d.state == "unchanged" for d in assessment.dispositions):
             return SurfaceStatus(instance=instance, state=STATE_PRESENT)
-        finding = make_finding(BUNDLE_COMPONENT_MISSING, SEVERITY_ERROR,
-                               "Selected staged bundle has missing, drifted, or unavailable members.",
-                               path=instance.path)
+        # Keep the prepared-batch cause, not only the generic summary (#6273).
+        causes = tuple(d.message for d in assessment.diagnostics if d.message)
+        message = "; ".join(causes) if causes else "Selected staged bundle has missing, drifted, or unavailable members."
+        finding = make_finding(BUNDLE_COMPONENT_MISSING, SEVERITY_ERROR, message, path=instance.path)
         return self._incomplete_status(instance, (finding,))
 
     def assess(

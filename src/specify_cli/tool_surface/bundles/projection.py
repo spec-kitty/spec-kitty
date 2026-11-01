@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import os
 import stat
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import ExitStack, contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
@@ -207,6 +207,33 @@ BUNDLE_SURFACE_KINDS: frozenset[ToolSurfaceKind] = frozenset(
 )
 _NON_FILE_SENTINELS = frozenset({Path("<unsupported>"), Path("<not-applicable>")})
 
+# Surface kinds rendered per harness. Their sources are ranked by the owning
+# tool so one bundle member takes one target-native rendering instead of an
+# arbitrary mix (a Codex ``.toml`` profile must never become ``agents/<id>.md``).
+_RENDERED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
+    {
+        ToolSurfaceKind.AGENT_PROFILE,
+        ToolSurfaceKind.COMMAND_SKILL,
+        ToolSurfaceKind.CHARTER_SKILL,
+    }
+)
+# Native agent-profile filenames, longest first; the profile id is the source
+# name with its own suffix removed, never the stem of another tool's suffix.
+_AGENT_SUFFIXES: tuple[str, ...] = (".agent.md", ".md", ".toml")
+
+
+def _profile_id(source_path: Path) -> str:
+    """Return the canonical profile id from one native agent filename.
+
+    ``.github/agents/x.agent.md`` yields ``x`` (not ``x.agent``), so a Copilot
+    bundle member is ``agents/x.agent.md`` rather than ``agents/x.agent.agent.md``.
+    """
+    for suffix in _AGENT_SUFFIXES:
+        if source_path.name.endswith(suffix) and source_path.name != suffix:
+            return source_path.name[: -len(suffix)]
+    return source_path.stem
+
+
 # Inert placeholder manifest version. The manifest is a declarative descriptor;
 # its presence never triggers install/publish behaviour.
 _MANIFEST_VERSION = "0.0.0"
@@ -223,7 +250,7 @@ def _bundle_relative_path(
     if prefix is None:
         return None
     if kind == ToolSurfaceKind.AGENT_PROFILE:
-        leaf = agent_filename(source_path.stem)
+        leaf = agent_filename(_profile_id(source_path))
         return f"{prefix}/{leaf}" if prefix else leaf
     if kind == ToolSurfaceKind.COMMAND_SKILL or kind == ToolSurfaceKind.CHARTER_SKILL:
         # Command/charter skills are ``.../<name>/SKILL.md``; preserve the
@@ -243,6 +270,7 @@ def bundle_entries_for_plans(
     layout: dict[ToolSurfaceKind, str],
     agent_filename: Callable[[str], str],
     bundle_kinds: frozenset[ToolSurfaceKind],
+    tool_precedence: Mapping[ToolSurfaceKind, Sequence[str]] | None = None,
 ) -> tuple[BundleEntry, ...]:
     """Project the bundleable surfaces of ``plans`` into ``BundleEntry`` tuples.
 
@@ -251,8 +279,15 @@ def bundle_entries_for_plans(
     outside the project tree (e.g. a user-global surface). The result is
     de-duplicated on ``bundle_relative_path`` and ordered deterministically so
     repeated projections are byte-stable.
+
+    ``tool_precedence`` pins the target-native rendering for per-harness kinds:
+    the tuple is the ordered accept-list of tool keys and its index is the
+    preference rank. A source outside the list is not a candidate; a lower rank
+    replaces a higher-rank source for the same member; equal-rank sources merge
+    and still conflict when their bytes differ.
     """
     seen: dict[str, BundleEntry] = {}
+    chosen_rank: dict[str, int] = {}
     for plan in plans:
         for instance in plan.instances:
             kind = instance.definition.kind
@@ -263,17 +298,33 @@ def bundle_entries_for_plans(
             rel = _bundle_relative_path(kind, instance.path, layout, agent_filename)
             if rel is None:
                 continue
+            source = _project_source_path(instance.path, project_root)
+            prior = seen.get(rel)
+            # A physical source already selected for this member only adds its
+            # ownership claim; it is not a competing rendering (an alias).
+            alias = prior is not None and source in prior.sources
+            rank: int | None = None
+            if not alias and tool_precedence is not None and kind in tool_precedence and kind in _RENDERED_KINDS:
+                accepted = tool_precedence[kind]
+                if instance.owner not in accepted:
+                    continue
+                rank = accepted.index(instance.owner)
+            if prior is not None and rank is not None:
+                prior_rank = chosen_rank.get(rel, rank)
+                if rank > prior_rank:
+                    continue
+                if rank < prior_rank:
+                    prior = None
             candidate = BundleEntry(
                 surface_kind=kind,
-                source_path=_project_source_path(instance.path, project_root),
+                source_path=source,
                 bundle_relative_path=rel,
                 logical_owners=(instance.owner,),
                 surface_ids=(_surface_id(instance),),
-                sources=(_project_source_path(instance.path, project_root),),
+                sources=(source,),
                 source_root=project_root.resolve(),
-                claims=((_project_source_path(instance.path, project_root), instance.owner, _surface_id(instance)),),
+                claims=((source, instance.owner, _surface_id(instance)),),
             )
-            prior = seen.get(rel)
             seen[rel] = (
                 candidate
                 if prior is None
@@ -285,6 +336,8 @@ def bundle_entries_for_plans(
                     claims=tuple(sorted(set(prior.claims + candidate.claims))),
                 )
             )
+            if rank is not None:
+                chosen_rank[rel] = rank
     return tuple(seen[key] for key in sorted(seen))
 
 
