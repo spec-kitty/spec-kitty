@@ -1,0 +1,117 @@
+{
+  "event_count": 30,
+  "last_event_id": "01M6C2TSZXTRYDKTFE1YQHVTAQ",
+  "materialized_at": "2026-11-01T17:34:35.005321+00:00",
+  "mission_number": "",
+  "mission_slug": "dispatch-router-docs-coverage-01M6BTTX",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 3,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M6C2SHTVZ7RHG4J51SXR7N5G",
+      "last_transition_at": "2026-11-01T17:33:53.883385+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review gate skipped under existing issue #6865 (empty derived scope falls back to full make test-fast, which cannot finish in 300s; the frontmatter pre_review_test_scope escape is rejected by WPMetadata extra=forbid). Affected suites run manually: test_router.py + test_docs_domain_routing.py = 66 passed. RED on origin/main: the issue request -> ROUTER_NO_MATCH with 0 candidates. GREEN: curator-carla/domain_keyword.",
+        "Review passed. Tier ladder strictly additive (single-token -> phrase -> docs alias); shipped-catalog differential corpus and both tier-order guards green; NO_MATCH candidates bounded at 3, totally ordered, empty when nothing overlaps; suggestions keep --profile runnable; router pure; five-key JSON envelope unchanged. ruff C90<=15 and mypy clean, no suppressions. RED observed on origin/main. Pre-review gate skipped under existing issue #6865.",
+        "Re-record the implementer identity: the original claim was written by the generic placeholder actor, so the independent-review evidence could not be confirmed. No code change; lane rewind only.",
+        "Pre-review gate skipped under existing issue #6865. Implementation unchanged since the reviewed commit fddb4ca979.",
+        "Independent review re-confirmed against commit fddb4ca979 (unchanged): additive tier ladder, bounded/deterministic refusal candidates, pure router, unchanged five-key envelope; 66 router tests green, ruff C90<=15 and mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261101",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M6C2TSZXTRYDKTFE1YQHVTAQ",
+      "last_transition_at": "2026-11-01T17:34:35.005321+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review gate skipped under existing issue #6865 (repo-declared review.test_command is the whole make test-fast tier; empty derived scope; frontmatter pre_review_test_scope rejected by WPMetadata). Affected suite run manually: tests/specify_cli/invocation/cli/ = 130 passed, 1 skipped. Rendered refusal verified on all three paths; JSON envelope still five keys.",
+        "Review passed. The CLI only renders what the router decided (no re-ranking, no re-derived suggestion); the JSON emitter is byte-identical in keys and stderr destination, so the machine contract is unchanged. All three refusal paths (dry-run no-match, real-path RouterAmbiguityError, unknown --profile) share one seam and exit 1; the dry-run ROUTER_AMBIGUOUS exit-0 payload path is untouched. Colours are escaped before rich sees request text, and the remedy line is soft-wrapped so the --profile command stays copy-pasteable. Console-to-stdout matches the established human-refusal convention (helpers.exit_git_resolution_failure, op_write_refusal). CLI suite: 130 passed, 1 skipped; ruff/mypy clean; no suppressions.",
+        "Re-record the implementer identity: the original claim was written by the generic placeholder actor, so the independent-review evidence could not be confirmed. No code change; lane rewind only.",
+        "Pre-review gate skipped under existing issue #6865. Implementation unchanged since the reviewed commit.",
+        "Independent review re-confirmed against commit 6dd31194c2 (unchanged): CLI renders only what the router decided, JSON path untouched with the same five keys and stderr destination, one shared refusal seam for all three paths, exit codes preserved (1 for refusals, 0 for the dry-run ambiguous payload), rich markup escaped and the remedy soft-wrapped. cli suite 130 passed, 1 skipped; ruff/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261101",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T014": "done"
+      }
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M6C2TMD1MEY8BKHZ7AWVR59N",
+      "last_transition_at": "2026-11-01T17:34:29.281901+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Docs-only WP. Pre-review gate skipped under existing issue #6865 (same repo-level gate defect). Verified manually: check_changelog_style exit 0 (entry 967 chars, refs after the bold lead, Before/After present); check_docs_freshness errors=0 with no drift for the touched page; tests/architectural/test_no_legacy_terminology.py 98 passed.",
+        "Review passed. Every documented sentence matches shipped behaviour: the tier ladder and its fallback order, the documentation alias set, the deliberate bare-index exclusion, the bounded/totally-ordered candidate list with partial confidence, the empty list when nothing overlaps, the unchanged five-key --json envelope, and the --dry-run exit-code split (exit 0 for routed and ambiguous payloads, exit 1 only for ROUTER_NO_MATCH). Changelog entry is 967 chars with the reference after the bold lead and an explicit Before/After; style check exit 0. Freshness errors=0 with no drift on the touched page; terminology test 98 passed. Docs-only diff, no regenerated bulk surface.",
+        "Re-record the implementer identity: the original claim was written by the generic placeholder actor, so the independent-review evidence could not be confirmed. No code change; lane rewind only.",
+        "Pre-review gate skipped under existing issue #6865. Docs-only WP; implementation unchanged since the reviewed commit df74c11406.",
+        "Independent review re-confirmed against commit df74c11406 (unchanged): every documented sentence matches shipped behaviour, changelog style exit 0 at 967 chars with Before/After and the reference after the bold lead, freshness errors=0 with no drift on the touched page, terminology test 98 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261101",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      }
+    }
+  }
+}
