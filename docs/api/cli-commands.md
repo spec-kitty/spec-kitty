@@ -574,6 +574,14 @@ _Charter bundle validation commands._
 │                                                section:<slug>.               │
 │ --mark-loaded       --no-mark-loaded           Persist first-load state      │
 │                                                [default: mark-loaded]        │
+│ --profile                               <str>  Agent profile whose cited     │
+│                                                directives and tactics are    │
+│                                                added to the rendered text    │
+│                                                (same id `spec-kitty dispatch │
+│                                                --profile` accepts). With     │
+│                                                --include it is ignored; the  │
+│                                                structured --json blocks stay │
+│                                                profile-agnostic.             │
 │ --mission-type                          <str>  Canonical mission type (e.g.  │
 │                                                documentation|research|plan|… │
 │                                                for the action doctrine       │
@@ -1866,6 +1874,12 @@ _Dispatch a request to a governed Op (canonical surface)._
 │ --profile                 <str>   Optional profile ID. Bypasses the router — │
 │                                   use when the request is ambiguous.         │
 │ --json                            Output JSON payload                        │
+│ --brief                           Emit routing and orientation metadata      │
+│                                   only: replace the embedded governance text │
+│                                   with its digest and the exact command that │
+│                                   fetches it. Use after this session has     │
+│                                   already read the full text for the         │
+│                                   resolved profile and action.               │
 │ --dry-run                         Route the request and return the routing   │
 │                                   signal without opening an Op or writing    │
 │                                   anything.                                  │
