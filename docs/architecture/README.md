@@ -5,8 +5,12 @@ doc_status: active
 updated: '2026-09-30'
 audience: docs/context/audience/internal/system-architect.md
 related:
+- docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
+- docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
 - docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md
 - docs/archive/architecture/NAVIGATION_GUIDE.md
+- docs/archive/architecture/feature-detection.md
+- docs/archive/architecture/gap-analysis-connector-installation-model.md
 - docs/architecture/diagrams/01_context/README.md
 - docs/architecture/diagrams/02_containers/README.md
 - docs/architecture/diagrams/03_components/README.md

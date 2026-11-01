@@ -4,7 +4,7 @@ description: System architecture and technical design specialist
 doc_status: active
 updated: '2026-07-21'
 related:
-  - docs/api/agent_profiles/index.md
+  - docs/api/agent_profiles/README.md
   - docs/context/charter.md
 ---
 

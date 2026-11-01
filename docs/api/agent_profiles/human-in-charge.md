@@ -4,7 +4,7 @@ description: Workflow sentinel indicating this work package requires direct huma
 doc_status: active
 updated: '2026-10-08'
 related:
-  - docs/api/agent_profiles/index.md
+  - docs/api/agent_profiles/README.md
   - docs/context/charter.md
 ---
 

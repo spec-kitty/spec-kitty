@@ -4,7 +4,7 @@ description: External-agent onboarding and doctrine artifact curation specialist
 doc_status: active
 updated: '2026-10-08'
 related:
-  - docs/api/agent_profiles/index.md
+  - docs/api/agent_profiles/README.md
   - docs/context/charter.md
 ---
 
