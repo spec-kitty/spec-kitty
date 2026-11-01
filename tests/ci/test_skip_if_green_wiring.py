@@ -172,7 +172,7 @@ def _event_context(event_name: str, action: str = "") -> dict[str, str]:
 
 
 PULL_REQUEST_ACTIONS = ("ready_for_review", "synchronize", "opened", "reopened")
-NON_PULL_REQUEST_EVENTS = ("push", "workflow_dispatch", "schedule")
+NON_PULL_REQUEST_EVENTS = ("push", "workflow_dispatch", "schedule", "merge_group")
 
 
 def _runs_on_event(step: Mapping[str, Any], event_name: str, action: str = "") -> bool:

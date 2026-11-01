@@ -145,9 +145,13 @@ def test_reporter_trigger_covers_every_registered_workflow_and_reruns() -> None:
     # the survivor re-reads live evidence and loses no verdict (NFR-002).
     # Exact equality — a substring pin passes for a broken expression that drops the
     # workflow_run path and collapses all tips into one cancel:true group.
+    # Merge queue: the source event leads the key, because main is fast-forwarded to the
+    # commit a merge_group run tested, so both runs share a head_sha and must not cancel
+    # each other's verdict.
     assert reporter["concurrency"] == {
         "group": (
-            "ci-fleet-verdict-${{ github.event.workflow_run.path == '.github/workflows/ci-aggregate.yml' "
+            "ci-fleet-verdict-${{ github.event.workflow_run.event }}-"
+            "${{ github.event.workflow_run.path == '.github/workflows/ci-aggregate.yml' "
             "&& format('aggregate-{0}', github.event.workflow_run.id) "
             "|| github.event.workflow_run.head_sha }}"
         ),
