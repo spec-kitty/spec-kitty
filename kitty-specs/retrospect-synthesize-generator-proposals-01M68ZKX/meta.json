@@ -1,0 +1,34 @@
+{
+  "accept_commit": "9cd4842a58ee887b0bee1d50980ca4cd330d1018",
+  "acceptance_history": [
+    {
+      "accept_commit": "9cd4842a58ee887b0bee1d50980ca4cd330d1018",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T14:18:31.650688+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "996b98e13472b165b5460371ba3864f63071ff8d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T14:18:31.650688+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "996b98e13472b165b5460371ba3864f63071ff8d",
+  "baseline_merge_commit": "92d353c9d4a811cbc03ad45e8a2f890b2085cfbd",
+  "created_at": "2026-10-31T12:40:39.860683+00:00",
+  "flattened": true,
+  "friendly_name": "retrospect synthesize generator proposals",
+  "merged_at": "2026-10-31T14:20:29.431429+00:00",
+  "merged_commit": "e966c0d3e11c9a511563165113d7140a3e0cd174",
+  "mid8": "01M68ZKX",
+  "mission_id": "01M68ZKX1DCY9S7NM80G0YQFKY",
+  "mission_number": 245,
+  "mission_slug": "retrospect-synthesize-generator-proposals-01M68ZKX",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances retrospect synthesize generator proposals on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "retrospect synthesize generator proposals",
+  "slug": "retrospect-synthesize-generator-proposals-01M68ZKX",
+  "status_phase": "1",
+  "target_branch": "issue-6385-retrospect-synthesize-generator-proposals",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-31T12:47:27.157152+00:00"
+}

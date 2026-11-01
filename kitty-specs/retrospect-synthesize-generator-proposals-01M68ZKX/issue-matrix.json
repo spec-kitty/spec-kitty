@@ -1,0 +1,161 @@
+{
+  "rows": {
+    "#1239": {
+      "evidence_ref": "context reference only: cited in spec.md as prior/adjacent work; this mission changes neither #1239's surface nor its semantics",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#1246": {
+      "evidence_ref": "context reference only: the commit that introduced the generator-shape warning; this mission replaces its behaviour, not its diagnosis",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3533": {
+      "evidence_ref": "context reference only: cited in spec.md as prior/adjacent work; this mission changes neither #3533's surface nor its semantics",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3537": {
+      "evidence_ref": "context reference only: prior diagnosis/docs follow-up that repaired the misleading error, not proposal application",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3551": {
+      "evidence_ref": "context reference only: follow-ups from #3537 (typed reader error, category enum docs); untouched here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#3947": {
+      "evidence_ref": "generation half explicitly out of scope (C-001): #3947 remains the owning issue and is unblocked by the payload seam this mission adds",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5479": {
+      "evidence_ref": "context reference only: cited in spec.md as prior/adjacent work; this mission changes neither #5479's surface nor its semantics",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5512": {
+      "evidence_ref": "context reference only: cited in spec.md as prior/adjacent work; this mission changes neither #5512's surface nor its semantics",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5927": {
+      "evidence_ref": "pre-existing red on main (tests/contract/test_mission_status_reality.py); cited in the PR's Deferred section, not caused by this diff",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6385": {
+      "evidence_ref": "fixed on branch issue-6385-retrospect-synthesize-generator-proposals: generator_proposals.py translation + synthesize diagnostics (src/specify_cli/cli/commands/agent_retrospect.py) + honest create next step (retrospect.py); tests tests/retrospective/test_generator_proposals.py, tests/retrospective/test_generator_proposal_payload.py, tests/cli/test_agent_retrospect_synthesize.py, tests/cli/commands/test_retrospect.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#6798": {
+      "evidence_ref": "pre-existing red on main (tests/next legacy-mission discovery), closed separately; cited in the PR's Deferred section",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6801": {
+      "evidence_ref": "pre-existing red on main (tests/migration/test_birth_cutover.py, EVIDENCE_WINDOW_UNCOMPUTABLE); cited in the PR's Deferred section",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6816": {
+      "evidence_ref": "pre-existing CI red (router gate false red on a duplicate-named sibling job); cited in the PR's Deferred section",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
