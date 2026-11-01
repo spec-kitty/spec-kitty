@@ -44,7 +44,6 @@ from typing import Any, Final
 
 from ruamel.yaml import YAML
 
-from scripts.ci.generated_docs_surfaces import is_generated_surface
 from scripts.docs._dockitty_contract import (
     body_of,
     is_dated_adr,
@@ -66,6 +65,7 @@ __all__ = [
     "MigrationIntegrityError",
     "MigrationReport",
     "build_parser",
+    "is_skipped",
     "main",
     "migrate_text",
     "migrate_tree",
@@ -88,8 +88,10 @@ _REPO_URL: Final[str] = "https://github.com/spec-kitty/spec-kitty"
 _PERSONA_TITLE_PREFIXES: Final[tuple[str, ...]] = ("Stakeholder Persona: ",)
 _INTENDED_KEYS: Final[frozenset[str]] = frozenset({_AUDIENCE, _RELATED, _EXTERNAL, _DOC_STATUS, _KIND})
 
-#: Files the migration never edits: #6928 owns the dual-index README stubs and the
-#: architecture landing page; the era index tables are generated surfaces.
+#: Files the migration never edits: #6928 resolves the dual-index README stubs and the
+#: architecture landing page (they leave the tree there). The ADR era ``index.md``
+#: pages ARE migrated: their table rows are bot-owned, their frontmatter is not
+#: (``scripts/ci/check_generated_docs_untouched.py`` refuses only new table rows).
 _SKIPPED_FILES: Final[frozenset[str]] = frozenset({"adr/1.x/README.md", "adr/2.x/README.md", "adr/3.x/README.md", "architecture/README.md"})
 _SKIPPED_FOLDERS: Final[tuple[str, ...]] = ("changelog/unreleased/",)
 
@@ -392,8 +394,9 @@ def _check_integrity(rel: str, old: Mapping[str, Any], new: Mapping[str, Any], i
             raise MigrationIntegrityError(f"{rel}: frontmatter key {key!r} changed")
 
 
-def _is_skipped(rel: str) -> bool:
-    return rel in _SKIPPED_FILES or rel.startswith(_SKIPPED_FOLDERS) or is_generated_surface(f"{_DOCS_PREFIX}{rel}")
+def is_skipped(rel: str) -> bool:
+    """True for a page under ``docs/`` the migration never edits (see :data:`_SKIPPED_FILES`)."""
+    return rel in _SKIPPED_FILES or rel.startswith(_SKIPPED_FOLDERS)
 
 
 def _intended_changes(rel: str, data: Mapping[str, Any], corpus: Corpus, report: MigrationReport) -> dict[str, Any]:
@@ -451,7 +454,7 @@ def migrate_text(rel: str, text: str, corpus: Corpus, report: MigrationReport | 
     """
     report = report if report is not None else MigrationReport()
     parts = split_frontmatter(text)
-    if parts is None or _is_skipped(rel):
+    if parts is None or is_skipped(rel):
         return text
     block, body = parts
     data = parse_frontmatter(text)

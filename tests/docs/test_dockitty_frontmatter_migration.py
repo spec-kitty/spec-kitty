@@ -221,11 +221,18 @@ def test_mixed_line_endings_are_refused(repo: Path) -> None:
 
 @pytest.mark.parametrize(
     "rel",
-    ["adr/1.x/README.md", "architecture/README.md", "changelog/unreleased/1.fixed.md", "adr/4.x/index.md"],
+    ["adr/1.x/README.md", "architecture/README.md", "changelog/unreleased/1.fixed.md"],
 )
 def test_skipped_files_are_never_edited(repo: Path, rel: str) -> None:
     text = f"---\ntitle: S\naudience: {_MAINTAINER}\n---\n"
     assert _migrate(repo, rel, text)[0] == text
+
+
+def test_adr_era_index_frontmatter_is_migrated(repo: Path) -> None:
+    """The era table rows are bot-owned; the page's frontmatter is not, so it is migrated."""
+    out = _migrate(repo, "adr/4.x/index.md", f"---\ntitle: ADRs\naudience: {_MAINTAINER}\n---\n| table |\n")[0]
+    assert parse_frontmatter(out)["audience"][0]["profile"] == "internal/maintainer"
+    assert out.endswith("---\n| table |\n")
 
 
 def test_text_without_frontmatter_is_unchanged(repo: Path) -> None:
