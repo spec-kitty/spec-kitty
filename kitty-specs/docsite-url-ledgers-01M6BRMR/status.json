@@ -63,7 +63,8 @@
       "last_transition_at": "2026-11-01T15:47:03.856212+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Defaults repointed to site/moves.yaml; defaults gate red->green; 183 targeted tests green"
+        "Defaults repointed to site/moves.yaml; defaults gate red->green; 183 targeted tests green",
+        "Approved. Red 872809aa7: gate flags rename_reconcile + bulk_ref_rewrite Mission-map defaults; base redirect_stub_generator joined-path default also caught; 4 positive controls + exclude-prefix negative control. Green: 155 passed, 1 skipped (tests/docs defaults/touched_set/bulk_ref/relative_link + arch remedy/dead-doctrine/archive). rename_reconcile --base origin/main --strict: 0 findings over 298 moves. ruff, C901, format, mypy clean. Low: gate skips function-parameter defaults; ledger-default test reads env-dependent constant."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
