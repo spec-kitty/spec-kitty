@@ -388,6 +388,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_4_0_0rc8_command_skill_hyphen_names",  # #6475: auto-discovered command-skill rename, never statically imported
         "specify_cli.upgrade.migrations.m_4_0_0rc8_retire_antigravity_workflows",  # #6470: auto-discovered workflows archive, never statically imported
         "specify_cli.upgrade.migrations.m_4_0_0rc8_retire_stale_mission_template_forks",  # #5280: auto-discovered stale template repair, never statically imported
+        "specify_cli.upgrade.migrations.m_4_0_0rc8_repair_historical_sweep_overrides",  # #6548: auto-discovered override repair
         # coord-artifact-single-home-01M3V4BE WP11 (FR-009b/#5023): same
         # auto-discovered shape as the m_3_2_6_*/m_3_2_7_* merge-driver
         # migrations above -- never statically imported, registered via

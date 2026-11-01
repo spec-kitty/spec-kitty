@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "repair-historical-sweep-mission-overrides-01M68ZHQ",
+  "mission_id": "01M68ZHQWFNGBN9E3XANVXBHC4",
+  "mission_branch": "kitty/mission-repair-historical-sweep-mission-overrides-01M68ZHQ",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/runtime/migrate.py",
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc8_repair_historical_sweep_overrides.py",
+        "src/specify_cli/upgrade/migrations/order_manifest.txt",
+        "tests/architectural/test_mutation_ownership_routing.py",
+        "tests/upgrade/migrations/test_m_4_0_0rc8_repair_historical_sweep_overrides.py",
+        "tests/upgrade/test_migrate_integration.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:43:12.159327+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "dfe9efb0e802f66f6011be3f3dd1cea1e258c7f6"
+}

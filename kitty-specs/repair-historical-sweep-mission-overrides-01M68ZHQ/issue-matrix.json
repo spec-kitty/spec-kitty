@@ -1,0 +1,65 @@
+{
+  "rows": {
+    "#4961": {
+      "evidence_ref": "context reference only: ownership-guard rule that a differing file is preserved, never deleted",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#5101": {
+      "evidence_ref": "context reference only: the open duplicated byte-identity decision the issue's suggested fix points at; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#5280": {
+      "evidence_ref": "context reference only: the shipped sibling repair (15 documentation/research fork names) this mission completes",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#5450": {
+      "evidence_ref": "context reference only: CUSTOMIZED-move occupancy refusal; context only, this mission moves nothing",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#6548": {
+      "evidence_ref": "Reproduced on the baseline and repaired: 4.0.0rc8_repair_historical_sweep_overrides removes a byte-identical historical override and names a differing one; tests/upgrade/migrations/test_m_4_0_0rc8_repair_historical_sweep_overrides.py (15 tests, red-first at the CLI) and the shared shipped_mission_counterpart helper (#6548's first acceptance item stays green).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

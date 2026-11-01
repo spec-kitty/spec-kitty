@@ -663,6 +663,10 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
         # guard_destructive_removal (known-fork hash proof) and replaced only
         # after guard_destructive_overwrite proves the same.
         "upgrade/migrations/m_4_0_0rc8_retire_stale_mission_template_forks.py",
+        # #6548: a historical sweep-created mission override is removed through
+        # guard_destructive_removal only when its bytes are proven equal to the
+        # shipped counterpart; a differing one is preserved and named.
+        "upgrade/migrations/m_4_0_0rc8_repair_historical_sweep_overrides.py",
     }
 )
 
