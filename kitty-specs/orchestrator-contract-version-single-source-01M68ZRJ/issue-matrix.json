@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6578": {
+      "evidence_ref": "mission orchestrator-contract-version-single-source-01M68ZRJ: origin-freshness tests read envelope.CONTRACT_VERSION; guard test_only_this_module_spells_a_contract_version is RED on dfe9efb0e8 and GREEN at HEAD",
+      "fr": "FR-001, FR-002, FR-005",
+      "nfr": "NFR-001, NFR-002, NFR-003",
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-001, SC-002, SC-004",
+      "scope": "Replace the local contract-version literal in tests/orchestrator_api/test_origin_freshness_envelopes.py with the exported envelope.CONTRACT_VERSION, and add a fast guard so no other test module can re-introduce a literal pin.",
+      "source_file": "spec.md",
+      "title": "test(orchestrator_api): origin-freshness envelope tests pin contract_version 1.14.0 while the envelope has moved",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

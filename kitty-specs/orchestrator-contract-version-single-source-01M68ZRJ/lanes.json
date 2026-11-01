@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "orchestrator-contract-version-single-source-01M68ZRJ",
+  "mission_id": "01M68ZRJ6SQNMPE3Q05YF3AGZ2",
+  "mission_branch": "kitty/mission-orchestrator-contract-version-single-source-01M68ZRJ",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/orchestrator_api/test_origin_freshness_envelopes.py",
+        "tests/specify_cli/orchestrator_api/test_contract_version.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:47:37.422325+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "dfe9efb0e802f66f6011be3f3dd1cea1e258c7f6"
+}
