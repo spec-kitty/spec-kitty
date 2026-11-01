@@ -242,3 +242,15 @@ def test_a_subdirectory_is_reported_not_crashed_on(tmp_path: Path) -> None:
 
     assert [path.name for path in fragment_paths(directory)] == ["1.fixed.md"]
     assert any("subdirectories" in problem for problem in fragment_problems(directory))
+
+
+def test_assemble_without_today_stamps_the_current_utc_date(tmp_path: Path) -> None:
+    import re
+
+    directory = _fragment_dir(tmp_path)
+    changelog = _write(tmp_path, "CHANGELOG.md", _CHANGELOG)
+
+    assert main(["assemble", "--write", "--changelog", str(changelog), "--fragments", str(directory)]) == 0
+
+    stamped = re.search(r"^updated: '(\d{4}-\d{2}-\d{2})'$", changelog.read_text(encoding="utf-8"), re.MULTILINE)
+    assert stamped is not None and stamped.group(1) != "2026-10-31"
