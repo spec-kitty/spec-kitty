@@ -29,7 +29,6 @@ from charter.activation.synthesizer.manifest import (
     manifest_slugs,
     read_created_record,
     sidecar_artifact_urn,
-    synthesized_ids,
     synthesized_urns,
 )
 from charter.activation.synthesizer.path_guard import PathGuard
@@ -140,11 +139,12 @@ def test_returns_only_the_requested_kind(tmp_path: Path, guard: PathGuard) -> No
     assert synthesized_urns(tmp_path, "styleguide") == frozenset()
 
 
-def test_synthesized_ids_are_the_urn_id_segment(tmp_path: Path, guard: PathGuard) -> None:
+def test_the_urn_carries_the_directive_id_not_the_manifest_slug(tmp_path: Path, guard: PathGuard) -> None:
+    """The manifest slug is the file stem; the owned id comes from the sidecar's URN."""
     _write_manifest(tmp_path, guard, [_entry("directive", "project-intent-directive")])
     _write_sidecar(tmp_path, guard, _sidecar("directive", "project-intent-directive", "directive:PROJECT_001"))
 
-    assert synthesized_ids(tmp_path, "directive") == frozenset({"PROJECT_001"})
+    assert synthesized_urns(tmp_path, "directive") == frozenset({"directive:PROJECT_001"})
 
 
 def test_direct_write_registration_is_not_ownership(tmp_path: Path, guard: PathGuard) -> None:
@@ -462,6 +462,6 @@ def test_the_error_is_the_documented_code() -> None:
 def test_the_reader_and_the_error_are_public(monkeypatch: pytest.MonkeyPatch) -> None:
     from charter.activation.synthesizer import manifest
 
-    for name in ("synthesized_urns", "synthesized_ids", "sidecar_artifact_urn", "manifest_slugs"):
+    for name in ("synthesized_urns", "sidecar_artifact_urn", "manifest_slugs"):
         assert name in manifest.__all__, name
     assert read_created_record is manifest.read_created_record

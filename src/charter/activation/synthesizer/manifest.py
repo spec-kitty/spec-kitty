@@ -421,7 +421,7 @@ class UnreadableCreatedRecordError(ValueError):
         self.path = path
 
 
-def created_record_key(kind: str) -> str:
+def _created_record_key(kind: str) -> str:
     """The created-artifacts record's key for *kind* (``created_tactics``, ...)."""
     return f"created_{ArtifactKind(kind).plural}"
 
@@ -464,16 +464,16 @@ def read_created_record(repo_root: Path) -> tuple[dict[str, set[str]], dict[str,
     legacy_path = repo_root / LEGACY_CREATED_ARTIFACTS_PATH
     legacy = _load_record_file(legacy_path)
     kinds = _record_kinds()
-    recorded = {kind: _ids_under(data, created_record_key(kind), path) for kind in kinds}
-    recorded["tactic"] |= _ids_under(legacy, created_record_key("tactic"), legacy_path)
-    foreign = {key: value for key, value in data.items() if key not in {created_record_key(kind) for kind in kinds}}
+    recorded = {kind: _ids_under(data, _created_record_key(kind), path) for kind in kinds}
+    recorded["tactic"] |= _ids_under(legacy, _created_record_key("tactic"), legacy_path)
+    foreign = {key: value for key, value in data.items() if key not in {_created_record_key(kind) for kind in kinds}}
     return recorded, foreign
 
 
 def write_created_record(repo_root: Path, recorded: Mapping[str, set[str]], foreign: Mapping[str, Any]) -> None:
     """Write the created-artifacts record, preserving keys this module does not own (format unchanged)."""
     kinds = _record_kinds()
-    body = {**{created_record_key(kind): sorted(recorded[kind]) for kind in kinds}, **foreign}
+    body = {**{_created_record_key(kind): sorted(recorded[kind]) for kind in kinds}, **foreign}
     stream = StringIO()
     YAML().dump(body, stream)
     atomic_write(repo_root / CREATED_ARTIFACTS_PATH, f"{_CREATED_ARTIFACTS_HEADER}{stream.getvalue()}", mkdir=True)
@@ -583,7 +583,7 @@ def _membership_error(
     )
 
 
-def recorded_ids(repo_root: Path, kind: str) -> set[str] | None:
+def _recorded_ids(repo_root: Path, kind: str) -> set[str] | None:
     """The created-artifacts record's ids of *kind*; ``None`` when it cannot say.
 
     ``None`` means the record cannot be read, or does not track *kind* at all (only the
@@ -694,21 +694,11 @@ def synthesized_urns(repo_root: Path, kind: str) -> frozenset[str]:
             # record remembers what synthesis created, so it decides (an unreadable
             # record keeps the artifact owned: fail closed for delivery gating).
             if recorded_ids_of_kind is None and not record_read:
-                recorded_ids_of_kind = recorded_ids(repo_root, kind)
+                recorded_ids_of_kind = _recorded_ids(repo_root, kind)
                 record_read = True
             if recorded_ids_of_kind is None or entry.slug in recorded_ids_of_kind:
                 owned.add(f"{kind}:{entry.slug}")
     return frozenset(owned)
-
-
-def synthesized_ids(repo_root: Path, kind: str) -> frozenset[str]:
-    """The id segment of :func:`synthesized_urns` for *kind* (e.g. ``how-we-apply-directive-024``).
-
-    An id, not a slug: a directive's id (``PROJECT_001``) differs from its manifest slug
-    (the file stem), which is exactly the conflation this reader exists to remove.
-    """
-    prefix = f"{kind}:"
-    return frozenset(urn[len(prefix) :] for urn in synthesized_urns(repo_root, kind))
 
 
 def manifest_slugs(repo_root: Path, kind: str) -> frozenset[str]:
@@ -832,16 +822,15 @@ def absorb_synthesis_manifest(manifest: SynthesisManifest) -> PackManifest:
     )
 
 
+#: The public surface of the record module. ``CREATED_ARTIFACTS_PATH`` and
+#: ``LEGACY_CREATED_ARTIFACTS_PATH`` are module constants, not exports: the record IO
+#: (:func:`read_created_record`, :func:`write_created_record`) is the cross-module seam.
 __all__ = [
     "ManifestArtifactEntry",
     "SynthesisManifest",
     "MANIFEST_PATH",
-    "CREATED_ARTIFACTS_PATH",
-    "LEGACY_CREATED_ARTIFACTS_PATH",
     "UnreadableCreatedRecordError",
-    "created_record_key",
     "read_created_record",
-    "recorded_ids",
     "write_created_record",
     "dump_yaml",
     "load_yaml",
@@ -853,7 +842,6 @@ __all__ = [
     "project_directive_ids",
     "sidecar_artifact_urn",
     "synthesized_urns",
-    "synthesized_ids",
     "manifest_slugs",
     "synthesis_owned_directive_ids",
 ]

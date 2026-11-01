@@ -39,7 +39,7 @@ from charter.activation.synthesizer.manifest import (
     UnreadableCreatedRecordError,
     manifest_slugs,
     read_created_record,
-    synthesized_ids,
+    synthesized_urns,
     write_created_record,
 )
 from charter.activation.synthesizer.reconcile import REACH_ONLY_KINDS, ReconciliationDelta, is_synthesized_source_edge
@@ -94,8 +94,7 @@ def reach_only_ids(repo_root: Path, kind: str) -> frozenset[str]:
     candidates = {edge.target for edge in graph.edges if is_synthesized_source_edge(edge) and edge.target in node_urns}
     if not candidates:
         return frozenset()  # the manifest is read only when an edge could make something reach-only
-    registered = {f"{prefix}{slug}" for slug in synthesized_ids(repo_root, kind)}
-    reached = candidates & registered
+    reached = candidates & synthesized_urns(repo_root, kind)
     if not reached:
         return frozenset()
     org_required = set(read_org_required_ids(repo_root, ArtifactKind(kind)))
