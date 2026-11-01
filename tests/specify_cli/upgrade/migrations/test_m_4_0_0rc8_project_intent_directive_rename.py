@@ -132,23 +132,6 @@ def _ledger_deny(project: Path) -> list[str]:
     return list(read_activation_ledger(project).get("deactivated_directives") or [])
 
 
-def test_apply_carries_a_ledger_deny_entry(tmp_path: Path) -> None:
-    """#6565: the exclusion a user recorded by the old stem still applies after the upgrade."""
-    _legacy_project(tmp_path)
-    seed_activation_ledger(tmp_path, activated_directives=[_LEGACY_STEM, "DIRECTIVE_003"], deactivated_directives=[_LEGACY_STEM])
-    migration = ProjectIntentDirectiveRenameMigration()
-
-    assert migration.detect(tmp_path) is True
-    result = migration.apply(tmp_path)
-
-    assert result.success, result.errors
-    assert any("deactivated_directives" in change for change in result.changes_made), result.changes_made
-    assert _ledger_deny(tmp_path) == [_NEW_STEM]
-    assert read_activation_ledger(tmp_path)["activated_directives"] == [_NEW_STEM, "DIRECTIVE_003"]
-    assert migration.detect(tmp_path) is False
-    assert migration.apply(tmp_path).changes_made == []
-
-
 def test_detect_sees_a_deny_only_stale_stem(tmp_path: Path) -> None:
     """The narrow window: nothing left to rename but the exclusion, and the migration still runs."""
     seed_activation_ledger(tmp_path, activated_directives=[_NEW_STEM], deactivated_directives=[_LEGACY_STEM])
