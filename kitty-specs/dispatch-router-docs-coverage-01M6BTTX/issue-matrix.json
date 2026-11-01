@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#3840": {
+      "evidence_ref": "context reference only; landed in mission wp2-3840",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4114": {
+      "evidence_ref": "context reference only; landed in mission empty-catalog suggestion work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6970": {
+      "evidence_ref": "mission dispatch-router-docs-coverage-01M6BTTX",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
