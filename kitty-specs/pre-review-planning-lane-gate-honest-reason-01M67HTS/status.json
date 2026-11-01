@@ -1,0 +1,90 @@
+{
+  "event_count": 16,
+  "last_event_id": "01M67RKP5XWBNHF2GH03543GZB",
+  "materialized_at": "2026-10-31T01:18:58.237475+00:00",
+  "mission_number": "244",
+  "mission_slug": "pre-review-planning-lane-gate-honest-reason-01M67HTS",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67RKMT9GBN86E40Z381Y8FY",
+      "last_transition_at": "2026-10-31T01:18:56.841794+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T00:22:06Z – python-pedro – shell_pid=834136 – T001 survey: the empty-diff arm is the sole producer of the string; planning-lane identity already has two seams (WorkProductKind.PLANNING_ARTIFACT, lanes.compute.is_planning_lane). T002/T003 RED evidence: production move-task on a real git fixture (HEAD = target branch, WP09 committed two docs files) recorded 'no changed files detected for this WP — skipping the gate cheaply'. T004 fix selects the empty-diff reason through those seams (declared execution_mode first, lanes.json fallback, corrupt/absent manifest degrades to the incumbent wording). Out-of-map edit: src/specify_cli/cli/commands/agent/tasks_move_task.py gained the four identity re-exports the seam-pin gate (test_tasks_move_task_seams) requires for new callables in tasks_move_task_gates; no behaviour there. T005: new module 3 passed; three neighbouring pre-review gate modules 51 passed, 2 skipped; tests/review 654 passed, 8 skipped. T006: ruff check + format clean, mypy --strict clean on the gates module.",
+        "Ready for review: red-first repro + scoped fix + control arm; targeted runs recorded",
+        "Review passed (checklist-driven second pass, self-review fallback recorded): dead code none; the fixture drives the real move-task path; silent-return probes documented; FR-001/FR-003/FR-004 asserted and FR-002 ordering asserted by the declared-mode control; no frozen surface touched; tasks_move_task.py re-export recorded as a REASONS deviation; no new raise. #2741 deferred to #6851; #3046 not-applicable; #6792 fixed by this mission. Tests: new module 4 passed; neighbours 51 passed/2 skipped; tests/review 654 passed/8 skipped; agent command dir green after make sync-packs; ruff + mypy --strict clean. Cycle-1 findings fixed in e00c31b6.",
+        "Re-review after cycle 2 + doc clarification commits",
+        "Review passed (independent reviewer: reviewer-renata subagent thread; cycle 1 APPROVE + 4 findings, cycle 2 re-check APPROVE with 2 low findings, both fixed in 6c89ffd9/e90df83b). Cycle 1: import order, probe-failure breadth (ValueError), declared-mode control test. Cycle 2: fallback now also requires the manifest kind view so single_branch code WPs keep the incumbent wording, fallback positive-branch test, reason pinned by lead sentence, human-mode arm, planning_artifact_wps docstring correction. Tests: new module 7 passed; neighbours + seams + compat surface 372 passed/2 skipped; lanes 198 passed/1 skipped; tests/review 654 passed/8 skipped; agent command dir green after make sync-packs; ruff + mypy --strict clean. Out-of-map edits (re-export block, two comment fixes) recorded as REASONS deviations."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261031",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 834136,
+      "shell_pid_created_at": "1793402704.23",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "curator-carla",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "python-pedro",
+      "lane": "done",
+      "last_event_id": "01M67RKP5XWBNHF2GH03543GZB",
+      "last_transition_at": "2026-10-31T01:18:58.237475+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "- 2026-10-31T01:09:54Z – python-pedro – shell_pid=2682197 – T007/T008 done: [Unreleased] changelog entry with before/after and the unchanged limitation, plus a review-gates.md blockquote next to the inherited-limitation note recording the planning-lane reason, the classification order (declared execution_mode, then the lanes.json kind view) and the degrade-to-incumbent rule. T009: check_docs_freshness --ci exit=0 findings=12 errors=0 warnings=12 (pre-existing link-health warnings only); test_no_legacy_terminology 98 passed. No new doc page, so no index regeneration.",
+        "Ready for review: changelog [Unreleased] entry + review-gates planning-lane paragraph; docs freshness errors=0",
+        "- 2026-10-31T01:16:26Z – python-pedro – shell_pid=2682197 – Review cycle 1 (independent, curator-carla): APPROVE with 2 low findings, both fixed in the follow-up docs commit — the changelog Before record now quotes the shipped incumbent reason in full (outcome no_coverage + reason), and review-gates.md states both lanes.json conditions (lane membership AND the planning_artifact_wps kind view). Entry now 924 chars; freshness errors=0.",
+        "Review passed (independent reviewer: curator-carla subagent thread, APPROVE with 2 low findings, both fixed). Changelog Before record quotes the shipped incumbent reason; review-gates states both lanes.json conditions. Freshness errors=0; terminology gate 98 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261031",
+        "reviewer": "curator-carla",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2682197,
+      "shell_pid_created_at": "1793408671.62",
+      "subtasks": {
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    }
+  }
+}

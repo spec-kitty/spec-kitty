@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#2741": {
+      "evidence_ref": "#6851",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#3046": {
+      "evidence_ref": "different facet (#3046: advisory timeout/budget); out of scope per spec.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6792": {
+      "evidence_ref": "PR #6863 (branch issue-6792-planning-lane-gate-honest-reason); reason selected in tasks_move_task_gates._mt_empty_changed_files_reason, covered by tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_planning_lane_reason.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
