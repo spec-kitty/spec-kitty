@@ -91,8 +91,8 @@ paused. A fleet push to a paused PR now costs three quick gate jobs.
 
 - **Why the queue clogs.** An external contributor fleet rebases and force-pushes dozens of open
   PRs every time `main` moves. Each push queues the full PR matrix: CI Router, CI Modules (about
-  60 jobs), CI Quality, Packs, Contracts, ci-windows, Release Readiness and more. Every GitHub PR
-  merge to `main` starts a new wave.
+  60 jobs), CI Quality, Packs, Contracts, ci-windows, Release Readiness and more.
+  A PR that lands on `main` starts a new wave.
 - **Why the label stops it.** Under `pr:pause-ci` the root job of each PR workflow skips, so the
   heavy jobs skip. The three required gates still run and fail with a message, so the PR cannot be
   merged on GitHub while paused. On `labeled`, a small `pull_request_target` workflow cancels the
