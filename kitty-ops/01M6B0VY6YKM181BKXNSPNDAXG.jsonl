@@ -1,0 +1,4 @@
+{"event": "started", "invocation_id": "01M6B0VY6YKM181BKXNSPNDAXG", "profile_id": "python-pedro", "action": "generate", "request_text": "Change 2 of the landing-bottleneck brief: stop committing the generated docs retrieval index in PRs", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "d30e238a1bce52be", "governance_context_available": true, "started_at": "2026-11-01T07:41:06.225865+00:00", "model_id": "claude-sonnet-5"}
+{"event": "completed", "invocation_id": "01M6B0VY6YKM181BKXNSPNDAXG", "completed_at": "2026-11-01T10:26:55.893662+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "artifact_link", "invocation_id": "01M6B0VY6YKM181BKXNSPNDAXG", "at": "2026-11-01T10:26:55.899401+00:00", "kind": "artifact", "ref": "docs/changelog/unreleased/6993.internal.md"}
+{"event": "commit_link", "invocation_id": "01M6B0VY6YKM181BKXNSPNDAXG", "at": "2026-11-01T10:26:55.900587+00:00", "sha": "43d50262c361ba4fc4e1d9215a12b9784b9d6ec7"}
