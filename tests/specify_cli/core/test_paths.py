@@ -120,3 +120,60 @@ def test_c003_real_kittify_resolves_same_with_and_without_env(
     with_env = locate_project_root(start=project)
 
     assert without_env == with_env == project.resolve()
+
+
+# ---------------------------------------------------------------------------
+# GIT_CEILING_DIRECTORIES (#7022): the project walk stops where git's does
+# ---------------------------------------------------------------------------
+
+
+def _ambient_repo_with_sandbox(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """An ambient git checkout with a ceiling dir and a bare sandbox below it."""
+    ambient = tmp_path / "ambient"
+    _init_git_repo(ambient)
+    # A real ``HEAD``: the walk treats an empty ``.git`` dir as no checkout at all.
+    (ambient / ".git" / "HEAD").write_text("ref: refs/heads/main\n", encoding="utf-8")
+    ceiling = ambient / "tmp"
+    sandbox = ceiling / "sandbox" / "outside-project"
+    sandbox.mkdir(parents=True)
+    return ambient, ceiling, sandbox
+
+
+def test_walk_does_not_climb_above_a_git_ceiling(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#7022: a dir below a ceiling is not inside the checkout above it.
+
+    ``resolve_canonical_root`` already honors ``GIT_CEILING_DIRECTORIES``; the
+    project walk must agree, or a bare directory below a ceiling reads as a
+    project that git itself says does not exist.
+    """
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+    ambient, ceiling, sandbox = _ambient_repo_with_sandbox(tmp_path)
+
+    # Non-vacuity: without the ceiling the walk finds the ambient checkout.
+    monkeypatch.delenv("GIT_CEILING_DIRECTORIES", raising=False)
+    assert locate_project_root(start=sandbox) == ambient.resolve()
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
+    assert locate_project_root(start=sandbox) is None
+
+
+def test_a_project_below_the_ceiling_is_still_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The ceiling bounds the walk; it does not hide a project inside it."""
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+    _ambient, ceiling, sandbox = _ambient_repo_with_sandbox(tmp_path)
+    (sandbox / KITTIFY_DIR).mkdir()
+    deep = sandbox / "kitty-specs" / "demo"
+    deep.mkdir(parents=True)
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
+    assert locate_project_root(start=deep) == sandbox.resolve()
+
+
+def test_a_project_at_the_ceiling_itself_is_still_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same ceiling semantics as ``resolve_canonical_root``: the listed dir is eligible."""
+    monkeypatch.delenv("SPECIFY_REPO_ROOT", raising=False)
+    _ambient, ceiling, sandbox = _ambient_repo_with_sandbox(tmp_path)
+    (ceiling / KITTIFY_DIR).mkdir()
+
+    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(ceiling))
+    assert locate_project_root(start=sandbox) == ceiling.resolve()
