@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6234": {
+      "evidence_ref": "spec.md FR-001..FR-005: WP01 makes the dry-run heading/marker mode-dependent and re-pins the two dry-run assertions; WP02 documents the wording.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#6547": {
+      "evidence_ref": "Context only (research.md D3): #6547's dry-run selection parity is untouched by this mission, which changes only the heading/marker of the human migration list.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6552": {
+      "evidence_ref": "Precedent only: 53a034ad5c (#6552) added the dry-run-only 'Predicted by an earlier migration in this run' block, which this mission now heads correctly; no work owed to #6552 here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
