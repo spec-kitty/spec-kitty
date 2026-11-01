@@ -49,7 +49,7 @@
       "wp": null
     },
     "#6929": {
-      "evidence_ref": "<auto-classified: no action required>",
+      "evidence_ref": "The Mission's own issue; fixed when WP03/WP04 land",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -57,7 +57,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<auto-classified: context_only>",
-      "verdict": "not-applicable",
+      "verdict": "in-mission",
       "wp": null
     },
     "#6930": {
