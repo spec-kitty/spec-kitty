@@ -700,3 +700,106 @@ def test_top_level_tasks_without_selector_exits_2(
 
     assert result.exit_code == 2, result.output
     assert not isinstance(result.exception, TypeError)
+
+
+# ---------------------------------------------------------------------------
+# #6278: the two Mission-resolution paths must answer the same handle the same way
+# ---------------------------------------------------------------------------
+#
+# ``--mission`` reaches one of two resolvers depending on the command:
+#
+# * the IDENTITY path — ``resolve_mission_handle`` -> ``context.mission_resolver``
+#   (``implement``, ``migrate``, ``issue-verdict``, ``acceptance-verdict``, ...);
+# * the READ path — ``resolve_mission_dir_with_bare_modern_fold``, which tries
+#   ``placement_seam(...).read_dir(PRIMARY_METADATA)`` first (``agent status``,
+#   ``agent tasks``, ``accept``, ``reconcile``).
+#
+# #6278 is the drift between them: the identity ladder's human-slug rung stripped
+# only a leading ``NNN-``, so ``smoke-test`` named ``smoke-test-01M6BTQX`` on one
+# path and nothing on the other. These tests pin the whole handle matrix against
+# both paths so the two cannot disagree again.
+
+_PARITY_MISSION_ID = "01M6BTQXBFZMBKVGB8VXBRQW07"
+_PARITY_SLUG = "smoke-test-01M6BTQX"
+
+
+def _seed_parity_missions(repo_root: Path) -> None:
+    """One mid8-composed Mission, one legacy ``NNN-`` Mission, one plain Mission."""
+    (repo_root / ".kittify").mkdir(parents=True, exist_ok=True)
+    for slug, mission_id in (
+        (_PARITY_SLUG, _PARITY_MISSION_ID),
+        ("083-foo-bar", "01AAAAAABFZMBKVGB8VXBRQW07"),
+        ("plain", "01BBBBBBBFZMBKVGB8VXBRQW07"),
+    ):
+        mission_dir = repo_root / "kitty-specs" / slug
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "meta.json").write_text(
+            json.dumps({"mission_id": mission_id, "mission_slug": slug}),
+            encoding="utf-8",
+        )
+
+
+def _identity_dir(handle: str, repo_root: Path) -> Path:
+    from specify_cli.cli.selector_resolution import resolve_mission_handle
+
+    return resolve_mission_handle(handle, repo_root).feature_dir
+
+
+def _read_path_dir(handle: str, repo_root: Path) -> Path:
+    from specify_cli.cli.selector_resolution import resolve_mission_dir_with_bare_modern_fold
+
+    return resolve_mission_dir_with_bare_modern_fold(handle, repo_root)
+
+
+@pytest.mark.parametrize(
+    "handle,expected_slug",
+    [
+        # The reported defect: the human slug of a mid8-composed Mission.
+        ("smoke-test", _PARITY_SLUG),
+        (_PARITY_SLUG, _PARITY_SLUG),
+        ("01M6BTQX", _PARITY_SLUG),
+        # A legacy NNN- Mission answers to all three of its historical forms.
+        ("083-foo-bar", "083-foo-bar"),
+        ("foo-bar", "083-foo-bar"),
+        ("01AAAAAA", "083-foo-bar"),
+        # A directory that is literally the handle still wins at the exact rung.
+        ("plain", "plain"),
+    ],
+)
+def test_both_resolution_paths_return_the_same_mission(
+    tmp_path: Path, handle: str, expected_slug: str
+) -> None:
+    _seed_parity_missions(tmp_path)
+    expected = tmp_path / "kitty-specs" / expected_slug
+
+    assert _identity_dir(handle, tmp_path) == expected
+    assert _read_path_dir(handle, tmp_path) == expected
+
+
+def test_both_resolution_paths_refuse_a_shared_human_slug(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Two Missions sharing a human slug: neither path may guess."""
+    _seed_parity_missions(tmp_path)
+    payment_ids = ("01M2TM6J", "01M2TM6M")
+    for mid8 in payment_ids:
+        mission_dir = tmp_path / "kitty-specs" / f"payment-{mid8}"
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "mission_id": f"{mid8}ABCDEFGHJKMNPQRSTV",
+                    "mission_slug": f"payment-{mid8}",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    for resolve in (_identity_dir, _read_path_dir):
+        with pytest.raises(SystemExit) as excinfo:
+            resolve("payment", tmp_path)
+
+        assert excinfo.value.code == 2
+        rendered = capsys.readouterr().err
+        for mid8 in payment_ids:
+            assert f"payment-{mid8}" in rendered
