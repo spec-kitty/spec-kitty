@@ -88,7 +88,7 @@
     },
     "WP03": {
       "actor": "claude",
-      "agent": "claude:opus:reviewer-renata:reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -101,6 +101,7 @@
         "Oracle, mission-status/mission-write contract tests, scenario contract and corpus script read the pinned contract-bundles/contract-tools extras (bundled_schema/bundled_examples/bundled_path_item in _mission_status_payloads; load_contract_tools tools_root; corpus --tools-root). Targeted set: 1804 passed, 5 skipped (pre-existing), also with contracts/ moved aside except fixtures. Live corpus compare vs pinned service-v0.1.0-rc.1: compared 677 Missions: 678 rows equal, 0 rows not equal. Residuals (split-source assertions, port to spec-kitty-events): drift CHANGELOG.md assertion; project 'exactly one of x-source/x-derived' per property (now 'at least one'). ruff/format clean, no new mypy errors."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/events-service-cutover-01M6B0AE/tasks/WP03-oracle-on-bundle/review-cycle-1.md",
         "reference": "review-cycle://events-service-cutover-01M6B0AE/WP03-oracle-on-bundle/review-cycle-1.md",
@@ -108,14 +109,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 24523,
-      "shell_pid_created_at": "1793524659.23",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done"
+        "T011": "planned",
+        "T012": "planned",
+        "T013": "planned",
+        "T014": "planned",
+        "T015": "planned"
       }
     },
     "WP04": {
