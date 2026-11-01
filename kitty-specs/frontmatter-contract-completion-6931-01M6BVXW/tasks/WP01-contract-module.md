@@ -7,6 +7,7 @@ requirement_refs:
 - FR-002
 - NFR-004
 - C-001
+- SC-002
 planning_base_branch: issue-6931-frontmatter-contract
 merge_target_branch: issue-6931-frontmatter-contract
 branch_strategy: Planning artifacts for this mission were generated on issue-6931-frontmatter-contract. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6931-frontmatter-contract unless the human explicitly redirects the landing branch.
