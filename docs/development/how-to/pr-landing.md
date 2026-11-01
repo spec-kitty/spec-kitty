@@ -609,7 +609,9 @@ To resume, remove the label. The same workflow re-runs the runs the pause cancel
 before the label, so they run in full. A run that started while the PR was labeled replays that
 label and pauses again, so if the PR was pushed while labeled, push again (or close and reopen the
 PR by hand) after removing the label. The workflow cannot do that itself: events caused by its own
-token start no workflow runs.
+token start no workflow runs. If the PR's head moved after the label came off (you pushed), the
+re-run is skipped: the new head's runs are current, and re-running the old head's runs would cancel
+them through the shared concurrency group.
 
 For the full queue-recovery sequence, see [Pull the safety cord](unclog-ci.md).
 

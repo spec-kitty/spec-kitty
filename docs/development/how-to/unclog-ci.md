@@ -97,7 +97,7 @@ paused. A fleet push to a paused PR now costs three quick gate jobs.
   heavy jobs skip. The three required gates still run and fail with a message, so the PR cannot be
   merged on GitHub while paused. On `labeled`, a small `pull_request_target` workflow cancels the
   PR's queued and in-progress runs and posts failing gate checks. On `unlabeled` it re-runs the
-  runs it canceled. Details: [Pausing a PR's CI](pr-landing.md#pausing-a-prs-ci-prpause-ci).
+  runs it canceled, unless the PR's head moved since (a push already started fresh runs). Details: [Pausing a PR's CI](pr-landing.md#pausing-a-prs-ci-prpause-ci).
 - **Why test on one PR first.** A broken guard on 80 PRs is 80 PRs to repair.
 - **Why drain.** The pause runs wait in the same queue as everything else. Cancelling the backlog
   lets them start.
