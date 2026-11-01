@@ -154,6 +154,7 @@ def test_owned_commit_names_only_uncommitted_lifecycle_records(tmp_path: Path, m
     fresh = records / "01ARZ3NDEKTSV4RRFFQ69G5FB1.json"
     fresh.write_text("{}\n", encoding="utf-8")
     (records / "notes.txt").write_text("not a record\n", encoding="utf-8")
+    (records / "01ARZ3NDEKTSV4RRFFQ69G5FB2.json").write_bytes(b"")  # a failed write's stub
     seen: dict[str, object] = {}
 
     def _record(**kwargs: object) -> None:

@@ -35,8 +35,19 @@ def test_journal_refuses_a_torn_tail(tmp_path: Path) -> None:
     assert journal.read_bytes() == _TORN
 
 
-def test_next_pairing_warns_and_continues_on_a_refused_append(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-    """Review finding 9: a torn ``lifecycle.jsonl`` must not fail ``spec-kitty next --result``."""
+@pytest.mark.parametrize(
+    "error",
+    [
+        EventLogTornTailError("torn"),
+        # #7003: a non-directory at ``kitty-ops/lifecycle`` or an unwritable one is a plain OSError.
+        FileExistsError("kitty-ops/lifecycle is a file"),
+        PermissionError("kitty-ops/lifecycle is read-only"),
+    ],
+)
+def test_next_pairing_warns_and_continues_on_a_refused_append(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture, error: OSError
+) -> None:
+    """Review finding 9: a refused or failed lifecycle write must not fail ``spec-kitty next --result``."""
     import runtime.next.next_invocation_lifecycle as next_lifecycle
     import specify_cli.mission_metadata as mission_metadata
 
@@ -48,7 +59,7 @@ def test_next_pairing_warns_and_continues_on_a_refused_append(monkeypatch: pytes
             return type("A", (), {"read_dir": tmp_path})()
 
     def _refuse(*_args: object, **_kwargs: object) -> None:
-        raise EventLogTornTailError("torn")
+        raise error
 
     monkeypatch.setattr(next_lifecycle, "mission_context_for", lambda *_a: _Context())
     monkeypatch.setattr(mission_metadata, "resolve_mission_identity", lambda _d: _Identity())
