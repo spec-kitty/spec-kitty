@@ -257,9 +257,11 @@ include = [
     "pins/**",
     "hatch_build.py",
     "src/charter/offering/curation/imports/**/*",
-    "README.md",
+    # Anchored with a leading `/` (#6926): patterns are gitignore-style, so a bare `README.md` matched at any
+    # depth and shipped every nested README of docs/, kitty-specs/, tests/ and scripts/. CHANGELOG.md is
+    # force-included below, never matched here.
+    "/README.md",
     "LICENSE",
-    "CHANGELOG.md",
     "pyproject.toml",
 ]
 exclude = [
@@ -276,15 +278,24 @@ exclude = [
     # and shipped them in the sdist. tests/cross_cutting/packaging/test_packaging_safety.py reads the built archive for this.
     "services/**",
     "contracts/**",
-    # The bare `README.md` include above also matches packs/internal/README.md; the
-    # maintainer-only internal pack must never ship (C-002).
+    # The maintainer-only internal pack must never ship (C-002). Kept as defense in depth: the `/README.md`
+    # include above is root-anchored now (#6926) and no longer matches packs/internal/README.md.
     "packs/internal/**",
     "packs/internal.source.yaml",
     # The optional spec-kitty-services companion is its own distribution, built by
-    # scripts/build_services_wheel.py; the bare `README.md` include above would otherwise ship
-    # its README in the CLI sdist (#6904).
+    # scripts/build_services_wheel.py, so none of its tree ships in the CLI sdist (#6904); the root-anchored
+    # `/README.md` include above no longer matches its README either.
     "packages/**",
+    # The doc-kitty docsite source and build output (ADR 2026-10-31-1 D-12) never ship.
+    "site/**",
 ]
+
+# The repository's CHANGELOG.md is a symlink into docs/changelog/, which no longer ships (#6926), so the sdist carries
+# the real file at its root instead of a dangling link. tests/cross_cutting/packaging/test_packaging_safety.py checks it.
+# Known limitation: hatchling refuses a missing force-include source, so an sdist cannot be rebuilt from an unpacked
+# sdist. Building a wheel from the sdist (the supported path, test_sdist_offline_wheel.py) never reads this table.
+[tool.hatch.build.targets.sdist.force-include]
+"docs/changelog/CHANGELOG.md" = "CHANGELOG.md"
 
 # The optional spec-kitty-services companion (#6904; ADR 2026-10-29-1, Amendment 2026-10-31) is a
 # first-party uv workspace member, so the exact `services` extra locks: the companion of version X
