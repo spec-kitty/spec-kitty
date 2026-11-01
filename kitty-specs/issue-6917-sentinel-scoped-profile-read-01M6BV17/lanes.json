@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "mission_slug": "issue-6917-sentinel-scoped-profile-read-01M6BV17",
+  "mission_id": "01M6BV17AX1BV04ZMDHAHDT5A0",
+  "mission_branch": "issue-6917-sentinel-scoped-profile-read",
+  "target_branch": "issue-6917-sentinel-scoped-profile-read",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/architecture/profile-load-reliability.md",
+        "docs/changelog/CHANGELOG.md",
+        "kitty-specs/issue-6917-sentinel-scoped-profile-read-01M6BV17/**",
+        "src/charter/activation/active_charter_service_builder.py",
+        "src/charter/activation/resolver.py",
+        "src/charter/offering/agent_profiles/repository.py",
+        "src/charter/offering/service.py",
+        "src/specify_cli/cli/commands/agent/tasks_status_cmd.py",
+        "tests/charter/test_agent_profile_scoped_load.py",
+        "tests/charter/test_tasks_status_sentinel_scope_6917.py",
+        "tests/charter_offering/test_human_in_charge_profile.py",
+        "tests/specify_cli/charter_runtime/test_cli_readers_honour_deny.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-11-01T15:21:57.184650+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP03"
+  ],
+  "planning_commit_sha": "9f17c1979de30b85075845de9611feb14511c9df"
+}
