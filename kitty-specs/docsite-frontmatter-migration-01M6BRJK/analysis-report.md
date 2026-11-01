@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: docsite-frontmatter-migration-01M6BRJK
 mission_id: 01M6BRJK82753H4QXJBGCYVQ12
-generated_at: '2026-11-01T14:47:37.505425+00:00'
+generated_at: '2026-11-01T15:50:44.219160+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
     path: kitty-specs/docsite-frontmatter-migration-01M6BRJK/spec.md
-    sha256: ad1fdb3c23983cc663f1295a449d90e151eaae3975a3b64994d694a12bda5299
+    sha256: 88af08bfed3b4006e4307d8aaaa88c767fc174e2d7ac52296df7c332229f4ce9
   plan.md:
     path: kitty-specs/docsite-frontmatter-migration-01M6BRJK/plan.md
     sha256: 198ade32b3725a3ed36f6295ed58818a059c92181e43a596439bbb5000765153
@@ -21,63 +21,39 @@ input_artifacts:
     sha256: 83874f7451d21cf0615682164d7bb883844ee032e7622bb1359a343fd0e6fb03
 verdict: ready
 issue_counts:
+  critical: 0
   low: 2
   high: 0
-  critical: 0
   medium: 2
   info: 0
 findings:
 - id: I1
   severity: medium
   category: inconsistency
-  summary: FR-001 says the body hash compares the base and the working tree; research R-5 and WP01 T001 compare a file before and after the migration in memory, with --verify-against covering the base comparison.
+  summary: FR-001 says the body hash compares the base and the working tree; research R-5 and WP01 compare before/after the migration in memory, with --verify-against covering the base comparison.
 - id: C1
   severity: medium
   category: coverage
-  summary: NFR-002 (docs query unchanged for 3 sample queries) has no explicit task; WP03 T015 runs the docs tests but no before/after query comparison.
-- id: U1
+  summary: NFR-002 (docs query unchanged) has no explicit task; fold into WP03 T015 as a before/after query comparison.
+- id: I2
   severity: low
-  category: underspecification
-  summary: WP01 T001 leaves the test marker choice open ('architectural? No ... check neighbours').
+  category: inconsistency
+  summary: WP03 T011's shape-test wording predates the FR-006/FR-009 amendment (source-aware related rule); implement the amended FR-009.
 - id: G1
   severity: low
   category: process
-  summary: CLI auto-commits (scaffold, plan, tasks, status) lack the operator-required Co-Authored-By trailer; to be fixed in history compaction before the PR.
+  summary: CLI auto-commits lack the operator-required Co-Authored-By trailer; fix during compaction.
 ---
 
-## Specification Analysis Report
+## Specification Analysis Report (re-run after the FR-006/FR-009 amendment)
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
-| I1 | Inconsistency | MEDIUM | spec.md FR-001; research.md R-5; tasks/WP01 T001 | Body-hash comparison point differs between spec and design | Implement per R-5 (in-memory before/after over the real corpus, plus `--verify-against origin/main` recorded in the PR); state the reading in the PR. R-5 records why a permanent git comparison is wrong (it would fail later legitimate ADR amendments). |
-| C1 | Coverage | MEDIUM | spec.md NFR-002; tasks/WP03 T015 | No explicit before/after `docs query` comparison | During WP03 T015, run 3 `spec-kitty docs query` samples on the base and branch and diff them. |
-| U1 | Underspecification | LOW | tasks/WP01 T001 | Marker choice left open | Match neighbouring `tests/docs/` fast tests. |
-| G1 | Process | LOW | git history | CLI commits lack the co-author trailer | Fix during compaction. |
+| I1 | Inconsistency | MEDIUM | spec.md FR-001; research.md R-5 | Body-hash comparison point | Implemented per R-5; state it in the PR. |
+| C1 | Coverage | MEDIUM | spec.md NFR-002; WP03 T015 | No explicit docs-query comparison | Compare 3 queries before/after in WP03. |
+| I2 | Inconsistency | LOW | tasks/WP03 T011 vs spec FR-009 | Shape-test wording predates the amendment | Follow FR-009 as amended (DM 01M6BW2S981SKQWXKCBNQD8RBW). |
+| G1 | Process | LOW | git history | Missing co-author trailer on CLI commits | Fix in compaction. |
 
-**Coverage Summary Table:**
+**Coverage:** all 11 FRs, 4 NFRs mapped (NFR-002 partial, C1). **Charter alignment:** no issues. **Metrics:** 15 requirements, 18 tasks, coverage 100%, critical 0.
 
-| Requirement Key | Has Task? | Task IDs | Notes |
-|-----------------|-----------|----------|-------|
-| FR-001 body hash | yes | T001 | see I1 |
-| FR-002 audience shape | yes | T004, T014 | |
-| FR-003 audience readers | yes | T008-T010 | |
-| FR-004 excluded folders | yes | T016-T018 | verified in grounding too |
-| FR-005 related slugs | yes | T006, T014 | |
-| FR-006 external refs | yes | T006, T014 | |
-| FR-007 related reader | yes | T012, T013 | |
-| FR-008 ADR fields | yes | T005, T014 | |
-| FR-009 shape invariant | yes | T011 | |
-| FR-010 re-runnable | yes | T007 | |
-| FR-011 build | yes | T016-T018 | |
-| NFR-001 frontmatter-only | yes | T001, T015 | |
-| NFR-002 docs query | partial | T015 | see C1 |
-| NFR-003 fast checks | yes | T001, T011 | |
-| NFR-004 quality | yes | all code WPs | |
-
-**Charter Alignment Issues:** none. ATDD-first is planned per WP; single canonical authority via the contract module; no heavy suites.
-
-**Unmapped Tasks:** none.
-
-**Metrics:** 15 requirements (11 FR, 4 NFR) + 5 constraints; 18 tasks; coverage 100% (NFR-002 partial); ambiguity 1; duplication 0; critical 0.
-
-**Next Actions:** proceed to implementation; fold I1/C1 into WP execution as noted.
+**Next Actions:** proceed with WP02.
