@@ -477,3 +477,11 @@ The rationale above says the event system "needs only its writer to be present" 
 - The Mission Status Read API is still a detached, read-only service that no spec-kitty command starts.
 
 This record's charter decisions are unchanged.
+
+## Amendment 2026-10-31 (Accepted): the mission-type capability contract joins the frozen seam (#6331)
+
+`charter.offering.api` gains three symbols from the new offering module `charter.offering.missions.capabilities`: `MissionTypeCapabilities` (a frozen value object carrying `wp_driven` and `requires_substantive_spec`), `MissionTypeCapabilitySource` (a runtime-checkable protocol naming those two read properties) and `capabilities_of` (the one read, which fails loud on a source that does not answer both). They are the capability answers #6315 put on `ResolvedMissionType` in `charter.activation.mission_type_profiles`; a consumer that may only import the seam had to reach into that activation module to read them.
+
+**What crosses the seam is the contract, not the resolver.** `resolve_mission_type_context` and `ResolvedMissionType` stay in `charter.activation`. ADR [2026-10-16-1](2026-10-16-1-extract-charter-offering-first-activation-rework-post-ga.md) records the verified dependency direction — offering imports nothing from activation, the reverse edge is heavy — so re-exporting the activation DTO or its resolver from the seam would invert the layer. A consumer holding a resolved bundle reads its capabilities through the seam's value object; the seam never names the resolver's type.
+
+The resolved mission type stays the single producer of the values: `capabilities_of` derives from the object's own attributes and no capability table is copied into the offering tier. `wp_driven` stays advisory where the runtime WP-advance guard reads the frozen DAG (#6330). The census is module-keyed, so `charter.offering.missions.capabilities` is dispositioned `PUBLIC`; `charter.offering.api.__all__` bounds the symbol set, and `tests/charter_offering/test_mission_type_capabilities_seam.py` pins the seam surface, the conformance values and the boundary (importing the module registers no activation module). Core reaches the symbols through the `charter.missions` facade. A conformance-corpus case for the capability contract belongs to epic #6099; `code_producing` joins additively via #6327.

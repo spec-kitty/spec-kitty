@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "mission_slug": "mission-type-capability-offering-seam-01M68ZMR",
+  "mission_id": "01M68ZMRVXAZMAR3WQK35S1BQF",
+  "mission_branch": "issue-6331-mission-type-capability-offering-seam",
+  "target_branch": "issue-6331-mission-type-capability-offering-seam",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md",
+        "docs/changelog/CHANGELOG.md",
+        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/missions.py",
+        "src/charter/offering/api.py",
+        "src/charter/offering/missions/capabilities.py",
+        "tests/architectural/test_doctrine_census.py",
+        "tests/charter_offering/test_mission_type_capabilities_seam.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-31T12:46:20.750322+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "d682ceed4a92a55ec0db3adc696f4e56ec7c0ac0"
+}

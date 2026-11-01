@@ -1,0 +1,104 @@
+schema_version: 1
+mission_id: 01M68ZMRVXAZMAR3WQK35S1BQF
+mission_slug: mission-type-capability-offering-seam-01M68ZMR
+mission_number: 245
+friendly_name: mission type capability offering seam
+mission_type: software-dev
+target_branch: issue-6331-mission-type-capability-offering-seam
+created_at: '2026-10-31T14:09:07.709621+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-31T14:09:07.709621+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-008
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-008
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 1 finding(s)
+  evidence_refs:
+  - e-009
+  details: The analysis-report.md artifact for this mission records 1 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/tasks/WP01-seam-capability-test.md
+- id: e-006
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/tasks/WP02-capability-contract-module.md
+- id: e-007
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/tasks/WP03-gates-record-and-changelog.md
+- id: e-008
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/status.events.jsonl
+- id: e-009
+  kind: file
+  path: kitty-specs/mission-type-capability-offering-seam-01M68ZMR/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

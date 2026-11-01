@@ -150,6 +150,12 @@ DISPOSITION: dict[str, str] = {
     # door exists) — NOT MANAGEMENT, which would widen exemptions.
     "charter.offering.missions.step_projection": "FACADE-ONLY",
     "charter.offering.missions.mission_step_repository": "FACADE-ONLY",
+    # mission-type capability contract (#6331): the two capability answers a resolved
+    # mission type gives, as a frozen value object plus a structural protocol. PUBLIC
+    # because it crosses the frozen offering seam; the symbol set is narrowed by
+    # ``charter.offering.api.__all__`` and pinned by
+    # ``tests/charter_offering/test_mission_type_capabilities_seam.py``.
+    "charter.offering.missions.capabilities": "PUBLIC",
     # model/task routing → new charter.model_routing (symbol-level PUBLIC)
     "charter.offering.model_task_routing": "PUBLIC",
     # language vocabulary → charter.languages (PUBLIC). Module-keyed: the census has no

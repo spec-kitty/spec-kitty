@@ -9,10 +9,17 @@ charter.offering boundary (ADR 2026-03-27-1, tightened by mission
 ``src/specify_cli/`` to reach charter offering artifacts only through such charter
 facades.
 
-Every path re-exported here is dispositioned ``FACADE-ONLY`` in the WP01
+Most paths re-exported here are dispositioned ``FACADE-ONLY`` in the WP01
 census (``tests/architectural/test_doctrine_census.py::DISPOSITION``): a clean
 charter door is preferred over widening ``charter/offering/api.py`` (these types are
 not part of the ``spec-kitty-doctrine`` wheel's public contract).
+
+The mission-type capability contract (``MissionTypeCapabilities``,
+``MissionTypeCapabilitySource``, ``capabilities_of``) is different: it is a
+``PUBLIC`` seam symbol (mission ``mission-type-capability-offering-seam-01M68ZMR``,
+#6331), so it is re-exported **from** ``charter.offering.api`` by object identity —
+the seam's live in-repo caller, exactly as ``charter.languages`` fronts
+``LANGUAGE_TOKENS``.
 
 This file is a **pure re-export** module — no behaviour, no wrappers, no type
 aliases. Object identity is preserved (e.g.
@@ -21,6 +28,11 @@ charter.offering.missions.repository.MissionTemplateRepository``), enforced by
 ``tests/architectural/test_charter_facades_reexport_offering.py``.
 """
 
+from charter.offering.api import (
+    MissionTypeCapabilities,
+    MissionTypeCapabilitySource,
+    capabilities_of,
+)
 from charter.offering.missions.expected_artifact_manifest import (
     ArtifactClassEnum,
     ExpectedArtifactManifest,
@@ -50,8 +62,11 @@ __all__ = [
     "MissionsRootNotFound",
     "MissionStepRepository",
     "MissionTemplateRepository",
+    "MissionTypeCapabilities",
+    "MissionTypeCapabilitySource",
     "MissionTypeRepository",
     "builtin_mission_type_ids",
+    "capabilities_of",
     "project_artifact_name_set",
     "project_template_set",
     "resolve_layered_mission_types",

@@ -1,0 +1,33 @@
+{
+  "accept_commit": "9bd9d3d5896427a7eee86b594eb250b6fa73287e",
+  "acceptance_history": [
+    {
+      "accept_commit": "9bd9d3d5896427a7eee86b594eb250b6fa73287e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-31T14:08:46.122823+00:00",
+      "accepted_by": "exedev",
+      "accepted_from_commit": "437c225cc80ad8252168483df163e92bf8fa423a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-31T14:08:46.122823+00:00",
+  "accepted_by": "exedev",
+  "accepted_from_commit": "437c225cc80ad8252168483df163e92bf8fa423a",
+  "baseline_merge_commit": "ea462106a39ede11650ce52939fa3461a9f8ccb5",
+  "created_at": "2026-10-31T12:41:08.350479+00:00",
+  "flattened": false,
+  "friendly_name": "mission type capability offering seam",
+  "merged_at": "2026-10-31T14:09:05.484017+00:00",
+  "merged_commit": "ea462106a39ede11650ce52939fa3461a9f8ccb5",
+  "mid8": "01M68ZMR",
+  "mission_id": "01M68ZMRVXAZMAR3WQK35S1BQF",
+  "mission_number": 245,
+  "mission_slug": "mission-type-capability-offering-seam-01M68ZMR",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances mission type capability offering seam on issue-6331-mission-type-capability-offering-seam so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "mission type capability offering seam",
+  "slug": "mission-type-capability-offering-seam-01M68ZMR",
+  "status_phase": "1",
+  "target_branch": "issue-6331-mission-type-capability-offering-seam",
+  "topology": "single_branch"
+}

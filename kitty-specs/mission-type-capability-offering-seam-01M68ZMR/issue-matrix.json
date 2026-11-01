@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#4983": {
+      "evidence_ref": "Context reference only; no work owed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Mission-type capability context reference",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6188": {
+      "evidence_ref": "Completed (PR #6200) before this mission; the offering seam already exists.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Move the specify_cli -> charter imports onto the offering seam (completed)",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6315": {
+      "evidence_ref": "Prior mission delivered the capability contract on ResolvedMissionType; this mission only exposes it on the offering seam.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Mission-type capability contract (wp_driven, requires_substantive_spec)",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6327": {
+      "evidence_ref": "Sibling issue adding the code_producing capability; this mission exposes only the existing two, and the protocol leaves room for that additive field.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Add a code_producing capability to charter-offering mission types",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6330": {
+      "evidence_ref": "Sibling hardening issue (run_dir threading, substantive-gate except, wp_driven parity); deliberately out of scope so the diffs do not collide.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Harden the mission-type capability contract: run_dir threading, substantive-gate except, wp_driven parity",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6331": {
+      "evidence_ref": "Delivered across WP01-WP03.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Expose the mission-type capability contract on charter.offering.api",
+      "verdict": "in-mission",
+      "wp": "WP01"
+    },
+    "#645": {
+      "evidence_ref": "Closed not_planned; the extraction precondition this issue cites is superseded by ADR 2026-10-16-1.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": "Stable Application API Surface (closed not_planned)",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6541": {
+      "evidence_ref": "Precedent for an additive offering-seam symbol (LANGUAGE_TOKENS), cited for the amendment path only; no work owed here.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

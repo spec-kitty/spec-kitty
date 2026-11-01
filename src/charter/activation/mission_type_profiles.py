@@ -69,6 +69,11 @@ from charter.bundle import CHARTER_YAML
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.activation.mission_type_key import canonical_mission_type_key, read_mission_type
 from charter.activation.sync import require_canonical_governance
+from charter.missions import (
+    MissionTypeCapabilities,
+    MissionTypeCapabilitySource,
+    capabilities_of,
+)
 
 if TYPE_CHECKING:
     from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
@@ -398,8 +403,14 @@ BUILTIN_REQUIRES_SUBSTANTIVE_SPEC: Mapping[str, bool] = MappingProxyType(
 
 
 @dataclass(frozen=True)
-class ResolvedMissionType:
+class ResolvedMissionType(MissionTypeCapabilitySource):
     """In-memory bundle produced by :func:`resolve_mission_type_context`.
+
+    Nominal conformance to the offering seam's capability protocol
+    (:class:`~charter.offering.missions.capabilities.MissionTypeCapabilitySource`, #6331): the
+    bundle provides both capability properties, so a consumer holding it can read the contract
+    through ``charter.offering.api`` without importing this module. The protocol is a properties-
+    only shape; it adds no fields, no ``__init__`` and no behaviour to the dataclass.
 
     ``mission_type`` is the canonicalized key (``None`` for a typeless mission).
     ``governance_text`` / ``action_sequence`` are populated eagerly on the hot
@@ -468,6 +479,19 @@ class ResolvedMissionType:
         if self._requires_substantive_spec_thunk is None:
             return False
         return self._requires_substantive_spec_thunk()
+
+    @property
+    def capabilities(self) -> MissionTypeCapabilities:
+        """The offering-seam capability snapshot for this bundle (#6331).
+
+        Derived, never decided: the seam's ``capabilities_of`` read (reached through
+        ``charter.offering.api``, the sanctioned offering public surface) reads this bundle's
+        own ``wp_driven`` / ``requires_substantive_spec``, so the seam is a second *door* to
+        the capability contract, not a second source of truth. A plain property (not
+        ``cached_property``) on purpose — it adds no state and no disk read; the
+        ``requires_substantive_spec`` read stays behind its own memoised thunk.
+        """
+        return capabilities_of(self)
 
     @cached_property
     def governance(self) -> ResolvedGovernance | None:

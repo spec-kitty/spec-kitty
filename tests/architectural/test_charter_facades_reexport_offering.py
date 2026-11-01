@@ -193,6 +193,14 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # re-export reaches it without a direct ``charter.offering.*`` import
         # (test_runtime_charter_doctrine_boundary.py forbids that).
         ("MalformedManifestError", "charter.offering.missions.repository"),
+        # Added by mission ``mission-type-capability-offering-seam-01M68ZMR`` (#6331):
+        # the mission-type capability contract crosses the offering seam (PUBLIC),
+        # re-exported here from ``charter.offering.api`` so the seam symbols gain a
+        # live in-repo caller, exactly as ``charter.model_routing`` / ``charter.assets``
+        # do. Identity holds transitively through the seam manifest.
+        ("MissionTypeCapabilities", "charter.offering.api"),
+        ("MissionTypeCapabilitySource", "charter.offering.api"),
+        ("capabilities_of", "charter.offering.api"),
     ],
     # New door (WP03/T013): symbol-level model→task routing surface. PUBLIC —
     # re-exported from ``charter.offering.api`` (leaf callables/types only, NOT the
