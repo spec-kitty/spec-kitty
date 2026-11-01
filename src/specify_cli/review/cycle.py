@@ -1426,7 +1426,7 @@ def _retire_consumed_feedback_source(
         return None, None  # already gone, or never there: nothing to retire
     if target.parent not in wp_task_dirs or not fnmatch.fnmatchcase(target.name, "review-feedback-*.md"):
         return None, None  # not this work package's draft: not ours to touch
-    from kernel.git import GitCommandError, is_tracked
+    from kernel.git import GitCommandError, is_tracked, status_entries
 
     try:
         already_committed = is_tracked(entry.parent, entry.name)
@@ -1435,14 +1435,11 @@ def _retire_consumed_feedback_source(
     if already_committed:
         # Committed by the reviewer: the tree is clean and nothing is owed -- unless
         # the committed draft carries uncommitted edits, which the operator must hear of.
-        status = subprocess.run(
-            ["git", "status", "--porcelain", "--", entry.name],
-            cwd=entry.parent,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if status.stdout.strip():
+        try:
+            edited = bool(status_entries(entry.parent, pathspecs=(entry.name,), untracked="no", optional_locks=False))
+        except GitCommandError:
+            edited = False  # an unreadable status reports nothing to warn about, as before
+        if edited:
             return (
                 None,
                 f"Review feedback draft {feedback_source} was kept: it is tracked in git and has uncommitted edits.",
