@@ -320,7 +320,13 @@ def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
 @require_main_repo
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (for example, WP01)"),
-    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (for example, 001-my-feature)")] = None,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            "--mission",
+            help="Mission handle: its slug, its human slug (the slug without the -<mid8> suffix), the mid8, or the full mission id.",
+        ),
+    ] = None,
     auto_commit: Annotated[
         bool | None,
         typer.Option("--auto-commit/--no-auto-commit", help="Auto-commit status and planning changes (default: from project config)"),

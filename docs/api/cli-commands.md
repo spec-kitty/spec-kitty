@@ -2891,9 +2891,12 @@ _Glossary management commands_
 │ *    wp_id      <str>  Work package ID (for example, WP01) [required]        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                                      <str>  Mission slug (for      │
-│                                                       example,               │
-│                                                       001-my-feature)        │
+│ --mission                                      <str>  Mission handle: its    │
+│                                                       slug, its human slug   │
+│                                                       (the slug without the  │
+│                                                       -<mid8> suffix), the   │
+│                                                       mid8, or the full      │
+│                                                       mission id.            │
 │ --auto-commit              --no-auto-commit           Auto-commit status and │
 │                                                       planning changes       │
 │                                                       (default: from project │
