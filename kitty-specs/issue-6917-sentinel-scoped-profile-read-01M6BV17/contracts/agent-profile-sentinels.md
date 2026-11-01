@@ -45,8 +45,10 @@ def build_agent_profile_sentinels(
    resolution itself reads the file leniently and would otherwise turn a broken config into a
    successful markerless render. The `ActiveCharterService` accessor inherits this through the
    builder.
-6. **Cheap by construction.** It does not build `PackContext`, the activation ledger, or the shipped
-   lineage graph, and it does not materialise the profile catalogue.
+6. **Cheap by construction.** It consults no activation *state*: no activation filter, no deny
+   net, no lineage graph, and no profile catalogue. It constructs `PackContext` only to validate
+   the configuration (semantics 5) and drops it before reading a layer, so the governance
+   machinery is never used to answer the question — only to refuse a broken project.
 
 ## Surface decision (the issue's open question)
 

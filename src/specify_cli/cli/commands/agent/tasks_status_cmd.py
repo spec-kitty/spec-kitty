@@ -923,11 +923,12 @@ def _st_render_human(st: _StatusState, ports: TasksPorts) -> None:
             # lineage graph) this site used to pay for one boolean per row.
             # ``build_agent_profile_sentinels`` resolves only the ids below,
             # through the same built-in → org → project layers and the same
-            # loader, and skips ``PackContext`` because ``sentinel`` is a
-            # *structural* property, not an activation-gated one (the
+            # loader, and consults no activation *state* because ``sentinel`` is
+            # a *structural* property, not an activation-gated one (the
             # charter-sole-door-bypass-closure-01KZ3WAA rationale for
-            # ``agent_profile_repository``). The marker therefore still survives a
-            # narrowed or denied ``activated_agent_profiles``.
+            # ``agent_profile_repository``); it does build a ``PackContext`` for
+            # its side effect of validating the config. The marker therefore
+            # still survives a narrowed or denied ``activated_agent_profiles``.
             from charter.activation.active_charter_service_builder import (  # noqa: PLC0415
                 build_agent_profile_sentinels,
             )
@@ -1051,7 +1052,7 @@ def _get_hic_marker(
     direct/external callers: it resolves this one id through
     ``build_agent_profile_sentinels``, which stays inside the charter sole door,
     answers ``profile.sentinel`` (a *structural* property, never
-    activation-gated), and skips ``PackContext``.
+    activation-gated), and consults no activation state.
     """
     if not isinstance(agent_profile, str) or not agent_profile:
         return ""
