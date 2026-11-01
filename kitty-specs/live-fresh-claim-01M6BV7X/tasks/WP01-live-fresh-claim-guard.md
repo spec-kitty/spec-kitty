@@ -15,6 +15,9 @@ requirement_refs:
 planning_base_branch: issue-6311-live-fresh-claim
 merge_target_branch: issue-6311-live-fresh-claim
 branch_strategy: Planning artifacts for this mission were generated on issue-6311-live-fresh-claim. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into issue-6311-live-fresh-claim unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-live-fresh-claim-01M6BV7X
+base_commit: 17c4223883abff0205c89241c733f6500bbfcae4
+created_at: '2026-11-01T15:26:47.292766+00:00'
 subtasks:
 - T001
 - T002
