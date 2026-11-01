@@ -3,13 +3,15 @@ title: How to Generate Work Packages
 description: 'How to generate work packages with Spec Kitty 3.2: Use this guide to turn a plan into work packages with /spec-kitty.tasks.'
 doc_status: active
 updated: '2026-06-06'
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 type: how-to
 related:
-- docs/guides/how-to/missions/create-plan.md
-- docs/guides/how-to/missions/handle-dependencies.md
-- docs/guides/how-to/missions/implement-work-package.md
-- docs/guides/how-to/missions/keep-main-clean.md
+- guides/how-to/missions/create-plan
+- guides/how-to/missions/handle-dependencies
+- guides/how-to/missions/implement-work-package
+- guides/how-to/missions/keep-main-clean
 ---
 # How to Generate Work Packages
 

@@ -3,10 +3,13 @@ title: Verification round — three-lens review of the finalized authorities
 description: "Final review squad before handover: sequence executability, fresh-eyes fix verification, and adversarial number-by-number reproduction. Verdict plus the applied fix list."
 doc_status: deprecated
 updated: '2026-07-26'
-related:
-- docs/plans/doctrine/foundational-values-and-creed.md
-- docs/plans/doctrine/manifesto-program-delivery-sequence.md
-- docs/plans/doctrine/index.md
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/doctrine/foundational-values-and-creed.md
+  title: FoundationalValues and Creed — canonical design
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/doctrine/manifesto-program-delivery-sequence.md
+  title: FoundationalValues/creed program — delivery sequence
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/plans/doctrine/index.md
+  title: Doctrine
 ---
 # Verification round — three-lens review of the finalized authorities
 

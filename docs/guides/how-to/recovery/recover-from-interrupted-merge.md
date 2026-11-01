@@ -4,10 +4,12 @@ description: 'How to recover from an interrupted consolidation: Learn how to res
 doc_status: active
 updated: '2026-10-31'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/missions/merge-mission.md
-- docs/guides/how-to/recovery/recover-from-implementation-crash.md
+- guides/how-to/missions/merge-mission
+- guides/how-to/recovery/recover-from-implementation-crash
 ---
 # Recover from an Interrupted Consolidation
 

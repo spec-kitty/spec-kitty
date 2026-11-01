@@ -4,10 +4,10 @@ description: 'Glossary context for identity: who performs work and who owns sema
 doc_status: active
 updated: '2026-09-30'
 related:
-- docs/context/execution.md
-- docs/context/practices-principles.md
-- docs/adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged.md
-- docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
+- context/execution
+- context/practices-principles
+- adr/3.x/2026-07-19-1-wp-runtime-state-event-log-eviction-via-innerstatechanged
+- adr/3.x/2026-08-04-1-egress-consent-boundary
 ---
 ## Context: Identity
 

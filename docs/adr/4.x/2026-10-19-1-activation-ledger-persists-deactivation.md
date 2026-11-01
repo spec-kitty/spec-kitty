@@ -2,6 +2,8 @@
 title: 'ADR: one activation ledger persists deactivation, and nothing silently reinstalls it'
 description: 'Activation state moves to one git-tracked file, .kittify/charter/activation.yaml, with a persistent deny-list so a deactivated charter artifact stays deactivated.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-19'
 updated: '2026-10-31'
 ---

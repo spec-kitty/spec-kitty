@@ -4,8 +4,8 @@ description: "Legacy Spec Kitty terminology mapped to its current canonical term
 doc_status: active
 updated: '2026-07-16'
 related:
-- docs/context/index.md
-- docs/context/naming-decision-tool-vs-agent.md
+- context
+- context/naming-decision-tool-vs-agent
 ---
 # Historical Terms and Mappings
 

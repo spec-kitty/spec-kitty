@@ -5,12 +5,14 @@ doc_status: active
 updated: '2026-10-03'
 type: how-to
 related:
-- docs/guides/how-to/installation/install-linux.md
-- docs/guides/how-to/installation/install-macos.md
-- docs/guides/how-to/installation/non-interactive-init.md
-- docs/guides/how-to/installation/upgrade-cli.md
-- docs/guides/how-to/collaboration/worktrees-with-mcp-agents.md
-audience: docs/context/audience/external/project-owner.md
+- guides/how-to/installation/install-linux
+- guides/how-to/installation/install-macos
+- guides/how-to/installation/non-interactive-init
+- guides/how-to/installation/upgrade-cli
+- guides/how-to/collaboration/worktrees-with-mcp-agents
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 os: windows
 ---
 # Install Spec Kitty on Windows

@@ -3,10 +3,12 @@ title: Components (living)
 description: 'Living components view (C4 level 3): current Spec Kitty internals and the planned charter service hexagon.'
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/architecture/diagrams/01_context/README.md
-- docs/architecture/diagrams/02_containers/README.md
+- architecture/diagrams/01_context
+- architecture/diagrams/02_containers
 ---
 # Components (living)
 

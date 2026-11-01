@@ -4,10 +4,10 @@ description: "Glossary context for system events: Spec Kitty's append-only event
 doc_status: active
 updated: '2026-03-10'
 related:
-- docs/context/dossier.md
-- docs/context/execution.md
-- docs/context/identity.md
-- docs/context/orchestration.md
+- context/dossier
+- context/execution
+- context/identity
+- context/orchestration
 ---
 ## Context: System Events
 

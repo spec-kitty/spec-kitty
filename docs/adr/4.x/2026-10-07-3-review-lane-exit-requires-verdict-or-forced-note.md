@@ -2,6 +2,8 @@
 title: 'ADR: a work package leaves review or approval only through a verdict or a noted force'
 description: 'The transition pipeline refuses a forced exit from in_review or approved that carries no verdict and no note, on every surface; migration actors are exempt.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-07'
 updated: '2026-10-07'
 ---

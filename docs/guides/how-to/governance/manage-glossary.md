@@ -4,13 +4,15 @@ description: Curate canonical terminology, resolve conflicts, and configure stri
 doc_status: active
 updated: '2026-10-08'
 type: how-to
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- docs/context/charter-overview.md
-- docs/guides/how-to/missions/create-specification.md
-- docs/guides/how-to/installation/install-spec-kitty.md
-- docs/guides/how-to/missions/switch-missions.md
-- docs/guides/how-to/governance/synthesize-doctrine.md
+- context/charter-overview
+- guides/how-to/missions/create-specification
+- guides/how-to/installation/install-spec-kitty
+- guides/how-to/missions/switch-missions
+- guides/how-to/governance/synthesize-doctrine
 ---
 # How to Manage the Glossary
 

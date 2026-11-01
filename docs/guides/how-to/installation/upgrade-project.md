@@ -5,10 +5,12 @@ doc_status: active
 updated: '2026-10-30'
 type: how-to
 related:
-- docs/guides/how-to/installation/install-and-upgrade.md
-- docs/guides/how-to/installation/uninstall.md
-- docs/guides/how-to/installation/upgrade-cli.md
-audience: docs/context/audience/external/project-owner.md
+- guides/how-to/installation/install-and-upgrade
+- guides/how-to/installation/uninstall
+- guides/how-to/installation/upgrade-cli
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 ---
 # Upgrade an existing Spec Kitty project
 

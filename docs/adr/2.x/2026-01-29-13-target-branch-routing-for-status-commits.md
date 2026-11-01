@@ -2,6 +2,8 @@
 title: Target Branch Routing for Status Commits
 description: Replaced status commits hard-wired to main with an explicit target_branch recorded in meta.json, ending the silent divergence between the two release tracks.
 status: Superseded
+doc_status: superseded
+kind: ADR
 date: '2026-01-29'
 ---
 

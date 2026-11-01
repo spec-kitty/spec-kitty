@@ -4,7 +4,7 @@ description: 'Glossary context for practices and principles: the operating princ
 doc_status: active
 updated: '2026-03-10'
 related:
-- docs/context/identity.md
+- context/identity
 ---
 ## Context: Practices and Principles
 

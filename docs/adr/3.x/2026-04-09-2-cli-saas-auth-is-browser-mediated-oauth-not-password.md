@@ -2,6 +2,8 @@
 title: CLI-to-SaaS Authentication Is Browser-Mediated OAuth, Not Password Login
 description: 'Replaced CLI password login with browser-mediated OAuth (PKCE plus loopback callback, device flow headless); later superseded on local session persistence.'
 status: Superseded
+doc_status: superseded
+kind: ADR
 date: '2026-04-09'
 ---
 

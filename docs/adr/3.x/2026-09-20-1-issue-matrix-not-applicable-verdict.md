@@ -2,6 +2,8 @@
 title: 'ADR: `not-applicable` issue-matrix verdict — non-gating, terminal, classifier-narrowed approval gate'
 description: 'Adds a non-gating, terminal not-applicable verdict and narrows the approval blocker to gate only implementation_target references, superseding the never-shipped WP09 Gate-4 intent.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-09-20'
 updated: '2026-09-20'
 ---

@@ -4,10 +4,13 @@ description: "Single authority for the FoundationalValues/creed design: generic 
 doc_status: draft
 updated: '2026-10-19'
 related:
-- docs/plans/doctrine/manifesto-program-delivery-sequence.md
-- docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
-- docs/archive/plans/doctrine/squad-reports/index.md
-- docs/plans/doctrine/index.md
+- plans/doctrine/manifesto-program-delivery-sequence
+- plans/doctrine
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/creed-and-values-design-as-proposed.md
+  title: Creed and FoundationalValues — design as proposed (operator input record)
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/squad-reports/index.md
+  title: Squad reports — creed and FoundationalValues hardening
 ---
 # FoundationalValues and Creed — canonical design
 

@@ -4,9 +4,9 @@ description: Reference for Spec Kitty supported AI agents. Learn about slash com
 doc_status: active
 updated: '2026-10-21'
 related:
-- docs/api/cli-commands.md
-- docs/api/slash-commands.md
-- docs/api/supported-harnesses.md
+- api/cli-commands
+- api/slash-commands
+- api/supported-harnesses
 ---
 # Supported AI Agents Reference
 

@@ -4,11 +4,13 @@ description: 'Choose the lightest Spec Kitty path for your work: no Spec Kitty, 
 doc_status: active
 updated: '2026-08-11'
 type: explanation
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/collaboration/adhoc-specialist-session.md
-- docs/guides/tutorials/missions-overview.md
-- docs/guides/tutorials/multi-agent-workflow.md
+- guides/how-to/collaboration/adhoc-specialist-session
+- guides/tutorials/missions-overview
+- guides/tutorials/multi-agent-workflow
 ---
 # When to use Spec Kitty modes
 

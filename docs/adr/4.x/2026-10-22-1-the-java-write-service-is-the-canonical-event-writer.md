@@ -2,6 +2,8 @@
 title: 'ADR: the Java write service is the canonical event writer, one resident service per repository'
 description: 'The command side of the Mission Write API is the one event writer: one resident Java service per repository behind the CLI EventBridge port, a JVM fallback, no Python writer.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-22'
 updated: '2026-10-29'
 ---

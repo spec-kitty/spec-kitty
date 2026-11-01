@@ -3,12 +3,16 @@ title: 'Consumer-repo layout portability: disposition and sequencing'
 description: 'Planner disposition for the consumer-repo layout blind spot (#3016/#2330): a bounded 3.2.x correctness down-payment now, broad portability deferred to mission-types-as-doctrine.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/3-2-x-milestone-roadmap.md
-- docs/archive/plans/3-2-x-open-core-delivery-plan.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/index.md
+- plans/3-2-x-milestone-roadmap
+- plans/domains/doctrine-charter-domain-plan
+- plans
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/3-2-x-open-core-delivery-plan.md
+  title: 3.2.x Open-Core Delivery Plan
 ---
 
 # Consumer-repo layout portability: disposition and sequencing

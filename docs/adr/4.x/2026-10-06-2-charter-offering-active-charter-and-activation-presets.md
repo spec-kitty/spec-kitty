@@ -2,6 +2,8 @@
 title: 'ADR: charter offering, active charter and activation presets'
 description: 'A Charter Pack bundles charter components with activation presets applied by charter activate; the doctrine names are cut over with no aliases or shims.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-06'
 updated: '2026-10-06'
 ---

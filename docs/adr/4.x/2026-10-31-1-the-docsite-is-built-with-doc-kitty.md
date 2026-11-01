@@ -3,6 +3,7 @@ title: 'ADR: the docsite is built with doc-kitty, consumed as a pinned git depen
 description: 'doc-kitty replaces DocFX for docs.spec-kitty.ai: a site/ sub-project reads ../docs, pins doc-kitty by commit, deploys at the domain root and redirects every legacy URL.'
 status: Proposed
 doc_status: active
+kind: ADR
 date: '2026-10-31'
 ---
 

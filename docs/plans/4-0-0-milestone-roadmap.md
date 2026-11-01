@@ -3,17 +3,19 @@ title: 4.0.0 Milestone — Roadmap
 description: 'Roadmap for the 4.0.0 cycle: release posture, what still gates GA, dependency spine, exit criteria and risks. Re-anchored 2026-10-12 to the October direction.'
 doc_status: active
 type: explanation
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 updated: '2026-11-01'
 related:
-- docs/changelog/4.0.0.md
-- docs/changelog/index.md
-- docs/plans/index.md
-- docs/plans/4-x-executive-overview.md
-- docs/plans/3-2-x-milestone-roadmap.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/code-quality/index.md
-- docs/changelog/release-goals.md
+- changelog/4.0.0
+- changelog
+- plans
+- plans/4-x-executive-overview
+- plans/3-2-x-milestone-roadmap
+- plans/domains/doctrine-charter-domain-plan
+- plans/code-quality
+- changelog/release-goals
 ---
 # 4.0.0 Milestone — Roadmap
 

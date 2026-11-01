@@ -2,6 +2,8 @@
 title: 'ADR: QA and core share ownership of the acceptance scenarios, and engineering tests move into them only through a checked ledger'
 description: 'QA and core co-own tests/scenarios and core owns the runner; integration and e2e tests retire into gating scenarios via a checked ledger, and red nights escalate.'
 status: Proposed
+doc_status: active
+kind: ADR
 date: '2026-10-15'
 ---
 

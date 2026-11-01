@@ -4,9 +4,9 @@ description: Complete Spec Kitty 3.2 CLI command reference with subcommands, opt
 doc_status: active
 updated: '2026-10-27'
 related:
-- docs/api/bulk-edit-gate.md
-- docs/api/finalize-tasks-internals.md
-- docs/development/reference/issue-matrix-verdicts.md
+- api/bulk-edit-gate
+- api/finalize-tasks-internals
+- development/reference/issue-matrix-verdicts
 ---
 # CLI Command Reference
 

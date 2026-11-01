@@ -2,6 +2,8 @@
 title: 'ADR: a charter-write budget for repository-scale projects, and why 2 s is not it'
 description: 'A charter write command is budgeted by a structural round-trip count and a ratio to the cost of reading the same project; the 2 s CLI budget stays for typical projects.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-31'
 updated: '2026-10-31'
 ---

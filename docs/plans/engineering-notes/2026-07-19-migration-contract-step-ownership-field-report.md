@@ -3,12 +3,18 @@ title: 'Field report: a migration-contract step with no owning WP (caught at clo
 description: 'Field report: a #2684 staged migration passed every planning gate with a contract step no WP owned, caught only at closeout. Proposes a step-ownership lint.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- kitty-specs/wp-runtime-state-eviction-01KXWN13/contracts/migration.md
-- kitty-specs/wp-runtime-state-eviction-01KXWN13/tasks.md
-- docs/plans/engineering-notes/2026-07-18-doctrine-driven-p0-remediation-field-report.md
-- .kittify/charter/charter.md
+- plans/engineering-notes/2026-07-18-doctrine-driven-p0-remediation-field-report
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/wp-runtime-state-eviction-01KXWN13/contracts/migration.md
+  title: kitty-specs/wp-runtime-state-eviction-01KXWN13/contracts/migration.md
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/kitty-specs/wp-runtime-state-eviction-01KXWN13/tasks.md
+  title: kitty-specs/wp-runtime-state-eviction-01KXWN13/tasks.md
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/.kittify/charter/charter.md
+  title: .kittify/charter/charter.md
 ---
 
 # Field report: a migration-contract step with no owning WP

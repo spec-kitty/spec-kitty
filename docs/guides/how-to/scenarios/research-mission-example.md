@@ -4,7 +4,9 @@ description: Run systematic, evidence-based research investigations with Spec Ki
 doc_status: active
 updated: '2026-08-10'
 type: how-to
-audience: docs/context/audience/external/architect-evaluator.md
+audience:
+- profile: external/architect-evaluator
+  guidance_text: Written for the External Architect Evaluator reader.
 ---
 
 # Deep Research Mission Workflow

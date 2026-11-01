@@ -3,14 +3,19 @@ title: Engineering notes
 description: 'Internal engineering notes for Spec Kitty: field reports, design notes, architectural reviews, and the historical record of closed investigations and missions.'
 doc_status: draft
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/engineering-notes/architectural-review/README.md
-- docs/plans/engineering-notes/finding/README.md
-- docs/plans/engineering-notes/reflections/README.md
-- docs/archive/plans/engineering-notes/runtime_and_state_overhaul/README.md
-- docs/archive/plans/engineering-notes/triage/README.md
-- docs/plans/index.md
+- plans/engineering-notes/architectural-review
+- plans/engineering-notes/finding
+- plans/engineering-notes/reflections
+- plans
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/runtime_and_state_overhaul/README.md
+  title: Runtime & State Overhaul — Engineering Notes
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/triage/README.md
+  title: Triage notes
 ---
 # Engineering notes
 

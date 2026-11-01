@@ -2,6 +2,8 @@
 title: 'ADR: One Project UUID Owns One Sync Store and One Consent Decision'
 description: 'Hosted-sync state is isolated by project UUID behind one ProjectSyncStore unit of work; ambient checkout, identity, target, or environment cannot select another project.'
 status: Superseded
+doc_status: superseded
+kind: ADR
 date: '2026-08-09'
 superseded_by: docs/adr/3.x/2026-09-06-1-convergence-retirement-and-client-repo-inversion.md
 ---

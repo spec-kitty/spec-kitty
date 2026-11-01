@@ -3,12 +3,14 @@ title: The Mission System Explained
 description: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/architecture/divio-documentation.md
-- docs/architecture/kanban-workflow.md
-- docs/architecture/mission-type-resolution.md
-- docs/architecture/spec-driven-development.md
+- architecture/divio-documentation
+- architecture/kanban-workflow
+- architecture/mission-type-resolution
+- architecture/spec-driven-development
 ---
 # The Mission System Explained
 

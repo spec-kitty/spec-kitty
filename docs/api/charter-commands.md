@@ -4,9 +4,9 @@ description: Narrative reference for the core charter interview/generate/sync/sy
 doc_status: active
 updated: '2026-10-29'
 related:
-- docs/context/charter-overview.md
-- docs/context/governance-files.md
-- docs/architecture/charter-pack-usage-journey.md
+- context/charter-overview
+- context/governance-files
+- architecture/charter-pack-usage-journey
 ---
 # Charter CLI Reference
 

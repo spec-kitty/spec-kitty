@@ -4,7 +4,7 @@ description: Post-merge Spec Kitty mission review — spec-to-code fidelity, FR 
 doc_status: active
 updated: '2026-07-21'
 related:
-- docs/api/skills/index.md
+- api/skills
 ---
 # spk-gate-mission-review
 

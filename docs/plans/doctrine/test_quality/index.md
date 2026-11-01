@@ -4,7 +4,7 @@ description: Research and planning notes for test-quality doctrine — test slic
 doc_status: draft
 updated: '2026-07-26'
 related:
-- docs/plans/doctrine/index.md
+- plans/doctrine
 ---
 # Test Quality Doctrine
 

@@ -2,6 +2,8 @@
 title: 'ADR: a completed upgrade run reports one outcome'
 description: 'The upgrade outcome owns the kind, reasons, messages, JSON status, closing line and exit code of a run; presentation code reads them and cannot build its own.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-04'
 updated: '2026-10-13'
 ---

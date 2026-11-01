@@ -4,10 +4,10 @@ description: Index of external-audience personas — stakeholders outside the Sp
 doc_status: active
 updated: '2026-03-10'
 related:
-- docs/context/audience/external/architect-evaluator.md
-- docs/context/audience/external/product-manager-evaluator.md
-- docs/context/audience/external/project-owner.md
-- docs/context/audience/external/tech-lead-evaluator.md
+- context/audience/external/architect-evaluator
+- context/audience/external/product-manager-evaluator
+- context/audience/external/project-owner
+- context/audience/external/tech-lead-evaluator
 ---
 # External Audience Personas
 

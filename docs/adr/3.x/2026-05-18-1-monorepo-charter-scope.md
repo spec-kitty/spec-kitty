@@ -2,6 +2,8 @@
 title: 'ADR-8: Monorepo charter scope via `CharterScope` abstraction'
 description: 'Introduces CharterScope to resolve the nearest enclosing configured scope in a monorepo, while single-project behaviour stays byte-identical to the prior path.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-05-18'
 ---
 

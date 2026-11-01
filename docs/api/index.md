@@ -4,25 +4,27 @@ description: 'Authoritative Spec Kitty specifications: CLI and agent subcommands
 doc_status: active
 updated: '2026-08-10'
 type: reference
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/api/agent-subcommands.md
-- docs/api/agent_profiles/index.md
-- docs/api/batch-api-contract.md
-- docs/api/charter-commands.md
-- docs/api/cli-commands.md
-- docs/api/configuration.md
-- docs/api/environment-variables.md
-- docs/api/event-envelope.md
-- docs/api/file-structure.md
-- docs/api/missions.md
-- docs/api/orchestrator-api.md
-- docs/api/retrospective-schema.md
-- docs/api/skills/index.md
-- docs/api/slash-commands.md
-- docs/api/supported-agents.md
-- docs/api/supported-harnesses.md
-- docs/api/terminology.md
+- api/agent-subcommands
+- api/agent_profiles
+- api/batch-api-contract
+- api/charter-commands
+- api/cli-commands
+- api/configuration
+- api/environment-variables
+- api/event-envelope
+- api/file-structure
+- api/missions
+- api/orchestrator-api
+- api/retrospective-schema
+- api/skills
+- api/slash-commands
+- api/supported-agents
+- api/supported-harnesses
+- api/terminology
 ---
 # Reference
 

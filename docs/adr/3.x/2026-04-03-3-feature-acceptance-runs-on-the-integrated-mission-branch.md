@@ -2,6 +2,8 @@
 title: Feature Acceptance Runs on the Integrated Mission Branch
 description: 'Mission acceptance and QA must run on the integrated mission branch, mapping every critical requirement to an automated test or a manual evidence item.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-03'
 ---
 

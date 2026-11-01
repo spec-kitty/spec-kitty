@@ -4,8 +4,8 @@ description: Historical Spec Kitty 2.x archive page for 2.x Runtime, Mission Typ
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/context/index.md
-- docs/changelog/2x/orchestration-and-api.md
+- context
+- changelog/2x/orchestration-and-api
 ---
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 

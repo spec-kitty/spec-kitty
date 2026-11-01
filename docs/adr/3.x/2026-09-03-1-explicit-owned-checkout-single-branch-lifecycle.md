@@ -2,6 +2,8 @@
 title: 'ADR: Explicit Owned-Checkout Extends to the Single-Branch Mission Lifecycle'
 description: 'Extends the fail-closed --owned-checkout affordance to the whole single-branch mission lifecycle via one shared preflight authority, restricted to single_branch topology.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-09-03'
 ---
 

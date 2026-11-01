@@ -2,6 +2,8 @@
 title: 'ADR: a signed `impacts` edge subsumes `in_tension_with` — one relation, sign carries the direction of effect'
 description: 'A signed `Relation.IMPACTS` edge subsumes `in_tension_with`: one directed relation whose numeric sign carries the direction of effect, with negative values meaning tension.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-07-26'
 ---
 

@@ -2,6 +2,8 @@
 title: 'ADR: Lane Naming Is Keyed on Creation Input, Never on Mission Identity'
 description: 'Lane branch and worktree names come only from the slug and lane id recorded at creation; the Mission identity is never a naming input.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-09-26'
 ---
 

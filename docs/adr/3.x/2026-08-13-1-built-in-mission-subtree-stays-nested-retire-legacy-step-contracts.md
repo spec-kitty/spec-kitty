@@ -2,12 +2,14 @@
 title: 'ADR: The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface'
 description: 'Keeps the nested per-type packs/built-in/missions/ bundle canonical (no flattening) and retires built_in_step_contracts in favour of the unified MissionStep model.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-13'
 related:
-- docs/architecture/mission-type-resolution.md
-- docs/architecture/doctrine-kinds.md
-- docs/adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion.md
-- docs/adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention.md
+- architecture/mission-type-resolution
+- architecture/doctrine-kinds
+- adr/3.x/2026-08-05-1-mission-type-availability-before-kind-promotion
+- adr/3.x/2026-07-26-2-doctrine-artefact-pack-layout-convention
 ---
 # The built-in mission subtree stays nested and self-contained; retire the legacy step-contract surface
 

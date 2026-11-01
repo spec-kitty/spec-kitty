@@ -5,7 +5,7 @@ doc_status: deprecated
 updated: '2026-10-18'
 type: how-to
 related:
-- docs/context/team-kitty.md
+- context/team-kitty
 ---
 
 # Logged Out on a Connected Teamspace (Removed)

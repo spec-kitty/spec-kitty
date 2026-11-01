@@ -2,6 +2,8 @@
 title: 'ADR: Explicit Checkout Ownership for Mission Create and Next'
 description: 'Introduces a fail-closed, Git-topology-validated ownership claim so mission create and next can use an exact linked-checkout root without ambient primary fallback.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-12'
 ---
 

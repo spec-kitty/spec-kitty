@@ -4,12 +4,14 @@ description: 'How to review spec kitty artifacts with planbridge with Spec Kitty
 doc_status: active
 updated: '2026-06-03'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/missions/create-plan.md
-- docs/guides/how-to/missions/create-specification.md
-- docs/guides/how-to/missions/generate-tasks.md
-- docs/guides/how-to/missions/review-work-package.md
+- guides/how-to/missions/create-plan
+- guides/how-to/missions/create-specification
+- guides/how-to/missions/generate-tasks
+- guides/how-to/missions/review-work-package
 ---
 # Review Spec Kitty Artifacts with PlanBridge
 

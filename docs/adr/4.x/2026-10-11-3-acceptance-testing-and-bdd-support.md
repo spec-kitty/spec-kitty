@@ -2,6 +2,8 @@
 title: 'ADR: acceptance testing and BDD support with Gherkin scenarios and a black-box Cucumber-JVM runner'
 description: 'Promise-tagged Gherkin scenarios live in tests/scenarios, a per-PR Python check guards their tags, and a nightly Cucumber-JVM job drives the built CLI as a black box.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-10-11'
 ---
 

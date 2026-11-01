@@ -4,7 +4,9 @@ description: 'mission-creation internals: the mission_creation module family, th
 doc_status: active
 updated: '2026-10-05'
 type: reference
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 # `mission_creation` internals reference
 

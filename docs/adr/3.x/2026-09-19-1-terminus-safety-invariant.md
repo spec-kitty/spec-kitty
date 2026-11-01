@@ -2,6 +2,8 @@
 title: 'ADR: Terminus-Safety Invariant — gate-then-mutate-with-rollback across merge, accept, and mission close'
 description: 'Terminus-safety invariant: completion commands gate-then-mutate with rollback on failure, enforced by one shared terminal-readiness authority.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-09-19'
 updated: '2026-10-31'
 ---

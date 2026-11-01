@@ -3,7 +3,9 @@ title: Run Mutation Tests Locally
 description: 'How to run mutation tests locally with mutmut: mutation testing answers "if I introduced a bug here, would my tests fail?" where line coverage cannot.'
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: how-to
 ---
 # Run Mutation Tests Locally

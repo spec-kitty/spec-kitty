@@ -4,7 +4,7 @@ description: 'Glossary context for the 3-tier identity model from mission 081: t
 doc_status: active
 updated: '2026-04-10'
 related:
-- docs/context/orchestration.md
+- context/orchestration
 ---
 ## Context: Identity Fields
 

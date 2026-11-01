@@ -4,10 +4,10 @@ description: 'Operator runbook for the legacy-topology bookkeeping warning: what
 doc_status: active
 updated: '2026-09-26'
 related:
-- docs/architecture/branch-target-routing.md
-- docs/architecture/execution-lanes.md
-- docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md
-- docs/migrations/mission-id-canonical-identity.md
+- architecture/branch-target-routing
+- architecture/execution-lanes
+- adr/3.x/2026-06-22-1-mission-topology-ssot
+- migrations/mission-id-canonical-identity
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

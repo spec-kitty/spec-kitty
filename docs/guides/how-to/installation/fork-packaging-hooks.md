@@ -5,9 +5,11 @@ doc_status: active
 updated: '2026-09-30'
 type: how-to
 related:
-- docs/guides/how-to/installation/upgrade-cli.md
-- docs/guides/how-to/installation/install-and-upgrade.md
-audience: docs/context/audience/external/architect-evaluator.md
+- guides/how-to/installation/upgrade-cli
+- guides/how-to/installation/install-and-upgrade
+audience:
+- profile: external/architect-evaluator
+  guidance_text: Written for the External Architect Evaluator reader.
 ---
 # Fork packaging hooks
 

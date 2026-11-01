@@ -3,21 +3,23 @@ title: Operations
 description: 'Durable operational runbooks for Spec Kitty: deployment, CI/CD setup, and standing CI-gate procedures that outlive any single mission.'
 doc_status: active
 type: reference
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 updated: '2026-10-04'
 related:
-- docs/configuration/index.md
-- docs/guides/index.md
-- docs/index.md
-- docs/operations/how-to-maintain.md
-- docs/operations/identity-boundary-ci-gate.md
-- docs/operations/manual-test-plan.md
-- docs/operations/p0-baseline-refresh.md
-- docs/operations/recovery-index.md
-- docs/operations/ssh-deploy-keys.md
-- docs/operations/sync-daemon-orphan-cleanup.md
-- docs/operations/upgrade-with-live-lanes-recovery.md
-- docs/plans/index.md
+- configuration
+- guides
+- ''
+- operations/how-to-maintain
+- operations/identity-boundary-ci-gate
+- operations/manual-test-plan
+- operations/p0-baseline-refresh
+- operations/recovery-index
+- operations/ssh-deploy-keys
+- operations/sync-daemon-orphan-cleanup
+- operations/upgrade-with-live-lanes-recovery
+- plans
 ---
 # Operations
 

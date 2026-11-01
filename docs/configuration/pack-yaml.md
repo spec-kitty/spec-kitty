@@ -4,9 +4,9 @@ description: 'Field reference for a Charter Pack pack.yaml descriptor: identity,
 doc_status: active
 updated: '2026-10-11'
 related:
-- docs/adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md
-- docs/guides/how-to/governance/create-an-org-doctrine-pack.md
-- docs/configuration/index.md
+- adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml
+- guides/how-to/governance/create-an-org-doctrine-pack
+- configuration
 ---
 # `pack.yaml` reference
 

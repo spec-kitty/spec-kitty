@@ -3,10 +3,12 @@ title: Read-side placement-seam classification ledger
 description: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 type: reference
 related:
-- docs/architecture/execution-lanes.md
+- architecture/execution-lanes
 ---
 
 # Read-side placement-seam classification ledger

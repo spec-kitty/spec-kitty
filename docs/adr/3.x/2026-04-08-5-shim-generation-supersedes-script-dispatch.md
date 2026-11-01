@@ -2,6 +2,8 @@
 title: 'ADR 5 (2026-04-08): Shim Generation Supersedes Script-Type Dispatch'
 description: 'Generated shims supersede shell-script dispatch: the bash and powershell script trees and the script-type flag are removed and must not be reintroduced.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-08'
 ---
 

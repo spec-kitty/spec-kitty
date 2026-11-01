@@ -2,11 +2,13 @@
 title: 'ADR: Gate execution targets a surface through a kernel selector and the topology placement seam'
 description: 'A gate declares an executionTarget from a kernel-owned surface-selector vocabulary; the placement seam gains an execute verb that resolves it to a physical workdir.'
 status: Proposed
+doc_status: active
+kind: ADR
 date: '2026-08-13'
 related:
-- docs/architecture/mission-gates.md
-- docs/architecture/artifact-placement-seam.md
-- docs/adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts.md
+- architecture/mission-gates
+- architecture/artifact-placement-seam
+- adr/3.x/2026-08-13-2-gates-are-declarative-asset-backed-doctrine-artefacts
 ---
 # Gate execution targets a surface through a kernel selector and the topology placement seam
 

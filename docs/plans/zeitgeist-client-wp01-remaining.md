@@ -3,7 +3,9 @@ title: 'zeitgeist_client WP01 — remaining scope'
 description: 'Status note for the bundled Zeitgeist client (Bead Z1-T1): the committed source of truth for what is left in WP01 after the Z4/Z6/Z7/Z8/O1-C client stack landed.'
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 
 # zeitgeist_client WP01 — remaining scope

@@ -2,6 +2,8 @@
 title: 'Operator configuration resolves through one kernel env-expansion seam; committed provenance stores tokens'
 description: 'One kernel ${VAR} expander plus a two-tier .kitty.env seed the process env; committed provenance stores SPEC_KITTY_* tokens, never resolved paths.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-16'
 ---
 # Operator configuration resolves through one kernel env-expansion seam; committed provenance stores tokens

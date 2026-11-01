@@ -4,8 +4,8 @@ description: 'Operator proposal to reserve "template" for doctrine example-artef
 doc_status: deprecated
 updated: '2026-08-12'
 related:
-- docs/architecture/mission-type-resolution.md
-- docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
+- architecture/mission-type-resolution
+- adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes
 ---
 
 > **RETIRED (shipped)** — this investigation's proposal was ratified and delivered:

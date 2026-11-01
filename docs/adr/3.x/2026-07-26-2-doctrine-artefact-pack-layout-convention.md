@@ -2,6 +2,8 @@
 title: 'ADR: doctrine artefacts live at `<type>/<pack>/[<category>/]<name>` — misplacement is an error, not invisibility'
 description: 'Doctrine artefacts must sit at `<type>/<pack>/[<category>/]<name>`; a file placed directly under `<type>/` is a loud error rather than silently invisible to the loader.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-07-26'
 ---
 

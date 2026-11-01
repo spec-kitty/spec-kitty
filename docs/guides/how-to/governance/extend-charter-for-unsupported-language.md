@@ -3,13 +3,15 @@ title: Extend your charter for an unsupported language
 description: What "Languages unknown" means, how to add tech-specific guidelines to your local charter, and what review reports for non-Python missions.
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 type: how-to
 related:
-- docs/guides/how-to/governance/setup-governance.md
-- docs/guides/how-to/governance/create-an-org-doctrine-pack.md
-- docs/guides/how-to/governance/troubleshoot-charter.md
-- docs/architecture/doctrine-kinds.md
+- guides/how-to/governance/setup-governance
+- guides/how-to/governance/create-an-org-doctrine-pack
+- guides/how-to/governance/troubleshoot-charter
+- architecture/doctrine-kinds
 ---
 # Extend your charter for an unsupported language
 

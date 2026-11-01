@@ -3,18 +3,25 @@ title: Architecture
 description: 'Landing page and page index for docs/architecture/: the boundary rule between decisions and consumption, living and frozen pages, the decay rule, and ADR locations.'
 doc_status: active
 updated: '2026-11-01'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 related:
-- docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
-- docs/adr/3.x/2026-04-06-3-github-app-installation-authority.md
-- docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md
-- docs/archive/architecture/NAVIGATION_GUIDE.md
-- docs/archive/architecture/feature-detection.md
-- docs/archive/architecture/gap-analysis-connector-installation-model.md
-- docs/architecture/diagrams/01_context/README.md
-- docs/architecture/diagrams/02_containers/README.md
-- docs/architecture/diagrams/03_components/README.md
-- docs/index.md
+- adr/3.x/2026-04-06-2-connector-auth-binding-separation
+- adr/3.x/2026-04-06-3-github-app-installation-authority
+- architecture/diagrams/01_context
+- architecture/diagrams/02_containers
+- architecture/diagrams/03_components
+- ''
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/ARCHITECTURE_DOCS_GUIDE.md
+  title: Architecture Documentation Guide
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/NAVIGATION_GUIDE.md
+  title: Architecture Navigation Guide
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/feature-detection.md
+  title: 'Architecture: Centralized Feature Detection'
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/architecture/gap-analysis-connector-installation-model.md
+  title: 'Gap Analysis: Migrating Spec-Kitty to the Installation-Link-Mapping-Override Connector Model'
 ---
 # Architecture
 

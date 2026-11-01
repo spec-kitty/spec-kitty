@@ -3,12 +3,14 @@ title: 'Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidat
 description: Review-cycle-artifact and consolidation-gate mechanics, the --skip-review-artifact-check override, and issue-matrix discovery, so review focuses on substance.
 doc_status: active
 updated: '2026-11-01'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: how-to
 related:
-- docs/development/how-to/local-overrides.md
-- docs/development/how-to/pr-landing.md
-- docs/development/contributing.md
+- development/how-to/local-overrides
+- development/how-to/pr-landing
+- development/contributing
 ---
 # Review Gates: Pre-PR Hygiene, Review-Cycle Mechanics, and the Consolidation Gate
 

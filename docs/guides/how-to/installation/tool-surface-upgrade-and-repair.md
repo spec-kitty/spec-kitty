@@ -4,10 +4,12 @@ description: How to understand the Tool vs Agent vs Tool Surface distinction in 
 doc_status: active
 updated: '2026-06-15'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/installation/diagnose-installation.md
-- docs/guides/how-to/installation/upgrade-project.md
+- guides/how-to/installation/diagnose-installation
+- guides/how-to/installation/upgrade-project
 ---
 # Repair Tool Surfaces After an Upgrade
 

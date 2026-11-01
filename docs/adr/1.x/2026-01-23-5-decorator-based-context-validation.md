@@ -2,6 +2,8 @@
 title: Decorator-Based Context Validation
 description: Guards location-sensitive commands with a declarative decorator, blocking the nested-worktree invocations that used to corrupt workspace state silently.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-01-23'
 ---
 

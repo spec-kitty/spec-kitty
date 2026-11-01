@@ -3,14 +3,16 @@ title: Plans
 description: 'Plans landing page: durable domain throughlines plus the distil-then-retire working surface of investigations, research, initiatives, and release-scoped plans.'
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/4-0-0-milestone-roadmap.md
-- docs/plans/code-quality/index.md
-- docs/plans/domains/index.md
-- docs/plans/domains/doctrine-charter-domain-plan.md
-- docs/plans/3-2-x-milestone-roadmap.md
-- docs/changelog/release-goals.md
+- plans/4-0-0-milestone-roadmap
+- plans/code-quality
+- plans/domains
+- plans/domains/doctrine-charter-domain-plan
+- plans/3-2-x-milestone-roadmap
+- changelog/release-goals
 ---
 # Plans
 

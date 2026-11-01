@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-09-27'
 type: explanation
 related:
-- docs/context/ops-vs-missions.md
+- context/ops-vs-missions
 ---
 # Mission Types
 

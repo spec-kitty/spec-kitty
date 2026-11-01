@@ -3,13 +3,15 @@ title: 'How to repair a Mission whose status snapshot misses work packages'
 description: 'Use spec-kitty migrate backfill-wp-status to seed the lane events a Mission’s WP files lack, so status counts match the files; covers dry-run, evidence manifest and JSON.'
 doc_status: active
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 updated: '2026-10-03'
 related:
-- docs/adr/3.x/2026-06-07-3-wp-lane-fsm-genesis-and-finalize-clobber.md
-- docs/architecture/status-model.md
-- docs/api/cli-commands.md
-- docs/migrations/index.md
+- adr/3.x/2026-06-07-3-wp-lane-fsm-genesis-and-finalize-clobber
+- architecture/status-model
+- api/cli-commands
+- migrations
 ---
 # How to repair a Mission whose status snapshot misses work packages
 

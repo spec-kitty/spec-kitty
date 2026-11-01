@@ -2,6 +2,8 @@
 title: Events Contract Parity and Vendored Module Deprecation
 description: Names the published events package the only contract authority, schedules the vendored copy for removal, and requires CI parity checks across consuming repos.
 status: Proposed
+doc_status: active
+kind: ADR
 date: '2026-02-17'
 ---
 

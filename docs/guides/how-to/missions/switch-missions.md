@@ -4,10 +4,12 @@ description: Choose and change missions to match software, research, or document
 doc_status: active
 updated: '2026-06-03'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/missions/create-specification.md
-- docs/guides/how-to/installation/install-and-upgrade.md
+- guides/how-to/missions/create-specification
+- guides/how-to/installation/install-and-upgrade
 ---
 # How to Switch Missions
 

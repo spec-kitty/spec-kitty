@@ -4,14 +4,16 @@ description: 'Per-project hosted-sync consent in Spec Kitty 3.2: opting in and o
 doc_status: deprecated
 updated: '2026-08-31'
 type: how-to
-audience: docs/context/audience/external/tech-lead-evaluator.md
+audience:
+- profile: external/tech-lead-evaluator
+  guidance_text: Written for the External Tech Lead Evaluator reader.
 related:
-- docs/guides/how-to/collaboration/sync-workspaces.md
-- docs/api/environment-variables.md
-- docs/adr/3.x/2026-08-09-1-project-sync-store-boundary.md
-- docs/adr/3.x/2026-08-04-1-egress-consent-boundary.md
-- docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
-- docs/context/team-kitty.md
+- guides/how-to/collaboration/sync-workspaces
+- api/environment-variables
+- adr/3.x/2026-08-09-1-project-sync-store-boundary
+- adr/3.x/2026-08-04-1-egress-consent-boundary
+- adr/3.x/2026-08-16-5-operator-config-env-expansion-seam
+- context/team-kitty
 ---
 # Per-Project Sync Consent
 

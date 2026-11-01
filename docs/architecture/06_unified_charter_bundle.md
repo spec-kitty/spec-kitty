@@ -3,7 +3,9 @@ title: 06 — Unified Charter Bundle
 description: 'The unified charter bundle architecture: the canonical manifest, its module and JSON Schema, inverted to a single-file authoritative charter.yaml model (#2773).'
 doc_status: active
 updated: '2026-10-21'
-audience: docs/context/audience/internal/system-architect.md
+audience:
+- profile: internal/system-architect
+  guidance_text: Written for the System Architect reader.
 ---
 # 06 — Unified Charter Bundle
 

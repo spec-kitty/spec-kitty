@@ -2,6 +2,8 @@
 title: 'ADR: CONSOLIDATED Write-Surface Wiring and `consolidate` as Canonical Lane-Consolidation Terminology'
 description: 'Wires `TopologySurface.CONSOLIDATED` to the integrated tree with the phase derived internally, and fixes `consolidate` as the canonical word for the lane-consolidation sense.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-07-30'
 ---
 

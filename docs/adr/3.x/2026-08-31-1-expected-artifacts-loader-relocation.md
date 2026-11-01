@@ -2,6 +2,8 @@
 title: 'ADR: Relocate the expected-artifacts.yaml loader authority into charter, sibling error model'
 description: 'The canonical expected-artifacts.yaml loader moves into charter/activation for one shared authority under C-001, keeping MalformedManifestError and ManifestSchemaError as siblings.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-31'
 ---
 

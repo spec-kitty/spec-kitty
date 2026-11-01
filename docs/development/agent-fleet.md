@@ -3,14 +3,16 @@ title: The SkyKitty Agent Fleet
 description: 'SkyKitty, the Spec Kitty company agent fleet: its roles and the ready-for-squad handshake that hands a PR from the implementer to the review squad and CI.'
 doc_status: active
 updated: '2026-10-19'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 type: explanation
 related:
-- docs/architecture/governed-profile-invocation.md
-- docs/architecture/multi-agent-orchestration.md
-- docs/development/how-to/manage-issue-tracker.md
-- docs/development/how-to/pr-landing.md
-- docs/context/charter-overview.md
+- architecture/governed-profile-invocation
+- architecture/multi-agent-orchestration
+- development/how-to/manage-issue-tracker
+- development/how-to/pr-landing
+- context/charter-overview
 ---
 
 # The SkyKitty Agent Fleet

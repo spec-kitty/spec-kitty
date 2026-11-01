@@ -3,14 +3,19 @@ title: The acceptance scenario contract
 description: 'How CLI acceptance scenarios link to product promises by identifier only, what a pull request checks about them, and what evidence each nightly run hands on.'
 doc_status: active
 updated: '2026-10-15'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: explanation
 related:
-- docs/adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md
-- docs/adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support.md
-- docs/development/testing/acceptance-scenarios.md
-- tests/scenarios/README.md
-- acceptance-jvm/README.md
+- adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only
+- adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support
+- development/testing/acceptance-scenarios
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/tests/scenarios/README.md
+  title: tests/scenarios/README.md
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/acceptance-jvm/README.md
+  title: acceptance-jvm/README.md
 ---
 # The acceptance scenario contract
 

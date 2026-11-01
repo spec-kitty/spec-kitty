@@ -3,14 +3,18 @@ title: Code Quality — Working Collection
 description: 'Standing code-quality surface: the SonarCloud baseline, quality-metric evolution, the smell/vulnerability cluster taxonomy, and how the debt maps onto the degod/unshim waves.'
 doc_status: active
 updated: '2026-09-30'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/index.md
-- docs/plans/4-0-0-milestone-roadmap.md
-- docs/plans/3-2-x-milestone-roadmap.md
-- docs/archive/plans/refactor/degod-unshim-roadmap.md
-- docs/plans/code-quality/targeted-cleanup-scoping.md
-- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
+- plans
+- plans/4-0-0-milestone-roadmap
+- plans/3-2-x-milestone-roadmap
+- plans/code-quality/targeted-cleanup-scoping
+- adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/refactor/degod-unshim-roadmap.md
+  title: Degod / Unshim Program — Roadmap
 ---
 # Code Quality — Working Collection
 

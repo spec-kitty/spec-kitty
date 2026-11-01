@@ -3,13 +3,15 @@ title: 'Red Main and Release Readiness'
 description: 'What a red main branch means, why CI status is the authoritative release gate, how P0 bugs carry failing reproduction tests, and how maintainers prioritize recovery.'
 doc_status: active
 updated: '2026-10-04'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 type: explanation
 related:
-- docs/adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority.md
-- docs/development/testing/testing-flakiness.md
-- docs/development/how-to/pr-landing.md
-- docs/guides/how-to/missions/keep-main-clean.md
+- adr/3.x/2026-07-17-1-red-main-is-honest-ci-is-release-authority
+- development/testing/testing-flakiness
+- development/how-to/pr-landing
+- guides/how-to/missions/keep-main-clean
 ---
 
 # Red Main and Release Readiness

@@ -5,10 +5,12 @@ doc_status: active
 updated: '2026-10-31'
 type: reference
 related:
-- docs/api/cli-commands.md
-- docs/api/environment-variables.md
-- docs/api/init-lifecycle.md
-audience: end-users
+- api/cli-commands
+- api/environment-variables
+- api/init-lifecycle
+audience:
+- profile: end-users
+  guidance_text: Written for end-users.
 ---
 # `spec-kitty upgrade` lifecycle
 

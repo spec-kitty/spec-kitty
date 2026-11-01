@@ -3,7 +3,9 @@ title: 'Calibration Report: research'
 description: 'Calibration report for the research mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay.'
 doc_status: active
 updated: '2026-10-08'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 ---
 # Calibration Report: research
 

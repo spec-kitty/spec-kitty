@@ -2,6 +2,8 @@
 title: Glossary Chokepoint p95 Latency Measurement
 description: 'Confirms the 50 ms p95 budget for the glossary chokepoint with measured sub-linear scaling, keeping the per-step semantic scan off the agent loop critical path.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-04-22'
 ---
 

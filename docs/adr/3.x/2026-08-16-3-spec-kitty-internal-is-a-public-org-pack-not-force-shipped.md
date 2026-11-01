@@ -2,11 +2,13 @@
 title: 'ADR: spec-kitty-internal Is One Public Org Pack, Consumed via the Org Tier, Never Force-Shipped'
 description: 'The internal maintainer pack is one public artifact (open-packs catalog #16), consumed as an org-tier pack and kept out of the core wheel — not secret, just not shipped.'
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-08-16'
 related:
-- docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
-- docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
-- docs/adr/3.x/2026-05-24-2-pack-augmentation-vocabulary.md
+- adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine
+- adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics
+- adr/3.x/2026-05-24-2-pack-augmentation-vocabulary
 ---
 
 # spec-kitty-internal Is One Public Org Pack, Consumed via the Org Tier, Never Force-Shipped

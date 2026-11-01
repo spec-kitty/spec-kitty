@@ -2,6 +2,8 @@
 title: Canonical WP Status Model Using Append-Only JSONL Event Log
 description: Replaces five mutable status artifacts with one append-only JSONL event log and a derived snapshot, giving work package state a single, replayable authority.
 status: Accepted
+doc_status: active
+kind: ADR
 date: '2026-02-09'
 ---
 

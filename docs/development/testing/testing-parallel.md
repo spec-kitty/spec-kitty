@@ -3,14 +3,21 @@ title: Running the test suite in parallel
 description: 'How to run the Spec Kitty test suite in parallel locally and in CI: the one correct command, why it is shaped that way, and reproducing the coverage-neutrality gates.'
 doc_status: active
 updated: '2026-10-04'
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 type: how-to
 related:
-- docs/development/testing/testing-flakiness.md
-- docs/archive/plans/testing/test-suite-acceleration-plan.md
-- docs/archive/plans/testing/ci-job-timings.md
-- docs/archive/plans/testing/ci-coverage-union-audit.md
-- docs/archive/plans/engineering-notes/testing-parallel-ci-topology-status.md
+- development/testing/testing-flakiness
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/test-suite-acceleration-plan.md
+  title: Test Suite Acceleration — Final Remediation Plan
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/ci-job-timings.md
+  title: CI Job Timings — ci-test-topology-performance-01KXBJRT
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/testing/ci-coverage-union-audit.md
+  title: Cross-cutting coverage-union audit — ci-test-topology-performance-01KXBJRT (T026)
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/testing-parallel-ci-topology-status.md
+  title: Test-suite parallelization — CI shard topology status
 ---
 # Running the test suite in parallel
 

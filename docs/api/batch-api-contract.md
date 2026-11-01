@@ -4,10 +4,12 @@ description: Batch event ingest API contract for Spec Kitty — authentication f
 doc_status: active
 updated: '2026-10-22'
 type: reference
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/api/event-envelope.md
-- docs/api/orchestrator-api.md
+- api/event-envelope
+- api/orchestrator-api
 ---
 # Contract: Batch Event Ingest API
 

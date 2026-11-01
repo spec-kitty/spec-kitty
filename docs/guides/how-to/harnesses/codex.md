@@ -4,9 +4,11 @@ description: 'How to use Spec Kitty in Codex CLI, the first-class harness with t
 doc_status: active
 updated: '2026-10-21'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/installation/install-spec-kitty.md
+- guides/how-to/installation/install-spec-kitty
 ---
 # Use Spec Kitty in Codex CLI
 

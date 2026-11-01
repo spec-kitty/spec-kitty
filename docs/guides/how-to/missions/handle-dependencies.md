@@ -4,12 +4,14 @@ description: Declare, implement, and maintain dependencies between work packages
 doc_status: active
 updated: '2026-06-12'
 type: how-to
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 related:
-- docs/guides/how-to/missions/generate-tasks.md
-- docs/guides/how-to/missions/implement-work-package.md
-- docs/guides/how-to/collaboration/parallel-development.md
-- docs/guides/how-to/collaboration/sync-workspaces.md
+- guides/how-to/missions/generate-tasks
+- guides/how-to/missions/implement-work-package
+- guides/how-to/collaboration/parallel-development
+- guides/how-to/collaboration/sync-workspaces
 ---
 # How to handle work package dependencies
 

@@ -3,11 +3,15 @@ title: FoundationalValues/creed program — delivery sequence
 description: "Executable delivery sequence: critical path with gate positions, 22 increments ranked by evidence-per-cost, superseding-ADR scope, park register, and effort envelope."
 doc_status: draft
 updated: '2026-10-22'
-audience: docs/context/audience/internal/maintainer.md
+audience:
+- profile: internal/maintainer
+  guidance_text: Written for the Maintainer reader.
 related:
-- docs/plans/doctrine/foundational-values-and-creed.md
-- docs/archive/plans/doctrine/squad-reports/index.md
-- docs/plans/doctrine/index.md
+- plans/doctrine/foundational-values-and-creed
+- plans/doctrine
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/doctrine/squad-reports/index.md
+  title: Squad reports — creed and FoundationalValues hardening
 ---
 # FoundationalValues/creed program — delivery sequence
 

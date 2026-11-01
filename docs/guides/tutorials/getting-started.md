@@ -3,11 +3,13 @@ title: Getting Started with Spec Kitty
 description: Install Spec Kitty 3.2, initialize a project, and create your first mission with a guided beginner workflow.
 doc_status: active
 updated: '2026-09-14'
-audience: docs/context/audience/external/project-owner.md
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 type: tutorial
 related:
-- docs/guides/how-to/installation/install-spec-kitty.md
-- docs/guides/tutorials/your-first-mission.md
+- guides/how-to/installation/install-spec-kitty
+- guides/tutorials/your-first-mission
 ---
 # Getting Started with Spec Kitty
 

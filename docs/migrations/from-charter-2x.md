@@ -4,8 +4,8 @@ description: What changed when upgrading from Spec Kitty 2.x or early 3.x to cur
 doc_status: active
 updated: '2026-10-08'
 related:
-- docs/context/index.md
-- docs/changelog/2x/index.md
+- context
+- changelog/2x
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

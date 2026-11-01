@@ -4,7 +4,7 @@ description: 'Glossary context for the dossier: the local artifact inventory, in
 doc_status: active
 updated: '2026-03-10'
 related:
-- docs/context/technology-foundations.md
+- context/technology-foundations
 ---
 ## Context: Dossier
 

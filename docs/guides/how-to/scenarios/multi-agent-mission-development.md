@@ -4,7 +4,9 @@ description: Orchestrate a multi-agent team of Claude, Gemini, and Cursor to del
 doc_status: active
 updated: '2026-08-10'
 type: how-to
-audience: docs/context/audience/external/architect-evaluator.md
+audience:
+- profile: external/architect-evaluator
+  guidance_text: Written for the External Architect Evaluator reader.
 ---
 
 # Multi-Agent Mission Development

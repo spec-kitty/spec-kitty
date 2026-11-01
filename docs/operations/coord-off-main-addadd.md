@@ -4,9 +4,11 @@ description: 'Recovery when a coord-topology mission''s coordination branch was 
 doc_status: active
 updated: '2026-08-15'
 related:
-- docs/operations/recovery-index.md
-- docs/operations/start-branch-coord-divergence.md
-- docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
+- operations/recovery-index
+- operations/start-branch-coord-divergence
+external_references:
+- url: https://github.com/spec-kitty/spec-kitty/blob/main/docs/archive/plans/engineering-notes/coord-splitbrain-rootcause.md
+  title: 'Coord-branch bookkeeping: read/write split-brain root-cause'
 ---
 
 # Recovery: Coordination Branch Created Off main (Add/Add Conflict)

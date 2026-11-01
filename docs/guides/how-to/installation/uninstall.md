@@ -5,9 +5,11 @@ doc_status: active
 updated: '2026-06-12'
 type: how-to
 related:
-- docs/guides/how-to/installation/install-macos.md
-- docs/guides/how-to/installation/upgrade-cli.md
-audience: docs/context/audience/external/project-owner.md
+- guides/how-to/installation/install-macos
+- guides/how-to/installation/upgrade-cli
+audience:
+- profile: external/project-owner
+  guidance_text: Written for the Project Owner reader.
 ---
 # Uninstall Spec Kitty
 

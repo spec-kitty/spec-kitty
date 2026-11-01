@@ -2,6 +2,8 @@
 title: Auto-Create Target Branch on First Implement
 description: Broke the bootstrap paradox by creating a missing target branch on the first implement call, which removed the hand-written branch-creation task from WP01.
 status: Superseded
+doc_status: superseded
+kind: ADR
 date: '2026-01-29'
 ---
 

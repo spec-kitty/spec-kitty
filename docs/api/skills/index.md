@@ -4,17 +4,19 @@ description: Catalog of Spec Kitty's operator-facing skills — the spk-* public
 doc_status: active
 updated: '2026-08-10'
 type: reference
-audience: docs/context/audience/internal/lead-developer.md
+audience:
+- profile: internal/lead-developer
+  guidance_text: Written for the Lead Developer reader.
 related:
-- docs/api/skills/spk-start-here.md
-- docs/api/skills/spk-run-implement-review.md
-- docs/api/skills/spk-run-next.md
-- docs/api/skills/spk-gate-mission-review.md
-- docs/api/skills/spk-charter-profile-load.md
-- docs/api/skills/spk-admin-setup-doctor.md
-- docs/api/skills/spk-meta-skill-map.md
-- docs/api/index.md
-- docs/api/agent_profiles/index.md
+- api/skills/spk-start-here
+- api/skills/spk-run-implement-review
+- api/skills/spk-run-next
+- api/skills/spk-gate-mission-review
+- api/skills/spk-charter-profile-load
+- api/skills/spk-admin-setup-doctor
+- api/skills/spk-meta-skill-map
+- api
+- api/agent_profiles
 ---
 # Skills
 

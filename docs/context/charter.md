@@ -4,11 +4,11 @@ description: 'Glossary context for the canonical Charter governing term (glossar
 doc_status: active
 updated: '2026-10-21'
 related:
-- docs/context/configuration-project-structure.md
-- docs/context/execution.md
-- docs/context/governance.md
-- docs/context/identity.md
-- docs/context/orchestration.md
+- context/configuration-project-structure
+- context/execution
+- context/governance
+- context/identity
+- context/orchestration
 ---
 ## Context: Charter
 
