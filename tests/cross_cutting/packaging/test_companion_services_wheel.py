@@ -3,6 +3,10 @@
 Every release here is a ``file://`` fixture from ``tests/kernel/service_release_fixture``;
 nothing reaches the network (NFR-002). The script is loaded by file path, the way
 ``tests/ci/test_sync_services.py`` loads its script.
+
+The fixtures are real native headers rather than shell scripts: the build reads each wheel's OS
+floor out of the binaries it carries and refuses a wheel whose tag would understate it (#6948), so
+an asset has to be the format its target ships.
 """
 
 from __future__ import annotations
@@ -21,7 +25,7 @@ import pytest
 from kernel.service_pin import ServiceTarget, write_service_pin
 from specify_cli.services import resolution
 from specify_cli.services.errors import ServiceRefusal, ServiceRefusalCode
-from tests.kernel.service_release_fixture import asset_name, build_release, pin_path
+from tests.kernel.service_release_fixture import asset_name, build_release, elf64, native_asset, pe64, pin_path
 
 pytestmark = pytest.mark.fast
 
@@ -50,8 +54,15 @@ def script() -> Iterator[ModuleType]:
         yield module
 
 
-def _assets(service: str, targets: tuple[ServiceTarget, ...] = _NATIVE) -> dict[ServiceTarget, bytes]:
-    payload = {target: f"#!/bin/sh\necho {service} {target.value}\n".encode() for target in targets}
+def _assets(service: str, targets: tuple[ServiceTarget, ...] = _NATIVE, *, glibc: str = "2_39", macos: str = "11_0") -> dict[ServiceTarget, bytes]:
+    """The pinned assets of *service*: a native binary per target, whose headers state the floor given."""
+
+    def _native(target: ServiceTarget) -> bytes:
+        if target is ServiceTarget.WINDOWS_X64:
+            return pe64()
+        return native_asset(target, **({"glibc": glibc} if target in (ServiceTarget.LINUX_X64, ServiceTarget.LINUX_ARM64) else {"minos": macos}))
+
+    payload = {target: _native(target) for target in targets}
     payload[ServiceTarget.JVM] = f"PK fake {service} jar\n".encode()
     return payload
 
@@ -71,8 +82,17 @@ def _repo(
     *,
     services: Mapping[str, tuple[ServiceTarget, ...]] | None = None,
     corrupt: frozenset[str] = frozenset(),
+    glibc: str = "2_39",
+    macos: str = "11_0",
+    floors: Mapping[str, tuple[str, str]] | None = None,
+    assets: Mapping[str, Mapping[ServiceTarget, bytes]] | None = None,
 ) -> Fixture:
-    """A fake checkout: the root ``pyproject.toml``, the real companion source, and pins for *services*."""
+    """A fake checkout: the root ``pyproject.toml``, the real companion source, and pins for *services*.
+
+    The pinned binaries are native fixtures whose headers state *glibc* / *macos*; *floors* overrides
+    that per service (``{"charter-service": ("2_42", "11_0")}``), and *assets* replaces a service's
+    assets outright.
+    """
     repo = tmp_path / "repo"
     (repo / "pins").mkdir(parents=True)
     (repo / "pyproject.toml").write_text(f'[project]\nname = "spec-kitty-cli"\nversion = "{_VERSION}"\n', encoding="utf-8")
@@ -80,7 +100,9 @@ def _repo(
     release = tmp_path / "release"
     wanted = {"write-service": _NATIVE, "charter-service": _NATIVE} if services is None else services
     for service, targets in wanted.items():
-        pin, _ = build_release(release, service=service, tag=_TAG, assets=_assets(service, targets), corrupt=corrupt)
+        service_glibc, service_macos = (floors or {}).get(service, (glibc, macos))
+        service_assets = (assets or {}).get(service) or _assets(service, targets, glibc=service_glibc, macos=service_macos)
+        pin, _ = build_release(release, service=service, tag=_TAG, assets=service_assets, corrupt=corrupt)
         write_service_pin(pin, pin_path(repo, service))
     return Fixture(repo=repo, cache=tmp_path / "cache", release=release)
 
@@ -169,7 +191,7 @@ def test_a_tampered_asset_fails_and_writes_no_wheel(tmp_path: Path, script: Modu
 
 
 def test_the_glibc_floor_is_a_build_input(tmp_path: Path, script: ModuleType) -> None:
-    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.LINUX_X64,)})
+    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.LINUX_X64,)}, glibc="2_28")
     assert _build(script, fixture, tmp_path / "out", "--glibc-floor", "2_28") == 0
     assert (tmp_path / "out" / f"spec_kitty_services-{_VERSION}-py3-none-manylinux_2_28_x86_64.whl").is_file()
 
@@ -475,3 +497,120 @@ def test_a_wheel_exactly_at_the_cap_passes(tmp_path: Path, script: ModuleType) -
     assert [path.stat().st_size for path in built] == [size]
     with pytest.raises(script.BuildError, match="COMPANION_SIZE_EXCEEDED"):  # one byte less fails
         script.build(fixture.repo, tmp_path / "out-2", cache_root=fixture.cache, gate=script.SizeGate(max_bytes=size - 1, warn_bytes=0), warn=lambda message: None)
+
+
+# --------------------------------------------------------------------------- #
+# The platform floor is read from the binary (#6948, US1, US2, US3)
+# --------------------------------------------------------------------------- #
+
+
+def test_a_linux_asset_that_needs_more_than_the_declared_floor_refuses(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
+    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.LINUX_X64,)}, glibc="2_42")
+    assert _build(script, fixture, tmp_path / "out") == 1
+    err = capsys.readouterr().err
+    assert "SERVICE_PLATFORM_FLOOR_EXCEEDED" in err
+    assert "needs glibc 2_42" in err and "2_39" in err  # the measured floor and the one the tag claims
+    assert asset_name("write-service", _TAG, ServiceTarget.LINUX_X64) in err  # which binary to look at
+    assert "raise --glibc-floor to 2_42 in release.yml" in err  # the remedy
+    assert not list((tmp_path / "out").glob("*.whl"))
+
+
+def test_a_macos_asset_that_needs_more_than_the_declared_floor_refuses(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
+    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.MACOS_ARM64,)}, macos="12_0")
+    assert _build(script, fixture, tmp_path / "out") == 1
+    err = capsys.readouterr().err
+    assert "SERVICE_PLATFORM_FLOOR_EXCEEDED" in err
+    assert "needs macOS 12_0" in err
+    assert "raise --macos-floor to 12_0 in release.yml" in err
+    assert not list((tmp_path / "out").glob("*.whl"))
+
+
+def test_the_wheel_floor_is_the_maximum_over_its_binaries(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
+    fixture = _repo(
+        tmp_path,
+        services={"write-service": (ServiceTarget.LINUX_X64,), "charter-service": (ServiceTarget.LINUX_X64,)},
+        floors={"charter-service": ("2_42", "11_0")},
+    )
+    assert _build(script, fixture, tmp_path / "out") == 1
+    err = capsys.readouterr().err
+    assert "SERVICE_PLATFORM_FLOOR_EXCEEDED" in err
+    assert asset_name("charter-service", _TAG, ServiceTarget.LINUX_X64) in err  # the binary that sets the floor
+    assert asset_name("write-service", _TAG, ServiceTarget.LINUX_X64) not in err
+
+
+@pytest.mark.parametrize(("glibc", "macos"), [("2_39", "11_0"), ("2_28", "10_15")], ids=["at-the-floor", "below-the-floor"])
+def test_a_binary_at_or_below_the_declared_floor_builds(tmp_path: Path, script: ModuleType, glibc: str, macos: str) -> None:
+    """Positive control for both refusals: the same fixtures, one floor lower, build the five wheels."""
+    fixture = _repo(tmp_path, glibc=glibc, macos=macos)
+    assert _build(script, fixture, tmp_path / "out") == 0
+    assert sorted(path.name for path in (tmp_path / "out").glob("*.whl")) == sorted(
+        [f"spec_kitty_services-{_VERSION}-py3-none-any.whl", *(f"spec_kitty_services-{_VERSION}-py3-none-{tag}.whl" for tag in _PLATFORM_TAGS.values())]
+    )
+
+
+@pytest.mark.parametrize(
+    ("target", "assets"),
+    [
+        (ServiceTarget.LINUX_X64, {"write-service": {ServiceTarget.LINUX_X64: b"#!/bin/sh\necho not a native binary\n", ServiceTarget.JVM: b"PK jar\n"}}),
+        (ServiceTarget.MACOS_ARM64, {"write-service": {ServiceTarget.MACOS_ARM64: elf64(), ServiceTarget.JVM: b"PK jar\n"}}),
+    ],
+    ids=["a-script-in-a-linux-slot", "an-elf-in-a-macos-slot"],
+)
+def test_an_unreadable_asset_is_refused(
+    tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str], target: ServiceTarget, assets: Mapping[str, Mapping[ServiceTarget, bytes]]
+) -> None:
+    fixture = _repo(tmp_path, services={"write-service": (target,)}, assets=assets)
+    assert _build(script, fixture, tmp_path / "out") == 1
+    err = capsys.readouterr().err
+    assert "SERVICE_PLATFORM_FLOOR_UNREADABLE" in err
+    assert asset_name("write-service", _TAG, target) in err
+    assert not list((tmp_path / "out").glob("*.whl"))
+
+
+def test_windows_assets_are_not_measured(tmp_path: Path, script: ModuleType) -> None:
+    # A Windows asset states no OS minimum, so it is never parsed: any bytes are fine.
+    fixture = _repo(
+        tmp_path,
+        services={"write-service": (ServiceTarget.WINDOWS_X64,)},
+        assets={"write-service": {ServiceTarget.WINDOWS_X64: b"not a PE at all"}},
+    )
+    assert _build(script, fixture, tmp_path / "out") == 0
+    assert (tmp_path / "out" / f"spec_kitty_services-{_VERSION}-py3-none-win_amd64.whl").is_file()
+
+
+def test_verify_fails_a_wheel_whose_tag_understates_its_binaries(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
+    """A wheel built outside this guard, tagged below what its bundled binaries need, cannot verify."""
+    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.LINUX_X64,)})
+    assert _build(script, fixture, tmp_path / "out") == 0
+    writer = script.load_writer(fixture.repo)
+    wheel = _linux_wheel(tmp_path / "out")
+    members = _members(wheel)
+    manifest = writer.parse_manifest(members["spec_kitty_services/_manifest.json"])
+    binaries = {binary: members[f"spec_kitty_services/bin/{binary.asset}"] for binary in manifest.binaries}
+    wheel.unlink()
+    writer.build_companion_wheel(
+        tmp_path / "out",
+        project_root=fixture.repo / "packages" / "spec-kitty-services",
+        version=_VERSION,
+        target="linux-x64",
+        binaries=binaries,
+        glibc_floor="2_28",
+    )
+    assert _verify(script, fixture, tmp_path / "out") == 1
+    err = capsys.readouterr().err
+    assert "COMPANION_VERIFY_FAILED" in err  # the verifier's own code, with the floor reason in the message
+    assert "needs glibc 2_39" in err and "2_28 its wheel tag claims" in err
+
+
+def test_a_bad_macos_floor_fails_even_without_a_macos_target(tmp_path: Path, script: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
+    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.WINDOWS_X64,)})
+    assert _build(script, fixture, tmp_path / "out", "--macos-floor", "twelve") == 1
+    err = capsys.readouterr().err
+    assert "COMPANION_BUILD_FAILED" in err
+    assert "macOS floor" in err  # the message names which floor is malformed
+
+
+def test_the_macos_floor_is_a_build_input(tmp_path: Path, script: ModuleType) -> None:
+    fixture = _repo(tmp_path, services={"write-service": (ServiceTarget.MACOS_ARM64,)}, macos="12_0")
+    assert _build(script, fixture, tmp_path / "out", "--macos-floor", "12_0") == 0
+    assert (tmp_path / "out" / f"spec_kitty_services-{_VERSION}-py3-none-macosx_12_0_arm64.whl").is_file()

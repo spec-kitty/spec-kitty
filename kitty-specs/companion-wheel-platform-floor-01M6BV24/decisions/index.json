@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-11-01T15:18:52.198613Z",
+      "decision_id": "01M6BV2A16NMD5QA4VZ8B814HW",
+      "final_answer": "Refuse: the declared floor stays the wheel tag (manylinux_2_39 / macosx_11_0_arm64) and the build fails with SERVICE_PLATFORM_FLOOR_EXCEEDED when a pinned binary needs a newer one, naming the asset, the measured floor and the remedy. The declared floor is a release contract recorded in release.yml and in the changelog, so the tag may only move in a reviewed change with a changelog entry; deriving it would silently narrow the hosts that can install the companion. A per-wheel measurement (the maximum over the binaries the wheel carries) still decides whether the tag is true, and an asset whose floor cannot be read is refused rather than passed.",
+      "input_key": "floor_policy",
+      "mission_id": "01M6BV2418PTM2W673QTQCTWPP",
+      "mission_slug": "companion-wheel-platform-floor-01M6BV24",
+      "opened_by": "cli",
+      "options": [
+        "Refuse: keep the declared floor as the tag and fail the build when a binary needs more",
+        "Derive: tag the wheel with the floor measured from its binaries",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Issue #6948 allows either deriving the wheel tag from the floor measured in each pinned binary, or keeping the declared floor as the tag and refusing when a binary needs more. Which should the build do?",
+      "rationale": null,
+      "resolved_at": "2026-11-01T15:18:57.218174Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.floor_policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M6BV2418PTM2W673QTQCTWPP",
+  "version": 1
+}

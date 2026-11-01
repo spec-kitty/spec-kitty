@@ -31,6 +31,7 @@ __all__ = [
     "BIN_DIR",
     "COMPANION_SERVICES",
     "DEFAULT_GLIBC_FLOOR",
+    "DEFAULT_MACOS_FLOOR",
     "DISTRIBUTION",
     "ENTRY_POINT_GROUP",
     "FALLBACK_TAG",
@@ -60,6 +61,7 @@ ENTRY_POINT_GROUP = "spec_kitty.service_binaries"
 _PROVIDERS: Mapping[str, str] = {"charter-service": "charter_service", "write-service": "write_service"}
 COMPANION_SERVICES: tuple[str, ...] = tuple(sorted(_PROVIDERS))
 DEFAULT_GLIBC_FLOOR = "2_39"
+DEFAULT_MACOS_FLOOR = "11_0"
 FALLBACK_TAG = "py3-none-any"
 _MANIFEST_SCHEMA = 1
 _REQUIRES_PYTHON = ">=3.11"
@@ -68,7 +70,7 @@ _SUMMARY = "Optional companion of spec-kitty-cli: the pinned, digest-verified se
 _ZIP_EPOCH = (1980, 1, 1, 0, 0, 0)
 _FILE_MODE = 0o100644
 _EXEC_MODE = 0o100755
-_GLIBC_FLOOR = re.compile(r"^[0-9]+_[0-9]+$")
+_FLOOR = re.compile(r"^[0-9]+_[0-9]+$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 #: A release asset name: a plain file name with no separator, drive or stream form (``C:x``), and no leading dot.
 _ASSET_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
@@ -77,7 +79,7 @@ _RELEASE_TAG = re.compile(r"^service-v[0-9]")
 _PLATFORMS: Mapping[str, str] = {
     "linux-x64": "manylinux_{glibc}_x86_64",
     "linux-arm64": "manylinux_{glibc}_aarch64",
-    "macos-arm64": "macosx_11_0_arm64",
+    "macos-arm64": "macosx_{macos}_arm64",
     "windows-x64": "win_amd64",
 }
 NATIVE_TARGETS: tuple[str, ...] = tuple(_PLATFORMS)
@@ -112,12 +114,19 @@ class Manifest:
         return next((binary for binary in self.binaries if binary.service == service), None)
 
 
-def platform_tag(target: str, glibc_floor: str = DEFAULT_GLIBC_FLOOR) -> str:
-    """The wheel tag of a native *target* (``linux-x64`` -> ``py3-none-manylinux_2_39_x86_64``)."""
-    if not _GLIBC_FLOOR.match(glibc_floor):
-        raise ValueError(f"glibc floor {glibc_floor!r} is not <major>_<minor>")
+def platform_tag(target: str, glibc_floor: str = DEFAULT_GLIBC_FLOOR, macos_floor: str = DEFAULT_MACOS_FLOOR) -> str:
+    """The wheel tag of a native *target* (``linux-x64`` -> ``py3-none-manylinux_2_39_x86_64``).
+
+    *glibc_floor* and *macos_floor* are the OS minimums the tag claims, and both are validated whether or
+    not *target* uses them: a floor that is not ``<major>_<minor>`` is refused before anything is built.
+    The caller is responsible for those floors being true of the binaries in the wheel; the release
+    build reads them out of each binary and refuses a wheel that would understate one (#6948).
+    """
+    for label, floor in (("glibc", glibc_floor), ("macOS", macos_floor)):
+        if not _FLOOR.match(floor):
+            raise ValueError(f"{label} floor {floor!r} is not <major>_<minor>")
     try:
-        return "py3-none-" + _PLATFORMS[target].format(glibc=glibc_floor)
+        return "py3-none-" + _PLATFORMS[target].format(glibc=glibc_floor, macos=macos_floor)
     except KeyError:
         raise ValueError(f"{target!r} is not a native service target ({', '.join(NATIVE_TARGETS)})") from None
 
@@ -275,11 +284,12 @@ def build_companion_wheel(
     target: str | None,
     binaries: Mapping[BundledBinary, bytes],
     glibc_floor: str = DEFAULT_GLIBC_FLOOR,
+    macos_floor: str = DEFAULT_MACOS_FLOOR,
 ) -> Path:
     """A companion wheel: the platform wheel of *target* holding *binaries*, or the fallback wheel (``target=None``, no binary)."""
     if target is None and binaries:
         raise ValueError("the fallback wheel carries no binary")
-    tag = FALLBACK_TAG if target is None else platform_tag(target, glibc_floor)
+    tag = FALLBACK_TAG if target is None else platform_tag(target, glibc_floor, macos_floor)
     members = _source_members(project_root)
     manifest = manifest_bytes(version, target, binaries)
     parse_manifest(manifest)  # refuse what no provider would accept (an asset name the allowlist rejects, a bad tag)

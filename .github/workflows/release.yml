@@ -371,13 +371,18 @@ jobs:
           uv sync --frozen --python "$(which python)"
           uv pip install --python .venv/bin/python twine==6.2.0
 
-      # The manylinux floor is the glibc of the spec-kitty-events native builders (ubuntu-24.04 =
-      # glibc 2.39), passed explicitly; change it only together with the events build hosts.
+      # The floors below are the OS minimums the published wheel tags claim: the manylinux floor is
+      # the glibc of the spec-kitty-events native builders (ubuntu-24.04 = glibc 2.39), and the macOS
+      # floor is what their Apple Silicon runner builds against. Both are passed explicitly because
+      # they are a release contract, not a guess, and the build reads each pinned binary's own floor
+      # and refuses a wheel whose tag would understate it (SERVICE_PLATFORM_FLOOR_EXCEEDED /
+      # SERVICE_PLATFORM_FLOOR_UNREADABLE). Raising one moves the published tag: change it together
+      # with the events build hosts, and say so in the changelog (#6948).
       - name: Build the companion wheels from the pins
-        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/build_services_wheel.py --out dist-services --glibc-floor 2_39
+        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/build_services_wheel.py --out dist-services --glibc-floor 2_39 --macos-floor 11_0
 
       - name: Verify the companion wheels hold exactly the pinned digests
-        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/build_services_wheel.py --verify dist-services --glibc-floor 2_39
+        run: PYTHONPATH=src uv run --frozen --no-sync python scripts/build_services_wheel.py --verify dist-services --glibc-floor 2_39 --macos-floor 11_0
 
       - name: Check the companion distributions
         run: .venv/bin/twine check dist-services/*
